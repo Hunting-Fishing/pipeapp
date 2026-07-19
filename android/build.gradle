@@ -9,18 +9,6 @@ rootProject.buildDir = '../build'
 
 subprojects {
     afterEvaluate { project ->
-        if (project.hasProperty("kotlin")) {
-            project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
-                kotlinOptions {
-                    jvmTarget = "17"
-                }
-            }
-        }
-    }
-}
-
-subprojects {
-    afterEvaluate { project ->
         if (project.plugins.hasPlugin("com.android.application") ||
                 project.plugins.hasPlugin("com.android.library")) {
             project.android {

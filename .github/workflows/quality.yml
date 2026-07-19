@@ -24,6 +24,7 @@ jobs:
           flutter-version: 3.44.6
           channel: stable
           cache: true
+          pub-cache-path: "${{ runner.temp }}/pub-cache"
 
       - name: Install Java toolchain
         uses: actions/setup-java@v5.6.0
