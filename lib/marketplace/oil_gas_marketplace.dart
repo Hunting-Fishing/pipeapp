@@ -4050,9 +4050,21 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         }
       }
     } catch (error) {
+      debugPrint('Listing publication failed: $error');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not publish listing: $error')));
+        final message = error is StateError
+            ? error.message.toString()
+            : 'The listing could not be published. Your form is still here; '
+                'check your connection and try again.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 8),
+            content: Row(children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ])));
       }
     } finally {
       if (mounted) setState(() => _publishing = false);

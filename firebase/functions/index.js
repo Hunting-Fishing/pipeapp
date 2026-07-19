@@ -53,6 +53,14 @@ exports.acceptMarketplaceOffer = onCall(
   protectedCallableOptions,
   marketplaceCommands.acceptMarketplaceOffer,
 );
+exports.createMarketplaceListing = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.createMarketplaceListing,
+);
+exports.updateMarketplaceListingMedia = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.updateMarketplaceListingMedia,
+);
 
 exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
   const now = admin.firestore.Timestamp.now();

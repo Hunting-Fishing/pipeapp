@@ -13,6 +13,12 @@ const {
   validatePlaceBid,
   validateWithdrawal,
 } = require("./marketplace_command_policy");
+const {
+  ListingPolicyError,
+  validateLocation,
+  validateMarketplaceListingInput,
+  validateReserve,
+} = require("./marketplace_listing_policy");
 
 function requiredId(data, fieldName) {
   const value = String(data && data[fieldName] || "").trim();
@@ -47,7 +53,7 @@ function receiptReference(db, uid, command, identity) {
 
 function policyError(error) {
   if (error instanceof HttpsError) return error;
-  if (error instanceof CommandPolicyError) {
+  if (error instanceof CommandPolicyError || error instanceof ListingPolicyError) {
     return new HttpsError(error.code, error.message);
   }
   console.error("Marketplace command failed", error);
@@ -109,6 +115,204 @@ function createMarketplaceCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+
+  const createMarketplaceListing = command(async (request) => {
+    const uid = requireAuth(request);
+    const listingId = requiredId(request.data, "listingId");
+    const listing = validateMarketplaceListingInput(
+        request.data && request.data.listing,
+    );
+    const location = validateLocation(request.data && request.data.location);
+    const reserve = validateReserve(
+        request.data && request.data.listing,
+        listing.transactionType,
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const privateLocationRef = db.collection("listing_private_locations")
+        .doc(listingId);
+    const privateAuctionRef = db.collection("auction_private").doc(listingId);
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "createMarketplaceListing",
+        {listingId},
+    );
+
+    return db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(listingRef);
+      const receipt = await transaction.get(receiptRef);
+      if (existing.exists) {
+        if (existing.data().sellerUid !== uid) {
+          throw new HttpsError(
+              "already-exists",
+              "This listing identifier is already in use.",
+          );
+        }
+        return receipt.exists ?
+          receipt.data().result :
+          {listingId, alreadyPublished: true};
+      }
+
+      const userSnapshot = await transaction.get(
+          db.collection("users").doc(uid),
+      );
+      const businessSnapshot = await transaction.get(
+          db.collection("public_business_profiles").doc(uid),
+      );
+      const user = userSnapshot.data() || {};
+      const business = businessSnapshot.data() || {};
+      if (listing.transactionType === "Auction" &&
+          !isAdministrator(request) &&
+          (
+            Number(user.userScore || 70) <= 80 ||
+            Number(user.profileCompletion || 0) !== 100 ||
+            user.accountVerified !== true
+          )) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Auction listings require a User Score above 80, a complete " +
+            "profile, and verified account status.",
+        );
+      }
+
+      const sellerName = String(
+          user.accountType === "business" ?
+            business.publicName || user.businessName || "" :
+            user.display_name || user.displayName || user.fullName || "",
+      ).trim() || String(
+          request.auth.token.name || request.auth.token.email ||
+          "Marketplace seller",
+      ).trim();
+      const sellerPhotoUrl = String(
+          business.photoUrl || user.photoUrl || user.photo_url ||
+          request.auth.token.picture || "",
+      ).trim();
+
+      const exactPoint = new admin.firestore.GeoPoint(
+          location.point.latitude,
+          location.point.longitude,
+      );
+      const publicPoint = location.visibility === "hidden" ?
+        null :
+        location.visibility === "exact" ?
+          exactPoint :
+          new admin.firestore.GeoPoint(
+              Math.round(location.point.latitude * 20) / 20,
+              Math.round(location.point.longitude * 20) / 20,
+          );
+      const publicListing = {
+        ...listing,
+        ...(listing.auctionStartAt ? {
+          auctionStartAt: Timestamp.fromMillis(listing.auctionStartAt),
+        } : {}),
+        ...(listing.auctionEndAt ? {
+          auctionEndAt: Timestamp.fromMillis(listing.auctionEndAt),
+        } : {}),
+        locationVisibility: location.visibility,
+        publicLocationName: location.publicName,
+        nearestTown: location.nearestTown,
+        region: location.region,
+        country: location.country,
+        approximateRadiusKm: location.visibility === "exact" ? 0 : 10,
+        ...(publicPoint ? {publicGeoPoint: publicPoint} : {}),
+        sellerUid: uid,
+        sellerName: sellerName.slice(0, 160),
+        sellerPhotoUrl: sellerPhotoUrl.slice(0, 2000),
+        sellerVerified: user.accountVerified === true,
+        ...(typeof listing.price === "number" ? {
+          initialPrice: listing.price,
+        } : {}),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        source: "marketplace_callable",
+        status: "active",
+      };
+      const result = {listingId, alreadyPublished: false};
+
+      transaction.create(listingRef, publicListing);
+      transaction.create(privateLocationRef, {
+        ownerUid: uid,
+        exactGeoPoint: exactPoint,
+        fullAddress: location.address,
+        nearestTown: location.nearestTown,
+        region: location.region,
+        postalCode: location.postalCode,
+        country: location.country,
+        accessNotes: location.accessNotes,
+        visibility: location.visibility,
+        publicName: location.publicName,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      if (reserve) {
+        transaction.create(privateAuctionRef, {
+          ownerUid: uid,
+          ...reserve,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      transaction.set(
+          receiptRef,
+          receiptData(
+              uid,
+              "createMarketplaceListing",
+              result,
+              FieldValue,
+          ),
+      );
+      return result;
+    });
+  });
+
+  const updateMarketplaceListingMedia = command(async (request) => {
+    const uid = requireAuth(request);
+    const listingId = requiredId(request.data, "listingId");
+    const imageUrls = Array.isArray(request.data && request.data.imageUrls) ?
+      request.data.imageUrls.map((value) => String(value || "").trim()) : [];
+    const imageHashes =
+      Array.isArray(request.data && request.data.imageHashes) ?
+        request.data.imageHashes.map((value) => String(value || "").trim()) :
+        [];
+    const videoUrl = String(request.data && request.data.videoUrl || "").trim();
+    const status = String(request.data && request.data.status || "").trim();
+    const errorMessage = String(request.data && request.data.error || "").trim();
+    if (
+      imageUrls.length > 30 ||
+      imageHashes.length > 30 ||
+      imageUrls.some((value) => !value.startsWith("https://")) ||
+      videoUrl && !videoUrl.startsWith("https://") ||
+      !["none", "queued", "uploading", "complete", "failed"].includes(status)
+    ) {
+      throw new HttpsError(
+          "invalid-argument",
+          "Listing media update is invalid.",
+      );
+    }
+    const listingRef = db.collection("public_listings").doc(listingId);
+    return db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(listingRef);
+      if (!snapshot.exists) {
+        throw new HttpsError("not-found", "Listing not found.");
+      }
+      if (snapshot.data().sellerUid !== uid) {
+        throw new HttpsError(
+            "permission-denied",
+            "Only the listing owner can update its media.",
+        );
+      }
+      transaction.update(listingRef, {
+        imageUrls,
+        imageHashes,
+        videoUrl: videoUrl || null,
+        mediaPhotoCount: imageUrls.length,
+        hasVideo: Boolean(videoUrl),
+        mediaUploadStatus: status,
+        ...(errorMessage ? {mediaUploadError: errorMessage.slice(0, 800)} : {}),
+        mediaUpdatedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return {listingId, status};
+    });
+  });
 
   async function requireEligibleBidder(transaction, uid, administrator) {
     if (administrator) return;
@@ -909,8 +1113,10 @@ function createMarketplaceCommands(admin) {
     acceptAuctionBidBelowReserve,
     acceptMarketplaceOffer,
     buyAuctionNow,
+    createMarketplaceListing,
     createMarketplaceOffer,
     placeAuctionBid,
+    updateMarketplaceListingMedia,
     withdrawAuctionBid,
   };
 }

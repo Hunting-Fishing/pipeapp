@@ -79,13 +79,14 @@ Future<AppCheckBootstrapStatus> initFirebaseAppCheck() async {
 
   try {
     await FirebaseAppCheck.instance.activate(
-      webProvider:
+      providerWeb:
           kIsWeb ? ReCaptchaV3Provider(appCheckWebSiteKey.trim()) : null,
-      androidProvider:
-          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      appleProvider: kDebugMode
-          ? AppleProvider.debug
-          : AppleProvider.appAttestWithDeviceCheckFallback,
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+          ? const AppleDebugProvider()
+          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
     );
     await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
     return AppCheckBootstrapStatus.active;

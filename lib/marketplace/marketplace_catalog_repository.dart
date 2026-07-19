@@ -1,13 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'marketplace_command_client.dart';
 import 'marketplace_location.dart';
 
 class MarketplaceCatalogRepository {
-  MarketplaceCatalogRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  MarketplaceCatalogRepository({
+    FirebaseFirestore? firestore,
+    MarketplaceCommandClient? commandClient,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _commands = commandClient ?? MarketplaceCommandClient();
 
   final FirebaseFirestore _firestore;
+  final MarketplaceCommandClient _commands;
 
   CollectionReference<Map<String, dynamic>> get _catalog =>
       _firestore.collection('marketplace_catalog');
@@ -59,60 +64,70 @@ class MarketplaceCatalogRepository {
   }
 
   Future<void> updateListingMedia(String listingId,
-          {required List<String> imageUrls,
-          List<String> imageHashes = const [],
-          String? videoUrl,
-          required String status,
-          String? error}) =>
-      _firestore.collection('public_listings').doc(listingId).update({
-        'imageUrls': imageUrls,
-        'imageHashes': imageHashes,
-        'videoUrl': videoUrl,
-        'mediaPhotoCount': imageUrls.length,
-        'hasVideo': videoUrl != null,
-        'mediaUploadStatus': status,
-        if (error != null) 'mediaUploadError': error,
-        'mediaUpdatedAt': FieldValue.serverTimestamp(),
-      });
+      {required List<String> imageUrls,
+      List<String> imageHashes = const [],
+      String? videoUrl,
+      required String status,
+      String? error}) async {
+    await _commands.execute('updateMarketplaceListingMedia', {
+      'listingId': listingId,
+      'imageUrls': imageUrls,
+      'imageHashes': imageHashes,
+      'videoUrl': videoUrl,
+      'status': status,
+      'error': error,
+    });
+  }
 
   Future<String> publishListing(Map<String, dynamic> values,
       {MarketplaceLocation? location, String? listingId}) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw StateError('Sign in to save a listing.');
-    final listing = listingId == null
-        ? _firestore.collection('public_listings').doc()
-        : _firestore.collection('public_listings').doc(listingId);
-    final publicValues = Map<String, dynamic>.from(values);
-    final reservePrice = publicValues.remove('reservePrice');
-    final reserveTotal = publicValues.remove('reserveTotal');
-    final batch = _firestore.batch();
-    batch.set(listing, {
-      ...publicValues,
-      if (publicValues['price'] is num && publicValues['initialPrice'] == null)
-        'initialPrice': publicValues['price'],
-      if (location != null) ...location.publicData(),
-      'sellerUid': uid,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'source': 'local_flutter_app',
-      'status': 'active',
+    if (location == null) {
+      throw StateError('Set a pickup or search location before publishing.');
+    }
+    final id = listingId ?? newListingId();
+    final response = await _commands.execute('createMarketplaceListing', {
+      'listingId': id,
+      'listing': _callableValue(values),
+      'location': {
+        'visibility': location.visibility.value,
+        'point': {
+          'latitude': location.point.latitude,
+          'longitude': location.point.longitude,
+        },
+        'publicName': location.publicName,
+        'address': location.address,
+        'nearestTown': location.nearestTown,
+        'accessNotes': location.accessNotes,
+        'region': location.region,
+        'postalCode': location.postalCode,
+        'country': location.country,
+      },
     });
-    if (publicValues['transactionType'] == 'Auction' &&
-        reservePrice is num &&
-        reservePrice > 0) {
-      batch.set(_firestore.collection('auction_private').doc(listing.id), {
-        'ownerUid': uid,
-        'reservePrice': reservePrice,
-        if (reserveTotal is num) 'reserveTotal': reserveTotal,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+    final publishedId = '${response['listingId'] ?? ''}'.trim();
+    if (publishedId != id) {
+      throw StateError(
+          'The listing service returned an invalid confirmation. Try again.');
     }
-    if (location != null) {
-      batch.set(
-          _firestore.collection('listing_private_locations').doc(listing.id),
-          location.privateData(uid));
+    return publishedId;
+  }
+
+  Object? _callableValue(Object? value) {
+    if (value is Timestamp) return value.millisecondsSinceEpoch;
+    if (value is GeoPoint) {
+      return {
+        'latitude': value.latitude,
+        'longitude': value.longitude,
+      };
     }
-    await batch.commit();
-    return listing.id;
+    if (value is Map) {
+      return value
+          .map((key, item) => MapEntry(key.toString(), _callableValue(item)));
+    }
+    if (value is Iterable) {
+      return value.map(_callableValue).toList(growable: false);
+    }
+    return value;
   }
 }

@@ -32,10 +32,20 @@ class MarketplaceCommandClient {
       }
       return Map<String, dynamic>.from(response.data as Map);
     } on FirebaseFunctionsException catch (error) {
+      final fallback = switch (error.code) {
+        'unauthenticated' => 'Your session expired. Sign in and try again.',
+        'permission-denied' =>
+          'Your account is not authorized to complete this action.',
+        'deadline-exceeded' ||
+        'unavailable' =>
+          'The marketplace service is temporarily unavailable. Try again.',
+        'not-found' ||
+        'unimplemented' =>
+          'This marketplace service is being updated. Refresh and try again.',
+        _ => 'The marketplace action could not be completed.',
+      };
       throw StateError(
-        error.message?.trim().isNotEmpty == true
-            ? error.message!
-            : 'The marketplace action could not be completed.',
+        error.message?.trim().isNotEmpty == true ? error.message! : fallback,
       );
     }
   }

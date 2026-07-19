@@ -3,10 +3,10 @@
   "description": "Firebase Cloud Functions",
   "dependencies": {
     "firebase-admin": "^13.10.0",
-    "firebase-functions": "^7.2.5"
+    "firebase-functions": "^7.3.0"
   },
   "scripts": {
-    "check": "node --check index.js && node --check app_check_config.js && node --check jurisdiction_policy.js && node --check marketplace_command_policy.js && node --check marketplace_commands.js && node --check dispatch_command_policy.js && node --check dispatch_commands.js && npm test",
+    "check": "node --check index.js && node --check app_check_config.js && node --check jurisdiction_policy.js && node --check marketplace_listing_policy.js && node --check marketplace_command_policy.js && node --check marketplace_commands.js && node --check dispatch_command_policy.js && node --check dispatch_commands.js && npm test",
     "lint": "./node_modules/.bin/eslint --max-warnings=0 .",
     "test": "node --test test/*.test.js",
     "serve": "firebase -P flutter-flow-pipe emulators:start --only functions",
