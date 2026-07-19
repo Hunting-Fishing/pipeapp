@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Wanted Parts Ad</title>
+  <desc>Editable 256 × 256 vector icon for Wanted Parts Ad, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <g>
+    <rect fill="url(#whiteGrad)" height="154" rx="15" stroke="#6A7680" stroke-width="2" width="129" x="50" y="52"/>
+    <rect fill="url(#orangeGrad)" height="24" rx="8" stroke="#8C3B00" stroke-width="2" width="58" x="86" y="41"/>
+    <circle cx="116" cy="126" fill="url(#darkGrad)" r="38" stroke="#75818A" stroke-width="2"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(0 159.0 126.0)" width="12" x="153.0" y="120.0"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(45 146.40559159102153 156.40559159102153)" width="12" x="140.40559159102153" y="150.40559159102153"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(90 116.0 169.0)" width="12" x="110.0" y="163.0"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(135 85.59440840897847 156.40559159102153)" width="12" x="79.59440840897847" y="150.40559159102153"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(180 73.0 126.0)" width="12" x="67.0" y="120.0"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(225 85.59440840897845 95.59440840897847)" width="12" x="79.59440840897845" y="89.59440840897847"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(270 115.99999999999999 83.0)" width="12" x="109.99999999999999" y="77.0"/>
+    <rect fill="#FF6B00" height="12" rx="2" transform="rotate(315 146.40559159102153 95.59440840897845)" width="12" x="140.40559159102153" y="89.59440840897845"/>
+    <circle cx="116" cy="126" fill="#041F3D" r="14" stroke="#FF6B00" stroke-width="4"/>
+    <circle cx="171" cy="174" fill="#041F3D" r="27" stroke="#FF6B00" stroke-width="7"/>
+    <line stroke="#FF6B00" stroke-linecap="round" stroke-width="10" x1="191" x2="213" y1="194" y2="214"/>
+  </g>
+</svg>

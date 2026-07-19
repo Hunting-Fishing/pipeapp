@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Pup Joint</title>
+  <desc>Editable 256 × 256 vector icon for Pup Joint, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="211" fill="#000000" opacity="0.22" rx="64" ry="13"/>
+  <g transform="rotate(-11 128 128)">
+    <rect fill="url(#silverGrad)" height="28" stroke="#5F6972" stroke-width="1.6" width="102" x="78" y="123"/>
+    <ellipse cx="78" cy="137" fill="url(#silverGrad)" rx="14" ry="14" stroke="#5F6972" stroke-width="1.6"/>
+    <ellipse cx="180" cy="137" fill="url(#silverGrad)" rx="14" ry="14" stroke="#5F6972" stroke-width="1.6"/>
+    <ellipse cx="180" cy="137" fill="#082B50" rx="8.12" ry="8.12" stroke="#A7B0B8" stroke-width="1"/>
+    <rect fill="url(#darkGrad)" height="34" rx="7.0" stroke="#73808A" stroke-width="1.5" width="25.2" x="64" y="120.0"/>
+    <rect fill="url(#darkGrad)" height="34" rx="7.0" stroke="#73808A" stroke-width="1.5" width="25.2" x="168.8" y="120.0"/>
+    <line stroke="#FF6B00" stroke-width="3" x1="80" x2="178" y1="137" y2="137"/>
+  </g>
+</svg>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Traffic-Control Vehicle</title>
+<desc>Editable 256 by 256 vector icon for Traffic-Control Vehicle. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="128" cy="216" rx="88" ry="12" fill="#000" stroke="none" stroke-width="1" opacity="0.23"/>
+<path d="M33 177 L41 136 L67 117 H116 L133 139 L142 177 Z" fill="url(#silver)" stroke="#68747D" stroke-width="2" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="63.0,124.0 106.0,124.0 124.0,141.0 51.0,141.0" fill="url(#glass)" stroke="#CFEAF5" stroke-width="1.4" opacity="1"/>
+<rect x="119" y="145" width="40" height="31" rx="4" fill="url(#silver)" stroke="#68747D" stroke-width="2" opacity="1"/>
+<circle cx="65" cy="184" r="18" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="65" cy="184" r="8.280000000000001" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="65" cy="184" r="2.88" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<circle cx="126" cy="184" r="18" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="126" cy="184" r="8.280000000000001" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="126" cy="184" r="2.88" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<rect x="58" y="88" width="118" height="20" rx="4" fill="#FFC247" stroke="#F8FAFC" stroke-width="2" opacity="1"/>
+<polygon points="61.0,106.0 68.0,106.0 81.0,90.0 74.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<polygon points="75.0,106.0 82.0,106.0 95.0,90.0 88.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<polygon points="89.0,106.0 96.0,106.0 109.0,90.0 102.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<polygon points="103.0,106.0 110.0,106.0 123.0,90.0 116.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<polygon points="117.0,106.0 124.0,106.0 137.0,90.0 130.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<polygon points="131.0,106.0 138.0,106.0 151.0,90.0 144.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<polygon points="145.0,106.0 152.0,106.0 165.0,90.0 158.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<polygon points="159.0,106.0 166.0,106.0 179.0,90.0 172.0,90.0" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+<path d="M168 80 L196 80 L196 64 L218 88 L196 112 L196 96 L168 96 Z" fill="#FF6B00" stroke="#F8FAFC" stroke-width="1.5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

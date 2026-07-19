@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Multi-Stop Route</title>
+  <desc>Editable 256 × 256 vector icon for Multi-Stop Route, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <g>
+    <rect fill="#E9EEF1" height="166" rx="15" stroke="#66727B" stroke-width="2" width="172" x="42" y="45"/>
+    <polyline fill="none" points="49,89 89,76 128,96 172,72 207,84" stroke="#A9B4BC" stroke-linecap="round" stroke-linejoin="round" stroke-width="7"/>
+    <polyline fill="none" points="53,158 94,139 134,159 178,139 208,155" stroke="#A9B4BC" stroke-linecap="round" stroke-linejoin="round" stroke-width="7"/>
+    <polyline fill="none" points="79,49 75,203" stroke="#A9B4BC" stroke-linecap="round" stroke-linejoin="round" stroke-width="7"/>
+    <polyline fill="none" points="151,50 157,204" stroke="#A9B4BC" stroke-linecap="round" stroke-linejoin="round" stroke-width="7"/>
+    <path d="M69 172 C74 127 112 148 126 106 C138 69 171 111 190 73" fill="none" stroke="#FF6B00" stroke-linecap="round" stroke-width="6"/>
+    <path d="M70,184.0 C60.88,173.92 62.32,163.36 70,163.36 C77.68,163.36 79.12,173.92 70,184.0 Z" fill="#FF6B00" stroke="#FFB276" stroke-width="1.5"/>
+    <circle cx="70" cy="170.56" fill="#F7F9FB" r="2.88"/>
+    <path d="M126,118.0 C116.88,107.92 118.32,97.36 126,97.36 C133.68,97.36 135.12,107.92 126,118.0 Z" fill="#FF6B00" stroke="#FFB276" stroke-width="1.5"/>
+    <circle cx="126" cy="104.56" fill="#F7F9FB" r="2.88"/>
+    <path d="M190,85.0 C180.88,74.92 182.32,64.36 190,64.36 C197.68,64.36 199.12,74.92 190,85.0 Z" fill="#FF6B00" stroke="#FFB276" stroke-width="1.5"/>
+    <circle cx="190" cy="71.56" fill="#F7F9FB" r="2.88"/>
+    <rect fill="#041F3D" height="18" rx="3" stroke="#6B7780" width="38" x="108" y="127"/>
+    <rect fill="#041F3D" height="13" rx="2" stroke="#6B7780" width="14" x="99" y="132"/>
+    <circle cx="109" cy="148" fill="#101820" r="5"/>
+    <circle cx="139" cy="148" fill="#101820" r="5"/>
+  </g>
+</svg>

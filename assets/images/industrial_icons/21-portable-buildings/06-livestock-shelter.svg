@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Livestock Shelter</title>
+<desc>Editable 256 by 256 vector icon for Livestock Shelter. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="128" cy="216" rx="78" ry="12" fill="#000" stroke="none" stroke-width="1" opacity="0.23"/>
+<path d="M48 100 L72 82 H186 L208 100 V186 H48 Z" fill="url(#silver)" stroke="#68747D" stroke-width="2" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="56" y1="107" x2="200" y2="107" stroke="#FF6B00" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<rect x="68" y="119" width="47" height="67" rx="4" fill="#0B3156" stroke="#5E7180" stroke-width="2" opacity="1"/>
+<rect x="132" y="112" width="53" height="38" rx="4" fill="url(#glass)" stroke="#5E7180" stroke-width="2" opacity="1"/>
+<ellipse cx="160" cy="172" rx="19.5" ry="11.05" fill="#9A7045" stroke="#D1B086" stroke-width="1.5" opacity="1"/>
+<circle cx="178.2" cy="166.8" r="7.800000000000001" fill="#9A7045" stroke="#D1B086" stroke-width="1.3" opacity="1"/>
+<line x1="148.3" y1="179.8" x2="147.0" y2="192.15" stroke="#9A7045" stroke-width="3.25" opacity="1" stroke-linecap="round"/>
+<line x1="166.5" y1="179.8" x2="165.2" y2="192.15" stroke="#9A7045" stroke-width="3.25" opacity="1" stroke-linecap="round"/>
+<line x1="180.15" y1="162.25" x2="187.95" y2="158.35" stroke="#E1C69D" stroke-width="1.9500000000000002" opacity="1" stroke-linecap="round"/>
+<line x1="180.15" y1="162.25" x2="187.95" y2="165.5" stroke="#E1C69D" stroke-width="1.9500000000000002" opacity="1" stroke-linecap="round"/>
+</svg>

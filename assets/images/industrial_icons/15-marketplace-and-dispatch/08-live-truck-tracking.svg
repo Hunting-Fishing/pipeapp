@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Live Truck Tracking</title>
+  <desc>Editable 256 × 256 vector icon for Live Truck Tracking, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <g>
+    <path d="M38 180 C66 100 111 177 150 102 C171 62 194 73 216 91" fill="none" stroke="#51677A" stroke-linecap="round" stroke-width="11"/>
+    <path d="M38 180 C66 100 111 177 150 102 C171 62 194 73 216 91" fill="none" stroke="#FF6B00" stroke-dasharray="8,7" stroke-linecap="round" stroke-width="4"/>
+    <path d="M44,197.25 C31.65,183.6 33.6,169.3 44,169.3 C54.4,169.3 56.35,183.6 44,197.25 Z" fill="#FF6B00" stroke="#FFB276" stroke-width="1.5"/>
+    <circle cx="44" cy="179.05" fill="#F7F9FB" r="3.9000000000000004"/>
+    <path d="M214,108.25 C201.65,94.6 203.6,80.3 214,80.3 C224.4,80.3 226.35,94.6 214,108.25 Z" fill="#FF6B00" stroke="#FFB276" stroke-width="1.5"/>
+    <circle cx="214" cy="90.05" fill="#F7F9FB" r="3.9000000000000004"/>
+    <rect fill="url(#silverGrad)" height="28" rx="4" stroke="#66727B" width="62" x="104" y="112"/>
+    <path d="M79 140 L84 118 L104 112 L104 140 Z" fill="url(#whiteGrad)" stroke="#66727B"/>
+    <circle cx="98" cy="143" fill="url(#tireGrad)" r="10"/>
+    <circle cx="150" cy="143" fill="url(#tireGrad)" r="10"/>
+  </g>
+</svg>

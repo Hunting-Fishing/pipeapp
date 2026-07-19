@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>For Sale Listing</title>
+<desc>Editable 256 by 256 vector icon for For Sale Listing. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="42" y="60" width="172" height="135" rx="14" fill="url(#silver)" stroke="#68747D" stroke-width="2" opacity="1"/>
+<rect x="42" y="60" width="172" height="27" rx="14" fill="url(#orange)" stroke="#D94F00" stroke-width="1" opacity="1"/>
+<rect x="58" y="105" width="86" height="65" rx="6" fill="url(#glass)" stroke="#7D8992" stroke-width="1" opacity="1"/>
+<path d="M64 166 L87 139 L104 154 L119 133 L139 166 Z" fill="#567A59" stroke="none" stroke-width="1" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="126" cy="120" r="8" fill="#FFC247" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="157" y1="111" x2="205" y2="111" stroke="#7F8A93" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<line x1="157" y1="136" x2="200" y2="136" stroke="#7F8A93" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<line x1="157" y1="161" x2="211" y2="161" stroke="#7F8A93" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<circle cx="181" cy="177" r="17" fill="#FF6B00" stroke="#F8FAFC" stroke-width="2" opacity="1"/>
+<line x1="173" y1="177" x2="189" y2="177" stroke="#F8FAFC" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="181" y1="169" x2="181" y2="185" stroke="#F8FAFC" stroke-width="3" opacity="1" stroke-linecap="round"/>
+</svg>

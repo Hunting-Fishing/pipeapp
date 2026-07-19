@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Urgent Dispatch</title>
+  <desc>Editable 256 × 256 vector icon for Urgent Dispatch, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="214" fill="#000000" opacity="0.22" rx="74" ry="13"/>
+  <g>
+    <path d="M31,182.2 L31,142.64 Q31,132.32 42.18,130.6 L67.12,130.6 L81.74000000000001,146.94 L87.75999999999999,182.2 Z" fill="url(#whiteGrad)" stroke="#5D6872" stroke-width="2"/>
+    <polygon fill="url(#glassGrad)" points="39.6,137.48 64.53999999999999,137.48 75.72,149.52 39.6,149.52" stroke="#D9EEF6" stroke-width="1.4"/>
+    <rect fill="#E8EDF1" height="12.9" rx="2.58" stroke="#7B8790" width="38.7" x="37.88" y="154.68"/>
+    <line stroke="#FF6B00" stroke-width="3.44" x1="37.88" x2="80.88" y1="171.01999999999998" y2="171.01999999999998"/>
+    <rect fill="url(#silverGrad)" height="41" rx="6" stroke="#66727B" width="92" x="86" y="137"/>
+    <circle cx="59" cy="186" fill="url(#tireGrad)" r="15" stroke="#56626C" stroke-width="2"/>
+    <circle cx="59" cy="186" fill="url(#silverGrad)" r="7.05" stroke="#25323B" stroke-width="2"/>
+    <circle cx="59" cy="186" fill="#FF6B00" r="2.6999999999999997"/>
+    <circle cx="112" cy="186" fill="url(#tireGrad)" r="15" stroke="#56626C" stroke-width="2"/>
+    <circle cx="112" cy="186" fill="url(#silverGrad)" r="7.05" stroke="#25323B" stroke-width="2"/>
+    <circle cx="112" cy="186" fill="#FF6B00" r="2.6999999999999997"/>
+    <circle cx="163" cy="186" fill="url(#tireGrad)" r="15" stroke="#56626C" stroke-width="2"/>
+    <circle cx="163" cy="186" fill="url(#silverGrad)" r="7.05" stroke="#25323B" stroke-width="2"/>
+    <circle cx="163" cy="186" fill="#FF6B00" r="2.6999999999999997"/>
+    <path d="M158 105 Q162 65 181 65 Q200 65 204 105 Z" fill="url(#orangeGrad)" stroke="#FFB77E" stroke-width="2"/>
+    <rect fill="#5B6770" height="9" rx="3" width="54" x="154" y="105"/>
+    <line stroke="#FF6B00" stroke-linecap="round" stroke-width="5" x1="150" x2="133" y1="70" y2="55"/>
+    <line stroke="#FF6B00" stroke-linecap="round" stroke-width="5" x1="181" x2="181" y1="54" y2="32"/>
+    <line stroke="#FF6B00" stroke-linecap="round" stroke-width="5" x1="212" x2="229" y1="70" y2="55"/>
+    <line stroke="#FF6B00" stroke-linecap="round" stroke-width="5" x1="16" x2="39" y1="134" y2="134"/>
+    <line stroke="#FF6B00" stroke-linecap="round" stroke-width="5" x1="16" x2="39" y1="151" y2="151"/>
+    <line stroke="#FF6B00" stroke-linecap="round" stroke-width="5" x1="16" x2="39" y1="168" y2="168"/>
+  </g>
+</svg>

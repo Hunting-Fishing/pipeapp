@@ -1,0 +1,499 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        (request.auth.token.admin == true ||
+         request.auth.token.email == 'jordilwbailey@gmail.com');
+    }
+
+    match /users/{uid} {
+      allow create: if owns(uid) &&
+        request.resource.data.accountType in ['personal', 'business'] &&
+        request.resource.data.userScore == 70 &&
+        request.resource.data.accountVerified == false;
+      allow read, delete: if owns(uid);
+      allow update: if owns(uid) &&
+        request.resource.data.accountType in ['personal', 'business'] &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'userScore', 'userScoreStanding', 'accountVerified',
+          'confirmedComplaintCount', 'confirmedScamCount'
+        ]);
+      allow update: if isAdmin();
+
+      match /saved_listings/{listingId} {
+        allow read, write: if owns(uid);
+      }
+
+      match /followed_sellers/{sellerId} {
+        allow read, write: if owns(uid);
+      }
+
+      match /saved_locations/{locationId} {
+        allow read: if owns(uid);
+        allow create, update: if owns(uid) &&
+          request.resource.data.ownerUid == uid;
+        allow delete: if owns(uid) && resource.data.ownerUid == uid;
+      }
+
+      match /profile_tags/{profileTagId} {
+        allow read, create, update, delete: if owns(uid);
+        allow read, update: if isAdmin();
+      }
+
+      match /notifications/{notificationId} {
+        allow read, update, delete: if owns(uid);
+        allow create: if signedIn() &&
+          request.resource.data.recipientUid == uid &&
+          request.resource.data.actorUid == request.auth.uid &&
+          request.resource.data.type in
+            ['message', 'offer', 'location_request', 'dispatch'];
+      }
+
+      match /watch_keywords/{watchId} {
+        allow read, create, update, delete: if owns(uid);
+      }
+    }
+
+    match /account_phone_registry/{phoneKey} {
+      allow create: if signedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.phoneE164 is string &&
+        request.resource.data.phoneE164.size() >= 8 &&
+        !exists(/databases/$(database)/documents/account_phone_registry/$(phoneKey));
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if signedIn() &&
+        resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    match /public_business_profiles/{businessId} {
+      allow read: if true;
+      allow create, update, delete: if owns(businessId) || isAdmin();
+    }
+
+    match /public_seller_profiles/{sellerId} {
+      allow read: if true;
+      allow create, update, delete: if owns(sellerId) || isAdmin();
+    }
+
+    match /marketplace_tags/{tagId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /tag_requests/{requestId} {
+      allow create: if signedIn() &&
+        request.resource.data.requestedByUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.requestedByUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /catalog_suggestions/{suggestionId} {
+      allow create: if signedIn() &&
+        request.resource.data.requestedByUid == request.auth.uid &&
+        request.resource.data.adminEmail == 'jordilwbailey@gmail.com' &&
+        request.resource.data.status == 'pending';
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.requestedByUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /dispatch_carriers/{carrierId} {
+      allow read: if signedIn();
+      allow create, update: if owns(carrierId) &&
+        request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if owns(carrierId) || isAdmin();
+
+      match /vehicles/{vehicleId} {
+        allow read: if signedIn();
+        allow create: if owns(carrierId) &&
+          request.resource.data.ownerUid == request.auth.uid;
+        allow update, delete: if owns(carrierId) || isAdmin();
+      }
+
+      match /saved_quotes/{quoteId} {
+        allow read, delete: if owns(carrierId);
+        allow create, update: if owns(carrierId) &&
+          request.resource.data.ownerUid == request.auth.uid;
+
+        match /revisions/{revisionId} {
+          allow read: if owns(carrierId);
+          allow create: if owns(carrierId) &&
+            request.resource.data.ownerUid == request.auth.uid &&
+            getAfter(/databases/$(database)/documents/dispatch_carriers/$(carrierId)/saved_quotes/$(quoteId)).data.ownerUid == request.auth.uid;
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    match /dispatch_scales/{scaleId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /dispatch_jobs/{jobId} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.status in ['draft', 'open'];
+      allow update: if signedIn() &&
+        resource.data.createdByUid == request.auth.uid;
+      allow update: if signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['bidCount', 'updatedAt']) &&
+        request.resource.data.bidCount == resource.data.get('bidCount', 0) + 1 &&
+        exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid));
+      allow delete: if signedIn() &&
+        resource.data.createdByUid == request.auth.uid;
+
+      match /revisions/{revisionId} {
+        allow read: if signedIn();
+        allow create: if signedIn() &&
+          request.resource.data.actorUid == request.auth.uid &&
+          getAfter(/databases/$(database)/documents/dispatch_jobs/$(jobId)).data.createdByUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    match /dispatch_bids/{bidId} {
+      allow create: if signedIn() &&
+        request.resource.data.carrierUid == request.auth.uid &&
+        exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)) &&
+        exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)/vehicles/$(request.resource.data.vehicleId)) &&
+        get(/databases/$(database)/documents/dispatch_jobs/$(request.resource.data.jobId)).data.status == 'open';
+      allow read: if signedIn() &&
+        (resource.data.carrierUid == request.auth.uid ||
+         get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.createdByUid == request.auth.uid);
+      allow update: if signedIn() &&
+        ((resource.data.carrierUid == request.auth.uid &&
+          resource.data.status == 'pending' &&
+          get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.status == 'open' &&
+          request.resource.data.carrierUid == resource.data.carrierUid &&
+          request.resource.data.jobId == resource.data.jobId &&
+          request.resource.data.revision == resource.data.get('revision', 1) + 1 &&
+          exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)/vehicles/$(request.resource.data.vehicleId)) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'amount', 'note', 'availableDate', 'vehicleId', 'vehicleName',
+            'revision', 'updatedAt'
+          ])) ||
+         (get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.createdByUid == request.auth.uid &&
+          request.resource.data.revision == resource.data.get('revision', 1) + 1 &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'revision', 'updatedAt'
+          ])));
+      allow delete: if false;
+
+      match /revisions/{revisionId} {
+        allow read: if signedIn() &&
+          (get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.carrierUid == request.auth.uid ||
+           get(/databases/$(database)/documents/dispatch_jobs/$(get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.jobId)).data.createdByUid == request.auth.uid);
+        allow create: if signedIn() &&
+          request.resource.data.actorUid == request.auth.uid &&
+          (getAfter(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.carrierUid == request.auth.uid ||
+           get(/databases/$(database)/documents/dispatch_jobs/$(getAfter(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.jobId)).data.createdByUid == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    match /weight_catalog/{weightId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /weight_suggestions/{suggestionId} {
+      allow create: if signedIn() &&
+        request.resource.data.requestedByUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.requestedByUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /verification_requests/{userId} {
+      allow create: if owns(userId) &&
+        request.resource.data.userUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow read: if owns(userId) || isAdmin();
+      allow update: if isAdmin() ||
+        (owns(userId) &&
+         resource.data.status != 'approved' &&
+         request.resource.data.userUid == request.auth.uid &&
+         request.resource.data.status == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    match /business_private/{businessId} {
+      allow create, read, update, delete: if owns(businessId);
+    }
+
+    match /marketplace_listing_drafts/{listingId} {
+      allow create: if signedIn() &&
+        request.resource.data.sellerUid == request.auth.uid;
+      allow read, update, delete: if signedIn() &&
+        resource.data.sellerUid == request.auth.uid;
+    }
+
+    match /listing_private_locations/{listingId} {
+      allow create: if signedIn() &&
+        request.resource.data.ownerUid == request.auth.uid;
+      allow read, update, delete: if signedIn() &&
+        resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /marketplace_catalog/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /geography_catalog/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /geography_places/{placeId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /public_listings/{listingId} {
+      allow read: if true;
+      allow create: if signedIn() &&
+        request.resource.data.sellerUid == request.auth.uid &&
+        request.resource.data.status in ['active', 'draft'] &&
+        (request.resource.data.transactionType != 'Auction' ||
+          (isAdmin() ||
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)));
+      allow update, delete: if signedIn() &&
+        resource.data.sellerUid == request.auth.uid &&
+        request.resource.data.sellerUid == request.auth.uid;
+      allow update: if signedIn() &&
+        resource.data.transactionType == 'Auction' &&
+        resource.data.sellerUid != request.auth.uid &&
+        request.time >= resource.data.auctionStartAt &&
+        request.time < resource.data.auctionEndAt &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentBid', 'highBidderUid', 'bidCount', 'lastBidAt', 'updatedAt'
+        ]) &&
+        request.resource.data.highBidderUid == request.auth.uid &&
+        request.resource.data.bidCount == resource.data.get('bidCount', 0) + 1 &&
+        request.resource.data.currentBid >=
+          (resource.data.get('currentBid', 0) > 0
+            ? resource.data.currentBid + resource.data.get('minimumBidIncrement', 1)
+            : resource.data.startingBid);
+      allow update: if signedIn() &&
+        resource.data.transactionType == 'Auction' &&
+        resource.data.sellerUid != request.auth.uid &&
+        request.time < resource.data.auctionEndAt &&
+        resource.data.get('buyItNowPrice', 0) > 0 &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentBid', 'highBidderUid', 'buyNowBuyerUid',
+          'acceptedBidAmount', 'auctionStatus', 'auctionEndAt',
+          'bidCount', 'lastBidAt', 'updatedAt'
+        ]) &&
+        request.resource.data.currentBid == resource.data.buyItNowPrice &&
+        request.resource.data.acceptedBidAmount == resource.data.buyItNowPrice &&
+        request.resource.data.highBidderUid == request.auth.uid &&
+        request.resource.data.buyNowBuyerUid == request.auth.uid &&
+        request.resource.data.auctionStatus == 'bought_now' &&
+        request.resource.data.auctionEndAt == request.time &&
+        request.resource.data.bidCount == resource.data.get('bidCount', 0) + 1;
+      allow update: if signedIn() &&
+        resource.data.transactionType == 'Auction' &&
+        resource.data.get('customAuction', false) == true &&
+        resource.data.highBidderUid == request.auth.uid &&
+        request.time >= resource.data.auctionStartAt + duration.value(32, 'd') &&
+        request.time < resource.data.auctionEndAt &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentBid', 'highBidderUid', 'withdrawnBidCount',
+          'lastWithdrawalBidId', 'updatedAt'
+        ]) &&
+        request.resource.data.currentBid <= resource.data.currentBid &&
+        request.resource.data.withdrawnBidCount ==
+          resource.data.get('withdrawnBidCount', 0) + 1 &&
+        getAfter(/databases/$(database)/documents/auction_bids/$(request.resource.data.lastWithdrawalBidId)).data.bidderUid == request.auth.uid &&
+        getAfter(/databases/$(database)/documents/auction_bids/$(request.resource.data.lastWithdrawalBidId)).data.status == 'withdrawn' &&
+        get(/databases/$(database)/documents/auction_bids/$(request.resource.data.lastWithdrawalBidId)).data.amount == resource.data.currentBid;
+    }
+
+    match /listing_events/{eventId} {
+      allow create: if signedIn() &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.type in
+          ['view', 'save', 'unsave', 'share', 'message_start', 'offer'];
+      allow read: if isAdmin() ||
+        (signedIn() &&
+          get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.sellerUid == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /location_requests/{requestId} {
+      allow create: if signedIn() &&
+        request.resource.data.requesterUid == request.auth.uid;
+      allow read: if signedIn() &&
+        (resource.data.requesterUid == request.auth.uid ||
+         resource.data.sellerUid == request.auth.uid);
+      allow update: if signedIn() &&
+        resource.data.sellerUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'respondedAt']);
+      allow delete: if false;
+    }
+
+    match /conversations/{conversationId} {
+      allow create: if signedIn() &&
+        request.auth.uid in request.resource.data.memberUids;
+      allow read, update: if signedIn() &&
+        request.auth.uid in resource.data.memberUids;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow create: if signedIn() &&
+          request.resource.data.senderUid == request.auth.uid &&
+          request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.memberUids;
+        allow read: if signedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.memberUids;
+        allow update, delete: if false;
+      }
+
+    }
+
+    match /offers/{offerId} {
+      allow create: if signedIn() &&
+        request.resource.data.proposedByUid == request.auth.uid &&
+        (request.resource.data.buyerUid == request.auth.uid ||
+         request.resource.data.sellerUid == request.auth.uid) &&
+        (get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.transactionType != 'Auction' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userScore > 50);
+      allow read: if signedIn() &&
+        (resource.data.buyerUid == request.auth.uid ||
+         resource.data.sellerUid == request.auth.uid);
+      allow update: if signedIn() &&
+        resource.data.sellerUid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /auction_bids/{bidId} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.bidderUid == request.auth.uid &&
+        request.resource.data.listingId is string &&
+        request.resource.data.amount is number &&
+        request.resource.data.amount > 0 &&
+        request.resource.data.sellerUid ==
+          get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.sellerUid &&
+        request.resource.data.sellerUid != request.auth.uid &&
+        request.resource.data.amount ==
+          getAfter(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.currentBid &&
+        (isAdmin() ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 50);
+      allow update: if signedIn() &&
+        resource.data.bidderUid == request.auth.uid &&
+        resource.data.status != 'withdrawn' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'withdrawnByUid', 'withdrawnAt'
+        ]) &&
+        request.resource.data.status == 'withdrawn' &&
+        request.resource.data.withdrawnByUid == request.auth.uid &&
+        get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.get('customAuction', false) == true &&
+        request.time >=
+          get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.auctionStartAt + duration.value(32, 'd') &&
+        request.time <
+          get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.auctionEndAt;
+      allow delete: if false;
+    }
+
+    match /trust_reports/{reportId} {
+      allow create: if signedIn() &&
+        request.resource.data.reporterUid == request.auth.uid &&
+        request.resource.data.reportedUid != request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.reason is string &&
+        request.resource.data.details is string &&
+        request.resource.data.details.size() >= 10 &&
+        request.resource.data.attachmentCount is int &&
+        request.resource.data.attachmentCount >= 0 &&
+        request.resource.data.attachmentCount <= 5 &&
+        request.resource.data.targetType in ['listing', 'message', 'offer', 'user'];
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.reporterUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /user_score_events/{eventId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.userUid == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /buyer_offer_profiles/{buyerUid} {
+      allow read: if isAdmin() || owns(buyerUid);
+      allow write: if false;
+    }
+
+    // North American property and rights control plane. These collections are
+    // deliberately admin/server-only until a jurisdiction has an approved,
+    // versioned brokerage policy and the server command layer is deployed.
+    match /jurisdiction_policies/{policyId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /brokerage_entities/{entityId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /brokerage_licenses/{licenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /professional_profiles/{profileId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /agent_licenses/{licenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /role_assignments/{assignmentId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /compliance_reviews/{reviewId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /property_listings/{listingId} {
+      allow read, write: if false;
+    }
+
+    match /property_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /property_feature_flags/{flagId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

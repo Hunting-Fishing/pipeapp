@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Pipeline Corridor</title>
+<desc>Editable 256 by 256 vector icon for Pipeline Corridor. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M38 182 C77 118 105 161 138 103 C165 57 197 89 222 62" fill="none" stroke="url(#silver)" stroke-width="22" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M38 182 C77 118 105 161 138 103 C165 57 197 89 222 62" fill="none" stroke="#FF6B00" stroke-width="4" opacity="1" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="9,7"/>
+<path d="M59 162.12 C51.78 154.52 52.92 146.16 59 146.16 C65.08 146.16 66.22 154.52 59 162.12 Z" fill="#FF6B00" stroke="#FFB47B" stroke-width="1.5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="59" cy="151.86" r="2.2800000000000002" fill="#F8FAFC" stroke="none" stroke-width="1" opacity="1"/>
+<path d="M121 134.12 C113.78 126.52 114.92 118.16 121 118.16 C127.08 118.16 128.22 126.52 121 134.12 Z" fill="#FF6B00" stroke="#FFB47B" stroke-width="1.5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="121" cy="123.86" r="2.2800000000000002" fill="#F8FAFC" stroke="none" stroke-width="1" opacity="1"/>
+<path d="M184 91.12 C176.78 83.52 177.92 75.16 184 75.16 C190.08 75.16 191.22 83.52 184 91.12 Z" fill="#FF6B00" stroke="#FFB47B" stroke-width="1.5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="184" cy="80.86" r="2.2800000000000002" fill="#F8FAFC" stroke="none" stroke-width="1" opacity="1"/>
+</svg>

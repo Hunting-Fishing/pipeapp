@@ -1,0 +1,64 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Restore Functions dependencies
+        run: npm ci --prefix firebase/functions
+
+      - name: Validate Functions and jurisdiction policies
+        run: npm run check --prefix firebase/functions
+
+      - name: Install Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Restore Firestore rules-test dependencies
+        run: npm ci --prefix firebase/rules-tests
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.24.0
+
+      - name: Test Firestore security rules
+        run: >
+          firebase emulators:exec
+          --project demo-pipe-buyer-rules
+          --config firebase/firebase.json
+          --only firestore
+          "npm test --prefix firebase/rules-tests"
+
+      - name: Build production web artifact
+        run: flutter build web --release

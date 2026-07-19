@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Pipe Nipples</title>
+<desc>Editable 256 by 256 vector icon for Pipe Nipples. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="128" cy="213" rx="82" ry="12" fill="#000" stroke="none" stroke-width="1" opacity="0.23"/>
+<rect x="57" y="92" width="59" height="16" rx="0" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="57" cy="100" rx="8" ry="8" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="116" cy="100" rx="8" ry="8" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="116" cy="100" rx="4.4" ry="4.4" fill="#0B3156" stroke="#B4BDC4" stroke-width="1" opacity="1"/>
+<line x1="69" y1="103.6" x2="102" y2="103.6" stroke="#FF6B00" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="56" y1="92" x2="56" y2="108" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="61" y1="92" x2="61" y2="108" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="66" y1="92" x2="66" y2="108" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="110" y1="92" x2="110" y2="108" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="115" y1="92" x2="115" y2="108" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="120" y1="92" x2="120" y2="108" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<rect x="120" y="135" width="74" height="16" rx="0" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="120" cy="143" rx="8" ry="8" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="194" cy="143" rx="8" ry="8" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="194" cy="143" rx="4.4" ry="4.4" fill="#0B3156" stroke="#B4BDC4" stroke-width="1" opacity="1"/>
+<line x1="132" y1="146.6" x2="180" y2="146.6" stroke="#FF6B00" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="119" y1="135" x2="119" y2="151" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="124" y1="135" x2="124" y2="151" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="129" y1="135" x2="129" y2="151" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="188" y1="135" x2="188" y2="151" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="193" y1="135" x2="193" y2="151" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="198" y1="135" x2="198" y2="151" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<rect x="79" y="171" width="96" height="16" rx="0" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="79" cy="179" rx="8" ry="8" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="175" cy="179" rx="8" ry="8" fill="url(#silver)" stroke="#64717B" stroke-width="1.8" opacity="1"/>
+<ellipse cx="175" cy="179" rx="4.4" ry="4.4" fill="#0B3156" stroke="#B4BDC4" stroke-width="1" opacity="1"/>
+<line x1="91" y1="182.6" x2="161" y2="182.6" stroke="#FF6B00" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="78" y1="171" x2="78" y2="187" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="83" y1="171" x2="83" y2="187" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="88" y1="171" x2="88" y2="187" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="169" y1="171" x2="169" y2="187" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="174" y1="171" x2="174" y2="187" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+<line x1="179" y1="171" x2="179" y2="187" stroke="#25313B" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+</svg>

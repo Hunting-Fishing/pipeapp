@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Bid Comparison</title>
+  <desc>Editable 256 × 256 vector icon for Bid Comparison, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <g>
+    <rect fill="url(#whiteGrad)" height="105" rx="9" stroke="#68747D" stroke-width="2" width="49" x="40" y="85"/>
+    <rect fill="#7E8B96" height="16" rx="9" width="49" x="40" y="85"/>
+    <line stroke="#89959E" stroke-width="5" x1="49" x2="79" y1="115" y2="115"/>
+    <line stroke="#89959E" stroke-width="5" x1="49" x2="79" y1="133" y2="133"/>
+    <line stroke="#89959E" stroke-width="5" x1="49" x2="79" y1="151" y2="151"/>
+    <rect fill="url(#whiteGrad)" height="132" rx="9" stroke="#68747D" stroke-width="2" width="49" x="92" y="58"/>
+    <rect fill="#FF6B00" height="16" rx="9" width="49" x="92" y="58"/>
+    <line stroke="#89959E" stroke-width="5" x1="101" x2="131" y1="88" y2="88"/>
+    <line stroke="#89959E" stroke-width="5" x1="101" x2="131" y1="106" y2="106"/>
+    <line stroke="#89959E" stroke-width="5" x1="101" x2="131" y1="124" y2="124"/>
+    <rect fill="url(#whiteGrad)" height="91" rx="9" stroke="#68747D" stroke-width="2" width="49" x="144" y="99"/>
+    <rect fill="#7E8B96" height="16" rx="9" width="49" x="144" y="99"/>
+    <line stroke="#89959E" stroke-width="5" x1="153" x2="183" y1="129" y2="129"/>
+    <line stroke="#89959E" stroke-width="5" x1="153" x2="183" y1="147" y2="147"/>
+    <line stroke="#89959E" stroke-width="5" x1="153" x2="183" y1="165" y2="165"/>
+    <circle cx="185" cy="72" fill="#48A868" r="20" stroke="#F7F9FB" stroke-width="2"/>
+    <path d="M175.4,72 L183.0,79.6 L196.0,63.6" fill="none" stroke="#F7F9FB" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+    <path d="M53 204 H195" stroke="#C7D0D8" stroke-linecap="round" stroke-width="8"/>
+  </g>
+</svg>

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "environment": "design",
+  "publishingEnabled": false,
+  "policies": [
+    {
+      "id": "north-america-ca-design",
+      "jurisdiction": {
+        "countryCode": "CA",
+        "subdivisionCode": null
+      },
+      "status": "designOnly",
+      "responsibleEntity": {
+        "id": "exp-realty-canada",
+        "legalName": "eXp Realty of Canada, Inc.",
+        "countryCode": "CA",
+        "active": true
+      },
+      "features": {
+        "enabledFeatures": [
+          "propertyDraftIntake"
+        ]
+      },
+      "brokerageLicense": null,
+      "complianceOwnerId": null,
+      "requiredFormSetVersion": null,
+      "legalReviewVersion": null,
+      "trustFundsApprovalVersion": null,
+      "effectiveAt": null,
+      "expiresAt": null
+    },
+    {
+      "id": "north-america-us-design",
+      "jurisdiction": {
+        "countryCode": "US",
+        "subdivisionCode": null
+      },
+      "status": "designOnly",
+      "responsibleEntity": {
+        "id": "exp-realty-us",
+        "legalName": "eXp Realty, LLC",
+        "countryCode": "US",
+        "active": true
+      },
+      "features": {
+        "enabledFeatures": [
+          "propertyDraftIntake"
+        ]
+      },
+      "brokerageLicense": null,
+      "complianceOwnerId": null,
+      "requiredFormSetVersion": null,
+      "legalReviewVersion": null,
+      "trustFundsApprovalVersion": null,
+      "effectiveAt": null,
+      "expiresAt": null
+    },
+    {
+      "id": "north-america-mx-design",
+      "jurisdiction": {
+        "countryCode": "MX",
+        "subdivisionCode": null
+      },
+      "status": "designOnly",
+      "responsibleEntity": {
+        "id": "exp-realtors-mexico",
+        "legalName": "Grupo eXp Realtors Mexico, S. DE R.L. DE CV",
+        "countryCode": "MX",
+        "active": true
+      },
+      "features": {
+        "enabledFeatures": [
+          "propertyDraftIntake"
+        ]
+      },
+      "brokerageLicense": null,
+      "complianceOwnerId": null,
+      "requiredFormSetVersion": null,
+      "legalReviewVersion": null,
+      "trustFundsApprovalVersion": null,
+      "effectiveAt": null,
+      "expiresAt": null
+    }
+  ]
+}
+

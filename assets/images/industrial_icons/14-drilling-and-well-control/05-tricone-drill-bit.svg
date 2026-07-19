@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Tricone Drill Bit</title>
+  <desc>Editable 256 × 256 vector icon for Tricone Drill Bit, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="214" fill="#000000" opacity="0.22" rx="55" ry="13"/>
+  <g>
+    <path d="M111 63 L145 63 L154 104 L102 104 Z" fill="url(#silverGrad)" stroke="#5D6972" stroke-width="2"/>
+    <circle cx="100" cy="143" fill="url(#darkGrad)" r="31" stroke="#747F88" stroke-width="2"/>
+    <circle cx="123.0" cy="143.0" fill="#FF6B00" r="4"/>
+    <circle cx="116.2634559672906" cy="159.26345596729058" fill="#FF6B00" r="4"/>
+    <circle cx="100.0" cy="166.0" fill="#FF6B00" r="4"/>
+    <circle cx="83.7365440327094" cy="159.26345596729058" fill="#FF6B00" r="4"/>
+    <circle cx="77.0" cy="143.0" fill="#FF6B00" r="4"/>
+    <circle cx="83.7365440327094" cy="126.7365440327094" fill="#FF6B00" r="4"/>
+    <circle cx="100.0" cy="120.0" fill="#FF6B00" r="4"/>
+    <circle cx="116.26345596729058" cy="126.7365440327094" fill="#FF6B00" r="4"/>
+    <circle cx="100" cy="143" fill="url(#silverGrad)" r="7"/>
+    <circle cx="156" cy="143" fill="url(#darkGrad)" r="31" stroke="#747F88" stroke-width="2"/>
+    <circle cx="179.0" cy="143.0" fill="#FF6B00" r="4"/>
+    <circle cx="172.26345596729058" cy="159.26345596729058" fill="#FF6B00" r="4"/>
+    <circle cx="156.0" cy="166.0" fill="#FF6B00" r="4"/>
+    <circle cx="139.73654403270942" cy="159.26345596729058" fill="#FF6B00" r="4"/>
+    <circle cx="133.0" cy="143.0" fill="#FF6B00" r="4"/>
+    <circle cx="139.7365440327094" cy="126.7365440327094" fill="#FF6B00" r="4"/>
+    <circle cx="156.0" cy="120.0" fill="#FF6B00" r="4"/>
+    <circle cx="172.26345596729058" cy="126.7365440327094" fill="#FF6B00" r="4"/>
+    <circle cx="156" cy="143" fill="url(#silverGrad)" r="7"/>
+    <circle cx="128" cy="176" fill="url(#darkGrad)" r="31" stroke="#747F88" stroke-width="2"/>
+    <circle cx="151.0" cy="176.0" fill="#FF6B00" r="4"/>
+    <circle cx="144.26345596729058" cy="192.26345596729058" fill="#FF6B00" r="4"/>
+    <circle cx="128.0" cy="199.0" fill="#FF6B00" r="4"/>
+    <circle cx="111.7365440327094" cy="192.26345596729058" fill="#FF6B00" r="4"/>
+    <circle cx="105.0" cy="176.0" fill="#FF6B00" r="4"/>
+    <circle cx="111.7365440327094" cy="159.73654403270942" fill="#FF6B00" r="4"/>
+    <circle cx="128.0" cy="153.0" fill="#FF6B00" r="4"/>
+    <circle cx="144.26345596729058" cy="159.7365440327094" fill="#FF6B00" r="4"/>
+    <circle cx="128" cy="176" fill="url(#silverGrad)" r="7"/>
+  </g>
+</svg>

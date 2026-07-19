@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Combine Harvester</title>
+  <desc>Editable 256 × 256 vector icon for Combine Harvester, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="212" fill="#000000" opacity="0.22" rx="82" ry="13"/>
+  <g>
+    <circle cx="93" cy="181" fill="url(#tireGrad)" r="30" stroke="#56626C" stroke-width="2"/>
+    <circle cx="93" cy="181" fill="url(#silverGrad)" r="14.1" stroke="#25323B" stroke-width="2"/>
+    <circle cx="93" cy="181" fill="#FF6B00" r="5.3999999999999995"/>
+    <circle cx="170" cy="188" fill="url(#tireGrad)" r="19" stroke="#56626C" stroke-width="2"/>
+    <circle cx="170" cy="188" fill="url(#silverGrad)" r="8.93" stroke="#25323B" stroke-width="2"/>
+    <circle cx="170" cy="188" fill="#FF6B00" r="3.42"/>
+    <path d="M70 171 L75 105 L123 82 L175 103 L189 174 Z" fill="url(#orangeGrad)" stroke="#8C3B00" stroke-width="2"/>
+    <polygon fill="url(#glassGrad)" points="109,91 151,91 170,111 108,119" stroke="#D9EEF6" stroke-width="1.4"/>
+    <line stroke="#FF6B00" stroke-width="9" x1="149" x2="206" y1="87" y2="62"/>
+    <line stroke="#FF6B00" stroke-width="8" x1="205" x2="222" y1="62" y2="72"/>
+    <line stroke="#C7D0D8" stroke-width="8" x1="53" x2="27" y1="170" y2="184"/>
+    <line stroke="#C7D0D8" stroke-width="7" x1="27" x2="81" y1="184" y2="190"/>
+    <line stroke="#FF6B00" stroke-width="3" x1="30" x2="28" y1="177" y2="194"/>
+    <line stroke="#FF6B00" stroke-width="3" x1="40" x2="38" y1="177" y2="194"/>
+    <line stroke="#FF6B00" stroke-width="3" x1="50" x2="48" y1="177" y2="194"/>
+    <line stroke="#FF6B00" stroke-width="3" x1="60" x2="58" y1="177" y2="194"/>
+    <line stroke="#FF6B00" stroke-width="3" x1="70" x2="68" y1="177" y2="194"/>
+  </g>
+</svg>

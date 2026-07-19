@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Bulldozer</title>
+  <desc>Editable 256 × 256 vector icon for Bulldozer, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="212" fill="#000000" opacity="0.22" rx="82" ry="13"/>
+  <g>
+    <rect fill="url(#tireGrad)" height="37" rx="18.5" stroke="#5A6872" stroke-width="2" width="131" x="48" y="166"/>
+    <rect fill="#2E3942" height="25" rx="12.5" stroke="#101820" width="115" x="56" y="172"/>
+    <circle cx="70" cy="184.5" fill="url(#silverGrad)" r="8.51" stroke="#1B252D" stroke-width="1.5"/>
+    <circle cx="113.5" cy="184.5" fill="url(#silverGrad)" r="8.51" stroke="#1B252D" stroke-width="1.5"/>
+    <circle cx="157" cy="184.5" fill="url(#silverGrad)" r="8.51" stroke="#1B252D" stroke-width="1.5"/>
+    <line opacity="0.65" stroke="#727D85" stroke-width="1" x1="57.0" x2="57.0" y1="169" y2="200"/>
+    <line opacity="0.65" stroke="#727D85" stroke-width="1" x1="75.83333333333333" x2="75.83333333333333" y1="169" y2="200"/>
+    <line opacity="0.65" stroke="#727D85" stroke-width="1" x1="94.66666666666666" x2="94.66666666666666" y1="169" y2="200"/>
+    <line opacity="0.65" stroke="#727D85" stroke-width="1" x1="113.5" x2="113.5" y1="169" y2="200"/>
+    <line opacity="0.65" stroke="#727D85" stroke-width="1" x1="132.33333333333331" x2="132.33333333333331" y1="169" y2="200"/>
+    <line opacity="0.65" stroke="#727D85" stroke-width="1" x1="151.16666666666669" x2="151.16666666666669" y1="169" y2="200"/>
+    <line opacity="0.65" stroke="#727D85" stroke-width="1" x1="170.0" x2="170.0" y1="169" y2="200"/>
+    <path d="M75 165 L78 113 L111 95 L157 113 L168 168 Z" fill="url(#orangeGrad)" stroke="#8C3B00" stroke-width="2"/>
+    <path d="M105 111 L109 78 L145 78 L157 113 Z" fill="url(#whiteGrad)" stroke="#66727B" stroke-width="2"/>
+    <polygon fill="url(#glassGrad)" points="116,87 140,87 150,108 115,108" stroke="#D9EEF6" stroke-width="1.4"/>
+    <line stroke="#D4DCE2" stroke-width="8" x1="74" x2="42" y1="126" y2="161"/>
+    <line stroke="#D4DCE2" stroke-width="8" x1="163" x2="189" y1="126" y2="161"/>
+    <path d="M29 153 Q82 163 204 151 L207 181 Q91 194 33 181 Z" fill="url(#silverGrad)" stroke="#56636C" stroke-width="2"/>
+    <line stroke="#FF6B00" stroke-width="4" x1="35" x2="201" y1="171" y2="164"/>
+  </g>
+</svg>

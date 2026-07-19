@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Fishing Tools</title>
+<desc>Editable 256 by 256 vector icon for Fishing Tools. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="128" cy="213" rx="82" ry="12" fill="#000" stroke="none" stroke-width="1" opacity="0.23"/>
+<rect x="61" y="79" width="53" height="113" rx="22" fill="url(#dark)" stroke="#75818A" stroke-width="2" opacity="1"/>
+<ellipse cx="87" cy="79" rx="26" ry="9" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
+<path d="M70 173 L87 196 L105 173" fill="none" stroke="#FF6B00" stroke-width="6" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="157" y1="71" x2="157" y2="184" stroke="url(#silver)" stroke-width="12" opacity="1" stroke-linecap="round"/>
+<path d="M141 184 L157 205 L173 184" fill="url(#orange)" stroke="#D94F00" stroke-width="2" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="143" y="65" width="28" height="17" rx="5" fill="url(#dark)" stroke="#7D8992" stroke-width="1" opacity="1"/>
+</svg>

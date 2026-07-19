@@ -1,0 +1,31 @@
+brand,model,primary_type
+Caterpillar,320,Excavator
+Caterpillar,336,Excavator
+Caterpillar,950 GC,Loader
+Caterpillar,D6,Bulldozer
+Komatsu,PC210LC-11,Excavator
+Komatsu,PC360LC-11,Excavator
+Komatsu,WA270-8,Loader
+Komatsu,D65EX-18,Bulldozer
+Volvo CE,EC220E,Excavator
+Volvo CE,EC300E,Excavator
+Volvo CE,L90H,Loader
+Volvo CE,A40G,Articulated Hauler
+John Deere,210 P-Tier,Excavator
+John Deere,350 P-Tier,Excavator
+John Deere,544 P-Tier,Loader
+John Deere,850K,Bulldozer
+Hitachi,ZX210LC-7,Excavator
+Hitachi,ZX350LC-7,Excavator
+JCB,3CX,Backhoe
+JCB,540-170,Telehandler
+Bobcat,S650,Skid Steer
+Bobcat,T76,Compact Track Loader
+Sullair,185 Series,Air Compressor
+Atlas Copco,XAS 188,Air Compressor
+Atlas Copco,QAS 45,Generator
+Lincoln Electric,Ranger 250,Welding Machine
+Miller,Bobcat 265,Welding Machine
+National Oilwell Varco,TDS-11SA,Top Drive
+National Oilwell Varco,14-P-220,Mud Pump
+Weatherford,MPD Package,Drilling Package

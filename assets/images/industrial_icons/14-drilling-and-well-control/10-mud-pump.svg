@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Mud Pump</title>
+  <desc>Editable 256 × 256 vector icon for Mud Pump, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="216" fill="#000000" opacity="0.22" rx="78" ry="13"/>
+  <g>
+    <rect fill="url(#silverGrad)" height="19" rx="5" stroke="#59656E" width="160" x="48" y="176"/>
+    <rect fill="url(#darkGrad)" height="62" rx="10" stroke="#74808A" stroke-width="2" width="93" x="67" y="112"/>
+    <circle cx="88" cy="143" fill="url(#silverGrad)" r="17" stroke="#58646D" stroke-width="2"/>
+    <circle cx="88" cy="143" fill="#FF6B00" r="6"/>
+    <circle cx="114" cy="143" fill="url(#silverGrad)" r="17" stroke="#58646D" stroke-width="2"/>
+    <circle cx="114" cy="143" fill="#FF6B00" r="6"/>
+    <circle cx="140" cy="143" fill="url(#silverGrad)" r="17" stroke="#58646D" stroke-width="2"/>
+    <circle cx="140" cy="143" fill="#FF6B00" r="6"/>
+    <circle cx="182" cy="139" fill="url(#orangeGrad)" r="29" stroke="#8C3B00" stroke-width="2"/>
+    <circle cx="182" cy="139" fill="url(#silverGrad)" r="12" stroke="#59656E"/>
+    <path d="M58 112 Q113 73 173 106" fill="none" stroke="#C7D0D8" stroke-width="8"/>
+  </g>
+</svg>

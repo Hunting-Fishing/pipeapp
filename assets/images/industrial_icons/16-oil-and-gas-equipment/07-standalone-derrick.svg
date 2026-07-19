@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Standalone Derrick</title>
+<desc>Editable 256 by 256 vector icon for Standalone Derrick. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="128" cy="213" rx="82" ry="12" fill="#000" stroke="none" stroke-width="1" opacity="0.23"/>
+<line x1="61" y1="202" x2="112" y2="47" stroke="#CAD3DA" stroke-width="8" opacity="1" stroke-linecap="round"/>
+<line x1="195" y1="202" x2="144" y2="47" stroke="#CAD3DA" stroke-width="8" opacity="1" stroke-linecap="round"/>
+<line x1="112" y1="47" x2="144" y2="47" stroke="#FF6B00" stroke-width="7" opacity="1" stroke-linecap="round"/>
+<line x1="102.78709677419354" y1="75" x2="153.21290322580646" y2="75" stroke="#87939C" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<line x1="102.78709677419354" y1="75" x2="153.21290322580646" y2="102" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="153.21290322580646" y1="75" x2="102.78709677419354" y2="102" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="93.90322580645162" y1="102" x2="162.09677419354838" y2="102" stroke="#87939C" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<line x1="93.90322580645162" y1="102" x2="162.09677419354838" y2="129" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="162.09677419354838" y1="102" x2="93.90322580645162" y2="129" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="85.01935483870967" y1="129" x2="170.9806451612903" y2="129" stroke="#87939C" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<line x1="85.01935483870967" y1="129" x2="170.9806451612903" y2="156" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="170.9806451612903" y1="129" x2="85.01935483870967" y2="156" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="76.13548387096775" y1="156" x2="179.86451612903227" y2="156" stroke="#87939C" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<line x1="76.13548387096775" y1="156" x2="179.86451612903227" y2="183" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="179.86451612903227" y1="156" x2="76.13548387096775" y2="183" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="67.2516129032258" y1="183" x2="188.7483870967742" y2="183" stroke="#87939C" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<line x1="67.2516129032258" y1="183" x2="188.7483870967742" y2="210" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<line x1="188.7483870967742" y1="183" x2="67.2516129032258" y2="210" stroke="#697680" stroke-width="3" opacity="1" stroke-linecap="round"/>
+<rect x="91" y="195" width="74" height="15" rx="3" fill="url(#orange)" stroke="#D94F00" stroke-width="1" opacity="1"/>
+</svg>
