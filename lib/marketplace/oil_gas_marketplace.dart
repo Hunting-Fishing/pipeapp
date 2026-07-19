@@ -2369,7 +2369,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
           listingTitle: listing.title,
           pickupLabel: listing.location);
       _notice(truckingPlan == MarketplaceTruckingPlan.requestDispatch
-          ? 'Offer submitted. Your Dispatch request is saved as a draft.'
+          ? 'Offer submitted. Your Dispatch request is live for carrier bids.'
           : 'Offer submitted to the seller.');
     } catch (error) {
       _notice(_actionError(error));

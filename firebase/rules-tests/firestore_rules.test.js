@@ -72,6 +72,13 @@ beforeEach(async () => {
       listingId: "listing",
       status: "pending",
     });
+    await setDoc(doc(db, "conversations", "conversation"), {
+      memberUids: ["buyer", "seller"],
+      listingId: "listing",
+      sellerUid: "seller",
+      messageCount: 0,
+      unreadCounts: {buyer: 0, seller: 0},
+    });
     await setDoc(doc(db, "auction_private", "auction"), {
       ownerUid: "seller",
       reservePrice: 175,
@@ -155,6 +162,26 @@ test("seller cannot accept an offer with a direct client update", async () => {
   }));
 });
 
+test("conversation participants cannot replace members or forge negotiation state", async () => {
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const conversation = doc(buyerDb, "conversations", "conversation");
+
+  await assertFails(updateDoc(conversation, {
+    memberUids: ["buyer", "attacker"],
+  }));
+  await assertFails(updateDoc(conversation, {
+    latestNegotiation: {
+      unitPrice: 1,
+      proposedByUid: "buyer",
+    },
+  }));
+  await assertSucceeds(updateDoc(conversation, {
+    unreadCounts: {buyer: 0, seller: 0},
+  }));
+});
+
 test("buyer cannot forge the seller identity on a new offer", async () => {
   const buyerDb = testEnvironment
       .authenticatedContext("buyer")
@@ -168,6 +195,18 @@ test("buyer cannot forge the seller identity on a new offer", async () => {
     listingId: "listing",
     status: "pending",
   }));
+  await assertFails(setDoc(
+      doc(buyerDb, "offers", "direct-client-offer"),
+      {
+        proposedByUid: "buyer",
+        buyerUid: "buyer",
+        sellerUid: "seller",
+        listingId: "listing",
+        offeredUnitPrice: 70,
+        requestedQuantity: 54,
+        status: "pending",
+      },
+  ));
 });
 
 test("seller can still change safe auction notification preferences", async () => {

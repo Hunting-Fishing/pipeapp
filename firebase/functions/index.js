@@ -12,6 +12,9 @@ exports.acceptAuctionBidBelowReserve = onCall(
   marketplaceCommands.acceptAuctionBidBelowReserve,
 );
 exports.withdrawAuctionBid = onCall(marketplaceCommands.withdrawAuctionBid);
+exports.createMarketplaceOffer = onCall(
+  marketplaceCommands.createMarketplaceOffer,
+);
 exports.acceptMarketplaceOffer = onCall(
   marketplaceCommands.acceptMarketplaceOffer,
 );

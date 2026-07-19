@@ -719,10 +719,10 @@ class _ConversationNegotiationPanelState
             dispatchDeliveryLocation: dispatchDeliveryLocation);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                  truckingPlan == MarketplaceTruckingPlan.requestDispatch
-                      ? 'Offer submitted. Dispatch request saved as a draft.'
-                      : 'Offer submitted and added to offer history.')));
+              content: Text(truckingPlan ==
+                      MarketplaceTruckingPlan.requestDispatch
+                  ? 'Offer submitted. Dispatch request is live for carrier bids.'
+                  : 'Offer submitted and added to offer history.')));
         }
       } catch (_) {
         if (mounted) {

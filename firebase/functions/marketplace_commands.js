@@ -8,6 +8,8 @@ const {
   validateBuyNow,
   validateLeadingBidRecord,
   validateOfferAcceptance,
+  validateOfferFrequency,
+  validateOfferProposal,
   validatePlaceBid,
   validateWithdrawal,
 } = require("./marketplace_command_policy");
@@ -74,6 +76,35 @@ function receiptData(uid, commandName, result, FieldValue) {
   };
 }
 
+function routeDistanceKm(origin, destination) {
+  if (
+    !origin ||
+    !Number.isFinite(Number(origin.latitude)) ||
+    !Number.isFinite(Number(origin.longitude))
+  ) {
+    return null;
+  }
+  const radians = (degrees) => degrees * Math.PI / 180;
+  const latitudeDelta = radians(
+      Number(destination.latitude) - Number(origin.latitude),
+  );
+  const longitudeDelta = radians(
+      Number(destination.longitude) - Number(origin.longitude),
+  );
+  const startLatitude = radians(Number(origin.latitude));
+  const endLatitude = radians(Number(destination.latitude));
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(startLatitude) *
+      Math.cos(endLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+  const bounded = Math.min(1, Math.max(0, haversine));
+  return Math.round(
+      6371 * 2 * Math.atan2(Math.sqrt(bounded), Math.sqrt(1 - bounded)) *
+      10,
+  ) / 10;
+}
+
 function createMarketplaceCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -89,6 +120,35 @@ function createMarketplaceCommands(admin) {
           "More account verification is required before bidding.",
       );
     }
+  }
+
+  async function offerDisplayName(
+      transaction,
+      buyerUid,
+      request,
+  ) {
+    const userSnapshot = await transaction.get(
+        db.collection("users").doc(buyerUid),
+    );
+    const user = userSnapshot.data() || {};
+    if (user.accountType === "business") {
+      const businessSnapshot = await transaction.get(
+          db.collection("public_business_profiles").doc(buyerUid),
+      );
+      const businessName =
+        String(businessSnapshot.data() && businessSnapshot.data().publicName ||
+          "").trim();
+      if (businessName) return businessName.slice(0, 160);
+    }
+    const personalName = String(
+        user.display_name ||
+        user.displayName ||
+        (buyerUid === request.auth.uid &&
+          request.auth.token &&
+          request.auth.token.name) ||
+        "",
+    ).trim();
+    return personalName ? personalName.slice(0, 160) : "Marketplace buyer";
   }
 
   const placeAuctionBid = command(async (request) => {
@@ -449,6 +509,248 @@ function createMarketplaceCommands(admin) {
     });
   });
 
+  const createMarketplaceOffer = command(async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const listingId = requiredId(request.data, "listingId");
+    const conversationId = String(
+        request.data && request.data.conversationId || "",
+    ).trim();
+    if (conversationId) requiredId({conversationId}, "conversationId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "createMarketplaceOffer",
+        {requestId},
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const offerRef = db.collection("offers").doc(requestId);
+    const conversationRef = conversationId ?
+      db.collection("conversations").doc(conversationId) :
+      null;
+
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const listingSnapshot = await transaction.get(listingRef);
+      const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
+      const conversationSnapshot = conversationRef ?
+        await transaction.get(conversationRef) :
+        null;
+      const conversation =
+        conversationSnapshot && conversationSnapshot.exists ?
+          conversationSnapshot.data() :
+          null;
+      if (conversationId && !conversation) {
+        throw new CommandPolicyError(
+            "not-found",
+            "This offer conversation is unavailable.",
+        );
+      }
+      const now = Timestamp.now();
+      const proposal = validateOfferProposal({
+        listing,
+        conversation,
+        actorUid: uid,
+        data: {...request.data, listingId},
+        now,
+      });
+      const buyerDisplayName = await offerDisplayName(
+          transaction,
+          proposal.buyerUid,
+          request,
+      );
+      const history = await transaction.get(
+          db.collection("offers")
+              .where("listingId", "==", listingId)
+              .limit(450),
+      );
+      if (history.size >= 450) {
+        throw new CommandPolicyError(
+            "resource-exhausted",
+            "This listing has too many offers for another revision.",
+        );
+      }
+      const version = validateOfferFrequency(
+          history.docs.map((candidate) => candidate.data()),
+          proposal.buyerUid,
+          now,
+      );
+      const askingUnitPriceValue = Number(listing.price);
+      const askingUnitPrice =
+        Number.isFinite(askingUnitPriceValue) && askingUnitPriceValue > 0 ?
+          askingUnitPriceValue :
+          null;
+      const askingTotal =
+        askingUnitPrice == null ?
+          0 :
+          askingUnitPrice * proposal.requestedQuantity;
+      const differenceAmount = proposal.offeredTotal - askingTotal;
+      const differencePercent =
+        askingTotal === 0 ? null : differenceAmount / askingTotal * 100;
+      const recipientUid =
+        uid === proposal.sellerUid ? proposal.buyerUid : proposal.sellerUid;
+      const result = {
+        offerId: offerRef.id,
+        listingId,
+        conversationId: conversationId || null,
+        version,
+      };
+      const offer = {
+        listingId,
+        ...(conversationId ? {conversationId} : {}),
+        sellerUid: proposal.sellerUid,
+        buyerUid: proposal.buyerUid,
+        buyerDisplayName,
+        proposedByUid: uid,
+        askingUnitPrice,
+        offeredUnitPrice: proposal.offeredUnitPrice,
+        requestedQuantity: proposal.requestedQuantity,
+        availableQuantityAtOffer:
+          Number.isFinite(Number(listing.quantity)) ?
+            Number(listing.quantity) :
+            null,
+        askingTotal,
+        offeredTotal: proposal.offeredTotal,
+        differenceAmount,
+        differencePercent,
+        currency: listing.currency || "CAD",
+        priceBasis: listing.priceBasis || "",
+        note: proposal.note,
+        purchaseDate: proposal.purchaseDate == null ?
+          null :
+          Timestamp.fromMillis(proposal.purchaseDate),
+        moneyTransferDate: proposal.moneyTransferDate == null ?
+          null :
+          Timestamp.fromMillis(proposal.moneyTransferDate),
+        truckingDate: proposal.truckingDate == null ?
+          null :
+          Timestamp.fromMillis(proposal.truckingDate),
+        truckingPlan: proposal.truckingPlan,
+        dispatchRequested: proposal.truckingPlan === "request_dispatch",
+        ...(proposal.truckingPlan === "request_dispatch" ? {
+          dispatchRequestStatus: "accepting_carrier_bids",
+          dispatchDeliveryLabel: proposal.dispatchDelivery.label,
+          dispatchDelivery: {
+            label: proposal.dispatchDelivery.label,
+            address: proposal.dispatchDelivery.address,
+            nearestTown: proposal.dispatchDelivery.nearestTown,
+            region: proposal.dispatchDelivery.region,
+            postalCode: proposal.dispatchDelivery.postalCode,
+            country: proposal.dispatchDelivery.country,
+            point: new admin.firestore.GeoPoint(
+                proposal.dispatchDelivery.latitude,
+                proposal.dispatchDelivery.longitude,
+            ),
+            accessNotes: proposal.dispatchDelivery.accessNotes,
+            privacy: "offer_participants_and_awarded_carrier",
+          },
+        } : {}),
+        status: "pending",
+        version,
+        source: conversationId ? "conversation" : "listing",
+        createdAt: FieldValue.serverTimestamp(),
+      };
+
+      transaction.create(offerRef, offer);
+      if (conversationRef) {
+        transaction.set(conversationRef, {
+          latestNegotiation: {
+            unitPrice: proposal.offeredUnitPrice,
+            quantity: proposal.requestedQuantity,
+            total: proposal.offeredTotal,
+            proposedByUid: uid,
+            status: "proposed",
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+        }, {merge: true});
+      }
+      transaction.set(
+          db.collection("users")
+              .doc(recipientUid)
+              .collection("notifications")
+              .doc(receiptRef.id),
+          {
+            recipientUid,
+            actorUid: uid,
+            type: "offer",
+            listingId,
+            offerId: offerRef.id,
+            ...(conversationId ? {conversationId} : {}),
+            title: uid === proposal.sellerUid ?
+              "Seller sent a counter-offer" :
+              "New offer received",
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+
+      if (proposal.truckingPlan === "request_dispatch") {
+        const delivery = proposal.dispatchDelivery;
+        const deliveryPoint = new admin.firestore.GeoPoint(
+            delivery.latitude,
+            delivery.longitude,
+        );
+        const distance = routeDistanceKm(
+            listing.publicGeoPoint,
+            delivery,
+        );
+        const dispatchRef = db.collection("dispatch_jobs").doc(offerRef.id);
+        const jobValues = {
+          createdByUid: uid,
+          title: String(listing.title || "Offer trucking request").slice(0, 180),
+          listingId,
+          offerId: offerRef.id,
+          pickupLabel: String(
+              listing.publicLocationName ||
+              listing.nearestTown ||
+              "Pickup location to confirm",
+          ).slice(0, 250),
+          deliveryLabel: delivery.label,
+          ...(listing.publicGeoPoint ? {
+            pickupPoint: listing.publicGeoPoint,
+          } : {}),
+          deliveryPoint,
+          deliveryAddress: delivery.address,
+          deliveryTown: delivery.nearestTown,
+          deliveryRegion: delivery.region,
+          deliveryPostalCode: delivery.postalCode,
+          deliveryCountry: delivery.country,
+          deliveryAccessNotes: delivery.accessNotes,
+          ...(distance == null ? {} : {
+            distanceKm: distance,
+            distanceSource: "coordinate_estimate",
+          }),
+          loadDetails:
+            `${String(listing.title || "Marketplace load").slice(0, 180)} • ` +
+            `${proposal.requestedQuantity} units`,
+          truckingDate: Timestamp.fromMillis(proposal.truckingDate),
+          status: "open",
+          bidCount: 0,
+          revision: 1,
+          source: "offer",
+          sourceType: "offer",
+          activationTrigger: "user_requested",
+          dispatchRequestStatus: "accepting_carrier_bids",
+          publishedAt: FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        transaction.create(dispatchRef, jobValues);
+        transaction.create(dispatchRef.collection("revisions").doc("1"), {
+          ...jobValues,
+          event: "request_created",
+          actorUid: uid,
+        });
+      }
+      transaction.set(
+          receiptRef,
+          receiptData(uid, "createMarketplaceOffer", result, FieldValue),
+      );
+      return result;
+    });
+  });
+
   const acceptMarketplaceOffer = command(async (request) => {
     const uid = requireAuth(request);
     const offerId = requiredId(request.data, "offerId");
@@ -488,12 +790,23 @@ function createMarketplaceCommands(admin) {
       validateOfferAcceptance(offer, uid, listing);
       const competingQuery = db.collection("offers")
           .where("listingId", "==", offer.listingId)
-          .limit(450);
+          .limit(300);
       const competing = await transaction.get(competingQuery);
-      if (competing.size >= 450) {
+      const dispatchJobs = await transaction.get(
+          db.collection("dispatch_jobs")
+              .where("listingId", "==", offer.listingId)
+              .limit(95),
+      );
+      if (competing.size >= 300) {
         throw new CommandPolicyError(
             "resource-exhausted",
             "This listing has too many open offers for automatic acceptance.",
+        );
+      }
+      if (dispatchJobs.size >= 95) {
+        throw new CommandPolicyError(
+            "resource-exhausted",
+            "This listing has too many Dispatch requests for automatic archival.",
         );
       }
       const result = {
@@ -531,6 +844,37 @@ function createMarketplaceCommands(admin) {
           archivedAt: FieldValue.serverTimestamp(),
         });
       }
+      for (const dispatchJob of dispatchJobs.docs) {
+        const job = dispatchJob.data();
+        if (
+          job.offerId === offerId ||
+          job.sourceType !== "offer" ||
+          !["draft", "open"].includes(job.status)
+        ) {
+          continue;
+        }
+        const revision = Number(job.revision || 1) + 1;
+        transaction.update(dispatchJob.ref, {
+          status: "archived",
+          archivedReason: "another_offer_accepted",
+          acceptedOfferId: offerId,
+          revision,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        transaction.set(
+            dispatchJob.ref.collection("revisions").doc(String(revision)),
+            {
+              ...job,
+              status: "archived",
+              archivedReason: "another_offer_accepted",
+              acceptedOfferId: offerId,
+              revision,
+              event: "request_archived",
+              actorUid: uid,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+        );
+      }
       transaction.set(
           db.collection("users")
               .doc(offer.buyerUid)
@@ -565,6 +909,7 @@ function createMarketplaceCommands(admin) {
     acceptAuctionBidBelowReserve,
     acceptMarketplaceOffer,
     buyAuctionNow,
+    createMarketplaceOffer,
     placeAuctionBid,
     withdrawAuctionBid,
   };

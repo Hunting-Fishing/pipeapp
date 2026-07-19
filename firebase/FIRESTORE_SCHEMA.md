@@ -18,9 +18,9 @@ Firestore uses collections and documents rather than SQL tables.
 - `users/{uid}/profile_tags/{tagId}`: approved selections and visibly pending user suggestions.
 - `public_seller_profiles/{uid}`: public discovery index containing approved tag IDs and account type.
 - `conversations/{conversationId}/messages/{messageId}`: listing-scoped buyer/seller chats.
-- `offers/{offerId}`: marketplace offer proposals. Clients may create a
-  proposal for an active non-auction listing and read their own proposals, but
-  acceptance and competing-offer archival are server-controlled.
+- `offers/{offerId}`: server-created marketplace offer revisions. Participants
+  may read their shared history, but clients cannot create, alter, accept, or
+  archive offer documents directly.
 - `auction_bids/{bidId}`: immutable auction bid records created and transitioned
   only by the marketplace command service.
 - `marketplace_command_receipts/{receiptId}`: deterministic, server-only
@@ -56,6 +56,7 @@ idempotency receipt. The current callable commands are:
 - `buyAuctionNow`
 - `withdrawAuctionBid`
 - `acceptAuctionBidBelowReserve`
+- `createMarketplaceOffer`
 - `acceptMarketplaceOffer`
 
 Firestore rules deny client writes to auction bid state and offer decisions.

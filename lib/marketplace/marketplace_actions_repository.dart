@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'marketplace_dispatch_distance.dart';
 import 'marketplace_location.dart';
 import 'marketplace_command_client.dart';
 
@@ -265,149 +264,24 @@ class MarketplaceActionsRepository {
     String dispatchDelivery = '',
     MarketplaceLocation? dispatchDeliveryLocation,
   }) async {
-    if (unitPrice <= 0 || quantity <= 0) {
-      throw ArgumentError('Price and quantity must be greater than zero.');
-    }
-    final conversation =
-        _firestore.collection('conversations').doc(conversationId);
-    final snapshot = await conversation.get();
-    final members =
-        List<String>.from(snapshot.data()?['memberUids'] ?? const []);
-    if (!members.contains(uid)) throw StateError('Conversation access denied.');
-    final buyerUid =
-        members.where((member) => member != sellerUid).firstOrNull ?? uid;
-    final buyerDisplayName = uid == buyerUid
-        ? await _currentOfferDisplayName()
-        : '${snapshot.data()?['buyerDisplayName'] ?? 'Marketplace buyer'}';
-    final offer = _firestore.collection('offers').doc();
-    final recipientUid = members.where((member) => member != uid).firstOrNull;
-    final notification = recipientUid == null
-        ? null
-        : _firestore
-            .collection('users')
-            .doc(recipientUid)
-            .collection('notifications')
-            .doc();
-    final listing =
-        await _firestore.collection('public_listings').doc(listingId).get();
-    final total = unitPrice * quantity;
-    final askingUnitPrice = listing.data()?['price'] as num?;
-    final askingTotal = (askingUnitPrice ?? 0) * quantity;
-    final differenceAmount = total - askingTotal;
-    final batch = _firestore.batch();
-    batch.set(offer, {
+    await _commands.execute('createMarketplaceOffer', {
+      'requestId': _firestore.collection('offers').doc().id,
       'conversationId': conversationId,
       'listingId': listingId,
-      'sellerUid': sellerUid,
-      'buyerUid': buyerUid,
-      'buyerDisplayName': buyerDisplayName,
-      'proposedByUid': uid,
-      'askingUnitPrice': askingUnitPrice,
       'offeredUnitPrice': unitPrice,
       'requestedQuantity': quantity,
-      'offeredTotal': total,
-      'askingTotal': askingTotal,
-      'differenceAmount': differenceAmount,
-      'differencePercent':
-          askingTotal == 0 ? null : differenceAmount / askingTotal * 100,
-      'currency': 'CAD',
-      'priceBasis': priceBasis,
       'note': note.trim(),
-      'purchaseDate':
-          purchaseDate == null ? null : Timestamp.fromDate(purchaseDate),
-      'moneyTransferDate': moneyTransferDate == null
-          ? null
-          : Timestamp.fromDate(moneyTransferDate),
-      'truckingDate':
-          truckingDate == null ? null : Timestamp.fromDate(truckingDate),
+      if (purchaseDate != null)
+        'purchaseDate': purchaseDate.millisecondsSinceEpoch,
+      if (moneyTransferDate != null)
+        'moneyTransferDate': moneyTransferDate.millisecondsSinceEpoch,
+      if (truckingDate != null)
+        'truckingDate': truckingDate.millisecondsSinceEpoch,
       'truckingPlan': truckingPlan,
-      'dispatchRequested': truckingPlan == 'request_dispatch',
-      if (truckingPlan == 'request_dispatch')
-        'dispatchRequestStatus': 'accepting_carrier_bids',
-      if (dispatchDelivery.isNotEmpty)
-        'dispatchDeliveryLabel': dispatchDelivery,
       if (dispatchDeliveryLocation != null)
-        'dispatchDelivery': _dispatchLocationData(dispatchDeliveryLocation),
-      'status': 'pending',
-      'version': 1,
-      'source': 'conversation',
-      'createdAt': FieldValue.serverTimestamp(),
+        'dispatchDelivery':
+            _dispatchCommandLocationData(dispatchDeliveryLocation),
     });
-    batch.update(conversation, {
-      'latestNegotiation.unitPrice': unitPrice,
-      'latestNegotiation.quantity': quantity,
-      'latestNegotiation.total': total,
-      'latestNegotiation.proposedByUid': uid,
-      'latestNegotiation.status': 'proposed',
-      'latestNegotiation.updatedAt': FieldValue.serverTimestamp(),
-    });
-    if (notification != null) {
-      batch.set(notification, {
-        'recipientUid': recipientUid,
-        'actorUid': uid,
-        'type': 'offer',
-        'listingId': listingId,
-        'offerId': offer.id,
-        'conversationId': conversationId,
-        'title': uid == sellerUid
-            ? 'Seller sent a counter-offer'
-            : 'New offer received',
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-    if (truckingPlan == 'request_dispatch' &&
-        truckingDate != null &&
-        dispatchDelivery.isNotEmpty) {
-      final dispatchJob = _firestore.collection('dispatch_jobs').doc();
-      final pickupPoint = listing.data()?['publicGeoPoint'];
-      final deliveryPoint = dispatchDeliveryLocation?.exactGeoPoint;
-      final distance = dispatchDistanceKm(
-          pickupPoint is GeoPoint ? pickupPoint : null, deliveryPoint);
-      final jobValues = <String, dynamic>{
-        'createdByUid': uid,
-        'title': '${listing.data()?['title'] ?? 'Offer trucking request'}',
-        'listingId': listingId,
-        'offerId': offer.id,
-        'pickupLabel':
-            '${listing.data()?['publicLocationName'] ?? listing.data()?['nearestTown'] ?? 'Pickup location to confirm'}',
-        'deliveryLabel': dispatchDelivery,
-        if (pickupPoint is GeoPoint) 'pickupPoint': pickupPoint,
-        if (dispatchDeliveryLocation != null) ...{
-          'deliveryPoint': dispatchDeliveryLocation.exactGeoPoint,
-          'deliveryAddress': dispatchDeliveryLocation.address.trim(),
-          'deliveryTown': dispatchDeliveryLocation.nearestTown.trim(),
-          'deliveryRegion': dispatchDeliveryLocation.region.trim(),
-          'deliveryPostalCode': dispatchDeliveryLocation.postalCode.trim(),
-          'deliveryCountry': dispatchDeliveryLocation.country.trim(),
-          'deliveryAccessNotes': dispatchDeliveryLocation.accessNotes.trim(),
-        },
-        if (distance != null) ...{
-          'distanceKm': distance,
-          'distanceSource': 'coordinate_estimate',
-        },
-        'loadDetails':
-            '${listing.data()?['title'] ?? 'Marketplace load'} • ${quantity.toString()} units',
-        'truckingDate': Timestamp.fromDate(truckingDate),
-        'status': 'open',
-        'bidCount': 0,
-        'revision': 1,
-        'source': 'offer',
-        'sourceType': 'offer',
-        'activationTrigger': 'user_requested',
-        'dispatchRequestStatus': 'accepting_carrier_bids',
-        'publishedAt': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      batch.set(dispatchJob, jobValues);
-      batch.set(dispatchJob.collection('revisions').doc('1'), {
-        ...jobValues,
-        'event': 'request_created',
-        'actorUid': uid,
-      });
-    }
-    await batch.commit();
   }
 
   Future<void> makeOffer({
@@ -428,119 +302,23 @@ class MarketplaceActionsRepository {
     String listingTitle = '',
     String pickupLabel = '',
   }) async {
-    final listing =
-        await _firestore.collection('public_listings').doc(listingId).get();
-    final askingTotal = (askingUnitPrice ?? 0) * requestedQuantity;
-    final offeredTotal = offeredUnitPrice * requestedQuantity;
-    final differenceAmount = offeredTotal - askingTotal;
-    final differencePercent =
-        askingTotal == 0 ? null : differenceAmount / askingTotal * 100;
-    final offer = _firestore.collection('offers').doc();
-    final buyerDisplayName = await _currentOfferDisplayName();
-    final notification = _firestore
-        .collection('users')
-        .doc(sellerUid)
-        .collection('notifications')
-        .doc();
-    final batch = _firestore.batch();
-    batch.set(offer, {
+    await _commands.execute('createMarketplaceOffer', {
+      'requestId': _firestore.collection('offers').doc().id,
       'listingId': listingId,
-      'buyerUid': uid,
-      'buyerDisplayName': buyerDisplayName,
-      'sellerUid': sellerUid,
-      'proposedByUid': uid,
-      'askingUnitPrice': askingUnitPrice,
       'offeredUnitPrice': offeredUnitPrice,
       'requestedQuantity': requestedQuantity,
-      'availableQuantityAtOffer': availableQuantity,
-      'priceBasis': priceBasis,
-      'askingTotal': askingTotal,
-      'offeredTotal': offeredTotal,
-      'differenceAmount': differenceAmount,
-      'differencePercent': differencePercent,
-      'currency': 'CAD',
-      'note': note,
-      'purchaseDate':
-          purchaseDate == null ? null : Timestamp.fromDate(purchaseDate),
-      'moneyTransferDate': moneyTransferDate == null
-          ? null
-          : Timestamp.fromDate(moneyTransferDate),
-      'truckingDate':
-          truckingDate == null ? null : Timestamp.fromDate(truckingDate),
+      'note': note.trim(),
+      if (purchaseDate != null)
+        'purchaseDate': purchaseDate.millisecondsSinceEpoch,
+      if (moneyTransferDate != null)
+        'moneyTransferDate': moneyTransferDate.millisecondsSinceEpoch,
+      if (truckingDate != null)
+        'truckingDate': truckingDate.millisecondsSinceEpoch,
       'truckingPlan': truckingPlan,
-      'dispatchRequested': truckingPlan == 'request_dispatch',
-      if (truckingPlan == 'request_dispatch')
-        'dispatchRequestStatus': 'accepting_carrier_bids',
-      if (dispatchDelivery.isNotEmpty)
-        'dispatchDeliveryLabel': dispatchDelivery,
       if (dispatchDeliveryLocation != null)
-        'dispatchDelivery': _dispatchLocationData(dispatchDeliveryLocation),
-      'status': 'pending',
-      'version': 1,
-      'createdAt': FieldValue.serverTimestamp(),
+        'dispatchDelivery':
+            _dispatchCommandLocationData(dispatchDeliveryLocation),
     });
-    batch.set(notification, {
-      'recipientUid': sellerUid,
-      'actorUid': uid,
-      'type': 'offer',
-      'listingId': listingId,
-      'offerId': offer.id,
-      'title': 'New offer received',
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    if (truckingPlan == 'request_dispatch' &&
-        truckingDate != null &&
-        dispatchDelivery.isNotEmpty) {
-      final dispatchJob = _firestore.collection('dispatch_jobs').doc();
-      final pickupPoint = listing.data()?['publicGeoPoint'];
-      final deliveryPoint = dispatchDeliveryLocation?.exactGeoPoint;
-      final distance = dispatchDistanceKm(
-          pickupPoint is GeoPoint ? pickupPoint : null, deliveryPoint);
-      final jobValues = <String, dynamic>{
-        'createdByUid': uid,
-        'title': listingTitle.isEmpty ? 'Offer trucking request' : listingTitle,
-        'listingId': listingId,
-        'offerId': offer.id,
-        'pickupLabel':
-            pickupLabel.isEmpty ? 'Pickup location to confirm' : pickupLabel,
-        'deliveryLabel': dispatchDelivery,
-        if (pickupPoint is GeoPoint) 'pickupPoint': pickupPoint,
-        if (dispatchDeliveryLocation != null) ...{
-          'deliveryPoint': dispatchDeliveryLocation.exactGeoPoint,
-          'deliveryAddress': dispatchDeliveryLocation.address.trim(),
-          'deliveryTown': dispatchDeliveryLocation.nearestTown.trim(),
-          'deliveryRegion': dispatchDeliveryLocation.region.trim(),
-          'deliveryPostalCode': dispatchDeliveryLocation.postalCode.trim(),
-          'deliveryCountry': dispatchDeliveryLocation.country.trim(),
-          'deliveryAccessNotes': dispatchDeliveryLocation.accessNotes.trim(),
-        },
-        if (distance != null) ...{
-          'distanceKm': distance,
-          'distanceSource': 'coordinate_estimate',
-        },
-        'loadDetails':
-            '${listingTitle.isEmpty ? 'Marketplace load' : listingTitle} • $requestedQuantity units',
-        'truckingDate': Timestamp.fromDate(truckingDate),
-        'status': 'open',
-        'bidCount': 0,
-        'revision': 1,
-        'source': 'offer',
-        'sourceType': 'offer',
-        'activationTrigger': 'user_requested',
-        'dispatchRequestStatus': 'accepting_carrier_bids',
-        'publishedAt': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      batch.set(dispatchJob, jobValues);
-      batch.set(dispatchJob.collection('revisions').doc('1'), {
-        ...jobValues,
-        'event': 'request_created',
-        'actorUid': uid,
-      });
-    }
-    await batch.commit();
   }
 
   Future<String> _currentOfferDisplayName() async {
@@ -582,14 +360,16 @@ class MarketplaceActionsRepository {
       });
 }
 
-Map<String, dynamic> _dispatchLocationData(MarketplaceLocation location) => {
+Map<String, dynamic> _dispatchCommandLocationData(
+        MarketplaceLocation location) =>
+    {
       'label': location.publicName.trim(),
       'address': location.address.trim(),
       'nearestTown': location.nearestTown.trim(),
       'region': location.region.trim(),
       'postalCode': location.postalCode.trim(),
       'country': location.country.trim(),
-      'point': location.exactGeoPoint,
+      'latitude': location.point.latitude,
+      'longitude': location.point.longitude,
       'accessNotes': location.accessNotes.trim(),
-      'privacy': 'offer_participants_and_awarded_carrier',
     };

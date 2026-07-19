@@ -7,6 +7,11 @@ const TERMINAL_AUCTION_STATUSES = new Set([
   "ended",
   "cancelled",
 ]);
+const TRUCKING_PLANS = new Set([
+  "buyer_arranged",
+  "request_dispatch",
+  "seller_pickup",
+]);
 
 class CommandPolicyError extends Error {
   constructor(code, message) {
@@ -273,6 +278,235 @@ function validateOfferAcceptance(offer, actorUid, listing) {
   }
 }
 
+function optionalOfferDate(value, fieldName, now) {
+  if (value == null) return null;
+  const milliseconds = Number(value);
+  if (!Number.isInteger(milliseconds)) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        `${fieldName} is invalid.`,
+    );
+  }
+  const nowMillis = timestampMillis(now);
+  const earliest = nowMillis - 24 * 60 * 60 * 1000;
+  const latest = nowMillis + 730 * 24 * 60 * 60 * 1000;
+  if (milliseconds < earliest || milliseconds > latest) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        `${fieldName} must be within the next two years.`,
+    );
+  }
+  return milliseconds;
+}
+
+function validateDispatchDelivery(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Choose a Dispatch delivery destination.",
+    );
+  }
+  const latitude = Number(raw.latitude);
+  const longitude = Number(raw.longitude);
+  if (
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "The Dispatch delivery pin is invalid.",
+    );
+  }
+  const text = {};
+  for (const field of [
+    "label",
+    "address",
+    "nearestTown",
+    "region",
+    "postalCode",
+    "country",
+    "accessNotes",
+  ]) {
+    const value = String(raw[field] || "").trim();
+    if (value.length > (field === "accessNotes" ? 1000 : 250)) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          `The delivery ${field} is too long.`,
+      );
+    }
+    text[field] = value;
+  }
+  if (!text.label) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Name the Dispatch delivery destination.",
+    );
+  }
+  return {latitude, longitude, ...text};
+}
+
+function validateOfferProposal({
+  listing,
+  conversation,
+  actorUid,
+  data,
+  now,
+}) {
+  if (!listing || listing.status !== "active") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This listing is not accepting offers.",
+    );
+  }
+  if (listing.transactionType === "Auction") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Auction listings use bids, not marketplace offers.",
+    );
+  }
+  const sellerUid = String(listing.sellerUid || "");
+  if (!sellerUid) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "The listing seller is missing.",
+    );
+  }
+
+  let buyerUid = actorUid;
+  if (conversation) {
+    const members = Array.isArray(conversation.memberUids) ?
+      conversation.memberUids.map(String) :
+      [];
+    if (
+      members.length !== 2 ||
+      new Set(members).size !== 2 ||
+      String(conversation.listingId || "") !== String(data.listingId || "") ||
+      String(conversation.sellerUid || "") !== sellerUid ||
+      !members.includes(actorUid) ||
+      !members.includes(sellerUid)
+    ) {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "This conversation does not belong to the listing participants.",
+      );
+    }
+    buyerUid = members.find((member) => member !== sellerUid) || "";
+  } else if (actorUid === sellerUid) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Sellers cannot submit an offer to their own listing.",
+    );
+  }
+  if (!buyerUid || buyerUid === sellerUid) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "The offer buyer is missing.",
+    );
+  }
+
+  const offeredUnitPrice = requireMoney(
+      data.offeredUnitPrice,
+      "Offer price",
+  );
+  const requestedQuantity = Number(data.requestedQuantity);
+  const availableQuantity = Number(listing.quantity || 0);
+  if (
+    !Number.isInteger(requestedQuantity) ||
+    requestedQuantity <= 0 ||
+    requestedQuantity > 1_000_000 ||
+    (availableQuantity > 0 && requestedQuantity > availableQuantity)
+  ) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "The requested quantity is unavailable.",
+    );
+  }
+  const offeredTotal = requireMoney(
+      offeredUnitPrice * requestedQuantity,
+      "Offer total",
+  );
+  const note = String(data.note || "").trim();
+  if (note.length > 2000) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Offer conditions must be 2,000 characters or fewer.",
+    );
+  }
+  const truckingPlan = String(data.truckingPlan || "");
+  if (!TRUCKING_PLANS.has(truckingPlan)) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Choose how trucking will be handled.",
+    );
+  }
+  const purchaseDate = optionalOfferDate(
+      data.purchaseDate,
+      "Purchase date",
+      now,
+  );
+  const moneyTransferDate = optionalOfferDate(
+      data.moneyTransferDate,
+      "Money transfer date",
+      now,
+  );
+  const truckingDate = optionalOfferDate(
+      data.truckingDate,
+      "Trucking date",
+      now,
+  );
+  let dispatchDelivery = null;
+  if (truckingPlan === "request_dispatch") {
+    if (truckingDate == null) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "Choose a trucking date for the Dispatch request.",
+      );
+    }
+    dispatchDelivery = validateDispatchDelivery(data.dispatchDelivery);
+  }
+
+  return {
+    sellerUid,
+    buyerUid,
+    offeredUnitPrice,
+    offeredTotal,
+    requestedQuantity,
+    note,
+    truckingPlan,
+    purchaseDate,
+    moneyTransferDate,
+    truckingDate,
+    dispatchDelivery,
+  };
+}
+
+function validateOfferFrequency(offers, buyerUid, now) {
+  const buyerOffers = offers.filter(
+      (offer) => String(offer.buyerUid || "") === buyerUid,
+  );
+  if (buyerOffers.length >= 50) {
+    throw new CommandPolicyError(
+        "resource-exhausted",
+        "The offer revision limit has been reached for this listing.",
+    );
+  }
+  const nowMillis = timestampMillis(now);
+  if (buyerOffers.some((offer) => {
+    const createdAt = timestampMillis(offer.createdAt);
+    return createdAt != null && nowMillis - createdAt < 5000;
+  })) {
+    throw new CommandPolicyError(
+        "resource-exhausted",
+        "Wait a few seconds before sending another offer revision.",
+    );
+  }
+  return buyerOffers.length + 1;
+}
+
 module.exports = {
   CommandPolicyError,
   TERMINAL_AUCTION_STATUSES,
@@ -282,6 +516,8 @@ module.exports = {
   validateBuyNow,
   validateLeadingBidRecord,
   validateOfferAcceptance,
+  validateOfferFrequency,
+  validateOfferProposal,
   validatePlaceBid,
   validateWithdrawal,
 };

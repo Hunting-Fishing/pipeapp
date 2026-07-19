@@ -9,6 +9,8 @@ const {
   validateBuyNow,
   validateLeadingBidRecord,
   validateOfferAcceptance,
+  validateOfferFrequency,
+  validateOfferProposal,
   validatePlaceBid,
   validateWithdrawal,
 } = require("../marketplace_command_policy");
@@ -212,5 +214,168 @@ test("only the seller can accept a pending complete offer", () => {
           {...listing, transactionType: "Auction"},
       ),
       (error) => error.code === "failed-precondition",
+  );
+});
+
+test("listing offers use authoritative participants and quantity", () => {
+  const listing = {
+    sellerUid: "seller",
+    status: "active",
+    transactionType: "Marketplace",
+    quantity: 54,
+  };
+  const proposal = validateOfferProposal({
+    listing,
+    conversation: null,
+    actorUid: "buyer",
+    data: {
+      listingId: "listing",
+      offeredUnitPrice: 70,
+      requestedQuantity: 54,
+      truckingPlan: "buyer_arranged",
+    },
+    now,
+  });
+  assert.equal(proposal.sellerUid, "seller");
+  assert.equal(proposal.buyerUid, "buyer");
+  assert.equal(proposal.offeredTotal, 3780);
+  assert.throws(
+      () => validateOfferProposal({
+        listing,
+        conversation: null,
+        actorUid: "seller",
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 70,
+          requestedQuantity: 54,
+          truckingPlan: "buyer_arranged",
+        },
+        now,
+      }),
+      (error) => error.code === "permission-denied",
+  );
+  assert.throws(
+      () => validateOfferProposal({
+        listing,
+        conversation: null,
+        actorUid: "buyer",
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 70,
+          requestedQuantity: 55,
+          truckingPlan: "buyer_arranged",
+        },
+        now,
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+});
+
+test("seller counter-offers require the real listing conversation", () => {
+  const proposal = validateOfferProposal({
+    listing: {
+      sellerUid: "seller",
+      status: "active",
+      transactionType: "Marketplace",
+      quantity: 54,
+    },
+    conversation: {
+      listingId: "listing",
+      sellerUid: "seller",
+      memberUids: ["seller", "buyer"],
+    },
+    actorUid: "seller",
+    data: {
+      listingId: "listing",
+      offeredUnitPrice: 73,
+      requestedQuantity: 54,
+      truckingPlan: "seller_pickup",
+    },
+    now,
+  });
+  assert.equal(proposal.buyerUid, "buyer");
+  assert.equal(proposal.sellerUid, "seller");
+  assert.throws(
+      () => validateOfferProposal({
+        listing: {
+          sellerUid: "seller",
+          status: "active",
+          transactionType: "Marketplace",
+          quantity: 54,
+        },
+        conversation: {
+          listingId: "listing",
+          sellerUid: "seller",
+          memberUids: ["seller", "buyer", "unrelated-user"],
+        },
+        actorUid: "seller",
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 73,
+          requestedQuantity: 54,
+          truckingPlan: "seller_pickup",
+        },
+        now,
+      }),
+      (error) => error.code === "permission-denied",
+  );
+});
+
+test("Dispatch offers require a dated mapped destination", () => {
+  const listing = {
+    sellerUid: "seller",
+    status: "active",
+    transactionType: "Marketplace",
+    quantity: 54,
+  };
+  assert.throws(
+      () => validateOfferProposal({
+        listing,
+        conversation: null,
+        actorUid: "buyer",
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 70,
+          requestedQuantity: 54,
+          truckingPlan: "request_dispatch",
+        },
+        now,
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+  const proposal = validateOfferProposal({
+    listing,
+    conversation: null,
+    actorUid: "buyer",
+    data: {
+      listingId: "listing",
+      offeredUnitPrice: 70,
+      requestedQuantity: 54,
+      truckingPlan: "request_dispatch",
+      truckingDate: now.getTime() + 7 * 24 * 60 * 60 * 1000,
+      dispatchDelivery: {
+        label: "Dawson Creek yard",
+        nearestTown: "Dawson Creek",
+        latitude: 55.7596,
+        longitude: -120.2377,
+      },
+    },
+    now,
+  });
+  assert.equal(proposal.dispatchDelivery.nearestTown, "Dawson Creek");
+});
+
+test("offer revisions are rate limited per buyer and listing", () => {
+  assert.equal(validateOfferFrequency([], "buyer", now), 1);
+  assert.throws(
+      () => validateOfferFrequency(
+          [{
+            buyerUid: "buyer",
+            createdAt: new Date(now.getTime() - 1000),
+          }],
+          "buyer",
+          now,
+      ),
+      (error) => error.code === "resource-exhausted",
   );
 });
