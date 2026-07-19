@@ -51,11 +51,17 @@ jobs:
       - name: Restore Functions dependencies
         run: npm ci --prefix firebase/functions
 
+      - name: Audit Functions runtime dependencies
+        run: npm audit --omit=dev --audit-level=high --prefix firebase/functions
+
       - name: Validate Functions and jurisdiction policies
         run: npm run check --prefix firebase/functions
 
       - name: Restore Firestore rules-test dependencies
         run: npm ci --prefix firebase/rules-tests
+
+      - name: Audit Firestore rules-test dependencies
+        run: npm audit --omit=dev --audit-level=high --prefix firebase/rules-tests
 
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.24.0

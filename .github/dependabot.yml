@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      flutter-packages:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /firebase/functions
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      firebase-functions-runtime:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /firebase/rules-tests
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      firebase-rules-tests:
+        patterns:
+          - "*"
