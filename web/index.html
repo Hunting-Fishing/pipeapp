@@ -53,11 +53,14 @@
   
 </head>
 <body>
-  
-  
-  
-  
-  
+  <script>
+    // Local App Check uses a per-browser debug token. Register the token printed
+    // in the browser console in Firebase Console before testing protected APIs.
+    if (location.hostname === 'localhost' ||
+        location.hostname === '127.0.0.1') {
+      self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    }
+  </script>
   <script>
     {{flutter_bootstrap_js}}
   </script>

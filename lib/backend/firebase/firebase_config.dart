@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import 'firebase_app_check_config.dart';
+
 Future initFirebase() async {
   if (kIsWeb) {
     await Firebase.initializeApp(
@@ -15,4 +17,5 @@ Future initFirebase() async {
   } else {
     await Firebase.initializeApp();
   }
+  await initFirebaseAppCheck();
 }

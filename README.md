@@ -15,6 +15,7 @@ the complete quality gate from PowerShell:
 ## Architecture and delivery controls
 
 - [North America Property and Rights Roadmap](docs/NORTH_AMERICA_PROPERTY_RIGHTS_ROADMAP.md)
+- [Firebase App Check rollout](docs/APP_CHECK_ROLLOUT.md)
 - [Engineering Control Baseline](docs/ENGINEERING_CONTROL_BASELINE.md)
 - [Firestore Schema](firebase/FIRESTORE_SCHEMA.md)
 

@@ -2,27 +2,55 @@ const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { protectedCallableOptions } = require("./app_check_config");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
 admin.initializeApp();
 
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
-exports.createDispatchJob = onCall(dispatchCommands.createDispatchJob);
-exports.updateDispatchJob = onCall(dispatchCommands.updateDispatchJob);
-exports.publishDispatchJob = onCall(dispatchCommands.publishDispatchJob);
-exports.submitDispatchQuote = onCall(dispatchCommands.submitDispatchQuote);
-exports.awardDispatchQuote = onCall(dispatchCommands.awardDispatchQuote);
-exports.placeAuctionBid = onCall(marketplaceCommands.placeAuctionBid);
-exports.buyAuctionNow = onCall(marketplaceCommands.buyAuctionNow);
+exports.createDispatchJob = onCall(
+  protectedCallableOptions,
+  dispatchCommands.createDispatchJob,
+);
+exports.updateDispatchJob = onCall(
+  protectedCallableOptions,
+  dispatchCommands.updateDispatchJob,
+);
+exports.publishDispatchJob = onCall(
+  protectedCallableOptions,
+  dispatchCommands.publishDispatchJob,
+);
+exports.submitDispatchQuote = onCall(
+  protectedCallableOptions,
+  dispatchCommands.submitDispatchQuote,
+);
+exports.awardDispatchQuote = onCall(
+  protectedCallableOptions,
+  dispatchCommands.awardDispatchQuote,
+);
+exports.placeAuctionBid = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.placeAuctionBid,
+);
+exports.buyAuctionNow = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.buyAuctionNow,
+);
 exports.acceptAuctionBidBelowReserve = onCall(
+  protectedCallableOptions,
   marketplaceCommands.acceptAuctionBidBelowReserve,
 );
-exports.withdrawAuctionBid = onCall(marketplaceCommands.withdrawAuctionBid);
+exports.withdrawAuctionBid = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.withdrawAuctionBid,
+);
 exports.createMarketplaceOffer = onCall(
+  protectedCallableOptions,
   marketplaceCommands.createMarketplaceOffer,
 );
 exports.acceptMarketplaceOffer = onCall(
+  protectedCallableOptions,
   marketplaceCommands.acceptMarketplaceOffer,
 );
 

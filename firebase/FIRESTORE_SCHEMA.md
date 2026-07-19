@@ -68,6 +68,11 @@ idempotency receipt. The current callable commands are:
 
 Firestore rules deny client writes to auction bid state, offer decisions,
 Dispatch jobs, Dispatch quote state, and their immutable revision histories.
+All marketplace callable Functions share the typed deploy-time parameter
+`PIPE_ENFORCE_APP_CHECK`. It defaults to `false` so registered clients can be
+distributed and measured before enforcement. Follow
+`docs/APP_CHECK_ROLLOUT.md`; do not enable it before the Firebase Console
+providers and current client releases are verified.
 Auction sellers retain direct access only to the explicit notification
 preferences on their own live auctions. Reserve amounts are read from
 `auction_private` by server commands and the owning seller's analytics; public
