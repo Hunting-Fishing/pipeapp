@@ -3,12 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'marketplace_dispatch_distance.dart';
 import 'marketplace_location.dart';
+import 'marketplace_command_client.dart';
 
 class MarketplaceActionsRepository {
-  MarketplaceActionsRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  MarketplaceActionsRepository({
+    FirebaseFirestore? firestore,
+    MarketplaceCommandClient? commandClient,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _commands = commandClient ?? MarketplaceCommandClient();
 
   final FirebaseFirestore _firestore;
+  final MarketplaceCommandClient _commands;
 
   static String conversationIdFor(
       String userUid, String sellerUid, String listingId) {
@@ -240,63 +245,9 @@ class MarketplaceActionsRepository {
   }
 
   Future<void> acceptOffer(String offerId) async {
-    final offer = _firestore.collection('offers').doc(offerId);
-    final snapshot = await offer.get();
-    final data = snapshot.data() ?? {};
-    if (data['sellerUid'] != uid) {
-      throw StateError('Only the seller can accept this offer.');
-    }
-    final buyerUid = '${data['buyerUid'] ?? ''}';
-    final listingId = '${data['listingId'] ?? ''}';
-    final competing = await _firestore
-        .collection('offers')
-        .where('sellerUid', isEqualTo: uid)
-        .get();
-    final batch = _firestore.batch();
-    batch.update(offer, {
-      'status': 'accepted',
-      'acceptedByUid': uid,
-      'acceptedAt': FieldValue.serverTimestamp(),
-      if (data['dispatchRequested'] == true)
-        'dispatchRequestStatus': 'accepting_carrier_bids',
+    await _commands.execute('acceptMarketplaceOffer', {
+      'offerId': offerId,
     });
-    for (final document in competing.docs) {
-      if (document.id == offerId ||
-          '${document.data()['listingId'] ?? ''}' != listingId) {
-        continue;
-      }
-      batch.update(document.reference, {
-        'status': 'archived',
-        'archivedReason': 'another_offer_accepted',
-        'acceptedOfferId': offerId,
-        'archivedAt': FieldValue.serverTimestamp(),
-      });
-    }
-    if (buyerUid.isNotEmpty) {
-      batch.set(
-          _firestore
-              .collection('users')
-              .doc(buyerUid)
-              .collection('notifications')
-              .doc(),
-          {
-            'recipientUid': buyerUid,
-            'actorUid': uid,
-            'type': 'offer',
-            'offerId': offerId,
-            'listingId': listingId,
-            'conversationId': data['conversationId'],
-            'title': data['dispatchRequested'] == true
-                ? 'Offer accepted — trucking request remains live'
-                : 'Your offer was accepted',
-            if (data['dispatchRequested'] == true)
-              'body':
-                  'Open Dispatch → Jobs to review carrier quotes and manage the route.',
-            'read': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-    }
-    await batch.commit();
   }
 
   Future<void> makeConversationOffer({

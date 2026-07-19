@@ -1,7 +1,20 @@
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onCall } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { createMarketplaceCommands } = require("./marketplace_commands");
 admin.initializeApp();
+
+const marketplaceCommands = createMarketplaceCommands(admin);
+exports.placeAuctionBid = onCall(marketplaceCommands.placeAuctionBid);
+exports.buyAuctionNow = onCall(marketplaceCommands.buyAuctionNow);
+exports.acceptAuctionBidBelowReserve = onCall(
+  marketplaceCommands.acceptAuctionBidBelowReserve,
+);
+exports.withdrawAuctionBid = onCall(marketplaceCommands.withdrawAuctionBid);
+exports.acceptMarketplaceOffer = onCall(
+  marketplaceCommands.acceptMarketplaceOffer,
+);
 
 exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
   const now = admin.firestore.Timestamp.now();

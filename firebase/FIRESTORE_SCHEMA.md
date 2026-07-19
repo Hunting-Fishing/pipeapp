@@ -16,7 +16,14 @@ Firestore uses collections and documents rather than SQL tables.
 - `users/{uid}/profile_tags/{tagId}`: approved selections and visibly pending user suggestions.
 - `public_seller_profiles/{uid}`: public discovery index containing approved tag IDs and account type.
 - `conversations/{conversationId}/messages/{messageId}`: listing-scoped buyer/seller chats.
-- `offers/{offerId}`: buyer offers and seller decisions.
+- `offers/{offerId}`: marketplace offer proposals. Clients may create a
+  proposal for an active non-auction listing and read their own proposals, but
+  acceptance and competing-offer archival are server-controlled.
+- `auction_bids/{bidId}`: immutable auction bid records created and transitioned
+  only by the marketplace command service.
+- `marketplace_command_receipts/{receiptId}`: deterministic, server-only
+  idempotency receipts for bid placement, Buy It Now, bid withdrawal,
+  below-reserve acceptance, and marketplace offer acceptance.
 - `dispatch_jobs/{jobId}`: live user trucking requests. Stores route labels,
   optional mapped planning points, estimated distance, requested date, load
   details, current status, bid count and revision number.
@@ -34,6 +41,24 @@ Firestore uses collections and documents rather than SQL tables.
 - `users/{uid}/saved_listings/{listingId}`: saved ads.
 - `users/{uid}/followed_sellers/{sellerUid}`: followed sellers and notification preference.
 - `users/{uid}/notifications/{notificationId}`: server-created marketplace notifications.
+
+## Marketplace decision boundary
+
+Financial decisions are never accepted from a direct client document update.
+The Flutter application calls the deployed callable command service, which
+re-reads authoritative listing and offer state inside a Firestore transaction,
+recalculates eligibility and minimums, writes the decision, and records an
+idempotency receipt. The current callable commands are:
+
+- `placeAuctionBid`
+- `buyAuctionNow`
+- `withdrawAuctionBid`
+- `acceptAuctionBidBelowReserve`
+- `acceptMarketplaceOffer`
+
+Firestore rules deny client writes to auction bid state and offer decisions.
+Auction sellers retain direct access only to the explicit notification
+preferences on their own live auctions.
 
 Exact listing coordinates must never be stored in `public_listings` unless the seller explicitly selects exact visibility.
 

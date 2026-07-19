@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'marketplace_messages_page.dart';
+import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_navigation.dart';
@@ -1403,33 +1404,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                     ])) ??
         false;
     if (!confirmed) return;
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final firestore = FirebaseFirestore.instance;
-    final batch = firestore.batch();
-    batch
-        .update(firestore.collection('public_listings').doc(widget.listingId), {
-      'auctionStatus': 'accepted_below_reserve',
-      'acceptedBidAmount': currentBid,
-      'acceptedBidderUid': bidderUid,
-      'auctionEndAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    batch.set(
-        firestore
-            .collection('users')
-            .doc(bidderUid)
-            .collection('notifications')
-            .doc(),
-        {
-          'recipientUid': bidderUid,
-          'actorUid': uid,
-          'type': 'offer',
-          'listingId': widget.listingId,
-          'title': 'Your auction bid was accepted',
-          'read': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-    await batch.commit();
+    await MarketplaceAuctionRepository()
+        .acceptLeadingBidBelowReserve(listingId: widget.listingId);
     if (mounted) Navigator.pop(context);
   }
 }

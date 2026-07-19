@@ -280,60 +280,54 @@ service cloud.firestore {
         request.resource.data.sellerUid == request.auth.uid &&
         request.resource.data.status in ['active', 'draft'] &&
         (request.resource.data.transactionType != 'Auction' ||
-          (isAdmin() ||
-          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)));
-      allow update, delete: if signedIn() &&
+          ((isAdmin() ||
+            (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)) &&
+           request.resource.data.auctionStartAt is timestamp &&
+           request.resource.data.auctionEndAt is timestamp &&
+           request.resource.data.auctionEndAt >
+             request.resource.data.auctionStartAt &&
+           request.resource.data.startingBid is number &&
+           request.resource.data.startingBid > 0 &&
+           request.resource.data.minimumBidIncrement is number &&
+           request.resource.data.minimumBidIncrement > 0 &&
+           request.resource.data.get('currentBid', 0) == 0 &&
+           request.resource.data.get('bidCount', 0) == 0 &&
+           request.resource.data.auctionStatus in ['scheduled', 'live']));
+      allow update: if signedIn() &&
         resource.data.sellerUid == request.auth.uid &&
-        request.resource.data.sellerUid == request.auth.uid;
-      allow update: if signedIn() &&
-        resource.data.transactionType == 'Auction' &&
-        resource.data.sellerUid != request.auth.uid &&
-        request.time >= resource.data.auctionStartAt &&
-        request.time < resource.data.auctionEndAt &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentBid', 'highBidderUid', 'bidCount', 'lastBidAt', 'updatedAt'
-        ]) &&
-        request.resource.data.highBidderUid == request.auth.uid &&
-        request.resource.data.bidCount == resource.data.get('bidCount', 0) + 1 &&
-        request.resource.data.currentBid >=
-          (resource.data.get('currentBid', 0) > 0
-            ? resource.data.currentBid + resource.data.get('minimumBidIncrement', 1)
-            : resource.data.startingBid);
-      allow update: if signedIn() &&
-        resource.data.transactionType == 'Auction' &&
-        resource.data.sellerUid != request.auth.uid &&
-        request.time < resource.data.auctionEndAt &&
-        resource.data.get('buyItNowPrice', 0) > 0 &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentBid', 'highBidderUid', 'buyNowBuyerUid',
-          'acceptedBidAmount', 'auctionStatus', 'auctionEndAt',
-          'bidCount', 'lastBidAt', 'updatedAt'
-        ]) &&
-        request.resource.data.currentBid == resource.data.buyItNowPrice &&
-        request.resource.data.acceptedBidAmount == resource.data.buyItNowPrice &&
-        request.resource.data.highBidderUid == request.auth.uid &&
-        request.resource.data.buyNowBuyerUid == request.auth.uid &&
-        request.resource.data.auctionStatus == 'bought_now' &&
-        request.resource.data.auctionEndAt == request.time &&
-        request.resource.data.bidCount == resource.data.get('bidCount', 0) + 1;
-      allow update: if signedIn() &&
-        resource.data.transactionType == 'Auction' &&
-        resource.data.get('customAuction', false) == true &&
-        resource.data.highBidderUid == request.auth.uid &&
-        request.time >= resource.data.auctionStartAt + duration.value(32, 'd') &&
-        request.time < resource.data.auctionEndAt &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentBid', 'highBidderUid', 'withdrawnBidCount',
-          'lastWithdrawalBidId', 'updatedAt'
-        ]) &&
-        request.resource.data.currentBid <= resource.data.currentBid &&
-        request.resource.data.withdrawnBidCount ==
-          resource.data.get('withdrawnBidCount', 0) + 1 &&
-        getAfter(/databases/$(database)/documents/auction_bids/$(request.resource.data.lastWithdrawalBidId)).data.bidderUid == request.auth.uid &&
-        getAfter(/databases/$(database)/documents/auction_bids/$(request.resource.data.lastWithdrawalBidId)).data.status == 'withdrawn' &&
-        get(/databases/$(database)/documents/auction_bids/$(request.resource.data.lastWithdrawalBidId)).data.amount == resource.data.currentBid;
+        request.resource.data.sellerUid == request.auth.uid &&
+        (
+          (resource.data.transactionType != 'Auction' &&
+           request.resource.data.transactionType != 'Auction') ||
+          (resource.data.transactionType != 'Auction' &&
+           request.resource.data.transactionType == 'Auction' &&
+           (isAdmin() ||
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)) &&
+           request.resource.data.auctionStartAt is timestamp &&
+           request.resource.data.auctionEndAt is timestamp &&
+           request.resource.data.auctionEndAt >
+             request.resource.data.auctionStartAt &&
+           request.resource.data.startingBid is number &&
+           request.resource.data.startingBid > 0 &&
+           request.resource.data.minimumBidIncrement is number &&
+           request.resource.data.minimumBidIncrement > 0 &&
+           request.resource.data.get('currentBid', 0) == 0 &&
+           request.resource.data.get('bidCount', 0) == 0 &&
+           request.resource.data.auctionStatus in ['scheduled', 'live']) ||
+          (resource.data.transactionType == 'Auction' &&
+           request.resource.data.transactionType == 'Auction' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'notifyNewBids', 'notifyReserveReached',
+             'notifyAuctionEnding', 'updatedAt'
+           ]))
+        );
+      allow delete: if signedIn() &&
+        resource.data.sellerUid == request.auth.uid &&
+        resource.data.transactionType != 'Auction';
     }
 
     match /listing_events/{eventId} {
@@ -381,46 +375,31 @@ service cloud.firestore {
     match /offers/{offerId} {
       allow create: if signedIn() &&
         request.resource.data.proposedByUid == request.auth.uid &&
+        request.resource.data.buyerUid != request.resource.data.sellerUid &&
         (request.resource.data.buyerUid == request.auth.uid ||
          request.resource.data.sellerUid == request.auth.uid) &&
-        (get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.transactionType != 'Auction' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userScore > 50);
+        get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.sellerUid ==
+          request.resource.data.sellerUid &&
+        get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.transactionType != 'Auction' &&
+        get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.status == 'active';
       allow read: if signedIn() &&
         (resource.data.buyerUid == request.auth.uid ||
          resource.data.sellerUid == request.auth.uid);
-      allow update: if signedIn() &&
-        resource.data.sellerUid == request.auth.uid;
+      // Acceptance and archival are performed atomically by
+      // acceptMarketplaceOffer.
+      allow update: if false;
       allow delete: if false;
     }
 
     match /auction_bids/{bidId} {
       allow read: if signedIn();
-      allow create: if signedIn() &&
-        request.resource.data.bidderUid == request.auth.uid &&
-        request.resource.data.listingId is string &&
-        request.resource.data.amount is number &&
-        request.resource.data.amount > 0 &&
-        request.resource.data.sellerUid ==
-          get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.sellerUid &&
-        request.resource.data.sellerUid != request.auth.uid &&
-        request.resource.data.amount ==
-          getAfter(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.currentBid &&
-        (isAdmin() ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 50);
-      allow update: if signedIn() &&
-        resource.data.bidderUid == request.auth.uid &&
-        resource.data.status != 'withdrawn' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'withdrawnByUid', 'withdrawnAt'
-        ]) &&
-        request.resource.data.status == 'withdrawn' &&
-        request.resource.data.withdrawnByUid == request.auth.uid &&
-        get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.get('customAuction', false) == true &&
-        request.time >=
-          get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.auctionStartAt + duration.value(32, 'd') &&
-        request.time <
-          get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.auctionEndAt;
-      allow delete: if false;
+      // Bid placement, Buy It Now, promotion, and withdrawal are server-only.
+      allow create, update, delete: if false;
+    }
+
+    match /marketplace_command_receipts/{receiptId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /trust_reports/{reportId} {
