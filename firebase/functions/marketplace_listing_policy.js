@@ -28,6 +28,21 @@ const publicListingFields = new Set([
   "inspectionStatus",
   "inspectionDetails",
   "pipeBand",
+  "propertyOffering",
+  "propertyInterest",
+  "landAreaInputValue",
+  "landAreaInputUnit",
+  "landAreaAcres",
+  "landAreaHectares",
+  "buildingAreaValue",
+  "buildingAreaUnit",
+  "zoningOrUse",
+  "monthlyRevenue",
+  "annualRevenue",
+  "netOperatingIncome",
+  "annualPropertyTax",
+  "leaseDetails",
+  "propertyFeatures",
   "transactionType",
   "wantedStatus",
   "responseCount",
@@ -51,6 +66,7 @@ const publicListingFields = new Set([
   "sellerVerified",
   "imageUrls",
   "imageHashes",
+  "thumbnailUrl",
   "videoUrl",
   "mediaPhotoCount",
   "hasVideo",
@@ -85,6 +101,7 @@ const longTextFields = new Set([
   "maintenanceHistory",
   "engineDetails",
   "attachments",
+  "leaseDetails",
 ]);
 
 const dateFields = new Set(["auctionStartAt", "auctionEndAt"]);
@@ -199,6 +216,27 @@ function validateMarketplaceListingInput(input, now = new Date()) {
     invalid("Listing destination is invalid.");
   }
   listing.transactionType = transactionType;
+
+  if (listing.category === "Site & Property") {
+    requiredText(listing, "productType");
+    listing.propertyOffering = requiredText(listing, "propertyOffering");
+    listing.propertyInterest = requiredText(listing, "propertyInterest");
+    for (const field of [
+      "landAreaInputValue",
+      "landAreaAcres",
+      "landAreaHectares",
+      "buildingAreaValue",
+      "monthlyRevenue",
+      "annualRevenue",
+      "netOperatingIncome",
+      "annualPropertyTax",
+    ]) {
+      if (listing[field] !== null && listing[field] !== undefined &&
+          (typeof listing[field] !== "number" || listing[field] < 0)) {
+        invalid(`${field} must be zero or greater.`);
+      }
+    }
+  }
 
   if (transactionType === "Auction") {
     const start = Number(listing.auctionStartAt);

@@ -8,6 +8,7 @@ import 'marketplace_money.dart';
 import 'marketplace_avatar_image.dart';
 import 'regional_phone_field.dart';
 import 'marketplace_profile_page.dart';
+import 'marketplace_listing_media.dart';
 
 class MarketplacePublicProfilePage extends StatelessWidget {
   const MarketplacePublicProfilePage({
@@ -264,17 +265,17 @@ class _ListingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final listing = document.data();
-    final images = List<String>.from(listing['imageUrls'] ?? const <String>[]);
+    final thumbnail = marketplaceListingThumbnailUrl(listing);
     final title = '${listing['title'] ?? 'Marketplace listing'}';
     final price = (listing['price'] as num?)?.toDouble();
     return Card(
         clipBehavior: Clip.antiAlias,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (images.isNotEmpty)
+          if (thumbnail != null)
             SizedBox(
                 height: 140,
                 width: double.infinity,
-                child: Image.network(images.first, fit: BoxFit.cover)),
+                child: Image.network(thumbnail, fit: BoxFit.cover)),
           Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
               child: Row(children: [

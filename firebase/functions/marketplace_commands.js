@@ -272,6 +272,8 @@ function createMarketplaceCommands(admin) {
       Array.isArray(request.data && request.data.imageHashes) ?
         request.data.imageHashes.map((value) => String(value || "").trim()) :
         [];
+    const thumbnailUrl =
+      String(request.data && request.data.thumbnailUrl || "").trim();
     const videoUrl = String(request.data && request.data.videoUrl || "").trim();
     const status = String(request.data && request.data.status || "").trim();
     const errorMessage = String(request.data && request.data.error || "").trim();
@@ -279,6 +281,7 @@ function createMarketplaceCommands(admin) {
       imageUrls.length > 30 ||
       imageHashes.length > 30 ||
       imageUrls.some((value) => !value.startsWith("https://")) ||
+      thumbnailUrl && !imageUrls.includes(thumbnailUrl) ||
       videoUrl && !videoUrl.startsWith("https://") ||
       !["none", "queued", "uploading", "complete", "failed"].includes(status)
     ) {
@@ -302,6 +305,7 @@ function createMarketplaceCommands(admin) {
       transaction.update(listingRef, {
         imageUrls,
         imageHashes,
+        thumbnailUrl: thumbnailUrl || null,
         videoUrl: videoUrl || null,
         mediaPhotoCount: imageUrls.length,
         hasVideo: Boolean(videoUrl),

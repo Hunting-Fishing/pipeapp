@@ -19,6 +19,15 @@ extension LocationVisibilityText on LocationVisibility {
       };
 }
 
+LocationVisibility locationVisibilityFromValue(
+  String value, {
+  LocationVisibility fallback = LocationVisibility.approximate,
+}) =>
+    LocationVisibility.values.firstWhere(
+      (item) => item.value == value,
+      orElse: () => fallback,
+    );
+
 class MarketplaceLocation {
   const MarketplaceLocation({
     required this.point,
@@ -49,10 +58,8 @@ class MarketplaceLocation {
       point: point is GeoPoint
           ? LatLng(point.latitude, point.longitude)
           : const LatLng(55.1707, -118.7947),
-      visibility: LocationVisibility.values.firstWhere(
-        (item) => item.value == visibilityValue,
-        orElse: () => LocationVisibility.hidden,
-      ),
+      visibility: locationVisibilityFromValue(visibilityValue,
+          fallback: LocationVisibility.hidden),
       publicName:
           '${data['publicName'] ?? data['nearestTown'] ?? 'Business yard'}',
       address: '${data['fullAddress'] ?? ''}',

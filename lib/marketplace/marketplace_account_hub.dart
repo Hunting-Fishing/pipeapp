@@ -7,6 +7,9 @@ import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_navigation.dart';
+import 'marketplace_listing_media.dart';
+import 'marketplace_money.dart';
+import 'marketplace_property_details.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -489,8 +492,7 @@ class _MyListings extends StatelessWidget {
                       itemBuilder: (_, index) {
                         final document = listings[index];
                         final data = document.data();
-                        final images = List<String>.from(
-                            data['imageUrls'] ?? const <String>[]);
+                        final thumbnail = marketplaceListingThumbnailUrl(data);
                         final createdAt =
                             (data['createdAt'] as Timestamp?)?.toDate();
                         final isAuction = data['transactionType'] == 'Auction';
@@ -508,11 +510,11 @@ class _MyListings extends StatelessWidget {
                           leading: SizedBox.square(
                               dimension: 54,
                               child: Stack(fit: StackFit.expand, children: [
-                                images.isEmpty
+                                thumbnail == null
                                     ? const Icon(Icons.inventory_2_outlined)
                                     : ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(images.first,
+                                        child: Image.network(thumbnail,
                                             fit: BoxFit.cover,
                                             errorBuilder: (_, __, ___) =>
                                                 const Icon(Icons
@@ -621,6 +623,90 @@ class _ListingNotificationBadge extends StatelessWidget {
   }
 }
 
+class _OwnerPropertyDetails extends StatelessWidget {
+  const _OwnerPropertyDetails({required this.data});
+
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = <({String label, String value})>[];
+    void add(String label, Object? raw) {
+      final value = '${raw ?? ''}'.trim();
+      if (value.isNotEmpty && value != 'null') {
+        facts.add((label: label, value: value));
+      }
+    }
+
+    add('Offering', data['propertyOffering']);
+    add('Interest', data['propertyInterest']);
+    final acres = data['landAreaAcres'] as num?;
+    final hectares = data['landAreaHectares'] as num?;
+    if (acres != null && hectares != null) {
+      add('Land',
+          '${propertyMeasure(acres)} ac • ${propertyMeasure(hectares)} ha');
+    }
+    final building = data['buildingAreaValue'] as num?;
+    if (building != null) {
+      add('Building',
+          '${propertyMeasure(building)} ${data['buildingAreaUnit'] ?? ''}');
+    }
+    add('Zoning / use', data['zoningOrUse']);
+    for (final item in const [
+      ('Monthly revenue', 'monthlyRevenue', ' / month'),
+      ('Annual revenue', 'annualRevenue', ' / year'),
+      ('Annual NOI', 'netOperatingIncome', ' / year'),
+      ('Property tax', 'annualPropertyTax', ' / year'),
+    ]) {
+      final value = data[item.$2] as num?;
+      if (value != null && value > 0) {
+        add(item.$1, '${marketplaceMoney(value)}${item.$3}');
+      }
+    }
+    final features = (data['propertyFeatures'] as Iterable?)
+        ?.map((value) => '$value'.trim())
+        .where((value) => value.isNotEmpty)
+        .join(' • ');
+    add('Features', features);
+
+    if (facts.isEmpty) return const SizedBox.shrink();
+    return Card(
+      color: const Color(0xFFF3F8FD),
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Icons.real_estate_agent_outlined, color: Color(0xFF0878E8)),
+            SizedBox(width: 8),
+            Text('Property and business facts',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ]),
+          const Divider(),
+          ...facts.map((fact) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                          flex: 2,
+                          child: Text(fact.label,
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 12))),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          flex: 3,
+                          child: Text(fact.value,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700))),
+                    ]),
+              )),
+        ]),
+      ),
+    );
+  }
+}
+
 class _OwnerListingDetails extends StatefulWidget {
   const _OwnerListingDetails({required this.listingId, required this.data});
 
@@ -659,7 +745,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
           });
 
   Widget _body(BuildContext context, Map<String, dynamic> data) {
-    final images = List<String>.from(data['imageUrls'] ?? const <String>[]);
+    final thumbnail = marketplaceListingThumbnailUrl(data);
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
     final isAuction = data['transactionType'] == 'Auction';
     final currentBid = data['currentBid'] as num? ?? 0;
@@ -676,11 +762,11 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         controller: controller,
         padding: const EdgeInsets.all(18),
         children: [
-          if (images.isNotEmpty)
+          if (thumbnail != null)
             ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: Image.network(images.first,
-                    height: 210, fit: BoxFit.cover)),
+                child:
+                    Image.network(thumbnail, height: 210, fit: BoxFit.cover)),
           const SizedBox(height: 14),
           Row(children: [
             Chip(
@@ -704,6 +790,10 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
           if (createdAt != null)
             Text(_ownerListingTime(data, createdAt),
                 style: const TextStyle(color: Colors.black54)),
+          if (data['category'] == 'Site & Property') ...[
+            const SizedBox(height: 12),
+            _OwnerPropertyDetails(data: data),
+          ],
           if (!isAuction) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -724,7 +814,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                           Row(children: [
                             Expanded(
                                 child: Text(
-                                    'Current bid \$${currentBid.toStringAsFixed(2)}',
+                                    'Current bid ${marketplaceMoney(currentBid)}',
                                     style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w900))),
@@ -740,12 +830,12 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                             const SizedBox(height: 5),
                             Text(currentBid >= reserve
                                 ? 'Reserve met'
-                                : '\$${(reserve - currentBid).toStringAsFixed(2)} below reserve • ${(reserveProgress! * 100).toStringAsFixed(0)}% reached')
+                                : '${marketplaceMoney(reserve - currentBid)} below reserve • ${(reserveProgress! * 100).toStringAsFixed(0)}% reached')
                           ] else
                             const Text('No reserve price'),
                           if (data['buyItNowPrice'] is num)
                             Text(
-                                'Buy It Now: \$${(data['buyItNowPrice'] as num).toStringAsFixed(2)}'),
+                                'Buy It Now: ${marketplaceMoney(data['buyItNowPrice'] as num)}'),
                           if (currentBid > 0 &&
                               reserve != null &&
                               currentBid < reserve) ...[

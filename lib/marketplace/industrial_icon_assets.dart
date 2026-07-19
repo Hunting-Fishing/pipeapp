@@ -714,6 +714,20 @@ abstract final class IndustrialIconAssets {
     if (_containsAny(label, ['industrial real estate'])) {
       return industrialRealEstate;
     }
+    if (_containsAny(label, ['commercial property', 'business for sale'])) {
+      return industrialOffice;
+    }
+    if (_containsAny(label, ['farm & ranch land', 'farm and ranch land'])) {
+      return farmRanchYard;
+    }
+    if (_containsAny(label, [
+      'oil & gas lease',
+      'oil and gas lease',
+      'mineral rights',
+      'surface rights'
+    ])) {
+      return leaseLand;
+    }
     if (label == 'pipeline' ||
         _containsAny(label, ['pipeline corridor', 'pipeline right of way'])) {
       return pipelineCorridor;

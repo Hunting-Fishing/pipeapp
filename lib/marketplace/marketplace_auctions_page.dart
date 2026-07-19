@@ -11,6 +11,8 @@ import 'marketplace_public_profile_page.dart';
 import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
+import 'marketplace_listing_media.dart';
+import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
 class MarketplaceAuctionsPage extends StatefulWidget {
@@ -140,7 +142,7 @@ class _AuctionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = document.data();
-    final images = List<String>.from(data['imageUrls'] ?? const <String>[]);
+    final thumbnail = marketplaceListingThumbnailUrl(data);
     final current = data['currentBid'] as num? ?? 0;
     final starting = data['startingBid'] as num? ?? data['price'] as num? ?? 0;
     final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
@@ -185,10 +187,10 @@ class _AuctionCard extends StatelessWidget {
               SizedBox(
                   width: 122,
                   height: 150,
-                  child: images.isEmpty
+                  child: thumbnail == null
                       ? fallbackArtwork()
                       : MarketplaceStorageMediaImage(
-                          url: images.first,
+                          url: thumbnail,
                           fit: BoxFit.cover,
                           fallback: fallbackArtwork())),
               Expanded(
@@ -314,8 +316,14 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
               final privateData = privateSnapshot.data?.data();
               final reserve =
                   mine ? (privateData?['reservePrice'] as num?) : null;
-              final images =
-                  List<String>.from(data['imageUrls'] ?? const <String>[]);
+              final images = marketplaceListingImageUrls(data);
+              final thumbnail = marketplaceListingThumbnailUrl(data);
+              final orderedImages = thumbnail == null
+                  ? images
+                  : <String>[
+                      thumbnail,
+                      ...images.where((image) => image != thumbnail)
+                    ];
               final content = SafeArea(
                   child: DraggableScrollableSheet(
                       expand: widget.fullPage,
@@ -347,9 +355,9 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                         fontSize: 24,
                                         fontWeight: FontWeight.w900)),
                                 const SizedBox(height: 12),
-                                if (images.isNotEmpty)
-                                  _AuctionMediaGallery(images: images),
-                                if (images.isEmpty)
+                                if (orderedImages.isNotEmpty)
+                                  _AuctionMediaGallery(images: orderedImages),
+                                if (orderedImages.isEmpty)
                                   Container(
                                       height: 180,
                                       width: double.infinity,
@@ -371,9 +379,10 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                           borderRadius: 16,
                                           fallback: const Icon(Icons.gavel,
                                               size: 76))),
-                                if (images.isNotEmpty)
+                                if (orderedImages.isNotEmpty)
                                   const SizedBox(height: 12),
-                                if (images.isEmpty) const SizedBox(height: 12),
+                                if (orderedImages.isEmpty)
+                                  const SizedBox(height: 12),
                                 Card(
                                     color: const Color(0xFFEAF4FD),
                                     child: Padding(
@@ -728,6 +737,53 @@ class _AuctionListingDetails extends StatelessWidget {
     add(Icons.fact_check_outlined, 'Inspection', data['inspectionStatus']);
     add(Icons.notes_outlined, 'Inspection details', data['inspectionDetails']);
     add(Icons.attachment_outlined, 'Included attachments', data['attachments']);
+    add(Icons.real_estate_agent_outlined, 'Offering includes',
+        data['propertyOffering']);
+    add(Icons.account_balance_outlined, 'Interest offered',
+        data['propertyInterest']);
+    final acres = data['landAreaAcres'] as num?;
+    final hectares = data['landAreaHectares'] as num?;
+    final landInput = data['landAreaInputValue'] as num?;
+    if (acres != null && hectares != null) {
+      add(Icons.landscape_outlined, 'Land area',
+          '${propertyMeasure(acres)} acres • ${propertyMeasure(hectares)} hectares');
+    } else if (landInput != null) {
+      add(Icons.landscape_outlined, 'Land area',
+          '${propertyMeasure(landInput)} ${data['landAreaInputUnit'] ?? ''}');
+    }
+    final buildingArea = data['buildingAreaValue'] as num?;
+    if (buildingArea != null) {
+      add(Icons.warehouse_outlined, 'Building area',
+          '${propertyMeasure(buildingArea)} ${data['buildingAreaUnit'] ?? ''}');
+    }
+    add(Icons.map_outlined, 'Zoning / permitted use', data['zoningOrUse']);
+    void addMoney(IconData icon, String label, String field,
+        {String period = ''}) {
+      final value = data[field] as num?;
+      if (value != null && value > 0) {
+        add(icon, label, '${marketplaceMoney(value)}$period');
+      }
+    }
+
+    addMoney(Icons.calendar_view_month_outlined, 'Monthly gross revenue',
+        'monthlyRevenue',
+        period: ' / month');
+    addMoney(
+        Icons.calendar_today_outlined, 'Annual gross revenue', 'annualRevenue',
+        period: ' / year');
+    addMoney(Icons.trending_up_outlined, 'Net operating income',
+        'netOperatingIncome',
+        period: ' / year');
+    addMoney(
+        Icons.receipt_long_outlined, 'Annual property tax', 'annualPropertyTax',
+        period: ' / year');
+    add(Icons.description_outlined, 'Lease / rights details',
+        data['leaseDetails']);
+    final propertyFeatures = (data['propertyFeatures'] as Iterable?)
+        ?.map((value) => '$value'.trim())
+        .where((value) => value.isNotEmpty)
+        .join(' • ');
+    add(Icons.check_circle_outline, 'Property features', propertyFeatures);
     final location = data['publicLocationName'] ??
         data['nearestTown'] ??
         data['publicLocation'] ??

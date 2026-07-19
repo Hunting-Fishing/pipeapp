@@ -25,6 +25,8 @@ import 'marketplace_dispatch_page.dart';
 import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
+import 'marketplace_listing_media.dart';
+import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
 const _navy = Color(0xFFF7F9FC);
@@ -50,131 +52,209 @@ int naturalCompare(String left, String right) {
 }
 
 class MarketplaceCategory {
-  const MarketplaceCategory(this.name, this.icon, this.types);
+  const MarketplaceCategory(this.name, this.icon, this.types, this.description);
 
   final String name;
   final IconData icon;
   final List<String> types;
+  final String description;
 }
 
 const marketplaceCategories = <MarketplaceCategory>[
-  MarketplaceCategory('Heavy Equipment', Icons.precision_manufacturing, [
-    'Excavator',
-    'Bulldozer',
-    'Loader',
-    'Backhoe',
-    'Skid Steer',
-    'Crane',
-    'Telehandler',
-    'Grader',
-    'Compactor',
-    'Forklift',
-    'Drilling Rig'
-  ]),
-  MarketplaceCategory('Oil & Gas Equipment', Icons.oil_barrel, [
-    'Wellhead',
-    'Valves',
-    'Manifold',
-    'Separator',
-    'Heater Treater',
-    'Compressor',
-    'Generator',
-    'Pump',
-    'Pressure Vessel',
-    'Flare Stack'
-  ]),
-  MarketplaceCategory('Pipe, Tubing & Materials', Icons.horizontal_rule, [
-    'Drill Pipe',
-    'Drill Stem',
-    'Casing',
-    'Tubing',
-    'Sucker Rod',
-    'Line Pipe',
-    'OCTG',
-    'Culverts',
-    'Fittings',
-    'Flanges',
-    'Steel Plate'
-  ]),
-  MarketplaceCategory('Farm & Ranch Products', Icons.fence, [
-    'Cattle Panel',
-    'Buffalo / Bison Panel',
-    'Windbreak Panel',
-    'Fence Post',
-    'Continuous Fence',
-    'Cattle Feeder',
-    'Bale Feeder',
-    'Farm Gate',
-    'Corral Panel',
-    'Livestock Shelter',
-    'Custom Pipe Fabrication'
-  ]),
-  MarketplaceCategory('Tanks & Containers', Icons.propane_tank, [
-    'Fuel Tank',
-    'Water Tank',
-    'Frac Tank',
-    'Chemical Tank',
-    'IBC Tote',
-    'Propane Tank',
-    'Vault Tank',
-    'Tank Skid'
-  ]),
-  MarketplaceCategory('Transport & Hauling', Icons.local_shipping, [
-    'Semi Truck',
-    'Flatbed Trailer',
-    'Lowboy Trailer',
-    'Roll Off Truck',
-    'Winch Truck',
-    'Step Deck',
-    'Drop Deck',
-    'Vacuum Truck',
-    'Water Truck'
-  ]),
-  MarketplaceCategory('Portable Buildings', Icons.cabin, [
-    'Portable Office',
-    'Crew Shack',
-    'Lunchroom',
-    'Bathroom Unit',
-    'Storage Unit',
-    'Guard Shack',
-    'Modular Building',
-    'Container Office'
-  ]),
-  MarketplaceCategory('Site Support', Icons.construction, [
-    'Light Tower',
-    'Air Compressor',
-    'Welding Machine',
-    'Generator',
-    'Tool Room',
-    'Scissor Lift',
-    'Boom Lift',
-    'Material Cage',
-    'Spill Kit'
-  ]),
-  MarketplaceCategory('Oilfield & Drilling', Icons.factory, [
-    'Derrick',
-    'Drill Rig',
-    'Mud Pump',
-    'Shale Shaker',
-    'BOP',
-    'Kelly Bar',
-    'Drill Bit',
-    'Fishing Tools',
-    'Cementing Unit',
-    'Mud Tank'
-  ]),
-  MarketplaceCategory('Site & Property', Icons.location_city, [
-    'Lease Land',
-    'Well Site',
-    'Pipeline',
-    'Battery Site',
-    'Access Road',
-    'Fenced Yard',
-    'Gate',
-    'Storage Yard',
-    'Industrial Real Estate'
-  ]),
+  MarketplaceCategory(
+      'Heavy Equipment',
+      Icons.precision_manufacturing,
+      [
+        'Excavator',
+        'Bulldozer',
+        'Loader',
+        'Backhoe',
+        'Skid Steer',
+        'Crane',
+        'Telehandler',
+        'Grader',
+        'Compactor',
+        'Forklift',
+        'Drilling Rig'
+      ],
+      'Excavators, loaders, dozers, cranes and other industrial machinery.'),
+  MarketplaceCategory(
+      'Oil & Gas Equipment',
+      Icons.oil_barrel,
+      [
+        'Wellhead',
+        'Valves',
+        'Manifold',
+        'Separator',
+        'Heater Treater',
+        'Compressor',
+        'Generator',
+        'Pump',
+        'Pressure Vessel',
+        'Flare Stack'
+      ],
+      'Production, processing, pressure-control and field equipment.'),
+  MarketplaceCategory(
+      'Pipe, Tubing & Materials',
+      Icons.horizontal_rule,
+      [
+        'Drill Pipe',
+        'Drill Stem',
+        'Casing',
+        'Tubing',
+        'Sucker Rod',
+        'Line Pipe',
+        'OCTG',
+        'Culverts',
+        'Fittings',
+        'Flanges',
+        'Steel Plate'
+      ],
+      'Pipe, OCTG, fittings, steel products and surplus materials.'),
+  MarketplaceCategory(
+      'Farm & Ranch Products',
+      Icons.fence,
+      [
+        'Cattle Panel',
+        'Buffalo / Bison Panel',
+        'Windbreak Panel',
+        'Fence Post',
+        'Continuous Fence',
+        'Cattle Feeder',
+        'Bale Feeder',
+        'Farm Gate',
+        'Corral Panel',
+        'Livestock Shelter',
+        'Custom Pipe Fabrication'
+      ],
+      'Fencing, livestock systems, feeders, gates and fabricated products.'),
+  MarketplaceCategory(
+      'Tanks & Containers',
+      Icons.propane_tank,
+      [
+        'Fuel Tank',
+        'Water Tank',
+        'Frac Tank',
+        'Chemical Tank',
+        'IBC Tote',
+        'Propane Tank',
+        'Vault Tank',
+        'Tank Skid'
+      ],
+      'Fuel, water, chemical and process storage tanks or containers.'),
+  MarketplaceCategory(
+      'Transport & Hauling',
+      Icons.local_shipping,
+      [
+        'Semi Truck',
+        'Flatbed Trailer',
+        'Lowboy Trailer',
+        'Roll Off Truck',
+        'Winch Truck',
+        'Step Deck',
+        'Drop Deck',
+        'Vacuum Truck',
+        'Water Truck'
+      ],
+      'Highway trucks, trailers, hauling units and specialized transport.'),
+  MarketplaceCategory(
+      'Portable Buildings',
+      Icons.cabin,
+      [
+        'Portable Office',
+        'Crew Shack',
+        'Lunchroom',
+        'Bathroom Unit',
+        'Storage Unit',
+        'Guard Shack',
+        'Modular Building',
+        'Container Office'
+      ],
+      'Offices, crew facilities, storage and modular site buildings.'),
+  MarketplaceCategory(
+      'Site Support',
+      Icons.construction,
+      [
+        'Light Tower',
+        'Air Compressor',
+        'Welding Machine',
+        'Generator',
+        'Tool Room',
+        'Scissor Lift',
+        'Boom Lift',
+        'Material Cage',
+        'Spill Kit'
+      ],
+      'Power, lighting, access, safety and job-site support equipment.'),
+  MarketplaceCategory(
+      'Oilfield & Drilling',
+      Icons.factory,
+      [
+        'Derrick',
+        'Drill Rig',
+        'Mud Pump',
+        'Shale Shaker',
+        'BOP',
+        'Kelly Bar',
+        'Drill Bit',
+        'Fishing Tools',
+        'Cementing Unit',
+        'Mud Tank'
+      ],
+      'Drilling rigs, pressure control, mud systems and downhole tools.'),
+  MarketplaceCategory(
+      'Site & Property',
+      Icons.location_city,
+      [
+        'Business for Sale',
+        'Commercial Property',
+        'Farm & Ranch Land',
+        'Oil & Gas Lease',
+        'Mineral Rights',
+        'Surface Rights',
+        'Lease Land',
+        'Well Site',
+        'Pipeline',
+        'Battery Site',
+        'Access Road',
+        'Fenced Yard',
+        'Gate',
+        'Storage Yard',
+        'Industrial Real Estate'
+      ],
+      'Industrial, commercial and agricultural property, businesses, leases and rights.'),
 ];
+
+String marketplaceProductTypeDescription(
+    String type, MarketplaceCategory category) {
+  if (type == _otherCatalogValue) {
+    return 'Enter the missing product type and send it for catalog review.';
+  }
+  final propertyDescription = propertyProductTypeDescriptions[type];
+  if (propertyDescription != null) return propertyDescription;
+  switch (category.name) {
+    case 'Heavy Equipment':
+      return 'Include year, hours, operating condition and attachments.';
+    case 'Pipe, Tubing & Materials':
+      return 'Include size, grade, length, inspection and available quantity.';
+    case 'Farm & Ranch Products':
+      return 'Include dimensions, material, quantity and intended use.';
+    case 'Oil & Gas Equipment':
+      return 'Include capacity, rating, certification and service condition.';
+    case 'Tanks & Containers':
+      return 'Include capacity, material, previous service and inspection.';
+    case 'Transport & Hauling':
+      return 'Include year, configuration, payload and operating condition.';
+    case 'Portable Buildings':
+      return 'Include dimensions, layout, utilities and transport condition.';
+    case 'Site Support':
+      return 'Include capacity, power source, runtime and operating condition.';
+    case 'Oilfield & Drilling':
+      return 'Include manufacturer, model, inspection and operating condition.';
+    default:
+      return category.description;
+  }
+}
 
 const pipeNominalSizes = <String>[
   '1/4 in',
@@ -518,6 +598,9 @@ class MarketplaceListing {
     required this.condition,
     required this.icon,
     this.badge,
+    this.productType = '',
+    this.description = '',
+    this.details = const <String, dynamic>{},
     this.sellerUid = 'pipe-buyer-demo-seller',
     this.sellerName = 'Northline Oilfield Supply',
     this.sellerVerified = true,
@@ -551,6 +634,9 @@ class MarketplaceListing {
   final String condition;
   final IconData icon;
   final String? badge;
+  final String productType;
+  final String description;
+  final Map<String, dynamic> details;
   final String sellerUid;
   final String sellerName;
   final bool sellerVerified;
@@ -577,10 +663,31 @@ class MarketplaceListing {
   String get id =>
       documentId ?? title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
 
+  List<String> get summaryFacts {
+    final facts = <String>[];
+    final acres = details['landAreaAcres'] as num?;
+    final hectares = details['landAreaHectares'] as num?;
+    final buildingArea = details['buildingAreaValue'] as num?;
+    final buildingUnit = '${details['buildingAreaUnit'] ?? ''}';
+    final annualRevenue = details['annualRevenue'] as num?;
+    if (acres != null && acres > 0) {
+      facts.add('${propertyMeasure(acres)} ac');
+    } else if (hectares != null && hectares > 0) {
+      facts.add('${propertyMeasure(hectares)} ha');
+    }
+    if (buildingArea != null && buildingArea > 0) {
+      facts.add(
+          '${propertyMeasure(buildingArea)} ${buildingUnit == 'Square metres' ? 'm²' : 'ft²'} building');
+    }
+    if (annualRevenue != null && annualRevenue > 0) {
+      facts.add('${marketplaceMoney(annualRevenue)}/yr revenue');
+    }
+    return facts;
+  }
+
   factory MarketplaceListing.fromFirestore(
       QueryDocumentSnapshot<Map<String, dynamic>> document) {
     final data = document.data();
-    final images = List<String>.from(data['imageUrls'] ?? const <String>[]);
     final price = data['price'];
     final basis = '${data['priceBasis'] ?? ''}';
     final transactionType = '${data['transactionType'] ?? 'For Sale'}';
@@ -596,6 +703,9 @@ class MarketplaceListing {
           : '${isWanted ? 'Target ' : ''}${marketplaceMoney(price as num)}${basis.isEmpty ? '' : ' • $basis'}',
       condition: '${data['condition'] ?? 'Condition not provided'}',
       icon: marketplaceIconFor('${data['productType'] ?? data['category']}'),
+      productType: '${data['productType'] ?? ''}',
+      description: '${data['description'] ?? ''}',
+      details: Map<String, dynamic>.unmodifiable(data),
       badge: isWanted
           ? 'Wanted'
           : data['boostStatus'] == 'active'
@@ -604,7 +714,11 @@ class MarketplaceListing {
       sellerUid: '${data['sellerUid'] ?? ''}',
       sellerName: '${data['sellerName'] ?? 'Marketplace seller'}',
       sellerVerified: data['sellerVerified'] == true,
-      imageUrl: images.isEmpty ? null : images.first,
+      locationVisibility: locationVisibilityFromValue(
+          '${data['locationVisibility'] ?? 'approximate'}'),
+      latitude: (data['publicGeoPoint'] as GeoPoint?)?.latitude,
+      longitude: (data['publicGeoPoint'] as GeoPoint?)?.longitude,
+      imageUrl: marketplaceListingThumbnailUrl(data),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       views: (data['viewCount'] as num?)?.toInt() ?? 0,
       saves: (data['saveCount'] as num?)?.toInt() ?? 0,
@@ -1681,6 +1795,14 @@ class _ListingCard extends StatelessWidget {
                               Text(listing.condition,
                                   style: const TextStyle(
                                       color: _muted, fontSize: 10)),
+                              if (listing.summaryFacts.isNotEmpty)
+                                Text(listing.summaryFacts.take(2).join(' • '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Color(0xFF334E68),
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700)),
                               Text(listing.location,
                                   style: const TextStyle(
                                       color: _muted, fontSize: 10)),
@@ -1815,19 +1937,29 @@ class _ListingDetailsState extends State<_ListingDetails> {
                     decoration: BoxDecoration(
                         color: const Color(0xFFEAF4FD),
                         borderRadius: BorderRadius.circular(18)),
-                    child: Center(
-                        child: IndustrialAssetIcon(
-                            label: listing.title,
-                            assetPath: _isWanted
-                                ? IndustrialIconAssets.wantedEquipment
-                                : IndustrialIconAssets.forLabel(
-                                        listing.title) ??
-                                    IndustrialIconAssets.forLabel(
-                                        listing.category),
-                            size: 136,
-                            borderRadius: 18,
-                            fallback:
-                                Icon(listing.icon, size: 90, color: _orange)))),
+                    child: listing.imageUrl == null
+                        ? Center(
+                            child: IndustrialAssetIcon(
+                                label: listing.title,
+                                assetPath: _isWanted
+                                    ? IndustrialIconAssets.wantedEquipment
+                                    : IndustrialIconAssets.forLabel(
+                                            listing.title) ??
+                                        IndustrialIconAssets.forLabel(
+                                            listing.category),
+                                size: 136,
+                                borderRadius: 18,
+                                fallback: Icon(listing.icon,
+                                    size: 90, color: _orange)))
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: Image.network(listing.imageUrl!,
+                                width: double.infinity,
+                                height: 150,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                    child: Icon(listing.icon,
+                                        size: 90, color: _orange))))),
                 const SizedBox(height: 20),
                 Text(listing.category.toUpperCase(),
                     style: const TextStyle(
@@ -1840,6 +1972,32 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 const SizedBox(height: 8),
                 Text('${listing.condition}  •  ${listing.location}',
                     style: const TextStyle(color: _muted)),
+                const SizedBox(height: 10),
+                Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFEAF4FD),
+                        borderRadius: BorderRadius.circular(14)),
+                    child: Row(children: [
+                      const Icon(Icons.payments_outlined, color: _orange),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            const Text('LISTING PRICE',
+                                style: TextStyle(
+                                    color: _muted,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800)),
+                            Text(listing.price,
+                                style: const TextStyle(
+                                    color: Color(0xFF16324F),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900)),
+                          ]))
+                    ])),
                 const SizedBox(height: 14),
                 Material(
                     color: const Color(0xFFF4F7FA),
@@ -1889,9 +2047,15 @@ class _ListingDetailsState extends State<_ListingDetails> {
                               const Icon(Icons.chevron_right)
                             ])))),
                 const SizedBox(height: 14),
-                Text(_isWanted
-                    ? 'Buyer-provided requirements, acceptable specifications, quantity, and delivery needs are shown below. Confirm final terms in secure messages.'
-                    : 'Seller-provided specifications, inspection documents, serial information, and logistics details are available on request.'),
+                Text(listing.description.trim().isNotEmpty
+                    ? listing.description.trim()
+                    : _isWanted
+                        ? 'Buyer-provided requirements, acceptable specifications, quantity, and delivery needs are shown below. Confirm final terms in secure messages.'
+                        : 'Seller-provided specifications, inspection documents, serial information, and logistics details are available on request.'),
+                if (_hasStructuredDetails) ...[
+                  const SizedBox(height: 16),
+                  _structuredDetailsPanel(),
+                ],
                 const SizedBox(height: 16),
                 _locationPanel(),
                 const SizedBox(height: 16),
@@ -1964,6 +2128,177 @@ class _ListingDetailsState extends State<_ListingDetails> {
                         icon: const Icon(Icons.flag_outlined),
                         label: const Text('Report listing')))
               ]));
+
+  bool get _hasStructuredDetails {
+    const fields = [
+      'productType',
+      'brand',
+      'model',
+      'modelYear',
+      'machineHours',
+      'quantity',
+      'inspectionStatus',
+      'propertyOffering',
+      'propertyInterest',
+      'landAreaInputValue',
+      'buildingAreaValue',
+      'zoningOrUse',
+      'monthlyRevenue',
+      'annualRevenue',
+      'netOperatingIncome',
+      'annualPropertyTax',
+      'leaseDetails',
+      'propertyFeatures',
+    ];
+    return fields.any((field) {
+      final value = listing.details[field];
+      if (value is Iterable) return value.isNotEmpty;
+      return value != null && '$value'.trim().isNotEmpty;
+    });
+  }
+
+  Widget _structuredDetailsPanel() {
+    final details = listing.details;
+    final rows = <Widget>[];
+    void addRow(String label, Object? value, IconData icon) {
+      final text = '${value ?? ''}'.trim();
+      if (text.isEmpty || text == 'null') return;
+      rows.add(_listingDetailRow(label, text, icon));
+    }
+
+    addRow('Product type', details['productType'], Icons.inventory_2_outlined);
+    final brand = '${details['brand'] ?? ''}'.trim();
+    final model = '${details['model'] ?? ''}'.trim();
+    if (brand.isNotEmpty || model.isNotEmpty) {
+      addRow(
+          'Make and model',
+          [brand, model].where((v) => v.isNotEmpty).join(' '),
+          Icons.precision_manufacturing_outlined);
+    }
+    addRow('Model year', details['modelYear'], Icons.calendar_today_outlined);
+    final machineHours = details['machineHours'] as num?;
+    if (machineHours != null) {
+      addRow('Machine hours', '${propertyMeasure(machineHours)} hours',
+          Icons.schedule);
+    }
+    final quantity = details['quantity'] as num?;
+    if (quantity != null && listing.category != 'Site & Property') {
+      addRow('Available quantity', propertyMeasure(quantity), Icons.numbers);
+    }
+    addRow(
+        'Inspection', details['inspectionStatus'], Icons.fact_check_outlined);
+
+    final landInput = details['landAreaInputValue'] as num?;
+    final landUnit = '${details['landAreaInputUnit'] ?? ''}';
+    final acres = details['landAreaAcres'] as num?;
+    final hectares = details['landAreaHectares'] as num?;
+    if (landInput != null) {
+      var display = '${propertyMeasure(landInput)} $landUnit';
+      if (acres != null && hectares != null) {
+        display =
+            '${propertyMeasure(acres)} acres • ${propertyMeasure(hectares)} hectares';
+      }
+      addRow('Land area', display, Icons.landscape_outlined);
+    }
+    final buildingArea = details['buildingAreaValue'] as num?;
+    if (buildingArea != null) {
+      addRow(
+          'Building area',
+          '${propertyMeasure(buildingArea)} ${details['buildingAreaUnit'] ?? ''}',
+          Icons.warehouse_outlined);
+    }
+    addRow('Offering includes', details['propertyOffering'],
+        Icons.real_estate_agent_outlined);
+    addRow('Interest offered', details['propertyInterest'],
+        Icons.account_balance_outlined);
+    addRow(
+        'Zoning / permitted use', details['zoningOrUse'], Icons.map_outlined);
+
+    void addMoney(String label, String field, IconData icon,
+        {String suffix = ''}) {
+      final value = details[field] as num?;
+      if (value != null && value > 0) {
+        addRow(label, '${marketplaceMoney(value)}$suffix', icon);
+      }
+    }
+
+    addMoney('Monthly gross revenue', 'monthlyRevenue',
+        Icons.calendar_view_month_outlined,
+        suffix: ' / month');
+    addMoney(
+        'Annual gross revenue', 'annualRevenue', Icons.calendar_today_outlined,
+        suffix: ' / year');
+    addMoney('Net operating income', 'netOperatingIncome',
+        Icons.trending_up_outlined,
+        suffix: ' / year');
+    addMoney(
+        'Annual property tax', 'annualPropertyTax', Icons.receipt_long_outlined,
+        suffix: ' / year');
+    addRow('Lease / rights details', details['leaseDetails'],
+        Icons.description_outlined);
+
+    final features = (details['propertyFeatures'] as Iterable?)
+            ?.map((value) => '$value')
+            .where((value) => value.trim().isNotEmpty)
+            .toList() ??
+        const <String>[];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+          color: const Color(0xFFF7F9FC),
+          border: Border.all(color: const Color(0xFFD8E0E9)),
+          borderRadius: BorderRadius.circular(15)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Icon(Icons.info_outline, color: _orange),
+          SizedBox(width: 8),
+          Text('Listing details',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        ]),
+        if (rows.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ...rows,
+        ],
+        if (features.isNotEmpty) ...[
+          const Divider(height: 20),
+          const Text('Property features',
+              style: TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: features
+                  .map((feature) => Chip(
+                      avatar: const Icon(Icons.check_circle_outline,
+                          size: 16, color: Colors.green),
+                      label: Text(feature),
+                      visualDensity: VisualDensity.compact))
+                  .toList()),
+        ],
+      ]),
+    );
+  }
+
+  Widget _listingDetailRow(String label, String value, IconData icon) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 19, color: _orange),
+          const SizedBox(width: 9),
+          Expanded(
+              flex: 2,
+              child: Text(label,
+                  style: const TextStyle(fontSize: 12, color: _muted))),
+          const SizedBox(width: 8),
+          Expanded(
+              flex: 3,
+              child: Text(value,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700))),
+        ]),
+      );
 
   Widget _locationPanel() {
     final hasPoint = listing.latitude != null && listing.longitude != null;
@@ -2528,6 +2863,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   final _reservePrice = TextEditingController();
   final _buyItNowPrice = TextEditingController();
   final _minimumBidIncrement = TextEditingController(text: '25');
+  final _landArea = TextEditingController();
+  final _buildingArea = TextEditingController();
+  final _zoningOrUse = TextEditingController();
+  final _monthlyRevenue = TextEditingController();
+  final _annualRevenue = TextEditingController();
+  final _netOperatingIncome = TextEditingController();
+  final _annualPropertyTax = TextEditingController();
+  final _leaseDetails = TextEditingController();
   DateTime? _auctionStartAt;
   DateTime? _auctionEndAt;
   String? _category;
@@ -2544,9 +2887,15 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   String _listingType = 'For Sale';
   String _priceBasis = 'Per piece';
   String _priceFlexibility = 'Open to offers';
+  String _landAreaUnit = 'Acres';
+  String _buildingAreaUnit = 'Square feet';
+  String _propertyInterest = 'Freehold / fee simple';
+  String _propertyOffering = 'Land only';
+  final Set<String> _propertyFeatures = <String>{};
   List<String> _pipeSizes = pipeNominalSizes;
   Map<String, List<String>> _equipmentBrands = equipmentBrandModels;
   final List<XFile> _photos = [];
+  int? _thumbnailPhotoIndex;
   XFile? _video;
   bool _boostRequested = false;
   MarketplaceLocation? _location;
@@ -2559,6 +2908,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
 
   bool get _isAuction => _listingType == 'Auction';
   bool get _isWanted => _listingType == 'Wanted / Seeking';
+  bool get _isProperty => _category == 'Site & Property';
 
   String get _placement {
     if (_isAuction) return 'Auction';
@@ -2746,6 +3096,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     _reservePrice.dispose();
     _buyItNowPrice.dispose();
     _minimumBidIncrement.dispose();
+    _landArea.dispose();
+    _buildingArea.dispose();
+    _zoningOrUse.dispose();
+    _monthlyRevenue.dispose();
+    _annualRevenue.dispose();
+    _netOperatingIncome.dispose();
+    _annualPropertyTax.dispose();
+    _leaseDetails.dispose();
     super.dispose();
   }
 
@@ -2767,19 +3125,29 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           'Sucker Rod'
         }.contains(_productType);
     final isMachine = _category == 'Heavy Equipment';
+    final isProperty = _isProperty;
     final priceBasisOptions = isMachine
         ? const ['Total asking price', 'Price per machine', 'Call for price']
-        : isPipe
+        : isProperty
             ? const [
-                'Per piece',
-                'Total for all',
-                'Per foot',
-                'Per metre',
-                'Per joint',
-                'Per bundle',
+                'Total asking price',
+                'Per acre',
+                'Per hectare',
+                'Monthly lease',
+                'Annual lease',
                 'Call for price'
               ]
-            : const ['Total asking price', 'Per item', 'Call for price'];
+            : isPipe
+                ? const [
+                    'Per piece',
+                    'Total for all',
+                    'Per foot',
+                    'Per metre',
+                    'Per joint',
+                    'Per bundle',
+                    'Call for price'
+                  ]
+                : const ['Total asking price', 'Per item', 'Call for price'];
     final displayedPriceBasis = priceBasisOptions.contains(_priceBasis)
         ? _priceBasis
         : priceBasisOptions.first;
@@ -2813,6 +3181,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             DropdownButtonFormField<String>(
               initialValue: _category,
               isExpanded: true,
+              itemHeight: 70,
               decoration: InputDecoration(
                   labelText: 'Category *',
                   prefixIcon: _category == null
@@ -2839,11 +3208,21 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                                     CatalogIcon(label: item.name, size: 34))),
                         const SizedBox(width: 12),
                         Expanded(
-                            child: Text(item.name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)))
+                            child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(item.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800)),
+                              Text(item.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: _muted, fontSize: 10.5)),
+                            ]))
                       ])))
                   .toList(),
               onChanged: (value) => setState(() {
@@ -2856,7 +3235,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 _equipmentBrand = null;
                 _equipmentModel = null;
                 _equipmentYear = null;
-                _quantity.text = value == 'Heavy Equipment' ? '1' : '';
+                _quantity.text =
+                    value == 'Heavy Equipment' || value == 'Site & Property'
+                        ? '1'
+                        : '';
                 _priceBasis = value == 'Heavy Equipment'
                     ? 'Total asking price'
                     : value == 'Pipe, Tubing & Materials'
@@ -2869,6 +3251,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             DropdownButtonFormField<String>(
               initialValue: _productType,
               isExpanded: true,
+              itemHeight: 72,
               decoration: InputDecoration(
                   labelText: 'Product type *',
                   prefixIcon: _productType == null
@@ -2904,11 +3287,24 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                                     size: 34))),
                         const SizedBox(width: 12),
                         Expanded(
-                            child: Text(type,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)))
+                            child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(type,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800)),
+                              if (category != null)
+                                Text(
+                                    marketplaceProductTypeDescription(
+                                        type, category),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: _muted, fontSize: 10.5)),
+                            ]))
                       ])))
                   .toList(),
               onChanged: category == null
@@ -2923,6 +3319,25 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                         if (_category == 'Heavy Equipment') {
                           _quantity.text = '1';
                           _priceBasis = 'Total asking price';
+                        } else if (_category == 'Site & Property') {
+                          _quantity.text = '1';
+                          _priceBasis = 'Total asking price';
+                          if (value == 'Business for Sale') {
+                            _propertyOffering = 'Business only';
+                            _propertyInterest = 'Business interest';
+                          } else if (value == 'Mineral Rights' ||
+                              value == 'Surface Rights' ||
+                              value == 'Oil & Gas Lease' ||
+                              value == 'Pipeline') {
+                            _propertyOffering = 'Rights or royalty interest';
+                            _propertyInterest = value == 'Mineral Rights'
+                                ? 'Mineral rights'
+                                : value == 'Surface Rights'
+                                    ? 'Surface rights'
+                                    : value == 'Pipeline'
+                                        ? 'Easement / right-of-way'
+                                        : 'Oil and gas lease';
+                          }
                         }
                       }),
               validator: (_) =>
@@ -2942,6 +3357,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               ),
             ],
             const SizedBox(height: 12),
+            if (isProperty) ...[
+              _propertyDetailsCard(),
+              const SizedBox(height: 12),
+            ],
             if (isMachine)
               DropdownButtonFormField<String>(
                 initialValue: _equipmentBrand,
@@ -2963,7 +3382,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                     ? 'Select a manufacturer'
                     : null,
               )
-            else
+            else if (!isProperty)
               TextFormField(
                 controller: _brand,
                 decoration: const InputDecoration(
@@ -2983,7 +3402,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                     : null,
               ),
             ],
-            const SizedBox(height: 12),
+            if (!isProperty) const SizedBox(height: 12),
             if (isPipe)
               DropdownButtonFormField<String>(
                 initialValue: _pipeSize,
@@ -3025,7 +3444,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                     ? 'Select a model'
                     : null,
               )
-            else
+            else if (!isProperty)
               TextFormField(
                 controller: _model,
                 decoration: const InputDecoration(
@@ -3178,26 +3597,28 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               ),
               const SizedBox(height: 12),
             ],
-            TextFormField(
-              key: ValueKey('quantity-$isMachine-${_quantity.text}'),
-              controller: _quantity,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                  labelText: isMachine
-                      ? (isWanted
-                          ? 'Number of machines needed *'
-                          : 'Number of identical machines *')
-                      : (isWanted ? 'Quantity needed *' : 'Quantity *'),
-                  hintText: isMachine ? '1' : 'Example: 43 pieces',
-                  suffixText: isMachine ? 'machine(s)' : 'pieces',
-                  prefixIcon: const Icon(Icons.numbers)),
-              validator: (_) => _quantity.text.trim().isEmpty
-                  ? isWanted
-                      ? 'Enter the quantity needed'
-                      : 'Enter the available quantity'
-                  : null,
-            ),
-            const SizedBox(height: 12),
+            if (!isProperty) ...[
+              TextFormField(
+                key: ValueKey('quantity-$isMachine-${_quantity.text}'),
+                controller: _quantity,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                    labelText: isMachine
+                        ? (isWanted
+                            ? 'Number of machines needed *'
+                            : 'Number of identical machines *')
+                        : (isWanted ? 'Quantity needed *' : 'Quantity *'),
+                    hintText: isMachine ? '1' : 'Example: 43 pieces',
+                    suffixText: isMachine ? 'machine(s)' : 'pieces',
+                    prefixIcon: const Icon(Icons.numbers)),
+                validator: (_) => _quantity.text.trim().isEmpty
+                    ? isWanted
+                        ? 'Enter the quantity needed'
+                        : 'Enter the available quantity'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+            ],
             DropdownButtonFormField<String>(
               key: ValueKey(
                   'condition-${_category ?? ''}-${_productType ?? ''}-${_condition ?? ''}'),
@@ -3371,6 +3792,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               controller: _price,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: const [MarketplaceMoneyInputFormatter()],
               enabled: _priceBasis != 'Call for price',
               decoration: InputDecoration(
                   labelText: isWanted
@@ -3507,47 +3929,111 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   ]),
                   const Text('JPEG or PNG • maximum 5 MB each',
                       style: TextStyle(fontSize: 11, color: _muted)),
-                  if (_photos.isNotEmpty)
+                  if (_photos.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                            'Choose the listing thumbnail by tapping a photo.',
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w700))),
+                    const SizedBox(height: 8),
                     Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: List.generate(
                             _photos.length,
-                            (index) => Stack(children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: FutureBuilder<Uint8List>(
-                                      future: _photos[index].readAsBytes(),
-                                      builder: (context, snapshot) => SizedBox(
-                                        width: 88,
-                                        height: 72,
-                                        child: snapshot.hasData
-                                            ? Image.memory(snapshot.data!,
-                                                fit: BoxFit.cover)
-                                            : const ColoredBox(
-                                                color: Color(0xFFE8EEF5),
-                                                child: Center(
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                            strokeWidth: 2))),
+                            (index) => GestureDetector(
+                                  onTap: () => setState(
+                                      () => _thumbnailPhotoIndex = index),
+                                  child: Container(
+                                    width: 96,
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: _thumbnailPhotoIndex == index
+                                                ? _orange
+                                                : const Color(0xFFD8E0E9),
+                                            width: _thumbnailPhotoIndex == index
+                                                ? 3
+                                                : 1),
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                    child: Stack(children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: FutureBuilder<Uint8List>(
+                                          future: _photos[index].readAsBytes(),
+                                          builder: (context, snapshot) =>
+                                              SizedBox(
+                                            width: 88,
+                                            height: 76,
+                                            child: snapshot.hasData
+                                                ? Image.memory(snapshot.data!,
+                                                    fit: BoxFit.cover)
+                                                : const ColoredBox(
+                                                    color: Color(0xFFE8EEF5),
+                                                    child: Center(
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                                strokeWidth:
+                                                                    2))),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: 2,
-                                    top: 2,
-                                    child: InkWell(
-                                      onTap: () => setState(
-                                          () => _photos.removeAt(index)),
-                                      child: const CircleAvatar(
-                                        radius: 11,
-                                        backgroundColor: Colors.black87,
-                                        child: Icon(Icons.close,
-                                            size: 14, color: Colors.white),
+                                      if (_thumbnailPhotoIndex == index)
+                                        const Positioned(
+                                            left: 3,
+                                            bottom: 3,
+                                            child: DecoratedBox(
+                                                decoration: BoxDecoration(
+                                                    color: _orange,
+                                                    borderRadius:
+                                                        BorderRadius.all(
+                                                            Radius.circular(
+                                                                10))),
+                                                child: Padding(
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 3),
+                                                    child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                              Icons
+                                                                  .photo_size_select_actual_outlined,
+                                                              size: 11,
+                                                              color:
+                                                                  Colors.white),
+                                                          SizedBox(width: 3),
+                                                          Text('Thumbnail',
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 8,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w900))
+                                                        ])))),
+                                      Positioned(
+                                        right: 2,
+                                        top: 2,
+                                        child: InkWell(
+                                          onTap: () => _removePhoto(index),
+                                          child: const CircleAvatar(
+                                            radius: 11,
+                                            backgroundColor: Colors.black87,
+                                            child: Icon(Icons.close,
+                                                size: 14, color: Colors.white),
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ]),
                                   ),
-                                ]))),
+                                ))),
+                  ],
                   const Divider(height: 20),
                   Row(children: [
                     const Icon(Icons.videocam_outlined),
@@ -3642,6 +4128,289 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     );
   }
 
+  bool get _propertyNeedsLandArea => const {
+        'Commercial Property',
+        'Farm & Ranch Land',
+        'Fenced Yard',
+        'Industrial Real Estate',
+        'Lease Land',
+        'Oil & Gas Lease',
+        'Storage Yard',
+        'Surface Rights',
+      }.contains(_productType);
+
+  Widget _propertyDetailsCard() {
+    final areaValue = propertyNumber(_landArea.text);
+    final conversion = convertPropertyArea(areaValue, _landAreaUnit);
+    final monthlyRevenue = marketplaceMoneyValue(_monthlyRevenue.text);
+    final enteredAnnualRevenue = marketplaceMoneyValue(_annualRevenue.text);
+    final annualRevenue = enteredAnnualRevenue ??
+        (monthlyRevenue == null ? null : monthlyRevenue * 12);
+    final monthlyEquivalent = monthlyRevenue ??
+        (enteredAnnualRevenue == null ? null : enteredAnnualRevenue / 12);
+    return Card(
+      margin: EdgeInsets.zero,
+      color: const Color(0xFFF7FAFE),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFE0F0FF),
+                child: Icon(Icons.real_estate_agent_outlined, color: _orange)),
+            SizedBox(width: 10),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text('Property, business and rights details',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                  Text(
+                      'These details appear as structured facts on the public listing.',
+                      style: TextStyle(fontSize: 11, color: _muted)),
+                ])),
+          ]),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: _propertyOffering,
+            isExpanded: true,
+            decoration: const InputDecoration(
+                labelText: 'What is included in the offering? *',
+                prefixIcon: Icon(Icons.inventory_outlined)),
+            items: propertyOfferingOptions
+                .map((value) =>
+                    DropdownMenuItem(value: value, child: Text(value)))
+                .toList(),
+            onChanged: (value) =>
+                setState(() => _propertyOffering = value ?? 'Land only'),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _propertyInterest,
+            isExpanded: true,
+            decoration: const InputDecoration(
+                labelText: 'Interest or title being offered *',
+                prefixIcon: Icon(Icons.account_balance_outlined)),
+            items: propertyInterestOptions
+                .map((value) =>
+                    DropdownMenuItem(value: value, child: Text(value)))
+                .toList(),
+            onChanged: (value) => setState(
+                () => _propertyInterest = value ?? 'Freehold / fee simple'),
+          ),
+          const SizedBox(height: 12),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              flex: 3,
+              child: TextFormField(
+                controller: _landArea,
+                onChanged: (_) => setState(() {}),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                    labelText: 'Land area${_propertyNeedsLandArea ? ' *' : ''}',
+                    hintText: 'Example: 160',
+                    prefixIcon: const Icon(Icons.landscape_outlined)),
+                validator: (value) {
+                  if (!_propertyNeedsLandArea) return null;
+                  final parsed = propertyNumber(value ?? '');
+                  return parsed == null || parsed <= 0
+                      ? 'Enter the land area'
+                      : null;
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<String>(
+                initialValue: _landAreaUnit,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Area unit'),
+                items: propertyAreaUnits
+                    .map((value) =>
+                        DropdownMenuItem(value: value, child: Text(value)))
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _landAreaUnit = value ?? 'Acres'),
+              ),
+            ),
+          ]),
+          if (conversion.hasLandMeasure) ...[
+            const SizedBox(height: 7),
+            Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFEAF4FD),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                    '${propertyMeasure(conversion.acres!)} acres • ${propertyMeasure(conversion.hectares!)} hectares',
+                    style: const TextStyle(
+                        color: Color(0xFF334E68),
+                        fontWeight: FontWeight.w800))),
+          ],
+          const SizedBox(height: 12),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              flex: 3,
+              child: TextFormField(
+                controller: _buildingArea,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Building area (optional)',
+                    hintText: 'Total enclosed area',
+                    prefixIcon: Icon(Icons.warehouse_outlined)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<String>(
+                initialValue: _buildingAreaUnit,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Building unit'),
+                items: propertyBuildingAreaUnits
+                    .map((value) =>
+                        DropdownMenuItem(value: value, child: Text(value)))
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _buildingAreaUnit = value ?? 'Square feet'),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _zoningOrUse,
+            decoration: const InputDecoration(
+                labelText: 'Zoning or permitted use',
+                hintText: 'Example: Heavy industrial, agricultural, mixed use',
+                prefixIcon: Icon(Icons.map_outlined)),
+          ),
+          const SizedBox(height: 16),
+          const Text('Income and operating information',
+              style: TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 3),
+          const Text(
+              'Optional seller-provided figures. Buyers should verify financial records during due diligence.',
+              style: TextStyle(fontSize: 11, color: _muted)),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+                child: TextFormField(
+              controller: _monthlyRevenue,
+              onChanged: (_) => setState(() {}),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: const [MarketplaceMoneyInputFormatter()],
+              decoration: const InputDecoration(
+                  labelText: 'Gross revenue / month',
+                  hintText: '0.00',
+                  prefixText: r'$ ',
+                  prefixIcon: Icon(Icons.calendar_view_month_outlined)),
+            )),
+            const SizedBox(width: 8),
+            Expanded(
+                child: TextFormField(
+              controller: _annualRevenue,
+              onChanged: (_) => setState(() {}),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: const [MarketplaceMoneyInputFormatter()],
+              decoration: const InputDecoration(
+                  labelText: 'Gross revenue / year',
+                  hintText: '0.00',
+                  prefixText: r'$ ',
+                  prefixIcon: Icon(Icons.calendar_today_outlined)),
+            )),
+          ]),
+          if (annualRevenue != null || monthlyEquivalent != null) ...[
+            const SizedBox(height: 7),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFEAF8F1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text(
+                  'Revenue equivalent: ${monthlyEquivalent == null ? '—' : '${marketplaceMoney(monthlyEquivalent)} / month'} • ${annualRevenue == null ? '—' : '${marketplaceMoney(annualRevenue)} / year'}',
+                  style: const TextStyle(
+                      color: Color(0xFF18794E), fontWeight: FontWeight.w800)),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+                child: TextFormField(
+              controller: _netOperatingIncome,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: const [MarketplaceMoneyInputFormatter()],
+              decoration: const InputDecoration(
+                  labelText: 'Annual NOI',
+                  hintText: 'Optional',
+                  prefixText: r'$ ',
+                  prefixIcon: Icon(Icons.trending_up_outlined)),
+            )),
+            const SizedBox(width: 8),
+            Expanded(
+                child: TextFormField(
+              controller: _annualPropertyTax,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: const [MarketplaceMoneyInputFormatter()],
+              decoration: const InputDecoration(
+                  labelText: 'Annual property tax',
+                  hintText: 'Optional',
+                  prefixText: r'$ ',
+                  prefixIcon: Icon(Icons.receipt_long_outlined)),
+            )),
+          ]),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _leaseDetails,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+                labelText: 'Lease, rights or business details',
+                hintText:
+                    'Tenants, term, renewal, royalty, included assets or sale structure',
+                alignLabelWithHint: true,
+                prefixIcon: Icon(Icons.description_outlined)),
+          ),
+          const SizedBox(height: 14),
+          const Text('Property features',
+              style: TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 7),
+          Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: propertyFeatureOptions
+                  .map((feature) => FilterChip(
+                      selected: _propertyFeatures.contains(feature),
+                      avatar: Icon(
+                          _propertyFeatures.contains(feature)
+                              ? Icons.check_circle
+                              : Icons.add_circle_outline,
+                          size: 17),
+                      label: Text(feature),
+                      onSelected: (selected) => setState(() {
+                            if (selected) {
+                              _propertyFeatures.add(feature);
+                            } else {
+                              _propertyFeatures.remove(feature);
+                            }
+                          })))
+                  .toList()),
+        ]),
+      ),
+    );
+  }
+
   Widget _signInRequired() => ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -3702,6 +4471,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 controller: _minimumBidIncrement,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: const [MarketplaceMoneyInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Minimum bid increase (CAD) *',
                     prefixIcon: Icon(Icons.trending_up)),
@@ -3717,6 +4487,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 controller: _reservePrice,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: const [MarketplaceMoneyInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Reserve price (optional)',
                     helperText:
@@ -3727,6 +4498,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 controller: _buyItNowPrice,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: const [MarketplaceMoneyInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Buy It Now price (optional)',
                     helperText:
@@ -3780,11 +4552,27 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (mounted) setState(() => _selectingPhotos = false);
     }
     if (!mounted) return;
-    setState(() => _photos.addAll(selected));
+    setState(() {
+      _photos.addAll(selected);
+      if (_photos.isNotEmpty) _thumbnailPhotoIndex ??= 0;
+    });
     if (selected.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('No eligible photos selected. Maximum is 5 MB each.')));
     }
+  }
+
+  void _removePhoto(int index) {
+    setState(() {
+      _photos.removeAt(index);
+      if (_photos.isEmpty) {
+        _thumbnailPhotoIndex = null;
+      } else if (_thumbnailPhotoIndex == index) {
+        _thumbnailPhotoIndex = 0;
+      } else if ((_thumbnailPhotoIndex ?? 0) > index) {
+        _thumbnailPhotoIndex = _thumbnailPhotoIndex! - 1;
+      }
+    });
   }
 
   Future<void> _selectVideo() async {
@@ -3845,7 +4633,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     }
     setState(() => _publishing = true);
     try {
-      final rawPrice = _price.text.replaceAll(RegExp(r'[^0-9.]'), '');
+      final rawPrice = marketplaceMoneyValue(_price.text);
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw StateError('Sign in required.');
       final isPipeListing = _category == 'Pipe, Tubing & Materials' ||
@@ -3858,8 +4646,22 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             'Sucker Rod'
           }.contains(_productType);
       final isMachine = _category == 'Heavy Equipment';
+      final isProperty = _isProperty;
+      final landAreaInput = propertyNumber(_landArea.text);
+      final landArea = convertPropertyArea(landAreaInput, _landAreaUnit);
+      final monthlyRevenue = marketplaceMoneyValue(_monthlyRevenue.text);
+      final enteredAnnualRevenue = marketplaceMoneyValue(_annualRevenue.text);
+      final annualRevenue = enteredAnnualRevenue ??
+          (monthlyRevenue == null ? null : monthlyRevenue * 12);
       final listingId = _repository.newListingId();
       final queuedPhotos = List<XFile>.from(_photos);
+      final selectedThumbnail = _thumbnailPhotoIndex;
+      if (selectedThumbnail != null &&
+          selectedThumbnail > 0 &&
+          selectedThumbnail < queuedPhotos.length) {
+        final thumbnail = queuedPhotos.removeAt(selectedThumbnail);
+        queuedPhotos.insert(0, thumbnail);
+      }
       final queuedVideo = _video;
       final hasQueuedMedia = queuedPhotos.isNotEmpty || queuedVideo != null;
       await _repository.publishListing({
@@ -3901,23 +4703,37 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 ? _customPipeBand.text.trim()
                 : _pipeBand)
             : null,
+        if (isProperty) ...{
+          'propertyOffering': _propertyOffering,
+          'propertyInterest': _propertyInterest,
+          'landAreaInputValue': landAreaInput,
+          'landAreaInputUnit': _landAreaUnit,
+          'landAreaAcres': landArea.acres,
+          'landAreaHectares': landArea.hectares,
+          'buildingAreaValue': propertyNumber(_buildingArea.text),
+          'buildingAreaUnit': _buildingAreaUnit,
+          'zoningOrUse': _zoningOrUse.text.trim(),
+          'monthlyRevenue': monthlyRevenue,
+          'annualRevenue': annualRevenue,
+          'netOperatingIncome': marketplaceMoneyValue(_netOperatingIncome.text),
+          'annualPropertyTax': marketplaceMoneyValue(_annualPropertyTax.text),
+          'leaseDetails': _leaseDetails.text.trim(),
+          'propertyFeatures': _propertyFeatures.toList()..sort(),
+        },
         'transactionType': _listingType,
         if (_isWanted) ...{
           'wantedStatus': 'open',
           'responseCount': 0,
           'requestType': 'wanted_ad',
         },
-        'price': rawPrice.isEmpty ? null : num.tryParse(rawPrice),
+        'price': rawPrice,
         if (_listingType == 'Auction') ...{
-          'startingBid': num.tryParse(rawPrice),
+          'startingBid': rawPrice,
           'currentBid': 0,
-          'minimumBidIncrement': num.tryParse(_minimumBidIncrement.text
-                  .replaceAll(RegExp(r'[^0-9.]'), '')) ??
-              1,
-          'reservePrice': num.tryParse(
-              _reservePrice.text.replaceAll(RegExp(r'[^0-9.]'), '')),
-          'buyItNowPrice': num.tryParse(
-              _buyItNowPrice.text.replaceAll(RegExp(r'[^0-9.]'), '')),
+          'minimumBidIncrement':
+              marketplaceMoneyValue(_minimumBidIncrement.text) ?? 1,
+          'reservePrice': marketplaceMoneyValue(_reservePrice.text),
+          'buyItNowPrice': marketplaceMoneyValue(_buyItNowPrice.text),
           'auctionStartAt': Timestamp.fromDate(_auctionStartAt!),
           'auctionEndAt': Timestamp.fromDate(_auctionEndAt!),
           'bidCount': 0,
@@ -3933,6 +4749,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         'sellerPhotoUrl': user.photoURL,
         'sellerVerified': false,
         'imageUrls': const <String>[],
+        'thumbnailUrl': null,
         'videoUrl': null,
         'mediaPhotoCount': queuedPhotos.length,
         'hasVideo': queuedVideo != null,
@@ -4013,7 +4830,16 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _reservePrice.clear();
       _buyItNowPrice.clear();
       _minimumBidIncrement.text = '25';
+      _landArea.clear();
+      _buildingArea.clear();
+      _zoningOrUse.clear();
+      _monthlyRevenue.clear();
+      _annualRevenue.clear();
+      _netOperatingIncome.clear();
+      _annualPropertyTax.clear();
+      _leaseDetails.clear();
       _photos.clear();
+      _thumbnailPhotoIndex = null;
       _video = null;
       setState(() {
         _category = null;
@@ -4029,6 +4855,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         _operatingStatus = 'Operational';
         _priceBasis = 'Per piece';
         _priceFlexibility = 'Open to offers';
+        _landAreaUnit = 'Acres';
+        _buildingAreaUnit = 'Square feet';
+        _propertyInterest = 'Freehold / fee simple';
+        _propertyOffering = 'Land only';
+        _propertyFeatures.clear();
         _boostRequested = false;
         _location = null;
         _auctionStartAt = null;
@@ -4084,7 +4915,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     }
     try {
       await _repository.updateListingMedia(listingId,
-          imageUrls: const [], status: 'uploading');
+          imageUrls: const [], thumbnailUrl: null, status: 'uploading');
       final media = await _mediaRepository.upload(
         listingId: listingId,
         photos: photos,
@@ -4096,6 +4927,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       await _repository.updateListingMedia(listingId,
           imageUrls: media.imageUrls,
           imageHashes: media.imageHashes,
+          thumbnailUrl: media.imageUrls.firstOrNull,
           videoUrl: media.videoUrl,
           status: 'complete');
       if (mounted) {
@@ -4107,7 +4939,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     } catch (error) {
       try {
         await _repository.updateListingMedia(listingId,
-            imageUrls: const [], status: 'failed', error: error.toString());
+            imageUrls: const [],
+            thumbnailUrl: null,
+            status: 'failed',
+            error: error.toString());
       } catch (_) {}
       if (mounted) {
         setState(() => _backgroundUploadMessage =

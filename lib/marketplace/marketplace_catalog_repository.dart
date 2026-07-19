@@ -66,6 +66,7 @@ class MarketplaceCatalogRepository {
   Future<void> updateListingMedia(String listingId,
       {required List<String> imageUrls,
       List<String> imageHashes = const [],
+      String? thumbnailUrl,
       String? videoUrl,
       required String status,
       String? error}) async {
@@ -73,6 +74,7 @@ class MarketplaceCatalogRepository {
       'listingId': listingId,
       'imageUrls': imageUrls,
       'imageHashes': imageHashes,
+      'thumbnailUrl': thumbnailUrl,
       'videoUrl': videoUrl,
       'status': status,
       'error': error,

@@ -106,3 +106,26 @@ test("keeps auction reserve private and validates mapped locations", () => {
       (error) => error instanceof ListingPolicyError,
   );
 });
+
+test("keeps property and business listing facts structured", () => {
+  const listing = validateMarketplaceListingInput(validListing({
+    title: "Income-producing industrial yard",
+    category: "Site & Property",
+    productType: "Industrial Real Estate",
+    propertyOffering: "Business and property",
+    propertyInterest: "Freehold with active lease(s)",
+    landAreaInputValue: 160,
+    landAreaInputUnit: "Acres",
+    landAreaAcres: 160,
+    landAreaHectares: 64.7497,
+    buildingAreaValue: 24000,
+    buildingAreaUnit: "Square feet",
+    monthlyRevenue: 25000,
+    annualRevenue: 300000,
+    propertyFeatures: ["Power", "Fenced / gated"],
+  }), now);
+
+  assert.equal(listing.landAreaAcres, 160);
+  assert.equal(listing.annualRevenue, 300000);
+  assert.deepEqual(listing.propertyFeatures, ["Power", "Fenced / gated"]);
+});
