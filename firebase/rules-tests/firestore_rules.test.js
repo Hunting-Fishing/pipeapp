@@ -83,6 +83,39 @@ beforeEach(async () => {
       ownerUid: "seller",
       reservePrice: 175,
     });
+    await setDoc(doc(db, "dispatch_carriers", "carrier"), {
+      ownerUid: "carrier",
+      operatingName: "Test Carrier",
+      status: "active",
+      availableForHire: true,
+    });
+    await setDoc(
+        doc(db, "dispatch_carriers", "carrier", "vehicles", "truck"),
+        {
+          ownerUid: "carrier",
+          name: "Truck 1",
+          maximumPayloadKg: 25000,
+          available: true,
+        },
+    );
+    await setDoc(doc(db, "dispatch_jobs", "job"), {
+      createdByUid: "buyer",
+      title: "Pipe load",
+      pickupLabel: "Grande Prairie",
+      deliveryLabel: "Dawson Creek",
+      loadDetails: "54 joints",
+      status: "open",
+      bidCount: 1,
+      revision: 1,
+    });
+    await setDoc(doc(db, "dispatch_bids", "bid"), {
+      jobId: "job",
+      carrierUid: "carrier",
+      amount: 2500,
+      status: "pending",
+      revision: 1,
+      vehicleId: "truck",
+    });
   });
 });
 
@@ -280,4 +313,40 @@ test("only the auction owner can read the reserve amount", async () => {
   await assertFails(
       getDoc(doc(buyerDb, "auction_private", "auction")),
   );
+});
+
+test("Dispatch quote and award state cannot be forged by clients", async () => {
+  const carrierDb = testEnvironment
+      .authenticatedContext("carrier")
+      .firestore();
+  const ownerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+
+  await assertFails(setDoc(doc(carrierDb, "dispatch_bids", "forged"), {
+    jobId: "job",
+    carrierUid: "carrier",
+    amount: 1,
+    status: "pending",
+    revision: 1,
+    vehicleId: "truck",
+  }));
+  await assertFails(updateDoc(doc(carrierDb, "dispatch_bids", "bid"), {
+    amount: 1,
+    revision: 2,
+  }));
+  await assertFails(updateDoc(doc(ownerDb, "dispatch_jobs", "job"), {
+    status: "awarded",
+    awardedBidId: "bid",
+    awardedCarrierUid: "carrier",
+    awardedAmount: 1,
+    revision: 2,
+  }));
+  await assertSucceeds(updateDoc(doc(ownerDb, "dispatch_jobs", "job"), {
+    title: "Updated pipe load",
+    revision: 2,
+    updatedAt: Timestamp.fromDate(
+        new Date("2026-07-19T12:00:00.000Z"),
+    ),
+  }));
 });

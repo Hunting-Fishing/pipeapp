@@ -153,16 +153,37 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn() &&
         request.resource.data.createdByUid == request.auth.uid &&
-        request.resource.data.status in ['draft', 'open'];
+        request.resource.data.status in ['draft', 'open'] &&
+        request.resource.data.get('bidCount', 0) == 0 &&
+        request.resource.data.get('revision', 1) == 1 &&
+        !request.resource.data.keys().hasAny([
+          'awardedBidId', 'awardedCarrierUid', 'awardedAmount', 'awardedAt'
+        ]);
       allow update: if signedIn() &&
-        resource.data.createdByUid == request.auth.uid;
-      allow update: if signedIn() &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['bidCount', 'updatedAt']) &&
-        request.resource.data.bidCount == resource.data.get('bidCount', 0) + 1 &&
-        exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid));
+        resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        (
+          (resource.data.status in ['draft', 'open'] &&
+           request.resource.data.status == resource.data.status &&
+           request.resource.data.revision ==
+             resource.data.get('revision', 1) + 1 &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'title', 'pickupLabel', 'deliveryLabel', 'truckingDate',
+             'loadDetails', 'estimatedWeightKg', 'distanceKm',
+             'distanceSource', 'revision', 'updatedAt'
+           ])) ||
+          (resource.data.status == 'draft' &&
+           request.resource.data.status == 'open' &&
+           request.resource.data.revision ==
+             resource.data.get('revision', 1) + 1 &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'status', 'dispatchRequestStatus', 'revision',
+             'publishedAt', 'updatedAt'
+           ]))
+        );
       allow delete: if signedIn() &&
-        resource.data.createdByUid == request.auth.uid;
+        resource.data.createdByUid == request.auth.uid &&
+        resource.data.status == 'draft';
 
       match /revisions/{revisionId} {
         allow read: if signedIn();
@@ -174,42 +195,16 @@ service cloud.firestore {
     }
 
     match /dispatch_bids/{bidId} {
-      allow create: if signedIn() &&
-        request.resource.data.carrierUid == request.auth.uid &&
-        exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)) &&
-        exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)/vehicles/$(request.resource.data.vehicleId)) &&
-        get(/databases/$(database)/documents/dispatch_jobs/$(request.resource.data.jobId)).data.status == 'open';
       allow read: if signedIn() &&
         (resource.data.carrierUid == request.auth.uid ||
          get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.createdByUid == request.auth.uid);
-      allow update: if signedIn() &&
-        ((resource.data.carrierUid == request.auth.uid &&
-          resource.data.status == 'pending' &&
-          get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.status == 'open' &&
-          request.resource.data.carrierUid == resource.data.carrierUid &&
-          request.resource.data.jobId == resource.data.jobId &&
-          request.resource.data.revision == resource.data.get('revision', 1) + 1 &&
-          exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)/vehicles/$(request.resource.data.vehicleId)) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'amount', 'note', 'availableDate', 'vehicleId', 'vehicleName',
-            'revision', 'updatedAt'
-          ])) ||
-         (get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.createdByUid == request.auth.uid &&
-          request.resource.data.revision == resource.data.get('revision', 1) + 1 &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'revision', 'updatedAt'
-          ])));
-      allow delete: if false;
+      allow create, update, delete: if false;
 
       match /revisions/{revisionId} {
         allow read: if signedIn() &&
           (get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.carrierUid == request.auth.uid ||
            get(/databases/$(database)/documents/dispatch_jobs/$(get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.jobId)).data.createdByUid == request.auth.uid);
-        allow create: if signedIn() &&
-          request.resource.data.actorUid == request.auth.uid &&
-          (getAfter(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.carrierUid == request.auth.uid ||
-           get(/databases/$(database)/documents/dispatch_jobs/$(getAfter(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.jobId)).data.createdByUid == request.auth.uid);
-        allow update, delete: if false;
+        allow create, update, delete: if false;
       }
     }
 

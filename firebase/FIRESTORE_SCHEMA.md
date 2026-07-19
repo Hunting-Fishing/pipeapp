@@ -32,7 +32,8 @@ Firestore uses collections and documents rather than SQL tables.
   - `revisions/{revision}`: immutable request creation, edit, activation and
     award history.
 - `dispatch_bids/{bidId}`: one current carrier quote per carrier and job.
-  Carriers may revise pending quotes while the job remains open.
+  Submission, revision, and award are server-controlled. Carriers may revise
+  pending quotes while the job remains open.
   - `revisions/{revision}`: immutable submitted, edited, awarded or archived
     quote history.
 - `dispatch_carriers/{uid}`: Dispatch provider profile.
@@ -58,6 +59,8 @@ idempotency receipt. The current callable commands are:
 - `acceptAuctionBidBelowReserve`
 - `createMarketplaceOffer`
 - `acceptMarketplaceOffer`
+- `submitDispatchQuote`
+- `awardDispatchQuote`
 
 Firestore rules deny client writes to auction bid state and offer decisions.
 Auction sellers retain direct access only to the explicit notification

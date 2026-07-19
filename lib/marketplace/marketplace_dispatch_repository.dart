@@ -4,10 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'marketplace_location.dart';
 import 'marketplace_service_area.dart';
 import 'marketplace_dispatch_distance.dart';
+import 'marketplace_command_client.dart';
 import 'regional_phone_field.dart';
 
 class MarketplaceDispatchRepository {
+  MarketplaceDispatchRepository({
+    MarketplaceCommandClient? commandClient,
+  }) : _commands = commandClient ?? MarketplaceCommandClient();
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final MarketplaceCommandClient _commands;
   String get uid => FirebaseAuth.instance.currentUser!.uid;
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> carrierProfile() =>
@@ -413,84 +419,14 @@ class MarketplaceDispatchRepository {
     required String vehicleId,
     required String vehicleName,
   }) async {
-    final carrier =
-        await _firestore.collection('dispatch_carriers').doc(uid).get();
-    if (!carrier.exists || carrier.data()?['status'] == 'suspended') {
-      throw StateError('Complete carrier enrollment before bidding.');
-    }
-    final existing = await myBidForJob(jobId);
-    if (existing != null && existing.data()['status'] == 'pending') {
-      await updateBid(
-          bidId: existing.id,
-          amount: amount,
-          note: note,
-          availableDate: availableDate,
-          vehicleId: vehicleId,
-          vehicleName: vehicleName);
-      return;
-    }
-    final job = _firestore.collection('dispatch_jobs').doc(jobId);
-    final jobSnapshot = await job.get();
-    if (jobSnapshot.data()?['status'] != 'open') {
-      throw StateError('This Dispatch job is no longer open.');
-    }
-    final bid = _firestore.collection('dispatch_bids').doc();
-    final batch = _firestore.batch();
-    batch.set(bid, {
+    await _commands.execute('submitDispatchQuote', {
+      'requestId': _firestore.collection('dispatch_bids').doc().id,
       'jobId': jobId,
-      'carrierUid': uid,
-      'carrierName': carrier.data()?['operatingName'] ?? 'Dispatch carrier',
       'amount': amount,
-      'note': note,
-      'availableDate': Timestamp.fromDate(availableDate),
+      'note': note.trim(),
+      'availableDate': availableDate.millisecondsSinceEpoch,
       'vehicleId': vehicleId,
-      'vehicleName': vehicleName,
-      'status': 'pending',
-      'revision': 1,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(bid.collection('revisions').doc('1'), {
-      'jobId': jobId,
-      'carrierUid': uid,
-      'carrierName': carrier.data()?['operatingName'] ?? 'Dispatch carrier',
-      'amount': amount,
-      'note': note,
-      'availableDate': Timestamp.fromDate(availableDate),
-      'vehicleId': vehicleId,
-      'vehicleName': vehicleName,
-      'status': 'pending',
-      'revision': 1,
-      'event': 'quote_submitted',
-      'actorUid': uid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    batch.update(job, {
-      'bidCount': FieldValue.increment(1),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    final jobOwnerUid = '${jobSnapshot.data()?['createdByUid'] ?? ''}';
-    if (jobOwnerUid.isNotEmpty && jobOwnerUid != uid) {
-      batch.set(
-          _firestore
-              .collection('users')
-              .doc(jobOwnerUid)
-              .collection('notifications')
-              .doc(),
-          {
-            'recipientUid': jobOwnerUid,
-            'actorUid': uid,
-            'type': 'dispatch',
-            'jobId': jobId,
-            'bidId': bid.id,
-            'title': 'New carrier quote received',
-            'body':
-                '${carrier.data()?['operatingName'] ?? 'A Dispatch carrier'} quoted for ${jobSnapshot.data()?['title'] ?? 'your job'}.',
-            'read': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-    }
-    await batch.commit();
   }
 
   Future<void> updateBid({
@@ -503,61 +439,18 @@ class MarketplaceDispatchRepository {
   }) async {
     final reference = _firestore.collection('dispatch_bids').doc(bidId);
     final snapshot = await reference.get();
-    final current = snapshot.data();
-    if (current?['carrierUid'] != uid) {
-      throw StateError('Only the carrier can edit this quote.');
+    final jobId = '${snapshot.data()?['jobId'] ?? ''}';
+    if (jobId.isEmpty) {
+      throw StateError('This carrier quote is unavailable.');
     }
-    if (current?['status'] != 'pending') {
-      throw StateError('Only pending carrier quotes can be edited.');
-    }
-    final job = await _firestore
-        .collection('dispatch_jobs')
-        .doc('${current?['jobId']}')
-        .get();
-    if (job.data()?['status'] != 'open') {
-      throw StateError('This Dispatch job is no longer open.');
-    }
-    final revision = (current?['revision'] as num? ?? 1).toInt() + 1;
-    final changes = <String, dynamic>{
+    await _commands.execute('submitDispatchQuote', {
+      'requestId': _firestore.collection('dispatch_bids').doc().id,
+      'jobId': jobId,
       'amount': amount,
       'note': note.trim(),
-      'availableDate': Timestamp.fromDate(availableDate),
+      'availableDate': availableDate.millisecondsSinceEpoch,
       'vehicleId': vehicleId,
-      'vehicleName': vehicleName,
-      'revision': revision,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    final batch = _firestore.batch();
-    batch.update(reference, changes);
-    batch.set(reference.collection('revisions').doc('$revision'), {
-      ...current!,
-      ...changes,
-      'revision': revision,
-      'event': 'quote_updated',
-      'actorUid': uid,
-      'createdAt': FieldValue.serverTimestamp(),
     });
-    final jobOwnerUid = '${job.data()?['createdByUid'] ?? ''}';
-    if (jobOwnerUid.isNotEmpty && jobOwnerUid != uid) {
-      batch.set(
-          _firestore
-              .collection('users')
-              .doc(jobOwnerUid)
-              .collection('notifications')
-              .doc(),
-          {
-            'recipientUid': jobOwnerUid,
-            'actorUid': uid,
-            'type': 'dispatch',
-            'jobId': '${current['jobId']}',
-            'bidId': bidId,
-            'title': 'Carrier quote revised',
-            'body': 'A Dispatch carrier updated their quote.',
-            'read': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-    }
-    await batch.commit();
   }
 
   Future<void> awardBid(
@@ -565,72 +458,10 @@ class MarketplaceDispatchRepository {
       required String bidId,
       required String carrierUid,
       required num amount}) async {
-    final job = _firestore.collection('dispatch_jobs').doc(jobId);
-    final snapshot = await job.get();
-    if (snapshot.data()?['createdByUid'] != uid) {
-      throw StateError('Only the job owner can award this job.');
-    }
-    final bids = await _firestore
-        .collection('dispatch_bids')
-        .where('jobId', isEqualTo: jobId)
-        .get();
-    final revision = (snapshot.data()?['revision'] as num? ?? 1).toInt() + 1;
-    final batch = _firestore.batch();
-    batch.update(job, {
-      'status': 'awarded',
-      'awardedBidId': bidId,
-      'awardedCarrierUid': carrierUid,
-      'awardedAmount': amount,
-      'revision': revision,
-      'awardedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+    await _commands.execute('awardDispatchQuote', {
+      'requestId': _firestore.collection('dispatch_bids').doc().id,
+      'jobId': jobId,
+      'bidId': bidId,
     });
-    batch.set(job.collection('revisions').doc('$revision'), {
-      ...?snapshot.data(),
-      'status': 'awarded',
-      'awardedBidId': bidId,
-      'awardedCarrierUid': carrierUid,
-      'awardedAmount': amount,
-      'revision': revision,
-      'event': 'carrier_awarded',
-      'actorUid': uid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    for (final bid in bids.docs) {
-      final selected = bid.id == bidId;
-      final bidRevision = (bid.data()['revision'] as num? ?? 1).toInt() + 1;
-      final status = selected ? 'awarded' : 'not_selected';
-      batch.update(bid.reference, {
-        'status': status,
-        'revision': bidRevision,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      batch.set(bid.reference.collection('revisions').doc('$bidRevision'), {
-        ...bid.data(),
-        'status': status,
-        'revision': bidRevision,
-        'event': selected ? 'quote_awarded' : 'quote_archived',
-        'actorUid': uid,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-    batch.set(
-        _firestore
-            .collection('users')
-            .doc(carrierUid)
-            .collection('notifications')
-            .doc(),
-        {
-          'recipientUid': carrierUid,
-          'actorUid': uid,
-          'type': 'dispatch',
-          'jobId': jobId,
-          'bidId': bidId,
-          'title': 'Your carrier quote was accepted',
-          'body': 'Open Dispatch to review the awarded job.',
-          'read': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-    await batch.commit();
   }
 }

@@ -2,10 +2,14 @@ const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
 admin.initializeApp();
 
+const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
+exports.submitDispatchQuote = onCall(dispatchCommands.submitDispatchQuote);
+exports.awardDispatchQuote = onCall(dispatchCommands.awardDispatchQuote);
 exports.placeAuctionBid = onCall(marketplaceCommands.placeAuctionBid);
 exports.buyAuctionNow = onCall(marketplaceCommands.buyAuctionNow);
 exports.acceptAuctionBidBelowReserve = onCall(
@@ -300,30 +304,6 @@ exports.onCatalogSuggestionCreated = onDocumentCreated(
   },
 );
 
-exports.onDispatchBidCreated = onDocumentCreated(
-  "dispatch_bids/{bidId}",
-  async (event) => {
-    const bid = event.data.data();
-    const job = await admin.firestore().collection("dispatch_jobs")
-      .doc(bid.jobId).get();
-    if (!job.exists) return null;
-    const ownerUid = job.data().createdByUid;
-    await admin.firestore().collection("users").doc(ownerUid)
-      .collection("notifications").add({
-        type: "dispatch_bid",
-        title: "New carrier bid",
-        body: `${bid.carrierName || "A carrier"} bid ` +
-          `$${Number(bid.amount || 0).toLocaleString("en-CA",
-            { minimumFractionDigits: 2 })} on your dispatch job.`,
-        dispatchJobId: bid.jobId,
-        dispatchBidId: event.params.bidId,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    return null;
-  },
-);
-
 exports.onDispatchSignupCreated = onDocumentCreated(
   "dispatch_carriers/{userId}",
   async (event) => {
@@ -357,26 +337,6 @@ exports.onDispatchSignupCreated = onDocumentCreated(
       console.warn("Dispatch admin notification skipped", error);
     }
     await Promise.all(writes);
-    return null;
-  },
-);
-
-exports.onDispatchJobAwarded = onDocumentWritten(
-  "dispatch_jobs/{jobId}",
-  async (event) => {
-    const before = event.data.before.data() || {};
-    const after = event.data.after.data() || {};
-    if (before.status === "awarded" || after.status !== "awarded" ||
-        !after.awardedCarrierUid) return null;
-    await admin.firestore().collection("users").doc(after.awardedCarrierUid)
-      .collection("notifications").add({
-        type: "dispatch_award",
-        title: "Your trucking bid was selected",
-        body: `You were selected for ${after.title || "a dispatch job"}.`,
-        dispatchJobId: event.params.jobId,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
     return null;
   },
 );
