@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.0
 
       - name: Install pinned Flutter SDK
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
           flutter-version: 3.44.6
           channel: stable
@@ -41,7 +41,7 @@ jobs:
         run: npm run check --prefix firebase/functions
 
       - name: Install Java for Firebase emulators
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
           java-version: 21
