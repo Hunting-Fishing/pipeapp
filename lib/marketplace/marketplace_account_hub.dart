@@ -641,6 +641,20 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
               .snapshots(),
           builder: (context, snapshot) {
             final data = snapshot.data?.data() ?? widget.data;
+            if (data['transactionType'] == 'Auction') {
+              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('auction_private')
+                      .doc(widget.listingId)
+                      .snapshots(),
+                  builder: (context, privateSnapshot) {
+                    final privateData = privateSnapshot.data?.data();
+                    return _body(context, {
+                      ...data,
+                      if (privateData != null) ...privateData,
+                    });
+                  });
+            }
             return _body(context, data);
           });
 
@@ -1250,21 +1264,24 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                     ])) ??
         false;
     if (!confirmed) return;
-    await FirebaseFirestore.instance
-        .collection('public_listings')
-        .doc(widget.listingId)
-        .update({
+    final firestore = FirebaseFirestore.instance;
+    final listing =
+        firestore.collection('public_listings').doc(widget.listingId);
+    final reserveAmount = num.tryParse(reserve.text);
+    final reserveTotal = reserveAmount == null
+        ? null
+        : isTotalBasis
+            ? reserveAmount
+            : reserveAmount * (quantity ?? 1);
+    final batch = firestore.batch();
+    batch.update(listing, {
       'transactionType': 'Auction',
       'startingBid': startAmount,
       'currentBid': 0,
       'minimumBidIncrement': increase,
       'bidIncrementPricingBasis': priceBasis,
-      'reservePrice': num.tryParse(reserve.text),
-      'reserveTotal': num.tryParse(reserve.text) == null
-          ? null
-          : isTotalBasis
-              ? num.tryParse(reserve.text)
-              : num.tryParse(reserve.text)! * (quantity ?? 1),
+      'reservePrice': FieldValue.delete(),
+      'reserveTotal': FieldValue.delete(),
       'buyItNowPrice': num.tryParse(buyNow.text),
       'buyItNowTotal': num.tryParse(buyNow.text) == null
           ? null
@@ -1291,6 +1308,15 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
       'notifyAuctionEnding': true,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    if (reserveAmount != null && reserveAmount > 0) {
+      batch.set(firestore.collection('auction_private').doc(widget.listingId), {
+        'ownerUid': FirebaseAuth.instance.currentUser!.uid,
+        'reservePrice': reserveAmount,
+        if (reserveTotal != null) 'reserveTotal': reserveTotal,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           backgroundColor: Colors.green,

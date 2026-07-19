@@ -279,6 +279,9 @@ service cloud.firestore {
       allow create: if signedIn() &&
         request.resource.data.sellerUid == request.auth.uid &&
         request.resource.data.status in ['active', 'draft'] &&
+        !request.resource.data.keys().hasAny([
+          'reservePrice', 'reserveTotal'
+        ]) &&
         (request.resource.data.transactionType != 'Auction' ||
           ((isAdmin() ||
             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
@@ -315,6 +318,9 @@ service cloud.firestore {
            request.resource.data.startingBid > 0 &&
            request.resource.data.minimumBidIncrement is number &&
            request.resource.data.minimumBidIncrement > 0 &&
+           !request.resource.data.keys().hasAny([
+             'reservePrice', 'reserveTotal'
+           ]) &&
            request.resource.data.get('currentBid', 0) == 0 &&
            request.resource.data.get('bidCount', 0) == 0 &&
            request.resource.data.auctionStatus in ['scheduled', 'live']) ||
@@ -328,6 +334,32 @@ service cloud.firestore {
       allow delete: if signedIn() &&
         resource.data.sellerUid == request.auth.uid &&
         resource.data.transactionType != 'Auction';
+    }
+
+    match /auction_private/{listingId} {
+      allow read: if isAdmin() ||
+        (signedIn() &&
+         get(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
+           request.auth.uid);
+      allow create, update: if isAdmin() ||
+        (signedIn() &&
+         request.resource.data.ownerUid == request.auth.uid &&
+         request.resource.data.keys().hasOnly([
+           'ownerUid', 'reservePrice', 'reserveTotal', 'updatedAt'
+         ]) &&
+         request.resource.data.reservePrice is number &&
+         request.resource.data.reservePrice > 0 &&
+         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
+           request.auth.uid &&
+         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.transactionType ==
+           'Auction' &&
+         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
+         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0);
+      allow delete: if isAdmin() ||
+        (signedIn() &&
+         resource.data.ownerUid == request.auth.uid &&
+         get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
+         get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0);
     }
 
     match /listing_events/{eventId} {

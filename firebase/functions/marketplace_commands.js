@@ -102,13 +102,21 @@ function createMarketplaceCommands(admin) {
         {listingId, amount},
     );
     const listingRef = db.collection("public_listings").doc(listingId);
+    const privateAuctionRef = db.collection("auction_private").doc(listingId);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
       if (receipt.exists) return receipt.data().result;
 
       const listingSnapshot = await transaction.get(listingRef);
-      const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
+      const privateAuctionSnapshot =
+        await transaction.get(privateAuctionRef);
+      const publicListing =
+        listingSnapshot.exists ? listingSnapshot.data() : null;
+      const listing = publicListing ? {
+        ...publicListing,
+        ...(privateAuctionSnapshot.data() || {}),
+      } : null;
       const now = Timestamp.now();
       const validated = validatePlaceBid(listing, uid, amount, now);
       await requireEligibleBidder(transaction, uid, isAdministrator(request));
@@ -192,12 +200,20 @@ function createMarketplaceCommands(admin) {
         {listingId},
     );
     const listingRef = db.collection("public_listings").doc(listingId);
+    const privateAuctionRef = db.collection("auction_private").doc(listingId);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
       if (receipt.exists) return receipt.data().result;
       const listingSnapshot = await transaction.get(listingRef);
-      const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
+      const privateAuctionSnapshot =
+        await transaction.get(privateAuctionRef);
+      const publicListing =
+        listingSnapshot.exists ? listingSnapshot.data() : null;
+      const listing = publicListing ? {
+        ...publicListing,
+        ...(privateAuctionSnapshot.data() || {}),
+      } : null;
       const now = Timestamp.now();
       const price = validateBuyNow(listing, uid, now);
       await requireEligibleBidder(transaction, uid, isAdministrator(request));
@@ -275,12 +291,20 @@ function createMarketplaceCommands(admin) {
         {listingId},
     );
     const listingRef = db.collection("public_listings").doc(listingId);
+    const privateAuctionRef = db.collection("auction_private").doc(listingId);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
       if (receipt.exists) return receipt.data().result;
       const listingSnapshot = await transaction.get(listingRef);
-      const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
+      const privateAuctionSnapshot =
+        await transaction.get(privateAuctionRef);
+      const publicListing =
+        listingSnapshot.exists ? listingSnapshot.data() : null;
+      const listing = publicListing ? {
+        ...publicListing,
+        ...(privateAuctionSnapshot.data() || {}),
+      } : null;
       const now = Timestamp.now();
       const accepted = validateAcceptBelowReserve(listing, uid, now);
       let bidSnapshot = null;

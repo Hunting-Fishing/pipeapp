@@ -82,11 +82,14 @@ class MarketplaceCatalogRepository {
     final listing = listingId == null
         ? _firestore.collection('public_listings').doc()
         : _firestore.collection('public_listings').doc(listingId);
+    final publicValues = Map<String, dynamic>.from(values);
+    final reservePrice = publicValues.remove('reservePrice');
+    final reserveTotal = publicValues.remove('reserveTotal');
     final batch = _firestore.batch();
     batch.set(listing, {
-      ...values,
-      if (values['price'] is num && values['initialPrice'] == null)
-        'initialPrice': values['price'],
+      ...publicValues,
+      if (publicValues['price'] is num && publicValues['initialPrice'] == null)
+        'initialPrice': publicValues['price'],
       if (location != null) ...location.publicData(),
       'sellerUid': uid,
       'createdAt': FieldValue.serverTimestamp(),
@@ -94,6 +97,16 @@ class MarketplaceCatalogRepository {
       'source': 'local_flutter_app',
       'status': 'active',
     });
+    if (publicValues['transactionType'] == 'Auction' &&
+        reservePrice is num &&
+        reservePrice > 0) {
+      batch.set(_firestore.collection('auction_private').doc(listing.id), {
+        'ownerUid': uid,
+        'reservePrice': reservePrice,
+        if (reserveTotal is num) 'reserveTotal': reserveTotal,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
     if (location != null) {
       batch.set(
           _firestore.collection('listing_private_locations').doc(listing.id),

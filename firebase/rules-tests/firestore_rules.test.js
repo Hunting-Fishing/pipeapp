@@ -21,6 +21,7 @@ const {
   setDoc,
   Timestamp,
   updateDoc,
+  writeBatch,
 } = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-rules";
@@ -70,6 +71,10 @@ beforeEach(async () => {
       buyerUid: "buyer",
       listingId: "listing",
       status: "pending",
+    });
+    await setDoc(doc(db, "auction_private", "auction"), {
+      ownerUid: "seller",
+      reservePrice: 175,
     });
   });
 });
@@ -205,5 +210,35 @@ test("new auctions must start with clean server-controlled bid state", async () 
     currentBid: 1000,
     highBidderUid: "forged-bidder",
   }));
-  await assertSucceeds(setDoc(auction, validAuction));
+  await assertFails(setDoc(auction, {
+    ...validAuction,
+    reservePrice: 175,
+  }));
+
+  const privateAuction = doc(sellerDb, "auction_private", "new-auction");
+  const batch = writeBatch(sellerDb);
+  batch.set(auction, validAuction);
+  batch.set(privateAuction, {
+    ownerUid: "seller",
+    reservePrice: 175,
+  });
+  await assertSucceeds(batch.commit());
+  const privateSnapshot = await assertSucceeds(getDoc(privateAuction));
+  assert.equal(privateSnapshot.data().reservePrice, 175);
+});
+
+test("only the auction owner can read the reserve amount", async () => {
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+
+  await assertSucceeds(
+      getDoc(doc(sellerDb, "auction_private", "auction")),
+  );
+  await assertFails(
+      getDoc(doc(buyerDb, "auction_private", "auction")),
+  );
 });

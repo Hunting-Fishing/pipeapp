@@ -292,7 +292,6 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
             ? displayedAmount
             : displayedAmount * (auctionQuantity ?? 1);
         final increment = data['minimumBidIncrement'] as num? ?? 1;
-        final reserve = data['reservePrice'] as num?;
         final buyNow = data['buyItNowPrice'] as num?;
         final next = current > 0 ? current + increment : starting;
         final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
@@ -304,240 +303,273 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
             now.isBefore(end);
         final mine =
             data['sellerUid'] == FirebaseAuth.instance.currentUser?.uid;
-        final images = List<String>.from(data['imageUrls'] ?? const <String>[]);
-        final content = SafeArea(
-            child: DraggableScrollableSheet(
-                expand: widget.fullPage,
-                initialChildSize: widget.fullPage ? 1 : .88,
-                minChildSize: widget.fullPage ? 1 : .55,
-                maxChildSize: widget.fullPage ? 1 : .96,
-                builder: (context, controller) => ListView(
-                        controller: controller,
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          Row(children: [
-                            const CircleAvatar(
-                                child: Icon(Icons.gavel_outlined)),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                                child: Text('Timed auction',
-                                    style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w900))),
-                            IconButton(
-                                tooltip: 'Back',
-                                onPressed: () => Navigator.pop(context),
-                                icon: Icon(widget.fullPage
-                                    ? Icons.arrow_back
-                                    : Icons.close))
-                          ]),
-                          Text('${data['title'] ?? 'Auction listing'}',
-                              style: const TextStyle(
-                                  fontSize: 24, fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 12),
-                          if (images.isNotEmpty)
-                            _AuctionMediaGallery(images: images),
-                          if (images.isEmpty)
-                            Container(
-                                height: 180,
-                                width: double.infinity,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: mine
+                ? FirebaseFirestore.instance
+                    .collection('auction_private')
+                    .doc(widget.document.id)
+                    .snapshots()
+                : null,
+            builder: (context, privateSnapshot) {
+              final privateData = privateSnapshot.data?.data();
+              final reserve =
+                  mine ? (privateData?['reservePrice'] as num?) : null;
+              final images =
+                  List<String>.from(data['imageUrls'] ?? const <String>[]);
+              final content = SafeArea(
+                  child: DraggableScrollableSheet(
+                      expand: widget.fullPage,
+                      initialChildSize: widget.fullPage ? 1 : .88,
+                      minChildSize: widget.fullPage ? 1 : .55,
+                      maxChildSize: widget.fullPage ? 1 : .96,
+                      builder: (context, controller) => ListView(
+                              controller: controller,
+                              padding: const EdgeInsets.all(20),
+                              children: [
+                                Row(children: [
+                                  const CircleAvatar(
+                                      child: Icon(Icons.gavel_outlined)),
+                                  const SizedBox(width: 10),
+                                  const Expanded(
+                                      child: Text('Timed auction',
+                                          style: TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w900))),
+                                  IconButton(
+                                      tooltip: 'Back',
+                                      onPressed: () => Navigator.pop(context),
+                                      icon: Icon(widget.fullPage
+                                          ? Icons.arrow_back
+                                          : Icons.close))
+                                ]),
+                                Text('${data['title'] ?? 'Auction listing'}',
+                                    style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w900)),
+                                const SizedBox(height: 12),
+                                if (images.isNotEmpty)
+                                  _AuctionMediaGallery(images: images),
+                                if (images.isEmpty)
+                                  Container(
+                                      height: 180,
+                                      width: double.infinity,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                          color: const Color(0xFFEAF4FD),
+                                          borderRadius:
+                                              BorderRadius.circular(16)),
+                                      child: IndustrialAssetIcon(
+                                          label:
+                                              '${data['productType'] ?? data['title'] ?? 'Auction'}',
+                                          assetPath: IndustrialIconAssets.forLabel(
+                                                  '${data['productType'] ?? ''}') ??
+                                              IndustrialIconAssets.forLabel(
+                                                  '${data['category'] ?? ''}') ??
+                                              IndustrialIconAssets
+                                                  .complianceGavel,
+                                          size: 164,
+                                          borderRadius: 16,
+                                          fallback: const Icon(Icons.gavel,
+                                              size: 76))),
+                                if (images.isNotEmpty)
+                                  const SizedBox(height: 12),
+                                if (images.isEmpty) const SizedBox(height: 12),
+                                Card(
                                     color: const Color(0xFFEAF4FD),
-                                    borderRadius: BorderRadius.circular(16)),
-                                child: IndustrialAssetIcon(
-                                    label:
-                                        '${data['productType'] ?? data['title'] ?? 'Auction'}',
-                                    assetPath: IndustrialIconAssets.forLabel(
-                                            '${data['productType'] ?? ''}') ??
-                                        IndustrialIconAssets.forLabel(
-                                            '${data['category'] ?? ''}') ??
-                                        IndustrialIconAssets.complianceGavel,
-                                    size: 164,
-                                    borderRadius: 16,
-                                    fallback:
-                                        const Icon(Icons.gavel, size: 76))),
-                          if (images.isNotEmpty) const SizedBox(height: 12),
-                          if (images.isEmpty) const SizedBox(height: 12),
-                          Card(
-                              color: const Color(0xFFEAF4FD),
-                              child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(children: [
-                                    Text(marketplaceMoney(displayedAmount),
-                                        style: const TextStyle(
-                                            fontSize: 30,
-                                            fontWeight: FontWeight.w900)),
-                                    Text(current > 0
-                                        ? 'Current highest bid'
-                                        : 'Starting bid'),
-                                    if (pricingBasis.isNotEmpty)
-                                      Text(pricingBasis,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              color: Color(0xFF315A7D))),
-                                    if (!totalBasis && auctionQuantity != null)
-                                      Text(
-                                          '$auctionQuantity units • Bid total ${marketplaceMoney(displayedTotal)}',
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Color(0xFF66758A))),
+                                    child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(children: [
+                                          Text(
+                                              marketplaceMoney(displayedAmount),
+                                              style: const TextStyle(
+                                                  fontSize: 30,
+                                                  fontWeight: FontWeight.w900)),
+                                          Text(current > 0
+                                              ? 'Current highest bid'
+                                              : 'Starting bid'),
+                                          if (pricingBasis.isNotEmpty)
+                                            Text(pricingBasis,
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF315A7D))),
+                                          if (!totalBasis &&
+                                              auctionQuantity != null)
+                                            Text(
+                                                '$auctionQuantity units • Bid total ${marketplaceMoney(displayedTotal)}',
+                                                style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Color(0xFF66758A))),
+                                          const SizedBox(height: 8),
+                                          _AuctionCountdown(
+                                              start: start,
+                                              end: end,
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  color: live
+                                                      ? Colors.red
+                                                      : Colors.black87))
+                                        ]))),
+                                if (mine && reserve != null && reserve > 0)
+                                  Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10),
+                                      child: Column(children: [
+                                        LinearProgressIndicator(
+                                            value:
+                                                (current / reserve).clamp(0, 1),
+                                            color: current >= reserve
+                                                ? Colors.green
+                                                : Colors.deepOrange),
+                                        const SizedBox(height: 4),
+                                        Text(current >= reserve
+                                            ? 'Reserve has been met'
+                                            : 'Reserve not met • ${(current / reserve * 100).clamp(0, 100).toStringAsFixed(0)}% reached • ${marketplaceMoney((reserve - current).clamp(0, double.infinity))} remaining')
+                                      ])),
+                                _BidPricingAnalytics(
+                                    askingPrice: data['price'] as num?,
+                                    displayedBid: displayedAmount,
+                                    nextBid: next,
+                                    increment: increment,
+                                    quantity: auctionQuantity,
+                                    pricingBasis: pricingBasis,
+                                    reserve: mine ? reserve : null,
+                                    buyNow: buyNow),
+                                if (!mine && reserve != null && reserve > 0)
+                                  Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Chip(
+                                          avatar: Icon(
+                                              current >= reserve
+                                                  ? Icons.check_circle_outline
+                                                  : Icons.lock_outline,
+                                              color: current >= reserve
+                                                  ? Colors.green
+                                                  : Colors.blueGrey),
+                                          label: Text(current >= reserve
+                                              ? 'Reserve met'
+                                              : 'Reserve not met'))),
+                                if (mine &&
+                                    current > 0 &&
+                                    reserve != null &&
+                                    current < reserve) ...[
+                                  const SizedBox(height: 10),
+                                  OutlinedButton.icon(
+                                      onPressed: _submitting
+                                          ? null
+                                          : () => _acceptBelowReserve(current),
+                                      icon:
+                                          const Icon(Icons.handshake_outlined),
+                                      label: Text(
+                                          'Accept leading bid • ${marketplaceMoney(current)}'),
+                                      style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.deepOrange,
+                                          minimumSize:
+                                              const Size.fromHeight(50)))
+                                ],
+                                const SizedBox(height: 12),
+                                ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: MarketplaceUserAvatar(
+                                        userUid: '${data['sellerUid'] ?? ''}',
+                                        photoUrl:
+                                            '${data['sellerPhotoUrl'] ?? data['sellerAvatarUrl'] ?? ''}',
+                                        size: 42,
+                                        fallback: const Center(
+                                            child: Icon(Icons.person_outline))),
+                                    title: Text(
+                                        '${data['sellerName'] ?? 'Marketplace seller'}'),
+                                    subtitle: const Text(
+                                        'View seller profile and listings'),
+                                    trailing: const Icon(Icons.chevron_right),
+                                    onTap: () => Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                MarketplacePublicProfilePage(
+                                                    userUid:
+                                                        '${data['sellerUid'] ?? ''}',
+                                                    fallbackName:
+                                                        '${data['sellerName'] ?? 'Marketplace seller'}')))),
+                                const Divider(),
+                                MarketplaceDispatchQuoteCard(
+                                    auction: true,
+                                    onPressed: () =>
+                                        MarketplaceFreightQuote.show(context,
+                                            listingId: widget.document.id,
+                                            listing: data,
+                                            auction: true)),
+                                const SizedBox(height: 12),
+                                _AuctionListingDetails(data: data),
+                                const SizedBox(height: 18),
+                                if (!mine) ...[
+                                  TextField(
+                                      controller: _bid,
+                                      enabled: live && !_submitting,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                              decimal: true),
+                                      decoration: InputDecoration(
+                                          labelText:
+                                              'Your bid • minimum ${marketplaceMoney(next)}',
+                                          prefixText: '\$ ',
+                                          suffixText:
+                                              '${data['currency'] ?? 'CAD'}')),
+                                  const SizedBox(height: 10),
+                                  FilledButton.icon(
+                                      onPressed: live && !_submitting
+                                          ? _placeBid
+                                          : null,
+                                      icon: _submitting
+                                          ? const SizedBox.square(
+                                              dimension: 18,
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2))
+                                          : const Icon(Icons.gavel),
+                                      label: Text(live
+                                          ? 'Review and place bid'
+                                          : 'Bidding unavailable'),
+                                      style: FilledButton.styleFrom(
+                                          minimumSize:
+                                              const Size.fromHeight(54))),
+                                  if (live && buyNow != null && buyNow > 0) ...[
                                     const SizedBox(height: 8),
-                                    _AuctionCountdown(
-                                        start: start,
-                                        end: end,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w900,
-                                            color: live
-                                                ? Colors.red
-                                                : Colors.black87))
-                                  ]))),
-                          if (mine && reserve != null && reserve > 0)
-                            Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: Column(children: [
-                                  LinearProgressIndicator(
-                                      value: (current / reserve).clamp(0, 1),
-                                      color: current >= reserve
-                                          ? Colors.green
-                                          : Colors.deepOrange),
-                                  const SizedBox(height: 4),
-                                  Text(current >= reserve
-                                      ? 'Reserve has been met'
-                                      : 'Reserve not met • ${(current / reserve * 100).clamp(0, 100).toStringAsFixed(0)}% reached • ${marketplaceMoney((reserve - current).clamp(0, double.infinity))} remaining')
-                                ])),
-                          _BidPricingAnalytics(
-                              askingPrice: data['price'] as num?,
-                              displayedBid: displayedAmount,
-                              nextBid: next,
-                              increment: increment,
-                              quantity: auctionQuantity,
-                              pricingBasis: pricingBasis,
-                              reserve: mine ? reserve : null,
-                              buyNow: buyNow),
-                          if (!mine && reserve != null && reserve > 0)
-                            Align(
-                                alignment: Alignment.centerLeft,
-                                child: Chip(
-                                    avatar: Icon(
-                                        current >= reserve
-                                            ? Icons.check_circle_outline
-                                            : Icons.lock_outline,
-                                        color: current >= reserve
-                                            ? Colors.green
-                                            : Colors.blueGrey),
-                                    label: Text(current >= reserve
-                                        ? 'Reserve met'
-                                        : 'Reserve not met'))),
-                          if (mine &&
-                              current > 0 &&
-                              reserve != null &&
-                              current < reserve) ...[
-                            const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                                onPressed: _submitting
-                                    ? null
-                                    : () => _acceptBelowReserve(current),
-                                icon: const Icon(Icons.handshake_outlined),
-                                label: Text(
-                                    'Accept leading bid • ${marketplaceMoney(current)}'),
-                                style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.deepOrange,
-                                    minimumSize: const Size.fromHeight(50)))
-                          ],
-                          const SizedBox(height: 12),
-                          ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: MarketplaceUserAvatar(
-                                  userUid: '${data['sellerUid'] ?? ''}',
-                                  photoUrl:
-                                      '${data['sellerPhotoUrl'] ?? data['sellerAvatarUrl'] ?? ''}',
-                                  size: 42,
-                                  fallback: const Center(
-                                      child: Icon(Icons.person_outline))),
-                              title: Text(
-                                  '${data['sellerName'] ?? 'Marketplace seller'}'),
-                              subtitle: const Text(
-                                  'View seller profile and listings'),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                      builder: (_) => MarketplacePublicProfilePage(
-                                          userUid: '${data['sellerUid'] ?? ''}',
-                                          fallbackName:
-                                              '${data['sellerName'] ?? 'Marketplace seller'}')))),
-                          const Divider(),
-                          MarketplaceDispatchQuoteCard(
-                              auction: true,
-                              onPressed: () => MarketplaceFreightQuote.show(
-                                  context,
-                                  listingId: widget.document.id,
-                                  listing: data,
-                                  auction: true)),
-                          const SizedBox(height: 12),
-                          _AuctionListingDetails(data: data),
-                          const SizedBox(height: 18),
-                          if (!mine) ...[
-                            TextField(
-                                controller: _bid,
-                                enabled: live && !_submitting,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                decoration: InputDecoration(
-                                    labelText:
-                                        'Your bid • minimum ${marketplaceMoney(next)}',
-                                    prefixText: '\$ ',
-                                    suffixText:
-                                        '${data['currency'] ?? 'CAD'}')),
-                            const SizedBox(height: 10),
-                            FilledButton.icon(
-                                onPressed:
-                                    live && !_submitting ? _placeBid : null,
-                                icon: _submitting
-                                    ? const SizedBox.square(
-                                        dimension: 18,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2))
-                                    : const Icon(Icons.gavel),
-                                label: Text(live
-                                    ? 'Review and place bid'
-                                    : 'Bidding unavailable'),
-                                style: FilledButton.styleFrom(
-                                    minimumSize: const Size.fromHeight(54))),
-                            if (live && buyNow != null && buyNow > 0) ...[
-                              const SizedBox(height: 8),
-                              OutlinedButton.icon(
-                                  onPressed: _submitting
-                                      ? null
-                                      : () => _buyNow(buyNow),
-                                  icon: const Icon(Icons.flash_on_outlined),
-                                  label: Text(
-                                      'Buy It Now • ${marketplaceMoney(buyNow)}'),
-                                  style: OutlinedButton.styleFrom(
-                                      minimumSize: const Size.fromHeight(52)))
-                            ],
-                            const Text(
-                                'Bids are binding. The seller and winning bidder finalize payment and logistics through marketplace messaging.',
-                                style: TextStyle(
-                                    fontSize: 11, color: Color(0xFF66758A))),
-                          ] else
-                            const Card(
-                                child: ListTile(
-                                    leading: Icon(Icons.storefront),
-                                    title: Text('This is your auction'),
-                                    subtitle:
-                                        Text('Bid activity appears below.'))),
-                          const SizedBox(height: 18),
-                          const Text('Bid history',
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w900)),
-                          _BidHistory(
-                              listingId: widget.document.id, listing: data)
-                        ])));
-        return widget.fullPage
-            ? Scaffold(backgroundColor: const Color(0xFFF6F8FB), body: content)
-            : content;
+                                    OutlinedButton.icon(
+                                        onPressed: _submitting
+                                            ? null
+                                            : () => _buyNow(buyNow),
+                                        icon:
+                                            const Icon(Icons.flash_on_outlined),
+                                        label: Text(
+                                            'Buy It Now • ${marketplaceMoney(buyNow)}'),
+                                        style: OutlinedButton.styleFrom(
+                                            minimumSize:
+                                                const Size.fromHeight(52)))
+                                  ],
+                                  const Text(
+                                      'Bids are binding. The seller and winning bidder finalize payment and logistics through marketplace messaging.',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF66758A))),
+                                ] else
+                                  const Card(
+                                      child: ListTile(
+                                          leading: Icon(Icons.storefront),
+                                          title: Text('This is your auction'),
+                                          subtitle: Text(
+                                              'Bid activity appears below.'))),
+                                const SizedBox(height: 18),
+                                const Text('Bid history',
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900)),
+                                _BidHistory(
+                                    listingId: widget.document.id,
+                                    listing: data)
+                              ])));
+              return widget.fullPage
+                  ? Scaffold(
+                      backgroundColor: const Color(0xFFF6F8FB), body: content)
+                  : content;
+            });
       });
 
   Future<void> _placeBid() async {

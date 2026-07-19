@@ -7,6 +7,8 @@ Firestore uses collections and documents rather than SQL tables.
 - `public_business_profiles/{uid}`: publicly visible business profile. Structured `serviceArea` supports radius, selected places, or selected regions; normalized `serviceCountryCodes`, `serviceRegionKeys`, and `servicePlaceKeys` arrays support targeting and reporting queries.
 - `business_private/{uid}`: legal name, private address and team membership.
 - `public_listings/{listingId}`: searchable active/draft listings and seller-selected public location.
+- `auction_private/{listingId}`: seller/admin-only reserve price and reserve
+  total. Reserve amounts must never be stored in `public_listings`.
 - `listing_private_locations/{listingId}`: exact address, coordinates and access notes; owner-only.
 - `marketplace_catalog/{catalogId}`: administrator-managed pipe sizes, descriptions, brands and models.
 - `geography_catalog/schema`: provider, hierarchy, normalization and dataset metadata.
@@ -58,7 +60,9 @@ idempotency receipt. The current callable commands are:
 
 Firestore rules deny client writes to auction bid state and offer decisions.
 Auction sellers retain direct access only to the explicit notification
-preferences on their own live auctions.
+preferences on their own live auctions. Reserve amounts are read from
+`auction_private` by server commands and the owning seller's analytics; public
+auction readers do not receive the amount or reserve-progress calculation.
 
 Exact listing coordinates must never be stored in `public_listings` unless the seller explicitly selects exact visibility.
 

@@ -27,13 +27,18 @@ exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
 
   for (const document of auctions.docs) {
     const auction = document.data();
+    const privateAuctionSnapshot = await admin.firestore()
+      .collection("auction_private").doc(document.id).get();
+    const privateAuction = privateAuctionSnapshot.data() || {};
     const end = auction.auctionEndAt;
     if (!end || auction.auctionStatus === "bought_now" ||
         auction.auctionStatus === "accepted_below_reserve") continue;
 
     if (end.toMillis() <= now.toMillis() && auction.finalizedAt == null) {
       const current = Number(auction.currentBid || 0);
-      const reserve = Number(auction.reservePrice || 0);
+      const reserve = Number(
+        privateAuction.reservePrice || auction.reservePrice || 0,
+      );
       const reserveMet = reserve <= 0 || current >= reserve;
       const won = current > 0 && reserveMet && auction.highBidderUid;
       writer.update(document.ref, {
@@ -147,6 +152,57 @@ exports.onPublicListingCreated = onDocumentCreated(
       });
     }
     await writer.close();
+    return null;
+  },
+);
+
+// Reserve amounts are seller-only. This guard also cleans legacy clients that
+// still attempt to place reserve fields in the publicly readable document.
+exports.protectAuctionReserve = onDocumentWritten(
+  "public_listings/{listingId}",
+  async (event) => {
+    if (!event.data.after.exists) return null;
+    const listing = event.data.after.data();
+    if (
+      listing.transactionType !== "Auction" ||
+      (!Object.prototype.hasOwnProperty.call(listing, "reservePrice") &&
+       !Object.prototype.hasOwnProperty.call(listing, "reserveTotal"))
+    ) {
+      return null;
+    }
+
+    const listingRef = event.data.after.ref;
+    const privateRef = admin.firestore()
+      .collection("auction_private")
+      .doc(event.params.listingId);
+    await admin.firestore().runTransaction(async (transaction) => {
+      const current = await transaction.get(listingRef);
+      if (!current.exists) return;
+      const data = current.data();
+      if (
+        data.transactionType !== "Auction" ||
+        (!Object.prototype.hasOwnProperty.call(data, "reservePrice") &&
+         !Object.prototype.hasOwnProperty.call(data, "reserveTotal"))
+      ) {
+        return;
+      }
+      const reservePrice = Number(data.reservePrice);
+      if (Number.isFinite(reservePrice) && reservePrice > 0) {
+        transaction.set(privateRef, {
+          ownerUid: data.sellerUid,
+          reservePrice,
+          ...(Number.isFinite(Number(data.reserveTotal)) ? {
+            reserveTotal: Number(data.reserveTotal),
+          } : {}),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+      transaction.update(listingRef, {
+        reservePrice: admin.firestore.FieldValue.delete(),
+        reserveTotal: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
     return null;
   },
 );
