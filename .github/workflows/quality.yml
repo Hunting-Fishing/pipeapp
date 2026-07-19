@@ -25,6 +25,12 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Java toolchain
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: 21
+
       - name: Restore Flutter dependencies
         run: flutter pub get
 
@@ -34,17 +40,18 @@ jobs:
       - name: Run Flutter tests
         run: flutter test
 
+      - name: Build Android ARM64 debug artifact
+        run: >
+          flutter build apk
+          --debug
+          --target-platform android-arm64
+          --dart-define=PIPE_APP_CHECK_REQUIRED=true
+
       - name: Restore Functions dependencies
         run: npm ci --prefix firebase/functions
 
       - name: Validate Functions and jurisdiction policies
         run: npm run check --prefix firebase/functions
-
-      - name: Install Java for Firebase emulators
-        uses: actions/setup-java@v5.6.0
-        with:
-          distribution: temurin
-          java-version: 21
 
       - name: Restore Firestore rules-test dependencies
         run: npm ci --prefix firebase/rules-tests
