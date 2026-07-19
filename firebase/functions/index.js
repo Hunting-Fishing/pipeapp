@@ -8,6 +8,9 @@ admin.initializeApp();
 
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
+exports.createDispatchJob = onCall(dispatchCommands.createDispatchJob);
+exports.updateDispatchJob = onCall(dispatchCommands.updateDispatchJob);
+exports.publishDispatchJob = onCall(dispatchCommands.publishDispatchJob);
 exports.submitDispatchQuote = onCall(dispatchCommands.submitDispatchQuote);
 exports.awardDispatchQuote = onCall(dispatchCommands.awardDispatchQuote);
 exports.placeAuctionBid = onCall(marketplaceCommands.placeAuctionBid);

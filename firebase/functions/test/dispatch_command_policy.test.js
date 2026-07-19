@@ -4,10 +4,58 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   validateDispatchAward,
+  validateDispatchJobChange,
+  validateDispatchJobInput,
   validateDispatchQuote,
 } = require("../dispatch_command_policy");
 
 const now = new Date("2026-07-19T12:00:00.000Z");
+
+test("Dispatch jobs require complete mapped and dated load details", () => {
+  const job = validateDispatchJobInput({
+    title: "54 joints of drill pipe",
+    pickupLabel: "Grande Prairie, Alberta",
+    deliveryLabel: "Dawson Creek, British Columbia",
+    truckingDate: now.getTime() + 24 * 60 * 60 * 1000,
+    loadDetails: "54 joints, loading assistance available",
+    sourceType: "marketplace",
+    listingId: "listing",
+    estimatedWeightKg: 22000,
+    distanceKm: 132.4,
+    pickupPoint: {latitude: 55.17, longitude: -118.79},
+    deliveryPoint: {latitude: 55.76, longitude: -120.24},
+  }, now);
+  assert.equal(job.sourceType, "marketplace");
+  assert.equal(job.distanceKm, 132.4);
+  assert.throws(
+      () => validateDispatchJobInput({
+        title: "Pipe",
+        pickupLabel: "A",
+        deliveryLabel: "B",
+        truckingDate: now.getTime() + 24 * 60 * 60 * 1000,
+        loadDetails: "Pipe",
+        sourceType: "auction",
+      }, now),
+      (error) => error.code === "invalid-argument",
+  );
+});
+
+test("only owners can edit live Dispatch jobs and revisions are bounded", () => {
+  assert.doesNotThrow(() => validateDispatchJobChange({
+    createdByUid: "customer",
+    status: "open",
+    revision: 4,
+    updatedAt: now.getTime() - 4000,
+  }, "customer", now));
+  assert.throws(
+      () => validateDispatchJobChange({
+        createdByUid: "customer",
+        status: "open",
+        revision: 4,
+      }, "attacker", now),
+      (error) => error.code === "permission-denied",
+  );
+});
 
 test("carrier quote validates enrollment, fleet ownership, and payload", () => {
   const proposal = validateDispatchQuote({

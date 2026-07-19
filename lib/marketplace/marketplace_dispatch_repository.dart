@@ -127,67 +127,11 @@ class MarketplaceDispatchRepository {
     return matches.firstOrNull;
   }
 
-  Future<void> activateMyPendingRequests() async {
-    final snapshot = await _firestore
-        .collection('dispatch_jobs')
-        .where('createdByUid', isEqualTo: uid)
-        .get();
-    final drafts = snapshot.docs
-        .where((document) => document.data()['status'] == 'draft')
-        .toList();
-    if (drafts.isEmpty) return;
-    final batch = _firestore.batch();
-    for (final document in drafts) {
-      final revision = (document.data()['revision'] as num? ?? 1).toInt() + 1;
-      batch.update(document.reference, {
-        'status': 'open',
-        'dispatchRequestStatus': 'accepting_carrier_bids',
-        'revision': revision,
-        'publishedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+  Future<void> publishDraftJob(String jobId) =>
+      _commands.execute('publishDispatchJob', {
+        'requestId': _firestore.collection('dispatch_jobs').doc().id,
+        'jobId': jobId,
       });
-      batch.set(document.reference.collection('revisions').doc('$revision'), {
-        ...document.data(),
-        'status': 'open',
-        'dispatchRequestStatus': 'accepting_carrier_bids',
-        'revision': revision,
-        'event': 'request_activated',
-        'actorUid': uid,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
-  }
-
-  Future<void> publishDraftJob(String jobId) async {
-    final reference = _firestore.collection('dispatch_jobs').doc(jobId);
-    final snapshot = await reference.get();
-    if (snapshot.data()?['createdByUid'] != uid) {
-      throw StateError('Only the trucking request owner can publish it.');
-    }
-    if (snapshot.data()?['status'] != 'draft') {
-      throw StateError('This trucking request is no longer a draft.');
-    }
-    final revision = (snapshot.data()?['revision'] as num? ?? 1).toInt() + 1;
-    final batch = _firestore.batch();
-    batch.update(reference, {
-      'status': 'open',
-      'dispatchRequestStatus': 'accepting_carrier_bids',
-      'revision': revision,
-      'publishedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    batch.set(reference.collection('revisions').doc('$revision'), {
-      ...?snapshot.data(),
-      'status': 'open',
-      'dispatchRequestStatus': 'accepting_carrier_bids',
-      'revision': revision,
-      'event': 'request_published',
-      'actorUid': uid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
-  }
 
   Future<void> signupDispatch({
     required String operatingName,
@@ -278,7 +222,6 @@ class MarketplaceDispatchRepository {
     required DateTime truckingDate,
     required String loadDetails,
     String? listingId,
-    String? offerId,
     String sourceType = 'manual',
     num? estimatedWeightKg,
     num? catalogWeightKg,
@@ -291,27 +234,34 @@ class MarketplaceDispatchRepository {
     final destination = deliveryLocation?.exactGeoPoint;
     final mappedDistance =
         distanceKm ?? dispatchDistanceKm(pickupGeoPoint, destination);
-    final reference = _firestore.collection('dispatch_jobs').doc();
-    final values = <String, dynamic>{
-      'createdByUid': uid,
+    final jobId = _firestore.collection('dispatch_jobs').doc().id;
+    final result = await _commands.execute('createDispatchJob', {
+      'requestId': jobId,
+      'jobId': jobId,
       'title': title,
       'pickupLabel': pickup,
       'deliveryLabel': delivery,
-      'truckingDate': Timestamp.fromDate(truckingDate),
+      'truckingDate': truckingDate.millisecondsSinceEpoch,
       'loadDetails': loadDetails,
       'listingId': listingId,
-      'offerId': offerId,
       'sourceType': sourceType,
       'estimatedWeightKg': estimatedWeightKg,
       'catalogWeightKg': catalogWeightKg,
       'weightSource': weightSource,
-      if (pickupGeoPoint != null) 'pickupPoint': pickupGeoPoint,
+      if (pickupGeoPoint != null)
+        'pickupPoint': {
+          'latitude': pickupGeoPoint.latitude,
+          'longitude': pickupGeoPoint.longitude,
+        },
       if (mappedDistance != null) 'distanceKm': mappedDistance,
       if (mappedDistance != null)
         'distanceSource': distanceSource ??
             (distanceKm == null ? 'coordinate_estimate' : 'user_entered_route'),
       if (deliveryLocation != null) ...{
-        'deliveryPoint': deliveryLocation.exactGeoPoint,
+        'deliveryPoint': {
+          'latitude': deliveryLocation.exactGeoPoint.latitude,
+          'longitude': deliveryLocation.exactGeoPoint.longitude,
+        },
         'deliveryAddress': deliveryLocation.address.trim(),
         'deliveryNearestTown': deliveryLocation.nearestTown.trim(),
         'deliveryRegion': deliveryLocation.region.trim(),
@@ -319,23 +269,8 @@ class MarketplaceDispatchRepository {
         'deliveryCountry': deliveryLocation.country.trim(),
         'deliveryAccessNotes': deliveryLocation.accessNotes.trim(),
       },
-      'status': 'open',
-      'dispatchRequestStatus': 'accepting_carrier_bids',
-      'bidCount': 0,
-      'revision': 1,
-      'publishedAt': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    final batch = _firestore.batch();
-    batch.set(reference, values);
-    batch.set(reference.collection('revisions').doc('1'), {
-      ...values,
-      'event': 'request_created',
-      'actorUid': uid,
     });
-    await batch.commit();
-    return reference.id;
+    return '${result['jobId'] ?? jobId}';
   }
 
   Future<void> updateJob({
@@ -348,67 +283,20 @@ class MarketplaceDispatchRepository {
     num? estimatedWeightKg,
     num? distanceKm,
   }) async {
-    final reference = _firestore.collection('dispatch_jobs').doc(jobId);
-    final snapshot = await reference.get();
-    final current = snapshot.data();
-    if (current?['createdByUid'] != uid) {
-      throw StateError('Only the request owner can edit this job.');
-    }
-    if (!['draft', 'open'].contains(current?['status'])) {
-      throw StateError('Awarded or completed jobs cannot be edited.');
-    }
-    final revision = (current?['revision'] as num? ?? 1).toInt() + 1;
-    final changes = <String, dynamic>{
+    await _commands.execute('updateDispatchJob', {
+      'requestId': _firestore.collection('dispatch_jobs').doc().id,
+      'jobId': jobId,
       'title': title.trim(),
       'pickupLabel': pickup.trim(),
       'deliveryLabel': delivery.trim(),
-      'truckingDate': Timestamp.fromDate(truckingDate),
+      'truckingDate': truckingDate.millisecondsSinceEpoch,
       'loadDetails': loadDetails.trim(),
       'estimatedWeightKg': estimatedWeightKg,
       if (distanceKm != null) ...{
         'distanceKm': distanceKm,
         'distanceSource': 'user_entered_route',
       },
-      'revision': revision,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    final bids = await _firestore
-        .collection('dispatch_bids')
-        .where('jobId', isEqualTo: jobId)
-        .get();
-    final batch = _firestore.batch();
-    batch.update(reference, changes);
-    batch.set(reference.collection('revisions').doc('$revision'), {
-      ...current!,
-      ...changes,
-      'event': 'request_updated',
-      'actorUid': uid,
-      'createdAt': FieldValue.serverTimestamp(),
     });
-    for (final bid in bids.docs
-        .where((document) => document.data()['status'] == 'pending')) {
-      final carrierUid = '${bid.data()['carrierUid'] ?? ''}';
-      if (carrierUid.isEmpty || carrierUid == uid) continue;
-      batch.set(
-          _firestore
-              .collection('users')
-              .doc(carrierUid)
-              .collection('notifications')
-              .doc(),
-          {
-            'recipientUid': carrierUid,
-            'actorUid': uid,
-            'type': 'dispatch',
-            'jobId': jobId,
-            'bidId': bid.id,
-            'title': 'Dispatch request updated',
-            'body':
-                'Review the revised route, date, distance or load details before keeping your quote.',
-            'read': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-    }
-    await batch.commit();
   }
 
   Future<void> bid({

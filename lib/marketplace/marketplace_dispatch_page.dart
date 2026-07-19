@@ -256,12 +256,6 @@ class _JobBoardState extends State<_JobBoard> {
   MarketplaceDispatchRepository get repo => widget.repo;
 
   @override
-  void initState() {
-    super.initState();
-    repo.activateMyPendingRequests().catchError((_) {});
-  }
-
-  @override
   Widget build(BuildContext context) => Column(children: [
         _myDispatchActivity(context),
         const Padding(

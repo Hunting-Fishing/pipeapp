@@ -25,10 +25,11 @@ Firestore uses collections and documents rather than SQL tables.
   only by the marketplace command service.
 - `marketplace_command_receipts/{receiptId}`: deterministic, server-only
   idempotency receipts for bid placement, Buy It Now, bid withdrawal,
-  below-reserve acceptance, and marketplace offer acceptance.
+  below-reserve acceptance, marketplace offers, and Dispatch commands.
 - `dispatch_jobs/{jobId}`: live user trucking requests. Stores route labels,
   optional mapped planning points, estimated distance, requested date, load
-  details, current status, bid count and revision number.
+  details, current status, bid count and revision number. Creation, revision,
+  publishing, and award are server-controlled.
   - `revisions/{revision}`: immutable request creation, edit, activation and
     award history.
 - `dispatch_bids/{bidId}`: one current carrier quote per carrier and job.
@@ -59,10 +60,14 @@ idempotency receipt. The current callable commands are:
 - `acceptAuctionBidBelowReserve`
 - `createMarketplaceOffer`
 - `acceptMarketplaceOffer`
+- `createDispatchJob`
+- `updateDispatchJob`
+- `publishDispatchJob`
 - `submitDispatchQuote`
 - `awardDispatchQuote`
 
-Firestore rules deny client writes to auction bid state and offer decisions.
+Firestore rules deny client writes to auction bid state, offer decisions,
+Dispatch jobs, Dispatch quote state, and their immutable revision histories.
 Auction sellers retain direct access only to the explicit notification
 preferences on their own live auctions. Reserve amounts are read from
 `auction_private` by server commands and the owning seller's analytics; public

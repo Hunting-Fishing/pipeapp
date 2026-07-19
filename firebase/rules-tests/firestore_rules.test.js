@@ -315,7 +315,7 @@ test("only the auction owner can read the reserve amount", async () => {
   );
 });
 
-test("Dispatch quote and award state cannot be forged by clients", async () => {
+test("Dispatch job, quote, and award state cannot be forged by clients", async () => {
   const carrierDb = testEnvironment
       .authenticatedContext("carrier")
       .firestore();
@@ -342,11 +342,32 @@ test("Dispatch quote and award state cannot be forged by clients", async () => {
     awardedAmount: 1,
     revision: 2,
   }));
-  await assertSucceeds(updateDoc(doc(ownerDb, "dispatch_jobs", "job"), {
+  await assertFails(updateDoc(doc(ownerDb, "dispatch_jobs", "job"), {
     title: "Updated pipe load",
     revision: 2,
     updatedAt: Timestamp.fromDate(
         new Date("2026-07-19T12:00:00.000Z"),
     ),
   }));
+  await assertFails(setDoc(doc(ownerDb, "dispatch_jobs", "forged"), {
+    createdByUid: "buyer",
+    title: "Forged job",
+    pickupLabel: "A",
+    deliveryLabel: "B",
+    truckingDate: Timestamp.fromDate(
+        new Date("2026-07-20T12:00:00.000Z"),
+    ),
+    loadDetails: "Pipe",
+    status: "open",
+    bidCount: 0,
+    revision: 1,
+  }));
+  await assertFails(setDoc(
+      doc(ownerDb, "dispatch_jobs", "job", "revisions", "2"),
+      {
+        actorUid: "buyer",
+        event: "request_updated",
+        revision: 2,
+      },
+  ));
 });

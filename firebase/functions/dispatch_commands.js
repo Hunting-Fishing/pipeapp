@@ -5,6 +5,9 @@ const {HttpsError} = require("firebase-functions/v2/https");
 const {CommandPolicyError} = require("./marketplace_command_policy");
 const {
   validateDispatchAward,
+  validateDispatchJobChange,
+  validateDispatchJobInput,
+  validateDispatchJobPublish,
   validateDispatchQuote,
 } = require("./dispatch_command_policy");
 
@@ -52,10 +55,280 @@ function receiptReference(db, uid, commandName, requestId) {
   return db.collection("marketplace_command_receipts").doc(digest);
 }
 
+function pointValue(admin, point) {
+  return point ?
+    new admin.firestore.GeoPoint(point.latitude, point.longitude) :
+    null;
+}
+
+function createJobValues(admin, input, uid) {
+  const FieldValue = admin.firestore.FieldValue;
+  const Timestamp = admin.firestore.Timestamp;
+  return {
+    createdByUid: uid,
+    title: input.title,
+    pickupLabel: input.pickupLabel,
+    deliveryLabel: input.deliveryLabel,
+    truckingDate: Timestamp.fromMillis(input.truckingDate),
+    loadDetails: input.loadDetails,
+    listingId: input.listingId,
+    offerId: null,
+    sourceType: input.sourceType,
+    estimatedWeightKg: input.estimatedWeightKg,
+    catalogWeightKg: input.catalogWeightKg,
+    weightSource: input.weightSource,
+    ...(input.pickupPoint ? {
+      pickupPoint: pointValue(admin, input.pickupPoint),
+    } : {}),
+    ...(input.deliveryPoint ? {
+      deliveryPoint: pointValue(admin, input.deliveryPoint),
+    } : {}),
+    ...(input.distanceKm ? {
+      distanceKm: input.distanceKm,
+      distanceSource: input.distanceSource || "coordinate_estimate",
+    } : {}),
+    ...(input.deliveryAddress ? {
+      deliveryAddress: input.deliveryAddress,
+    } : {}),
+    ...(input.deliveryNearestTown ? {
+      deliveryNearestTown: input.deliveryNearestTown,
+    } : {}),
+    ...(input.deliveryRegion ? {
+      deliveryRegion: input.deliveryRegion,
+    } : {}),
+    ...(input.deliveryPostalCode ? {
+      deliveryPostalCode: input.deliveryPostalCode,
+    } : {}),
+    ...(input.deliveryCountry ? {
+      deliveryCountry: input.deliveryCountry,
+    } : {}),
+    ...(input.deliveryAccessNotes ? {
+      deliveryAccessNotes: input.deliveryAccessNotes,
+    } : {}),
+    status: "open",
+    dispatchRequestStatus: "accepting_carrier_bids",
+    bidCount: 0,
+    revision: 1,
+    publishedAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
 function createDispatchCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+
+  const createDispatchJob = command(async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const jobId = requiredId(request.data, "jobId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "createDispatchJob",
+        requestId,
+    );
+    const jobRef = db.collection("dispatch_jobs").doc(jobId);
+    const now = Timestamp.now();
+    const input = validateDispatchJobInput(request.data, now);
+    const listingRef = input.listingId ?
+      db.collection("public_listings").doc(input.listingId) :
+      null;
+
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const listingSnapshot = listingRef ?
+        await transaction.get(listingRef) :
+        null;
+      if (listingRef && !listingSnapshot.exists) {
+        throw new CommandPolicyError(
+            "not-found",
+            "The listing for this Dispatch request is unavailable.",
+        );
+      }
+      if (listingSnapshot) {
+        const listing = listingSnapshot.data();
+        if (listing.status !== "active") {
+          throw new CommandPolicyError(
+              "failed-precondition",
+              "This listing is no longer accepting Dispatch requests.",
+          );
+        }
+        const isAuction = listing.transactionType === "Auction";
+        if (
+          (input.sourceType === "auction" && !isAuction) ||
+          (input.sourceType === "marketplace" && isAuction)
+        ) {
+          throw new CommandPolicyError(
+              "failed-precondition",
+              "The Dispatch request does not match the listing type.",
+          );
+        }
+      }
+      const values = createJobValues(admin, input, uid);
+      const result = {jobId, revision: 1, status: "open"};
+      transaction.create(jobRef, values);
+      transaction.create(jobRef.collection("revisions").doc("1"), {
+        ...values,
+        event: "request_created",
+        actorUid: uid,
+      });
+      transaction.create(receiptRef, {
+        actorUid: uid,
+        command: "createDispatchJob",
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return result;
+    });
+  });
+
+  const updateDispatchJob = command(async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const jobId = requiredId(request.data, "jobId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "updateDispatchJob",
+        requestId,
+    );
+    const jobRef = db.collection("dispatch_jobs").doc(jobId);
+
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const jobSnapshot = await transaction.get(jobRef);
+      const job = jobSnapshot.exists ? jobSnapshot.data() : null;
+      const now = Timestamp.now();
+      validateDispatchJobChange(job, uid, now);
+      const input = validateDispatchJobInput({
+        ...job,
+        ...request.data,
+        truckingDate: request.data.truckingDate,
+      }, now);
+      const bids = await transaction.get(
+          db.collection("dispatch_bids")
+              .where("jobId", "==", jobId)
+              .limit(200),
+      );
+      if (bids.size >= 200) {
+        throw new CommandPolicyError(
+            "resource-exhausted",
+            "This Dispatch job has too many quotes for automatic revision.",
+        );
+      }
+      const revision = Number(job.revision || 1) + 1;
+      const changes = {
+        title: input.title,
+        pickupLabel: input.pickupLabel,
+        deliveryLabel: input.deliveryLabel,
+        truckingDate: Timestamp.fromMillis(input.truckingDate),
+        loadDetails: input.loadDetails,
+        estimatedWeightKg: input.estimatedWeightKg,
+        ...(input.distanceKm ? {
+          distanceKm: input.distanceKm,
+          distanceSource: input.distanceSource || "user_entered_route",
+        } : {}),
+        revision,
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      const result = {jobId, revision, status: job.status};
+      transaction.update(jobRef, changes);
+      transaction.create(
+          jobRef.collection("revisions").doc(String(revision)),
+          {
+            ...job,
+            ...changes,
+            event: "request_updated",
+            actorUid: uid,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      for (const bid of bids.docs) {
+        const bidData = bid.data();
+        const carrierUid = String(bidData.carrierUid || "");
+        if (bidData.status !== "pending" || !carrierUid || carrierUid === uid) {
+          continue;
+        }
+        transaction.set(
+            db.collection("users")
+                .doc(carrierUid)
+                .collection("notifications")
+                .doc(`${receiptRef.id}_${carrierUid}`),
+            {
+              recipientUid: carrierUid,
+              actorUid: uid,
+              type: "dispatch",
+              jobId,
+              bidId: bid.id,
+              title: "Dispatch request updated",
+              body: "Review the revised route, date, distance, or load details.",
+              read: false,
+              createdAt: FieldValue.serverTimestamp(),
+            },
+        );
+      }
+      transaction.create(receiptRef, {
+        actorUid: uid,
+        command: "updateDispatchJob",
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return result;
+    });
+  });
+
+  const publishDispatchJob = command(async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const jobId = requiredId(request.data, "jobId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "publishDispatchJob",
+        requestId,
+    );
+    const jobRef = db.collection("dispatch_jobs").doc(jobId);
+
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const snapshot = await transaction.get(jobRef);
+      const job = snapshot.exists ? snapshot.data() : null;
+      validateDispatchJobPublish(job, uid);
+      const revision = Number(job.revision || 1) + 1;
+      const result = {jobId, revision, status: "open"};
+      const changes = {
+        status: "open",
+        dispatchRequestStatus: "accepting_carrier_bids",
+        revision,
+        publishedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      transaction.update(jobRef, changes);
+      transaction.create(
+          jobRef.collection("revisions").doc(String(revision)),
+          {
+            ...job,
+            ...changes,
+            event: "request_published",
+            actorUid: uid,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.create(receiptRef, {
+        actorUid: uid,
+        command: "publishDispatchJob",
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return result;
+    });
+  });
 
   const submitDispatchQuote = command(async (request) => {
     const uid = requireAuth(request);
@@ -313,7 +586,13 @@ function createDispatchCommands(admin) {
     });
   });
 
-  return {awardDispatchQuote, submitDispatchQuote};
+  return {
+    awardDispatchQuote,
+    createDispatchJob,
+    publishDispatchJob,
+    submitDispatchQuote,
+    updateDispatchJob,
+  };
 }
 
 module.exports = {createDispatchCommands};
