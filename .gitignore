@@ -6,6 +6,7 @@
 .flutter-plugins-dependencies
 build/
 coverage/
+**/ephemeral/
 
 # IDE-local state
 .idea/
