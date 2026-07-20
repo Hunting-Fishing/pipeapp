@@ -108,3 +108,21 @@ class MarketplaceLocation {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 }
+
+MarketplaceLocation? marketplaceLocationFromOfferDelivery(dynamic value) {
+  if (value is! Map) return null;
+  final data = Map<String, dynamic>.from(value);
+  final point = data['point'];
+  if (point is! GeoPoint) return null;
+  return MarketplaceLocation(
+    point: LatLng(point.latitude, point.longitude),
+    visibility: LocationVisibility.hidden,
+    publicName: '${data['label'] ?? data['nearestTown'] ?? ''}'.trim(),
+    address: '${data['address'] ?? ''}'.trim(),
+    nearestTown: '${data['nearestTown'] ?? ''}'.trim(),
+    accessNotes: '${data['accessNotes'] ?? ''}'.trim(),
+    region: '${data['region'] ?? ''}'.trim(),
+    postalCode: '${data['postalCode'] ?? ''}'.trim(),
+    country: '${data['country'] ?? ''}'.trim(),
+  );
+}

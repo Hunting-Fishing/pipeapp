@@ -9,6 +9,15 @@ enum MarketplaceTruckingPlan {
   sellerPickup,
 }
 
+MarketplaceTruckingPlan? marketplaceTruckingPlanFromStorage(String value) {
+  final normalized = value.trim();
+  if (normalized.isEmpty || normalized == 'not_specified') return null;
+  for (final plan in MarketplaceTruckingPlan.values) {
+    if (plan.storageValue == normalized) return plan;
+  }
+  return null;
+}
+
 extension MarketplaceTruckingPlanDetails on MarketplaceTruckingPlan {
   String get storageValue => switch (this) {
         MarketplaceTruckingPlan.buyerArranged => 'buyer_arranged',

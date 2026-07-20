@@ -10,6 +10,7 @@ import 'marketplace_auth_page.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_public_profile_page.dart';
 import 'marketplace_avatar_image.dart';
+import 'marketplace_offer_schedule.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
 
@@ -152,8 +153,15 @@ class _LoadFailure extends StatelessWidget {
 }
 
 class _ConversationNegotiationPanel extends StatefulWidget {
-  const _ConversationNegotiationPanel({required this.conversationId});
+  const _ConversationNegotiationPanel({
+    required this.conversationId,
+    this.openComposerOnLoad = false,
+    this.initialOffer,
+  });
+
   final String conversationId;
+  final bool openComposerOnLoad;
+  final Map<String, dynamic>? initialOffer;
 
   @override
   State<_ConversationNegotiationPanel> createState() =>
@@ -163,6 +171,7 @@ class _ConversationNegotiationPanel extends StatefulWidget {
 class _ConversationNegotiationPanelState
     extends State<_ConversationNegotiationPanel> {
   final _actions = MarketplaceActionsRepository();
+  bool _openedInitialComposer = false;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<
@@ -182,6 +191,18 @@ class _ConversationNegotiationPanelState
                 .snapshots(),
             builder: (context, listingSnapshot) {
               final listing = listingSnapshot.data?.data() ?? {};
+              if (widget.openComposerOnLoad &&
+                  !_openedInitialComposer &&
+                  conversation != null &&
+                  listing.isNotEmpty) {
+                _openedInitialComposer = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _openProposal(conversation, listing,
+                        initialOffer: widget.initialOffer);
+                  }
+                });
+              }
               final askingPrice = listing['price'] as num?;
               final available = (listing['quantity'] as num?)?.toInt();
               final basis = '${listing['priceBasis'] ?? ''}';
@@ -295,19 +316,27 @@ class _ConversationNegotiationPanelState
   }
 
   Future<void> _openProposal(
-      Map<String, dynamic> conversation, Map<String, dynamic> listing) async {
+      Map<String, dynamic> conversation, Map<String, dynamic> listing,
+      {Map<String, dynamic>? initialOffer}) async {
     final latest = Map<String, dynamic>.from(
         conversation['latestNegotiation'] as Map? ?? {});
     final price = TextEditingController(
-        text: '${latest['unitPrice'] ?? listing['price'] ?? ''}');
+        text:
+            '${initialOffer?['offeredUnitPrice'] ?? latest['unitPrice'] ?? listing['price'] ?? ''}');
     final quantity = TextEditingController(
-        text: '${latest['quantity'] ?? listing['quantity'] ?? 1}');
+        text:
+            '${initialOffer?['requestedQuantity'] ?? latest['quantity'] ?? listing['quantity'] ?? 1}');
     final note = TextEditingController();
-    MarketplaceLocation? dispatchDeliveryLocation;
-    DateTime? purchaseDate;
-    DateTime? moneyTransferDate;
-    DateTime? truckingDate;
-    MarketplaceTruckingPlan? truckingPlan;
+    MarketplaceLocation? dispatchDeliveryLocation =
+        marketplaceLocationFromOfferDelivery(initialOffer?['dispatchDelivery']);
+    DateTime? purchaseDate =
+        _currentOrFutureOfferDate(initialOffer?['purchaseDate']);
+    DateTime? moneyTransferDate =
+        _currentOrFutureOfferDate(initialOffer?['moneyTransferDate']);
+    DateTime? truckingDate =
+        _currentOrFutureOfferDate(initialOffer?['truckingDate']);
+    MarketplaceTruckingPlan? truckingPlan = marketplaceTruckingPlanFromStorage(
+        '${initialOffer?['truckingPlan'] ?? ''}');
     final formKey = GlobalKey<FormState>();
     final submitted = await showDialog<bool>(
       context: context,
@@ -329,7 +358,8 @@ class _ConversationNegotiationPanelState
         return AlertDialog(
           insetPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          title: const Text('Make an offer'),
+          title: Text(
+              initialOffer == null ? 'Make an offer' : 'Make a counter offer'),
           content: Form(
             key: formKey,
             child: SizedBox(
@@ -595,7 +625,9 @@ class _ConversationNegotiationPanelState
                           Navigator.pop(dialogContext, true);
                         }
                       },
-                child: const Text('Review offer'))
+                child: Text(initialOffer == null
+                    ? 'Review offer'
+                    : 'Review counter offer'))
           ],
         );
       }),
@@ -619,7 +651,9 @@ class _ConversationNegotiationPanelState
           context: context,
           builder: (confirmationContext) => AlertDialog(
             icon: const Icon(Icons.analytics_outlined, size: 38),
-            title: const Text('Review and send offer'),
+            title: Text(initialOffer == null
+                ? 'Review and send offer'
+                : 'Review counter offer'),
             content: SizedBox(
                 width: 480,
                 child: SingleChildScrollView(
@@ -696,7 +730,9 @@ class _ConversationNegotiationPanelState
                   child: const Text('Go back')),
               FilledButton(
                   onPressed: () => Navigator.pop(confirmationContext, true),
-                  child: const Text('Send proposal'))
+                  child: Text(initialOffer == null
+                      ? 'Send proposal'
+                      : 'Send counter offer'))
             ],
           ),
         ) ??
@@ -722,7 +758,9 @@ class _ConversationNegotiationPanelState
               content: Text(truckingPlan ==
                       MarketplaceTruckingPlan.requestDispatch
                   ? 'Offer submitted. Dispatch request is live for carrier bids.'
-                  : 'Offer submitted and added to offer history.')));
+                  : initialOffer == null
+                      ? 'Offer submitted and added to offer history.'
+                      : 'Counter offer sent and added to offer history.')));
         }
       } catch (_) {
         if (mounted) {
@@ -769,6 +807,15 @@ class _ConversationNegotiationPanelState
 
   String _formatOfferDate(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  DateTime? _currentOrFutureOfferDate(dynamic value) {
+    final date = marketplaceOfferDate(value);
+    if (date == null) return null;
+    final today = DateTime.now();
+    final startOfToday = DateTime(today.year, today.month, today.day);
+    final candidate = DateTime(date.year, date.month, date.day);
+    return candidate.isBefore(startOfToday) ? null : candidate;
+  }
 
   Widget _offerReviewCard(
           {required IconData icon,
@@ -926,9 +973,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     final quantity = (event['requestedQuantity'] as num?)?.toInt() ?? 0;
     final total = event['offeredTotal'] as num? ?? price * quantity;
     final isAll = availableQuantity != null && quantity == availableQuantity;
-    final purchase = event['purchaseDate'] as Timestamp?;
-    final trucking = event['truckingDate'] as Timestamp?;
-    final transfer = event['moneyTransferDate'] as Timestamp?;
+    final milestones = marketplaceOfferMilestones(event);
     final revisionCount = revisions.length;
     final priceDifference = askingPrice == null ? 0 : price - askingPrice!;
     final quantityPercent = availableQuantity == null || availableQuantity == 0
@@ -1008,13 +1053,11 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                     isBest ? Colors.green : Colors.blueGrey)),
           ]),
           const SizedBox(height: 10),
+          if (milestones.isNotEmpty) ...[
+            MarketplaceOfferScheduleCard(milestones: milestones),
+            const SizedBox(height: 8),
+          ],
           Wrap(spacing: 7, runSpacing: 7, children: [
-            if (purchase != null)
-              _dateChip('Purchase', purchase, Icons.event_available_outlined),
-            if (transfer != null)
-              _dateChip('Transfer', transfer, Icons.account_balance_outlined),
-            if (trucking != null)
-              _dateChip('Trucking', trucking, Icons.local_shipping_outlined),
             if ('${event['truckingPlan'] ?? ''}'.isNotEmpty &&
                 event['truckingPlan'] != 'not_specified')
               _truckingPlanChip(event),
@@ -1098,6 +1141,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     final percent = availableQuantity == null || availableQuantity == 0
         ? null
         : quantity / availableQuantity! * 100;
+    final milestones = marketplaceOfferMilestones(offer);
     return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1140,16 +1184,11 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                     'TOTAL', '\$${total.toStringAsFixed(2)}', Colors.blueGrey))
           ]),
           const SizedBox(height: 8),
+          if (milestones.isNotEmpty) ...[
+            MarketplaceOfferScheduleCard(milestones: milestones),
+            const SizedBox(height: 8),
+          ],
           Wrap(spacing: 6, runSpacing: 6, children: [
-            if (offer['purchaseDate'] is Timestamp)
-              _dateChip('Purchase', offer['purchaseDate'] as Timestamp,
-                  Icons.event_available_outlined),
-            if (offer['moneyTransferDate'] is Timestamp)
-              _dateChip('Transfer', offer['moneyTransferDate'] as Timestamp,
-                  Icons.account_balance_outlined),
-            if (offer['truckingDate'] is Timestamp)
-              _dateChip('Trucking', offer['truckingDate'] as Timestamp,
-                  Icons.local_shipping_outlined),
             if ('${offer['truckingPlan'] ?? ''}'.isNotEmpty &&
                 offer['truckingPlan'] != 'not_specified')
               _truckingPlanChip(offer),
@@ -1240,7 +1279,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
   }
 
   Future<void> _openBuyerConversation(
-      BuildContext context, Map<String, dynamic> offer) async {
+      BuildContext context, Map<String, dynamic> offer,
+      {bool openOfferComposer = false}) async {
     final buyerUid = '${offer['buyerUid'] ?? ''}';
     if (buyerUid.isEmpty) return;
     final navigator = Navigator.of(context);
@@ -1255,8 +1295,11 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
       if (!context.mounted) return;
       navigator.pop();
       await navigator.push(MaterialPageRoute(
-          builder: (_) =>
-              MarketplaceChatPage(conversationId: id, title: listingTitle)));
+          builder: (_) => MarketplaceChatPage(
+              conversationId: id,
+              title: listingTitle,
+              openOfferComposer: openOfferComposer,
+              initialOffer: openOfferComposer ? offer : null)));
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -1267,27 +1310,16 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
 
   Future<void> _acceptSelectedOffer(
       BuildContext context, String offerId, Map<String, dynamic> offer) async {
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-              icon: const Icon(Icons.handshake_outlined, size: 40),
-              title: const Text('Accept this offer?'),
-              content: Text(
-                  'Accept \$${(offer['offeredTotal'] as num? ?? 0).toStringAsFixed(2)} '
-                  'for ${offer['requestedQuantity'] ?? 0} units?\n\n'
-                  'The buyer will be notified, all competing offers for this listing will be archived, '
-                  'and their conversation will open so you can finalize the purchase.'),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(dialogContext, false),
-                    child: const Text('Cancel')),
-                FilledButton(
-                    onPressed: () => Navigator.pop(dialogContext, true),
-                    child: const Text('Accept offer'))
-              ]),
-        ) ??
-        false;
-    if (!confirmed) return;
+    final decision = await showDialog<MarketplaceOfferDecision>(
+      context: context,
+      builder: (_) => MarketplaceAcceptOfferDialog(offer: offer),
+    );
+    if (!context.mounted) return;
+    if (decision == MarketplaceOfferDecision.counter) {
+      await _openBuyerConversation(context, offer, openOfferComposer: true);
+      return;
+    }
+    if (decision != MarketplaceOfferDecision.accept) return;
     try {
       await MarketplaceActionsRepository().acceptOffer(offerId);
       if (context.mounted) {
@@ -1319,26 +1351,6 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w900))
       ]));
-
-  Widget _dateChip(String label, Timestamp value, IconData icon) {
-    final days = value.toDate().difference(DateTime.now()).inDays;
-    final color = days <= 7
-        ? Colors.green
-        : days <= 30
-            ? Colors.orange
-            : Colors.blueGrey;
-    return Chip(
-        backgroundColor: color.withValues(alpha: .1),
-        side: BorderSide(color: color.withValues(alpha: .35)),
-        avatar: Icon(icon, size: 17, color: color),
-        label: Text('$label ${_historyDate(value)} • '
-            '${days <= 0 ? 'now' : '$days days'}'));
-  }
-
-  String _historyDate(Timestamp value) {
-    final date = value.toDate();
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
 }
 
 class _BuyerOfferName extends StatelessWidget {
@@ -1481,10 +1493,14 @@ class MarketplaceChatPage extends StatefulWidget {
       {super.key,
       required this.conversationId,
       required this.title,
-      this.openedFromListing = false});
+      this.openedFromListing = false,
+      this.openOfferComposer = false,
+      this.initialOffer});
   final String conversationId;
   final String title;
   final bool openedFromListing;
+  final bool openOfferComposer;
+  final Map<String, dynamic>? initialOffer;
   @override
   State<MarketplaceChatPage> createState() => _MarketplaceChatPageState();
 }
@@ -1543,7 +1559,11 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         )
       ]),
       body: Column(children: [
-        _ConversationNegotiationPanel(conversationId: widget.conversationId),
+        _ConversationNegotiationPanel(
+          conversationId: widget.conversationId,
+          openComposerOnLoad: widget.openOfferComposer,
+          initialOffer: widget.initialOffer,
+        ),
         Expanded(
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance

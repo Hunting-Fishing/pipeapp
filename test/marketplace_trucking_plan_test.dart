@@ -8,6 +8,9 @@ void main() {
     expect(MarketplaceTruckingPlan.requestDispatch.storageValue,
         'request_dispatch');
     expect(MarketplaceTruckingPlan.sellerPickup.storageValue, 'seller_pickup');
+    expect(marketplaceTruckingPlanFromStorage('request_dispatch'),
+        MarketplaceTruckingPlan.requestDispatch);
+    expect(marketplaceTruckingPlanFromStorage('not_specified'), isNull);
   });
 
   test('dispatch choice clearly identifies the carrier bidding workflow', () {
