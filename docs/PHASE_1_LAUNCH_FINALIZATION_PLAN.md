@@ -7,11 +7,22 @@ Created: July 20, 2026
 
 Current gate: Gate 0 — Scope lock and safe defaults
 
+Current overall launch-readiness estimate: 25%
+
+Completed gates: 0 of 8
+
+Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
+
 | Gate | Status |
 | --- | --- |
-| 0 — Scope lock and safe defaults | In progress |
-| 1 — Environments, builds, and diagnostics | Foundation started; not closed |
-| 2–7 | Not started |
+| 0 — Scope lock and safe defaults | 85% — in progress |
+| 1 — Environments, builds, and diagnostics | 15% — foundation only |
+| 2 — Backend parity and server commands | 25% — source/live mismatch |
+| 3 — Identity, authorization, and abuse | 10% — incomplete |
+| 4 — Product workflows | 25% — incomplete |
+| 5 — Trust, notifications, and policies | 15% — incomplete |
+| 6 — Accessibility, performance, and QA | 15% — incomplete |
+| 7 — Release readiness | 5% — incomplete |
 
 Gate 0 implementation evidence in progress:
 

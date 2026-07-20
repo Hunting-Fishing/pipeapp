@@ -831,8 +831,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   StreamSubscription<Phase1FeatureFlags>? _featureSubscription;
   Phase1FeatureFlags _features = Phase1FeatureFlags.safeDefaults;
   bool _createAuctionRequested = false;
+  bool _createWantedRequested = false;
 
-  void _openCreate({bool auction = false}) {
+  void _openCreate({bool auction = false, bool wanted = false}) {
     if (!_features.marketplace) {
       _showFeatureUnavailable('Marketplace');
       return;
@@ -841,8 +842,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       _showFeatureUnavailable('Auctions');
       return;
     }
+    if (wanted && !_features.wantedAds) {
+      _showFeatureUnavailable('Wanted ads');
+      return;
+    }
     setState(() {
       _createAuctionRequested = auction;
+      _createWantedRequested = wanted;
       _tab = 2;
     });
   }
@@ -949,8 +955,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           : const _FeatureUnavailablePage(feature: 'Marketplace'),
       _features.marketplace
           ? _StableCreateListingPage(
-              key: ValueKey('${_createAuctionRequested}_${_features.revision}'),
+              key: ValueKey(
+                  '${_createAuctionRequested}_${_createWantedRequested}_${_features.revision}'),
               initialAuction: _createAuctionRequested,
+              initialWanted: _createWantedRequested,
               auctionsEnabled: _features.auctions,
               wantedAdsEnabled: _features.wantedAds,
               regulatedListingsEnabled: _features.regulatedListings,
@@ -1062,7 +1070,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                     icon: Icons.request_quote_outlined,
                     label: 'Wanted ads & RFQs',
                     selected: false,
-                    onTap: () => _selectTab(1)),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _openCreate(wanted: true);
+                    }),
                 _DrawerDestination(
                     icon: Icons.bookmark_border,
                     label: 'Saved Listings',
@@ -3246,10 +3257,12 @@ class _StableCreateListingPage extends StatefulWidget {
     required this.regulatedListingsEnabled,
     required this.paidFeaturesEnabled,
     this.initialAuction = false,
+    this.initialWanted = false,
   });
 
   final VoidCallback onHome;
   final bool initialAuction;
+  final bool initialWanted;
   final bool auctionsEnabled;
   final bool wantedAdsEnabled;
   final bool regulatedListingsEnabled;
@@ -3341,6 +3354,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _listingType = 'Auction';
       _auctionStartAt = DateTime.now().add(const Duration(minutes: 10));
       _auctionEndAt = DateTime.now().add(const Duration(days: 7));
+    } else if (widget.initialWanted && widget.wantedAdsEnabled) {
+      _listingType = 'Wanted / Seeking';
+      _priceFlexibility = 'Open to offers';
     }
     _loadCatalogs();
   }
