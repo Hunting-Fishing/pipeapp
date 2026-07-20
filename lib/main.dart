@@ -9,11 +9,32 @@ import 'auth/firebase_auth/firebase_user_provider.dart';
 import 'auth/firebase_auth/auth_util.dart';
 
 import 'backend/firebase/firebase_config.dart';
+import 'core/diagnostics/app_diagnostics.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/internationalization.dart';
 
-void main() async {
+void main() {
+  AppDiagnostics.install();
+  AppDiagnostics.run(_bootstrapPipeBuyer);
+}
+
+Future<void> _bootstrapPipeBuyer() async {
+  try {
+    await _initializePipeBuyer();
+  } catch (error, stackTrace) {
+    AppDiagnostics.record(
+      error,
+      stackTrace,
+      subsystem: 'startup',
+      operation: 'initialize_application',
+      fatal: true,
+    );
+    runApp(const PipeStartupFailureApp());
+  }
+}
+
+Future<void> _initializePipeBuyer() async {
   WidgetsFlutterBinding.ensureInitialized();
   ErrorWidget.builder = (details) => Material(
         color: const Color(0xFFF7FAFE),
@@ -147,7 +168,7 @@ class MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'PipeApp',
+      title: 'Pipe Buyer',
       scrollBehavior: MyAppScrollBehavior(),
       localizationsDelegates: const [
         FFLocalizationsDelegate(),

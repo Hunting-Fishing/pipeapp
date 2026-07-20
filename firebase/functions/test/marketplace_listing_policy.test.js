@@ -123,9 +123,24 @@ test("keeps property and business listing facts structured", () => {
     monthlyRevenue: 25000,
     annualRevenue: 300000,
     propertyFeatures: ["Power", "Fenced / gated"],
-  }), now);
+  }), now, {regulatedListingsEnabled: true});
 
   assert.equal(listing.landAreaAcres, 160);
   assert.equal(listing.annualRevenue, 300000);
   assert.deepEqual(listing.propertyFeatures, ["Power", "Fenced / gated"]);
+});
+
+test("regulated property listings fail closed by default", () => {
+  assert.throws(
+      () => validateMarketplaceListingInput(validListing({
+        title: "Industrial yard",
+        category: "Site & Property",
+        productType: "Industrial Real Estate",
+        propertyOffering: "Property only",
+        propertyInterest: "Freehold / fee simple",
+      }), now),
+      (error) =>
+        error instanceof ListingPolicyError &&
+        error.code === "failed-precondition",
+  );
 });

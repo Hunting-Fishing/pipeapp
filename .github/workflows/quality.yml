@@ -39,13 +39,18 @@ jobs:
         run: dart analyze lib test
 
       - name: Run Flutter tests
-        run: flutter test
+        run: >
+          flutter test
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
 
       - name: Build Android ARM64 debug artifact
         run: >
           flutter build apk
           --debug
           --target-platform android-arm64
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
           --dart-define=PIPE_APP_CHECK_REQUIRED=true
 
       - name: Restore Functions dependencies
@@ -75,4 +80,8 @@ jobs:
           "npm test --prefix firebase/rules-tests"
 
       - name: Build production web artifact
-        run: flutter build web --release
+        run: >
+          flutter build web
+          --release
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}

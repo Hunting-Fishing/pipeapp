@@ -193,7 +193,16 @@ function validateLocation(value) {
   return clean;
 }
 
-function validateMarketplaceListingInput(input, now = new Date()) {
+function regulatedListingsEnabled() {
+  return String(process.env.PIPE_REGULATED_LISTINGS_ENABLED || "")
+      .toLowerCase() === "true";
+}
+
+function validateMarketplaceListingInput(
+    input,
+    now = new Date(),
+    options = {},
+) {
   if (!isPlainObject(input)) invalid("Listing details are missing.");
   const listing = {};
   for (const [field, value] of Object.entries(input)) {
@@ -218,6 +227,15 @@ function validateMarketplaceListingInput(input, now = new Date()) {
   listing.transactionType = transactionType;
 
   if (listing.category === "Site & Property") {
+    const enabled = options.regulatedListingsEnabled === true ||
+      (options.regulatedListingsEnabled === undefined &&
+       regulatedListingsEnabled());
+    if (!enabled) {
+      throw new ListingPolicyError(
+          "failed-precondition",
+          "Regulated property and rights listings are not available.",
+      );
+    }
     requiredText(listing, "productType");
     listing.propertyOffering = requiredText(listing, "propertyOffering");
     listing.propertyInterest = requiredText(listing, "propertyInterest");

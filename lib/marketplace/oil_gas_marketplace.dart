@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../core/config/phase1_feature_policy.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_catalog_repository.dart';
@@ -224,6 +225,12 @@ const marketplaceCategories = <MarketplaceCategory>[
       ],
       'Industrial, commercial and agricultural property, businesses, leases and rights.'),
 ];
+
+List<MarketplaceCategory> get phase1MarketplaceCategories =>
+    marketplaceCategories
+        .where((category) => Phase1FeaturePolicy.current
+            .allowsMarketplaceCategory(category.name))
+        .toList(growable: false);
 
 String marketplaceProductTypeDescription(
     String type, MarketplaceCategory category) {
@@ -858,6 +865,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           onList: () => _openCreate(),
           onAuctions: () => setState(() => _tab = 6),
           onDispatch: () => setState(() => _tab = 7),
+          saved: _saved,
+          onSaved: _toggleSaved,
           onCategory: (value) => setState(() {
                 _category = value;
                 _tab = 1;
@@ -1253,11 +1262,15 @@ class _HomePage extends StatelessWidget {
       required this.onList,
       required this.onAuctions,
       required this.onDispatch,
+      required this.saved,
+      required this.onSaved,
       required this.onCategory});
   final VoidCallback onBrowse;
   final VoidCallback onList;
   final VoidCallback onAuctions;
   final VoidCallback onDispatch;
+  final Set<String> saved;
+  final ValueChanged<MarketplaceListing> onSaved;
   final ValueChanged<String> onCategory;
 
   @override
@@ -1278,8 +1291,6 @@ class _HomePage extends StatelessWidget {
                   Text('Oilfield equipment marketplace',
                       style: TextStyle(color: _muted, fontSize: 11))
                 ])),
-            IconButton(
-                onPressed: () {}, icon: const Icon(Icons.notifications_none))
           ]),
           const SizedBox(height: 14),
           InkWell(
@@ -1340,15 +1351,15 @@ class _HomePage extends StatelessWidget {
                     color: const Color(0xFF7856D8),
                     onTap: onDispatch)),
           ]),
-          const _CompactHeading('Categories', action: 'View all'),
+          const _CompactHeading('Categories'),
           SizedBox(
               height: 108,
               child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: marketplaceCategories.length,
+                  itemCount: phase1MarketplaceCategories.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
-                    final category = marketplaceCategories[index];
+                    final category = phase1MarketplaceCategories[index];
                     return InkWell(
                         onTap: () => onCategory(category.name),
                         borderRadius: BorderRadius.circular(14),
@@ -1380,9 +1391,9 @@ class _HomePage extends StatelessWidget {
                                           height: 1.1))
                                 ])));
                   })),
-          const _CompactHeading('Featured near you', action: 'See all'),
-          ...demoListings.take(3).map((item) =>
-              _ListingCard(listing: item, saved: false, onSaved: () {})),
+          _CompactHeading('Featured near you',
+              action: 'See all', onAction: onBrowse),
+          _FeaturedListings(onBrowse: onBrowse, saved: saved, onSaved: onSaved),
         ],
       );
 }
@@ -1429,9 +1440,10 @@ class _QuickAction extends StatelessWidget {
 }
 
 class _CompactHeading extends StatelessWidget {
-  const _CompactHeading(this.title, {required this.action});
+  const _CompactHeading(this.title, {this.action, this.onAction});
   final String title;
-  final String action;
+  final String? action;
+  final VoidCallback? onAction;
   @override
   Widget build(BuildContext context) => Padding(
       padding: const EdgeInsets.fromLTRB(2, 18, 2, 9),
@@ -1440,10 +1452,105 @@ class _CompactHeading extends StatelessWidget {
             child: Text(title,
                 style: const TextStyle(
                     fontSize: 17, fontWeight: FontWeight.w900))),
-        Text(action,
-            style: const TextStyle(
-                color: _orange, fontSize: 11, fontWeight: FontWeight.w700))
+        if (action != null && action!.isNotEmpty)
+          TextButton(onPressed: onAction, child: Text(action!))
       ]));
+}
+
+class _FeaturedListings extends StatelessWidget {
+  const _FeaturedListings({
+    required this.onBrowse,
+    required this.saved,
+    required this.onSaved,
+  });
+
+  final VoidCallback onBrowse;
+  final Set<String> saved;
+  final ValueChanged<MarketplaceListing> onSaved;
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('public_listings')
+            .where('status', isEqualTo: 'active')
+            .limit(6)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _HomeFeedNotice(
+              icon: Icons.cloud_off_outlined,
+              message: 'Featured listings could not be loaded.',
+              action: 'Browse marketplace',
+              onAction: onBrowse,
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final live = snapshot.data!.docs
+              .map(MarketplaceListing.fromFirestore)
+              .where((listing) =>
+                  listing.transactionType != 'Auction' &&
+                  Phase1FeaturePolicy.current
+                      .allowsMarketplaceCategory(listing.category))
+              .take(3)
+              .toList(growable: false);
+          final listings =
+              live.isEmpty && Phase1FeaturePolicy.current.demoContentEnabled
+                  ? demoListings.take(3).toList(growable: false)
+                  : live;
+          if (listings.isEmpty) {
+            return _HomeFeedNotice(
+              icon: Icons.inventory_2_outlined,
+              message: 'No active listings yet.',
+              action: 'Browse marketplace',
+              onAction: onBrowse,
+            );
+          }
+          return Column(
+            children: listings
+                .map((item) => _ListingCard(
+                      listing: item,
+                      saved: saved.contains(item.id),
+                      onSaved: () => onSaved(item),
+                    ))
+                .toList(growable: false),
+          );
+        },
+      );
+}
+
+class _HomeFeedNotice extends StatelessWidget {
+  const _HomeFeedNotice({
+    required this.icon,
+    required this.message,
+    required this.action,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String message;
+  final String action;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, color: _muted),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+              TextButton(onPressed: onAction, child: Text(action)),
+            ],
+          ),
+        ),
+      );
 }
 
 class _BrowsePage extends StatelessWidget {
@@ -1472,10 +1579,15 @@ class _BrowsePage extends StatelessWidget {
                   .map(MarketplaceListing.fromFirestore)
                   .toList() ??
               const <MarketplaceListing>[];
-          final inventory = liveListings.isEmpty ? demoListings : liveListings;
+          final inventory = liveListings.isEmpty &&
+                  Phase1FeaturePolicy.current.demoContentEnabled
+              ? demoListings
+              : liveListings;
           final results = inventory
               .where((item) =>
                   item.transactionType != 'Auction' &&
+                  Phase1FeaturePolicy.current
+                      .allowsMarketplaceCategory(item.category) &&
                   (category == null || item.category == category) &&
                   (search.isEmpty ||
                       '${item.title} ${item.category} ${item.location}'
@@ -1506,8 +1618,7 @@ class _BrowsePage extends StatelessWidget {
                           onChanged: onSearch,
                           decoration: const InputDecoration(
                               prefixIcon: Icon(Icons.search),
-                              hintText:
-                                  'Search equipment, pipe, tanks, property…')),
+                              hintText: 'Search equipment, pipe, tanks…')),
                       const SizedBox(height: 10),
                       Row(children: [
                         Expanded(
@@ -3189,14 +3300,15 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                       : Padding(
                           padding: const EdgeInsets.all(11),
                           child: CatalogIcon(label: _category, size: 28))),
-              selectedItemBuilder: (context) => (marketplaceCategories.toList()
-                    ..sort((a, b) => naturalCompare(a.name, b.name)))
-                  .map((item) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(item.name,
-                          maxLines: 1, overflow: TextOverflow.ellipsis)))
-                  .toList(),
-              items: (marketplaceCategories.toList()
+              selectedItemBuilder: (context) =>
+                  (phase1MarketplaceCategories.toList()
+                        ..sort((a, b) => naturalCompare(a.name, b.name)))
+                      .map((item) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(item.name,
+                              maxLines: 1, overflow: TextOverflow.ellipsis)))
+                      .toList(),
+              items: (phase1MarketplaceCategories.toList()
                     ..sort((a, b) => naturalCompare(a.name, b.name)))
                   .map((item) => DropdownMenuItem(
                       value: item.name,
