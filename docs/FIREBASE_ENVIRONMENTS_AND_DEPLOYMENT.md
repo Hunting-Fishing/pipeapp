@@ -64,6 +64,12 @@ Firestore rules, builds `build/web` with the selected Firebase values, and
 deploys by explicit project ID. `firebase/firebase.json` serves
 `../build/web`, so no copied `firebase/public` artifact is involved.
 
+Before deployment, the workflow generates `build/release-manifest.json`. It
+records the exact commit and environment, explicit Firebase project, expected
+Function names, Functions source hash, Firebase config/rules/index hashes, and
+the deterministic web artifact hash. The manifest is included in the protected
+workflow summary as release evidence.
+
 ## Rollback
 
 Before a production deployment, record the currently active Hosting release,
@@ -83,3 +89,7 @@ If rollback is required:
 Gate 1 remains open until isolated Firebase projects exist, native flavors are
 separated, staging deployment and rollback are rehearsed, diagnostics have an
 operational owner, and backup/restore evidence is recorded.
+
+The backup and recovery procedure is documented in
+`docs/FIREBASE_BACKUP_RESTORE_RUNBOOK.md`. It remains unproven until an isolated
+restore rehearsal is completed.

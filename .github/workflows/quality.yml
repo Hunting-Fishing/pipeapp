@@ -12,7 +12,7 @@ permissions:
 jobs:
   verify:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Check out source
@@ -43,6 +43,9 @@ jobs:
           flutter test
           --dart-define=PIPE_ENV=continuous-integration
           --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
+
+      - name: Test release manifest controls
+        run: node --test tool/release_manifest_test.mjs
 
       - name: Build Android ARM64 debug artifact
         run: >
@@ -85,3 +88,11 @@ jobs:
           --release
           --dart-define=PIPE_ENV=continuous-integration
           --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
+
+      - name: Record verified release manifest
+        run: >
+          node tool/release_manifest.mjs
+          --environment continuous-integration
+          --release-sha ${{ github.sha }}
+          --output build/release-manifest.json
+          --require-web

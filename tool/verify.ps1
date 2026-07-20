@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $workspace
-$releaseSha = (git rev-parse --short=12 HEAD 2>$null)
+$releaseSha = (git rev-parse HEAD 2>$null)
 if (-not $releaseSha) {
   $releaseSha = 'local'
 }
@@ -29,6 +29,9 @@ dart analyze lib test
 
 Write-Host 'Running Flutter tests'
 flutter test @diagnosticDefines
+
+Write-Host 'Testing release manifest controls'
+node --test tool/release_manifest_test.mjs
 
 Write-Host 'Validating Firebase Functions'
 if (-not $SkipDependencyRestore) {
@@ -74,6 +77,12 @@ if (-not $SkipRulesEmulator) {
 if (-not $SkipWebBuild) {
   Write-Host 'Building the web release'
   flutter build web --release @diagnosticDefines
+  Write-Host 'Recording the verified release manifest'
+  node tool/release_manifest.mjs `
+    --environment local-verification `
+    --release-sha $releaseSha `
+    --output build/release-manifest.json `
+    --require-web
 }
 
 Write-Host 'Verification completed successfully.'

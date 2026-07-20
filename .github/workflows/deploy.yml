@@ -111,6 +111,9 @@ jobs:
       - name: Run Flutter tests
         run: flutter test
 
+      - name: Test release manifest controls
+        run: node --test tool/release_manifest_test.mjs
+
       - name: Restore and validate Functions
         run: |
           npm ci --prefix firebase/functions
@@ -145,6 +148,24 @@ jobs:
           --dart-define=PIPE_FIREBASE_MEASUREMENT_ID=$PIPE_FIREBASE_MEASUREMENT_ID
           --dart-define=PIPE_APP_CHECK_WEB_RECAPTCHA_KEY=$PIPE_APP_CHECK_WEB_RECAPTCHA_KEY
           --dart-define=PIPE_APP_CHECK_REQUIRED=true
+
+      - name: Record exact release manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tool/release_manifest.mjs \
+            --environment "$PIPE_ENV" \
+            --release-sha "$PIPE_RELEASE_SHA" \
+            --firebase-project "$PIPE_FIREBASE_PROJECT_ID" \
+            --output build/release-manifest.json \
+            --require-web
+          {
+            echo "## Verified release manifest"
+            echo ""
+            echo '```json'
+            cat build/release-manifest.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Authenticate to Google Cloud without a stored key
         uses: google-github-actions/auth@v3

@@ -25,7 +25,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | No | 90% | Runtime flags, high-risk defaults, clean local verification, and remote CI evidence pass. A controlled isolated Firebase rehearsal is still required. |
-| 1 — Environments, builds, diagnostics | No | 35% | Web builds now select Firebase configuration by environment and controlled environments fail closed. Hosting serves the verified `build/web` artifact, and an exact-commit protected deployment workflow and rollback procedure exist. Separate projects, native flavors, a staging rehearsal, release inventory, backup/restore proof, and monitoring ownership remain incomplete. |
+| 1 — Environments, builds, diagnostics | No | 42% | Web builds select Firebase configuration by environment and controlled environments fail closed. Hosting serves the verified `build/web` artifact. Exact-commit deployment, deterministic release manifests, and backup/restore procedures now exist. Separate projects, native flavors, a staging deployment/rollback rehearsal, backup/restore proof, deployed release IDs, and monitoring ownership remain incomplete. |
 | 2 — Backend parity and commands | No | 25% | Offer, Auction, and Dispatch commands exist and have policy tests in source, but are not deployed to the live Firebase project. Deployed/source parity automation is missing. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
@@ -33,7 +33,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **28%**.
+Overall Phase 1 launch readiness estimate: **29%**.
 
 Completed gates: **0 of 8**.
 
@@ -117,5 +117,10 @@ a reviewed staging deployment and end-to-end acceptance pass.
 - Local verification passed with 0 analyzer issues, 52 Flutter tests,
   31 Functions policy tests, 14 Firestore rules tests, and a release web build.
 - Workflow YAML lint passed.
+- Release manifest controls passed 4 unit tests and recorded 27 expected
+  Functions, deterministic Functions/rules/index/config hashes, and the
+  319-file web artifact hash.
+- A least-privilege backup, isolated restore, validation, and application
+  rollback runbook now exists. It is prepared procedure, not recovery proof.
 - This is not deployment evidence. Gate 1 remains open until isolated projects
   are configured and staging deploy/rollback and backup/restore are rehearsed.
