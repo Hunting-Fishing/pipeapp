@@ -1,5 +1,14 @@
 import 'package:firebase_core/firebase_core.dart';
 
+const _developmentEnvironments = {
+  'development',
+  'local',
+  'local-verification',
+  'continuous-integration',
+  'test',
+};
+const _controlledEnvironments = {'staging', 'production'};
+
 const _developmentWebConfiguration = FirebaseWebConfiguration(
   apiKey: 'AIzaSyAMm0HnXVq6UOERnPNP9SKqGtyV_-H--u8',
   authDomain: 'flutter-flow-pipe.firebaseapp.com',
@@ -40,6 +49,30 @@ class FirebaseWebConfiguration {
       );
 }
 
+String normalizeFirebaseEnvironment(String environment) {
+  final normalizedEnvironment = environment.trim().toLowerCase();
+  if (!_developmentEnvironments.contains(normalizedEnvironment) &&
+      !_controlledEnvironments.contains(normalizedEnvironment)) {
+    throw ArgumentError.value(
+      environment,
+      'environment',
+      'Use development, staging, or production.',
+    );
+  }
+  return normalizedEnvironment;
+}
+
+void ensureNativeFirebaseEnvironmentSupported(String environment) {
+  final normalizedEnvironment = normalizeFirebaseEnvironment(environment);
+  if (_controlledEnvironments.contains(normalizedEnvironment)) {
+    throw UnsupportedError(
+      'Native Firebase configuration for $normalizedEnvironment is not '
+      'installed. Configure the platform-specific Firebase app before '
+      'building this environment.',
+    );
+  }
+}
+
 FirebaseWebConfiguration resolveFirebaseWebConfiguration({
   required String environment,
   String apiKey = '',
@@ -50,23 +83,7 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
   String appId = '',
   String measurementId = '',
 }) {
-  final normalizedEnvironment = environment.trim().toLowerCase();
-  const developmentEnvironments = {
-    'development',
-    'local',
-    'local-verification',
-    'continuous-integration',
-    'test',
-  };
-  const controlledEnvironments = {'staging', 'production'};
-  if (!developmentEnvironments.contains(normalizedEnvironment) &&
-      !controlledEnvironments.contains(normalizedEnvironment)) {
-    throw ArgumentError.value(
-      environment,
-      'environment',
-      'Use development, staging, or production.',
-    );
-  }
+  final normalizedEnvironment = normalizeFirebaseEnvironment(environment);
   final supplied = <String, String>{
     'PIPE_FIREBASE_API_KEY': apiKey.trim(),
     'PIPE_FIREBASE_AUTH_DOMAIN': authDomain.trim(),
@@ -77,7 +94,7 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
   };
   final hasAnyOverride = supplied.values.any((value) => value.isNotEmpty);
   final controlledEnvironment =
-      controlledEnvironments.contains(normalizedEnvironment);
+      _controlledEnvironments.contains(normalizedEnvironment);
 
   if (!hasAnyOverride && !controlledEnvironment) {
     return _developmentWebConfiguration;
@@ -105,12 +122,14 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
   );
 }
 
+String currentFirebaseEnvironment() => const String.fromEnvironment(
+      'PIPE_ENV',
+      defaultValue: 'development',
+    );
+
 FirebaseWebConfiguration currentFirebaseWebConfiguration() =>
     resolveFirebaseWebConfiguration(
-      environment: const String.fromEnvironment(
-        'PIPE_ENV',
-        defaultValue: 'development',
-      ),
+      environment: currentFirebaseEnvironment(),
       apiKey: const String.fromEnvironment('PIPE_FIREBASE_API_KEY'),
       authDomain: const String.fromEnvironment('PIPE_FIREBASE_AUTH_DOMAIN'),
       projectId: const String.fromEnvironment('PIPE_FIREBASE_PROJECT_ID'),

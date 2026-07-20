@@ -43,6 +43,35 @@ void main() {
     );
   });
 
+  test('controlled native builds cannot reuse development Firebase files', () {
+    for (final environment in ['staging', 'production']) {
+      expect(
+        () => ensureNativeFirebaseEnvironmentSupported(environment),
+        throwsA(
+          isA<UnsupportedError>().having(
+            (error) => error.message,
+            'message',
+            contains(environment),
+          ),
+        ),
+      );
+    }
+  });
+
+  test('development and CI native builds may use installed platform files', () {
+    for (final environment in [
+      'development',
+      'local-verification',
+      'continuous-integration',
+      'test',
+    ]) {
+      expect(
+        () => ensureNativeFirebaseEnvironmentSupported(environment),
+        returnsNormally,
+      );
+    }
+  });
+
   test('a complete controlled configuration maps to Firebase options', () {
     final configuration = resolveFirebaseWebConfiguration(
       environment: 'staging',

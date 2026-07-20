@@ -12,7 +12,10 @@ different projects.
 
 Native Android and Apple builds still use their platform Firebase files.
 Separate native flavors and project files remain required before Gate 1 can be
-completed.
+completed. Until those files are installed, native staging and production
+builds fail at startup instead of silently connecting to the development
+project. Development, local verification, and CI builds continue using the
+checked-in development platform files.
 
 ## Required Firebase projects
 

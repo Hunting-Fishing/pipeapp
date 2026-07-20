@@ -16,7 +16,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | Gate | Status |
 | --- | --- |
 | 0 — Scope lock and safe defaults | 90% — isolated rehearsal pending |
-| 1 — Environments, builds, and diagnostics | 42% — in progress |
+| 1 — Environments, builds, and diagnostics | 45% — in progress |
 | 2 — Backend parity and server commands | 25% — source/live mismatch |
 | 3 — Identity, authorization, and abuse | 10% — incomplete |
 | 4 — Product workflows | 25% — incomplete |
@@ -38,6 +38,8 @@ Gate 1 implementation evidence in progress:
 
 - Web Firebase project selection is build-environment controlled; staging and
   production fail closed on incomplete or mixed configuration
+- Native staging/production builds fail closed instead of silently using
+  development Firebase files while platform flavors remain unconfigured
 - Firebase Hosting serves the generated `build/web` release directly
 - A protected, exact-commit staging/production workflow and rollback procedure
   are present but have not yet been exercised
