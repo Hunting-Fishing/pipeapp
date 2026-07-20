@@ -1,7 +1,9 @@
 # Phase 1 progress audit
 
-Audit date: July 20, 2026  
-Branch: `agent/north-america-foundation`  
+Audit date: July 20, 2026
+
+Branch: `agent/north-america-foundation`
+
 Audited commit baseline: `e90f889`
 
 ## Completion rule
@@ -31,7 +33,8 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **25%**.  
+Overall Phase 1 launch readiness estimate: **25%**.
+
 Completed gates: **0 of 8**.
 
 ## Mandatory workflow audit
