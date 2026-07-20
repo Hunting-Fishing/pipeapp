@@ -27,6 +27,22 @@ const {
 const projectId = "demo-pipe-buyer-rules";
 let testEnvironment;
 
+function phase1Features(overrides = {}) {
+  return {
+    marketplace: true,
+    wantedAds: true,
+    offers: true,
+    auctions: true,
+    dispatch: true,
+    paidFeatures: false,
+    regulatedListings: false,
+    revision: 1,
+    updatedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+    updatedByUid: "system",
+    ...overrides,
+  };
+}
+
 before(async () => {
   const rules = fs.readFileSync(
       path.join(__dirname, "..", "firestore.rules"),
@@ -52,6 +68,10 @@ beforeEach(async () => {
       profileCompletion: 100,
       userScore: 100,
     });
+    await setDoc(
+        doc(db, "platform_configuration", "phase1_features"),
+        phase1Features(),
+    );
     await setDoc(doc(db, "public_listings", "auction"), {
       sellerUid: "seller",
       status: "active",
@@ -142,6 +162,57 @@ test("admin claims can manage control-plane configuration", async () => {
   await assertSucceeds(setDoc(policy, {status: "designOnly"}));
   const snapshot = await assertSucceeds(getDoc(policy));
   assert.equal(snapshot.data().status, "designOnly");
+});
+
+test("feature configuration is public read and admin-only validated write", async () => {
+  const publicDb = testEnvironment.unauthenticatedContext().firestore();
+  const userDb = testEnvironment
+      .authenticatedContext("ordinary-user")
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin-user", {admin: true})
+      .firestore();
+  const publicFlags = doc(
+      publicDb,
+      "platform_configuration",
+      "phase1_features",
+  );
+  const userFlags = doc(
+      userDb,
+      "platform_configuration",
+      "phase1_features",
+  );
+  const adminFlags = doc(
+      adminDb,
+      "platform_configuration",
+      "phase1_features",
+  );
+
+  await assertSucceeds(getDoc(publicFlags));
+  await assertFails(setDoc(userFlags, phase1Features({
+    updatedByUid: "ordinary-user",
+  })));
+  await assertSucceeds(setDoc(adminFlags, phase1Features({
+    auctions: false,
+    revision: 2,
+    updatedByUid: "admin-user",
+  })));
+  await assertFails(setDoc(adminFlags, phase1Features({
+    revision: 4,
+    updatedByUid: "admin-user",
+  })));
+  await assertFails(setDoc(adminFlags, phase1Features({
+    revision: 3,
+    updatedAt: "not-a-timestamp",
+    updatedByUid: "admin-user",
+  })));
+  await assertFails(setDoc(adminFlags, {
+    ...phase1Features({
+      revision: 3,
+      updatedByUid: "admin-user",
+    }),
+    unsupportedFlag: true,
+  }));
 });
 
 test("property listings remain closed even to signed-in clients", async () => {
@@ -297,6 +368,44 @@ test("new auctions must start with clean server-controlled bid state", async () 
   await assertSucceeds(batch.commit());
   const privateSnapshot = await assertSucceeds(getDoc(privateAuction));
   assert.equal(privateSnapshot.data().reservePrice, 175);
+});
+
+test("disabled auction and Dispatch flags block legacy direct clients", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+        doc(context.firestore(), "platform_configuration", "phase1_features"),
+        phase1Features({auctions: false, dispatch: false, revision: 2}),
+    );
+  });
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const carrierDb = testEnvironment
+      .authenticatedContext("carrier")
+      .firestore();
+
+  await assertFails(setDoc(
+      doc(sellerDb, "public_listings", "disabled-auction"),
+      {
+        sellerUid: "seller",
+        status: "active",
+        transactionType: "Auction",
+        auctionStatus: "scheduled",
+        auctionStartAt: Timestamp.fromDate(
+            new Date("2026-07-20T12:00:00.000Z"),
+        ),
+        auctionEndAt: Timestamp.fromDate(
+            new Date("2026-07-27T12:00:00.000Z"),
+        ),
+        startingBid: 100,
+        minimumBidIncrement: 5,
+        currentBid: 0,
+        bidCount: 0,
+      },
+  ));
+  await assertFails(getDoc(
+      doc(carrierDb, "dispatch_carriers", "carrier"),
+  ));
 });
 
 test("only the auction owner can read the reserve amount", async () => {

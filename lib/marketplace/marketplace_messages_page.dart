@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../core/config/phase1_feature_flags.dart';
+import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_reporting.dart';
 
 import 'marketplace_actions_repository.dart';
@@ -171,88 +175,123 @@ class _ConversationNegotiationPanel extends StatefulWidget {
 class _ConversationNegotiationPanelState
     extends State<_ConversationNegotiationPanel> {
   final _actions = MarketplaceActionsRepository();
+  final _featureRepository = Phase1FeatureFlagRepository();
+  StreamSubscription<Phase1FeatureFlags>? _featureSubscription;
+  Phase1FeatureFlags _features = Phase1FeatureFlags.safeDefaults;
   bool _openedInitialComposer = false;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<
-          DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('conversations')
-          .doc(widget.conversationId)
-          .snapshots(),
-      builder: (context, conversationSnapshot) {
-        final conversation = conversationSnapshot.data?.data();
-        final listingId = '${conversation?['listingId'] ?? ''}';
-        if (listingId.isEmpty) return const SizedBox.shrink();
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('public_listings')
-                .doc(listingId)
-                .snapshots(),
-            builder: (context, listingSnapshot) {
-              final listing = listingSnapshot.data?.data() ?? {};
-              if (widget.openComposerOnLoad &&
-                  !_openedInitialComposer &&
-                  conversation != null &&
-                  listing.isNotEmpty) {
-                _openedInitialComposer = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    _openProposal(conversation, listing,
-                        initialOffer: widget.initialOffer);
-                  }
-                });
-              }
-              final askingPrice = listing['price'] as num?;
-              final available = (listing['quantity'] as num?)?.toInt();
-              final basis = '${listing['priceBasis'] ?? ''}';
-              final latest = Map<String, dynamic>.from(
-                  conversation?['latestNegotiation'] as Map? ?? {});
-              final currentPrice = latest['unitPrice'] as num? ?? askingPrice;
-              final currentQuantity =
-                  (latest['quantity'] as num?)?.toInt() ?? available;
-              return Material(
-                  color: const Color(0xFFF4F8FC),
-                  child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(children: [
-                        const CircleAvatar(
-                            radius: 20,
-                            child: Icon(Icons.local_offer_outlined, size: 20)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                              const Text('Offer',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.w900)),
-                              Text(
-                                  currentPrice == null
-                                      ? 'Price available on request'
-                                      : '\$${currentPrice.toStringAsFixed(2)}'
-                                          '${basis.isEmpty ? '' : ' • $basis'}'
-                                          '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis)
-                            ])),
-                        const SizedBox(width: 10),
-                        ConstrainedBox(
-                            constraints: const BoxConstraints(
-                                minWidth: 160, minHeight: 50),
-                            child: FilledButton.tonalIcon(
-                                onPressed: () =>
-                                    _openOffers(conversation!, listing),
-                                icon: const Icon(Icons.handshake_outlined),
-                                label: Text(latest.isEmpty
-                                    ? 'Make offer'
-                                    : 'Offers & history')))
-                      ])));
-            });
-      });
+  void initState() {
+    super.initState();
+    _featureSubscription = _featureRepository.watch().listen(
+      (features) {
+        if (mounted) setState(() => _features = features);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        AppDiagnostics.record(
+          error,
+          stackTrace,
+          subsystem: 'feature_flags',
+          operation: 'watch_message_offer_configuration',
+          fatal: false,
+        );
+        if (mounted) {
+          setState(() => _features = Phase1FeatureFlags.safeDefaults);
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _featureSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_features.offers) return const SizedBox.shrink();
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('conversations')
+            .doc(widget.conversationId)
+            .snapshots(),
+        builder: (context, conversationSnapshot) {
+          final conversation = conversationSnapshot.data?.data();
+          final listingId = '${conversation?['listingId'] ?? ''}';
+          if (listingId.isEmpty) return const SizedBox.shrink();
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('public_listings')
+                  .doc(listingId)
+                  .snapshots(),
+              builder: (context, listingSnapshot) {
+                final listing = listingSnapshot.data?.data() ?? {};
+                if (widget.openComposerOnLoad &&
+                    !_openedInitialComposer &&
+                    conversation != null &&
+                    listing.isNotEmpty) {
+                  _openedInitialComposer = true;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      _openProposal(conversation, listing,
+                          initialOffer: widget.initialOffer);
+                    }
+                  });
+                }
+                final askingPrice = listing['price'] as num?;
+                final available = (listing['quantity'] as num?)?.toInt();
+                final basis = '${listing['priceBasis'] ?? ''}';
+                final latest = Map<String, dynamic>.from(
+                    conversation?['latestNegotiation'] as Map? ?? {});
+                final currentPrice = latest['unitPrice'] as num? ?? askingPrice;
+                final currentQuantity =
+                    (latest['quantity'] as num?)?.toInt() ?? available;
+                return Material(
+                    color: const Color(0xFFF4F8FC),
+                    child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(children: [
+                          const CircleAvatar(
+                              radius: 20,
+                              child:
+                                  Icon(Icons.local_offer_outlined, size: 20)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                const Text('Offer',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w900)),
+                                Text(
+                                    currentPrice == null
+                                        ? 'Price available on request'
+                                        : '\$${currentPrice.toStringAsFixed(2)}'
+                                            '${basis.isEmpty ? '' : ' • $basis'}'
+                                            '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis)
+                              ])),
+                          const SizedBox(width: 10),
+                          ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                  minWidth: 160, minHeight: 50),
+                              child: FilledButton.tonalIcon(
+                                  onPressed: () =>
+                                      _openOffers(conversation!, listing),
+                                  icon: const Icon(Icons.handshake_outlined),
+                                  label: Text(latest.isEmpty
+                                      ? 'Make offer'
+                                      : 'Offers & history')))
+                        ])));
+              });
+        });
+  }
 
   Future<void> _openOffers(
       Map<String, dynamic> conversation, Map<String, dynamic> listing) async {
+    if (!_features.offers) return;
     final sellerUid = '${conversation['sellerUid'] ?? ''}';
     final members =
         List<String>.from(conversation['memberUids'] ?? const <String>[]);
@@ -318,6 +357,7 @@ class _ConversationNegotiationPanelState
   Future<void> _openProposal(
       Map<String, dynamic> conversation, Map<String, dynamic> listing,
       {Map<String, dynamic>? initialOffer}) async {
+    if (!_features.offers) return;
     final latest = Map<String, dynamic>.from(
         conversation['latestNegotiation'] as Map? ?? {});
     final price = TextEditingController(
@@ -337,6 +377,11 @@ class _ConversationNegotiationPanelState
         _currentOrFutureOfferDate(initialOffer?['truckingDate']);
     MarketplaceTruckingPlan? truckingPlan = marketplaceTruckingPlanFromStorage(
         '${initialOffer?['truckingPlan'] ?? ''}');
+    if (!_features.dispatch &&
+        truckingPlan == MarketplaceTruckingPlan.requestDispatch) {
+      truckingPlan = null;
+      dispatchDeliveryLocation = null;
+    }
     final formKey = GlobalKey<FormState>();
     final submitted = await showDialog<bool>(
       context: context,
@@ -534,6 +579,7 @@ class _ConversationNegotiationPanelState
                               'e.g. Conditional on inspection, documents, loading or pickup access')),
                   const SizedBox(height: 14),
                   MarketplaceTruckingPlanSelector(
+                      dispatchEnabled: _features.dispatch,
                       value: truckingPlan,
                       onChanged: (value) => refresh(() {
                             truckingPlan = value;

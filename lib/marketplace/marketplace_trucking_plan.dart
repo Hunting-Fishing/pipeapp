@@ -54,10 +54,12 @@ class MarketplaceTruckingPlanSelector extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.dispatchEnabled = true,
   });
 
   final MarketplaceTruckingPlan? value;
   final ValueChanged<MarketplaceTruckingPlan> onChanged;
+  final bool dispatchEnabled;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -75,7 +77,11 @@ class MarketplaceTruckingPlanSelector extends StatelessWidget {
               'Choose how transportation should be handled with this offer.',
               style: TextStyle(fontSize: 11, color: Color(0xFF66758A))),
           const SizedBox(height: 8),
-          ...MarketplaceTruckingPlan.values.map((plan) {
+          ...MarketplaceTruckingPlan.values
+              .where((plan) =>
+                  dispatchEnabled ||
+                  plan != MarketplaceTruckingPlan.requestDispatch)
+              .map((plan) {
             final selected = value == plan;
             final color =
                 selected ? const Color(0xFF0878E8) : const Color(0xFFD8E0E9);

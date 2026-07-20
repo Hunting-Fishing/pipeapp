@@ -14,7 +14,34 @@ service cloud.firestore {
         (('admin' in request.auth.token &&
           request.auth.token.admin == true) ||
          ('email' in request.auth.token &&
-          request.auth.token.email == 'jordilwbailey@gmail.com'));
+         request.auth.token.email == 'jordilwbailey@gmail.com'));
+    }
+
+    function phase1FeatureEnabled(feature) {
+      return exists(
+          /databases/$(database)/documents/platform_configuration/phase1_features
+        ) &&
+        get(
+          /databases/$(database)/documents/platform_configuration/phase1_features
+        ).data.get(feature, false) == true;
+    }
+
+    function validPhase1FeatureConfiguration() {
+      return request.resource.data.keys().hasOnly([
+          'marketplace', 'wantedAds', 'offers', 'auctions', 'dispatch',
+          'paidFeatures', 'regulatedListings', 'revision', 'updatedAt',
+          'updatedByUid'
+        ]) &&
+        request.resource.data.marketplace is bool &&
+        request.resource.data.wantedAds is bool &&
+        request.resource.data.offers is bool &&
+        request.resource.data.auctions is bool &&
+        request.resource.data.dispatch is bool &&
+        request.resource.data.paidFeatures is bool &&
+        request.resource.data.regulatedListings is bool &&
+        request.resource.data.revision is int &&
+        request.resource.data.updatedAt is timestamp &&
+        request.resource.data.updatedByUid == request.auth.uid;
     }
 
     match /users/{uid} {
@@ -118,27 +145,35 @@ service cloud.firestore {
     }
 
     match /dispatch_carriers/{carrierId} {
-      allow read: if signedIn();
-      allow create, update: if owns(carrierId) &&
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow create, update: if phase1FeatureEnabled('dispatch') &&
+        owns(carrierId) &&
         request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isAdmin();
-      allow delete: if owns(carrierId) || isAdmin();
+      allow update: if phase1FeatureEnabled('dispatch') && isAdmin();
+      allow delete: if phase1FeatureEnabled('dispatch') &&
+        (owns(carrierId) || isAdmin());
 
       match /vehicles/{vehicleId} {
-        allow read: if signedIn();
-        allow create: if owns(carrierId) &&
+        allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+        allow create: if phase1FeatureEnabled('dispatch') &&
+          owns(carrierId) &&
           request.resource.data.ownerUid == request.auth.uid;
-        allow update, delete: if owns(carrierId) || isAdmin();
+        allow update, delete: if phase1FeatureEnabled('dispatch') &&
+          (owns(carrierId) || isAdmin());
       }
 
       match /saved_quotes/{quoteId} {
-        allow read, delete: if owns(carrierId);
-        allow create, update: if owns(carrierId) &&
+        allow read, delete: if phase1FeatureEnabled('dispatch') &&
+          owns(carrierId);
+        allow create, update: if phase1FeatureEnabled('dispatch') &&
+          owns(carrierId) &&
           request.resource.data.ownerUid == request.auth.uid;
 
         match /revisions/{revisionId} {
-          allow read: if owns(carrierId);
-          allow create: if owns(carrierId) &&
+          allow read: if phase1FeatureEnabled('dispatch') &&
+            owns(carrierId);
+          allow create: if phase1FeatureEnabled('dispatch') &&
+            owns(carrierId) &&
             request.resource.data.ownerUid == request.auth.uid &&
             getAfter(/databases/$(database)/documents/dispatch_carriers/$(carrierId)/saved_quotes/$(quoteId)).data.ownerUid == request.auth.uid;
           allow update, delete: if false;
@@ -147,28 +182,31 @@ service cloud.firestore {
     }
 
     match /dispatch_scales/{scaleId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow create, update, delete: if phase1FeatureEnabled('dispatch') &&
+        isAdmin();
     }
 
     match /dispatch_jobs/{jobId} {
-      allow read: if signedIn();
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
       allow create, update, delete: if false;
 
       match /revisions/{revisionId} {
-        allow read: if signedIn();
+        allow read: if phase1FeatureEnabled('dispatch') && signedIn();
         allow create, update, delete: if false;
       }
     }
 
     match /dispatch_bids/{bidId} {
-      allow read: if signedIn() &&
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        signedIn() &&
         (resource.data.carrierUid == request.auth.uid ||
          get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.createdByUid == request.auth.uid);
       allow create, update, delete: if false;
 
       match /revisions/{revisionId} {
-        allow read: if signedIn() &&
+        allow read: if phase1FeatureEnabled('dispatch') &&
+          signedIn() &&
           (get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.carrierUid == request.auth.uid ||
            get(/databases/$(database)/documents/dispatch_jobs/$(get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.jobId)).data.createdByUid == request.auth.uid);
         allow create, update, delete: if false;
@@ -176,8 +214,9 @@ service cloud.firestore {
     }
 
     match /weight_catalog/{weightId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow create, update, delete: if phase1FeatureEnabled('dispatch') &&
+        isAdmin();
     }
 
     match /weight_suggestions/{suggestionId} {
@@ -238,9 +277,19 @@ service cloud.firestore {
 
     match /public_listings/{listingId} {
       allow read: if true;
-      allow create: if signedIn() &&
+      allow create: if phase1FeatureEnabled('marketplace') &&
+        signedIn() &&
         request.resource.data.sellerUid == request.auth.uid &&
         request.resource.data.status in ['active', 'draft'] &&
+        (request.resource.data.transactionType != 'Wanted / Seeking' ||
+          phase1FeatureEnabled('wantedAds')) &&
+        (request.resource.data.transactionType != 'Auction' ||
+          phase1FeatureEnabled('auctions')) &&
+        (request.resource.data.get('category', '') != 'Site & Property' ||
+          phase1FeatureEnabled('regulatedListings')) &&
+        ((request.resource.data.get('boostRequested', false) != true &&
+          request.resource.data.get('boostPrice', 0) == 0) ||
+          phase1FeatureEnabled('paidFeatures')) &&
         !request.resource.data.keys().hasAny([
           'reservePrice', 'reserveTotal'
         ]) &&
@@ -260,9 +309,19 @@ service cloud.firestore {
            request.resource.data.get('currentBid', 0) == 0 &&
            request.resource.data.get('bidCount', 0) == 0 &&
            request.resource.data.auctionStatus in ['scheduled', 'live']));
-      allow update: if signedIn() &&
+      allow update: if phase1FeatureEnabled('marketplace') &&
+        signedIn() &&
         resource.data.sellerUid == request.auth.uid &&
         request.resource.data.sellerUid == request.auth.uid &&
+        (request.resource.data.transactionType != 'Wanted / Seeking' ||
+          phase1FeatureEnabled('wantedAds')) &&
+        (request.resource.data.transactionType != 'Auction' ||
+          phase1FeatureEnabled('auctions')) &&
+        (request.resource.data.get('category', '') != 'Site & Property' ||
+          phase1FeatureEnabled('regulatedListings')) &&
+        ((request.resource.data.get('boostRequested', false) != true &&
+          request.resource.data.get('boostPrice', 0) == 0) ||
+          phase1FeatureEnabled('paidFeatures')) &&
         (
           (resource.data.transactionType != 'Auction' &&
            request.resource.data.transactionType != 'Auction') ||
@@ -293,17 +352,20 @@ service cloud.firestore {
              'notifyAuctionEnding', 'updatedAt'
            ]))
         );
-      allow delete: if signedIn() &&
+      allow delete: if phase1FeatureEnabled('marketplace') &&
+        signedIn() &&
         resource.data.sellerUid == request.auth.uid &&
         resource.data.transactionType != 'Auction';
     }
 
     match /auction_private/{listingId} {
-      allow read: if isAdmin() ||
+      allow read: if phase1FeatureEnabled('auctions') &&
+        (isAdmin() ||
         (signedIn() &&
-         get(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
-           request.auth.uid);
-      allow create, update: if isAdmin() ||
+          get(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
+            request.auth.uid));
+      allow create, update: if phase1FeatureEnabled('auctions') &&
+        (isAdmin() ||
         (signedIn() &&
          request.resource.data.ownerUid == request.auth.uid &&
          request.resource.data.keys().hasOnly([
@@ -316,12 +378,13 @@ service cloud.firestore {
          getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.transactionType ==
            'Auction' &&
          getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
-         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0);
-      allow delete: if isAdmin() ||
+          getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0));
+      allow delete: if phase1FeatureEnabled('auctions') &&
+        (isAdmin() ||
         (signedIn() &&
          resource.data.ownerUid == request.auth.uid &&
          get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
-         get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0);
+          get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0));
     }
 
     match /listing_events/{eventId} {
@@ -382,7 +445,8 @@ service cloud.firestore {
     }
 
     match /offers/{offerId} {
-      allow read: if signedIn() &&
+      allow read: if phase1FeatureEnabled('offers') &&
+        signedIn() &&
         (resource.data.buyerUid == request.auth.uid ||
          resource.data.sellerUid == request.auth.uid);
       // Creation, acceptance, and archival are server-only marketplace
@@ -392,7 +456,7 @@ service cloud.firestore {
     }
 
     match /auction_bids/{bidId} {
-      allow read: if signedIn();
+      allow read: if phase1FeatureEnabled('auctions') && signedIn();
       // Bid placement, Buy It Now, promotion, and withdrawal are server-only.
       allow create, update, delete: if false;
     }
@@ -427,7 +491,8 @@ service cloud.firestore {
     }
 
     match /buyer_offer_profiles/{buyerUid} {
-      allow read: if isAdmin() || owns(buyerUid);
+      allow read: if phase1FeatureEnabled('offers') &&
+        (isAdmin() || owns(buyerUid));
       allow write: if false;
     }
 
@@ -473,6 +538,19 @@ service cloud.firestore {
 
     match /property_feature_flags/{flagId} {
       allow read, write: if isAdmin();
+    }
+
+    match /platform_configuration/{configurationId} {
+      allow read: if configurationId == 'phase1_features';
+      allow create: if configurationId == 'phase1_features' &&
+        isAdmin() &&
+        validPhase1FeatureConfiguration() &&
+        request.resource.data.revision == 1;
+      allow update: if configurationId == 'phase1_features' &&
+        isAdmin() &&
+        validPhase1FeatureConfiguration() &&
+        request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
     }
   }
 }

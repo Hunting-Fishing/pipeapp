@@ -7,7 +7,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../core/config/phase1_feature_flags.dart';
 import '../core/config/phase1_feature_policy.dart';
+import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_catalog_repository.dart';
@@ -226,10 +228,11 @@ const marketplaceCategories = <MarketplaceCategory>[
       'Industrial, commercial and agricultural property, businesses, leases and rights.'),
 ];
 
-List<MarketplaceCategory> get phase1MarketplaceCategories =>
+List<MarketplaceCategory> phase1MarketplaceCategories(
+        {required bool regulatedListingsEnabled}) =>
     marketplaceCategories
-        .where((category) => Phase1FeaturePolicy.current
-            .allowsMarketplaceCategory(category.name))
+        .where((category) =>
+            category.name != 'Site & Property' || regulatedListingsEnabled)
         .toList(growable: false);
 
 String marketplaceProductTypeDescription(
@@ -823,13 +826,26 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   String? _category;
   final Set<String> _saved = {};
   final _actions = MarketplaceActionsRepository();
+  final _featureRepository = Phase1FeatureFlagRepository();
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<Phase1FeatureFlags>? _featureSubscription;
+  Phase1FeatureFlags _features = Phase1FeatureFlags.safeDefaults;
   bool _createAuctionRequested = false;
 
-  void _openCreate({bool auction = false}) => setState(() {
-        _createAuctionRequested = auction;
-        _tab = 2;
-      });
+  void _openCreate({bool auction = false}) {
+    if (!_features.marketplace) {
+      _showFeatureUnavailable('Marketplace');
+      return;
+    }
+    if (auction && !_features.auctions) {
+      _showFeatureUnavailable('Auctions');
+      return;
+    }
+    setState(() {
+      _createAuctionRequested = auction;
+      _tab = 2;
+    });
+  }
 
   void _handleHomeRequest() {
     if (mounted && _tab != 0) setState(() => _tab = 0);
@@ -840,6 +856,38 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     if (Navigator.of(context).canPop()) Navigator.of(context).pop();
   }
 
+  void _selectControlledTab(int index, bool enabled, String label) {
+    if (!enabled) {
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      _showFeatureUnavailable(label);
+      return;
+    }
+    _selectTab(index);
+  }
+
+  void _showFeatureUnavailable(String label) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text(
+        '$label is temporarily unavailable. No account or listing data was changed.',
+      ),
+    ));
+  }
+
+  void _handleFeatureFlags(Phase1FeatureFlags flags) {
+    if (!mounted) return;
+    setState(() {
+      _features = flags;
+      if ((_tab == 1 || _tab == 2 || _tab == 3) && !flags.marketplace) {
+        _tab = 0;
+      } else if (_tab == 6 && !flags.auctions) {
+        _tab = 0;
+      } else if (_tab == 7 && !flags.dispatch) {
+        _tab = 0;
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -848,12 +896,26 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((_) {
       if (mounted) setState(() {});
     });
+    _featureSubscription = _featureRepository.watch().listen(
+      _handleFeatureFlags,
+      onError: (Object error, StackTrace stackTrace) {
+        AppDiagnostics.record(
+          error,
+          stackTrace,
+          subsystem: 'feature_flags',
+          operation: 'watch_phase1_configuration',
+          fatal: false,
+        );
+        _handleFeatureFlags(Phase1FeatureFlags.safeDefaults);
+      },
+    );
   }
 
   @override
   void dispose() {
     MarketplaceNavigation.homeRequests.removeListener(_handleHomeRequest);
     _authSubscription?.cancel();
+    _featureSubscription?.cancel();
     super.dispose();
   }
 
@@ -861,35 +923,62 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   Widget build(BuildContext context) {
     final pages = [
       _HomePage(
-          onBrowse: () => setState(() => _tab = 1),
+          onBrowse: () =>
+              _selectControlledTab(1, _features.marketplace, 'Marketplace'),
           onList: () => _openCreate(),
-          onAuctions: () => setState(() => _tab = 6),
-          onDispatch: () => setState(() => _tab = 7),
+          onAuctions: () =>
+              _selectControlledTab(6, _features.auctions, 'Auctions'),
+          onDispatch: () =>
+              _selectControlledTab(7, _features.dispatch, 'Dispatch'),
+          features: _features,
           saved: _saved,
           onSaved: _toggleSaved,
           onCategory: (value) => setState(() {
                 _category = value;
                 _tab = 1;
               })),
-      _BrowsePage(
-          search: _search,
-          category: _category,
-          saved: _saved,
-          onSearch: (value) => setState(() => _search = value),
-          onCategory: (value) => setState(() => _category = value),
-          onSaved: _toggleSaved),
-      _StableCreateListingPage(
-          key: ValueKey(_createAuctionRequested),
-          initialAuction: _createAuctionRequested,
-          onHome: () => setState(() => _tab = 0)),
-      _SavedPage(saved: _saved, onBrowse: () => setState(() => _tab = 1)),
+      _features.marketplace
+          ? _BrowsePage(
+              features: _features,
+              search: _search,
+              category: _category,
+              saved: _saved,
+              onSearch: (value) => setState(() => _search = value),
+              onCategory: (value) => setState(() => _category = value),
+              onSaved: _toggleSaved)
+          : const _FeatureUnavailablePage(feature: 'Marketplace'),
+      _features.marketplace
+          ? _StableCreateListingPage(
+              key: ValueKey('${_createAuctionRequested}_${_features.revision}'),
+              initialAuction: _createAuctionRequested,
+              auctionsEnabled: _features.auctions,
+              wantedAdsEnabled: _features.wantedAds,
+              regulatedListingsEnabled: _features.regulatedListings,
+              paidFeaturesEnabled: _features.paidFeatures,
+              onHome: () => setState(() => _tab = 0))
+          : const _FeatureUnavailablePage(feature: 'Marketplace'),
+      _features.marketplace
+          ? _SavedPage(
+              saved: _saved,
+              onBrowse: () => _selectControlledTab(
+                1,
+                _features.marketplace,
+                'Marketplace',
+              ),
+            )
+          : const _FeatureUnavailablePage(feature: 'Marketplace'),
       const MarketplaceMessagesPage(),
       MarketplaceAccountHub(
           onAddListing: () => _openCreate(),
-          onBrowse: () => setState(() => _tab = 1)),
-      MarketplaceAuctionsPage(
-          onCreateAuction: () => _openCreate(auction: true)),
-      const MarketplaceDispatchPage(),
+          onBrowse: () =>
+              _selectControlledTab(1, _features.marketplace, 'Marketplace')),
+      _features.auctions
+          ? MarketplaceAuctionsPage(
+              onCreateAuction: () => _openCreate(auction: true))
+          : const _FeatureUnavailablePage(feature: 'Auctions'),
+      _features.dispatch
+          ? const MarketplaceDispatchPage()
+          : const _FeatureUnavailablePage(feature: 'Dispatch'),
     ];
 
     return Theme(
@@ -931,9 +1020,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               style:
                   const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           actions: [
-            IconButton(
-                onPressed: () => _selectTab(1),
-                icon: const Icon(Icons.search_rounded))
+            if (_features.marketplace)
+              IconButton(
+                  onPressed: () => _selectTab(1),
+                  icon: const Icon(Icons.search_rounded))
           ],
         ),
         drawer: Drawer(
@@ -954,39 +1044,43 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                   label: 'Home',
                   selected: _tab == 0,
                   onTap: () => _selectTab(0)),
-              _DrawerDestination(
-                  icon: Icons.storefront_outlined,
-                  label: 'Browse Marketplace',
-                  selected: _tab == 1,
-                  onTap: () => _selectTab(1)),
-              _DrawerDestination(
-                  icon: Icons.add_box_outlined,
-                  label: 'Create Listing',
-                  selected: _tab == 2,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _openCreate();
-                  }),
-              _DrawerDestination(
-                  icon: Icons.gavel_outlined,
-                  label: 'Auctions',
-                  selected: _tab == 6,
-                  onTap: () => _selectTab(6)),
-              _DrawerDestination(
-                  icon: Icons.local_shipping_outlined,
-                  label: 'Dispatch',
-                  selected: _tab == 7,
-                  onTap: () => _selectTab(7)),
-              _DrawerDestination(
-                  icon: Icons.request_quote_outlined,
-                  label: 'RFQs',
-                  selected: false,
-                  onTap: () => _selectTab(1)),
-              _DrawerDestination(
-                  icon: Icons.bookmark_border,
-                  label: 'Saved Listings',
-                  selected: _tab == 3,
-                  onTap: () => _selectTab(3)),
+              if (_features.marketplace) ...[
+                _DrawerDestination(
+                    icon: Icons.storefront_outlined,
+                    label: 'Browse Marketplace',
+                    selected: _tab == 1,
+                    onTap: () => _selectTab(1)),
+                _DrawerDestination(
+                    icon: Icons.add_box_outlined,
+                    label: 'Create Listing',
+                    selected: _tab == 2,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _openCreate();
+                    }),
+                _DrawerDestination(
+                    icon: Icons.request_quote_outlined,
+                    label: 'Wanted ads & RFQs',
+                    selected: false,
+                    onTap: () => _selectTab(1)),
+                _DrawerDestination(
+                    icon: Icons.bookmark_border,
+                    label: 'Saved Listings',
+                    selected: _tab == 3,
+                    onTap: () => _selectTab(3)),
+              ],
+              if (_features.auctions)
+                _DrawerDestination(
+                    icon: Icons.gavel_outlined,
+                    label: 'Auctions',
+                    selected: _tab == 6,
+                    onTap: () => _selectTab(6)),
+              if (_features.dispatch)
+                _DrawerDestination(
+                    icon: Icons.local_shipping_outlined,
+                    label: 'Dispatch',
+                    selected: _tab == 7,
+                    onTap: () => _selectTab(7)),
               _DrawerDestination(
                   icon: Icons.forum_outlined,
                   label: 'Messages',
@@ -1001,11 +1095,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                   selected: _tab == 5,
                   trailing: const _ProfileCompletionBadge(),
                   onTap: () => _selectTab(5)),
-              _DrawerDestination(
-                  icon: Icons.help_outline,
-                  label: 'Help & Support',
-                  selected: false,
-                  onTap: () => Navigator.of(context).pop()),
               if (FirebaseAuth.instance.currentUser != null)
                 _DrawerDestination(
                     icon: Icons.logout,
@@ -1048,8 +1137,14 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             child: NavigationBar(
               selectedIndex:
                   _tab == 6 ? 1 : (_tab <= 2 ? _tab : (_tab == 4 ? 3 : 4)),
-              onDestinationSelected: (index) => setState(
-                  () => _tab = index <= 2 ? index : (index == 3 ? 4 : 5)),
+              onDestinationSelected: (index) {
+                final target = index <= 2 ? index : (index == 3 ? 4 : 5);
+                if ((target == 1 || target == 2) && !_features.marketplace) {
+                  _showFeatureUnavailable('Marketplace');
+                  return;
+                }
+                setState(() => _tab = target);
+              },
               destinations: const [
                 NavigationDestination(
                     icon: Icon(Icons.home_outlined),
@@ -1256,12 +1351,64 @@ class _DrawerDestination extends StatelessWidget {
           onTap: onTap));
 }
 
+class _FeatureUnavailablePage extends StatelessWidget {
+  const _FeatureUnavailablePage({required this.feature});
+
+  final String feature;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Card(
+            margin: const EdgeInsets.all(24),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.lock_clock_outlined,
+                    size: 46,
+                    color: _muted,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$feature is temporarily unavailable',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'This section is safely paused while it is being reviewed. '
+                    'Your account and existing information have not changed.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: _muted),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => MarketplaceNavigation.goHome(context),
+                    icon: const Icon(Icons.home_outlined),
+                    label: const Text('Return home'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 class _HomePage extends StatelessWidget {
   const _HomePage(
       {required this.onBrowse,
       required this.onList,
       required this.onAuctions,
       required this.onDispatch,
+      required this.features,
       required this.saved,
       required this.onSaved,
       required this.onCategory});
@@ -1269,6 +1416,7 @@ class _HomePage extends StatelessWidget {
   final VoidCallback onList;
   final VoidCallback onAuctions;
   final VoidCallback onDispatch;
+  final Phase1FeatureFlags features;
   final Set<String> saved;
   final ValueChanged<MarketplaceListing> onSaved;
   final ValueChanged<String> onCategory;
@@ -1293,108 +1441,210 @@ class _HomePage extends StatelessWidget {
                 ])),
           ]),
           const SizedBox(height: 14),
-          InkWell(
-              onTap: onBrowse,
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE1E8EF)),
-                      boxShadow: const [
-                        BoxShadow(
-                            color: Color(0x0D1B3A57),
-                            blurRadius: 10,
-                            offset: Offset(0, 3))
-                      ]),
-                  child: const Row(children: [
-                    Icon(Icons.search, color: _orange, size: 21),
-                    SizedBox(width: 10),
-                    Text('Search equipment, pipe, tanks…',
-                        style: TextStyle(color: _muted, fontSize: 13)),
-                    Spacer(),
-                    Icon(Icons.tune, color: _muted, size: 19)
-                  ]))),
-          const SizedBox(height: 16),
-          Row(children: [
-            Expanded(
-                child: _QuickAction(
-                    icon: Icons.storefront,
-                    assetPath: IndustrialIconAssets.browseMarketplace,
-                    label: 'Browse',
-                    color: const Color(0xFF0878E8),
-                    onTap: onBrowse)),
-            const SizedBox(width: 8),
-            Expanded(
-                child: _QuickAction(
-                    icon: Icons.add_circle_outline,
-                    assetPath: IndustrialIconAssets.sellCreateListing,
-                    label: 'Sell',
-                    color: const Color(0xFF12A06A),
-                    onTap: onList)),
-            const SizedBox(width: 8),
-            Expanded(
-                child: _QuickAction(
-                    icon: Icons.gavel,
-                    assetPath: IndustrialIconAssets.complianceGavel,
-                    label: 'Auctions',
-                    color: const Color(0xFFF08A24),
-                    onTap: onAuctions)),
-            const SizedBox(width: 8),
-            Expanded(
-                child: _QuickAction(
-                    icon: Icons.request_quote_outlined,
-                    assetPath: IndustrialIconAssets.dispatchLoadBoard,
-                    label: 'Dispatch',
-                    color: const Color(0xFF7856D8),
-                    onTap: onDispatch)),
-          ]),
-          const _CompactHeading('Categories'),
-          SizedBox(
-              height: 108,
-              child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: phase1MarketplaceCategories.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final category = phase1MarketplaceCategories[index];
-                    return InkWell(
-                        onTap: () => onCategory(category.name),
+          if (features.marketplace)
+            InkWell(
+                onTap: onBrowse,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                            width: 94,
-                            padding: const EdgeInsets.all(9),
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border:
-                                    Border.all(color: const Color(0xFFE4EBF1))),
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  IndustrialAssetIcon(
-                                      label: category.name,
-                                      size: 42,
-                                      borderRadius: 9,
-                                      fallback: Icon(category.icon,
-                                          color: _orange, size: 28)),
-                                  const SizedBox(height: 6),
-                                  Text(category.name,
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.1))
-                                ])));
-                  })),
-          _CompactHeading('Featured near you',
-              action: 'See all', onAction: onBrowse),
-          _FeaturedListings(onBrowse: onBrowse, saved: saved, onSaved: onSaved),
+                        border: Border.all(color: const Color(0xFFE1E8EF)),
+                        boxShadow: const [
+                          BoxShadow(
+                              color: Color(0x0D1B3A57),
+                              blurRadius: 10,
+                              offset: Offset(0, 3))
+                        ]),
+                    child: const Row(children: [
+                      Icon(Icons.search, color: _orange, size: 21),
+                      SizedBox(width: 10),
+                      Text('Search equipment, pipe, tanks…',
+                          style: TextStyle(color: _muted, fontSize: 13)),
+                      Spacer(),
+                      Icon(Icons.tune, color: _muted, size: 19)
+                    ]))),
+          const SizedBox(height: 16),
+          _HomeQuickActions(
+            features: features,
+            onBrowse: onBrowse,
+            onList: onList,
+            onAuctions: onAuctions,
+            onDispatch: onDispatch,
+          ),
+          if (features.marketplace) ...[
+            const _CompactHeading('Categories'),
+            _HomeCategoryStrip(
+              regulatedListingsEnabled: features.regulatedListings,
+              onCategory: onCategory,
+            ),
+            _CompactHeading(
+              'Featured near you',
+              action: 'See all',
+              onAction: onBrowse,
+            ),
+            _FeaturedListings(
+              regulatedListingsEnabled: features.regulatedListings,
+              onBrowse: onBrowse,
+              saved: saved,
+              onSaved: onSaved,
+            ),
+          ] else
+            const _HomeServiceNotice(
+              message:
+                  'Marketplace browsing and listing are temporarily paused.',
+            ),
         ],
+      );
+}
+
+class _HomeQuickActions extends StatelessWidget {
+  const _HomeQuickActions({
+    required this.features,
+    required this.onBrowse,
+    required this.onList,
+    required this.onAuctions,
+    required this.onDispatch,
+  });
+
+  final Phase1FeatureFlags features;
+  final VoidCallback onBrowse;
+  final VoidCallback onList;
+  final VoidCallback onAuctions;
+  final VoidCallback onDispatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = <Widget>[
+      if (features.marketplace)
+        _QuickAction(
+          icon: Icons.storefront_outlined,
+          assetPath: IndustrialIconAssets.forLabel('Browse'),
+          label: 'Browse',
+          color: _orange,
+          onTap: onBrowse,
+        ),
+      if (features.marketplace)
+        _QuickAction(
+          icon: Icons.add_circle_outline,
+          assetPath: IndustrialIconAssets.forLabel('Sell'),
+          label: 'Sell',
+          color: const Color(0xFF00A77A),
+          onTap: onList,
+        ),
+      if (features.auctions)
+        _QuickAction(
+          icon: Icons.gavel_outlined,
+          assetPath: IndustrialIconAssets.forLabel('Auctions'),
+          label: 'Auctions',
+          color: const Color(0xFFF08A24),
+          onTap: onAuctions,
+        ),
+      if (features.dispatch)
+        _QuickAction(
+          icon: Icons.local_shipping_outlined,
+          assetPath: IndustrialIconAssets.forLabel('Dispatch'),
+          label: 'Dispatch',
+          color: const Color(0xFF7557D3),
+          onTap: onDispatch,
+        ),
+    ];
+
+    if (actions.isEmpty) {
+      return const _HomeServiceNotice(
+        message: 'Marketplace services are temporarily paused.',
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < actions.length; index++) ...[
+          if (index > 0) const SizedBox(width: 10),
+          Expanded(child: actions[index]),
+        ],
+      ],
+    );
+  }
+}
+
+class _HomeCategoryStrip extends StatelessWidget {
+  const _HomeCategoryStrip({
+    required this.regulatedListingsEnabled,
+    required this.onCategory,
+  });
+
+  final bool regulatedListingsEnabled;
+  final ValueChanged<String> onCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = phase1MarketplaceCategories(
+      regulatedListingsEnabled: regulatedListingsEnabled,
+    );
+    return SizedBox(
+      height: 86,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 9),
+        itemBuilder: (context, index) {
+          final item = categories[index];
+          return InkWell(
+            onTap: () => onCategory(item.name),
+            borderRadius: BorderRadius.circular(13),
+            child: Container(
+              width: 106,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: const Color(0xFFE1E8EF)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CatalogIcon(label: item.name, size: 31),
+                  const SizedBox(height: 5),
+                  Text(
+                    item.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HomeServiceNotice extends StatelessWidget {
+  const _HomeServiceNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: _muted),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ],
+          ),
+        ),
       );
 }
 
@@ -1459,11 +1709,13 @@ class _CompactHeading extends StatelessWidget {
 
 class _FeaturedListings extends StatelessWidget {
   const _FeaturedListings({
+    required this.regulatedListingsEnabled,
     required this.onBrowse,
     required this.saved,
     required this.onSaved,
   });
 
+  final bool regulatedListingsEnabled;
   final VoidCallback onBrowse;
   final Set<String> saved;
   final ValueChanged<MarketplaceListing> onSaved;
@@ -1495,8 +1747,8 @@ class _FeaturedListings extends StatelessWidget {
               .map(MarketplaceListing.fromFirestore)
               .where((listing) =>
                   listing.transactionType != 'Auction' &&
-                  Phase1FeaturePolicy.current
-                      .allowsMarketplaceCategory(listing.category))
+                  (listing.category != 'Site & Property' ||
+                      regulatedListingsEnabled))
               .take(3)
               .toList(growable: false);
           final listings =
@@ -1555,12 +1807,14 @@ class _HomeFeedNotice extends StatelessWidget {
 
 class _BrowsePage extends StatelessWidget {
   const _BrowsePage(
-      {required this.search,
+      {required this.features,
+      required this.search,
       required this.category,
       required this.saved,
       required this.onSearch,
       required this.onCategory,
       required this.onSaved});
+  final Phase1FeatureFlags features;
   final String search;
   final String? category;
   final Set<String> saved;
@@ -1586,8 +1840,8 @@ class _BrowsePage extends StatelessWidget {
           final results = inventory
               .where((item) =>
                   item.transactionType != 'Auction' &&
-                  Phase1FeaturePolicy.current
-                      .allowsMarketplaceCategory(item.category) &&
+                  (item.category != 'Site & Property' ||
+                      features.regulatedListings) &&
                   (category == null || item.category == category) &&
                   (search.isEmpty ||
                       '${item.title} ${item.category} ${item.location}'
@@ -1624,7 +1878,10 @@ class _BrowsePage extends StatelessWidget {
                         Expanded(
                             child: OutlinedButton.icon(
                                 onPressed: () => _showCategoryPicker(
-                                    context, category, onCategory),
+                                    context,
+                                    category,
+                                    features.regulatedListings,
+                                    onCategory),
                                 icon: const Icon(Icons.grid_view_rounded,
                                     size: 18),
                                 label: Text(category ?? 'All categories'))),
@@ -1679,8 +1936,11 @@ class _BrowsePage extends StatelessWidget {
         });
   }
 
-  static Future<void> _showCategoryPicker(BuildContext context,
-      String? selected, ValueChanged<String?> onCategory) async {
+  static Future<void> _showCategoryPicker(
+      BuildContext context,
+      String? selected,
+      bool regulatedListingsEnabled,
+      ValueChanged<String?> onCategory) async {
     final value = await showModalBottomSheet<String?>(
         context: context,
         isScrollControlled: true,
@@ -1706,12 +1966,13 @@ class _BrowsePage extends StatelessWidget {
                           icon: Icons.apps,
                           selected: selected == null,
                           onTap: () => Navigator.pop(context, '__all__')),
-                      ...marketplaceCategories.map((item) =>
-                          _CategoryPickerTile(
-                              label: item.name,
-                              icon: item.icon,
-                              selected: selected == item.name,
-                              onTap: () => Navigator.pop(context, item.name)))
+                      ...phase1MarketplaceCategories(
+                        regulatedListingsEnabled: regulatedListingsEnabled,
+                      ).map((item) => _CategoryPickerTile(
+                          label: item.name,
+                          icon: item.icon,
+                          selected: selected == item.name,
+                          onTap: () => Navigator.pop(context, item.name)))
                     ],
                   )
                 ]),
@@ -1976,6 +2237,9 @@ class _ListingDetails extends StatefulWidget {
 
 class _ListingDetailsState extends State<_ListingDetails> {
   final _actions = MarketplaceActionsRepository();
+  final _featureRepository = Phase1FeatureFlagRepository();
+  StreamSubscription<Phase1FeatureFlags>? _featureSubscription;
+  Phase1FeatureFlags _features = Phase1FeatureFlags.safeDefaults;
   bool _following = false;
   bool _notifications = false;
   String? _statusMessage;
@@ -1985,10 +2249,33 @@ class _ListingDetailsState extends State<_ListingDetails> {
   @override
   void initState() {
     super.initState();
+    _featureSubscription = _featureRepository.watch().listen(
+      (features) {
+        if (mounted) setState(() => _features = features);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        AppDiagnostics.record(
+          error,
+          stackTrace,
+          subsystem: 'feature_flags',
+          operation: 'watch_listing_details_configuration',
+          fatal: false,
+        );
+        if (mounted) {
+          setState(() => _features = Phase1FeatureFlags.safeDefaults);
+        }
+      },
+    );
     if (listing.documentId != null &&
         FirebaseAuth.instance.currentUser != null) {
       _actions.recordListingEvent(listing.id, 'view').catchError((_) {});
     }
+  }
+
+  @override
+  void dispose() {
+    _featureSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -2198,17 +2485,21 @@ class _ListingDetailsState extends State<_ListingDetails> {
                                   listingId: listing.id,
                                   sellerUid: listing.sellerUid)
                             ]))),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: FilledButton(
-                            onPressed: _makeOffer,
-                            style: FilledButton.styleFrom(
-                                backgroundColor: _orange,
-                                foregroundColor: Colors.white),
-                            child: const Text('Make offer')))
+                    if (_features.offers) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: FilledButton(
+                              onPressed: _makeOffer,
+                              style: FilledButton.styleFrom(
+                                  backgroundColor: _orange,
+                                  foregroundColor: Colors.white),
+                              child: const Text('Make offer')))
+                    ],
                   ]),
-                const SizedBox(height: 10),
-                MarketplaceDispatchQuoteCard(onPressed: _getTruckingQuote),
+                if (_features.dispatch) ...[
+                  const SizedBox(height: 10),
+                  MarketplaceDispatchQuoteCard(onPressed: _getTruckingQuote),
+                ],
                 const SizedBox(height: 10),
                 Row(children: [
                   Expanded(
@@ -2532,6 +2823,10 @@ class _ListingDetailsState extends State<_ListingDetails> {
   }
 
   Future<void> _makeOffer() async {
+    if (!_features.offers) {
+      _notice('Offers are temporarily unavailable.');
+      return;
+    }
     if (listing.transactionType == 'Auction') {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return _notice('Sign in to participate in auctions.');
@@ -2664,6 +2959,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                                     'e.g. Conditional on inspection, documents, loading or pickup access')),
                         const SizedBox(height: 14),
                         MarketplaceTruckingPlanSelector(
+                            dispatchEnabled: _features.dispatch,
                             value: truckingPlan,
                             onChanged: (value) => refresh(() {
                                   truckingPlan = value;
@@ -2942,11 +3238,22 @@ class _ListingDetailsState extends State<_ListingDetails> {
 }
 
 class _StableCreateListingPage extends StatefulWidget {
-  const _StableCreateListingPage(
-      {super.key, required this.onHome, this.initialAuction = false});
+  const _StableCreateListingPage({
+    super.key,
+    required this.onHome,
+    required this.auctionsEnabled,
+    required this.wantedAdsEnabled,
+    required this.regulatedListingsEnabled,
+    required this.paidFeaturesEnabled,
+    this.initialAuction = false,
+  });
 
   final VoidCallback onHome;
   final bool initialAuction;
+  final bool auctionsEnabled;
+  final bool wantedAdsEnabled;
+  final bool regulatedListingsEnabled;
+  final bool paidFeaturesEnabled;
 
   @override
   State<_StableCreateListingPage> createState() =>
@@ -3030,8 +3337,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialAuction) _listingType = 'Auction';
-    if (widget.initialAuction) {
+    if (widget.initialAuction && widget.auctionsEnabled) {
+      _listingType = 'Auction';
       _auctionStartAt = DateTime.now().add(const Duration(minutes: 10));
       _auctionEndAt = DateTime.now().add(const Duration(days: 7));
     }
@@ -3052,6 +3359,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   }
 
   void _setPlacement(String placement) {
+    if (placement == 'Auction' && !widget.auctionsEnabled) {
+      _showDisabledFeature('Timed auctions');
+      return;
+    }
+    if (placement == 'Wanted' && !widget.wantedAdsEnabled) {
+      _showDisabledFeature('Wanted ads');
+      return;
+    }
     setState(() {
       switch (placement) {
         case 'Auction':
@@ -3067,6 +3382,17 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           _listingType = 'For Sale';
       }
     });
+  }
+
+  void _showDisabledFeature(String feature) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('$feature are temporarily unavailable.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Widget _listingHeader(User user) {
@@ -3101,28 +3427,30 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         PopupMenuButton<String>(
           tooltip: 'Choose where this listing appears',
           onSelected: _setPlacement,
-          itemBuilder: (context) => const [
-            PopupMenuItem(
+          itemBuilder: (context) => [
+            const PopupMenuItem(
                 value: 'Marketplace',
                 child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.storefront_outlined),
                     title: Text('Marketplace'),
                     subtitle: Text('Sell, rent, or request a quote'))),
-            PopupMenuItem(
-                value: 'Auction',
-                child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.gavel_outlined),
-                    title: Text('Timed auction'),
-                    subtitle: Text('Accept bids for a set time'))),
-            PopupMenuItem(
-                value: 'Wanted',
-                child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.campaign_outlined),
-                    title: Text('Wanted ad'),
-                    subtitle: Text('Ask suppliers for an item'))),
+            if (widget.auctionsEnabled)
+              const PopupMenuItem(
+                  value: 'Auction',
+                  child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.gavel_outlined),
+                      title: Text('Timed auction'),
+                      subtitle: Text('Accept bids for a set time'))),
+            if (widget.wantedAdsEnabled)
+              const PopupMenuItem(
+                  value: 'Wanted',
+                  child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.campaign_outlined),
+                      title: Text('Wanted ad'),
+                      subtitle: Text('Ask suppliers for an item'))),
           ],
           child: Container(
               constraints: const BoxConstraints(minHeight: 54, minWidth: 132),
@@ -3223,9 +3551,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return _signInRequired();
 
-    final category = marketplaceCategories
-        .where((item) => item.name == _category)
-        .firstOrNull;
+    final categories = phase1MarketplaceCategories(
+      regulatedListingsEnabled: widget.regulatedListingsEnabled,
+    );
+    final category =
+        categories.where((item) => item.name == _category).firstOrNull;
     final isPipe = _category == 'Pipe, Tubing & Materials' ||
         const {
           'Drill Pipe',
@@ -3300,15 +3630,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                       : Padding(
                           padding: const EdgeInsets.all(11),
                           child: CatalogIcon(label: _category, size: 28))),
-              selectedItemBuilder: (context) =>
-                  (phase1MarketplaceCategories.toList()
-                        ..sort((a, b) => naturalCompare(a.name, b.name)))
-                      .map((item) => Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(item.name,
-                              maxLines: 1, overflow: TextOverflow.ellipsis)))
-                      .toList(),
-              items: (phase1MarketplaceCategories.toList()
+              selectedItemBuilder: (context) => (categories.toList()
+                    ..sort((a, b) => naturalCompare(a.name, b.name)))
+                  .map((item) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(item.name,
+                          maxLines: 1, overflow: TextOverflow.ellipsis)))
+                  .toList(),
+              items: (categories.toList()
                     ..sort((a, b) => naturalCompare(a.name, b.name)))
                   .map((item) => DropdownMenuItem(
                       value: item.name,
@@ -4199,21 +4528,23 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            Card(
-              margin: EdgeInsets.zero,
-              color: const Color(0xFFFFF5E8),
-              child: SwitchListTile(
-                value: _boostRequested,
-                onChanged: (value) => setState(() => _boostRequested = value),
-                secondary:
-                    const Icon(Icons.rocket_launch_outlined, color: _orange),
-                title: const Text('Boost listing — \$3',
-                    style: TextStyle(fontWeight: FontWeight.w900)),
-                subtitle: const Text(
-                    'Marks this listing for checkout. Boost activates after payment is connected and confirmed.'),
+            if (widget.paidFeaturesEnabled) ...[
+              const SizedBox(height: 12),
+              Card(
+                margin: EdgeInsets.zero,
+                color: const Color(0xFFFFF5E8),
+                child: SwitchListTile(
+                  value: _boostRequested,
+                  onChanged: (value) => setState(() => _boostRequested = value),
+                  secondary:
+                      const Icon(Icons.rocket_launch_outlined, color: _orange),
+                  title: const Text('Boost listing — \$3',
+                      style: TextStyle(fontWeight: FontWeight.w900)),
+                  subtitle: const Text(
+                      'Marks this listing for checkout. Boost activates after payment is connected and confirmed.'),
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: _publishing ? null : _publish,
@@ -4705,6 +5036,23 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   }
 
   Future<void> _publish() async {
+    if (_isAuction && !widget.auctionsEnabled) {
+      _showDisabledFeature('Timed auctions');
+      return;
+    }
+    if (_isWanted && !widget.wantedAdsEnabled) {
+      _showDisabledFeature('Wanted ads');
+      return;
+    }
+    if (_isProperty && !widget.regulatedListingsEnabled) {
+      _showDisabledFeature('Property and rights listings');
+      return;
+    }
+    if (_boostRequested && !widget.paidFeaturesEnabled) {
+      setState(() => _boostRequested = false);
+      _showDisabledFeature('Paid listing boosts');
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     if (_location == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

@@ -13,6 +13,15 @@ Current gate: Gate 0 — Scope lock and safe defaults
 | 1 — Environments, builds, and diagnostics | Foundation started; not closed |
 | 2–7 | Not started |
 
+Gate 0 implementation evidence in progress:
+
+- Runtime configuration contract and rollback procedure:
+  `docs/PHASE_1_FEATURE_FLAGS.md`
+- Flutter, callable Function, and Firestore rule enforcement implemented for
+  all seven Phase 1 feature controls
+- High-risk missing-configuration defaults verified by unit and emulator tests
+- Final clean build and remote CI evidence still required before Gate 0 closes
+
 ## 1. Phase 1 launch decision
 
 Phase 1 is a controlled equipment, materials, wanted-ad, offer, auction, and

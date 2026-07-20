@@ -19,6 +19,11 @@ const {
   validateMarketplaceListingInput,
   validateReserve,
 } = require("./marketplace_listing_policy");
+const {
+  FeatureFlagError,
+  loadPhase1FeatureFlags,
+  requirePhase1Feature,
+} = require("./phase1_feature_flags");
 
 function requiredId(data, fieldName) {
   const value = String(data && data[fieldName] || "").trim();
@@ -53,7 +58,11 @@ function receiptReference(db, uid, command, identity) {
 
 function policyError(error) {
   if (error instanceof HttpsError) return error;
-  if (error instanceof CommandPolicyError || error instanceof ListingPolicyError) {
+  if (
+    error instanceof CommandPolicyError ||
+    error instanceof ListingPolicyError ||
+    error instanceof FeatureFlagError
+  ) {
     return new HttpsError(error.code, error.message);
   }
   console.error("Marketplace command failed", error);
@@ -115,12 +124,40 @@ function createMarketplaceCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+  const featureCommand = (feature, handler) => command(async (request) => {
+    const flags = await loadPhase1FeatureFlags(db);
+    requirePhase1Feature(flags, feature);
+    return handler(request, flags);
+  });
 
-  const createMarketplaceListing = command(async (request) => {
+  const createMarketplaceListing = featureCommand(
+      "marketplace",
+      async (request, flags) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
+    const rawListing = request.data && request.data.listing || {};
+    const requestedTransaction = String(
+        rawListing.transactionType || "For Sale",
+    );
+    if (requestedTransaction === "Auction") {
+      requirePhase1Feature(flags, "auctions");
+    }
+    if (requestedTransaction === "Wanted / Seeking") {
+      requirePhase1Feature(flags, "wantedAds");
+    }
+    if (rawListing.category === "Site & Property") {
+      requirePhase1Feature(flags, "regulatedListings");
+    }
+    if (
+      rawListing.boostRequested === true ||
+      Number(rawListing.boostPrice || 0) > 0
+    ) {
+      requirePhase1Feature(flags, "paidFeatures");
+    }
     const listing = validateMarketplaceListingInput(
-        request.data && request.data.listing,
+        rawListing,
+        new Date(),
+        {regulatedListingsEnabled: flags.regulatedListings},
     );
     const location = validateLocation(request.data && request.data.location);
     const reserve = validateReserve(
@@ -261,9 +298,12 @@ function createMarketplaceCommands(admin) {
       );
       return result;
     });
-  });
+      },
+  );
 
-  const updateMarketplaceListingMedia = command(async (request) => {
+  const updateMarketplaceListingMedia = featureCommand(
+      "marketplace",
+      async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
     const imageUrls = Array.isArray(request.data && request.data.imageUrls) ?
@@ -316,7 +356,8 @@ function createMarketplaceCommands(admin) {
       });
       return {listingId, status};
     });
-  });
+      },
+  );
 
   async function requireEligibleBidder(transaction, uid, administrator) {
     if (administrator) return;
@@ -359,7 +400,7 @@ function createMarketplaceCommands(admin) {
     return personalName ? personalName.slice(0, 160) : "Marketplace buyer";
   }
 
-  const placeAuctionBid = command(async (request) => {
+  const placeAuctionBid = featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
     const amount = Number(request.data && request.data.amount);
@@ -458,7 +499,7 @@ function createMarketplaceCommands(admin) {
     });
   });
 
-  const buyAuctionNow = command(async (request) => {
+  const buyAuctionNow = featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
     const receiptRef = receiptReference(
@@ -549,7 +590,8 @@ function createMarketplaceCommands(admin) {
     });
   });
 
-  const acceptAuctionBidBelowReserve = command(async (request) => {
+  const acceptAuctionBidBelowReserve =
+    featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
     const receiptRef = receiptReference(
@@ -642,7 +684,7 @@ function createMarketplaceCommands(admin) {
     });
   });
 
-  const withdrawAuctionBid = command(async (request) => {
+  const withdrawAuctionBid = featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
     const bidId = requiredId(request.data, "bidId");
@@ -717,7 +759,7 @@ function createMarketplaceCommands(admin) {
     });
   });
 
-  const createMarketplaceOffer = command(async (request) => {
+  const createMarketplaceOffer = featureCommand("offers", async (request) => {
     const uid = requireAuth(request);
     const requestId = requiredId(request.data, "requestId");
     const listingId = requiredId(request.data, "listingId");
@@ -959,7 +1001,7 @@ function createMarketplaceCommands(admin) {
     });
   });
 
-  const acceptMarketplaceOffer = command(async (request) => {
+  const acceptMarketplaceOffer = featureCommand("offers", async (request) => {
     const uid = requireAuth(request);
     const offerId = requiredId(request.data, "offerId");
     const receiptRef = receiptReference(

@@ -4,6 +4,11 @@ const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {CommandPolicyError} = require("./marketplace_command_policy");
 const {
+  FeatureFlagError,
+  loadPhase1FeatureFlags,
+  requirePhase1Feature,
+} = require("./phase1_feature_flags");
+const {
   validateDispatchAward,
   validateDispatchJobChange,
   validateDispatchJobInput,
@@ -37,6 +42,9 @@ function command(handler) {
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       if (error instanceof CommandPolicyError) {
+        throw new HttpsError(error.code, error.message);
+      }
+      if (error instanceof FeatureFlagError) {
         throw new HttpsError(error.code, error.message);
       }
       console.error("Dispatch command failed", error);
@@ -119,8 +127,13 @@ function createDispatchCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+  const dispatchCommand = (handler) => command(async (request) => {
+    const flags = await loadPhase1FeatureFlags(db);
+    requirePhase1Feature(flags, "dispatch");
+    return handler(request);
+  });
 
-  const createDispatchJob = command(async (request) => {
+  const createDispatchJob = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
@@ -186,7 +199,7 @@ function createDispatchCommands(admin) {
     });
   });
 
-  const updateDispatchJob = command(async (request) => {
+  const updateDispatchJob = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
@@ -282,7 +295,7 @@ function createDispatchCommands(admin) {
     });
   });
 
-  const publishDispatchJob = command(async (request) => {
+  const publishDispatchJob = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
@@ -330,7 +343,7 @@ function createDispatchCommands(admin) {
     });
   });
 
-  const submitDispatchQuote = command(async (request) => {
+  const submitDispatchQuote = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
@@ -474,7 +487,7 @@ function createDispatchCommands(admin) {
     });
   });
 
-  const awardDispatchQuote = command(async (request) => {
+  const awardDispatchQuote = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
