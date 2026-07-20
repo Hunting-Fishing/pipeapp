@@ -50,7 +50,8 @@ Generated build output, logs, local Firebase selection, Functions
 
 ## Deployment boundary
 
-`firebase/firebase.json` serves the tested `build/web` output directly. The
+`firebase/firebase.json` resolves `../build/web` from its `firebase/`
+directory and serves the tested Flutter output directly. The
 legacy copied `firebase/public` folder is no longer the Hosting source of
 truth.
 
@@ -58,8 +59,11 @@ No `.firebaserc` is committed. Copy `firebase/.firebaserc.example` to
 `.firebaserc` locally and replace all placeholders only after separate
 development, staging, and production Firebase projects are confirmed.
 
-Production deployment is intentionally not performed by verification. A
-deployment must name the project explicitly and use an already verified build.
+Production deployment is intentionally not performed by verification. The
+manual `Deploy verified Firebase release` workflow checks out a full commit
+SHA, rebuilds and verifies it, uses a protected GitHub Environment, and names
+the Firebase project explicitly. Configuration and rollback requirements are
+documented in `docs/FIREBASE_ENVIRONMENTS_AND_DEPLOYMENT.md`.
 
 ## Property and rights safety state
 

@@ -1,0 +1,177 @@
+name: Deploy verified Firebase release
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Protected GitHub Environment to deploy
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      commit_sha:
+        description: Full verified commit SHA to deploy
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: ${{ inputs.environment }}
+
+    env:
+      PIPE_ENV: ${{ inputs.environment }}
+      PIPE_RELEASE_SHA: ${{ inputs.commit_sha }}
+      PIPE_FIREBASE_API_KEY: ${{ vars.PIPE_FIREBASE_API_KEY }}
+      PIPE_FIREBASE_AUTH_DOMAIN: ${{ vars.PIPE_FIREBASE_AUTH_DOMAIN }}
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+      PIPE_FIREBASE_STORAGE_BUCKET: ${{ vars.PIPE_FIREBASE_STORAGE_BUCKET }}
+      PIPE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PIPE_FIREBASE_MESSAGING_SENDER_ID }}
+      PIPE_FIREBASE_WEB_APP_ID: ${{ vars.PIPE_FIREBASE_WEB_APP_ID }}
+      PIPE_FIREBASE_MEASUREMENT_ID: ${{ vars.PIPE_FIREBASE_MEASUREMENT_ID }}
+      PIPE_APP_CHECK_WEB_RECAPTCHA_KEY: ${{ vars.PIPE_APP_CHECK_WEB_RECAPTCHA_KEY }}
+      PIPE_APP_CHECK_REQUIRED: "true"
+      PIPE_ENFORCE_APP_CHECK: "true"
+      GOOGLE_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+      GOOGLE_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GOOGLE_DEPLOY_SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Validate release input
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$PIPE_RELEASE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::commit_sha must be a full 40-character Git SHA."
+            exit 1
+          fi
+          required=(
+            PIPE_FIREBASE_API_KEY
+            PIPE_FIREBASE_AUTH_DOMAIN
+            PIPE_FIREBASE_PROJECT_ID
+            PIPE_FIREBASE_STORAGE_BUCKET
+            PIPE_FIREBASE_MESSAGING_SENDER_ID
+            PIPE_FIREBASE_WEB_APP_ID
+            PIPE_APP_CHECK_WEB_RECAPTCHA_KEY
+            GOOGLE_WORKLOAD_IDENTITY_PROVIDER
+            GOOGLE_DEPLOY_SERVICE_ACCOUNT
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is not configured in the $PIPE_ENV GitHub Environment."
+              exit 1
+            fi
+          done
+
+      - name: Check out exact release commit
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 1
+
+      - name: Confirm checked-out source
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ "$actual_sha" != "$PIPE_RELEASE_SHA" ]]; then
+            echo "::error::Checked out $actual_sha instead of $PIPE_RELEASE_SHA."
+            exit 1
+          fi
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Java toolchain
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Restore and validate Functions
+        run: |
+          npm ci --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Restore Firestore rules tests
+        run: npm ci --prefix firebase/rules-tests
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.24.0
+
+      - name: Test Firestore security rules
+        run: >
+          firebase emulators:exec
+          --project demo-pipe-buyer-rules
+          --config firebase/firebase.json
+          --only firestore
+          "npm test --prefix firebase/rules-tests"
+
+      - name: Build exact web release
+        run: >
+          flutter build web
+          --release
+          --dart-define=PIPE_ENV=$PIPE_ENV
+          --dart-define=PIPE_RELEASE_SHA=$PIPE_RELEASE_SHA
+          --dart-define=PIPE_FIREBASE_API_KEY=$PIPE_FIREBASE_API_KEY
+          --dart-define=PIPE_FIREBASE_AUTH_DOMAIN=$PIPE_FIREBASE_AUTH_DOMAIN
+          --dart-define=PIPE_FIREBASE_PROJECT_ID=$PIPE_FIREBASE_PROJECT_ID
+          --dart-define=PIPE_FIREBASE_STORAGE_BUCKET=$PIPE_FIREBASE_STORAGE_BUCKET
+          --dart-define=PIPE_FIREBASE_MESSAGING_SENDER_ID=$PIPE_FIREBASE_MESSAGING_SENDER_ID
+          --dart-define=PIPE_FIREBASE_WEB_APP_ID=$PIPE_FIREBASE_WEB_APP_ID
+          --dart-define=PIPE_FIREBASE_MEASUREMENT_ID=$PIPE_FIREBASE_MEASUREMENT_ID
+          --dart-define=PIPE_APP_CHECK_WEB_RECAPTCHA_KEY=$PIPE_APP_CHECK_WEB_RECAPTCHA_KEY
+          --dart-define=PIPE_APP_CHECK_REQUIRED=true
+
+      - name: Authenticate to Google Cloud without a stored key
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GOOGLE_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Deploy explicitly selected Firebase project
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase deploy \
+            --project "$PIPE_FIREBASE_PROJECT_ID" \
+            --config firebase/firebase.json \
+            --only hosting,functions,firestore:rules,firestore:indexes,storage \
+            --non-interactive
+
+      - name: Record release identity
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## Firebase release"
+            echo ""
+            echo "- Environment: \`$PIPE_ENV\`"
+            echo "- Commit: \`$PIPE_RELEASE_SHA\`"
+            echo "- Firebase project: \`$PIPE_FIREBASE_PROJECT_ID\`"
+            echo "- Workflow run: \`${{ github.run_id }}\`"
+            echo "- Result: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
