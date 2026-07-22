@@ -3,6 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/backend/firebase/firebase_app_check_config.dart';
 
 void main() {
+  test('local emulator mode skips App Check before Firebase access', () async {
+    expect(
+      await initFirebaseAppCheck(useEmulators: true),
+      AppCheckBootstrapStatus.skippedEmulators,
+    );
+  });
+
   test('web activation requires a registered reCAPTCHA site key', () {
     expect(
       appCheckBootstrapDecision(

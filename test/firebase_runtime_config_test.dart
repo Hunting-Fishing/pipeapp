@@ -2,13 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/backend/firebase/firebase_runtime_config.dart';
 
 void main() {
-  test('legacy development fallback resolves to the approved live project', () {
+  test('local options retain installed metadata before emulator redirection',
+      () {
     final configuration = resolveFirebaseWebConfiguration(
-      environment: 'development',
+      environment: 'local',
     );
 
     expect(configuration.projectId, productionFirebaseProjectId);
     expect(configuration.appId, isNotEmpty);
+  });
+
+  test('an unspecified build environment resolves to local', () {
+    expect(resolveFirebaseEnvironment(''), 'local');
   });
 
   test('staging and production fail closed without an explicit project', () {

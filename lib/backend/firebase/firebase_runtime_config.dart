@@ -62,7 +62,7 @@ String normalizeFirebaseEnvironment(String environment) {
     throw ArgumentError.value(
       environment,
       'environment',
-      'Use development, staging, or production.',
+      'Use local, development, staging, or production.',
     );
   }
   return normalizedEnvironment;
@@ -183,9 +183,13 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
   );
 }
 
-String currentFirebaseEnvironment() => const String.fromEnvironment(
-      'PIPE_ENV',
-      defaultValue: 'development',
+String resolveFirebaseEnvironment(String environment) {
+  final candidate = environment.trim();
+  return normalizeFirebaseEnvironment(candidate.isEmpty ? 'local' : candidate);
+}
+
+String currentFirebaseEnvironment() => resolveFirebaseEnvironment(
+      const String.fromEnvironment('PIPE_ENV'),
     );
 
 String currentFirebaseProjectId() => const String.fromEnvironment(

@@ -16,6 +16,7 @@ the complete quality gate from PowerShell:
 
 - [North America Property and Rights Roadmap](docs/NORTH_AMERICA_PROPERTY_RIGHTS_ROADMAP.md)
 - [Firebase App Check rollout](docs/APP_CHECK_ROLLOUT.md)
+- [Local Firebase emulator workflow](docs/LOCAL_FIREBASE_EMULATORS.md)
 - [Engineering Control Baseline](docs/ENGINEERING_CONTROL_BASELINE.md)
 - [Firestore Schema](firebase/FIRESTORE_SCHEMA.md)
 

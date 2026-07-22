@@ -16,31 +16,33 @@ or Functions across the two projects.
 
 ## Safety boundary
 
-Legacy development builds may use the existing `flutter-flow-pipe` web
-configuration when no build values are supplied. Because that project is now
-approved as production, developers must treat the fallback as live access and
-must not use it for destructive testing. Gate 1 remains open until an isolated
-development/staging project and emulator-first local workflow replace this
-fallback. Staging and production fail at startup unless a complete Firebase
-web configuration is compiled into the release. Partial overrides are
-rejected so one build cannot accidentally mix resources from different
-projects.
+The app defaults to `PIPE_ENV=local`. Local, development, test, verification,
+and CI environments initialize the installed project metadata but immediately
+redirect Auth, Firestore, Functions, and Storage to the local Firebase
+Emulator Suite before repositories are used. A stopped emulator therefore
+causes local connection failures instead of production fallback. Staging and
+production fail at startup unless a complete Firebase web configuration is
+compiled into the release. Partial overrides are rejected so one build cannot
+accidentally mix resources from different projects.
 
 Native Android and Apple builds still use their platform Firebase files. The
 checked-in files are the approved `flutter-flow-pipe` production registrations.
 A native production build must declare that exact project ID and verifies the
 initialized project at runtime. Native staging continues to fail closed until
-its separate platform apps and files are installed. Development, local
-verification, and CI builds can still initialize the checked-in files, so they
-must be treated as having live access until isolation is completed.
+its separate platform apps and files are installed. Non-production builds
+redirect all configured Firebase products to their platform-appropriate local
+emulator host.
 
 ## Required Firebase projects
 
-Create and retain separate projects for:
+Create and retain separate cloud projects for:
 
-- development
 - staging
 - production
+
+Development is emulator-first and does not require a shared cloud project. If
+a shared development backend is introduced later, it must be a third isolated
+project and must not reuse either staging or production.
 
 Never point staging at `flutter-flow-pipe`. Production is hard-locked to that
 project in the deployment workflow. Project selection is always passed to the

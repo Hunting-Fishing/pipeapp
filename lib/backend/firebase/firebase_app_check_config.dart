@@ -16,6 +16,7 @@ enum AppCheckBootstrapDecision {
 
 enum AppCheckBootstrapStatus {
   active,
+  skippedEmulators,
   skippedMissingWebKey,
   skippedUnsupportedPlatform,
   failed,
@@ -44,7 +45,13 @@ AppCheckBootstrapDecision appCheckBootstrapDecision({
   return AppCheckBootstrapDecision.activate;
 }
 
-Future<AppCheckBootstrapStatus> initFirebaseAppCheck() async {
+Future<AppCheckBootstrapStatus> initFirebaseAppCheck({
+  bool useEmulators = false,
+}) async {
+  if (useEmulators) {
+    debugPrint('Firebase App Check is disabled for the local emulator suite.');
+    return AppCheckBootstrapStatus.skippedEmulators;
+  }
   final decision = appCheckBootstrapDecision(
     isWeb: kIsWeb,
     platform: defaultTargetPlatform,
