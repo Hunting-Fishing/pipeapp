@@ -16,7 +16,7 @@ From the repository root:
 ```powershell
 npx --yes firebase-tools@15.24.0 emulators:start `
   --project flutter-flow-pipe `
-  --config firebase/firebase.json `
+  --config firebase.json `
   --only auth,firestore,functions,storage
 ```
 
@@ -59,7 +59,7 @@ Function so a source-loading failure cannot be mistaken for a healthy suite:
 ```powershell
 npx --yes firebase-tools@15.24.0 emulators:exec `
   --project flutter-flow-pipe `
-  --config firebase/firebase.json `
+  --config firebase.json `
   --only auth,firestore,functions,storage `
   'node tool/firebase_emulator_smoke.mjs'
 ```

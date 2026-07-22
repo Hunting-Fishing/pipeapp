@@ -81,14 +81,14 @@ if (-not $SkipRulesEmulator) {
   if ($firebaseCli) {
     firebase emulators:exec `
       --project demo-pipe-buyer-rules `
-      --config firebase/firebase.json `
+      --config firebase.json `
       --only firestore `
       'npm test --prefix firebase/rules-tests'
     Assert-NativeSuccess 'Firestore security rules tests'
   } else {
     npx --yes firebase-tools@15.24.0 emulators:exec `
       --project demo-pipe-buyer-rules `
-      --config firebase/firebase.json `
+      --config firebase.json `
       --only firestore `
       'npm test --prefix firebase/rules-tests'
     Assert-NativeSuccess 'Firestore security rules tests'

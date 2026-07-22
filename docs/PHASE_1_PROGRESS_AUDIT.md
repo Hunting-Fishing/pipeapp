@@ -25,7 +25,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | No | 90% | Runtime flags, high-risk defaults, clean local verification, and remote CI evidence pass. A controlled isolated Firebase rehearsal is still required. |
-| 1 — Environments, builds, diagnostics | No | 65% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, runtime project locks, a passing staging web build/manifest, and the seven public GitHub Environment values. Staging Storage/Auth/Functions/Hosting, App Check, Workload Identity, environment reviewer protection, deployment/rollback rehearsal, recovery proof, deployed release IDs, and monitoring ownership remain incomplete. |
+| 1 — Environments, builds, diagnostics | No | 70% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, and a live Hosting-only rehearsal release. Staging Storage/Auth/Functions, App Check, Workload Identity, environment reviewer protection, CI deployment/full rollback rehearsal, recovery proof, monitoring ownership, and visual/mobile acceptance remain incomplete. |
 | 2 — Backend parity and commands | No | 25% | Offer, Auction, and Dispatch commands exist and have policy tests in source, but are not deployed to the live Firebase project. Deployed/source parity automation is missing. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
@@ -33,7 +33,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **33%**.
+Overall Phase 1 launch readiness estimate: **34%**.
 
 Completed gates: **0 of 8**.
 
@@ -109,7 +109,7 @@ a reviewed staging deployment and end-to-end acceptance pass.
 
 - `PIPE_ENV` and complete `PIPE_FIREBASE_*` web build values select the target
   Firebase project. Staging and production reject missing or mixed values.
-- `firebase/firebase.json` serves `../build/web`; the Hosting emulator returned
+- The repository-root `firebase.json` serves `build/web`; the Hosting emulator returned
   HTTP 200 from the generated Flutter release.
 - The manual deployment workflow checks out a full SHA, reruns the verification
   suite, authenticates through Workload Identity Federation, and deploys only
@@ -133,10 +133,18 @@ a reviewed staging deployment and end-to-end acceptance pass.
   identifiers. Required-reviewer and branch-policy environment
   protection were rejected by the current private repository plan, so the
   workflow independently restricts production SHAs to `origin/main`.
-- Staging Web and Android builds compiled successfully. The staging manifest
-  recorded 27 Functions and 319 web files. Staging Storage stopped safely
-  because its default bucket has not been explicitly provisioned; Auth,
-  Functions, and Hosting also remain unconfigured.
+- Staging Web and Android builds compiled successfully, and the staging
+  manifest recorded 27 Functions and 319 web files. Hosting version
+  `c5b6e2f11524c0eb` is live at `https://pipebuyer-5c77f.web.app`; read-only
+  endpoint checks returned HTTP 200 and Flutter version metadata. Visual and
+  mobile acceptance remain pending because browser automation could not be
+  initialized in the current environment.
+- The first Hosting rehearsal caught Firebase rejecting a public directory
+  outside its configured project root. The deploy root was moved to the
+  repository-level `firebase.json`, which now references `build/web` directly;
+  the successful rehearsal uses that layout without a junction or copy.
+- Staging Storage stopped safely because its default bucket has not been
+  explicitly provisioned; Auth and Functions also remain unconfigured.
 - App Check and Workload Identity configuration are intentionally absent, so
   staging and production deployments still fail closed.
 - Local, development, test, verification, and CI startup redirect Auth,

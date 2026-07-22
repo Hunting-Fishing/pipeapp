@@ -50,10 +50,10 @@ Generated build output, logs, local Firebase selection, Functions
 
 ## Deployment boundary
 
-`firebase/firebase.json` resolves `../build/web` from its `firebase/`
-directory and serves the tested Flutter output directly. The
-legacy copied `firebase/public` folder is no longer the Hosting source of
-truth.
+The repository-root `firebase.json` resolves `build/web` directly and serves
+the tested Flutter output without copying it or traversing outside the Firebase
+project directory. The legacy copied `firebase/public` folder is no longer the
+Hosting source of truth.
 
 No `.firebaserc` is committed. Copy `firebase/.firebaserc.example` to
 `.firebaserc` locally and replace all placeholders only after separate

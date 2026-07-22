@@ -7,7 +7,7 @@ Created: July 20, 2026
 
 Current gate: Gate 1 — Reproducible environments, builds, and diagnostics
 
-Current overall launch-readiness estimate: 33%
+Current overall launch-readiness estimate: 34%
 
 Completed gates: 0 of 8
 
@@ -16,7 +16,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | Gate | Status |
 | --- | --- |
 | 0 — Scope lock and safe defaults | 90% — isolated rehearsal pending |
-| 1 — Environments, builds, and diagnostics | 65% — in progress |
+| 1 — Environments, builds, and diagnostics | 70% — in progress |
 | 2 — Backend parity and server commands | 25% — source/live mismatch |
 | 3 — Identity, authorization, and abuse | 10% — incomplete |
 | 4 — Product workflows | 25% — incomplete |
@@ -39,8 +39,8 @@ Gate 1 implementation evidence in progress:
 - Web Firebase project selection is build-environment controlled; staging and
   production fail closed on incomplete or mixed configuration
 - Native production builds are locked to the approved `flutter-flow-pipe`
-  platform registrations and verify the initialized project; staging fails
-  closed while its isolated platform apps remain unconfigured
+  platform registrations; staging selects its isolated Android/iOS
+  registrations. Both verify the initialized project.
 - Non-production startup defaults to the local Firebase Emulator Suite for
   Auth, Firestore, Functions, and Storage with no cloud fallback
 - Firebase Hosting serves the generated `build/web` release directly
@@ -52,8 +52,9 @@ Gate 1 implementation evidence in progress:
 - Backup, isolated restore, validation, and rollback procedures are documented
 - The isolated staging project now has Web, Android, and iOS registrations,
   Standard Firestore in `nam5`, deployed rules/indexes, passing staging Web
-  and Android builds, and its public GitHub Environment configuration
-- Staging Storage/Auth/Functions/Hosting, App Check, Workload Identity,
+  and Android builds, its public GitHub Environment configuration, and a live
+  Hosting-only rehearsal release
+- Staging Storage/Auth/Functions, App Check, Workload Identity,
   environment reviewer protection, deployed release IDs, monitoring ownership,
   and backup/restore rehearsal remain required
 

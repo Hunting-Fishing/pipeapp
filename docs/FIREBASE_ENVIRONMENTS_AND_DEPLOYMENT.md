@@ -87,8 +87,11 @@ The staging Firestore rules and indexes were deployed successfully on July 22,
 2026. Staging Storage is not yet provisioned: the Firebase CLI enabled the
 Storage API and then stopped because no default bucket exists. Provision the
 bucket explicitly in the approved North American location before deploying
-Storage rules. Authentication providers, Functions, Hosting, App Check, and
-keyless CI deployment also remain to be configured and rehearsed.
+Storage rules. A Hosting-only rehearsal is live at
+`https://pipebuyer-5c77f.web.app` (version `c5b6e2f11524c0eb`) and a read-only
+endpoint check returned HTTP 200. Authentication providers, Functions, App
+Check, keyless CI deployment, visual acceptance, and full rollback rehearsal
+remain to be configured and verified.
 
 ## Release procedure
 
@@ -102,8 +105,9 @@ keyless CI deployment also remain to be configured and rehearsed.
 
 The workflow checks out the exact SHA, reruns analysis, tests Functions and
 Firestore rules, builds `build/web` with the selected Firebase values, and
-deploys by explicit project ID. `firebase/firebase.json` serves
-`../build/web`, so no copied `firebase/public` artifact is involved.
+deploys by explicit project ID. The repository-root `firebase.json` serves
+`build/web`, so no copied `firebase/public` artifact is involved and Firebase
+never has to traverse outside its configured project directory.
 
 Before deployment, the workflow generates `build/release-manifest.json`. It
 records the exact commit and environment, explicit Firebase project, expected

@@ -189,7 +189,7 @@ export function createReleaseManifest({
     },
     firebase: {
       projectId: firebaseProjectId || "not-assigned",
-      configSha256: hashRelativeFiles(root, ["firebase/firebase.json"]),
+      configSha256: hashRelativeFiles(root, ["firebase.json"]),
       rulesSha256: hashRelativeFiles(root, rulesFiles),
       firestoreRulesSha256: hashRelativeFiles(
           root,
