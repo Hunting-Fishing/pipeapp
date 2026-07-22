@@ -83,6 +83,13 @@ App Check and Workload Identity values remain deliberately absent in both
 environments, so deployment fails closed until those cloud controls are
 created and verified.
 
+Native Crashlytics collection is also fail-closed. Android and Apple manifests
+default it off, and the centralized reporter enables it only for a controlled
+staging or production build compiled with
+`PIPE_REMOTE_DIAGNOSTICS_ENABLED=true`. See
+`docs/PRODUCTION_DIAGNOSTICS_RUNBOOK.md` for device proof, privacy, triage, and
+ownership requirements. Web reporting is not yet operational.
+
 The staging Firestore rules and indexes were deployed successfully on July 22,
 2026. Staging Storage is not yet provisioned: the Firebase CLI enabled the
 Storage API and then stopped because no default bucket exists. Provision the

@@ -7,7 +7,7 @@ Created: July 20, 2026
 
 Current gate: Gate 1 — Reproducible environments, builds, and diagnostics
 
-Current overall launch-readiness estimate: 35%
+Current overall launch-readiness estimate: 36%
 
 Completed gates: 0 of 8
 
@@ -16,7 +16,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | Gate | Status |
 | --- | --- |
 | 0 — Scope lock and safe defaults | 90% — isolated rehearsal pending |
-| 1 — Environments, builds, and diagnostics | 76% — in progress |
+| 1 — Environments, builds, and diagnostics | 79% — in progress |
 | 2 — Backend parity and server commands | 25% — source/live mismatch |
 | 3 — Identity, authorization, and abuse | 10% — incomplete |
 | 4 — Product workflows | 25% — incomplete |
@@ -61,6 +61,10 @@ Gate 1 implementation evidence in progress:
   `firebase.json` declaration and passed a disposable create/delete smoke test
 - Staging Functions are blocked on the owner's Blaze billing-plan decision;
   no Function was created by the failed deployment attempt
+- Native staging/production diagnostics now use a centralized, release-tagged
+  Crashlytics adapter with manifest-level default-off collection, an explicit
+  build-time opt-in, safe correlation IDs, and a triage/validation runbook.
+  Device evidence and approved alert ownership remain required.
 
 ## 1. Phase 1 launch decision
 

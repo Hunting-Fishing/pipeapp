@@ -71,7 +71,9 @@ Future<void> _initializePipeBuyer() async {
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
 
-  await initFirebase();
+  await initFirebase(
+    onCoreInitialized: AppDiagnostics.initializeRemoteReporting,
+  );
 
   await FlutterFlowTheme.initialize();
 

@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Runtime diagnostics opt in only for controlled staging/production. -->
+	<key>FirebaseCrashlyticsCollectionEnabled</key>
+	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Pipe Buyer uses your location only when you choose to position a yard, site, storage, service-area, or interest pin.</string>
 	<key>CFBundleDevelopmentRegion</key>

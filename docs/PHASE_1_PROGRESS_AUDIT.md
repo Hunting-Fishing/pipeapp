@@ -25,7 +25,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | No | 90% | Runtime flags, high-risk defaults, clean local verification, and remote CI evidence pass. A controlled isolated Firebase rehearsal is still required. |
-| 1 — Environments, builds, diagnostics | No | 76% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, and a proven Hosting deployment/rollback. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, monitoring ownership, and visual/mobile acceptance remain incomplete. |
+| 1 — Environments, builds, diagnostics | No | 79% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, and a default-off native Crashlytics adapter. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/device evidence, and visual/mobile acceptance remain incomplete. |
 | 2 — Backend parity and commands | No | 25% | Offer, Auction, and Dispatch commands exist and have policy tests in source, but are not deployed to the live Firebase project. Deployed/source parity automation is missing. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
@@ -33,7 +33,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **35%**.
+Overall Phase 1 launch readiness estimate: **36%**.
 
 Completed gates: **0 of 8**.
 
@@ -156,6 +156,12 @@ a reviewed staging deployment and end-to-end acceptance pass.
   Registry require the staging project to be upgraded to the Blaze plan.
 - App Check and Workload Identity configuration are intentionally absent, so
   staging and production deployments still fail closed.
+- Android, iOS, and macOS now share a centralized Crashlytics adapter. Native
+  manifest collection defaults to off; only explicit staging/production builds
+  can enable it. Reports carry release context, safe operation fields, and a
+  non-user correlation ID. Local/test/web/unsupported builds remain
+  console-only. The production diagnostics runbook records the required device
+  proof and alert-ownership decisions, which are still outstanding.
 - Local, development, test, verification, and CI startup redirect Auth,
   Firestore, Functions, and Storage to the local Emulator Suite. The complete
   four-service emulator configuration started and stopped successfully.

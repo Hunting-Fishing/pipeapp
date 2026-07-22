@@ -5,11 +5,14 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'diagnostic_reporting.dart';
+
 /// Non-sensitive release context attached to every structured diagnostic.
 class AppBuildContext {
   const AppBuildContext({
     required this.environment,
     required this.releaseSha,
+    required this.remoteDiagnosticsRequested,
   });
 
   static const current = AppBuildContext(
@@ -21,10 +24,15 @@ class AppBuildContext {
       'PIPE_RELEASE_SHA',
       defaultValue: 'local',
     ),
+    remoteDiagnosticsRequested: bool.fromEnvironment(
+      'PIPE_REMOTE_DIAGNOSTICS_ENABLED',
+      defaultValue: false,
+    ),
   );
 
   final String environment;
   final String releaseSha;
+  final bool remoteDiagnosticsRequested;
 
   Map<String, String> toMap() => {
         'environment': environment,
@@ -42,6 +50,8 @@ class AppDiagnostics {
 
   static FlutterExceptionHandler? _previousFlutterHandler;
   static ErrorCallback? _previousPlatformHandler;
+  static int _correlationSequence = 0;
+  static bool _remoteReportingEnabled = false;
 
   static void install() {
     _previousFlutterHandler ??= FlutterError.onError;
@@ -84,6 +94,29 @@ class AppDiagnostics {
     );
   }
 
+  /// Enables the native production reporter after Firebase is initialized.
+  ///
+  /// Collection remains disabled for local, CI, test, web, and unsupported
+  /// desktop builds. Reporter startup failures never prevent the app loading.
+  static Future<void> initializeRemoteReporting() async {
+    try {
+      _remoteReportingEnabled = await initializeDiagnosticReporting(
+        environment: AppBuildContext.current.environment,
+        releaseSha: AppBuildContext.current.releaseSha,
+        requested: AppBuildContext.current.remoteDiagnosticsRequested,
+      );
+    } catch (error) {
+      _remoteReportingEnabled = false;
+      debugPrint(jsonEncode({
+        'type': 'pipe_buyer_diagnostics_status',
+        ...AppBuildContext.current.toMap(),
+        'enabled': false,
+        'status': 'initialization_failed',
+        'errorType': error.runtimeType.toString(),
+      }));
+    }
+  }
+
   static void record(
     Object error,
     StackTrace? stackTrace, {
@@ -91,9 +124,12 @@ class AppDiagnostics {
     required String operation,
     required bool fatal,
   }) {
+    final now = DateTime.now().toUtc();
     final record = <String, Object?>{
       'type': 'pipe_buyer_error',
       ...AppBuildContext.current.toMap(),
+      'timestamp': now.toIso8601String(),
+      'correlationId': _newCorrelationId(now),
       'subsystem': subsystem,
       'operation': operation,
       'fatal': fatal,
@@ -103,6 +139,25 @@ class AppDiagnostics {
         'stack': stackTrace.toString().split('\n').take(12).join('\n'),
     };
     debugPrint(jsonEncode(record));
+    if (_remoteReportingEnabled) {
+      unawaited(
+        reportDiagnostic(record: record, stackTrace: stackTrace).catchError(
+          (Object error) => debugPrint(jsonEncode({
+            'type': 'pipe_buyer_diagnostics_status',
+            ...AppBuildContext.current.toMap(),
+            'enabled': true,
+            'status': 'report_failed',
+            'errorType': error.runtimeType.toString(),
+          })),
+        ),
+      );
+    }
+  }
+
+  static String _newCorrelationId(DateTime timestamp) {
+    _correlationSequence = (_correlationSequence + 1) % 1000000;
+    return '${timestamp.microsecondsSinceEpoch.toRadixString(36)}-'
+        '${_correlationSequence.toRadixString(36).padLeft(4, '0')}';
   }
 
   static String _safeMessage(Object error) {
@@ -129,6 +184,10 @@ class AppDiagnostics {
 
   @visibleForTesting
   static String safeMessageForTesting(Object error) => _safeMessage(error);
+
+  @visibleForTesting
+  static String correlationIdForTesting(DateTime timestamp) =>
+      _newCorrelationId(timestamp);
 }
 
 /// Safe screen used when Firebase or another required startup service fails.
