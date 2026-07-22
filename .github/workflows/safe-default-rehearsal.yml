@@ -1,0 +1,65 @@
+name: Phase 1 safe-default rehearsal
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    name: Prove staging fails closed
+    runs-on: windows-latest
+    timeout-minutes: 10
+    environment: staging
+
+    env:
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+      PIPE_FIREBASE_API_KEY: ${{ vars.PIPE_FIREBASE_API_KEY }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.0
+
+      - name: Validate isolated staging selection
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PIPE_FIREBASE_PROJECT_ID)) {
+            throw 'PIPE_FIREBASE_PROJECT_ID is not configured.'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:PIPE_FIREBASE_API_KEY)) {
+            throw 'PIPE_FIREBASE_API_KEY is not configured.'
+          }
+          if ($env:PIPE_FIREBASE_PROJECT_ID -eq 'flutter-flow-pipe') {
+            throw 'The safe-default rehearsal cannot run against production.'
+          }
+
+      - name: Attempt prohibited direct writes
+        shell: pwsh
+        run: |
+          .\tool\phase1_safe_default_rehearsal.ps1 `
+            -ProjectId $env:PIPE_FIREBASE_PROJECT_ID `
+            -WebApiKey $env:PIPE_FIREBASE_API_KEY `
+            | Tee-Object -FilePath safe-default-rehearsal.json
+          @(
+            '## Phase 1 safe-default rehearsal',
+            '',
+            "- Project: ``$($env:PIPE_FIREBASE_PROJECT_ID)``",
+            '- Production project protected: `true`',
+            '- Missing runtime configuration: `verified`',
+            '- Marketplace direct write: `denied`',
+            '- Auction direct write: `denied`',
+            '- Regulated listing direct write: `denied`',
+            '- Paid boost direct write: `denied`',
+            '- Dispatch direct write: `denied`',
+            '- Disposable identity cleanup: `attempted in finally`'
+          ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+      - name: Retain rehearsal evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: phase1-safe-default-${{ github.run_id }}
+          path: safe-default-rehearsal.json
+          if-no-files-found: warn
+          retention-days: 30
