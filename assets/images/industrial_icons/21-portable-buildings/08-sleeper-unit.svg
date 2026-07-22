@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Sleeper Unit</title>
+<desc>Editable 256 by 256 vector icon for Sleeper Unit. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="128" cy="216" rx="78" ry="12" fill="#000" stroke="none" stroke-width="1" opacity="0.23"/>
+<rect x="48" y="82" width="160" height="104" rx="5" fill="url(#silver)" stroke="#68747D" stroke-width="2" opacity="1"/>
+<line x1="56" y1="94" x2="200" y2="94" stroke="#FF6B00" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<circle cx="94" cy="193" r="13" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="94" cy="193" r="5.98" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="94" cy="193" r="2.08" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<circle cx="173" cy="193" r="13" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="173" cy="193" r="5.98" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="173" cy="193" r="2.08" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="28" y1="182" x2="48" y2="182" stroke="#CAD3DA" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<rect x="68" y="119" width="47" height="67" rx="4" fill="#0B3156" stroke="#5E7180" stroke-width="2" opacity="1"/>
+<rect x="132" y="112" width="53" height="38" rx="4" fill="url(#glass)" stroke="#5E7180" stroke-width="2" opacity="1"/>
+<rect x="137" y="168" width="48" height="19" rx="3" fill="#FF6B00" stroke="#D94F00" stroke-width="1" opacity="1"/>
+<rect x="137" y="157" width="15" height="12" rx="3" fill="#F8FAFC" stroke="#7D8992" stroke-width="1" opacity="1"/>
+<line x1="139" y1="187" x2="139" y2="195" stroke="#CAD3DA" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<line x1="183" y1="187" x2="183" y2="195" stroke="#CAD3DA" stroke-width="4" opacity="1" stroke-linecap="round"/>
+</svg>

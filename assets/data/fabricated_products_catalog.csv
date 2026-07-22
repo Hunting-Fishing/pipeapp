@@ -1,0 +1,12 @@
+product_type,common_listing_fields,common_material_terms
+Cattle Panel,"width|height|bar count|quantity|price each","oilfield pipe|drill stem|sucker rod|powder coated"
+Buffalo / Bison Panel,"width|height|bar count|quantity|price each","heavy oilfield pipe|drill stem|heavy wall"
+Windbreak Panel,"width|height|wood or steel infill|quantity","3-7/8 oilfield pipe|second-cut slabs"
+Fence Post,"diameter|length|quantity|price each","drill stem|oilfield pipe|yellow coated"
+Continuous Fence,"rail count|panel length|quantity","sucker rod|oilfield pipe"
+Cattle Feeder,"diameter or dimensions|capacity|quantity","oilfield pipe|sucker rod|steel plate"
+Bale Feeder,"diameter|height|round or square","oilfield pipe|sucker rod"
+Farm Gate,"width|height|bar count|gauge","pipe|powder coated|galvanized"
+Corral Panel,"width|height|bar count|quantity","oilfield pipe|powder coated"
+Livestock Shelter,"width|length|height|skid mounted","oilfield pipe|steel|wood infill"
+Custom Pipe Fabrication,"overall dimensions|material size|quantity","drill stem|oilfield pipe|sucker rod"

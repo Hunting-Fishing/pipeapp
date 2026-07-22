@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Lowboy Trailer</title>
+  <desc>Editable 256 × 256 vector icon for Lowboy Trailer, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="211" fill="#000000" opacity="0.22" rx="92" ry="13"/>
+  <g>
+    <path d="M26 137 L78 137 L93 164 L190 164 L205 143 L229 143 L229 177 L196 177 L184 190 L92 190 L77 171 L26 171 Z" fill="url(#darkGrad)" stroke="#7C8992" stroke-width="2"/>
+    <line stroke="#FF6B00" stroke-width="4" x1="91" x2="190" y1="163" y2="163"/>
+    <circle cx="165" cy="190" fill="url(#tireGrad)" r="14" stroke="#56626C" stroke-width="2"/>
+    <circle cx="165" cy="190" fill="url(#silverGrad)" r="6.58" stroke="#25323B" stroke-width="2"/>
+    <circle cx="165" cy="190" fill="#FF6B00" r="2.52"/>
+    <circle cx="188" cy="190" fill="url(#tireGrad)" r="14" stroke="#56626C" stroke-width="2"/>
+    <circle cx="188" cy="190" fill="url(#silverGrad)" r="6.58" stroke="#25323B" stroke-width="2"/>
+    <circle cx="188" cy="190" fill="#FF6B00" r="2.52"/>
+    <circle cx="211" cy="190" fill="url(#tireGrad)" r="14" stroke="#56626C" stroke-width="2"/>
+    <circle cx="211" cy="190" fill="url(#silverGrad)" r="6.58" stroke="#25323B" stroke-width="2"/>
+    <circle cx="211" cy="190" fill="#FF6B00" r="2.52"/>
+    <rect fill="url(#silverGrad)" height="10" rx="3" stroke="#737E86" width="45" x="31" y="132"/>
+  </g>
+</svg>

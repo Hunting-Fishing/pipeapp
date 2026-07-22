@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Round Baler</title>
+  <desc>Editable 256 × 256 vector icon for Round Baler, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="213" fill="#000000" opacity="0.22" rx="66" ry="13"/>
+  <g>
+    <circle cx="93" cy="188" fill="url(#tireGrad)" r="20" stroke="#56626C" stroke-width="2"/>
+    <circle cx="93" cy="188" fill="url(#silverGrad)" r="9.399999999999999" stroke="#25323B" stroke-width="2"/>
+    <circle cx="93" cy="188" fill="#FF6B00" r="3.5999999999999996"/>
+    <circle cx="167" cy="188" fill="url(#tireGrad)" r="20" stroke="#56626C" stroke-width="2"/>
+    <circle cx="167" cy="188" fill="url(#silverGrad)" r="9.399999999999999" stroke="#25323B" stroke-width="2"/>
+    <circle cx="167" cy="188" fill="#FF6B00" r="3.5999999999999996"/>
+    <path d="M53 175 Q50 112 112 93 Q176 90 202 137 L198 176 Z" fill="url(#orangeGrad)" stroke="#8C3B00" stroke-width="2"/>
+    <circle cx="126" cy="138" fill="url(#darkGrad)" r="38" stroke="#818C95" stroke-width="3"/>
+    <circle cx="126" cy="138" fill="none" r="28" stroke="#A8B0B7" stroke-width="2"/>
+    <circle cx="126" cy="138" fill="none" r="18" stroke="#A8B0B7" stroke-width="2"/>
+    <circle cx="126" cy="138" fill="none" r="8" stroke="#A8B0B7" stroke-width="2"/>
+    <line stroke="#C7D0D8" stroke-width="7" x1="53" x2="28" y1="164" y2="150"/>
+  </g>
+</svg>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Cementing Unit</title>
+  <desc>Editable 256 × 256 vector icon for Cementing Unit, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="212" fill="#000000" opacity="0.22" rx="82" ry="13"/>
+  <g>
+    <path d="M29,175.0 L29,129.0 Q29,117.0 42.0,115.0 L71.0,115.0 L88.0,134.0 L95.0,175.0 Z" fill="url(#whiteGrad)" stroke="#5D6872" stroke-width="2"/>
+    <polygon fill="url(#glassGrad)" points="39.0,123.0 68.0,123.0 81.0,137.0 39.0,137.0" stroke="#D9EEF6" stroke-width="1.4"/>
+    <rect fill="#E8EDF1" height="15.0" rx="3.0" stroke="#7B8790" width="45.0" x="37.0" y="143.0"/>
+    <line stroke="#FF6B00" stroke-width="4.0" x1="37.0" x2="87.0" y1="162.0" y2="162.0"/>
+    <rect fill="url(#darkGrad)" height="56" rx="8" stroke="#74808A" stroke-width="2" width="112" x="91" y="117"/>
+    <circle cx="121" cy="145" fill="url(#silverGrad)" r="21" stroke="#59656E" stroke-width="2"/>
+    <circle cx="167" cy="145" fill="url(#orangeGrad)" r="21" stroke="#8C3B00" stroke-width="2"/>
+    <path d="M101 119 Q145 89 193 119" fill="none" stroke="#C7D0D8" stroke-width="6"/>
+    <circle cx="65" cy="184" fill="url(#tireGrad)" r="18" stroke="#56626C" stroke-width="2"/>
+    <circle cx="65" cy="184" fill="url(#silverGrad)" r="8.459999999999999" stroke="#25323B" stroke-width="2"/>
+    <circle cx="65" cy="184" fill="#FF6B00" r="3.2399999999999998"/>
+    <circle cx="113" cy="184" fill="url(#tireGrad)" r="18" stroke="#56626C" stroke-width="2"/>
+    <circle cx="113" cy="184" fill="url(#silverGrad)" r="8.459999999999999" stroke="#25323B" stroke-width="2"/>
+    <circle cx="113" cy="184" fill="#FF6B00" r="3.2399999999999998"/>
+    <circle cx="178" cy="184" fill="url(#tireGrad)" r="18" stroke="#56626C" stroke-width="2"/>
+    <circle cx="178" cy="184" fill="url(#silverGrad)" r="8.459999999999999" stroke="#25323B" stroke-width="2"/>
+    <circle cx="178" cy="184" fill="#FF6B00" r="3.2399999999999998"/>
+    <rect fill="#4B5964" height="4" rx="1" width="10" x="48" y="105"/>
+    <path d="M48,105 Q49,95 53,93 Q57,95 58,105 Z" fill="url(#orangeGrad)" stroke="#FFC27D" stroke-width="1"/>
+  </g>
+</svg>

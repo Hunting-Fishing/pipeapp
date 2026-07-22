@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Drill Pipe</title>
+  <desc>Editable 256 × 256 vector icon for Drill Pipe, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="211" fill="#000000" opacity="0.22" rx="86" ry="13"/>
+  <g transform="rotate(-12 128 128)">
+    <rect fill="url(#silverGrad)" height="24" stroke="#5F6972" stroke-width="1.6" width="158" x="49" y="124"/>
+    <ellipse cx="49" cy="136" fill="url(#silverGrad)" rx="12" ry="12" stroke="#5F6972" stroke-width="1.6"/>
+    <ellipse cx="207" cy="136" fill="url(#silverGrad)" rx="12" ry="12" stroke="#5F6972" stroke-width="1.6"/>
+    <ellipse cx="207" cy="136" fill="#082B50" rx="6.959999999999999" ry="6.959999999999999" stroke="#A7B0B8" stroke-width="1"/>
+    <rect fill="url(#darkGrad)" height="31" rx="6.0" stroke="#73808A" stroke-width="1.5" width="21.6" x="37" y="120.5"/>
+    <rect fill="url(#darkGrad)" height="31" rx="6.0" stroke="#73808A" stroke-width="1.5" width="21.6" x="197.4" y="120.5"/>
+    <line opacity="0.7" stroke="#F7F9FB" stroke-width="2" x1="60" x2="193" y1="130" y2="130"/>
+    <line stroke="#FF6B00" stroke-width="3" x1="54" x2="201" y1="149" y2="149"/>
+  </g>
+</svg>

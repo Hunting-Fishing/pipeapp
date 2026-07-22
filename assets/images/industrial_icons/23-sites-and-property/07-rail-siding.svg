@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Rail Siding</title>
+<desc>Editable 256 by 256 vector icon for Rail Siding. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="76" y1="46" x2="102" y2="214" stroke="#CAD3DA" stroke-width="8" opacity="1" stroke-linecap="round"/>
+<line x1="154" y1="46" x2="180" y2="214" stroke="#CAD3DA" stroke-width="8" opacity="1" stroke-linecap="round"/>
+<line x1="74.295" y1="61" x2="160.295" y2="61" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="77.049" y1="79" x2="163.049" y2="79" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="79.803" y1="97" x2="165.803" y2="97" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="82.557" y1="115" x2="168.557" y2="115" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="85.311" y1="133" x2="171.311" y2="133" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="88.065" y1="151" x2="174.065" y2="151" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="90.819" y1="169" x2="176.819" y2="169" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="93.57300000000001" y1="187" x2="179.573" y2="187" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<line x1="96.327" y1="205" x2="182.327" y2="205" stroke="#8C989F" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<path d="M125 46 L120 144 Q120 173 95 188" fill="none" stroke="#FF6B00" stroke-width="5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="126" y="105" width="55" height="35" rx="4" fill="url(#orange)" stroke="#D94F00" stroke-width="2" opacity="1"/>
+<circle cx="140" cy="145" r="10" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="140" cy="145" r="4.6000000000000005" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="140" cy="145" r="1.6" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<circle cx="168" cy="145" r="10" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="168" cy="145" r="4.6000000000000005" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="168" cy="145" r="1.6" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+</svg>

@@ -1,0 +1,48 @@
+# Flutter and Dart generated state
+.dart_tool/
+.packages
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+coverage/
+**/ephemeral/
+
+# IDE-local state
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+
+# Local runtime and diagnostic output
+*.log
+.tmp/
+.playwright-mcp/
+
+# Firebase local/generated state
+.firebase/
+.firebaserc
+firebase/public/
+firebase/functions/node_modules/
+firebase/rules-tests/node_modules/
+firebase/functions/.runtimeconfig.json
+gha-creds-*.json
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+
+# Codex recovery archives are intentionally outside the app source tree
+.codex-backups/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local editor extension package
+*.vsix

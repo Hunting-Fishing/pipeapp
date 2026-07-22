@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Dedicated Access-Road Entrance</title>
+<desc>Editable 256 by 256 vector icon for Dedicated Access-Road Entrance. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M74 214 L104 87 H152 L183 214" fill="#77766F" stroke="#A5A39A" stroke-width="2" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="85" y1="183" x2="172" y2="183" stroke="#FFC247" stroke-width="4" opacity="1" stroke-linecap="round" stroke-dasharray="12,10"/>
+<rect x="47" y="75" width="15" height="137" rx="3" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
+<rect x="194" y="75" width="15" height="137" rx="3" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
+<line x1="60" y1="97" x2="196" y2="97" stroke="#FF6B00" stroke-width="8" opacity="1" stroke-linecap="round"/>
+<path d="M128 80.48 C118.12 70.08 119.68 58.64 128 58.64 C136.32 58.64 137.88 70.08 128 80.48 Z" fill="#FF6B00" stroke="#FFB47B" stroke-width="1.5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="128" cy="66.44" r="3.12" fill="#F8FAFC" stroke="none" stroke-width="1" opacity="1"/>
+</svg>

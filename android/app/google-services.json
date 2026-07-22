@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "426221783223",
+    "project_id": "flutter-flow-pipe",
+    "storage_bucket": "flutter-flow-pipe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:426221783223:android:d9541c26e90fd27ae26532",
+        "android_client_info": {
+          "package_name": "Pipe.Buyerapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzIdSdGiErux7t5BXWe0os4Ptd03vxEs0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

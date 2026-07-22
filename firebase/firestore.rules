@@ -1,0 +1,556 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        (('admin' in request.auth.token &&
+          request.auth.token.admin == true) ||
+         ('email' in request.auth.token &&
+         request.auth.token.email == 'jordilwbailey@gmail.com'));
+    }
+
+    function phase1FeatureEnabled(feature) {
+      return exists(
+          /databases/$(database)/documents/platform_configuration/phase1_features
+        ) &&
+        get(
+          /databases/$(database)/documents/platform_configuration/phase1_features
+        ).data.get(feature, false) == true;
+    }
+
+    function validPhase1FeatureConfiguration() {
+      return request.resource.data.keys().hasOnly([
+          'marketplace', 'wantedAds', 'offers', 'auctions', 'dispatch',
+          'paidFeatures', 'regulatedListings', 'revision', 'updatedAt',
+          'updatedByUid'
+        ]) &&
+        request.resource.data.marketplace is bool &&
+        request.resource.data.wantedAds is bool &&
+        request.resource.data.offers is bool &&
+        request.resource.data.auctions is bool &&
+        request.resource.data.dispatch is bool &&
+        request.resource.data.paidFeatures is bool &&
+        request.resource.data.regulatedListings is bool &&
+        request.resource.data.revision is int &&
+        request.resource.data.updatedAt is timestamp &&
+        request.resource.data.updatedByUid == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow create: if owns(uid) &&
+        request.resource.data.accountType in ['personal', 'business'] &&
+        request.resource.data.userScore == 70 &&
+        request.resource.data.accountVerified == false;
+      allow read, delete: if owns(uid);
+      allow update: if owns(uid) &&
+        request.resource.data.accountType in ['personal', 'business'] &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'userScore', 'userScoreStanding', 'accountVerified',
+          'confirmedComplaintCount', 'confirmedScamCount'
+        ]);
+      allow update: if isAdmin();
+
+      match /saved_listings/{listingId} {
+        allow read, write: if owns(uid);
+      }
+
+      match /followed_sellers/{sellerId} {
+        allow read, write: if owns(uid);
+      }
+
+      match /saved_locations/{locationId} {
+        allow read: if owns(uid);
+        allow create, update: if owns(uid) &&
+          request.resource.data.ownerUid == uid;
+        allow delete: if owns(uid) && resource.data.ownerUid == uid;
+      }
+
+      match /profile_tags/{profileTagId} {
+        allow read, create, update, delete: if owns(uid);
+        allow read, update: if isAdmin();
+      }
+
+      match /notifications/{notificationId} {
+        allow read, update, delete: if owns(uid);
+        allow create: if signedIn() &&
+          request.resource.data.recipientUid == uid &&
+          request.resource.data.actorUid == request.auth.uid &&
+          request.resource.data.type in
+            ['message', 'offer', 'location_request', 'dispatch'];
+      }
+
+      match /watch_keywords/{watchId} {
+        allow read, create, update, delete: if owns(uid);
+      }
+    }
+
+    match /account_phone_registry/{phoneKey} {
+      allow create: if signedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.phoneE164 is string &&
+        request.resource.data.phoneE164.size() >= 8 &&
+        !exists(/databases/$(database)/documents/account_phone_registry/$(phoneKey));
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if signedIn() &&
+        resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    match /public_business_profiles/{businessId} {
+      allow read: if true;
+      allow create, update, delete: if owns(businessId) || isAdmin();
+    }
+
+    match /public_seller_profiles/{sellerId} {
+      allow read: if true;
+      allow create, update, delete: if owns(sellerId) || isAdmin();
+    }
+
+    match /marketplace_tags/{tagId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /tag_requests/{requestId} {
+      allow create: if signedIn() &&
+        request.resource.data.requestedByUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.requestedByUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /catalog_suggestions/{suggestionId} {
+      allow create: if signedIn() &&
+        request.resource.data.requestedByUid == request.auth.uid &&
+        request.resource.data.adminEmail == 'jordilwbailey@gmail.com' &&
+        request.resource.data.status == 'pending';
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.requestedByUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /dispatch_carriers/{carrierId} {
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow create, update: if phase1FeatureEnabled('dispatch') &&
+        owns(carrierId) &&
+        request.resource.data.ownerUid == request.auth.uid;
+      allow update: if phase1FeatureEnabled('dispatch') && isAdmin();
+      allow delete: if phase1FeatureEnabled('dispatch') &&
+        (owns(carrierId) || isAdmin());
+
+      match /vehicles/{vehicleId} {
+        allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+        allow create: if phase1FeatureEnabled('dispatch') &&
+          owns(carrierId) &&
+          request.resource.data.ownerUid == request.auth.uid;
+        allow update, delete: if phase1FeatureEnabled('dispatch') &&
+          (owns(carrierId) || isAdmin());
+      }
+
+      match /saved_quotes/{quoteId} {
+        allow read, delete: if phase1FeatureEnabled('dispatch') &&
+          owns(carrierId);
+        allow create, update: if phase1FeatureEnabled('dispatch') &&
+          owns(carrierId) &&
+          request.resource.data.ownerUid == request.auth.uid;
+
+        match /revisions/{revisionId} {
+          allow read: if phase1FeatureEnabled('dispatch') &&
+            owns(carrierId);
+          allow create: if phase1FeatureEnabled('dispatch') &&
+            owns(carrierId) &&
+            request.resource.data.ownerUid == request.auth.uid &&
+            getAfter(/databases/$(database)/documents/dispatch_carriers/$(carrierId)/saved_quotes/$(quoteId)).data.ownerUid == request.auth.uid;
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    match /dispatch_scales/{scaleId} {
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow create, update, delete: if phase1FeatureEnabled('dispatch') &&
+        isAdmin();
+    }
+
+    match /dispatch_jobs/{jobId} {
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow create, update, delete: if false;
+
+      match /revisions/{revisionId} {
+        allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /dispatch_bids/{bidId} {
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        signedIn() &&
+        (resource.data.carrierUid == request.auth.uid ||
+         get(/databases/$(database)/documents/dispatch_jobs/$(resource.data.jobId)).data.createdByUid == request.auth.uid);
+      allow create, update, delete: if false;
+
+      match /revisions/{revisionId} {
+        allow read: if phase1FeatureEnabled('dispatch') &&
+          signedIn() &&
+          (get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.carrierUid == request.auth.uid ||
+           get(/databases/$(database)/documents/dispatch_jobs/$(get(/databases/$(database)/documents/dispatch_bids/$(bidId)).data.jobId)).data.createdByUid == request.auth.uid);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /weight_catalog/{weightId} {
+      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow create, update, delete: if phase1FeatureEnabled('dispatch') &&
+        isAdmin();
+    }
+
+    match /weight_suggestions/{suggestionId} {
+      allow create: if signedIn() &&
+        request.resource.data.requestedByUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.requestedByUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /verification_requests/{userId} {
+      allow create: if owns(userId) &&
+        request.resource.data.userUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow read: if owns(userId) || isAdmin();
+      allow update: if isAdmin() ||
+        (owns(userId) &&
+         resource.data.status != 'approved' &&
+         request.resource.data.userUid == request.auth.uid &&
+         request.resource.data.status == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    match /business_private/{businessId} {
+      allow create, read, update, delete: if owns(businessId);
+    }
+
+    match /marketplace_listing_drafts/{listingId} {
+      allow create: if signedIn() &&
+        request.resource.data.sellerUid == request.auth.uid;
+      allow read, update, delete: if signedIn() &&
+        resource.data.sellerUid == request.auth.uid;
+    }
+
+    match /listing_private_locations/{listingId} {
+      allow create: if signedIn() &&
+        request.resource.data.ownerUid == request.auth.uid;
+      allow read, update, delete: if signedIn() &&
+        resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /marketplace_catalog/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /geography_catalog/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /geography_places/{placeId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /public_listings/{listingId} {
+      allow read: if true;
+      allow create: if phase1FeatureEnabled('marketplace') &&
+        signedIn() &&
+        request.resource.data.sellerUid == request.auth.uid &&
+        request.resource.data.status in ['active', 'draft'] &&
+        (request.resource.data.transactionType != 'Wanted / Seeking' ||
+          phase1FeatureEnabled('wantedAds')) &&
+        (request.resource.data.transactionType != 'Auction' ||
+          phase1FeatureEnabled('auctions')) &&
+        (request.resource.data.get('category', '') != 'Site & Property' ||
+          phase1FeatureEnabled('regulatedListings')) &&
+        ((request.resource.data.get('boostRequested', false) != true &&
+          request.resource.data.get('boostPrice', 0) == 0) ||
+          phase1FeatureEnabled('paidFeatures')) &&
+        !request.resource.data.keys().hasAny([
+          'reservePrice', 'reserveTotal'
+        ]) &&
+        (request.resource.data.transactionType != 'Auction' ||
+          ((isAdmin() ||
+            (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)) &&
+           request.resource.data.auctionStartAt is timestamp &&
+           request.resource.data.auctionEndAt is timestamp &&
+           request.resource.data.auctionEndAt >
+             request.resource.data.auctionStartAt &&
+           request.resource.data.startingBid is number &&
+           request.resource.data.startingBid > 0 &&
+           request.resource.data.minimumBidIncrement is number &&
+           request.resource.data.minimumBidIncrement > 0 &&
+           request.resource.data.get('currentBid', 0) == 0 &&
+           request.resource.data.get('bidCount', 0) == 0 &&
+           request.resource.data.auctionStatus in ['scheduled', 'live']));
+      allow update: if phase1FeatureEnabled('marketplace') &&
+        signedIn() &&
+        resource.data.sellerUid == request.auth.uid &&
+        request.resource.data.sellerUid == request.auth.uid &&
+        (request.resource.data.transactionType != 'Wanted / Seeking' ||
+          phase1FeatureEnabled('wantedAds')) &&
+        (request.resource.data.transactionType != 'Auction' ||
+          phase1FeatureEnabled('auctions')) &&
+        (request.resource.data.get('category', '') != 'Site & Property' ||
+          phase1FeatureEnabled('regulatedListings')) &&
+        ((request.resource.data.get('boostRequested', false) != true &&
+          request.resource.data.get('boostPrice', 0) == 0) ||
+          phase1FeatureEnabled('paidFeatures')) &&
+        (
+          (resource.data.transactionType != 'Auction' &&
+           request.resource.data.transactionType != 'Auction') ||
+          (resource.data.transactionType != 'Auction' &&
+           request.resource.data.transactionType == 'Auction' &&
+           (isAdmin() ||
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)) &&
+           request.resource.data.auctionStartAt is timestamp &&
+           request.resource.data.auctionEndAt is timestamp &&
+           request.resource.data.auctionEndAt >
+             request.resource.data.auctionStartAt &&
+           request.resource.data.startingBid is number &&
+           request.resource.data.startingBid > 0 &&
+           request.resource.data.minimumBidIncrement is number &&
+           request.resource.data.minimumBidIncrement > 0 &&
+           !request.resource.data.keys().hasAny([
+             'reservePrice', 'reserveTotal'
+           ]) &&
+           request.resource.data.get('currentBid', 0) == 0 &&
+           request.resource.data.get('bidCount', 0) == 0 &&
+           request.resource.data.auctionStatus in ['scheduled', 'live']) ||
+          (resource.data.transactionType == 'Auction' &&
+           request.resource.data.transactionType == 'Auction' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'notifyNewBids', 'notifyReserveReached',
+             'notifyAuctionEnding', 'updatedAt'
+           ]))
+        );
+      allow delete: if phase1FeatureEnabled('marketplace') &&
+        signedIn() &&
+        resource.data.sellerUid == request.auth.uid &&
+        resource.data.transactionType != 'Auction';
+    }
+
+    match /auction_private/{listingId} {
+      allow read: if phase1FeatureEnabled('auctions') &&
+        (isAdmin() ||
+        (signedIn() &&
+          get(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
+            request.auth.uid));
+      allow create, update: if phase1FeatureEnabled('auctions') &&
+        (isAdmin() ||
+        (signedIn() &&
+         request.resource.data.ownerUid == request.auth.uid &&
+         request.resource.data.keys().hasOnly([
+           'ownerUid', 'reservePrice', 'reserveTotal', 'updatedAt'
+         ]) &&
+         request.resource.data.reservePrice is number &&
+         request.resource.data.reservePrice > 0 &&
+         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
+           request.auth.uid &&
+         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.transactionType ==
+           'Auction' &&
+         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
+          getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0));
+      allow delete: if phase1FeatureEnabled('auctions') &&
+        (isAdmin() ||
+        (signedIn() &&
+         resource.data.ownerUid == request.auth.uid &&
+         get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
+          get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0));
+    }
+
+    match /listing_events/{eventId} {
+      allow create: if signedIn() &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.type in
+          ['view', 'save', 'unsave', 'share', 'message_start', 'offer'];
+      allow read: if isAdmin() ||
+        (signedIn() &&
+          get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.sellerUid == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /location_requests/{requestId} {
+      allow create: if signedIn() &&
+        request.resource.data.requesterUid == request.auth.uid;
+      allow read: if signedIn() &&
+        (resource.data.requesterUid == request.auth.uid ||
+         resource.data.sellerUid == request.auth.uid);
+      allow update: if signedIn() &&
+        resource.data.sellerUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'respondedAt']);
+      allow delete: if false;
+    }
+
+    match /conversations/{conversationId} {
+      allow create: if signedIn() &&
+        request.resource.data.memberUids is list &&
+        request.resource.data.memberUids.size() == 2 &&
+        request.auth.uid in request.resource.data.memberUids &&
+        request.resource.data.sellerUid in request.resource.data.memberUids &&
+        get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.sellerUid ==
+          request.resource.data.sellerUid;
+      allow read: if signedIn() &&
+        request.auth.uid in resource.data.memberUids;
+      allow update: if signedIn() &&
+        request.auth.uid in resource.data.memberUids &&
+        request.resource.data.memberUids == resource.data.memberUids &&
+        request.resource.data.listingId == resource.data.listingId &&
+        request.resource.data.sellerUid == resource.data.sellerUid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'listingTitle', 'sellerName', 'buyerDisplayName', 'openedByUid',
+          'openedAt', 'lastMessage', 'lastMessageAt', 'messageCount',
+          'unreadCounts'
+        ]);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow create: if signedIn() &&
+          request.resource.data.senderUid == request.auth.uid &&
+          request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.memberUids;
+        allow read: if signedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.memberUids;
+        allow update, delete: if false;
+      }
+
+    }
+
+    match /offers/{offerId} {
+      allow read: if phase1FeatureEnabled('offers') &&
+        signedIn() &&
+        (resource.data.buyerUid == request.auth.uid ||
+         resource.data.sellerUid == request.auth.uid);
+      // Creation, acceptance, and archival are server-only marketplace
+      // commands so participants, totals, and revision history cannot be
+      // forged by a client.
+      allow create, update, delete: if false;
+    }
+
+    match /auction_bids/{bidId} {
+      allow read: if phase1FeatureEnabled('auctions') && signedIn();
+      // Bid placement, Buy It Now, promotion, and withdrawal are server-only.
+      allow create, update, delete: if false;
+    }
+
+    match /marketplace_command_receipts/{receiptId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /trust_reports/{reportId} {
+      allow create: if signedIn() &&
+        request.resource.data.reporterUid == request.auth.uid &&
+        request.resource.data.reportedUid != request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.reason is string &&
+        request.resource.data.details is string &&
+        request.resource.data.details.size() >= 10 &&
+        request.resource.data.attachmentCount is int &&
+        request.resource.data.attachmentCount >= 0 &&
+        request.resource.data.attachmentCount <= 5 &&
+        request.resource.data.targetType in ['listing', 'message', 'offer', 'user'];
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.reporterUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /user_score_events/{eventId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.userUid == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /buyer_offer_profiles/{buyerUid} {
+      allow read: if phase1FeatureEnabled('offers') &&
+        (isAdmin() || owns(buyerUid));
+      allow write: if false;
+    }
+
+    // North American property and rights control plane. These collections are
+    // deliberately admin/server-only until a jurisdiction has an approved,
+    // versioned brokerage policy and the server command layer is deployed.
+    match /jurisdiction_policies/{policyId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /brokerage_entities/{entityId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /brokerage_licenses/{licenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /professional_profiles/{profileId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /agent_licenses/{licenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /role_assignments/{assignmentId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /compliance_reviews/{reviewId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /property_listings/{listingId} {
+      allow read, write: if false;
+    }
+
+    match /property_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /property_feature_flags/{flagId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /platform_configuration/{configurationId} {
+      allow read: if configurationId == 'phase1_features';
+      allow create: if configurationId == 'phase1_features' &&
+        isAdmin() &&
+        validPhase1FeatureConfiguration() &&
+        request.resource.data.revision == 1;
+      allow update: if configurationId == 'phase1_features' &&
+        isAdmin() &&
+        validPhase1FeatureConfiguration() &&
+        request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,71 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*');
+    }
+
+    match /listing_media/{userId}/{listingId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isOwner(userId)
+        && request.resource.size <= 25 * 1024 * 1024
+        && (isImage() || isVideo());
+      allow delete: if isOwner(userId);
+    }
+
+    match /profile_media/{userId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isOwner(userId)
+        && request.resource.size <= 10 * 1024 * 1024
+        && isImage();
+      allow delete: if isOwner(userId);
+    }
+
+    match /business_documents/{userId}/{fileName} {
+      allow read, create, update, delete: if isOwner(userId)
+        && (request.method == 'delete'
+          || request.resource.size <= 15 * 1024 * 1024);
+    }
+
+    match /chat_attachments/{conversationId}/{userId}/{fileName} {
+      function isConversationMember() {
+        return signedIn()
+          && request.auth.uid in firestore.get(
+            /databases/(default)/documents/conversations/$(conversationId)
+          ).data.memberUids;
+      }
+      allow read: if isConversationMember();
+      allow create, update: if isOwner(userId)
+        && isConversationMember()
+        && request.resource.size <= 15 * 1024 * 1024
+        && (isImage() || isVideo()
+          || request.resource.contentType == 'application/pdf');
+      allow delete: if isOwner(userId) && isConversationMember();
+    }
+
+    match /report_evidence/{userId}/{reportId}/{fileName} {
+      allow create: if isOwner(userId)
+        && request.resource.size <= 10 * 1024 * 1024
+        && isImage();
+      allow read: if signedIn() && (
+        isOwner(userId) ||
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'jordilwbailey@gmail.com'
+      );
+      allow update: if false;
+      allow delete: if isOwner(userId) || request.auth.token.admin == true;
+    }
+  }
+}

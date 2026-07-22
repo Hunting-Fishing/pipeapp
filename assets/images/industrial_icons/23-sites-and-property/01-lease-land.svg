@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Lease Land</title>
+<desc>Editable 256 by 256 vector icon for Lease Land. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="42" y="44" width="172" height="168" rx="14" fill="#E6ECEF" stroke="#68747D" stroke-width="2" opacity="1"/>
+<polyline points="49.0,88.0 91.0,77.0 128.0,97.0 171.0,72.0 207.0,84.0" fill="none" stroke="#AAB4BC" stroke-width="8" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="52.0,159.0 94.0,139.0 134.0,160.0 178.0,138.0 207.0,156.0" fill="none" stroke="#AAB4BC" stroke-width="8" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="77" y1="50" x2="75" y2="205" stroke="#B5BEC5" stroke-width="7" opacity="1" stroke-linecap="round"/>
+<line x1="153" y1="50" x2="158" y2="205" stroke="#B5BEC5" stroke-width="7" opacity="1" stroke-linecap="round"/>
+<path d="M57 164 Q88 131 115 155 Q145 177 196 127" fill="none" stroke="#48A868" stroke-width="10" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M131 124.88 C119.22 112.48 121.08 98.84 131 98.84 C140.92 98.84 142.78 112.48 131 124.88 Z" fill="#FF6B00" stroke="#FFB47B" stroke-width="1.5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="131" cy="108.14" r="3.7199999999999998" fill="#F8FAFC" stroke="none" stroke-width="1" opacity="1"/>
+<rect x="157" y="158" width="42" height="32" rx="4" fill="url(#orange)" stroke="#D94F00" stroke-width="2" opacity="1"/>
+</svg>

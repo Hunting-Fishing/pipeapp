@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Frac Tank</title>
+<desc>Editable 256 by 256 vector icon for Frac Tank. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="128" cy="216" rx="90" ry="12" fill="#000" stroke="none" stroke-width="1" opacity="0.23"/>
+<rect x="36" y="157" width="184" height="35" rx="5" fill="url(#dark)" stroke="#73808A" stroke-width="2" opacity="1"/>
+<line x1="44" y1="161" x2="212" y2="161" stroke="#FF6B00" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<circle cx="150" cy="197" r="14" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="150" cy="197" r="6.44" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="150" cy="197" r="2.24" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<circle cx="175" cy="197" r="14" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="175" cy="197" r="6.44" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="175" cy="197" r="2.24" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<circle cx="200" cy="197" r="14" fill="url(#tire)" stroke="#5C6871" stroke-width="2" opacity="1"/>
+<circle cx="200" cy="197" r="6.44" fill="url(#silver)" stroke="#25313B" stroke-width="1.7" opacity="1"/>
+<circle cx="200" cy="197" r="2.24" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<rect x="44" y="88" width="150" height="72" rx="7" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
+<line x1="52" y1="117" x2="186" y2="117" stroke="#FF6B00" stroke-width="5" opacity="1" stroke-linecap="round"/>
+<rect x="194" y="109" width="22" height="51" rx="4" fill="url(#dark)" stroke="#7D8992" stroke-width="2" opacity="1"/>
+</svg>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Vulgar/Abusive Content</title>
+<desc>Editable 256 by 256 vector icon for Vulgar/Abusive Content. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M48 78 H208 V168 H131 L91 198 V168 H48 Z" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="83.0,109.0 85.6,115.4 92.5,115.9 87.3,120.4 88.9,127.1 83.0,123.5 77.1,127.1 78.7,120.4 73.5,115.9 80.4,115.4" fill="#E34B46" stroke="#F8FAFC" stroke-width="1.5" opacity="1"/>
+<polygon points="112.0,122.0 114.1,127.1 119.6,127.5 115.4,131.1 116.7,136.5 112.0,133.6 107.3,136.5 108.6,131.1 104.4,127.5 109.9,127.1" fill="#FF6B00" stroke="#F8FAFC" stroke-width="1.5" opacity="1"/>
+<polygon points="143.0,103.0 145.9,110.0 153.5,110.6 147.7,115.5 149.5,122.9 143.0,119.0 136.5,122.9 138.3,115.5 132.5,110.6 140.1,110.0" fill="#E34B46" stroke="#F8FAFC" stroke-width="1.5" opacity="1"/>
+<polygon points="174.0,124.0 176.4,129.7 182.6,130.2 177.9,134.3 179.3,140.3 174.0,137.1 168.7,140.3 170.1,134.3 165.4,130.2 171.6,129.7" fill="#FF6B00" stroke="#F8FAFC" stroke-width="1.5" opacity="1"/>
+<polygon points="190.0,67.0 176.2,92.8 203.8,92.8" fill="#FFC247" stroke="#F8FAFC" stroke-width="2" opacity="1"/>
+<line x1="190" y1="76.75" x2="190" y2="85.3" stroke="#0F171E" stroke-width="4" opacity="1" stroke-linecap="round"/>
+<circle cx="190" cy="89.2" r="2.5" fill="#0F171E" stroke="none" stroke-width="1" opacity="1"/>
+</svg>

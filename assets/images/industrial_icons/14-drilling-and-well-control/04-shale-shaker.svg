@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Shale Shaker</title>
+  <desc>Editable 256 × 256 vector icon for Shale Shaker, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <ellipse cx="128" cy="216" fill="#000000" opacity="0.22" rx="78" ry="13"/>
+  <g>
+    <rect fill="url(#silverGrad)" height="22" rx="5" stroke="#59656E" width="144" x="56" y="167"/>
+    <polygon fill="url(#darkGrad)" points="68,103 174,103 198,158 86,158" stroke="#74818A" stroke-width="2"/>
+    <line stroke="#AAB4BC" stroke-width="2" x1="78" x2="187" y1="114" y2="114"/>
+    <line stroke="#AAB4BC" stroke-width="2" x1="78" x2="187" y1="126" y2="126"/>
+    <line stroke="#AAB4BC" stroke-width="2" x1="78" x2="187" y1="138" y2="138"/>
+    <line stroke="#AAB4BC" stroke-width="2" x1="78" x2="187" y1="150" y2="150"/>
+    <line stroke="#87939C" stroke-width="2" x1="88" x2="100" y1="106" y2="157"/>
+    <line stroke="#87939C" stroke-width="2" x1="108" x2="120" y1="106" y2="157"/>
+    <line stroke="#87939C" stroke-width="2" x1="128" x2="140" y1="106" y2="157"/>
+    <line stroke="#87939C" stroke-width="2" x1="148" x2="160" y1="106" y2="157"/>
+    <line stroke="#87939C" stroke-width="2" x1="168" x2="180" y1="106" y2="157"/>
+    <rect fill="url(#orangeGrad)" height="32" rx="5" stroke="#8C3B00" width="29" x="176" y="118"/>
+    <line stroke="#C7D0D8" stroke-width="6" x1="76" x2="68" y1="189" y2="207"/>
+    <line stroke="#C7D0D8" stroke-width="6" x1="180" x2="172" y1="189" y2="207"/>
+  </g>
+</svg>

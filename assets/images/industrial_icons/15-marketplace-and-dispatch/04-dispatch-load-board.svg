@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" data-icon-size="256x256" height="256px" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 256 256" width="256px">
+  <defs>
+    <linearGradient id="silverGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#DDE3E8"/>
+      <stop offset="1" stop-color="#77838E"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#52606D"/>
+      <stop offset="0.5" stop-color="#26333E"/>
+      <stop offset="1" stop-color="#0F171F"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FF9A32"/>
+      <stop offset="0.5" stop-color="#FF6B00"/>
+      <stop offset="1" stop-color="#D94F00"/>
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B8C2CA"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#D9F2FB"/>
+      <stop offset="0.45" stop-color="#A9D7EA"/>
+      <stop offset="1" stop-color="#35647B"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#303B44"/>
+      <stop offset="1" stop-color="#070B0E"/>
+    </linearGradient>
+  </defs>
+  <title>Dispatch Load Board</title>
+  <desc>Editable 256 × 256 vector icon for Dispatch Load Board, matching the industrial navy, silver and orange application icon system.</desc>
+  <rect fill="#041F3D" height="240" rx="31" stroke="#173A5B" stroke-width="2" width="240" x="8" y="8"/>
+  <path d="M39 17 H217 Q239 17 239 39" fill="none" opacity="0.7" stroke="#31516E" stroke-width="1.6"/>
+  <g>
+    <rect fill="url(#whiteGrad)" height="139" rx="12" stroke="#66727B" stroke-width="2" width="184" x="36" y="54"/>
+    <rect fill="url(#orangeGrad)" height="24" rx="12" stroke="#8C3B00" width="184" x="36" y="54"/>
+    <line stroke="#8B97A0" stroke-width="6" x1="49" x2="127" y1="91" y2="91"/>
+    <circle cx="143" cy="91" fill="#FF6B00" r="5"/>
+    <line stroke="#8B97A0" stroke-width="6" x1="49" x2="127" y1="113" y2="113"/>
+    <circle cx="143" cy="113" fill="#FF6B00" r="5"/>
+    <line stroke="#8B97A0" stroke-width="6" x1="49" x2="127" y1="135" y2="135"/>
+    <circle cx="143" cy="135" fill="#FF6B00" r="5"/>
+    <line stroke="#8B97A0" stroke-width="6" x1="49" x2="127" y1="157" y2="157"/>
+    <circle cx="143" cy="157" fill="#FF6B00" r="5"/>
+    <rect fill="#082B50" height="76" rx="6" stroke="#6E7A83" width="49" x="157" y="87"/>
+    <path d="M165 148 C170 111 188 139 199 97" fill="none" stroke="#FF6B00" stroke-linecap="round" stroke-width="5"/>
+    <path d="M198,113.75 C191.35,106.4 192.4,98.7 198,98.7 C203.6,98.7 204.65,106.4 198,113.75 Z" fill="#FF6B00" stroke="#FFB276" stroke-width="1.5"/>
+    <circle cx="198" cy="103.95" fill="#F7F9FB" r="2.0999999999999996"/>
+    <rect fill="url(#silverGrad)" height="12" rx="5" width="106" x="75" y="199"/>
+  </g>
+</svg>

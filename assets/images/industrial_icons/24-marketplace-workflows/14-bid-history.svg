@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
+<title>Bid History</title>
+<desc>Editable 256 by 256 vector icon for Bid History. Industrial navy, steel and orange application artwork.</desc>
+<defs>
+<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
+<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
+<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
+<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M55 46 H161 L195 80 V208 H55 Z" fill="url(#silver)" stroke="#68747D" stroke-width="2" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="161.0,46.0 195.0,80.0 161.0,80.0" fill="#AEB8C0" stroke="#68747D" stroke-width="1" opacity="1"/>
+<circle cx="83" cy="93" r="7" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="101" y1="93" x2="164" y2="93" stroke="#7F8B94" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<circle cx="83" cy="119" r="7" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="101" y1="119" x2="164" y2="119" stroke="#7F8B94" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<circle cx="83" cy="145" r="7" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="101" y1="145" x2="164" y2="145" stroke="#7F8B94" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<circle cx="83" cy="171" r="7" fill="#FF6B00" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="101" y1="171" x2="164" y2="171" stroke="#7F8B94" stroke-width="6" opacity="1" stroke-linecap="round"/>
+<path d="M175 93 Q199 126 176 160" fill="none" stroke="#4FA8D0" stroke-width="5" opacity="1" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="177.0,160.0 166.0,147.0 184.0,148.0" fill="#4FA8D0" stroke="none" stroke-width="1" opacity="1"/>
+</svg>
