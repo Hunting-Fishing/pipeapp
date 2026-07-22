@@ -130,6 +130,9 @@ jobs:
       - name: Test release manifest controls
         run: node --test tool/release_manifest_test.mjs
 
+      - name: Test deployed Function parity controls
+        run: node --test tool/function_parity_test.mjs
+
       - name: Restore and validate Functions
         run: |
           npm ci --prefix firebase/functions
@@ -199,6 +202,27 @@ jobs:
             --config firebase.json \
             --only auth,hosting,functions,firestore:rules,firestore:indexes,storage \
             --non-interactive
+
+      - name: Prove deployed Function parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase functions:list \
+            --project "$PIPE_FIREBASE_PROJECT_ID" \
+            --json > build/deployed-functions.json
+          node tool/function_parity.mjs \
+            --manifest build/release-manifest.json \
+            --inventory build/deployed-functions.json \
+            --project "$PIPE_FIREBASE_PROJECT_ID" \
+            --codebase marketplace \
+            --output build/function-parity.json
+          {
+            echo "## Firebase Function parity"
+            echo ""
+            echo '```json'
+            cat build/function-parity.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Record release identity
         if: ${{ always() }}

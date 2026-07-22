@@ -65,6 +65,10 @@ Write-Host 'Testing release manifest controls'
 node --test tool/release_manifest_test.mjs
 Assert-NativeSuccess 'Release manifest tests'
 
+Write-Host 'Testing deployed Function parity controls'
+node --test tool/function_parity_test.mjs
+Assert-NativeSuccess 'Function parity tests'
+
 Write-Host 'Validating Firebase Functions'
 if (-not $SkipDependencyRestore) {
   npm ci --prefix firebase/functions

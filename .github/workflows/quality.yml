@@ -70,6 +70,9 @@ jobs:
       - name: Test release manifest controls
         run: node --test tool/release_manifest_test.mjs
 
+      - name: Test deployed Function parity controls
+        run: node --test tool/function_parity_test.mjs
+
       - name: Build Android ARM64 debug artifact
         run: >
           flutter build apk
