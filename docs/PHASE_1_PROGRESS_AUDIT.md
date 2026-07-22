@@ -115,7 +115,7 @@ a reviewed staging deployment and end-to-end acceptance pass.
   suite, authenticates through Workload Identity Federation, and deploys only
   to the explicitly configured project in a named GitHub Environment.
 - Local verification passed with 0 analyzer issues, 65 Flutter tests,
-  31 Functions policy tests, 14 Firestore rules tests, and a release web build.
+  32 Functions/runtime tests, 14 Firestore rules tests, and a release web build.
 - Workflow YAML lint passed.
 - Release manifest controls passed 4 unit tests and recorded 27 expected
   Functions, deterministic Functions/rules/index/config hashes, and the
@@ -140,7 +140,16 @@ a reviewed staging deployment and end-to-end acceptance pass.
   four-service emulator configuration started and stopped successfully.
 - The PowerShell quality gate now checks every native process exit code and
   stops immediately on a failed analyzer, test, emulator, build, or manifest
-  command. This control detected and prevented a false-positive verification
-  result during this checkpoint.
+  command and runs the same high-severity npm audits as CI. These controls
+  detected and prevented false-positive local verification during this
+  checkpoint.
+- Firebase Admin was upgraded to supported stable version 14.2.0 after CI
+  detected a new high-severity transitive XML parser advisory. High-severity
+  production dependency audit is clean; seven moderate upstream `uuid`
+  findings remain documented rather than forcing npm's unsafe Admin 10.3.0
+  downgrade.
+- Functions now use a modular Admin 14 runtime adapter. Source loading is part
+  of `npm run check`, and the four-service emulator smoke test invoked the real
+  `createDispatchJob` callable and received its expected validation response.
 - This is not deployment evidence. Gate 1 remains open until isolated projects
   are configured and staging deploy/rollback and backup/restore are rehearsed.

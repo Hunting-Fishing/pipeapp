@@ -1,11 +1,11 @@
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const { createAdminRuntime } = require("./admin_runtime");
 const { protectedCallableOptions } = require("./app_check_config");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
-admin.initializeApp();
+const admin = createAdminRuntime();
 
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);

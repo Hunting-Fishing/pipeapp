@@ -52,6 +52,8 @@ if (-not $SkipDependencyRestore) {
 }
 npm run check --prefix firebase/functions
 Assert-NativeSuccess 'Functions validation'
+npm audit --omit=dev --audit-level=high --prefix firebase/functions
+Assert-NativeSuccess 'Functions production dependency audit'
 
 if (-not $SkipRulesEmulator) {
   $java = Get-Command java -ErrorAction SilentlyContinue
@@ -73,6 +75,8 @@ if (-not $SkipRulesEmulator) {
     npm ci --prefix firebase/rules-tests
     Assert-NativeSuccess 'Firestore rules-test dependency restore'
   }
+  npm audit --omit=dev --audit-level=high --prefix firebase/rules-tests
+  Assert-NativeSuccess 'Firestore rules-test dependency audit'
   $firebaseCli = Get-Command firebase -ErrorAction SilentlyContinue
   if ($firebaseCli) {
     firebase emulators:exec `

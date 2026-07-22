@@ -52,3 +52,14 @@ not fall back to production.
 
 The emulator UI is available at `http://127.0.0.1:4000` on the development
 machine.
+
+The repository smoke check verifies all four ports and calls a real exported
+Function so a source-loading failure cannot be mistaken for a healthy suite:
+
+```powershell
+npx --yes firebase-tools@15.24.0 emulators:exec `
+  --project flutter-flow-pipe `
+  --config firebase/firebase.json `
+  --only auth,firestore,functions,storage `
+  'node tool/firebase_emulator_smoke.mjs'
+```
