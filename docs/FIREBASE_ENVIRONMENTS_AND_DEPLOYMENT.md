@@ -89,9 +89,15 @@ Storage API and then stopped because no default bucket exists. Provision the
 bucket explicitly in the approved North American location before deploying
 Storage rules. A Hosting-only rehearsal is live at
 `https://pipebuyer-5c77f.web.app` (version `c5b6e2f11524c0eb`) and a read-only
-endpoint check returned HTTP 200. Authentication providers, Functions, App
-Check, keyless CI deployment, visual acceptance, and full rollback rehearsal
-remain to be configured and verified.
+endpoint check returned HTTP 200. A second version (`9c53baeec68b39a9`) was
+released and the retained baseline was restored; Firebase recorded live release
+`1784695881916000` as a `ROLLBACK` to `c5b6e2f11524c0eb`. Authentication
+is now initialized with Email/Password enabled from the reviewed root config;
+a disposable account create/delete smoke test passed. Functions remain
+undeployed because Cloud Build and Artifact Registry require the staging owner
+to upgrade the project to Blaze. App Check, keyless CI deployment, visual
+acceptance, and data/full-service rollback remain to be configured and
+verified.
 
 ## Release procedure
 

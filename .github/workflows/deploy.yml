@@ -195,7 +195,7 @@ jobs:
           firebase deploy \
             --project "$PIPE_FIREBASE_PROJECT_ID" \
             --config firebase.json \
-            --only hosting,functions,firestore:rules,firestore:indexes,storage \
+            --only auth,hosting,functions,firestore:rules,firestore:indexes,storage \
             --non-interactive
 
       - name: Record release identity

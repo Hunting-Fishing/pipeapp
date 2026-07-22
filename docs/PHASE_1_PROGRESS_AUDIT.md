@@ -25,7 +25,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | No | 90% | Runtime flags, high-risk defaults, clean local verification, and remote CI evidence pass. A controlled isolated Firebase rehearsal is still required. |
-| 1 — Environments, builds, diagnostics | No | 70% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, and a live Hosting-only rehearsal release. Staging Storage/Auth/Functions, App Check, Workload Identity, environment reviewer protection, CI deployment/full rollback rehearsal, recovery proof, monitoring ownership, and visual/mobile acceptance remain incomplete. |
+| 1 — Environments, builds, diagnostics | No | 76% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, and a proven Hosting deployment/rollback. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, monitoring ownership, and visual/mobile acceptance remain incomplete. |
 | 2 — Backend parity and commands | No | 25% | Offer, Auction, and Dispatch commands exist and have policy tests in source, but are not deployed to the live Firebase project. Deployed/source parity automation is missing. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
@@ -33,7 +33,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **34%**.
+Overall Phase 1 launch readiness estimate: **35%**.
 
 Completed gates: **0 of 8**.
 
@@ -143,8 +143,17 @@ a reviewed staging deployment and end-to-end acceptance pass.
   outside its configured project root. The deploy root was moved to the
   repository-level `firebase.json`, which now references `build/web` directly;
   the successful rehearsal uses that layout without a junction or copy.
+- Hosting version `9c53baeec68b39a9` was released after retaining the accepted
+  `c5b6e2f11524c0eb` version in an expiring rollback channel. Cloning that
+  baseline back to `live` produced release `1784695881916000` with type
+  `ROLLBACK`; the live channel again resolves to `c5b6e2f11524c0eb`.
+- Email/Password Authentication is declared in the root Firebase config and
+  deployed to staging. A disposable `example.invalid` account was created and
+  deleted through Identity Toolkit successfully, leaving no smoke-test user.
 - Staging Storage stopped safely because its default bucket has not been
-  explicitly provisioned; Auth and Functions also remain unconfigured.
+  explicitly provisioned. Functions deployment enabled the Cloud Functions API
+  but stopped before creating any Function because Cloud Build and Artifact
+  Registry require the staging project to be upgraded to the Blaze plan.
 - App Check and Workload Identity configuration are intentionally absent, so
   staging and production deployments still fail closed.
 - Local, development, test, verification, and CI startup redirect Auth,
