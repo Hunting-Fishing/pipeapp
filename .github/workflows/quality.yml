@@ -35,6 +35,28 @@ jobs:
       - name: Restore Flutter dependencies
         run: flutter pub get
 
+      - name: Validate PowerShell release tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scripts = @(
+            'tool/verify.ps1',
+            'tool/web_visual_smoke.ps1'
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script),
+              [ref]$tokens,
+              [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+              throw "PowerShell syntax failed for $script`: $details"
+            }
+          }
+
       - name: Analyze application and tests
         run: dart analyze lib test
 

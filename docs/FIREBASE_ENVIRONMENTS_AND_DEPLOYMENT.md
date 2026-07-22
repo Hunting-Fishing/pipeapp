@@ -122,6 +122,13 @@ deploys by explicit project ID. The repository-root `firebase.json` serves
 `build/web`, so no copied `firebase/public` artifact is involved and Firebase
 never has to traverse outside its configured project directory.
 
+After a successful deployment, a separate Windows acceptance job opens the
+explicit project's `web.app` URL in an isolated headless browser. It waits
+past the Flutter splash, rejects blank or monochrome captures and browser
+exceptions, tests 390x844 and 1440x1000 viewports, and retains both screenshots
+as 30-day workflow artifacts. A successful HTTP response alone is not treated
+as visual acceptance.
+
 Before deployment, the workflow generates `build/release-manifest.json`. It
 records the exact commit and environment, explicit Firebase project, expected
 Function names, Functions source hash, Firebase config/rules/index hashes, and

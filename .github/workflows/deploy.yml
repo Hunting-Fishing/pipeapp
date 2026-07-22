@@ -213,3 +213,55 @@ jobs:
             echo "- Workflow run: \`${{ github.run_id }}\`"
             echo "- Result: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  visual-acceptance:
+    name: Visual acceptance ${{ inputs.environment }}
+    needs: deploy
+    runs-on: windows-latest
+    timeout-minutes: 10
+    environment: ${{ inputs.environment }}
+
+    env:
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+
+    steps:
+      - name: Check out exact release commit
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Verify deployed mobile and desktop rendering
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PIPE_FIREBASE_PROJECT_ID)) {
+            throw 'PIPE_FIREBASE_PROJECT_ID is not configured.'
+          }
+          $url = "https://$($env:PIPE_FIREBASE_PROJECT_ID).web.app"
+          .\tool\web_visual_smoke.ps1 `
+            -Url $url `
+            -ScreenshotPath 'build/acceptance/mobile-390x844.png' `
+            -ViewportWidth 390 `
+            -ViewportHeight 844
+          .\tool\web_visual_smoke.ps1 `
+            -Url $url `
+            -ScreenshotPath 'build/acceptance/desktop-1440x1000.png' `
+            -ViewportWidth 1440 `
+            -ViewportHeight 1000
+          @(
+            '## Web visual acceptance',
+            '',
+            "- URL: ``$url``",
+            '- Mobile viewport: `390x844`',
+            '- Desktop viewport: `1440x1000`',
+            '- Result: rendered with no browser exceptions'
+          ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+      - name: Retain visual acceptance evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: visual-acceptance-${{ inputs.environment }}-${{ github.run_id }}
+          path: build/acceptance/*.png
+          if-no-files-found: warn
+          retention-days: 30

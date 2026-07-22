@@ -27,6 +27,25 @@ Write-Host 'Flutter SDK'
 flutter --version
 Assert-NativeSuccess 'Flutter SDK inspection'
 
+Write-Host 'Validating PowerShell release tools'
+$releaseToolScripts = @(
+  (Join-Path $workspace 'tool\verify.ps1'),
+  (Join-Path $workspace 'tool\web_visual_smoke.ps1')
+)
+foreach ($scriptPath in $releaseToolScripts) {
+  $tokens = $null
+  $parseErrors = $null
+  [System.Management.Automation.Language.Parser]::ParseFile(
+    $scriptPath,
+    [ref]$tokens,
+    [ref]$parseErrors
+  ) | Out-Null
+  if ($parseErrors.Count -gt 0) {
+    $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+    throw "PowerShell syntax failed for $scriptPath`: $details"
+  }
+}
+
 if (-not $SkipDependencyRestore) {
   Write-Host 'Restoring Flutter dependencies'
   flutter pub get
