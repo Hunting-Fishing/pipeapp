@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pipe_app/backend/firebase/firebase_runtime_config.dart';
 
 void main() {
@@ -48,17 +49,36 @@ void main() {
     );
   });
 
-  test('native staging fails closed until its Firebase app is installed', () {
+  test('native staging is locked to the isolated Firebase project', () {
     expect(
       () => expectedNativeFirebaseProjectId(environment: 'staging'),
-      throwsA(
-        isA<UnsupportedError>().having(
-          (error) => error.message,
-          'message',
-          contains('staging'),
-        ),
-      ),
+      throwsA(isA<StateError>()),
     );
+    expect(
+      () => expectedNativeFirebaseProjectId(
+        environment: 'staging',
+        declaredProjectId: productionFirebaseProjectId,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(
+      expectedNativeFirebaseProjectId(
+        environment: 'staging',
+        declaredProjectId: stagingFirebaseProjectId,
+      ),
+      stagingFirebaseProjectId,
+    );
+  });
+
+  test('native staging registrations match the isolated project', () {
+    final android = stagingNativeFirebaseOptions(TargetPlatform.android);
+    final ios = stagingNativeFirebaseOptions(TargetPlatform.iOS);
+
+    expect(android.projectId, stagingFirebaseProjectId);
+    expect(android.appId, contains(':android:'));
+    expect(ios.projectId, stagingFirebaseProjectId);
+    expect(ios.appId, contains(':ios:'));
+    expect(ios.iosBundleId, 'Pipe.Buyerapp');
   });
 
   test('native production requires the explicitly approved project', () {

@@ -25,7 +25,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | No | 90% | Runtime flags, high-risk defaults, clean local verification, and remote CI evidence pass. A controlled isolated Firebase rehearsal is still required. |
-| 1 — Environments, builds, diagnostics | No | 55% | `flutter-flow-pipe` is verified and approved as the single production backend; native production verifies its compiled and initialized project IDs. Non-production startup defaults to local Auth, Firestore, Functions, and Storage emulators without cloud fallback. The GitHub production environment contains the seven verified Firebase identifiers, and deployment is hard-locked to that project and a commit contained in `main`. A separate staging project, App Check registration, Workload Identity, environment reviewer protection, staging deployment/rollback rehearsal, recovery proof, deployed release IDs, and monitoring ownership remain incomplete. |
+| 1 — Environments, builds, diagnostics | No | 65% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, runtime project locks, a passing staging web build/manifest, and the seven public GitHub Environment values. Staging Storage/Auth/Functions/Hosting, App Check, Workload Identity, environment reviewer protection, deployment/rollback rehearsal, recovery proof, deployed release IDs, and monitoring ownership remain incomplete. |
 | 2 — Backend parity and commands | No | 25% | Offer, Auction, and Dispatch commands exist and have policy tests in source, but are not deployed to the live Firebase project. Deployed/source parity automation is missing. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
@@ -33,7 +33,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **31%**.
+Overall Phase 1 launch readiness estimate: **33%**.
 
 Completed gates: **0 of 8**.
 
@@ -114,7 +114,7 @@ a reviewed staging deployment and end-to-end acceptance pass.
 - The manual deployment workflow checks out a full SHA, reruns the verification
   suite, authenticates through Workload Identity Federation, and deploys only
   to the explicitly configured project in a named GitHub Environment.
-- Local verification passed with 0 analyzer issues, 65 Flutter tests,
+- Local verification passed with 0 analyzer issues, 66 Flutter tests,
   32 Functions/runtime tests, 14 Firestore rules tests, and a release web build.
 - Workflow YAML lint passed.
 - Release manifest controls passed 4 unit tests and recorded 27 expected
@@ -122,19 +122,23 @@ a reviewed staging deployment and end-to-end acceptance pass.
   319-file web artifact hash.
 - A least-privilege backup, isolated restore, validation, and application
   rollback runbook now exists. It is prepared procedure, not recovery proof.
-- Native staging fails closed until its isolated platform apps are installed.
-  Native production requires an explicit `flutter-flow-pipe` declaration and
-  verifies the initialized app matches it. Development and CI Android
-  initialization still builds successfully.
-- Firebase inventory confirmed that `flutter-flow-pipe` owns all three live
-  PipeApp registrations and that `pipebuyer-5c77f` owns none. The former is now
-  the single approved production project; the latter remains unassigned.
-- The GitHub `production` environment contains all seven verified public
-  Firebase Web identifiers. Required-reviewer and branch-policy environment
+- Native staging selects separate Android and iOS registrations for
+  `pipebuyer-5c77f` and verifies the declared and initialized project IDs.
+  Native production remains locked to the installed `flutter-flow-pipe`
+  registrations. Development and CI Android initialization still builds.
+- Staging now has separate Web, Android, and iOS registrations plus a Standard
+  `(default)` Firestore database in `nam5`. The reviewed Firestore rules and
+  indexes deployed successfully without modifying production.
+- Both GitHub environments contain all seven verified public Firebase Web
+  identifiers. Required-reviewer and branch-policy environment
   protection were rejected by the current private repository plan, so the
   workflow independently restricts production SHAs to `origin/main`.
-- App Check and Workload Identity configuration are intentionally absent, so a
-  production deployment still fails closed.
+- Staging Web and Android builds compiled successfully. The staging manifest
+  recorded 27 Functions and 319 web files. Staging Storage stopped safely
+  because its default bucket has not been explicitly provisioned; Auth,
+  Functions, and Hosting also remain unconfigured.
+- App Check and Workload Identity configuration are intentionally absent, so
+  staging and production deployments still fail closed.
 - Local, development, test, verification, and CI startup redirect Auth,
   Firestore, Functions, and Storage to the local Emulator Suite. The complete
   four-service emulator configuration started and stopped successfully.
@@ -151,5 +155,6 @@ a reviewed staging deployment and end-to-end acceptance pass.
 - Functions now use a modular Admin 14 runtime adapter. Source loading is part
   of `npm run check`, and the four-service emulator smoke test invoked the real
   `createDispatchJob` callable and received its expected validation response.
-- This is not deployment evidence. Gate 1 remains open until isolated projects
-  are configured and staging deploy/rollback and backup/restore are rehearsed.
+- This is partial staging evidence, not a full application deployment. Gate 1
+  remains open until the remaining staging services are configured and
+  deploy/rollback and backup/restore are rehearsed.

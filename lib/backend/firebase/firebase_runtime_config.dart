@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 const _developmentEnvironments = {
   'development',
@@ -14,6 +15,26 @@ const _controlledEnvironments = {'staging', 'production'};
 /// Keep this identifier explicit so a native release cannot silently initialize
 /// from an unrelated Google Services file.
 const productionFirebaseProjectId = 'flutter-flow-pipe';
+
+/// The isolated Firebase project approved for pre-production rehearsals.
+const stagingFirebaseProjectId = 'pipebuyer-5c77f';
+
+const _stagingAndroidConfiguration = FirebaseOptions(
+  apiKey: 'AIzaSyC03JAXaMDKcCbEJCah6OLh7sUNRrFB_y0',
+  appId: '1:975213611830:android:f99d4787d155aeaaa70197',
+  messagingSenderId: '975213611830',
+  projectId: stagingFirebaseProjectId,
+  storageBucket: 'pipebuyer-5c77f.firebasestorage.app',
+);
+
+const _stagingIosConfiguration = FirebaseOptions(
+  apiKey: 'AIzaSyB0ctcIPB0WpzojivD2Ei5jXIDNzugh48k',
+  appId: '1:975213611830:ios:0018f5911fb98aaaa70197',
+  messagingSenderId: '975213611830',
+  projectId: stagingFirebaseProjectId,
+  storageBucket: 'pipebuyer-5c77f.firebasestorage.app',
+  iosBundleId: 'Pipe.Buyerapp',
+);
 
 const _developmentWebConfiguration = FirebaseWebConfiguration(
   apiKey: 'AIzaSyAMm0HnXVq6UOERnPNP9SKqGtyV_-H--u8',
@@ -77,27 +98,42 @@ String? expectedNativeFirebaseProjectId({
     return null;
   }
 
-  if (normalizedEnvironment == 'staging') {
-    throw UnsupportedError(
-      'Native Firebase configuration for $normalizedEnvironment is not '
-      'installed. Configure the platform-specific Firebase app before '
-      'building this environment.',
-    );
-  }
-
   final normalizedProjectId = declaredProjectId.trim();
   if (normalizedProjectId.isEmpty) {
     throw StateError(
-      'PIPE_FIREBASE_PROJECT_ID is required for a native production build.',
+      'PIPE_FIREBASE_PROJECT_ID is required for a native '
+      '$normalizedEnvironment build.',
     );
   }
-  if (normalizedProjectId != productionFirebaseProjectId) {
+  final expectedProjectId = normalizedEnvironment == 'staging'
+      ? stagingFirebaseProjectId
+      : productionFirebaseProjectId;
+  if (normalizedProjectId != expectedProjectId) {
     throw StateError(
-      'Native production is approved only for Firebase project '
-      '$productionFirebaseProjectId, not $normalizedProjectId.',
+      'Native $normalizedEnvironment is approved only for Firebase project '
+      '$expectedProjectId, not $normalizedProjectId.',
     );
   }
-  return productionFirebaseProjectId;
+  return expectedProjectId;
+}
+
+/// Returns the checked-in public Firebase registration for an isolated native
+/// staging build. Production continues to use the platform Google Services
+/// files so release signing and provider configuration remain unchanged.
+FirebaseOptions stagingNativeFirebaseOptions(TargetPlatform platform) {
+  switch (platform) {
+    case TargetPlatform.android:
+      return _stagingAndroidConfiguration;
+    case TargetPlatform.iOS:
+      return _stagingIosConfiguration;
+    case TargetPlatform.fuchsia:
+    case TargetPlatform.linux:
+    case TargetPlatform.macOS:
+    case TargetPlatform.windows:
+      throw UnsupportedError(
+        'Native Firebase staging is supported only on Android and iOS.',
+      );
+  }
 }
 
 void ensureInitializedFirebaseProjectMatches({

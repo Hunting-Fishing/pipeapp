@@ -9,10 +9,11 @@ live PipeApp Android, iOS, and Web registrations all belong to project number
 `426221783223`. Native production startup verifies both the compiled project
 declaration and the initialized Firebase app before App Check is activated.
 
-`pipebuyer-5c77f` currently contains no registered Firebase applications. It
-is intentionally unassigned and must not be used as a second production
-backend. A single release must never split Auth, Firestore, Storage, Hosting,
-or Functions across the two projects.
+`pipebuyer-5c77f` is the isolated staging project. It has separate Web,
+Android, and iOS Firebase registrations plus a Standard `(default)` Firestore
+database in `nam5`. It must never be used as a second production backend. A
+single release must never split Auth, Firestore, Storage, Hosting, or Functions
+across the two projects.
 
 ## Safety boundary
 
@@ -25,17 +26,17 @@ production fail at startup unless a complete Firebase web configuration is
 compiled into the release. Partial overrides are rejected so one build cannot
 accidentally mix resources from different projects.
 
-Native Android and Apple builds still use their platform Firebase files. The
-checked-in files are the approved `flutter-flow-pipe` production registrations.
-A native production build must declare that exact project ID and verifies the
-initialized project at runtime. Native staging continues to fail closed until
-its separate platform apps and files are installed. Non-production builds
-redirect all configured Firebase products to their platform-appropriate local
-emulator host.
+Native production builds use the checked-in platform Firebase files belonging
+to `flutter-flow-pipe`. Native staging builds use the separate public Android
+and iOS registrations for `pipebuyer-5c77f` selected by runtime configuration.
+Both environments require the matching project declaration and verify the
+initialized project at runtime. Non-production development builds redirect all
+configured Firebase products to their platform-appropriate local emulator
+host.
 
 ## Required Firebase projects
 
-Create and retain separate cloud projects for:
+Retain the separate cloud projects already assigned for:
 
 - staging
 - production
@@ -51,8 +52,8 @@ local `.firebaserc`.
 
 ## Protected GitHub Environments
 
-Create GitHub Environments named `staging` and `production`. The production
-environment exists and has the verified Firebase identifiers below. The
+GitHub Environments named `staging` and `production` now exist and both contain
+their seven verified public Firebase identifiers. The
 current private repository plan rejected required-reviewer and deployment
 branch protection rules. As a compensating control, the workflow verifies that
 every production SHA is contained in `origin/main`, in addition to exact-SHA
@@ -78,9 +79,16 @@ Firebase application. GitHub authenticates with Workload Identity Federation;
 do not create or store a long-lived service-account JSON key in the
 repository.
 
-Production currently has the seven `PIPE_FIREBASE_*` values configured. App
-Check and Workload Identity values remain deliberately absent, so deployment
-fails closed until those cloud controls are created and verified.
+App Check and Workload Identity values remain deliberately absent in both
+environments, so deployment fails closed until those cloud controls are
+created and verified.
+
+The staging Firestore rules and indexes were deployed successfully on July 22,
+2026. Staging Storage is not yet provisioned: the Firebase CLI enabled the
+Storage API and then stopped because no default bucket exists. Provision the
+bucket explicitly in the approved North American location before deploying
+Storage rules. Authentication providers, Functions, Hosting, App Check, and
+keyless CI deployment also remain to be configured and rehearsed.
 
 ## Release procedure
 
@@ -119,9 +127,10 @@ If rollback is required:
    procedure; never guess or manually rewrite production documents.
 5. Verify the mandatory smoke journeys and record the incident correlation ID.
 
-Gate 1 remains open until isolated Firebase projects exist, native flavors are
-separated, staging deployment and rollback are rehearsed, diagnostics have an
-operational owner, and backup/restore evidence is recorded.
+Gate 1 remains open until staging Storage/Auth/Functions/Hosting are configured,
+App Check and keyless CI deployment are operational, staging deployment and
+rollback are rehearsed, diagnostics have an operational owner, and
+backup/restore evidence is recorded.
 
 The backup and recovery procedure is documented in
 `docs/FIREBASE_BACKUP_RESTORE_RUNBOOK.md`. It remains unproven until an isolated

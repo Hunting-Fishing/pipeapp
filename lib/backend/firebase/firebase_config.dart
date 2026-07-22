@@ -17,7 +17,11 @@ Future initFirebase() async {
       environment: environment,
       declaredProjectId: declaredProjectId,
     );
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: environment == 'staging'
+          ? stagingNativeFirebaseOptions(defaultTargetPlatform)
+          : null,
+    );
     ensureInitializedFirebaseProjectMatches(
       environment: environment,
       declaredProjectId: declaredProjectId,
