@@ -7,7 +7,7 @@ Created: July 20, 2026
 
 Current gate: Gate 1 — Reproducible environments, builds, and diagnostics
 
-Current overall launch-readiness estimate: 29%
+Current overall launch-readiness estimate: 30%
 
 Completed gates: 0 of 8
 
@@ -16,7 +16,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | Gate | Status |
 | --- | --- |
 | 0 — Scope lock and safe defaults | 90% — isolated rehearsal pending |
-| 1 — Environments, builds, and diagnostics | 45% — in progress |
+| 1 — Environments, builds, and diagnostics | 50% — in progress |
 | 2 — Backend parity and server commands | 25% — source/live mismatch |
 | 3 — Identity, authorization, and abuse | 10% — incomplete |
 | 4 — Product workflows | 25% — incomplete |
@@ -38,16 +38,19 @@ Gate 1 implementation evidence in progress:
 
 - Web Firebase project selection is build-environment controlled; staging and
   production fail closed on incomplete or mixed configuration
-- Native staging/production builds fail closed instead of silently using
-  development Firebase files while platform flavors remain unconfigured
+- Native production builds are locked to the approved `flutter-flow-pipe`
+  platform registrations and verify the initialized project; staging fails
+  closed while its isolated platform apps remain unconfigured
 - Firebase Hosting serves the generated `build/web` release directly
-- A protected, exact-commit staging/production workflow and rollback procedure
-  are present but have not yet been exercised
+- An exact-commit staging/production workflow and rollback procedure are
+  present but have not yet been exercised; production is restricted to a SHA
+  contained in `main`
 - Deterministic release manifests record expected Functions, deployable source
   hashes, rules/index hashes, and the generated web artifact hash
 - Backup, isolated restore, validation, and rollback procedures are documented
-- Separate Firebase projects, native project flavors, deployed release IDs,
-  monitoring ownership, and backup/restore rehearsal remain required
+- A separate development/staging Firebase project, App Check, Workload
+  Identity, environment reviewer protection, deployed release IDs, monitoring
+  ownership, and backup/restore rehearsal remain required
 
 ## 1. Phase 1 launch decision
 

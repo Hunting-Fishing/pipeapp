@@ -1,21 +1,38 @@
 # Firebase environments and controlled deployment
 
-Date: July 20, 2026
+Date: July 22, 2026
+
+## Approved production project
+
+`flutter-flow-pipe` is the single approved production Firebase project. The
+live PipeApp Android, iOS, and Web registrations all belong to project number
+`426221783223`. Native production startup verifies both the compiled project
+declaration and the initialized Firebase app before App Check is activated.
+
+`pipebuyer-5c77f` currently contains no registered Firebase applications. It
+is intentionally unassigned and must not be used as a second production
+backend. A single release must never split Auth, Firestore, Storage, Hosting,
+or Functions across the two projects.
 
 ## Safety boundary
 
-Development may use the existing `flutter-flow-pipe` web configuration when
-no build values are supplied. Staging and production fail at startup unless a
-complete Firebase web configuration is compiled into the release. Partial
-overrides are rejected so one build cannot accidentally mix resources from
-different projects.
+Legacy development builds may use the existing `flutter-flow-pipe` web
+configuration when no build values are supplied. Because that project is now
+approved as production, developers must treat the fallback as live access and
+must not use it for destructive testing. Gate 1 remains open until an isolated
+development/staging project and emulator-first local workflow replace this
+fallback. Staging and production fail at startup unless a complete Firebase
+web configuration is compiled into the release. Partial overrides are
+rejected so one build cannot accidentally mix resources from different
+projects.
 
-Native Android and Apple builds still use their platform Firebase files.
-Separate native flavors and project files remain required before Gate 1 can be
-completed. Until those files are installed, native staging and production
-builds fail at startup instead of silently connecting to the development
-project. Development, local verification, and CI builds continue using the
-checked-in development platform files.
+Native Android and Apple builds still use their platform Firebase files. The
+checked-in files are the approved `flutter-flow-pipe` production registrations.
+A native production build must declare that exact project ID and verifies the
+initialized project at runtime. Native staging continues to fail closed until
+its separate platform apps and files are installed. Development, local
+verification, and CI builds can still initialize the checked-in files, so they
+must be treated as having live access until isolation is completed.
 
 ## Required Firebase projects
 
@@ -25,16 +42,23 @@ Create and retain separate projects for:
 - staging
 - production
 
-Never point a staging or production GitHub Environment at
-`flutter-flow-pipe` unless that project has been explicitly approved for that
-role. Project selection is always passed to the Firebase CLI with `--project`;
-the workflow does not depend on a developer's local `.firebaserc`.
+Never point staging at `flutter-flow-pipe`. Production is hard-locked to that
+project in the deployment workflow. Project selection is always passed to the
+Firebase CLI with `--project`; the workflow does not depend on a developer's
+local `.firebaserc`.
 
 ## Protected GitHub Environments
 
-Create protected GitHub Environments named `staging` and `production`.
-Production must require an authorized reviewer. Configure these Environment
-variables in each:
+Create GitHub Environments named `staging` and `production`. The production
+environment exists and has the verified Firebase identifiers below. The
+current private repository plan rejected required-reviewer and deployment
+branch protection rules. As a compensating control, the workflow verifies that
+every production SHA is contained in `origin/main`, in addition to exact-SHA
+checkout and full verification. Upgrade the GitHub plan or make the repository
+eligible for environment protection before launch, then require an authorized
+production reviewer.
+
+Configure these Environment variables in each:
 
 - `PIPE_FIREBASE_API_KEY`
 - `PIPE_FIREBASE_AUTH_DOMAIN`
@@ -51,6 +75,10 @@ The Google service account must have only the roles needed to deploy this
 Firebase application. GitHub authenticates with Workload Identity Federation;
 do not create or store a long-lived service-account JSON key in the
 repository.
+
+Production currently has the seven `PIPE_FIREBASE_*` values configured. App
+Check and Workload Identity values remain deliberately absent, so deployment
+fails closed until those cloud controls are created and verified.
 
 ## Release procedure
 

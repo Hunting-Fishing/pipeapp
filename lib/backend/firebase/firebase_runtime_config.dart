@@ -9,6 +9,12 @@ const _developmentEnvironments = {
 };
 const _controlledEnvironments = {'staging', 'production'};
 
+/// The single Firebase project approved to hold live Pipe App data.
+///
+/// Keep this identifier explicit so a native release cannot silently initialize
+/// from an unrelated Google Services file.
+const productionFirebaseProjectId = 'flutter-flow-pipe';
+
 const _developmentWebConfiguration = FirebaseWebConfiguration(
   apiKey: 'AIzaSyAMm0HnXVq6UOERnPNP9SKqGtyV_-H--u8',
   authDomain: 'flutter-flow-pipe.firebaseapp.com',
@@ -62,13 +68,52 @@ String normalizeFirebaseEnvironment(String environment) {
   return normalizedEnvironment;
 }
 
-void ensureNativeFirebaseEnvironmentSupported(String environment) {
+String? expectedNativeFirebaseProjectId({
+  required String environment,
+  String declaredProjectId = '',
+}) {
   final normalizedEnvironment = normalizeFirebaseEnvironment(environment);
-  if (_controlledEnvironments.contains(normalizedEnvironment)) {
+  if (!_controlledEnvironments.contains(normalizedEnvironment)) {
+    return null;
+  }
+
+  if (normalizedEnvironment == 'staging') {
     throw UnsupportedError(
       'Native Firebase configuration for $normalizedEnvironment is not '
       'installed. Configure the platform-specific Firebase app before '
       'building this environment.',
+    );
+  }
+
+  final normalizedProjectId = declaredProjectId.trim();
+  if (normalizedProjectId.isEmpty) {
+    throw StateError(
+      'PIPE_FIREBASE_PROJECT_ID is required for a native production build.',
+    );
+  }
+  if (normalizedProjectId != productionFirebaseProjectId) {
+    throw StateError(
+      'Native production is approved only for Firebase project '
+      '$productionFirebaseProjectId, not $normalizedProjectId.',
+    );
+  }
+  return productionFirebaseProjectId;
+}
+
+void ensureInitializedFirebaseProjectMatches({
+  required String environment,
+  required String actualProjectId,
+  String declaredProjectId = '',
+}) {
+  final expectedProjectId = expectedNativeFirebaseProjectId(
+    environment: environment,
+    declaredProjectId: declaredProjectId,
+  );
+  if (expectedProjectId != null &&
+      actualProjectId.trim() != expectedProjectId) {
+    throw StateError(
+      'The installed Firebase app targets ${actualProjectId.trim()}, but '
+      '$environment requires $expectedProjectId.',
     );
   }
 }
@@ -111,10 +156,26 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
     );
   }
 
+  final configuredProjectId = supplied['PIPE_FIREBASE_PROJECT_ID']!;
+  if (normalizedEnvironment == 'production' &&
+      configuredProjectId != productionFirebaseProjectId) {
+    throw StateError(
+      'Web production is approved only for Firebase project '
+      '$productionFirebaseProjectId, not $configuredProjectId.',
+    );
+  }
+  if (normalizedEnvironment == 'staging' &&
+      configuredProjectId == productionFirebaseProjectId) {
+    throw StateError(
+      'Staging cannot use the production Firebase project '
+      '$productionFirebaseProjectId.',
+    );
+  }
+
   return FirebaseWebConfiguration(
     apiKey: supplied['PIPE_FIREBASE_API_KEY']!,
     authDomain: supplied['PIPE_FIREBASE_AUTH_DOMAIN']!,
-    projectId: supplied['PIPE_FIREBASE_PROJECT_ID']!,
+    projectId: configuredProjectId,
     storageBucket: supplied['PIPE_FIREBASE_STORAGE_BUCKET']!,
     messagingSenderId: supplied['PIPE_FIREBASE_MESSAGING_SENDER_ID']!,
     appId: supplied['PIPE_FIREBASE_WEB_APP_ID']!,
@@ -125,6 +186,10 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
 String currentFirebaseEnvironment() => const String.fromEnvironment(
       'PIPE_ENV',
       defaultValue: 'development',
+    );
+
+String currentFirebaseProjectId() => const String.fromEnvironment(
+      'PIPE_FIREBASE_PROJECT_ID',
     );
 
 FirebaseWebConfiguration currentFirebaseWebConfiguration() =>

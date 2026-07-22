@@ -1,6 +1,6 @@
 # Phase 1 progress audit
 
-Audit date: July 20, 2026
+Audit date: July 22, 2026
 
 Branch: `agent/north-america-foundation`
 
@@ -25,7 +25,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | No | 90% | Runtime flags, high-risk defaults, clean local verification, and remote CI evidence pass. A controlled isolated Firebase rehearsal is still required. |
-| 1 — Environments, builds, diagnostics | No | 45% | Web builds select Firebase configuration by environment and controlled environments fail closed. Native staging/production builds now reject development project files until platform flavors are installed. Hosting serves the verified `build/web` artifact. Exact-commit deployment, deterministic release manifests, and backup/restore procedures exist. Separate projects, native flavors, staging deployment/rollback rehearsal, recovery proof, deployed release IDs, and monitoring ownership remain incomplete. |
+| 1 — Environments, builds, diagnostics | No | 50% | `flutter-flow-pipe` is verified and approved as the single production backend; native production verifies its compiled and initialized project IDs. The GitHub production environment contains the seven verified Firebase identifiers, and deployment is hard-locked to that project and a commit contained in `main`. Hosting serves the verified `build/web` artifact. A separate staging/development project, App Check registration, Workload Identity, environment reviewer protection, staging deployment/rollback rehearsal, recovery proof, deployed release IDs, and monitoring ownership remain incomplete. |
 | 2 — Backend parity and commands | No | 25% | Offer, Auction, and Dispatch commands exist and have policy tests in source, but are not deployed to the live Firebase project. Deployed/source parity automation is missing. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
@@ -33,7 +33,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **29%**.
+Overall Phase 1 launch readiness estimate: **30%**.
 
 Completed gates: **0 of 8**.
 
@@ -99,7 +99,7 @@ Completed gates: **0 of 8**.
 
 ## Live Firebase parity finding
 
-The July 20 live inventory for project `flutter-flow-pipe` contains
+The July 22 live inventory for project `flutter-flow-pipe` contains
 `createMarketplaceListing` and `updateMarketplaceListingMedia`, plus older
 event/scheduled Functions. It does not contain the new Offer, Auction, or
 Dispatch callable command exports. Those workflows must remain disabled until
@@ -113,8 +113,8 @@ a reviewed staging deployment and end-to-end acceptance pass.
   HTTP 200 from the generated Flutter release.
 - The manual deployment workflow checks out a full SHA, reruns the verification
   suite, authenticates through Workload Identity Federation, and deploys only
-  to the explicitly configured project in a protected GitHub Environment.
-- Local verification passed with 0 analyzer issues, 54 Flutter tests,
+  to the explicitly configured project in a named GitHub Environment.
+- Local verification passed with 0 analyzer issues, 58 Flutter tests,
   31 Functions policy tests, 14 Firestore rules tests, and a release web build.
 - Workflow YAML lint passed.
 - Release manifest controls passed 4 unit tests and recorded 27 expected
@@ -122,8 +122,18 @@ a reviewed staging deployment and end-to-end acceptance pass.
   319-file web artifact hash.
 - A least-privilege backup, isolated restore, validation, and application
   rollback runbook now exists. It is prepared procedure, not recovery proof.
-- Native staging and production initialization fails closed while their
-  platform-specific Firebase app files remain unconfigured. Development and CI
-  Android initialization still builds successfully.
+- Native staging fails closed until its isolated platform apps are installed.
+  Native production requires an explicit `flutter-flow-pipe` declaration and
+  verifies the initialized app matches it. Development and CI Android
+  initialization still builds successfully.
+- Firebase inventory confirmed that `flutter-flow-pipe` owns all three live
+  PipeApp registrations and that `pipebuyer-5c77f` owns none. The former is now
+  the single approved production project; the latter remains unassigned.
+- The GitHub `production` environment contains all seven verified public
+  Firebase Web identifiers. Required-reviewer and branch-policy environment
+  protection were rejected by the current private repository plan, so the
+  workflow independently restricts production SHAs to `origin/main`.
+- App Check and Workload Identity configuration are intentionally absent, so a
+  production deployment still fails closed.
 - This is not deployment evidence. Gate 1 remains open until isolated projects
   are configured and staging deploy/rollback and backup/restore are rehearsed.

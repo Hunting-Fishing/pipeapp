@@ -11,8 +11,17 @@ Future initFirebase() async {
       options: currentFirebaseWebConfiguration().toFirebaseOptions(),
     );
   } else {
-    ensureNativeFirebaseEnvironmentSupported(environment);
+    final declaredProjectId = currentFirebaseProjectId();
+    expectedNativeFirebaseProjectId(
+      environment: environment,
+      declaredProjectId: declaredProjectId,
+    );
     await Firebase.initializeApp();
+    ensureInitializedFirebaseProjectMatches(
+      environment: environment,
+      declaredProjectId: declaredProjectId,
+      actualProjectId: Firebase.app().options.projectId,
+    );
   }
   await initFirebaseAppCheck();
 }

@@ -72,12 +72,20 @@ jobs:
               exit 1
             fi
           done
+          if [[ "$PIPE_ENV" == "production" && "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
+            echo "::error::Production releases are approved only for flutter-flow-pipe."
+            exit 1
+          fi
+          if [[ "$PIPE_ENV" == "staging" && "$PIPE_FIREBASE_PROJECT_ID" == "flutter-flow-pipe" ]]; then
+            echo "::error::Staging cannot deploy to the production Firebase project."
+            exit 1
+          fi
 
       - name: Check out exact release commit
         uses: actions/checkout@v7.0.0
         with:
           ref: ${{ inputs.commit_sha }}
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Confirm checked-out source
         shell: bash
@@ -87,6 +95,13 @@ jobs:
           if [[ "$actual_sha" != "$PIPE_RELEASE_SHA" ]]; then
             echo "::error::Checked out $actual_sha instead of $PIPE_RELEASE_SHA."
             exit 1
+          fi
+          if [[ "$PIPE_ENV" == "production" ]]; then
+            git fetch origin main
+            if ! git merge-base --is-ancestor "$PIPE_RELEASE_SHA" origin/main; then
+              echo "::error::Production releases must use a commit contained in origin/main."
+              exit 1
+            fi
           fi
 
       - name: Install pinned Flutter SDK
