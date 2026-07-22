@@ -1,6 +1,6 @@
 # Phase 1 progress audit
 
-Audit date: July 22, 2026
+Audit date: July 23, 2026
 
 Branch: `agent/north-america-foundation`
 
@@ -24,18 +24,18 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
-| 0 — Scope lock and safe defaults | No | 90% | Runtime flags, high-risk defaults, clean local verification, and remote CI evidence pass. A controlled isolated Firebase rehearsal is still required. |
+| 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 25% | Offer, Auction, and Dispatch commands exist and have policy tests in source, but are not deployed to the live Firebase project. Deployed/source parity automation is missing. |
+| 2 — Backend parity and commands | No | 35% | Offer, Auction, and Dispatch commands and policy tests exist in source. Unit-tested release automation now compares the 27 expected Functions with the deployed `marketplace` codebase and rejects missing, unexpected, or inactive handlers after deploy. Staging deployment and callable integration evidence remain blocked. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
 | 5 — Trust, notifications, policies | No | 15% | User reporting with attachments and some in-app notifications exist. Moderation operations, appeals, delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **37%**.
+Overall Phase 1 launch readiness estimate: **39%**.
 
-Completed gates: **0 of 8**.
+Completed gates: **1 of 8**.
 
 ## Mandatory workflow audit
 
@@ -99,11 +99,31 @@ Completed gates: **0 of 8**.
 
 ## Live Firebase parity finding
 
-The July 22 live inventory for project `flutter-flow-pipe` contains
-`createMarketplaceListing` and `updateMarketplaceListingMedia`, plus older
-event/scheduled Functions. It does not contain the new Offer, Auction, or
-Dispatch callable command exports. Those workflows must remain disabled until
-a reviewed staging deployment and end-to-end acceptance pass.
+The July 23 read-only inventory for project `flutter-flow-pipe` contains 15
+active Functions in the `marketplace` codebase against 27 reviewed source
+exports. The automated parity control reports 14 missing expected handlers and
+2 unexpected legacy handlers (`onDispatchBidCreated` and
+`onDispatchJobAwarded`). It exits non-zero on this mismatch. Offer, Auction,
+and Dispatch workflows must remain disabled until a reviewed staging deployment
+matches exactly and passes end-to-end acceptance.
+
+## Gate 0 completion evidence
+
+- The live isolated-staging configuration document was intentionally absent,
+  exercising the documented missing-configuration safe default.
+- A disposable Email/Password user attempted direct Firestore creates for a
+  normal Marketplace listing, Auction listing, regulated property listing,
+  paid boost, and Dispatch carrier. Every attempt returned HTTP 403.
+- Cleanup runs from `finally`; the disposable staging Auth identity was deleted
+  after the rehearsal and no test document was created.
+- `tool/phase1_safe_default_rehearsal.ps1` blocks the production project ID and
+  production-like project names before making a request.
+- `.github/workflows/safe-default-rehearsal.yml` repeats the evidence in the
+  protected staging environment and retains its structured artifact once the
+  workflow reaches the default branch.
+- The current full local release gate passed with 0 analyzer issues, 68 Flutter
+  tests, 32 Functions/runtime tests, 14 Firestore rules tests, dependency
+  high-severity audits, and a 319-file release web build.
 
 ## Gate 1 checkpoint evidence
 
