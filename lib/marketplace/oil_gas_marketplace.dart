@@ -1913,7 +1913,7 @@ class _HomeFeedNotice extends StatelessWidget {
       );
 }
 
-class _BrowsePage extends StatelessWidget {
+class _BrowsePage extends StatefulWidget {
   const _BrowsePage(
       {required this.features,
       required this.search,
@@ -1929,119 +1929,234 @@ class _BrowsePage extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final ValueChanged<String?> onCategory;
   final ValueChanged<MarketplaceListing> onSaved;
+
+  @override
+  State<_BrowsePage> createState() => _BrowsePageState();
+}
+
+class _BrowsePageState extends State<_BrowsePage> {
+  static const _pageSize = 24;
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
+  QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
+  bool _loading = false;
+  bool _hasMore = true;
+  String? _loadError;
+  int _queryGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPage(reset: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _BrowsePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.category != widget.category) _loadPage(reset: true);
+  }
+
+  Query<Map<String, dynamic>> _query() {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('public_listings')
+        .where('status', isEqualTo: 'active');
+    if (widget.category != null) {
+      query = query.where('category', isEqualTo: widget.category);
+    }
+    query = query.orderBy('createdAt', descending: true).limit(_pageSize);
+    if (_cursor != null) query = query.startAfterDocument(_cursor!);
+    return query;
+  }
+
+  Future<void> _loadPage({bool reset = false}) async {
+    if (_loading && !reset) return;
+    if (!reset && !_hasMore) return;
+    final generation = reset ? ++_queryGeneration : _queryGeneration;
+    setState(() {
+      _loading = true;
+      _loadError = null;
+      if (reset) {
+        _documents.clear();
+        _cursor = null;
+        _hasMore = true;
+      }
+    });
+    try {
+      final result = await _query().get();
+      if (!mounted || generation != _queryGeneration) return;
+      setState(() {
+        final known = _documents.map((item) => item.id).toSet();
+        _documents.addAll(result.docs.where((item) => known.add(item.id)));
+        _cursor = result.docs.lastOrNull;
+        _hasMore = result.docs.length == _pageSize;
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted || generation != _queryGeneration) return;
+      setState(() => _loadError = error.code == 'failed-precondition'
+          ? 'Marketplace search is preparing its index. Try again shortly.'
+          : 'Listings could not be loaded. Check your connection and retry.');
+    } catch (_) {
+      if (mounted && generation == _queryGeneration) {
+        setState(() => _loadError =
+            'Listings could not be loaded. Check your connection and retry.');
+      }
+    } finally {
+      if (mounted && generation == _queryGeneration) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('public_listings')
-            .where('status', isEqualTo: 'active')
-            .snapshots(),
-        builder: (context, snapshot) {
-          final liveListings = snapshot.data?.docs
-                  .map(MarketplaceListing.fromFirestore)
-                  .toList() ??
-              const <MarketplaceListing>[];
-          final inventory = liveListings.isEmpty &&
-                  Phase1FeaturePolicy.current.demoContentEnabled
-              ? demoListings
-              : liveListings;
-          final results = inventory
-              .where((item) =>
-                  item.transactionType != 'Auction' &&
-                  (item.category != 'Site & Property' ||
-                      features.regulatedListings) &&
-                  (category == null || item.category == category) &&
-                  (search.isEmpty ||
-                      '${item.title} ${item.category} ${item.location}'
-                          .toLowerCase()
-                          .contains(search.toLowerCase())))
-              .toList()
-            ..sort((a, b) {
-              if (a.boosted != b.boosted) return a.boosted ? -1 : 1;
-              return (b.createdAt ?? DateTime(2000))
-                  .compareTo(a.createdAt ?? DateTime(2000));
-            });
-          return Column(children: [
-            Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _WelcomeUser(),
-                      const SizedBox(height: 4),
-                      const Text('Marketplace',
-                          style: TextStyle(
-                              fontSize: 28, fontWeight: FontWeight.w900)),
-                      const Text(
-                          'Find equipment quickly by search, category or map.',
-                          style: TextStyle(color: _muted, fontSize: 12)),
-                      const SizedBox(height: 12),
-                      TextField(
-                          onChanged: onSearch,
-                          decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.search),
-                              hintText: 'Search equipment, pipe, tanks…')),
-                      const SizedBox(height: 10),
-                      Row(children: [
-                        Expanded(
-                            child: OutlinedButton.icon(
-                                onPressed: () => _showCategoryPicker(
-                                    context,
-                                    category,
-                                    features.regulatedListings,
-                                    onCategory),
-                                icon: const Icon(Icons.grid_view_rounded,
-                                    size: 18),
-                                label: Text(category ?? 'All categories'))),
-                        const SizedBox(width: 8),
-                        IconButton.filledTonal(
-                            tooltip: 'Listing color key',
-                            onPressed: () =>
-                                showMarketplaceListingLegend(context),
-                            icon: const Icon(Icons.info_outline_rounded)),
-                        const SizedBox(width: 6),
-                        IconButton.filledTonal(
-                            tooltip: 'Map view',
-                            onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const MarketplaceMapSheet())),
-                            icon: const Icon(Icons.map_outlined)),
-                        const SizedBox(width: 6),
-                        IconButton.filledTonal(
-                            tooltip: 'More filters',
-                            onPressed: () => _showFilterHelp(context),
-                            icon: const Icon(Icons.tune_rounded)),
-                      ]),
-                      const SizedBox(height: 9),
-                      Row(children: [
-                        Text('${results.length} listings',
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w700)),
-                        const Spacer(),
-                        if (category != null)
-                          ActionChip(
-                              avatar: const Icon(Icons.close, size: 15),
-                              label: Text(category!,
-                                  style: const TextStyle(fontSize: 11)),
-                              onPressed: () => onCategory(null))
-                      ])
-                    ])),
-            Expanded(
-                child: results.isEmpty
-                    ? const Center(
-                        child: Text('No listings match those filters.'))
-                    : ListView.builder(
-                        itemCount: results.length,
-                        itemBuilder: (context, index) {
-                          final item = results[index];
-                          return _ListingCard(
-                              listing: item,
-                              saved: saved.contains(item.id),
-                              onSaved: () => onSaved(item));
-                        })),
-          ]);
-        });
+    final liveListings =
+        _documents.map(MarketplaceListing.fromFirestore).toList();
+    final inventory =
+        liveListings.isEmpty && Phase1FeaturePolicy.current.demoContentEnabled
+            ? demoListings
+            : liveListings;
+    final results = inventory
+        .where((item) =>
+            item.transactionType != 'Auction' &&
+            (item.category != 'Site & Property' ||
+                widget.features.regulatedListings) &&
+            (widget.category == null || item.category == widget.category) &&
+            (widget.search.isEmpty ||
+                '${item.title} ${item.category} ${item.location}'
+                    .toLowerCase()
+                    .contains(widget.search.toLowerCase())))
+        .toList()
+      ..sort((a, b) {
+        if (a.boosted != b.boosted) return a.boosted ? -1 : 1;
+        return (b.createdAt ?? DateTime(2000))
+            .compareTo(a.createdAt ?? DateTime(2000));
+      });
+    return Column(children: [
+      Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const _WelcomeUser(),
+            const SizedBox(height: 4),
+            const Text('Marketplace',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+            const Text('Find equipment quickly by search, category or map.',
+                style: TextStyle(color: _muted, fontSize: 12)),
+            const SizedBox(height: 12),
+            TextField(
+                onChanged: widget.onSearch,
+                decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search equipment, pipe, tanks…')),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                  child: OutlinedButton.icon(
+                      onPressed: () => _showCategoryPicker(
+                          context,
+                          widget.category,
+                          widget.features.regulatedListings,
+                          widget.onCategory),
+                      icon: const Icon(Icons.grid_view_rounded, size: 18),
+                      label: Text(widget.category ?? 'All categories'))),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                  tooltip: 'Listing color key',
+                  onPressed: () => showMarketplaceListingLegend(context),
+                  icon: const Icon(Icons.info_outline_rounded)),
+              const SizedBox(width: 6),
+              IconButton.filledTonal(
+                  tooltip: 'Map view',
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const MarketplaceMapSheet())),
+                  icon: const Icon(Icons.map_outlined)),
+              const SizedBox(width: 6),
+              IconButton.filledTonal(
+                  tooltip: 'More filters',
+                  onPressed: () => _showFilterHelp(context),
+                  icon: const Icon(Icons.tune_rounded)),
+            ]),
+            const SizedBox(height: 9),
+            Row(children: [
+              Text('${results.length} shown • ${_documents.length} loaded',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              if (widget.category != null)
+                ActionChip(
+                    avatar: const Icon(Icons.close, size: 15),
+                    label: Text(widget.category!,
+                        style: const TextStyle(fontSize: 11)),
+                    onPressed: () => widget.onCategory(null))
+            ])
+          ])),
+      Expanded(child: _buildResults(results)),
+    ]);
+  }
+
+  Widget _buildResults(List<MarketplaceListing> results) {
+    if (_loading && _documents.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_loadError != null && _documents.isEmpty) {
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.cloud_off_outlined, size: 40, color: _muted),
+                const SizedBox(height: 10),
+                Text(_loadError!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                    onPressed: () => _loadPage(reset: true),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'))
+              ])));
+    }
+    if (results.isEmpty) {
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text('No loaded listings match those filters.'),
+                if (_hasMore) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton(
+                      onPressed: _loading ? null : _loadPage,
+                      child: const Text('Search more listings'))
+                ]
+              ])));
+    }
+    return RefreshIndicator(
+        onRefresh: () => _loadPage(reset: true),
+        child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: results.length + 1,
+            itemBuilder: (context, index) {
+              if (index == results.length) {
+                return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                    child: _hasMore
+                        ? OutlinedButton.icon(
+                            onPressed: _loading ? null : _loadPage,
+                            icon: _loading
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.expand_more),
+                            label: Text(_loading
+                                ? 'Loading more…'
+                                : 'Load more listings'))
+                        : const Center(
+                            child: Text('You have reached the end.',
+                                style: TextStyle(color: _muted))));
+              }
+              final item = results[index];
+              return _ListingCard(
+                  listing: item,
+                  saved: widget.saved.contains(item.id),
+                  onSaved: () => widget.onSaved(item));
+            }));
   }
 
   static Future<void> _showCategoryPicker(
