@@ -4,7 +4,10 @@ const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   CommandPolicyError,
+  TERMINAL_AUCTION_STATUSES,
   validateAuctionConversion,
+  validateAuctionFinalization,
+  validateAuctionTransactionAction,
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,
@@ -133,6 +136,155 @@ function createMarketplaceCommands(admin) {
     const flags = await loadPhase1FeatureFlags(db);
     requirePhase1Feature(flags, feature);
     return handler(request, flags);
+  });
+
+  function auctionSettlementValues(listingId, listing, buyerUid, amount, source) {
+    const quantity = Number(listing.auctionQuantity || listing.quantity || 1);
+    const totalBasis = String(
+        listing.auctionPricingBasis || listing.priceBasis || "",
+    ).toLowerCase().includes("total");
+    return {
+      listingId,
+      buyerUid,
+      sellerUid: listing.sellerUid,
+      status: "pending_completion",
+      buyerConfirmed: false,
+      sellerConfirmed: false,
+      agreedUnitPrice: amount,
+      agreedQuantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+      agreedTotal: totalBasis ? amount : amount * quantity,
+      currency: listing.currency || "CAD",
+      priceBasis: listing.auctionPricingBasis || listing.priceBasis || "",
+      source,
+      revision: 1,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+  }
+
+  const finalizeAuctionRecord = async (
+      listingId,
+      actorUid = "auction_scheduler",
+      receiptRef = null,
+  ) => db.runTransaction(async (transaction) => {
+    if (receiptRef) {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+    }
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const privateRef = db.collection("auction_private").doc(listingId);
+    const saleRef = db.collection("auction_transactions").doc(listingId);
+    const listingSnapshot = await transaction.get(listingRef);
+    const privateSnapshot = await transaction.get(privateRef);
+    const saleSnapshot = await transaction.get(saleRef);
+    const listingData = listingSnapshot.exists ? listingSnapshot.data() : null;
+    const listing = listingData ? {...listingData, id: listingId} : null;
+    if (listing && TERMINAL_AUCTION_STATUSES.has(listing.auctionStatus) &&
+        listing.finalizedAt) {
+      const result = {
+        listingId,
+        auctionStatus: listing.auctionStatus,
+        winnerUid: String(
+            listing.acceptedBidderUid || listing.highBidderUid || "",
+        ),
+        amount: Number(listing.acceptedBidAmount || listing.currentBid || 0),
+      };
+      if (receiptRef) {
+        transaction.create(
+            receiptRef,
+            receiptData(actorUid, "finalizeAuction", result, FieldValue),
+        );
+      }
+      return result;
+    }
+    const outcome = validateAuctionFinalization({
+      listing,
+      privateAuction: privateSnapshot.data() || {},
+      now: Timestamp.now(),
+    });
+    let leadingBidRef = null;
+    let leadingBidSnapshot = null;
+    if (outcome.winnerUid) {
+      leadingBidRef = db.collection("auction_bids")
+          .doc(String(listing.currentBidId || "missing"));
+      leadingBidSnapshot = await transaction.get(leadingBidRef);
+      validateLeadingBidRecord(
+          listingId,
+          listing,
+          leadingBidSnapshot.exists ? leadingBidSnapshot.data() : null,
+      );
+    }
+    const result = {listingId, ...outcome};
+    transaction.update(listingRef, {
+      auctionStatus: outcome.auctionStatus,
+      reserveMet: outcome.reserveMet,
+      ...(outcome.winnerUid ? {
+        acceptedBidAmount: outcome.amount,
+        acceptedBidderUid: outcome.winnerUid,
+        saleStatus: "pending_completion",
+      } : {}),
+      finalizedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    if (leadingBidRef) {
+      transaction.update(leadingBidRef, {
+        status: "won",
+        wonAt: FieldValue.serverTimestamp(),
+      });
+    }
+    if (outcome.winnerUid && !saleSnapshot.exists) {
+      const values = auctionSettlementValues(
+          listingId,
+          listing,
+          outcome.winnerUid,
+          outcome.amount,
+          "auction_expiry",
+      );
+      transaction.create(saleRef, values);
+      transaction.create(saleRef.collection("revisions").doc("1"), {
+        ...values,
+        event: "auction_won",
+        actorUid,
+      });
+    }
+    transaction.set(
+        db.collection("users").doc(listing.sellerUid)
+            .collection("notifications").doc(),
+        {
+          recipientUid: listing.sellerUid,
+          actorUid,
+          type: "auction",
+          listingId,
+          title: outcome.winnerUid ?
+            "Your auction has a winning bidder" :
+            outcome.amount > 0 ?
+              "Auction ended below reserve" : "Auction ended with no bids",
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        },
+    );
+    if (outcome.winnerUid) {
+      transaction.set(
+          db.collection("users").doc(outcome.winnerUid)
+              .collection("notifications").doc(),
+          {
+            recipientUid: outcome.winnerUid,
+            actorUid,
+            type: "auction",
+            listingId,
+            title: "You won the auction",
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+    }
+    if (receiptRef) {
+      transaction.create(
+          receiptRef,
+          receiptData(actorUid, "finalizeAuction", result, FieldValue),
+      );
+    }
+    return result;
   });
 
   const createMarketplaceListing = featureCommand(
@@ -866,6 +1018,17 @@ function createMarketplaceCommands(admin) {
     });
   });
 
+  const finalizeAuction = featureCommand("auctions", async (request) => {
+    const uid = requireAuth(request);
+    const listingId = requiredId(request.data, "listingId");
+    const requestId = requiredId(request.data, "requestId");
+    return finalizeAuctionRecord(
+        listingId,
+        uid,
+        receiptReference(db, uid, "finalizeAuction", {requestId}),
+    );
+  });
+
   const buyAuctionNow = featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
@@ -877,6 +1040,7 @@ function createMarketplaceCommands(admin) {
     );
     const listingRef = db.collection("public_listings").doc(listingId);
     const privateAuctionRef = db.collection("auction_private").doc(listingId);
+    const saleRef = db.collection("auction_transactions").doc(listingId);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
@@ -884,6 +1048,7 @@ function createMarketplaceCommands(admin) {
       const listingSnapshot = await transaction.get(listingRef);
       const privateAuctionSnapshot =
         await transaction.get(privateAuctionRef);
+      const saleSnapshot = await transaction.get(saleRef);
       const publicListing =
         listingSnapshot.exists ? listingSnapshot.data() : null;
       const listing = publicListing ? {
@@ -934,6 +1099,21 @@ function createMarketplaceCommands(admin) {
         lastBidAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      if (!saleSnapshot.exists) {
+        const values = auctionSettlementValues(
+            listingId,
+            listing,
+            uid,
+            price,
+            "buy_now",
+        );
+        transaction.create(saleRef, values);
+        transaction.create(saleRef.collection("revisions").doc("1"), {
+          ...values,
+          event: "auction_bought_now",
+          actorUid: uid,
+        });
+      }
       transaction.set(
           db.collection("users")
               .doc(listing.sellerUid)
@@ -969,6 +1149,7 @@ function createMarketplaceCommands(admin) {
     );
     const listingRef = db.collection("public_listings").doc(listingId);
     const privateAuctionRef = db.collection("auction_private").doc(listingId);
+    const saleRef = db.collection("auction_transactions").doc(listingId);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
@@ -976,6 +1157,7 @@ function createMarketplaceCommands(admin) {
       const listingSnapshot = await transaction.get(listingRef);
       const privateAuctionSnapshot =
         await transaction.get(privateAuctionRef);
+      const saleSnapshot = await transaction.get(saleRef);
       const publicListing =
         listingSnapshot.exists ? listingSnapshot.data() : null;
       const listing = publicListing ? {
@@ -1023,6 +1205,21 @@ function createMarketplaceCommands(admin) {
         auctionEndAt: now,
         updatedAt: FieldValue.serverTimestamp(),
       });
+      if (!saleSnapshot.exists) {
+        const values = auctionSettlementValues(
+            listingId,
+            listing,
+            accepted.bidderUid,
+            accepted.amount,
+            "accepted_below_reserve",
+        );
+        transaction.create(saleRef, values);
+        transaction.create(saleRef.collection("revisions").doc("1"), {
+          ...values,
+          event: "bid_accepted_below_reserve",
+          actorUid: uid,
+        });
+      }
       transaction.set(
           db.collection("users")
               .doc(accepted.bidderUid)
@@ -1050,6 +1247,150 @@ function createMarketplaceCommands(admin) {
       return result;
     });
   });
+
+  const updateAuctionTransaction = featureCommand(
+      "auctions",
+      async (request) => {
+    const uid = requireAuth(request);
+    const listingId = requiredId(request.data, "listingId");
+    const requestId = requiredId(request.data, "requestId");
+    const action = requiredId(request.data, "action");
+    const reason = String(request.data && request.data.reason || "").trim();
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "updateAuctionTransaction",
+        {requestId},
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const saleRef = db.collection("auction_transactions").doc(listingId);
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const listingSnapshot = await transaction.get(listingRef);
+      const saleSnapshot = await transaction.get(saleRef);
+      const listing = listingSnapshot.exists ?
+        {...listingSnapshot.data(), id: listingId} : null;
+      const sale = saleSnapshot.exists ? saleSnapshot.data() : null;
+      const transition = validateAuctionTransactionAction({
+        sale,
+        listing,
+        actorUid: uid,
+        action,
+        reason,
+        administrator: isAdministrator(request),
+      });
+      const currentRevision = Number(sale.revision || 1);
+      const result = {
+        listingId,
+        status: transition.status,
+        buyerConfirmed: transition.buyerConfirmed,
+        sellerConfirmed: transition.sellerConfirmed,
+        revision: transition.alreadyApplied ?
+          currentRevision : currentRevision + 1,
+      };
+      if (transition.alreadyApplied) {
+        transaction.create(
+            receiptRef,
+            receiptData(uid, "updateAuctionTransaction", result, FieldValue),
+        );
+        return result;
+      }
+      const revision = currentRevision + 1;
+      transaction.update(saleRef, {
+        status: transition.status,
+        buyerConfirmed: transition.buyerConfirmed,
+        sellerConfirmed: transition.sellerConfirmed,
+        revision,
+        lastAction: action,
+        lastActionByUid: uid,
+        ...(transition.reason ? {reason: transition.reason} : {}),
+        ...(action === "confirm_completion" ? {
+          [`${transition.actorRole}ConfirmedAt`]:
+            FieldValue.serverTimestamp(),
+        } : {}),
+        ...(transition.status === "completed" ? {
+          completedAt: FieldValue.serverTimestamp(),
+        } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(
+          saleRef.collection("revisions").doc(String(revision)),
+          {
+            event: action,
+            actorUid: uid,
+            status: transition.status,
+            buyerConfirmed: transition.buyerConfirmed,
+            sellerConfirmed: transition.sellerConfirmed,
+            ...(transition.reason ? {reason: transition.reason} : {}),
+            revision,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      if (transition.status === "completed") {
+        transaction.update(listingRef, {
+          status: "sold",
+          saleStatus: "completed",
+          soldAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (transition.status === "cancelled") {
+        transaction.update(listingRef, {
+          status: "archived",
+          auctionStatus: "cancelled",
+          saleStatus: "cancelled",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else {
+        transaction.update(listingRef, {
+          saleStatus: transition.status,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      if (["disputed", "buyer_default_reported", "seller_default_reported"]
+          .includes(transition.status)) {
+        transaction.set(db.collection("auction_disputes").doc(listingId), {
+          listingId,
+          buyerUid: sale.buyerUid,
+          sellerUid: sale.sellerUid,
+          openedByUid: uid,
+          reason: transition.reason,
+          type: transition.status,
+          status: "open",
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+      const recipientUid = uid === sale.buyerUid ? sale.sellerUid : sale.buyerUid;
+      transaction.set(
+          db.collection("users").doc(recipientUid)
+              .collection("notifications").doc(receiptRef.id),
+          {
+            recipientUid,
+            actorUid: uid,
+            type: "auction",
+            listingId,
+            title: transition.status === "completed" ?
+              "Auction purchase completed" :
+              transition.status === "disputed" ?
+                "Auction settlement disputed" :
+                transition.status.includes("default") ?
+                  "Auction default reported" :
+                  transition.status === "cancelled" ?
+                    "Auction settlement cancelled" :
+                    "Auction confirmation updated",
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "updateAuctionTransaction", result, FieldValue),
+      );
+      return result;
+    });
+      },
+  );
 
   const withdrawAuctionBid = featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
@@ -1820,14 +2161,17 @@ function createMarketplaceCommands(admin) {
     convertMarketplaceListingToAuction,
     createMarketplaceListing,
     createMarketplaceOffer,
+    finalizeAuction,
     placeAuctionBid,
     relistMarketplaceListing,
     setMarketplaceListingSaved,
     transitionMarketplaceListing,
+    updateAuctionTransaction,
     updateMarketplaceTransaction,
     updateMarketplaceListingDetails,
     updateMarketplaceListingMedia,
     withdrawAuctionBid,
+    finalizeAuctionRecord,
   };
 }
 

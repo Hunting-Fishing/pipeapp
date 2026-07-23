@@ -408,6 +408,32 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /auction_transactions/{listingId} {
+      allow read: if phase1FeatureEnabled('auctions') &&
+        signedIn() &&
+        (resource.data.buyerUid == request.auth.uid ||
+         resource.data.sellerUid == request.auth.uid ||
+         isAdmin());
+      allow create, update, delete: if false;
+
+      match /revisions/{revisionId} {
+        allow read: if phase1FeatureEnabled('auctions') &&
+          signedIn() &&
+          (isAdmin() ||
+           get(/databases/$(database)/documents/auction_transactions/$(listingId)).data.buyerUid == request.auth.uid ||
+           get(/databases/$(database)/documents/auction_transactions/$(listingId)).data.sellerUid == request.auth.uid);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /auction_disputes/{listingId} {
+      allow read: if signedIn() &&
+        (isAdmin() ||
+         resource.data.buyerUid == request.auth.uid ||
+         resource.data.sellerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /auction_bids/{bidId} {
       allow read: if phase1FeatureEnabled('auctions') && signedIn();
       // Bid placement, Buy It Now, promotion, and withdrawal are server-only.

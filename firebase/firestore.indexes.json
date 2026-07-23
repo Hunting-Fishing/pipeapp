@@ -23,6 +23,15 @@
         { "fieldPath": "listingId", "order": "ASCENDING" },
         { "fieldPath": "read", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "public_listings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "transactionType", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "auctionEndAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

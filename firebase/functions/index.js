@@ -85,72 +85,60 @@ exports.updateMarketplaceTransaction = onCall(
   protectedCallableOptions,
   marketplaceCommands.updateMarketplaceTransaction,
 );
+exports.finalizeAuction = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.finalizeAuction,
+);
+exports.updateAuctionTransaction = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.updateAuctionTransaction,
+);
 
 exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
   const now = admin.firestore.Timestamp.now();
   const endingCutoff = admin.firestore.Timestamp.fromMillis(
     now.toMillis() + 24 * 60 * 60 * 1000,
   );
-  const auctions = await admin.firestore().collection("public_listings")
-    .where("transactionType", "==", "Auction").get();
-  const writer = admin.firestore().bulkWriter();
-
-  for (const document of auctions.docs) {
-    const auction = document.data();
-    const privateAuctionSnapshot = await admin.firestore()
-      .collection("auction_private").doc(document.id).get();
-    const privateAuction = privateAuctionSnapshot.data() || {};
-    const end = auction.auctionEndAt;
-    if (!end || auction.auctionStatus === "bought_now" ||
-        auction.auctionStatus === "accepted_below_reserve") continue;
-
-    if (end.toMillis() <= now.toMillis() && auction.finalizedAt == null) {
-      const current = Number(auction.currentBid || 0);
-      const reserve = Number(
-        privateAuction.reservePrice || auction.reservePrice || 0,
-      );
-      const reserveMet = reserve <= 0 || current >= reserve;
-      const won = current > 0 && reserveMet && auction.highBidderUid;
-      writer.update(document.ref, {
-        auctionStatus: won ? "won" : "ended",
-        reserveMet,
-        finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      writer.set(admin.firestore().collection("users").doc(auction.sellerUid)
-        .collection("notifications").doc(), {
-        type: "offer",
-        title: won ? "Your auction has a winning bidder" :
-          (current > 0 ? "Auction ended below reserve" : "Auction ended with no bids"),
+  const base = admin.firestore().collection("public_listings")
+    .where("transactionType", "==", "Auction")
+    .where("status", "==", "active");
+  const expired = await base.where("auctionEndAt", "<=", now).limit(100).get();
+  for (const document of expired.docs) {
+    if (!["live", "scheduled"].includes(document.data().auctionStatus)) continue;
+    try {
+      await marketplaceCommands.finalizeAuctionRecord(document.id);
+    } catch (error) {
+      console.error("Scheduled auction finalization failed", {
         listingId: document.id,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      if (won) {
-        writer.set(admin.firestore().collection("users").doc(auction.highBidderUid)
-          .collection("notifications").doc(), {
-          type: "offer",
-          title: "You won the auction",
-          listingId: document.id,
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-    } else if (auction.notifyAuctionEnding !== false &&
-        auction.endingNotificationSentAt == null &&
-        end.toMillis() <= endingCutoff.toMillis()) {
-      writer.update(document.ref, {
-        endingNotificationSentAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      writer.set(admin.firestore().collection("users").doc(auction.sellerUid)
-        .collection("notifications").doc(), {
-        type: "offer",
-        title: "Your auction ends within 24 hours",
-        listingId: document.id,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        error,
       });
     }
+  }
+
+  const endingSoon = await base
+    .where("auctionEndAt", ">", now)
+    .where("auctionEndAt", "<=", endingCutoff)
+    .limit(100)
+    .get();
+  const writer = admin.firestore().bulkWriter();
+  for (const document of endingSoon.docs) {
+    const auction = document.data();
+    if (auction.notifyAuctionEnding === false ||
+        auction.endingNotificationSentAt != null ||
+        !["live", "scheduled"].includes(auction.auctionStatus)) continue;
+    writer.update(document.ref, {
+      endingNotificationSentAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    writer.set(admin.firestore().collection("users").doc(auction.sellerUid)
+      .collection("notifications").doc(), {
+      recipientUid: auction.sellerUid,
+      actorUid: "auction_scheduler",
+      type: "auction",
+      title: "Your auction ends within 24 hours",
+      listingId: document.id,
+      read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
   }
   await writer.close();
 });
