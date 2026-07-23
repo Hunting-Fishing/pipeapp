@@ -246,6 +246,51 @@ try {
     listing: listingInput("Lifecycle integration listing"),
     location: locationInput(),
   });
+  const saveData = {
+    requestId: `save-listing-${now}`,
+    listingId: lifecycleListingId,
+    saved: true,
+  };
+  const saveFirst = await call(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      saveData,
+  );
+  const saveRetry = await call(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      saveData,
+  );
+  assert.deepEqual(saveRetry, saveFirst);
+  assert.equal(saveFirst.changed, true);
+  assert.equal(
+      (await db.doc(
+          `users/${buyer.uid}/saved_listings/${lifecycleListingId}`,
+      ).get()).exists,
+      true,
+  );
+  const unsaveData = {
+    requestId: `unsave-listing-${now}`,
+    listingId: lifecycleListingId,
+    saved: false,
+  };
+  const unsaveFirst = await call(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      unsaveData,
+  );
+  const unsaveRetry = await call(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      unsaveData,
+  );
+  assert.deepEqual(unsaveRetry, unsaveFirst);
+  assert.equal(
+      (await db.doc(
+          `users/${buyer.uid}/saved_listings/${lifecycleListingId}`,
+      ).get()).exists,
+      false,
+  );
   const detailsData = {
     requestId: `edit-listing-${now}`,
     listingId: lifecycleListingId,
@@ -504,10 +549,11 @@ try {
   assert.equal(awardedJob.revision, 3);
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 22);
+  assert.equal(receipts.size, 24);
   console.log(
-      "Callable integration passed: listing lifecycle, offer, auction, bid, " +
-      "Buy It Now, Dispatch revision, quote, award, and retry idempotency.",
+      "Callable integration passed: saved listings, listing lifecycle, " +
+      "offer, auction, bid, Buy It Now, Dispatch revision, quote, award, " +
+      "and retry idempotency.",
   );
 } finally {
   await deleteApp(app);

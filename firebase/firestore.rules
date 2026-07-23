@@ -59,7 +59,10 @@ service cloud.firestore {
       allow update: if isAdmin();
 
       match /saved_listings/{listingId} {
-        allow read, write: if owns(uid);
+        allow read: if owns(uid);
+        // Save and unsave are server commands so analytics and the user's
+        // persisted selection change atomically and can be retried safely.
+        allow create, update, delete: if false;
       }
 
       match /followed_sellers/{sellerId} {
@@ -315,7 +318,7 @@ service cloud.firestore {
       allow create: if signedIn() &&
         request.resource.data.actorUid == request.auth.uid &&
         request.resource.data.type in
-          ['view', 'save', 'unsave', 'share', 'message_start', 'offer'];
+          ['view', 'share', 'message_start', 'offer'];
       allow read: if isAdmin() ||
         (signedIn() &&
           get(/databases/$(database)/documents/public_listings/$(resource.data.listingId)).data.sellerUid == request.auth.uid);

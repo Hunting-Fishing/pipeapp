@@ -26,20 +26,30 @@ class MarketplaceActionsRepository {
     return value;
   }
 
-  Future<void> setSavedListing(String listingId, bool saved) async {
-    final ref = _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('saved_listings')
-        .doc(listingId);
-    if (saved) {
-      await ref.set(
-          {'listingId': listingId, 'savedAt': FieldValue.serverTimestamp()});
-      await recordListingEvent(listingId, 'save');
-    } else {
-      await ref.delete();
-      await recordListingEvent(listingId, 'unsave');
+  Stream<Set<String>> watchSavedListingIds(String userUid) {
+    if (userUid.trim().isEmpty) {
+      return Stream<Set<String>>.value(<String>{});
     }
+    return _firestore
+        .collection('users')
+        .doc(userUid)
+        .collection('saved_listings')
+        .orderBy('savedAt', descending: true)
+        .snapshots()
+        .map(
+            (snapshot) => snapshot.docs.map((document) => document.id).toSet());
+  }
+
+  Future<void> setSavedListing(
+    String listingId,
+    bool saved, {
+    required String requestId,
+  }) async {
+    await _commands.execute('setMarketplaceListingSaved', {
+      'requestId': requestId,
+      'listingId': listingId,
+      'saved': saved,
+    });
   }
 
   Future<void> recordListingEvent(String listingId, String type,

@@ -305,6 +305,65 @@ function createMarketplaceCommands(admin) {
       },
   );
 
+  const setMarketplaceListingSaved = featureCommand(
+      "marketplace",
+      async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const listingId = requiredId(request.data, "listingId");
+    const saved = request.data && request.data.saved;
+    if (typeof saved !== "boolean") {
+      throw new HttpsError(
+          "invalid-argument",
+          "The saved state must be true or false.",
+      );
+    }
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "setMarketplaceListingSaved",
+        {requestId},
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const savedRef = db.collection("users").doc(uid)
+        .collection("saved_listings").doc(listingId);
+    const eventRef = db.collection("listing_events").doc();
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const listingSnapshot = await transaction.get(listingRef);
+      const savedSnapshot = await transaction.get(savedRef);
+      if (!listingSnapshot.exists) {
+        throw new HttpsError("not-found", "This listing is unavailable.");
+      }
+      const wasSaved = savedSnapshot.exists;
+      const changed = wasSaved !== saved;
+      if (changed && saved) {
+        transaction.create(savedRef, {
+          listingId,
+          savedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (changed) {
+        transaction.delete(savedRef);
+      }
+      if (changed) {
+        transaction.create(eventRef, {
+          listingId,
+          actorUid: uid,
+          type: saved ? "save" : "unsave",
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      const result = {listingId, saved, changed};
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "setMarketplaceListingSaved", result, FieldValue),
+      );
+      return result;
+    });
+      },
+  );
+
   const updateMarketplaceListingMedia = featureCommand(
       "marketplace",
       async (request) => {
@@ -1471,6 +1530,7 @@ function createMarketplaceCommands(admin) {
     createMarketplaceOffer,
     placeAuctionBid,
     relistMarketplaceListing,
+    setMarketplaceListingSaved,
     transitionMarketplaceListing,
     updateMarketplaceListingDetails,
     updateMarketplaceListingMedia,

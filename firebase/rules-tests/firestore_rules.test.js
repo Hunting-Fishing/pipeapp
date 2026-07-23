@@ -90,6 +90,10 @@ beforeEach(async () => {
       event: "details_updated",
       revision: 2,
     });
+    await setDoc(doc(db, "users", "buyer", "saved_listings", "listing"), {
+      listingId: "listing",
+      savedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+    });
     await setDoc(doc(db, "offers", "offer"), {
       sellerUid: "seller",
       buyerUid: "buyer",
@@ -315,6 +319,39 @@ test("buyer cannot forge the seller identity on a new offer", async () => {
         status: "pending",
       },
   ));
+});
+
+test("saved listings are private and can only be changed by server commands", async () => {
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const saved = doc(buyerDb, "users", "buyer", "saved_listings", "listing");
+
+  await assertSucceeds(getDoc(saved));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "users",
+      "buyer",
+      "saved_listings",
+      "listing",
+  )));
+  await assertFails(setDoc(doc(
+      buyerDb,
+      "users",
+      "buyer",
+      "saved_listings",
+      "another-listing",
+  ), {listingId: "another-listing"}));
+  await assertFails(deleteDoc(saved));
+  await assertFails(setDoc(doc(buyerDb, "listing_events", "forged-save"), {
+    listingId: "listing",
+    actorUid: "buyer",
+    type: "save",
+    createdAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+  }));
 });
 
 test("seller can still change safe auction notification preferences", async () => {
