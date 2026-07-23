@@ -2,10 +2,15 @@
 
 Firestore uses collections and documents rather than SQL tables.
 
-- `users/{uid}`: private personal account and contact preferences.
+- `users/{uid}`: private personal account and contact preferences. Firebase
+  Auth email/phone claims are synchronized into protected ownership fields by
+  `syncAccountVerification`; clients cannot mark themselves verified.
   - `saved_locations/{locationId}`: private reusable yards, remote sites, storage/pipe locations, personal sale areas, and observed-interest pins. Each record stores purpose, exact point, privacy, nearby-notification opt-in, and radius.
 - `public_business_profiles/{uid}`: publicly visible business profile. Structured `serviceArea` supports radius, selected places, or selected regions; normalized `serviceCountryCodes`, `serviceRegionKeys`, and `servicePlaceKeys` arrays support targeting and reporting queries.
 - `business_private/{uid}`: legal name, private address and team membership.
+- `account_phone_registry/{sha256}`: server-owned mapping from a hashed,
+  Firebase-verified E.164 phone number to one Auth UID. It supports duplicate
+  account prevention without exposing phone numbers as document identifiers.
 - `public_listings/{listingId}`: searchable active/draft listings and seller-selected public location.
 - `auction_private/{listingId}`: seller/admin-only reserve price and reserve
   total. Reserve amounts must never be stored in `public_listings`.
@@ -61,6 +66,7 @@ re-reads authoritative listing and offer state inside a Firestore transaction,
 recalculates eligibility and minimums, writes the decision, and records an
 idempotency receipt. The current callable commands are:
 
+- `syncAccountVerification`
 - `placeAuctionBid`
 - `buyAuctionNow`
 - `withdrawAuctionBid`

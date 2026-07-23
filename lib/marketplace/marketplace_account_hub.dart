@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'marketplace_messages_page.dart';
+import 'marketplace_account_security_page.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
@@ -1998,6 +1999,21 @@ class _AccountSettings extends StatelessWidget {
           leading: const Icon(Icons.email_outlined),
           title: const Text('Sign-in email'),
           subtitle: Text(user.email ?? '')),
+      ListTile(
+          leading: Icon(
+              user.emailVerified && user.phoneNumber != null
+                  ? Icons.verified_user_outlined
+                  : Icons.security_outlined,
+              color: user.emailVerified && user.phoneNumber != null
+                  ? Colors.green
+                  : null),
+          title: const Text('Account security and ownership'),
+          subtitle: Text(user.emailVerified && user.phoneNumber != null
+              ? 'Email and mobile phone verified'
+              : 'Verification required for protected marketplace actions'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MarketplaceAccountSecurityPage()))),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
           title: const Text('Send password reset email'),

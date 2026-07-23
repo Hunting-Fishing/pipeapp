@@ -130,13 +130,15 @@ class MarketplaceProfileRepository {
 
   Future<void> savePersonal(Map<String, dynamic> values) async {
     final phone = normalizePhoneNumber('${values['phone_number'] ?? ''}');
-    if (phone.isNotEmpty) {
-      await _claimPhone(phone);
-      values = {
-        ...values,
-        'phone_number': formatPhoneNumber(phone),
-        'phoneE164': phone,
-      };
+    final verifiedPhone = normalizePhoneNumber(
+        FirebaseAuth.instance.currentUser?.phoneNumber ?? '');
+    values = {...values}
+      ..remove('phone_number')
+      ..remove('phoneE164');
+    if (phone.isNotEmpty && phone != verifiedPhone) {
+      values['pendingPhoneE164'] = phone;
+    } else if (phone == verifiedPhone && phone.isNotEmpty) {
+      values['pendingPhoneE164'] = FieldValue.delete();
     }
     final batch = _firestore.batch();
     batch.set(
@@ -158,38 +160,6 @@ class MarketplaceProfileRepository {
         },
         SetOptions(merge: true));
     await batch.commit();
-  }
-
-  Future<void> _claimPhone(String phone) async {
-    final phoneKey = phone.replaceAll(RegExp(r'\D'), '');
-    final userRef = _firestore.collection('users').doc(_uid);
-    final newRef =
-        _firestore.collection('account_phone_registry').doc(phoneKey);
-    await _firestore.runTransaction((transaction) async {
-      final user = await transaction.get(userRef);
-      final existing = await transaction.get(newRef);
-      if (existing.exists && existing.data()?['uid'] != _uid) {
-        throw StateError(
-            'This phone number is already connected to another account.');
-      }
-      final previous =
-          normalizePhoneNumber('${user.data()?['phoneE164'] ?? ''}');
-      final previousKey = previous.replaceAll(RegExp(r'\D'), '');
-      if (previousKey.isNotEmpty && previousKey != phoneKey) {
-        final previousRef =
-            _firestore.collection('account_phone_registry').doc(previousKey);
-        final previousClaim = await transaction.get(previousRef);
-        if (previousClaim.data()?['uid'] == _uid) {
-          transaction.delete(previousRef);
-        }
-      }
-      transaction.set(newRef, {
-        'uid': _uid,
-        'phoneE164': phone,
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
-      });
-    });
   }
 
   Future<Map<String, dynamic>> loadPublicBusiness() async =>

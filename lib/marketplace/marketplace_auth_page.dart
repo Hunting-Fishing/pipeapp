@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'marketplace_profile_page.dart';
+import 'marketplace_account_security_page.dart';
+import 'marketplace_command_client.dart';
 import 'regional_phone_field.dart';
 
 class MarketplaceAuthPage extends StatefulWidget {
@@ -231,23 +232,12 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
         await credential.user!.updateDisplayName(_name.text.trim());
         final uid = credential.user!.uid;
         final normalizedPhone = normalizePhoneNumber(_phone.text);
-        final phoneKey = normalizedPhone.replaceAll(RegExp(r'\D'), '');
         final batch = FirebaseFirestore.instance.batch();
-        batch.set(
-            FirebaseFirestore.instance
-                .collection('account_phone_registry')
-                .doc(phoneKey),
-            {
-              'uid': uid,
-              'phoneE164': normalizedPhone,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
         batch.set(FirebaseFirestore.instance.collection('users').doc(uid), {
           'uid': uid,
           'email': _email.text.trim(),
           'display_name': _name.text.trim(),
-          'phone_number': formatPhoneNumber(normalizedPhone),
-          'phoneE164': normalizedPhone,
+          'pendingPhoneE164': normalizedPhone,
           'accountType': _accountType,
           'roleVersion': 0,
           'signupRegion': 'unknown',
@@ -284,12 +274,21 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
           await credential.user?.delete();
           rethrow;
         }
-        await credential.user?.sendEmailVerification();
+        String? verificationNotice;
+        try {
+          await credential.user?.sendEmailVerification();
+        } on FirebaseAuthException {
+          verificationNotice =
+              'Your account was created, but the verification email was not '
+              'delivered yet. Use “Resend email” on the next screen.';
+        }
         if (!mounted) return;
         await Navigator.of(context).pushReplacement(MaterialPageRoute(
-            builder: (_) => MarketplaceProfilePage(
+            builder: (_) => MarketplaceAccountSecurityPage(
                   onboarding: true,
+                  initialPhone: normalizedPhone,
                   initialAccountType: _accountType,
+                  initialNotice: verificationNotice,
                 )));
         return;
       } else {
@@ -308,6 +307,31 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
               message: 'The account could not be loaded.');
         }
         await user.getIdToken(true);
+        DocumentSnapshot<Map<String, dynamic>>? securityProfile;
+        try {
+          securityProfile = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+        } on FirebaseException {
+          // Ownership recovery must remain reachable during a profile outage.
+        }
+        final securityAccountType =
+            '${securityProfile?.data()?['accountType'] ?? 'personal'}';
+        if (!user.emailVerified ||
+            normalizePhoneNumber(user.phoneNumber ?? '').isEmpty) {
+          if (!mounted) return;
+          await Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (_) => MarketplaceAccountSecurityPage(
+                    onboarding: true,
+                    initialPhone:
+                        '${securityProfile?.data()?['pendingPhoneE164'] ?? ''}',
+                    initialAccountType: securityAccountType,
+                  )));
+          return;
+        }
+        await MarketplaceCommandClient()
+            .execute('syncAccountVerification', const {});
         final profileRef =
             FirebaseFirestore.instance.collection('users').doc(user.uid);
         final profile = await profileRef.get();

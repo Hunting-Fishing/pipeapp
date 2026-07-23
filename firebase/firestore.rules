@@ -9,6 +9,16 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function verifiedEmail() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function verifiedPhone() {
+      return signedIn() &&
+        request.auth.token.phone_number is string &&
+        request.auth.token.phone_number.size() >= 8;
+    }
+
     function isAdmin() {
       return signedIn() &&
         (('admin' in request.auth.token &&
@@ -54,7 +64,11 @@ service cloud.firestore {
         request.resource.data.accountType in ['personal', 'business'] &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'userScore', 'userScoreStanding', 'accountVerified',
-          'confirmedComplaintCount', 'confirmedScamCount'
+          'confirmedComplaintCount', 'confirmedScamCount',
+          'emailOwnershipVerified', 'emailVerifiedAt',
+          'phoneOwnershipVerified', 'phoneVerifiedAt', 'verifiedPhoneE164',
+          'phoneE164', 'phone_number', 'phoneRegistryKey',
+          'accountVerificationVersion', 'verificationSyncedAt'
         ]);
       allow update: if isAdmin();
 
@@ -96,18 +110,11 @@ service cloud.firestore {
     }
 
     match /account_phone_registry/{phoneKey} {
-      allow create: if signedIn() &&
-        request.resource.data.uid == request.auth.uid &&
-        request.resource.data.phoneE164 is string &&
-        request.resource.data.phoneE164.size() >= 8 &&
-        !exists(/databases/$(database)/documents/account_phone_registry/$(phoneKey));
       allow read: if isAdmin() ||
         (signedIn() && resource.data.uid == request.auth.uid);
-      allow update: if signedIn() &&
-        resource.data.uid == request.auth.uid &&
-        request.resource.data.uid == request.auth.uid;
-      allow delete: if isAdmin() ||
-        (signedIn() && resource.data.uid == request.auth.uid);
+      // Phone ownership is derived from Firebase Authentication and synced by
+      // the trusted account command. Clients cannot claim or transfer numbers.
+      allow create, update, delete: if false;
     }
 
     match /public_business_profiles/{businessId} {
@@ -151,6 +158,7 @@ service cloud.firestore {
       allow read: if phase1FeatureEnabled('dispatch') && signedIn();
       allow create, update: if phase1FeatureEnabled('dispatch') &&
         owns(carrierId) &&
+        verifiedEmail() && verifiedPhone() &&
         request.resource.data.ownerUid == request.auth.uid;
       allow update: if phase1FeatureEnabled('dispatch') && isAdmin();
       allow delete: if phase1FeatureEnabled('dispatch') &&

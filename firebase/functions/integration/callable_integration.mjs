@@ -3,6 +3,7 @@ import {createRequire} from "node:module";
 
 const require = createRequire(import.meta.url);
 const {deleteApp, initializeApp} = require("firebase-admin/app");
+const {getAuth} = require("firebase-admin/auth");
 const {Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const projectId = process.env.GCLOUD_PROJECT ||
@@ -30,10 +31,11 @@ if (!process.env.FIRESTORE_EMULATOR_HOST || !authHost || !functionsHost) {
 }
 
 const app = initializeApp({projectId}, `callable-integration-${Date.now()}`);
+const auth = getAuth(app);
 const db = getFirestore(app);
 const now = Date.now();
 
-async function createUser(label) {
+async function createUser(label, {verified = true} = {}) {
   const response = await fetch(
       `http://${authHost}/identitytoolkit.googleapis.com/v1/accounts:signUp` +
       "?key=demo-emulator-key",
@@ -51,7 +53,35 @@ async function createUser(label) {
   if (!response.ok || !payload.localId || !payload.idToken) {
     throw new Error(`Auth emulator signup failed: ${JSON.stringify(payload)}`);
   }
-  return {uid: payload.localId, token: payload.idToken};
+  const phoneSuffix = {
+    seller: "1001",
+    buyer: "1002",
+    carrier: "1003",
+  }[label] || "1999";
+  if (verified) {
+    await auth.updateUser(payload.localId, {
+      emailVerified: true,
+      phoneNumber: `+1555555${phoneSuffix}`,
+    });
+  }
+  const signInResponse = await fetch(
+      `http://${authHost}/identitytoolkit.googleapis.com/v1/` +
+      "accounts:signInWithPassword?key=demo-emulator-key",
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({
+          email: `${label}-${now}@pipe.test`,
+          password: "Integration!234",
+          returnSecureToken: true,
+        }),
+      },
+  );
+  const signIn = await signInResponse.json();
+  if (!signInResponse.ok || !signIn.idToken) {
+    throw new Error(`Auth emulator sign-in failed: ${JSON.stringify(signIn)}`);
+  }
+  return {uid: payload.localId, token: signIn.idToken};
 }
 
 async function call(name, token, data) {
@@ -73,6 +103,23 @@ async function call(name, token, data) {
     );
   }
   return payload.result;
+}
+
+async function expectCallableError(name, token, data, expectedStatus) {
+  const response = await fetch(
+      `http://${functionsHost}/${projectId}/us-central1/${name}`,
+      {
+        method: "POST",
+        headers: {
+          "authorization": `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({data}),
+      },
+  );
+  const payload = await response.json();
+  assert.equal(payload.error && payload.error.status, expectedStatus);
+  return payload.error;
 }
 
 function listingInput(title = "Integration pipe") {
@@ -180,6 +227,35 @@ try {
       available: true,
     }),
   ]);
+  const unverified = await createUser("unverified", {verified: false});
+  const verificationResults = await Promise.all([
+    call("syncAccountVerification", seller.token, {}),
+    call("syncAccountVerification", buyer.token, {}),
+    call("syncAccountVerification", carrier.token, {}),
+  ]);
+  for (const result of verificationResults) {
+    assert.deepEqual(result, {emailVerified: true, phoneVerified: true});
+  }
+  await assertCollectionSize("account_phone_registry", 3);
+  assert.deepEqual(
+      await call("syncAccountVerification", unverified.token, {}),
+      {emailVerified: false, phoneVerified: false},
+  );
+  const unverifiedListingId = `blocked-listing-${now}`;
+  const blocked = await expectCallableError(
+      "createMarketplaceListing",
+      unverified.token,
+      {
+        listingId: unverifiedListingId,
+        requestId: `blocked-${now}`,
+        listing: listingInput("Blocked unverified listing"),
+        location: locationInput(),
+      },
+      "FAILED_PRECONDITION",
+  );
+  assert.match(blocked.message, /verify your email/i);
+  assert.equal((await db.doc(`public_listings/${unverifiedListingId}`).get())
+      .exists, false);
 
   const offerListingId = `offer-listing-${now}`;
   const createListingData = {
