@@ -696,8 +696,8 @@ class MarketplaceListing {
   }
 
   factory MarketplaceListing.fromFirestore(
-      QueryDocumentSnapshot<Map<String, dynamic>> document) {
-    final data = document.data();
+      DocumentSnapshot<Map<String, dynamic>> document) {
+    final data = document.data() ?? const <String, dynamic>{};
     final price = data['price'];
     final basis = '${data['priceBasis'] ?? ''}';
     final transactionType = '${data['transactionType'] ?? 'For Sale'}';
@@ -825,13 +825,18 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   String _search = '';
   String? _category;
   final Set<String> _saved = {};
+  final Set<String> _savingListingIds = {};
+  final Map<String, String> _savedRequestIds = {};
   final _actions = MarketplaceActionsRepository();
   final _featureRepository = Phase1FeatureFlagRepository();
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<Set<String>>? _savedSubscription;
   StreamSubscription<Phase1FeatureFlags>? _featureSubscription;
   Phase1FeatureFlags _features = Phase1FeatureFlags.safeDefaults;
   bool _createAuctionRequested = false;
   bool _createWantedRequested = false;
+  bool _savedLoading = false;
+  Object? _savedLoadError;
 
   void _openCreate({bool auction = false, bool wanted = false}) {
     if (!_features.marketplace) {
@@ -899,9 +904,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     super.initState();
     _tab = widget.initialTab.clamp(0, 6);
     MarketplaceNavigation.homeRequests.addListener(_handleHomeRequest);
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((_) {
-      if (mounted) setState(() {});
-    });
+    _authSubscription =
+        FirebaseAuth.instance.authStateChanges().listen(_handleAuthChanged);
     _featureSubscription = _featureRepository.watch().listen(
       _handleFeatureFlags,
       onError: (Object error, StackTrace stackTrace) {
@@ -921,6 +925,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   void dispose() {
     MarketplaceNavigation.homeRequests.removeListener(_handleHomeRequest);
     _authSubscription?.cancel();
+    _savedSubscription?.cancel();
     _featureSubscription?.cancel();
     super.dispose();
   }
@@ -968,11 +973,19 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       _features.marketplace
           ? _SavedPage(
               saved: _saved,
+              signedIn: FirebaseAuth.instance.currentUser != null,
+              loading: _savedLoading,
+              error: _savedLoadError,
               onBrowse: () => _selectControlledTab(
                 1,
                 _features.marketplace,
                 'Marketplace',
               ),
+              onSaved: _toggleSaved,
+              onRemove: _removeSavedListing,
+              onAccount: () => _selectTab(5),
+              onRetry: () =>
+                  _handleAuthChanged(FirebaseAuth.instance.currentUser),
             )
           : const _FeatureUnavailablePage(feature: 'Marketplace'),
       const MarketplaceMessagesPage(),
@@ -1187,18 +1200,99 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
 
   Future<void> _toggleSaved(MarketplaceListing listing) async {
     final saving = !_saved.contains(listing.id);
+    if (_savingListingIds.contains(listing.id)) return;
+    _savingListingIds.add(listing.id);
     setState(() => saving ? _saved.add(listing.id) : _saved.remove(listing.id));
+    final requestKey = '${listing.id}:$saving';
+    final requestId = _savedRequestIds[requestKey] ??=
+        'saved-${listing.id}-$saving-${DateTime.now().microsecondsSinceEpoch}';
     try {
-      await _actions.setSavedListing(listing.id, saving);
+      await _actions.setSavedListing(
+        listing.id,
+        saving,
+        requestId: requestId,
+      );
+      _savedRequestIds.remove(requestKey);
     } catch (error) {
       if (!mounted) return;
       setState(
           () => saving ? _saved.remove(listing.id) : _saved.add(listing.id));
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.red,
           content: Text(error is StateError
               ? error.message.toString()
               : 'Could not update saved listings.')));
+    } finally {
+      _savingListingIds.remove(listing.id);
     }
+  }
+
+  Future<void> _removeSavedListing(String listingId) async {
+    if (_savingListingIds.contains(listingId)) return;
+    _savingListingIds.add(listingId);
+    setState(() => _saved.remove(listingId));
+    final requestKey = '$listingId:false';
+    final requestId = _savedRequestIds[requestKey] ??=
+        'saved-$listingId-false-${DateTime.now().microsecondsSinceEpoch}';
+    try {
+      await _actions.setSavedListing(
+        listingId,
+        false,
+        requestId: requestId,
+      );
+      _savedRequestIds.remove(requestKey);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saved.add(listingId));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Could not remove the saved listing. Try again.')));
+    } finally {
+      _savingListingIds.remove(listingId);
+    }
+  }
+
+  void _handleAuthChanged(User? user) {
+    _savedSubscription?.cancel();
+    _savedSubscription = null;
+    if (!mounted) return;
+    setState(() {
+      _saved.clear();
+      _savedLoadError = null;
+      _savedLoading = user != null;
+    });
+    if (user == null) return;
+    final userUid = user.uid;
+    _savedSubscription = _actions.watchSavedListingIds(userUid).listen(
+      (listingIds) {
+        if (!mounted || FirebaseAuth.instance.currentUser?.uid != userUid) {
+          return;
+        }
+        setState(() {
+          _saved
+            ..clear()
+            ..addAll(listingIds);
+          _savedLoading = false;
+          _savedLoadError = null;
+        });
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        AppDiagnostics.record(
+          error,
+          stackTrace,
+          subsystem: 'marketplace',
+          operation: 'watch_saved_listings',
+          fatal: false,
+        );
+        if (!mounted || FirebaseAuth.instance.currentUser?.uid != userUid) {
+          return;
+        }
+        setState(() {
+          _savedLoading = false;
+          _savedLoadError = error;
+        });
+      },
+    );
   }
 
   Widget _unreadBadge() => StreamBuilder<int>(
@@ -5923,36 +6017,183 @@ class _AddListingPageState extends State<_AddListingPage> {
 
 */
 class _SavedPage extends StatelessWidget {
-  const _SavedPage({required this.saved, required this.onBrowse});
+  const _SavedPage({
+    required this.saved,
+    required this.signedIn,
+    required this.loading,
+    required this.error,
+    required this.onBrowse,
+    required this.onSaved,
+    required this.onRemove,
+    required this.onAccount,
+    required this.onRetry,
+  });
+
   final Set<String> saved;
+  final bool signedIn;
+  final bool loading;
+  final Object? error;
   final VoidCallback onBrowse;
+  final ValueChanged<MarketplaceListing> onSaved;
+  final ValueChanged<String> onRemove;
+  final VoidCallback onAccount;
+  final VoidCallback onRetry;
+
   @override
   Widget build(BuildContext context) {
-    final items =
-        demoListings.where((item) => saved.contains(item.title)).toList();
     return Padding(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Saved listings',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          const Text(
+            'Your saved items stay with your account on every device.',
+            style: TextStyle(color: _muted),
+          ),
           const SizedBox(height: 18),
-          Expanded(
-              child: items.isEmpty
-                  ? Center(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.bookmark_border,
-                          size: 54, color: _muted),
-                      const SizedBox(height: 12),
-                      const Text('No saved listings yet.'),
-                      TextButton(
-                          onPressed: onBrowse,
-                          child: const Text('Browse marketplace'))
-                    ]))
-                  : ListView(
-                      children: items
-                          .map((item) => _ListingCard(
-                              listing: item, saved: true, onSaved: () {}))
-                          .toList()))
+          Expanded(child: _body(context)),
         ]));
   }
+
+  Widget _body(BuildContext context) {
+    if (!signedIn) {
+      return _SavedEmptyState(
+        icon: Icons.account_circle_outlined,
+        title: 'Sign in to see your saved listings',
+        message: 'Saved items are private and linked to your account.',
+        action: 'Open account',
+        onAction: onAccount,
+      );
+    }
+    if (loading) {
+      return const Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        CircularProgressIndicator(),
+        SizedBox(height: 12),
+        Text('Loading your saved listings…'),
+      ]));
+    }
+    if (error != null) {
+      return _SavedEmptyState(
+        icon: Icons.sync_problem_outlined,
+        title: 'Saved listings could not be loaded',
+        message:
+            'Your saved items were not changed. Check your connection and retry.',
+        action: 'Retry',
+        onAction: onRetry,
+      );
+    }
+    if (saved.isEmpty) {
+      return _SavedEmptyState(
+        icon: Icons.bookmark_border,
+        title: 'No saved listings yet',
+        message: 'Use the bookmark on a listing to keep it here.',
+        action: 'Browse marketplace',
+        onAction: onBrowse,
+      );
+    }
+    return ListView(
+      children: saved
+          .map((listingId) => _SavedListingCard(
+                listingId: listingId,
+                onSaved: onSaved,
+                onRemove: onRemove,
+              ))
+          .toList(growable: false),
+    );
+  }
+}
+
+class _SavedListingCard extends StatelessWidget {
+  const _SavedListingCard({
+    required this.listingId,
+    required this.onSaved,
+    required this.onRemove,
+  });
+
+  final String listingId;
+  final ValueChanged<MarketplaceListing> onSaved;
+  final ValueChanged<String> onRemove;
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('public_listings')
+            .doc(listingId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _unavailable(
+              context,
+              'This saved listing could not be loaded.',
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Card(
+                child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator())));
+          }
+          if (!snapshot.data!.exists) {
+            return _unavailable(
+              context,
+              'This listing is no longer available.',
+            );
+          }
+          final listing = MarketplaceListing.fromFirestore(snapshot.data!);
+          return _ListingCard(
+            listing: listing,
+            saved: true,
+            onSaved: () => onSaved(listing),
+          );
+        },
+      );
+
+  Widget _unavailable(BuildContext context, String message) => Card(
+        child: ListTile(
+          leading: const Icon(Icons.inventory_2_outlined, color: _muted),
+          title: Text(message),
+          subtitle: const Text('You can remove it from your saved items.'),
+          trailing: IconButton(
+            tooltip: 'Remove saved listing',
+            onPressed: () => onRemove(listingId),
+            icon: const Icon(Icons.bookmark_remove_outlined),
+          ),
+        ),
+      );
+}
+
+class _SavedEmptyState extends StatelessWidget {
+  const _SavedEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.action,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String action;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 54, color: _muted),
+          const SizedBox(height: 12),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 5),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted)),
+          const SizedBox(height: 8),
+          TextButton(onPressed: onAction, child: Text(action)),
+        ]),
+      );
 }
