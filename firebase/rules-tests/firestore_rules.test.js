@@ -100,6 +100,18 @@ beforeEach(async () => {
       listingId: "listing",
       savedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
     });
+    await setDoc(doc(db, "verification_requests", "buyer"), {
+      userUid: "buyer",
+      displayName: "Buyer Business",
+      status: "pending",
+      revision: 1,
+    });
+    await setDoc(doc(db, "verification_review_events", "buyer-1-submitted"), {
+      userUid: "buyer",
+      event: "submitted",
+      status: "pending",
+      revision: 1,
+    });
     await setDoc(doc(db, "offers", "offer"), {
       sellerUid: "seller",
       buyerUid: "buyer",
@@ -868,5 +880,48 @@ test("Dispatch transaction and proof history are participant-only", async () => 
   ), {
     event: "mark_delivered",
     revision: 2,
+  }));
+});
+
+test("account verification decisions are server-only and privately readable", async () => {
+  const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+  const requestRef = doc(ownerDb, "verification_requests", "buyer");
+
+  await assertSucceeds(getDoc(requestRef));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "verification_review_events",
+      "buyer-1-submitted",
+  )));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "verification_requests",
+      "buyer",
+  )));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "verification_requests",
+      "buyer",
+  )));
+  await assertFails(updateDoc(requestRef, {status: "approved"}));
+  await assertFails(updateDoc(doc(
+      adminDb,
+      "verification_requests",
+      "buyer",
+  ), {status: "approved"}));
+  await assertFails(setDoc(doc(
+      ownerDb,
+      "verification_review_events",
+      "forged",
+  ), {
+    userUid: "buyer",
+    event: "approved",
+    status: "approved",
   }));
 });
