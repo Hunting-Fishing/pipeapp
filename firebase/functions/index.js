@@ -81,6 +81,10 @@ exports.setMarketplaceListingSaved = onCall(
   protectedCallableOptions,
   marketplaceCommands.setMarketplaceListingSaved,
 );
+exports.updateMarketplaceTransaction = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.updateMarketplaceTransaction,
+);
 
 exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
   const now = admin.firestore.Timestamp.now();

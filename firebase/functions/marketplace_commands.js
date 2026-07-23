@@ -11,6 +11,7 @@ const {
   validateListingDetailsUpdate,
   validateListingRelist,
   validateListingTransition,
+  validateMarketplaceTransactionAction,
   validateOfferAcceptance,
   validateOfferFrequency,
   validateOfferProposal,
@@ -1401,6 +1402,8 @@ function createMarketplaceCommands(admin) {
       }
       const listingRef = db.collection("public_listings")
           .doc(String(offer && offer.listingId || "missing"));
+      const marketplaceTransactionRef = db.collection("marketplace_transactions")
+          .doc(offerId);
       const listingSnapshot = await transaction.get(listingRef);
       const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
       validateOfferAcceptance(offer, uid, listing);
@@ -1413,6 +1416,8 @@ function createMarketplaceCommands(admin) {
               .where("listingId", "==", offer.listingId)
               .limit(95),
       );
+      const marketplaceTransactionSnapshot =
+        await transaction.get(marketplaceTransactionRef);
       if (competing.size >= 300) {
         throw new CommandPolicyError(
             "resource-exhausted",
@@ -1446,6 +1451,40 @@ function createMarketplaceCommands(admin) {
         offerAcceptedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      if (!marketplaceTransactionSnapshot.exists) {
+        const transactionValues = {
+          offerId,
+          listingId: offer.listingId,
+          conversationId: offer.conversationId || null,
+          buyerUid: offer.buyerUid,
+          sellerUid: offer.sellerUid,
+          status: "pending_completion",
+          buyerConfirmed: false,
+          sellerConfirmed: false,
+          agreedUnitPrice: Number(offer.offeredUnitPrice || 0),
+          agreedQuantity: Number(offer.requestedQuantity || 0),
+          agreedTotal: Number(offer.offeredTotal || 0),
+          currency: offer.currency || "CAD",
+          priceBasis: offer.priceBasis || "",
+          purchaseDate: offer.purchaseDate || null,
+          moneyTransferDate: offer.moneyTransferDate || null,
+          truckingDate: offer.truckingDate || null,
+          truckingPlan: offer.truckingPlan || "not_specified",
+          dispatchRequested: offer.dispatchRequested === true,
+          revision: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        transaction.create(marketplaceTransactionRef, transactionValues);
+        transaction.create(
+            marketplaceTransactionRef.collection("revisions").doc("1"),
+            {
+              ...transactionValues,
+              event: "offer_accepted",
+              actorUid: uid,
+            },
+        );
+      }
       for (const candidate of competing.docs) {
         if (
           candidate.id === offerId ||
@@ -1521,6 +1560,259 @@ function createMarketplaceCommands(admin) {
     });
   });
 
+  const updateMarketplaceTransaction = featureCommand(
+      "offers",
+      async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const offerId = requiredId(request.data, "offerId");
+    const action = requiredId(request.data, "action");
+    const reason = String(request.data && request.data.reason || "").trim();
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "updateMarketplaceTransaction",
+        {requestId},
+    );
+    const offerRef = db.collection("offers").doc(offerId);
+    const saleRef = db.collection("marketplace_transactions").doc(offerId);
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const offerSnapshot = await transaction.get(offerRef);
+      const offer = offerSnapshot.exists ?
+        {...offerSnapshot.data(), id: offerId} :
+        null;
+      const listingRef = db.collection("public_listings")
+          .doc(String(offer && offer.listingId || "missing"));
+      const saleSnapshot = await transaction.get(saleRef);
+      const listingSnapshot = await transaction.get(listingRef);
+      const dispatchJobs = await transaction.get(
+          db.collection("dispatch_jobs")
+              .where("offerId", "==", offerId)
+              .limit(5),
+      );
+      const sale = saleSnapshot.exists ? saleSnapshot.data() : null;
+      const transition = validateMarketplaceTransactionAction({
+        sale,
+        offer,
+        actorUid: uid,
+        action,
+        reason,
+      });
+      const currentRevision = Number(sale && sale.revision || 0);
+      const result = {
+        offerId,
+        listingId: String(offer.listingId || ""),
+        status: transition.status,
+        buyerConfirmed: transition.buyerConfirmed,
+        sellerConfirmed: transition.sellerConfirmed,
+        revision: transition.alreadyApplied ?
+          currentRevision :
+          currentRevision + 1,
+      };
+      if (transition.alreadyApplied) {
+        transaction.create(
+            receiptRef,
+            receiptData(
+                uid,
+                "updateMarketplaceTransaction",
+                result,
+                FieldValue,
+            ),
+        );
+        return result;
+      }
+      if (!listingSnapshot.exists) {
+        throw new CommandPolicyError(
+            "not-found",
+            "The transaction listing is unavailable.",
+        );
+      }
+      if (action === "cancel") {
+        const committedDispatch = dispatchJobs.docs.find((document) =>
+          ["awarded", "accepted", "scheduled", "in_transit"]
+              .includes(String(document.data().status || "")),
+        );
+        if (committedDispatch) {
+          throw new CommandPolicyError(
+              "failed-precondition",
+              "Open a dispute because the associated Dispatch job is committed.",
+          );
+        }
+      }
+      const revision = currentRevision + 1;
+      const baseValues = sale || {
+        offerId,
+        listingId: offer.listingId,
+        conversationId: offer.conversationId || null,
+        buyerUid: offer.buyerUid,
+        sellerUid: offer.sellerUid,
+        agreedUnitPrice: Number(offer.offeredUnitPrice || 0),
+        agreedQuantity: Number(offer.requestedQuantity || 0),
+        agreedTotal: Number(offer.offeredTotal || 0),
+        currency: offer.currency || "CAD",
+        priceBasis: offer.priceBasis || "",
+        purchaseDate: offer.purchaseDate || null,
+        moneyTransferDate: offer.moneyTransferDate || null,
+        truckingDate: offer.truckingDate || null,
+        truckingPlan: offer.truckingPlan || "not_specified",
+        dispatchRequested: offer.dispatchRequested === true,
+        createdAt: FieldValue.serverTimestamp(),
+      };
+      const updateValues = {
+        ...baseValues,
+        status: transition.status,
+        buyerConfirmed: transition.buyerConfirmed,
+        sellerConfirmed: transition.sellerConfirmed,
+        revision,
+        lastAction: action,
+        lastActionByUid: uid,
+        ...(transition.reason ? {reason: transition.reason} : {}),
+        ...(action === "confirm_completion" ? {
+          [`${transition.actorRole}ConfirmedAt`]:
+            FieldValue.serverTimestamp(),
+        } : {}),
+        ...(transition.status === "completed" ? {
+          completedAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(transition.status === "cancelled" ? {
+          cancelledAt: FieldValue.serverTimestamp(),
+          cancelledByUid: uid,
+        } : {}),
+        ...(transition.status === "disputed" ? {
+          disputedAt: FieldValue.serverTimestamp(),
+          disputedByUid: uid,
+        } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      if (saleSnapshot.exists) {
+        transaction.update(saleRef, updateValues);
+      } else {
+        transaction.create(saleRef, updateValues);
+      }
+      transaction.create(
+          saleRef.collection("revisions").doc(String(revision)),
+          {
+            status: transition.status,
+            buyerConfirmed: transition.buyerConfirmed,
+            sellerConfirmed: transition.sellerConfirmed,
+            event: action,
+            actorUid: uid,
+            ...(transition.reason ? {reason: transition.reason} : {}),
+            revision,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.update(offerRef, {
+        status: transition.status === "completed" ?
+          "completed" :
+          transition.status === "cancelled" ?
+            "cancelled" :
+            transition.status === "disputed" ? "disputed" : "accepted",
+        transactionStatus: transition.status,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      if (transition.status === "completed") {
+        transaction.update(listingRef, {
+          status: "sold",
+          saleStatus: "completed",
+          soldAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (transition.status === "cancelled") {
+        transaction.update(listingRef, {
+          status: "active",
+          saleStatus: "available",
+          acceptedOfferId: FieldValue.delete(),
+          acceptedBuyerUid: FieldValue.delete(),
+          offerAcceptedAt: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        for (const dispatchJob of dispatchJobs.docs) {
+          const job = dispatchJob.data();
+          if (!["draft", "open"].includes(String(job.status || ""))) continue;
+          const dispatchRevision = Number(job.revision || 1) + 1;
+          transaction.update(dispatchJob.ref, {
+            status: "cancelled",
+            cancelledReason: "marketplace_transaction_cancelled",
+            revision: dispatchRevision,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          transaction.create(
+              dispatchJob.ref.collection("revisions")
+                  .doc(String(dispatchRevision)),
+              {
+                event: "request_cancelled",
+                actorUid: uid,
+                status: "cancelled",
+                reason: "marketplace_transaction_cancelled",
+                revision: dispatchRevision,
+                createdAt: FieldValue.serverTimestamp(),
+              },
+          );
+        }
+      } else if (transition.status === "disputed") {
+        transaction.update(listingRef, {
+          status: "pending_sale",
+          saleStatus: "disputed",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        transaction.set(db.collection("transaction_disputes").doc(offerId), {
+          offerId,
+          listingId: offer.listingId,
+          buyerUid: offer.buyerUid,
+          sellerUid: offer.sellerUid,
+          openedByUid: uid,
+          reason: transition.reason,
+          status: "open",
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      } else {
+        transaction.update(listingRef, {
+          saleStatus: transition.status,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      const recipientUid = uid === offer.buyerUid ?
+        offer.sellerUid :
+        offer.buyerUid;
+      transaction.set(
+          db.collection("users").doc(recipientUid)
+              .collection("notifications").doc(receiptRef.id),
+          {
+            recipientUid,
+            actorUid: uid,
+            type: "transaction",
+            offerId,
+            listingId: offer.listingId,
+            conversationId: offer.conversationId || null,
+            title: transition.status === "completed" ?
+              "Marketplace transaction completed" :
+              transition.status === "cancelled" ?
+                "Marketplace transaction cancelled" :
+                transition.status === "disputed" ?
+                  "Marketplace transaction disputed" :
+                  "Transaction confirmation updated",
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.create(
+          receiptRef,
+          receiptData(
+              uid,
+              "updateMarketplaceTransaction",
+              result,
+              FieldValue,
+          ),
+      );
+      return result;
+    });
+      },
+  );
+
   return {
     acceptAuctionBidBelowReserve,
     acceptMarketplaceOffer,
@@ -1532,6 +1824,7 @@ function createMarketplaceCommands(admin) {
     relistMarketplaceListing,
     setMarketplaceListingSaved,
     transitionMarketplaceListing,
+    updateMarketplaceTransaction,
     updateMarketplaceListingDetails,
     updateMarketplaceListingMedia,
     withdrawAuctionBid,

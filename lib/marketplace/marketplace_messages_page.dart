@@ -1021,6 +1021,13 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     final isAll = availableQuantity != null && quantity == availableQuantity;
     final milestones = marketplaceOfferMilestones(event);
     final revisionCount = revisions.length;
+    final offerStatus = '${event['status'] ?? 'pending'}';
+    final hasTransaction = const {
+      'accepted',
+      'completed',
+      'cancelled',
+      'disputed',
+    }.contains(offerStatus);
     final priceDifference = askingPrice == null ? 0 : price - askingPrice!;
     final quantityPercent = availableQuantity == null || availableQuantity == 0
         ? null
@@ -1062,10 +1069,18 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                                       style: TextStyle(
                                           fontWeight: FontWeight.w900)))
                         ])))),
-            if (event['status'] == 'accepted')
-              const Chip(
-                  avatar: Icon(Icons.check_circle, size: 17),
-                  label: Text('ACCEPTED'))
+            if (offerStatus != 'pending' && offerStatus != 'archived')
+              Chip(
+                  avatar: Icon(
+                      offerStatus == 'completed'
+                          ? Icons.verified_outlined
+                          : offerStatus == 'disputed'
+                              ? Icons.report_problem_outlined
+                              : offerStatus == 'cancelled'
+                                  ? Icons.cancel_outlined
+                                  : Icons.check_circle,
+                      size: 17),
+                  label: Text(offerStatus.toUpperCase()))
             else if (isBest)
               const Chip(
                   avatar: Icon(Icons.emoji_events_outlined, size: 17),
@@ -1126,6 +1141,14 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             Text('${event['note']}',
                 maxLines: 3, overflow: TextOverflow.ellipsis)
           ],
+          if (hasTransaction) ...[
+            const SizedBox(height: 10),
+            MarketplaceTransactionPanel(
+              offerId: offerId,
+              offer: event,
+              isSeller: isSeller,
+            ),
+          ],
           if (isSeller) ...[
             const Divider(height: 20),
             Wrap(spacing: 8, runSpacing: 8, children: [
@@ -1134,13 +1157,13 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   icon: const Icon(Icons.forum_outlined),
                   label: const Text('Message buyer')),
               FilledButton.icon(
-                  onPressed: event['status'] == 'accepted'
-                      ? null
-                      : () => _acceptSelectedOffer(context, offerId, event),
+                  onPressed: offerStatus == 'pending'
+                      ? () => _acceptSelectedOffer(context, offerId, event)
+                      : null,
                   icon: const Icon(Icons.check_circle_outline),
-                  label: Text(event['status'] == 'accepted'
-                      ? 'Accepted'
-                      : 'Accept offer'))
+                  label: Text(offerStatus == 'pending'
+                      ? 'Accept offer'
+                      : offerStatus.replaceAll('_', ' ')))
             ]),
             if (revisionCount > 1) ...[
               const SizedBox(height: 8),
@@ -1397,6 +1420,392 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w900))
       ]));
+}
+
+class MarketplaceTransactionPanel extends StatefulWidget {
+  const MarketplaceTransactionPanel({
+    super.key,
+    required this.offerId,
+    required this.offer,
+    required this.isSeller,
+  });
+
+  final String offerId;
+  final Map<String, dynamic> offer;
+  final bool isSeller;
+
+  @override
+  State<MarketplaceTransactionPanel> createState() =>
+      _MarketplaceTransactionPanelState();
+}
+
+class _MarketplaceTransactionPanelState
+    extends State<MarketplaceTransactionPanel> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('marketplace_transactions')
+            .doc(widget.offerId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _notice(
+              Icons.sync_problem_outlined,
+              'Transaction details could not be loaded. Your offer was not changed.',
+              Colors.red,
+            );
+          }
+          if (!snapshot.hasData) {
+            return const LinearProgressIndicator(minHeight: 3);
+          }
+          final transaction = snapshot.data!.data() ??
+              <String, dynamic>{
+                'status': 'pending_completion',
+                'buyerConfirmed': false,
+                'sellerConfirmed': false,
+              };
+          final status = '${transaction['status'] ?? 'pending_completion'}';
+          final buyerConfirmed = transaction['buyerConfirmed'] == true;
+          final sellerConfirmed = transaction['sellerConfirmed'] == true;
+          final terminal =
+              const {'completed', 'cancelled', 'disputed'}.contains(status);
+          final userConfirmed =
+              widget.isSeller ? sellerConfirmed : buyerConfirmed;
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _statusColor(status).withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _statusColor(status).withValues(alpha: .55),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.fact_check_outlined, color: _statusColor(status)),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Transaction checklist',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  Chip(label: Text(_statusLabel(status))),
+                ]),
+                const SizedBox(height: 5),
+                Text(
+                  '${_money(transaction['agreedTotal'] ?? widget.offer['offeredTotal'])} • '
+                  '${transaction['agreedQuantity'] ?? widget.offer['requestedQuantity'] ?? 0} units',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 9),
+                Row(children: [
+                  Expanded(
+                    child: _confirmation(
+                      'Buyer',
+                      buyerConfirmed,
+                      'Purchase received',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _confirmation(
+                      'Seller',
+                      sellerConfirmed,
+                      'Sale fulfilled',
+                    ),
+                  ),
+                ]),
+                if ('${transaction['reason'] ?? ''}'.isNotEmpty) ...[
+                  const SizedBox(height: 9),
+                  Text(
+                    'Reason: ${transaction['reason']}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Wrap(spacing: 7, runSpacing: 7, children: [
+                  if (!terminal && !userConfirmed)
+                    FilledButton.icon(
+                      onPressed:
+                          _busy ? null : () => _confirmCompletion(transaction),
+                      icon: const Icon(Icons.verified_outlined),
+                      label: Text(widget.isSeller
+                          ? 'Confirm fulfilled'
+                          : 'Confirm received'),
+                    ),
+                  if (!terminal && !buyerConfirmed && !sellerConfirmed)
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : () => _reasonAction('cancel'),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancel'),
+                    ),
+                  if (!terminal)
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : () => _reasonAction('dispute'),
+                      icon: const Icon(Icons.report_problem_outlined),
+                      label: const Text('Open dispute'),
+                    ),
+                  TextButton.icon(
+                    onPressed: snapshot.data!.exists ? _showHistory : null,
+                    icon: const Icon(Icons.history),
+                    label: const Text('History'),
+                  ),
+                ]),
+                if (_busy) ...[
+                  const SizedBox(height: 8),
+                  const LinearProgressIndicator(minHeight: 3),
+                ],
+                const SizedBox(height: 6),
+                const Text(
+                  'Payment and logistics remain between the parties. This checklist records confirmations; it does not hold or release funds.',
+                  style: TextStyle(fontSize: 10.5, color: Colors.black54),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+  Widget _confirmation(String party, bool confirmed, String detail) =>
+      Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: confirmed ? const Color(0xFFE8F7ED) : Colors.white,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(children: [
+          Icon(
+            confirmed ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 19,
+            color: confirmed ? Colors.green : Colors.blueGrey,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(party,
+                    style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(
+                  confirmed ? detail : 'Awaiting confirmation',
+                  style: const TextStyle(fontSize: 10.5),
+                ),
+              ],
+            ),
+          ),
+        ]),
+      );
+
+  Widget _notice(IconData icon, String message, Color color) => Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 8),
+          Expanded(child: Text(message)),
+        ]),
+      );
+
+  Future<void> _confirmCompletion(Map<String, dynamic> transaction) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: const Icon(Icons.verified_outlined, size: 38),
+            title: Text(widget.isSeller
+                ? 'Confirm the sale was fulfilled?'
+                : 'Confirm the purchase was received?'),
+            content: const Text(
+              'Both parties must confirm before the listing is marked sold and the transaction is completed.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Go back'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Confirm'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (confirmed) await _runAction('confirm_completion');
+  }
+
+  Future<void> _reasonAction(String action) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(action == 'cancel'
+            ? 'Cancel this transaction?'
+            : 'Open a transaction dispute?'),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 6,
+          maxLength: action == 'cancel' ? 1000 : 2000,
+          decoration: InputDecoration(
+            labelText: 'Reason *',
+            hintText: action == 'cancel'
+                ? 'Explain why the transaction will not proceed.'
+                : 'Describe what happened and what needs review.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Go back'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.length >= 10) Navigator.pop(dialogContext, value);
+            },
+            child: Text(action == 'cancel' ? 'Cancel transaction' : 'Submit'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reason != null) await _runAction(action, reason: reason);
+  }
+
+  Future<void> _runAction(String action, {String reason = ''}) async {
+    setState(() => _busy = true);
+    try {
+      await MarketplaceActionsRepository().updateMarketplaceTransaction(
+        widget.offerId,
+        action,
+        reason: reason,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: Colors.green,
+        content: Text(action == 'confirm_completion'
+            ? 'Your confirmation was recorded.'
+            : action == 'cancel'
+                ? 'The transaction was cancelled.'
+                : 'The dispute was opened for review.'),
+      ));
+    } catch (error, stackTrace) {
+      AppDiagnostics.record(
+        error,
+        stackTrace,
+        subsystem: 'marketplace',
+        operation: 'update_transaction_$action',
+        fatal: false,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.red,
+          content: Text(
+            'The transaction could not be updated. Nothing was changed. Try again.',
+          ),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _showHistory() async {
+    try {
+      final revisions = await FirebaseFirestore.instance
+          .collection('marketplace_transactions')
+          .doc(widget.offerId)
+          .collection('revisions')
+          .orderBy('revision', descending: true)
+          .limit(100)
+          .get();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Transaction history'),
+          content: SizedBox(
+            width: 480,
+            child: revisions.docs.isEmpty
+                ? const Text('No transaction history is available yet.')
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: revisions.docs.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (_, index) {
+                      final data = revisions.docs[index].data();
+                      final createdAt = data['createdAt'] as Timestamp?;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          child: Text('${data['revision'] ?? '?'}'),
+                        ),
+                        title: Text(
+                          '${data['event'] ?? 'updated'}'.replaceAll('_', ' '),
+                        ),
+                        subtitle: Text([
+                          if ('${data['status'] ?? ''}'.isNotEmpty)
+                            '${data['status']}'.replaceAll('_', ' '),
+                          if (createdAt != null)
+                            _historyDate(createdAt.toDate()),
+                        ].join(' • ')),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Transaction history could not be loaded.'),
+        ));
+      }
+    }
+  }
+
+  String _money(dynamic value) {
+    final amount = value is num ? value : num.tryParse('$value') ?? 0;
+    return '\$${amount.toStringAsFixed(2)}';
+  }
+
+  String _historyDate(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')} '
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+
+  String _statusLabel(String status) => switch (status) {
+        'pending_completion' => 'AWAITING BOTH',
+        'awaiting_buyer_confirmation' => 'AWAITING BUYER',
+        'awaiting_seller_confirmation' => 'AWAITING SELLER',
+        'completed' => 'COMPLETED',
+        'cancelled' => 'CANCELLED',
+        'disputed' => 'DISPUTED',
+        _ => status.replaceAll('_', ' ').toUpperCase(),
+      };
+
+  Color _statusColor(String status) => switch (status) {
+        'completed' => Colors.green,
+        'cancelled' => Colors.blueGrey,
+        'disputed' => Colors.deepOrange,
+        _ => const Color(0xFF0878E8),
+      };
 }
 
 class _BuyerOfferName extends StatelessWidget {
