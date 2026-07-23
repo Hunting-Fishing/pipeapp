@@ -744,6 +744,8 @@ class _OwnerListingDetails extends StatefulWidget {
 class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
   bool _convertingToAuction = false;
   String? _auctionConversionRequestId;
+  String? _listingActionBusy;
+  final Map<String, String> _listingRequestIds = {};
 
   @override
   Widget build(BuildContext context) =>
@@ -820,6 +822,10 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
           if (data['category'] == 'Site & Property') ...[
             const SizedBox(height: 12),
             _OwnerPropertyDetails(data: data),
+          ],
+          if (!isAuction) ...[
+            const SizedBox(height: 12),
+            _listingLifecycleCard(data),
           ],
           if (!isAuction && widget.auctionsEnabled) ...[
             const SizedBox(height: 12),
@@ -938,6 +944,243 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         ],
       ),
     );
+  }
+
+  Widget _listingLifecycleCard(Map<String, dynamic> data) {
+    final status = '${data['status'] ?? 'active'}';
+    final busy = _listingActionBusy != null;
+    final actions = <Widget>[
+      if (status == 'active' || status == 'paused')
+        OutlinedButton.icon(
+            onPressed: busy ? null : () => _editListing(data),
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Edit details')),
+      if (status == 'active')
+        OutlinedButton.icon(
+            onPressed: busy ? null : () => _transitionListing('pause'),
+            icon: const Icon(Icons.pause_circle_outline),
+            label: const Text('Pause')),
+      if (status == 'paused')
+        FilledButton.tonalIcon(
+            onPressed: busy ? null : () => _transitionListing('activate'),
+            icon: const Icon(Icons.play_circle_outline),
+            label: const Text('Reactivate')),
+      if (status == 'active' || status == 'pending_sale')
+        FilledButton.tonalIcon(
+            onPressed: busy ? null : () => _transitionListing('mark_sold'),
+            icon: const Icon(Icons.task_alt),
+            label: const Text('Mark sold')),
+      if (status == 'active' || status == 'paused' || status == 'sold')
+        OutlinedButton.icon(
+            onPressed: busy ? null : () => _transitionListing('archive'),
+            icon: const Icon(Icons.archive_outlined),
+            label: const Text('Archive')),
+      if (status == 'sold' || status == 'archived')
+        FilledButton.icon(
+            onPressed: busy ? null : _relistListing,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Relist as new')),
+    ];
+    return Card(
+        color: const Color(0xFFF3F8FD),
+        child: Padding(
+            padding: const EdgeInsets.all(13),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.inventory_2_outlined,
+                    color: Color(0xFF0878E8)),
+                const SizedBox(width: 8),
+                const Expanded(
+                    child: Text('Listing controls',
+                        style: TextStyle(fontWeight: FontWeight.w900))),
+                Chip(label: Text(status.replaceAll('_', ' ').toUpperCase())),
+              ]),
+              const SizedBox(height: 6),
+              if (busy)
+                Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(children: [
+                      const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(width: 8),
+                      Text(_listingActionBusy!),
+                    ])),
+              Wrap(spacing: 8, runSpacing: 8, children: actions),
+            ])));
+  }
+
+  Future<void> _editListing(Map<String, dynamic> data) async {
+    final title = TextEditingController(text: '${data['title'] ?? ''}');
+    final price = TextEditingController(text: '${data['price'] ?? ''}');
+    final quantity = TextEditingController(text: '${data['quantity'] ?? ''}');
+    final description =
+        TextEditingController(text: '${data['description'] ?? ''}');
+    final submitted = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+                    title: const Text('Edit listing details'),
+                    content: SingleChildScrollView(
+                        child:
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                      TextField(
+                          controller: title,
+                          decoration:
+                              const InputDecoration(labelText: 'Title *')),
+                      TextField(
+                          controller: price,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: const InputDecoration(
+                              labelText: 'Price *', prefixText: r'$ ')),
+                      TextField(
+                          controller: quantity,
+                          keyboardType: TextInputType.number,
+                          decoration:
+                              const InputDecoration(labelText: 'Quantity *')),
+                      TextField(
+                          controller: description,
+                          minLines: 3,
+                          maxLines: 6,
+                          decoration:
+                              const InputDecoration(labelText: 'Description')),
+                      const SizedBox(height: 8),
+                      const Text(
+                          'Changes are recorded in the permanent listing history.',
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.black54)),
+                    ])),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Cancel')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text('Save changes')),
+                    ])) ??
+        false;
+    if (!submitted || !mounted) return;
+    final amount = num.tryParse(price.text.trim());
+    final count = int.tryParse(quantity.text.trim());
+    if (title.text.trim().isEmpty ||
+        amount == null ||
+        amount <= 0 ||
+        count == null ||
+        count < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Enter a title, valid price, and valid quantity.')));
+      return;
+    }
+    await _runListingCommand(
+        key: 'edit-${data['revision'] ?? 1}',
+        label: 'Saving listing…',
+        command: 'updateMarketplaceListingDetails',
+        data: {
+          'listingId': widget.listingId,
+          'expectedRevision': (data['revision'] as num?)?.toInt() ?? 1,
+          'patch': {
+            'title': title.text.trim(),
+            'price': amount,
+            'quantity': count,
+            'description': description.text.trim(),
+          },
+        },
+        success: 'Listing details updated.');
+  }
+
+  Future<void> _transitionListing(String action) async {
+    const labels = {
+      'pause': 'Pause this listing?',
+      'activate': 'Reactivate this listing?',
+      'mark_sold': 'Mark this listing as sold?',
+      'archive': 'Archive this listing?',
+    };
+    final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+                    title: Text(labels[action] ?? 'Change listing status?'),
+                    content: const Text(
+                        'This change is recorded in the permanent listing history.'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Cancel')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text('Confirm')),
+                    ])) ??
+        false;
+    if (!confirmed || !mounted) return;
+    await _runListingCommand(
+        key: action,
+        label: 'Updating listing…',
+        command: 'transitionMarketplaceListing',
+        data: {'listingId': widget.listingId, 'action': action},
+        success: 'Listing status updated.');
+  }
+
+  Future<void> _relistListing() async {
+    final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+                    title: const Text('Relist as a new listing?'),
+                    content: const Text(
+                        'The original history remains unchanged. A new active listing is created with fresh analytics and the same private pickup details.'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Cancel')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text('Create new listing')),
+                    ])) ??
+        false;
+    if (!confirmed || !mounted) return;
+    final key = 'relist';
+    final newListingId = _listingRequestIds['$key-listing'] ??=
+        FirebaseFirestore.instance.collection('public_listings').doc().id;
+    await _runListingCommand(
+        key: key,
+        label: 'Creating new listing…',
+        command: 'relistMarketplaceListing',
+        data: {
+          'listingId': widget.listingId,
+          'newListingId': newListingId,
+        },
+        success: 'New active listing created.');
+  }
+
+  Future<void> _runListingCommand(
+      {required String key,
+      required String label,
+      required String command,
+      required Map<String, dynamic> data,
+      required String success}) async {
+    final requestId = _listingRequestIds[key] ??=
+        '${widget.listingId}-$key-${DateTime.now().microsecondsSinceEpoch}';
+    setState(() => _listingActionBusy = label);
+    try {
+      await MarketplaceCommandClient()
+          .execute(command, {'requestId': requestId, ...data});
+      _listingRequestIds.remove(key);
+      if (key == 'relist') {
+        _listingRequestIds.remove('$key-listing');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(backgroundColor: Colors.green, content: Text(success)));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('$error'.replaceFirst('Bad state: ', ''))));
+      }
+    } finally {
+      if (mounted) setState(() => _listingActionBusy = null);
+    }
   }
 
   Future<void> _convertToAuction(Map<String, dynamic> data) async {

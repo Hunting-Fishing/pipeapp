@@ -2,7 +2,7 @@
 
 Audit date: July 23, 2026
 
-Branch: `agent/gate2-command-integration`
+Branch: `agent/listing-lifecycle`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 58% | The 28 reviewed Function exports include an idempotent Marketplace-to-Auction conversion. Direct clients cannot create listings or author authoritative listing, reserve, offer, bid, or Dispatch transaction state. A real Auth, Firestore, and Functions emulator suite verifies 15 command receipts and repeated-request idempotency across listings, offers, auctions, Buy It Now, Dispatch revisions, carrier quotes, and awards. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
+| 2 — Backend parity and commands | No | 64% | The 31 reviewed Function exports include idempotent Marketplace listing edit, lifecycle, relist, and Marketplace-to-Auction commands. Direct clients cannot create listings or author authoritative listing, revision, reserve, offer, bid, or Dispatch transaction state. A real Auth, Firestore, and Functions emulator suite verifies 22 command receipts and repeated-request idempotency across listing lifecycle, offers, auctions, Buy It Now, Dispatch revisions, carrier quotes, and awards. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
-| 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
+| 4 — Product workflows | No | 35% | Normal Marketplace listings now have owner-facing edit, pause/reactivate, mark-sold, archive, and relist controls backed by revision-safe idempotent commands and immutable history. Rich offer, auction, and Dispatch UI foundations exist, but their mandatory terminal transaction lifecycles remain incomplete. |
 | 5 — Trust, notifications, policies | No | 15% | User reporting with attachments and some in-app notifications exist. Moderation operations, appeals, delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **42%**.
+Overall Phase 1 launch readiness estimate: **44%**.
 
 Completed gates: **1 of 8**.
 
@@ -57,7 +57,7 @@ Completed gates: **1 of 8**.
 | Workflow | Status | Evidence or remaining work |
 | --- | --- | --- |
 | Persisted saved listings | Incomplete | Saves are written to `users/{uid}/saved_listings`, but `_saved` is not loaded after authentication and the Saved page still filters demo fixtures with inconsistent identifiers. |
-| Listing lifecycle | Incomplete | Normal listings do not have a complete server command/UI lifecycle for edit, pause, deactivate, archive, sold, and relist. |
+| Listing lifecycle | Source and emulator verified; staging pending | Normal listings have revision-safe server commands and owner UI for editing, pause/reactivate, mark sold, archive, and relist. Immutable owner/admin revision history is enforced. Staging deployment and acceptance evidence remain outstanding. |
 | Search and filtering | Incomplete | Browse loads the active collection and performs search, filters, and sorting on the client. |
 | Pagination/geospatial search | Incomplete | No cursor pagination or bounded server/geospatial query workflow. |
 | Home notification action | Resolved in source | The former dead Home bell is no longer exposed. Account Notifications remains the working destination. |
