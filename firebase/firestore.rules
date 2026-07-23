@@ -117,6 +117,10 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /security_rate_limits/{bucketId} {
+      allow read, create, update, delete: if false;
+    }
+
     match /public_business_profiles/{businessId} {
       allow read: if true;
       allow create, update, delete: if owns(businessId) || isAdmin();

@@ -6,6 +6,7 @@ const {
   AccountSecurityError,
   requireAuthenticatedIdentity,
 } = require("./account_security");
+const {enforceUserRateLimit} = require("./abuse_rate_limit");
 const {
   CommandPolicyError,
   TERMINAL_AUCTION_STATUSES,
@@ -136,6 +137,7 @@ function createMarketplaceCommands(admin) {
   const featureCommand = (feature, handler) => command(async (request) => {
     const flags = await loadPhase1FeatureFlags(db);
     requirePhase1Feature(flags, feature);
+    await enforceUserRateLimit({db, admin, request, scope: feature});
     return handler(request, flags);
   });
 
