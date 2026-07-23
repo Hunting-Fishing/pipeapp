@@ -185,6 +185,26 @@ beforeEach(async () => {
       revision: 1,
       vehicleId: "truck",
     });
+    await setDoc(doc(db, "dispatch_transactions", "job"), {
+      jobId: "job",
+      customerUid: "buyer",
+      carrierUid: "carrier",
+      bidId: "bid",
+      amount: 2500,
+      status: "awarded",
+      revision: 1,
+    });
+    await setDoc(doc(
+        db,
+        "dispatch_transactions",
+        "job",
+        "revisions",
+        "1",
+    ), {
+      event: "carrier_awarded",
+      actorUid: "buyer",
+      revision: 1,
+    });
   });
 });
 
@@ -679,4 +699,41 @@ test("Dispatch job, quote, and award state cannot be forged by clients", async (
         revision: 2,
       },
   ));
+});
+
+test("Dispatch transaction and proof history are participant-only", async () => {
+  const carrierDb = testEnvironment
+      .authenticatedContext("carrier")
+      .firestore();
+  const customerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const settlement = doc(customerDb, "dispatch_transactions", "job");
+
+  await assertSucceeds(getDoc(settlement));
+  await assertSucceeds(getDoc(doc(
+      carrierDb,
+      "dispatch_transactions",
+      "job",
+      "revisions",
+      "1",
+  )));
+  await assertFails(getDoc(doc(strangerDb, "dispatch_transactions", "job")));
+  await assertFails(updateDoc(settlement, {
+    status: "closed",
+    proofOfDelivery: {receiverName: "Forged"},
+  }));
+  await assertFails(setDoc(doc(
+      carrierDb,
+      "dispatch_transactions",
+      "job",
+      "revisions",
+      "2",
+  ), {
+    event: "mark_delivered",
+    revision: 2,
+  }));
 });

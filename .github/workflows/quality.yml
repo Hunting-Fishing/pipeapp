@@ -13,6 +13,8 @@ jobs:
   verify:
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
 
     steps:
       - name: Check out source

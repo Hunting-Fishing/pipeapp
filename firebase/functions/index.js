@@ -29,6 +29,10 @@ exports.awardDispatchQuote = onCall(
   protectedCallableOptions,
   dispatchCommands.awardDispatchQuote,
 );
+exports.updateDispatchTransaction = onCall(
+  protectedCallableOptions,
+  dispatchCommands.updateDispatchTransaction,
+);
 exports.placeAuctionBid = onCall(
   protectedCallableOptions,
   marketplaceCommands.placeAuctionBid,

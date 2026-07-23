@@ -28,6 +28,10 @@ $nodeVersion = (node --version).TrimStart('v')
 Assert-NativeSuccess 'Node runtime inspection'
 $nodeMajor = [int]($nodeVersion.Split('.')[0])
 $env:PIPE_ENFORCE_APP_CHECK = 'false'
+# Cold Windows runners can spend more than Firebase CLI's 10-second default
+# discovering a Node 22 Functions entrypoint. The CLI officially supports this
+# override; keep it bounded so a genuinely broken module still fails quickly.
+$env:FUNCTIONS_DISCOVERY_TIMEOUT = '30000'
 $arguments = @(
   'emulators:exec',
   '--project', 'demo-pipe-buyer-integration',

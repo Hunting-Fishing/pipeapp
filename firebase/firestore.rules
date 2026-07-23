@@ -216,6 +216,33 @@ service cloud.firestore {
       }
     }
 
+    match /dispatch_transactions/{jobId} {
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        signedIn() &&
+        (resource.data.customerUid == request.auth.uid ||
+         resource.data.carrierUid == request.auth.uid ||
+         isAdmin());
+      allow create, update, delete: if false;
+
+      match /revisions/{revisionId} {
+        allow read: if phase1FeatureEnabled('dispatch') &&
+          signedIn() &&
+          (get(/databases/$(database)/documents/dispatch_transactions/$(jobId)).data.customerUid == request.auth.uid ||
+           get(/databases/$(database)/documents/dispatch_transactions/$(jobId)).data.carrierUid == request.auth.uid ||
+           isAdmin());
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /dispatch_disputes/{jobId} {
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        signedIn() &&
+        (resource.data.customerUid == request.auth.uid ||
+         resource.data.carrierUid == request.auth.uid ||
+         isAdmin());
+      allow create, update, delete: if false;
+    }
+
     match /weight_catalog/{weightId} {
       allow read: if phase1FeatureEnabled('dispatch') && signedIn();
       allow create, update, delete: if phase1FeatureEnabled('dispatch') &&

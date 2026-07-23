@@ -14,6 +14,7 @@ const {
   validateDispatchJobInput,
   validateDispatchJobPublish,
   validateDispatchQuote,
+  validateDispatchTransactionAction,
 } = require("./dispatch_command_policy");
 
 function requiredId(data, fieldName) {
@@ -33,6 +34,11 @@ function requireAuth(request) {
     throw new HttpsError("unauthenticated", "Sign in to continue.");
   }
   return uid;
+}
+
+function isAdministrator(request) {
+  const token = request.auth && request.auth.token || {};
+  return token.admin === true || token.email === "jordilwbailey@gmail.com";
 }
 
 function command(handler) {
@@ -500,6 +506,7 @@ function createDispatchCommands(admin) {
     );
     const jobRef = db.collection("dispatch_jobs").doc(jobId);
     const bidRef = db.collection("dispatch_bids").doc(bidId);
+    const dispatchRef = db.collection("dispatch_transactions").doc(jobId);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
@@ -511,6 +518,7 @@ function createDispatchCommands(admin) {
               .where("jobId", "==", jobId)
               .limit(200),
       );
+      const dispatchSnapshot = await transaction.get(dispatchRef);
       if (bids.size >= 200) {
         throw new CommandPolicyError(
             "resource-exhausted",
@@ -521,6 +529,12 @@ function createDispatchCommands(admin) {
       const job = jobData ? {...jobData, id: jobId} : null;
       const bid = bidSnapshot.exists ? bidSnapshot.data() : null;
       const awarded = validateDispatchAward(job, bid, uid);
+      if (dispatchSnapshot.exists) {
+        throw new CommandPolicyError(
+            "failed-precondition",
+            "This Dispatch job already has an active transaction.",
+        );
+      }
       const revision = Number(job.revision || 1) + 1;
       const result = {
         jobId,
@@ -548,6 +562,29 @@ function createDispatchCommands(admin) {
         event: "carrier_awarded",
         actorUid: uid,
         createdAt: FieldValue.serverTimestamp(),
+      });
+      const dispatchValues = {
+        jobId,
+        customerUid: uid,
+        carrierUid: awarded.carrierUid,
+        bidId,
+        amount: awarded.amount,
+        currency: job.currency || "CAD",
+        vehicleId: bid.vehicleId || null,
+        vehicleName: bid.vehicleName || null,
+        status: "awarded",
+        proposedAvailableDate: bid.availableDate || null,
+        requestedTruckingDate: job.truckingDate || null,
+        scheduledDate: null,
+        revision: 1,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      transaction.create(dispatchRef, dispatchValues);
+      transaction.create(dispatchRef.collection("revisions").doc("1"), {
+        ...dispatchValues,
+        event: "carrier_awarded",
+        actorUid: uid,
       });
       for (const candidate of bids.docs) {
         const candidateData = candidate.data();
@@ -599,11 +636,205 @@ function createDispatchCommands(admin) {
     });
   });
 
+  const updateDispatchTransaction = dispatchCommand(async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const jobId = requiredId(request.data, "jobId");
+    const action = requiredId(request.data, "action");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "updateDispatchTransaction",
+        requestId,
+    );
+    const jobRef = db.collection("dispatch_jobs").doc(jobId);
+    const dispatchRef = db.collection("dispatch_transactions").doc(jobId);
+
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const jobSnapshot = await transaction.get(jobRef);
+      const dispatchSnapshot = await transaction.get(dispatchRef);
+      const jobData = jobSnapshot.exists ? jobSnapshot.data() : null;
+      const job = jobData ? {...jobData, id: jobId} : null;
+      const dispatchTransaction = dispatchSnapshot.exists ?
+        dispatchSnapshot.data() : null;
+      const bidId = String(dispatchTransaction && dispatchTransaction.bidId || "");
+      const bidRef = bidId ? db.collection("dispatch_bids").doc(bidId) : null;
+      const bidSnapshot = bidRef ? await transaction.get(bidRef) : null;
+      if (!bidSnapshot || !bidSnapshot.exists) {
+        throw new CommandPolicyError(
+            "failed-precondition",
+            "The awarded carrier quote is unavailable for this Dispatch job.",
+        );
+      }
+      const transition = validateDispatchTransactionAction({
+        job,
+        dispatchTransaction,
+        actorUid: uid,
+        action,
+        data: request.data || {},
+        now: Timestamp.now(),
+        administrator: isAdministrator(request),
+      });
+      const currentRevision = Number(dispatchTransaction.revision || 1);
+      const result = {
+        jobId,
+        status: transition.status,
+        revision: transition.alreadyApplied ?
+          currentRevision : currentRevision + 1,
+      };
+      if (transition.alreadyApplied) {
+        transaction.create(receiptRef, {
+          actorUid: uid,
+          command: "updateDispatchTransaction",
+          result,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        return result;
+      }
+      const revision = currentRevision + 1;
+      const sensitiveChanges = {
+        status: transition.status,
+        revision,
+        lastAction: action,
+        lastActionByUid: uid,
+        ...(transition.scheduledDate ? {
+          scheduledDate: Timestamp.fromMillis(transition.scheduledDate),
+        } : {}),
+        ...(transition.proofOfDelivery ? {
+          proofOfDelivery: transition.proofOfDelivery,
+          deliveredAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(transition.reason ? {reason: transition.reason} : {}),
+        ...(action === "accept_award" ? {
+          acceptedAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(action === "start_transit" ? {
+          inTransitAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(transition.status === "closed" ? {
+          closedAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(transition.status === "cancelled" ? {
+          cancelledAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(transition.status === "disputed" ? {
+          disputedAt: FieldValue.serverTimestamp(),
+        } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      transaction.update(dispatchRef, sensitiveChanges);
+      transaction.create(
+          dispatchRef.collection("revisions").doc(String(revision)),
+          {
+            event: action,
+            actorUid: uid,
+            actorRole: transition.actorRole,
+            status: transition.status,
+            revision,
+            ...(transition.scheduledDate ? {
+              scheduledDate: Timestamp.fromMillis(transition.scheduledDate),
+            } : {}),
+            ...(transition.proofOfDelivery ? {
+              proofOfDelivery: transition.proofOfDelivery,
+            } : {}),
+            ...(transition.reason ? {reason: transition.reason} : {}),
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      const publicStatus = transition.status === "closed" ?
+        "completed" : transition.status;
+      transaction.update(jobRef, {
+        status: publicStatus,
+        dispatchRequestStatus: transition.status,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(transition.status === "closed" ? {
+          completedAt: FieldValue.serverTimestamp(),
+        } : {}),
+      });
+      const bidData = bidSnapshot.data();
+      const bidRevision = Number(bidData.revision || 1) + 1;
+      const publicBidStatus = transition.status === "closed" ?
+        "completed" : transition.status;
+      transaction.update(bidRef, {
+        status: publicBidStatus,
+        fulfillmentStatus: transition.status,
+        revision: bidRevision,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(
+          bidRef.collection("revisions").doc(String(bidRevision)),
+          {
+            ...bidData,
+            status: publicBidStatus,
+            fulfillmentStatus: transition.status,
+            revision: bidRevision,
+            event: action,
+            actorUid: uid,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      if (transition.status === "disputed") {
+        transaction.set(db.collection("dispatch_disputes").doc(jobId), {
+          jobId,
+          customerUid: dispatchTransaction.customerUid,
+          carrierUid: dispatchTransaction.carrierUid,
+          openedByUid: uid,
+          reason: transition.reason,
+          status: "open",
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (action === "admin_resolve") {
+        transaction.set(db.collection("dispatch_disputes").doc(jobId), {
+          status: "resolved",
+          resolution: transition.status,
+          resolutionNote: transition.reason,
+          resolvedByUid: uid,
+          resolvedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+      const participants = [
+        dispatchTransaction.customerUid,
+        dispatchTransaction.carrierUid,
+      ].filter((participantUid) => participantUid && participantUid !== uid);
+      for (const recipientUid of participants) {
+        transaction.set(
+            db.collection("users").doc(recipientUid)
+                .collection("notifications").doc(receiptRef.id),
+            {
+              recipientUid,
+              actorUid: uid,
+              type: "dispatch",
+              jobId,
+              title: transition.status === "closed" ?
+                "Dispatch job completed" : transition.status === "disputed" ?
+                  "Dispatch job disputed" : transition.status === "cancelled" ?
+                    "Dispatch job cancelled" :
+                    `Dispatch job ${transition.status.replaceAll("_", " ")}`,
+              read: false,
+              createdAt: FieldValue.serverTimestamp(),
+            },
+        );
+      }
+      transaction.create(receiptRef, {
+        actorUid: uid,
+        command: "updateDispatchTransaction",
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return result;
+    });
+  });
+
   return {
     awardDispatchQuote,
     createDispatchJob,
     publishDispatchJob,
     submitDispatchQuote,
+    updateDispatchTransaction,
     updateDispatchJob,
   };
 }

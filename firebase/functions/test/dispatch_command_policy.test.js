@@ -7,6 +7,7 @@ const {
   validateDispatchJobChange,
   validateDispatchJobInput,
   validateDispatchQuote,
+  validateDispatchTransactionAction,
 } = require("../dispatch_command_policy");
 
 const now = new Date("2026-07-19T12:00:00.000Z");
@@ -145,5 +146,137 @@ test("award derives carrier and amount from the pending quote", () => {
           "customer",
       ),
       {carrierUid: "carrier", amount: 2500},
+  );
+});
+
+test("Dispatch lifecycle enforces carrier and customer responsibilities", () => {
+  const job = {id: "job", createdByUid: "customer", status: "awarded"};
+  const base = {
+    jobId: "job",
+    customerUid: "customer",
+    carrierUid: "carrier",
+    status: "awarded",
+  };
+  assert.deepEqual(
+      validateDispatchTransactionAction({
+        job,
+        dispatchTransaction: base,
+        actorUid: "carrier",
+        action: "accept_award",
+        now,
+      }),
+      {status: "accepted", actorRole: "carrier", alreadyApplied: false},
+  );
+  assert.throws(
+      () => validateDispatchTransactionAction({
+        job,
+        dispatchTransaction: base,
+        actorUid: "customer",
+        action: "accept_award",
+        now,
+      }),
+      (error) => error.code === "permission-denied",
+  );
+  const schedule = validateDispatchTransactionAction({
+    job,
+    dispatchTransaction: {...base, status: "accepted"},
+    actorUid: "carrier",
+    action: "schedule",
+    data: {scheduledDate: now.getTime() + 24 * 60 * 60 * 1000},
+    now,
+  });
+  assert.equal(schedule.status, "scheduled");
+  assert.equal(schedule.scheduledDate, now.getTime() + 24 * 60 * 60 * 1000);
+});
+
+test("Dispatch delivery requires proof and customer confirmation", () => {
+  const job = {id: "job", createdByUid: "customer", status: "in_transit"};
+  const transaction = {
+    jobId: "job",
+    customerUid: "customer",
+    carrierUid: "carrier",
+    status: "in_transit",
+  };
+  assert.throws(
+      () => validateDispatchTransactionAction({
+        job,
+        dispatchTransaction: transaction,
+        actorUid: "carrier",
+        action: "mark_delivered",
+        data: {},
+        now,
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+  const delivered = validateDispatchTransactionAction({
+    job,
+    dispatchTransaction: transaction,
+    actorUid: "carrier",
+    action: "mark_delivered",
+    data: {
+      receiverName: "Pat Receiver",
+      deliveryNote: "Load received at the marked yard in good condition.",
+      proofStoragePath: "dispatch_proof/job/photo.jpg",
+    },
+    now,
+  });
+  assert.equal(delivered.status, "delivered");
+  assert.equal(delivered.proofOfDelivery.receiverName, "Pat Receiver");
+  assert.equal(
+      validateDispatchTransactionAction({
+        job,
+        dispatchTransaction: {...transaction, status: "delivered"},
+        actorUid: "customer",
+        action: "confirm_delivery",
+        now,
+      }).status,
+      "closed",
+  );
+});
+
+test("Dispatch cancellation, dispute, and admin resolution are controlled", () => {
+  const job = {id: "job", createdByUid: "customer", status: "awarded"};
+  const transaction = {
+    jobId: "job",
+    customerUid: "customer",
+    carrierUid: "carrier",
+    status: "scheduled",
+  };
+  assert.equal(
+      validateDispatchTransactionAction({
+        job,
+        dispatchTransaction: transaction,
+        actorUid: "customer",
+        action: "cancel",
+        data: {reason: "The load is no longer available for pickup."},
+        now,
+      }).status,
+      "cancelled",
+  );
+  assert.equal(
+      validateDispatchTransactionAction({
+        job,
+        dispatchTransaction: {...transaction, status: "in_transit"},
+        actorUid: "carrier",
+        action: "dispute",
+        data: {reason: "The delivery site access differs from the request."},
+        now,
+      }).status,
+      "disputed",
+  );
+  assert.equal(
+      validateDispatchTransactionAction({
+        job,
+        dispatchTransaction: {...transaction, status: "disputed"},
+        actorUid: "admin",
+        administrator: true,
+        action: "admin_resolve",
+        data: {
+          reason: "Both parties confirmed cancellation without a payment claim.",
+          resolution: "cancelled",
+        },
+        now,
+      }).status,
+      "cancelled",
   );
 });
