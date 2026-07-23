@@ -22,6 +22,12 @@ Firestore uses collections and documents rather than SQL tables.
 - `geography_catalog/schema`: provider, hierarchy, normalization and dataset metadata.
 - `geography_places/{placeId}`: normalized countries, states/provinces, regions, municipalities, towns and communities imported from the selected gazetteer.
 - `marketplace_tags/{tagId}`: administrator-approved searchable marketplace taxonomy.
+- `administrator_roles/{uid}`: server-owned active administrator directory used
+  for secure notification routing; it does not grant authority by itself.
+- `administrator_role_audits/{auditId}`: immutable operator-script history for
+  administrator grants and revocations. Runtime authority comes from reviewed
+  Firebase Authentication custom claims plus the signed per-session second
+  factor claim.
 - `tag_requests/{requestId}`: user suggestions with pending, approved, or rejected moderation status.
 - `users/{uid}/profile_tags/{tagId}`: approved selections and visibly pending user suggestions.
 - `public_seller_profiles/{uid}`: public discovery index containing approved tag IDs and account type.

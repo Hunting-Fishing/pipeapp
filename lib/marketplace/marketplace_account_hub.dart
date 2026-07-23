@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'marketplace_messages_page.dart';
+import 'marketplace_admin_access.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
@@ -115,9 +116,6 @@ class _Overview extends StatelessWidget {
               ((data['profileCompletion'] as num?)?.toInt() ?? 0).clamp(0, 100);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
-          final isAdmin = data['isAdmin'] == true ||
-              data['admin'] == true ||
-              (user.email ?? '').toLowerCase() == 'jordilwbailey@gmail.com';
           return ListView(padding: const EdgeInsets.all(18), children: [
             Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
                 style:
@@ -173,16 +171,21 @@ class _Overview extends StatelessWidget {
                 icon: Icons.settings_outlined,
                 title: 'Account settings',
                 onTap: () => onOpen(5)),
-            if (isAdmin)
-              _AccountShortcut(
-                  icon: Icons.admin_panel_settings_outlined,
-                  title: 'Trust & Safety admin dashboard',
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => Scaffold(
-                            appBar:
-                                AppBar(title: const Text('Admin moderation')),
-                            body: const AdminModerationDashboard(),
-                          )))),
+            FutureBuilder<bool>(
+                future: marketplaceAdministratorAccess(),
+                builder: (context, access) => access.data == true
+                    ? _AccountShortcut(
+                        icon: Icons.admin_panel_settings_outlined,
+                        title: 'Trust & Safety admin dashboard',
+                        onTap: () =>
+                            Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => Scaffold(
+                                      appBar: AppBar(
+                                          title:
+                                              const Text('Admin moderation')),
+                                      body: const AdminModerationDashboard(),
+                                    ))))
+                    : const SizedBox.shrink()),
           ]);
         });
   }

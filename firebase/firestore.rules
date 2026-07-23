@@ -21,10 +21,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return signedIn() &&
-        (('admin' in request.auth.token &&
-          request.auth.token.admin == true) ||
-         ('email' in request.auth.token &&
-         request.auth.token.email == 'jordilwbailey@gmail.com'));
+        'admin' in request.auth.token &&
+        'role' in request.auth.token &&
+        'firebase' in request.auth.token &&
+        'sign_in_second_factor' in request.auth.token.firebase &&
+        request.auth.token.admin == true &&
+        request.auth.token.role == 'administrator' &&
+        request.auth.token.firebase.sign_in_second_factor is string &&
+        request.auth.token.firebase.sign_in_second_factor.size() > 0;
     }
 
     function phase1FeatureEnabled(feature) {
@@ -150,7 +154,6 @@ service cloud.firestore {
     match /catalog_suggestions/{suggestionId} {
       allow create: if signedIn() &&
         request.resource.data.requestedByUid == request.auth.uid &&
-        request.resource.data.adminEmail == 'jordilwbailey@gmail.com' &&
         request.resource.data.status == 'pending';
       allow read: if isAdmin() ||
         (signedIn() && resource.data.requestedByUid == request.auth.uid);
@@ -483,6 +486,16 @@ service cloud.firestore {
     match /communication_command_receipts/{receiptId} {
       allow read: if isAdmin() ||
         (signedIn() && resource.data.actorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /administrator_roles/{administratorUid} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /administrator_role_audits/{auditId} {
+      allow read: if isAdmin();
       allow create, update, delete: if false;
     }
 

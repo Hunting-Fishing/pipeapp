@@ -55,7 +55,6 @@ class MarketplaceCatalogRepository {
         'listingId': listingId,
         'requestedByUid': user.uid,
         'requestedByEmail': user.email ?? '',
-        'adminEmail': 'jordilwbailey@gmail.com',
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });

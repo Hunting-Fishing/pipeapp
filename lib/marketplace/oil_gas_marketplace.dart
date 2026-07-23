@@ -21,6 +21,7 @@ import 'marketplace_navigation.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_account_hub.dart';
+import 'marketplace_admin_access.dart';
 import 'marketplace_public_profile_page.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_auctions_page.dart';
@@ -5182,9 +5183,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (!mounted) return;
       final score = (data['userScore'] as num?)?.toInt() ?? 70;
       final completion = (data['profileCompletion'] as num?)?.toInt() ?? 0;
-      final isAdmin =
-          (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase() ==
-              'jordilwbailey@gmail.com';
+      final isAdmin = await marketplaceAdministratorAccess();
+      if (!mounted) return;
       if (!isAdmin &&
           (score <= 80 ||
               completion != 100 ||

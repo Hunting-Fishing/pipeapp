@@ -9,6 +9,18 @@ service firebase.storage {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return signedIn()
+        && 'admin' in request.auth.token
+        && 'role' in request.auth.token
+        && 'firebase' in request.auth.token
+        && 'sign_in_second_factor' in request.auth.token.firebase
+        && request.auth.token.admin == true
+        && request.auth.token.role == 'administrator'
+        && request.auth.token.firebase.sign_in_second_factor is string
+        && request.auth.token.firebase.sign_in_second_factor.size() > 0;
+    }
+
     function isImage() {
       return request.resource.contentType.matches('image/.*');
     }
@@ -78,11 +90,10 @@ service firebase.storage {
         && isImage();
       allow read: if signedIn() && (
         isOwner(userId) ||
-        request.auth.token.admin == true ||
-        request.auth.token.email == 'jordilwbailey@gmail.com'
+        isAdmin()
       );
       allow update: if false;
-      allow delete: if isOwner(userId) || request.auth.token.admin == true;
+      allow delete: if isOwner(userId) || isAdmin();
     }
   }
 }

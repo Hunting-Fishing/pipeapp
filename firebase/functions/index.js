@@ -13,6 +13,23 @@ const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
 const admin = createAdminRuntime();
 
+async function notifyActiveAdministrators(notification) {
+  const roles = await admin.firestore().collection("administrator_roles")
+    .where("active", "==", true)
+    .get();
+  if (roles.empty) {
+    console.warn("Administrator notification skipped: no active roles");
+    return;
+  }
+  await Promise.all(roles.docs.map((role) =>
+    admin.firestore().collection("users").doc(role.id)
+      .collection("notifications").add({
+        ...notification,
+        recipientUid: role.id,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })));
+}
+
 const accountCommands = createAccountCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
@@ -348,7 +365,6 @@ exports.syncUserAccountRole = onDocumentWritten("users/{uid}", async (event) => 
     accountType,
     personal: accountType === "personal",
     business: accountType === "business",
-    admin: (user.email || "").toLowerCase() === "jordilwbailey@gmail.com",
   });
   await event.data.after.ref.set({
     roleVersion: 1,
@@ -361,19 +377,13 @@ exports.onTagRequestCreated = onDocumentCreated(
   "tag_requests/{requestId}",
   async (event) => {
     const request = event.data.data();
-    const developer = await admin.auth().getUserByEmail("jordilwbailey@gmail.com");
-    await admin.firestore()
-      .collection("users")
-      .doc(developer.uid)
-      .collection("notifications")
-      .add({
-        type: "tag_approval_request",
-        title: "New marketplace tag request",
-        body: `${request.requestedByEmail || "A user"} requested “${request.label || "Untitled tag"}”.`,
-        tagRequestId: event.params.requestId,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await notifyActiveAdministrators({
+      type: "tag_approval_request",
+      title: "New marketplace tag request",
+      body: `${request.requestedByEmail || "A user"} requested “${request.label || "Untitled tag"}”.`,
+      tagRequestId: event.params.requestId,
+      read: false,
+    });
     return null;
   },
 );
@@ -382,23 +392,16 @@ exports.onCatalogSuggestionCreated = onDocumentCreated(
   "catalog_suggestions/{suggestionId}",
   async (event) => {
     const suggestion = event.data.data();
-    const developer = await admin.auth()
-      .getUserByEmail("jordilwbailey@gmail.com");
-    await admin.firestore()
-      .collection("users")
-      .doc(developer.uid)
-      .collection("notifications")
-      .add({
-        type: "catalog_suggestion",
-        title: "New marketplace catalog suggestion",
-        body: `${suggestion.requestedByEmail || "A user"} suggested ` +
-          `“${suggestion.value || "Untitled"}” for ` +
-          `${suggestion.field || "the marketplace catalog"}.`,
-        catalogSuggestionId: event.params.suggestionId,
-        listingId: suggestion.listingId || null,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await notifyActiveAdministrators({
+      type: "catalog_suggestion",
+      title: "New marketplace catalog suggestion",
+      body: `${suggestion.requestedByEmail || "A user"} suggested ` +
+        `“${suggestion.value || "Untitled"}” for ` +
+        `${suggestion.field || "the marketplace catalog"}.`,
+      catalogSuggestionId: event.params.suggestionId,
+      listingId: suggestion.listingId || null,
+      read: false,
+    });
     return null;
   },
 );
@@ -416,26 +419,17 @@ exports.onDispatchSignupCreated = onDocumentCreated(
       read: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    const writes = [
+    await Promise.all([
       admin.firestore().collection("users").doc(userId)
         .collection("notifications").add(notification),
-    ];
-    try {
-      const developer = await admin.auth()
-        .getUserByEmail("jordilwbailey@gmail.com");
-      writes.push(admin.firestore().collection("users").doc(developer.uid)
-        .collection("notifications").add({
-          type: "dispatch_signup",
-          title: "New Dispatch provider signup",
-          body: `${signup.operatingName || "A provider"} joined Dispatch in ${signup.serviceAreaLabel || "an unspecified service area"}.`,
-          dispatchAccountUid: userId,
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        }));
-    } catch (error) {
-      console.warn("Dispatch admin notification skipped", error);
-    }
-    await Promise.all(writes);
+      notifyActiveAdministrators({
+        type: "dispatch_signup",
+        title: "New Dispatch provider signup",
+        body: `${signup.operatingName || "A provider"} joined Dispatch in ${signup.serviceAreaLabel || "an unspecified service area"}.`,
+        dispatchAccountUid: userId,
+        read: false,
+      }),
+    ]);
     return null;
   },
 );
@@ -618,18 +612,13 @@ exports.onWeightSuggestionCreated = onDocumentCreated(
   "weight_suggestions/{suggestionId}",
   async (event) => {
     const suggestion = event.data.data();
-    const administrators = await admin.firestore().collection("users")
-      .where("email", "==", "jordilwbailey@gmail.com").limit(1).get();
-    if (administrators.empty) return null;
-    const adminUser = administrators.docs[0];
-    await adminUser.ref.collection("notifications").add({
+    await notifyActiveAdministrators({
       type: "catalog_suggestion",
       title: "New shipping-weight correction to review",
       body: `${suggestion.listingTitle || "Listing"} • ${suggestion.suggestedWeightKg} kg`,
       suggestionId: event.params.suggestionId,
       listingId: suggestion.listingId || null,
       read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return null;
   },

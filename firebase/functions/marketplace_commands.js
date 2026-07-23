@@ -7,6 +7,7 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
+const {isAdministrator} = require("./administrator_authorization");
 const {
   CommandPolicyError,
   TERMINAL_AUCTION_STATUSES,
@@ -51,11 +52,6 @@ function requiredId(data, fieldName) {
 
 function requireAuth(request, options) {
   return requireAuthenticatedIdentity(request, options).uid;
-}
-
-function isAdministrator(request) {
-  const token = request.auth && request.auth.token || {};
-  return token.admin === true || token.email === "jordilwbailey@gmail.com";
 }
 
 function receiptReference(db, uid, command, identity) {

@@ -42,6 +42,12 @@ function phase1Features(overrides = {}) {
   };
 }
 
+const administratorClaims = {
+  admin: true,
+  role: "administrator",
+  firebase: {sign_in_second_factor: "phone"},
+};
+
 before(async () => {
   const rules = fs.readFileSync(
       path.join(__dirname, "..", "firestore.rules"),
@@ -224,7 +230,7 @@ test("normal users cannot read or write jurisdiction policies", async () => {
 
 test("admin claims can manage control-plane configuration", async () => {
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const policy = doc(adminDb, "jurisdiction_policies", "ca-ab-test");
 
@@ -233,13 +239,55 @@ test("admin claims can manage control-plane configuration", async () => {
   assert.equal(snapshot.data().status, "designOnly");
 });
 
+test("administrator rules fail closed for email or incomplete claims", async () => {
+  const emailOnly = testEnvironment.authenticatedContext("email-only", {
+    email: "jordilwbailey@gmail.com",
+    email_verified: true,
+  }).firestore();
+  const adminWithoutMfa = testEnvironment.authenticatedContext(
+      "admin-without-mfa",
+      {admin: true, role: "administrator"},
+  ).firestore();
+  const adminWithoutRole = testEnvironment.authenticatedContext(
+      "admin-without-role",
+      {admin: true, firebase: {sign_in_second_factor: "phone"}},
+  ).firestore();
+
+  await assertFails(getDoc(doc(
+      emailOnly,
+      "jurisdiction_policies",
+      "ca-ab-test",
+  )));
+  await assertFails(getDoc(doc(
+      adminWithoutMfa,
+      "jurisdiction_policies",
+      "ca-ab-test",
+  )));
+  await assertFails(getDoc(doc(
+      adminWithoutRole,
+      "jurisdiction_policies",
+      "ca-ab-test",
+  )));
+});
+
+test("administrator role records and audits are server owned", async () => {
+  const adminDb = testEnvironment
+      .authenticatedContext("admin-user", administratorClaims)
+      .firestore();
+  const role = doc(adminDb, "administrator_roles", "admin-user");
+  const audit = doc(adminDb, "administrator_role_audits", "audit-1");
+
+  await assertFails(setDoc(role, {active: true}));
+  await assertFails(setDoc(audit, {action: "grant"}));
+});
+
 test("feature configuration is public read and admin-only validated write", async () => {
   const publicDb = testEnvironment.unauthenticatedContext().firestore();
   const userDb = testEnvironment
       .authenticatedContext("ordinary-user")
       .firestore();
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const publicFlags = doc(
       publicDb,
@@ -286,7 +334,7 @@ test("feature configuration is public read and admin-only validated write", asyn
 
 test("property listings remain closed even to signed-in clients", async () => {
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const listing = doc(adminDb, "property_listings", "not-yet-enabled");
 
@@ -296,7 +344,7 @@ test("property listings remain closed even to signed-in clients", async () => {
 
 test("property audit events cannot be forged by client admins", async () => {
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const event = doc(adminDb, "property_audit_events", "forged-event");
 
@@ -592,7 +640,7 @@ test("listing revision history is immutable and private to owner or admin", asyn
       .authenticatedContext("buyer")
       .firestore();
   const adminDb = testEnvironment
-      .authenticatedContext("admin", {admin: true})
+      .authenticatedContext("admin", administratorClaims)
       .firestore();
   const sellerRevision = doc(
       sellerDb,
