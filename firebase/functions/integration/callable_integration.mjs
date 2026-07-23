@@ -678,12 +678,89 @@ try {
   assert.equal(awardedJob.status, "awarded");
   assert.equal(awardedJob.revision, 3);
 
+  const dispatchActions = [
+    {
+      token: carrier.token,
+      data: {
+        requestId: `dispatch-accept-${now}`,
+        jobId,
+        action: "accept_award",
+      },
+      status: "accepted",
+    },
+    {
+      token: carrier.token,
+      data: {
+        requestId: `dispatch-schedule-${now}`,
+        jobId,
+        action: "schedule",
+        scheduledDate: now + 6 * 24 * 60 * 60 * 1000,
+      },
+      status: "scheduled",
+    },
+    {
+      token: carrier.token,
+      data: {
+        requestId: `dispatch-transit-${now}`,
+        jobId,
+        action: "start_transit",
+      },
+      status: "in_transit",
+    },
+    {
+      token: carrier.token,
+      data: {
+        requestId: `dispatch-delivered-${now}`,
+        jobId,
+        action: "mark_delivered",
+        receiverName: "Integration Receiver",
+        deliveryNote: "Load received at the mapped integration-test yard.",
+      },
+      status: "delivered",
+    },
+    {
+      token: buyer.token,
+      data: {
+        requestId: `dispatch-close-${now}`,
+        jobId,
+        action: "confirm_delivery",
+      },
+      status: "closed",
+    },
+  ];
+  for (const expected of dispatchActions) {
+    const first = await call(
+        "updateDispatchTransaction",
+        expected.token,
+        expected.data,
+    );
+    const retry = await call(
+        "updateDispatchTransaction",
+        expected.token,
+        expected.data,
+    );
+    assert.deepEqual(retry, first);
+    assert.equal(first.status, expected.status);
+  }
+  assert.equal(
+      (await db.doc(`dispatch_jobs/${jobId}`).get()).data().status,
+      "completed",
+  );
+  assert.equal(
+      (await db.doc(`dispatch_transactions/${jobId}`).get()).data().status,
+      "closed",
+  );
+  assert.equal(
+      (await db.doc(`dispatch_bids/${quoteFirst.bidId}`).get()).data().status,
+      "completed",
+  );
+
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 32);
+  assert.equal(receipts.size, 37);
   console.log(
       "Callable integration passed: saved listings, listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
-      "quote, award, and retry idempotency.",
+      "quote, award, delivery closure, and retry idempotency.",
   );
 } finally {
   await deleteApp(app);

@@ -2,7 +2,7 @@
 
 Audit date: July 23, 2026
 
-Branch: `agent/auction-settlement-lifecycle`
+Branch: `agent/dispatch-terminal-lifecycle`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 72% | The 35 reviewed Function exports include idempotent saved-listing, Marketplace listing lifecycle, offer completion, auction finalization/settlement, and Dispatch commands. Direct clients cannot author authoritative saved, listing revision, reserve, offer, bid, settlement, default-report, dispute, or Dispatch state. A real Auth, Firestore, and Functions emulator suite verifies 32 command receipts and repeated-request idempotency, including expired-auction winner calculation and independent buyer/seller completion. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
+| 2 — Backend parity and commands | No | 75% | The 36 reviewed Function exports include idempotent saved-listing, Marketplace listing lifecycle, offer completion, auction finalization/settlement, and the complete Dispatch award-to-closure command. Direct clients cannot author authoritative saved, listing revision, reserve, offer, bid, settlement, delivery-proof, default-report, dispute, or Dispatch state. A real Auth, Firestore, and Functions emulator suite verifies 37 command receipts and repeated-request idempotency, including expired-auction winner calculation, Marketplace confirmations, and Dispatch delivery closure. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
-| 4 — Product workflows | No | 56% | Saved listings and normal listing lifecycle are locally verified. Offers and winning auctions now have participant-only buyer/seller confirmations, controlled disputes/default reports, notifications, and immutable transaction history. Expired auctions finalize atomically to winner or no sale, while Buy It Now and below-reserve acceptance create settlement records immediately. Payment release/refund, administrative dispute/default resolution, and Dispatch terminal lifecycles remain incomplete. |
+| 4 — Product workflows | No | 64% | Saved listings and normal listing lifecycle are locally verified. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards now create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Payment release/refund, provider approval, truck-route calculation, and carrier billing remain incomplete. |
 | 5 — Trust, notifications, policies | No | 15% | User reporting with attachments and some in-app notifications exist. Moderation operations, appeals, delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **50%**.
+Overall Phase 1 launch readiness estimate: **53%**.
 
 Completed gates: **1 of 8**.
 
@@ -90,22 +90,21 @@ Completed gates: **1 of 8**.
 
 | Workflow | Status | Evidence or remaining work |
 | --- | --- | --- |
-| Dispatch commands | Source only; live incomplete | Create, edit, publish, quote, revise quote, and award commands exist in source but are absent from deployed Functions. |
+| Dispatch commands | Source and emulator verified; staging pending | Create, edit, publish, quote, revise quote, award, and post-award lifecycle commands are idempotent and server-controlled in source but remain absent from the current production deployment. |
 | Provider approval | Incomplete | Signup writes `status: active` and `availableForHire: true` immediately. |
 | Route distance | Incomplete | Distance is a labelled straight-line estimate, not reviewed truck routing. |
-| Post-award lifecycle | Incomplete | Accepted, scheduled, in-transit, delivered, proof-of-delivery, cancelled, disputed, and closed commands are absent. |
+| Post-award lifecycle | Source and emulator verified; staging pending | Award creates a participant-only transaction. The carrier accepts, schedules, starts transport, and records receiver/delivery proof; the customer confirms closure. Safe cancellation, dispute, administrator resolution, notifications, immutable history, role checks, retries, and forged-write denial are verified in emulators. Attachment-backed signatures, payment, and staging acceptance remain outstanding. |
 | Carrier billing | Incomplete | No invoice, payment, adjustment, refund, or reconciliation lifecycle. |
 | Bounded job/bid queries | Incomplete | Several UI queries remain unbounded or client-filtered. |
 
 ## Live Firebase parity finding
 
-The July 23 read-only inventory for project `flutter-flow-pipe` contains 15
-active Functions in the `marketplace` codebase against 27 reviewed source
-exports. The automated parity control reports 14 missing expected handlers and
-2 unexpected legacy handlers (`onDispatchBidCreated` and
-`onDispatchJobAwarded`). It exits non-zero on this mismatch. Offer, Auction,
-and Dispatch workflows must remain disabled until a reviewed staging deployment
-matches exactly and passes end-to-end acceptance.
+The July 23 read-only inventory for project `flutter-flow-pipe` predates the
+current 36-export reviewed source. The automated parity control therefore
+continues to fail closed on missing current handlers and two unexpected legacy
+handlers (`onDispatchBidCreated` and `onDispatchJobAwarded`). Offer, Auction,
+and Dispatch workflows must remain disabled until a refreshed, reviewed
+staging deployment matches exactly and passes end-to-end acceptance.
 
 ## Gate 0 completion evidence
 
@@ -122,7 +121,7 @@ matches exactly and passes end-to-end acceptance.
   protected staging environment and retains its structured artifact once the
   workflow reaches the default branch.
 - The current full local release gate passed with 0 analyzer issues, 68 Flutter
-  tests, 43 Functions/runtime tests, 18 Firestore rules tests, 32 authenticated
+  tests, 46 Functions/runtime tests, 19 Firestore rules tests, 37 authenticated
   command receipts, dependency high-severity audits, and a release web build.
 
 ## Gate 1 checkpoint evidence

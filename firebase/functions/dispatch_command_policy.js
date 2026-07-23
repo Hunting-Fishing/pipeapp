@@ -343,10 +343,236 @@ function validateDispatchAward(job, bid, actorUid) {
   };
 }
 
+const DISPATCH_ACTIVE_TRANSACTION_STATES = new Set([
+  "awarded",
+  "accepted",
+  "scheduled",
+  "in_transit",
+  "delivered",
+]);
+
+const DISPATCH_TERMINAL_TRANSACTION_STATES = new Set([
+  "closed",
+  "cancelled",
+  "disputed",
+]);
+
+function validateDispatchTransactionAction({
+  job,
+  dispatchTransaction,
+  actorUid,
+  action,
+  data = {},
+  now,
+  administrator = false,
+}) {
+  if (!job || !dispatchTransaction || dispatchTransaction.jobId !== job.id) {
+    throw new CommandPolicyError(
+        "not-found",
+        "This awarded Dispatch job is unavailable.",
+    );
+  }
+  const customerUid = String(dispatchTransaction.customerUid || "");
+  const carrierUid = String(dispatchTransaction.carrierUid || "");
+  const actorRole = actorUid === customerUid ?
+    "customer" : actorUid === carrierUid ? "carrier" : null;
+  if (!actorRole && !administrator) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the Dispatch customer or awarded carrier can update this job.",
+    );
+  }
+  const status = String(dispatchTransaction.status || "awarded");
+  if (action === "accept_award") {
+    if (actorRole !== "carrier") {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "Only the awarded carrier can accept this job.",
+      );
+    }
+    if (status === "accepted") return {status, actorRole, alreadyApplied: true};
+    if (status !== "awarded") {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "This Dispatch award cannot be accepted in its current state.",
+      );
+    }
+    return {status: "accepted", actorRole, alreadyApplied: false};
+  }
+  if (action === "schedule") {
+    if (actorRole !== "carrier") {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "Only the awarded carrier can schedule pickup.",
+      );
+    }
+    if (!["accepted", "scheduled"].includes(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "Accept the Dispatch award before scheduling pickup.",
+      );
+    }
+    const scheduledDate = validateQuoteDate(data.scheduledDate, now);
+    if (scheduledDate < timestampMillis(now)) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "Scheduled pickup cannot be in the past.",
+      );
+    }
+    return {
+      status: "scheduled",
+      actorRole,
+      alreadyApplied: status === "scheduled" &&
+        timestampMillis(dispatchTransaction.scheduledDate) === scheduledDate,
+      scheduledDate,
+    };
+  }
+  if (action === "start_transit") {
+    if (actorRole !== "carrier") {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "Only the awarded carrier can start transport.",
+      );
+    }
+    if (status === "in_transit") {
+      return {status, actorRole, alreadyApplied: true};
+    }
+    if (status !== "scheduled") {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "Schedule pickup before marking this load in transit.",
+      );
+    }
+    return {status: "in_transit", actorRole, alreadyApplied: false};
+  }
+  if (action === "mark_delivered") {
+    if (actorRole !== "carrier") {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "Only the awarded carrier can mark this load delivered.",
+      );
+    }
+    if (status === "delivered") {
+      return {status, actorRole, alreadyApplied: true};
+    }
+    if (status !== "in_transit") {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "The load must be in transit before delivery can be recorded.",
+      );
+    }
+    const receiverName = requireText(
+        data.receiverName,
+        "Receiver name",
+        160,
+    );
+    const deliveryNote = requireText(
+        data.deliveryNote,
+        "Proof of delivery note",
+        2000,
+    );
+    const proofStoragePath = optionalText(
+        data.proofStoragePath,
+        "Proof attachment path",
+        500,
+    );
+    if (proofStoragePath &&
+        (!proofStoragePath.startsWith(`dispatch_proof/${job.id}/`) ||
+         proofStoragePath.includes(".."))) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "Proof attachment path does not belong to this Dispatch job.",
+      );
+    }
+    return {
+      status: "delivered",
+      actorRole,
+      alreadyApplied: false,
+      proofOfDelivery: {receiverName, deliveryNote, proofStoragePath},
+    };
+  }
+  if (action === "confirm_delivery") {
+    if (actorRole !== "customer") {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "Only the Dispatch customer can confirm delivery.",
+      );
+    }
+    if (status === "closed") return {status, actorRole, alreadyApplied: true};
+    if (status !== "delivered") {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "The carrier must record delivery before the job can close.",
+      );
+    }
+    return {status: "closed", actorRole, alreadyApplied: false};
+  }
+
+  const reason = requireText(data.reason, "Reason", 2000);
+  if (reason.length < 10) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Provide a reason of at least 10 characters.",
+    );
+  }
+  if (action === "cancel") {
+    if (!actorRole || !["awarded", "accepted", "scheduled"].includes(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "This Dispatch job can no longer be cancelled by a participant.",
+      );
+    }
+    return {status: "cancelled", actorRole, alreadyApplied: false, reason};
+  }
+  if (action === "dispute") {
+    if (!actorRole || !DISPATCH_ACTIVE_TRANSACTION_STATES.has(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "This Dispatch job cannot be disputed in its current state.",
+      );
+    }
+    return {status: "disputed", actorRole, alreadyApplied: false, reason};
+  }
+  if (action === "admin_resolve" && administrator) {
+    if (status !== "disputed") {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "Only a disputed Dispatch job can be resolved by an administrator.",
+      );
+    }
+    const resolution = String(data.resolution || "").trim();
+    if (!["closed", "cancelled"].includes(resolution)) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "Administrator resolution must close or cancel the job.",
+      );
+    }
+    return {
+      status: resolution,
+      actorRole: "administrator",
+      alreadyApplied: false,
+      reason,
+    };
+  }
+  if (DISPATCH_TERMINAL_TRANSACTION_STATES.has(status)) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This Dispatch transaction is already closed.",
+    );
+  }
+  throw new CommandPolicyError(
+      "permission-denied",
+      "This Dispatch transaction action is not available.",
+  );
+}
+
 module.exports = {
+  DISPATCH_ACTIVE_TRANSACTION_STATES,
+  DISPATCH_TERMINAL_TRANSACTION_STATES,
   validateDispatchAward,
   validateDispatchJobChange,
   validateDispatchJobInput,
   validateDispatchJobPublish,
   validateDispatchQuote,
+  validateDispatchTransactionAction,
 };

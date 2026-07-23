@@ -8,9 +8,8 @@ import 'marketplace_command_client.dart';
 import 'regional_phone_field.dart';
 
 class MarketplaceDispatchRepository {
-  MarketplaceDispatchRepository({
-    MarketplaceCommandClient? commandClient,
-  }) : _commands = commandClient ?? MarketplaceCommandClient();
+  MarketplaceDispatchRepository({MarketplaceCommandClient? commandClient})
+    : _commands = commandClient ?? MarketplaceCommandClient();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final MarketplaceCommandClient _commands;
@@ -32,27 +31,27 @@ class MarketplaceDispatchRepository {
       .orderBy('updatedAt', descending: true)
       .snapshots();
 
-  Future<String> saveQuote(Map<String, dynamic> quote,
-      {String? quoteId}) async {
+  Future<String> saveQuote(
+    Map<String, dynamic> quote, {
+    String? quoteId,
+  }) async {
     final collection = _firestore
         .collection('dispatch_carriers')
         .doc(uid)
         .collection('saved_quotes');
-    final reference =
-        quoteId == null ? collection.doc() : collection.doc(quoteId);
+    final reference = quoteId == null
+        ? collection.doc()
+        : collection.doc(quoteId);
     final existing = await reference.get();
     final revision = (existing.data()?['revision'] as num? ?? 0).toInt() + 1;
     final batch = _firestore.batch();
-    batch.set(
-        reference,
-        {
-          ...quote,
-          'ownerUid': uid,
-          'revision': revision,
-          'updatedAt': FieldValue.serverTimestamp(),
-          if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true));
+    batch.set(reference, {
+      ...quote,
+      'ownerUid': uid,
+      'revision': revision,
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
     batch.set(reference.collection('revisions').doc('$revision'), {
       ...quote,
       'ownerUid': uid,
@@ -65,15 +64,15 @@ class MarketplaceDispatchRepository {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> savedQuoteHistory(
-          String quoteId) =>
-      _firestore
-          .collection('dispatch_carriers')
-          .doc(uid)
-          .collection('saved_quotes')
-          .doc(quoteId)
-          .collection('revisions')
-          .orderBy('revision', descending: true)
-          .snapshots();
+    String quoteId,
+  ) => _firestore
+      .collection('dispatch_carriers')
+      .doc(uid)
+      .collection('saved_quotes')
+      .doc(quoteId)
+      .collection('revisions')
+      .orderBy('revision', descending: true)
+      .snapshots();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> openJobs() => _firestore
       .collection('dispatch_jobs')
@@ -106,24 +105,40 @@ class MarketplaceDispatchRepository {
           .orderBy('revision', descending: true)
           .snapshots();
 
+  Stream<DocumentSnapshot<Map<String, dynamic>>> dispatchTransaction(
+    String jobId,
+  ) => _firestore.collection('dispatch_transactions').doc(jobId).snapshots();
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> dispatchTransactionHistory(
+    String jobId,
+  ) => _firestore
+      .collection('dispatch_transactions')
+      .doc(jobId)
+      .collection('revisions')
+      .orderBy('revision', descending: true)
+      .snapshots();
+
   Future<QueryDocumentSnapshot<Map<String, dynamic>>?> myBidForJob(
-      String jobId) async {
+    String jobId,
+  ) async {
     final snapshot = await _firestore
         .collection('dispatch_bids')
         .where('carrierUid', isEqualTo: uid)
         .get();
-    final matches = snapshot.docs
-        .where((document) => document.data()['jobId'] == jobId)
-        .toList()
-      ..sort((a, b) {
-        final aPending = a.data()['status'] == 'pending' ? 1 : 0;
-        final bPending = b.data()['status'] == 'pending' ? 1 : 0;
-        if (aPending != bPending) return bPending.compareTo(aPending);
-        final aTime = a.data()['updatedAt'] as Timestamp?;
-        final bTime = b.data()['updatedAt'] as Timestamp?;
-        return (bTime?.millisecondsSinceEpoch ?? 0)
-            .compareTo(aTime?.millisecondsSinceEpoch ?? 0);
-      });
+    final matches =
+        snapshot.docs
+            .where((document) => document.data()['jobId'] == jobId)
+            .toList()
+          ..sort((a, b) {
+            final aPending = a.data()['status'] == 'pending' ? 1 : 0;
+            final bPending = b.data()['status'] == 'pending' ? 1 : 0;
+            if (aPending != bPending) return bPending.compareTo(aPending);
+            final aTime = a.data()['updatedAt'] as Timestamp?;
+            final bTime = b.data()['updatedAt'] as Timestamp?;
+            return (bTime?.millisecondsSinceEpoch ?? 0).compareTo(
+              aTime?.millisecondsSinceEpoch ?? 0,
+            );
+          });
     return matches.firstOrNull;
   }
 
@@ -184,20 +199,21 @@ class MarketplaceDispatchRepository {
     required List<String> services,
     required bool pilotTruck,
     String notes = '',
-  }) =>
-      _firestore
-          .collection('dispatch_carriers')
-          .doc(uid)
-          .collection('vehicles')
-          .add({
+  }) => _firestore
+      .collection('dispatch_carriers')
+      .doc(uid)
+      .collection('vehicles')
+      .add({
         'ownerUid': uid,
         'name': name,
         'vehicleType': vehicleType,
         'maximumPayloadKg': maximumPayloadKg,
         'tareWeightKg': tareWeightKg,
         'grossWeightKg': grossWeightKg,
-        'calculatedPayloadKg':
-            (grossWeightKg - tareWeightKg).clamp(0, double.infinity),
+        'calculatedPayloadKg': (grossWeightKg - tareWeightKg).clamp(
+          0,
+          double.infinity,
+        ),
         'weightSource': weightSource,
         'weightUnitStored': 'kg',
         'services': services,
@@ -255,7 +271,8 @@ class MarketplaceDispatchRepository {
         },
       if (mappedDistance != null) 'distanceKm': mappedDistance,
       if (mappedDistance != null)
-        'distanceSource': distanceSource ??
+        'distanceSource':
+            distanceSource ??
             (distanceKm == null ? 'coordinate_estimate' : 'user_entered_route'),
       if (deliveryLocation != null) ...{
         'deliveryPoint': {
@@ -341,15 +358,39 @@ class MarketplaceDispatchRepository {
     });
   }
 
-  Future<void> awardBid(
-      {required String jobId,
-      required String bidId,
-      required String carrierUid,
-      required num amount}) async {
+  Future<void> awardBid({
+    required String jobId,
+    required String bidId,
+    required String carrierUid,
+    required num amount,
+  }) async {
     await _commands.execute('awardDispatchQuote', {
       'requestId': _firestore.collection('dispatch_bids').doc().id,
       'jobId': jobId,
       'bidId': bidId,
+    });
+  }
+
+  Future<void> updateDispatchTransaction({
+    required String jobId,
+    required String action,
+    DateTime? scheduledDate,
+    String reason = '',
+    String receiverName = '',
+    String deliveryNote = '',
+    String proofStoragePath = '',
+  }) async {
+    await _commands.execute('updateDispatchTransaction', {
+      'requestId': _firestore.collection('dispatch_transactions').doc().id,
+      'jobId': jobId,
+      'action': action,
+      if (scheduledDate != null)
+        'scheduledDate': scheduledDate.millisecondsSinceEpoch,
+      if (reason.trim().isNotEmpty) 'reason': reason.trim(),
+      if (receiverName.trim().isNotEmpty) 'receiverName': receiverName.trim(),
+      if (deliveryNote.trim().isNotEmpty) 'deliveryNote': deliveryNote.trim(),
+      if (proofStoragePath.trim().isNotEmpty)
+        'proofStoragePath': proofStoragePath.trim(),
     });
   }
 }

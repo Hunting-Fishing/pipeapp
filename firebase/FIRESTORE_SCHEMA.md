@@ -37,6 +37,13 @@ Firestore uses collections and documents rather than SQL tables.
   pending quotes while the job remains open.
   - `revisions/{revision}`: immutable submitted, edited, awarded or archived
     quote history.
+- `dispatch_transactions/{jobId}`: participant-only awarded-job state,
+  schedule, structured proof of delivery, cancellation/dispute state, and
+  current revision. Only server commands may write it.
+  - `revisions/{revision}`: immutable award, acceptance, schedule, in-transit,
+    delivery, closure, cancellation, dispute, and resolution history.
+- `dispatch_disputes/{jobId}`: participant/admin-readable server review record
+  for a disputed Dispatch transaction.
 - `dispatch_carriers/{uid}`: Dispatch provider profile.
   - `vehicles/{vehicleId}`: fleet vehicles, payload and services.
   - `saved_quotes/{quoteId}`: reusable lane pricing with current revision.
@@ -65,6 +72,7 @@ idempotency receipt. The current callable commands are:
 - `publishDispatchJob`
 - `submitDispatchQuote`
 - `awardDispatchQuote`
+- `updateDispatchTransaction`
 
 Firestore rules deny client writes to auction bid state, offer decisions,
 Dispatch jobs, Dispatch quote state, and their immutable revision histories.
