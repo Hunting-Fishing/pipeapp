@@ -132,6 +132,26 @@ beforeEach(async () => {
       ownerUid: "seller",
       reservePrice: 175,
     });
+    await setDoc(doc(db, "auction_transactions", "auction"), {
+      listingId: "auction",
+      buyerUid: "buyer",
+      sellerUid: "seller",
+      status: "pending_completion",
+      buyerConfirmed: false,
+      sellerConfirmed: false,
+      revision: 1,
+    });
+    await setDoc(doc(
+        db,
+        "auction_transactions",
+        "auction",
+        "revisions",
+        "1",
+    ), {
+      event: "auction_won",
+      actorUid: "auction_scheduler",
+      revision: 1,
+    });
     await setDoc(doc(db, "dispatch_carriers", "carrier"), {
       ownerUid: "carrier",
       operatingName: "Test Carrier",
@@ -332,6 +352,38 @@ test("transaction state and history are participant-readable and server-only", a
       buyerDb,
       "marketplace_transactions",
       "accepted-offer",
+      "revisions",
+      "2",
+  ), {event: "forged", actorUid: "buyer", revision: 2}));
+});
+
+test("auction settlement and history are participant-readable and server-only", async () => {
+  const buyerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const sellerDb = testEnvironment.authenticatedContext("seller").firestore();
+  const strangerDb = testEnvironment.authenticatedContext("stranger").firestore();
+  const settlement = doc(buyerDb, "auction_transactions", "auction");
+
+  await assertSucceeds(getDoc(settlement));
+  await assertSucceeds(getDoc(doc(
+      sellerDb,
+      "auction_transactions",
+      "auction",
+      "revisions",
+      "1",
+  )));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "auction_transactions",
+      "auction",
+  )));
+  await assertFails(updateDoc(settlement, {
+    status: "completed",
+    buyerConfirmed: true,
+  }));
+  await assertFails(setDoc(doc(
+      buyerDb,
+      "auction_transactions",
+      "auction",
       "revisions",
       "2",
   ), {event: "forged", actorUid: "buyer", revision: 2}));

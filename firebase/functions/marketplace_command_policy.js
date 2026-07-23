@@ -524,6 +524,167 @@ function validateWithdrawal(listingId, listing, bid, actorUid, now) {
   }
 }
 
+function validateAuctionFinalization({listing, privateAuction, now}) {
+  if (!listing || listing.transactionType !== "Auction") {
+    throw new CommandPolicyError("not-found", "This auction is unavailable.");
+  }
+  if (listing.status !== "active" ||
+      TERMINAL_AUCTION_STATUSES.has(listing.auctionStatus)) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This auction has already been finalized.",
+    );
+  }
+  const nowMillis = timestampMillis(now);
+  const endMillis = timestampMillis(listing.auctionEndAt);
+  if (!endMillis || !nowMillis || nowMillis < endMillis) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This auction is still accepting bids.",
+    );
+  }
+  const amount = Number(listing.currentBid || 0);
+  const winnerUid = String(listing.highBidderUid || "");
+  const reserve = Number(privateAuction && privateAuction.reservePrice || 0);
+  const reserveMet = !Number.isFinite(reserve) || reserve <= 0 || amount >= reserve;
+  const won = Number.isFinite(amount) && amount > 0 && !!winnerUid && reserveMet;
+  return {
+    amount: Number.isFinite(amount) ? amount : 0,
+    auctionStatus: won ? "won" : "ended",
+    reserveMet,
+    winnerUid: won ? winnerUid : "",
+  };
+}
+
+function validateAuctionTransactionAction({
+  sale,
+  listing,
+  actorUid,
+  action,
+  reason,
+  administrator = false,
+}) {
+  if (!sale || !listing || sale.listingId !== listing.id) {
+    throw new CommandPolicyError(
+        "not-found",
+        "This auction settlement is unavailable.",
+    );
+  }
+  const buyerUid = String(sale.buyerUid || "");
+  const sellerUid = String(sale.sellerUid || "");
+  const actorRole = actorUid === buyerUid ?
+    "buyer" : actorUid === sellerUid ? "seller" : null;
+  if (!actorRole && !administrator) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the winning bidder or seller can update this settlement.",
+    );
+  }
+  const status = String(sale.status || "pending_completion");
+  const buyerConfirmed = sale.buyerConfirmed === true;
+  const sellerConfirmed = sale.sellerConfirmed === true;
+  if (action === "confirm_completion") {
+    if (!actorRole) {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "An auction participant must confirm completion.",
+      );
+    }
+    const alreadyConfirmed = actorRole === "buyer" ?
+      buyerConfirmed : sellerConfirmed;
+    if (status === "completed" && alreadyConfirmed) {
+      return {
+        actorRole,
+        alreadyApplied: true,
+        buyerConfirmed,
+        sellerConfirmed,
+        status,
+      };
+    }
+    if (!["pending_completion", "awaiting_buyer_confirmation",
+      "awaiting_seller_confirmation"].includes(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "This settlement cannot be confirmed in its current state.",
+      );
+    }
+    const nextBuyer = buyerConfirmed || actorRole === "buyer";
+    const nextSeller = sellerConfirmed || actorRole === "seller";
+    return {
+      actorRole,
+      alreadyApplied: alreadyConfirmed,
+      buyerConfirmed: nextBuyer,
+      sellerConfirmed: nextSeller,
+      status: nextBuyer && nextSeller ?
+        "completed" : nextBuyer ?
+          "awaiting_seller_confirmation" : "awaiting_buyer_confirmation",
+    };
+  }
+  const normalizedReason = String(reason || "").trim();
+  if (normalizedReason.length < 10 || normalizedReason.length > 2000) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Provide a reason between 10 and 2,000 characters.",
+    );
+  }
+  if ([
+    "completed",
+    "cancelled",
+    "disputed",
+    "buyer_default_reported",
+    "seller_default_reported",
+  ].includes(status)) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This auction settlement is already closed.",
+    );
+  }
+  if (action === "dispute" && actorRole) {
+    return {
+      actorRole,
+      alreadyApplied: false,
+      buyerConfirmed,
+      sellerConfirmed,
+      reason: normalizedReason,
+      status: "disputed",
+    };
+  }
+  if (action === "report_buyer_default" && actorRole === "seller") {
+    return {
+      actorRole,
+      alreadyApplied: false,
+      buyerConfirmed,
+      sellerConfirmed,
+      reason: normalizedReason,
+      status: "buyer_default_reported",
+    };
+  }
+  if (action === "report_seller_default" && actorRole === "buyer") {
+    return {
+      actorRole,
+      alreadyApplied: false,
+      buyerConfirmed,
+      sellerConfirmed,
+      reason: normalizedReason,
+      status: "seller_default_reported",
+    };
+  }
+  if (action === "admin_cancel" && administrator) {
+    return {
+      actorRole: "administrator",
+      alreadyApplied: false,
+      buyerConfirmed,
+      sellerConfirmed,
+      reason: normalizedReason,
+      status: "cancelled",
+    };
+  }
+  throw new CommandPolicyError(
+      "permission-denied",
+      "This auction settlement action is not available.",
+  );
+}
+
 function validateOfferAcceptance(offer, actorUid, listing) {
   if (!offer) {
     throw new CommandPolicyError("not-found", "This offer is unavailable.");
@@ -935,6 +1096,8 @@ module.exports = {
   minimumAuctionBid,
   requireMoney,
   validateAuctionConversion,
+  validateAuctionFinalization,
+  validateAuctionTransactionAction,
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,

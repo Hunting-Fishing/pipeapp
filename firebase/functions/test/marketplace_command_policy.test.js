@@ -6,6 +6,8 @@ const {
   CommandPolicyError,
   minimumAuctionBid,
   validateAuctionConversion,
+  validateAuctionFinalization,
+  validateAuctionTransactionAction,
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,
@@ -42,6 +44,88 @@ function verifiedSeller(overrides = {}) {
     ...overrides,
   };
 }
+
+test("expired auctions finalize to a winner only when reserve is met", () => {
+  const listing = {
+    id: "auction",
+    sellerUid: "seller",
+    status: "active",
+    transactionType: "Auction",
+    auctionStatus: "live",
+    auctionEndAt: new Date(now.getTime() - 1000),
+    currentBid: 100,
+    highBidderUid: "buyer",
+  };
+  assert.deepEqual(
+      validateAuctionFinalization({
+        listing,
+        privateAuction: {reservePrice: 90},
+        now,
+      }),
+      {
+        amount: 100,
+        auctionStatus: "won",
+        reserveMet: true,
+        winnerUid: "buyer",
+      },
+  );
+  assert.equal(
+      validateAuctionFinalization({
+        listing,
+        privateAuction: {reservePrice: 110},
+        now,
+      }).auctionStatus,
+      "ended",
+  );
+});
+
+test("auction settlements require both confirmations and control defaults", () => {
+  const listing = {id: "auction", sellerUid: "seller"};
+  const sale = {
+    listingId: "auction",
+    buyerUid: "buyer",
+    sellerUid: "seller",
+    status: "pending_completion",
+    buyerConfirmed: false,
+    sellerConfirmed: false,
+  };
+  const buyer = validateAuctionTransactionAction({
+    sale,
+    listing,
+    actorUid: "buyer",
+    action: "confirm_completion",
+  });
+  assert.equal(buyer.status, "awaiting_seller_confirmation");
+  const seller = validateAuctionTransactionAction({
+    sale: {...sale, ...buyer},
+    listing,
+    actorUid: "seller",
+    action: "confirm_completion",
+  });
+  assert.equal(seller.status, "completed");
+  assert.equal(seller.buyerConfirmed, true);
+  assert.equal(seller.sellerConfirmed, true);
+  assert.equal(
+      validateAuctionTransactionAction({
+        sale,
+        listing,
+        actorUid: "seller",
+        action: "report_buyer_default",
+        reason: "Winning bidder did not complete the agreed purchase.",
+      }).status,
+      "buyer_default_reported",
+  );
+  assert.throws(
+      () => validateAuctionTransactionAction({
+        sale,
+        listing,
+        actorUid: "buyer",
+        action: "report_buyer_default",
+        reason: "Trying to report the wrong participant as in default.",
+      }),
+      (error) => error.code === "permission-denied",
+  );
+});
 
 function liveAuction(overrides = {}) {
   return {

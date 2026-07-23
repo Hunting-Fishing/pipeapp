@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/offer-transaction-lifecycle`
+Baseline branch: `agent/auction-settlement-lifecycle`
 Created: July 20, 2026
 
 Current gate: Gate 1 — Reproducible environments, builds, and diagnostics
 
-Current overall launch-readiness estimate: 47%
+Current overall launch-readiness estimate: 50%
 
 Completed gates: 1 of 8
 
@@ -17,9 +17,9 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 69% — local integration verified |
+| 2 — Backend parity and server commands | 72% — local integration verified |
 | 3 — Identity, authorization, and abuse | 10% — incomplete |
-| 4 — Product workflows | 47% — listing and offer transaction lifecycles locally verified |
+| 4 — Product workflows | 56% — listing, offer, and auction settlement lifecycles locally verified |
 | 5 — Trust, notifications, and policies | 15% — incomplete |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
 | 7 — Release readiness | 5% — incomplete |
@@ -40,7 +40,7 @@ Gate 0 implementation evidence:
 
 Gate 2 implementation evidence in progress:
 
-- Release manifests declare the exact 33 expected Function exports
+- Release manifests declare the exact 35 expected Function exports
 - Unit-tested parity tooling compares that manifest with the deployed
   `marketplace` codebase and fails on missing, unexpected, or inactive handlers
 - Every controlled deploy now performs this comparison after deployment and
@@ -51,7 +51,7 @@ Gate 2 implementation evidence in progress:
 - Client listing creation and Marketplace-to-Auction conversion now use
   authenticated server commands; direct clients cannot author public listing,
   private reserve, bid, offer, or Dispatch transaction state
-- Auth, Firestore, and Functions emulator integration verifies 26 command
+- Auth, Firestore, and Functions emulator integration verifies 32 command
   receipts across saved listings, Marketplace listing lifecycle, Offers,
   Auctions, Buy It Now, and Dispatch, including repeated-request idempotency
   and transaction state assertions
@@ -66,6 +66,10 @@ Gate 2 implementation evidence in progress:
   immutable transaction revisions are enforced by idempotent server commands.
   Payment release and refund states remain disabled until a settlement provider
   is approved and integrated.
+- Expired auctions finalize atomically to a winning bidder or no sale through a
+  bounded scheduler or retry-safe callable. Buy It Now and below-reserve
+  acceptance use the same participant-only settlement model. Completion needs
+  both parties; dispute and default reports enter an immutable review queue.
 - Functions discovery and CI now use the declared Node 22 runtime, and App
   Check enforcement is a concrete deployment option rather than an unsupported
   parameter expression

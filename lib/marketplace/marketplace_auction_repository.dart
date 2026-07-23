@@ -40,4 +40,24 @@ class MarketplaceAuctionRepository {
       'bidId': bidId,
     });
   }
+
+  Future<void> finalizeAuction({required String listingId}) async {
+    await _commands.execute('finalizeAuction', {
+      'requestId': 'finalize-$listingId',
+      'listingId': listingId,
+    });
+  }
+
+  Future<void> updateTransaction(
+    String listingId,
+    String action, {
+    String reason = '',
+  }) async {
+    await _commands.execute('updateAuctionTransaction', {
+      'requestId': 'auction-transaction-$listingId-$action',
+      'listingId': listingId,
+      'action': action,
+      if (reason.trim().isNotEmpty) 'reason': reason.trim(),
+    });
+  }
 }

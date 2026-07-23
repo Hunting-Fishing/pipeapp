@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'marketplace_auction_repository.dart';
+import 'marketplace_auction_settlement.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_money.dart';
 import 'marketplace_public_profile_page.dart';
@@ -305,6 +306,23 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
             now.isBefore(end);
         final mine =
             data['sellerUid'] == FirebaseAuth.instance.currentUser?.uid;
+        final auctionParticipant = mine ||
+            data['highBidderUid'] == FirebaseAuth.instance.currentUser?.uid;
+        final auctionStatus = '${data['auctionStatus'] ?? ''}';
+        final settlementReady = const {
+          'bought_now',
+          'accepted_below_reserve',
+          'won',
+        }.contains(auctionStatus);
+        final needsFinalization = end != null &&
+            !now.isBefore(end) &&
+            !const {
+              'bought_now',
+              'accepted_below_reserve',
+              'won',
+              'ended',
+              'cancelled',
+            }.contains(auctionStatus);
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: mine
                 ? FirebaseFirestore.instance
@@ -508,6 +526,14 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                             auction: true)),
                                 const SizedBox(height: 12),
                                 _AuctionListingDetails(data: data),
+                                if (auctionParticipant &&
+                                    (settlementReady || needsFinalization)) ...[
+                                  const SizedBox(height: 12),
+                                  MarketplaceAuctionSettlement(
+                                    listingId: widget.document.id,
+                                    listing: data,
+                                  ),
+                                ],
                                 const SizedBox(height: 18),
                                 if (!mine) ...[
                                   TextField(

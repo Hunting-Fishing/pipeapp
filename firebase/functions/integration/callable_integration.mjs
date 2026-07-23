@@ -510,6 +510,89 @@ try {
   ).data();
   assert.equal(boughtListing.auctionStatus, "bought_now");
   assert.equal(boughtListing.bidCount, 1);
+  assert.equal(
+      (await db.doc(`auction_transactions/${buyNowListingId}`).get()).data()
+          .status,
+      "pending_completion",
+  );
+
+  const finalizationListingId = `finalization-listing-${now}`;
+  await call("createMarketplaceListing", seller.token, {
+    listingId: finalizationListingId,
+    listing: listingInput("Auction finalization integration listing"),
+    location: locationInput(),
+  });
+  await call("convertMarketplaceListingToAuction", seller.token, {
+    ...conversionData,
+    requestId: `convert-finalization-${now}`,
+    listingId: finalizationListingId,
+    reservePrice: 90,
+  });
+  await call("placeAuctionBid", buyer.token, {
+    listingId: finalizationListingId,
+    amount: 90,
+  });
+  await db.doc(`public_listings/${finalizationListingId}`).update({
+    auctionEndAt: Timestamp.fromMillis(now - 1000),
+  });
+  const finalizeData = {
+    requestId: `finalize-auction-${now}`,
+    listingId: finalizationListingId,
+  };
+  const finalized = await call(
+      "finalizeAuction",
+      buyer.token,
+      finalizeData,
+  );
+  assert.deepEqual(
+      await call("finalizeAuction", buyer.token, finalizeData),
+      finalized,
+  );
+  assert.equal(finalized.auctionStatus, "won");
+  assert.equal(finalized.winnerUid, buyer.uid);
+  const auctionBuyerConfirmation = {
+    requestId: `auction-buyer-confirm-${now}`,
+    listingId: finalizationListingId,
+    action: "confirm_completion",
+  };
+  const auctionBuyerResult = await call(
+      "updateAuctionTransaction",
+      buyer.token,
+      auctionBuyerConfirmation,
+  );
+  assert.deepEqual(
+      await call(
+          "updateAuctionTransaction",
+          buyer.token,
+          auctionBuyerConfirmation,
+      ),
+      auctionBuyerResult,
+  );
+  assert.equal(auctionBuyerResult.status, "awaiting_seller_confirmation");
+  const auctionSellerConfirmation = {
+    requestId: `auction-seller-confirm-${now}`,
+    listingId: finalizationListingId,
+    action: "confirm_completion",
+  };
+  const auctionSellerResult = await call(
+      "updateAuctionTransaction",
+      seller.token,
+      auctionSellerConfirmation,
+  );
+  assert.deepEqual(
+      await call(
+          "updateAuctionTransaction",
+          seller.token,
+          auctionSellerConfirmation,
+      ),
+      auctionSellerResult,
+  );
+  assert.equal(auctionSellerResult.status, "completed");
+  assert.equal(
+      (await db.doc(`public_listings/${finalizationListingId}`).get()).data()
+          .status,
+      "sold",
+  );
 
   const jobId = `job-${now}`;
   const jobCreateData = dispatchInput(jobId, `create-job-${now}`);
@@ -596,10 +679,10 @@ try {
   assert.equal(awardedJob.revision, 3);
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 26);
+  assert.equal(receipts.size, 32);
   console.log(
       "Callable integration passed: saved listings, listing lifecycle, " +
-      "offer completion, auction, bid, Buy It Now, Dispatch revision, " +
+      "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "quote, award, and retry idempotency.",
   );
 } finally {
