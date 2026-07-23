@@ -109,12 +109,12 @@ jobs:
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.24.0
 
-      - name: Test Firestore security rules
+      - name: Test Firestore and Storage security rules
         run: >
           firebase emulators:exec
           --project demo-pipe-buyer-rules
           --config firebase.json
-          --only firestore
+          --only firestore,storage
           "npm test --prefix firebase/rules-tests"
 
       - name: Test authenticated callable workflows and retries
