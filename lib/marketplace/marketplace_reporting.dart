@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'industrial_icon_assets.dart';
+import 'marketplace_actions_repository.dart';
+import 'marketplace_command_client.dart';
 
 class MarketplaceReportReason {
   const MarketplaceReportReason(
@@ -170,20 +172,37 @@ class _ReportDialogState extends State<_ReportDialog> {
       final report =
           FirebaseFirestore.instance.collection('trust_reports').doc();
       final evidence = <Map<String, dynamic>>[];
+      final actions = MarketplaceActionsRepository();
       for (var i = 0; i < _attachments.length; i++) {
         final file = _attachments[i];
-        final ref = FirebaseStorage.instance.ref(
-            'report_evidence/${user.uid}/${report.id}/${DateTime.now().microsecondsSinceEpoch}_$i.jpg');
-        await ref.putData(await file.readAsBytes(),
-            SettableMetadata(contentType: 'image/jpeg'));
+        final bytes = await file.readAsBytes();
+        final extension = file.name.split('.').last.toLowerCase();
+        final contentType = extension == 'png'
+            ? 'image/png'
+            : extension == 'webp'
+                ? 'image/webp'
+                : 'image/jpeg';
+        final authorization = await actions.authorizeUpload(
+            purpose: 'report_evidence',
+            originalName: file.name,
+            contentType: contentType,
+            sizeBytes: bytes.length,
+            reportId: report.id);
+        final authorizationId = '${authorization['authorizationId']}';
+        final ref =
+            FirebaseStorage.instance.ref('${authorization['storagePath']}');
+        await ref.putData(bytes, SettableMetadata(contentType: contentType));
+        final url = await ref.getDownloadURL();
+        await actions.confirmUpload(
+            authorizationId: authorizationId, url: url);
         evidence.add({
-          'type': 'image',
-          'url': await ref.getDownloadURL(),
+          'authorizationId': authorizationId,
+          'url': url,
           'name': file.name
         });
       }
-      await report.set({
-        'reporterUid': user.uid,
+      await MarketplaceCommandClient().execute('submitMarketplaceReport', {
+        'requestId': report.id,
         'reportedUid': widget.reportedUid,
         'targetType': widget.targetType,
         if (widget.listingId != null) 'listingId': widget.listingId,
@@ -191,17 +210,8 @@ class _ReportDialogState extends State<_ReportDialog> {
           'conversationId': widget.conversationId,
         if (widget.offerId != null) 'offerId': widget.offerId,
         'reason': _reason!.code,
-        'reasonLabel': _reason!.label,
         'details': _details.text.trim(),
         'attachments': evidence,
-        'attachmentCount': evidence.length,
-        'source': 'user',
-        'status': 'pending',
-        'priority':
-            ['fraud_or_scam', 'hate_or_racist_content'].contains(_reason!.code)
-                ? 'high'
-                : 'normal',
-        'createdAt': FieldValue.serverTimestamp(),
       });
       if (mounted) Navigator.pop(context, true);
     } catch (error) {

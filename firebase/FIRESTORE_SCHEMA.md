@@ -25,7 +25,15 @@ Firestore uses collections and documents rather than SQL tables.
 - `tag_requests/{requestId}`: user suggestions with pending, approved, or rejected moderation status.
 - `users/{uid}/profile_tags/{tagId}`: approved selections and visibly pending user suggestions.
 - `public_seller_profiles/{uid}`: public discovery index containing approved tag IDs and account type.
-- `conversations/{conversationId}/messages/{messageId}`: listing-scoped buyer/seller chats.
+- `conversations/{conversationId}/messages/{messageId}`: listing-scoped
+  buyer/seller chats created only by verified, throttled communication commands.
+- `media_upload_authorizations/{authorizationId}`: server-created 15-minute
+  grants binding a chat/report upload to its owner, target, storage path, exact
+  byte size, and MIME type. Clients may read their own grant but cannot write it.
+- `communication_command_receipts/{receiptId}`: server-owned idempotency
+  receipts preventing duplicate messages and reports during client retries.
+- `trust_reports/{reportId}`: server-validated user or automated moderation
+  cases with private evidence references and administrator review state.
 - `offers/{offerId}`: server-created marketplace offer revisions. Participants
   may read their shared history, but clients cannot create, alter, accept, or
   archive offer documents directly.
@@ -71,6 +79,13 @@ idempotency receipt. The current callable commands are:
 
 - `syncAccountVerification`
 - `cleanupExpiredSecurityRateLimits` (scheduled)
+- `cleanupExpiredMediaUploadAuthorizations` (scheduled)
+- `openMarketplaceConversation`
+- `markMarketplaceConversationRead`
+- `authorizeMarketplaceUpload`
+- `confirmMarketplaceUpload`
+- `sendMarketplaceMessage`
+- `submitMarketplaceReport`
 - `placeAuctionBid`
 - `buyAuctionNow`
 - `withdrawAuctionBid`

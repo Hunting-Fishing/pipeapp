@@ -2,7 +2,7 @@
 
 Audit date: July 23, 2026
 
-Branch: `agent/server-abuse-throttles`
+Branch: `agent/communication-command-controls`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 77% | The 38 reviewed Function exports include idempotent account-verification sync, retry-aware abuse throttling and cleanup, saved-listing, Marketplace listing lifecycle, offer completion, auction finalization/settlement, and the complete Dispatch award-to-closure command. Direct clients cannot author authoritative verification, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, default-report, dispute, or Dispatch state. A real Auth, Firestore, and Functions emulator suite verifies 37 command receipts and repeated-request idempotency, including expired-auction winner calculation, Marketplace confirmations, Dispatch delivery closure, verified-identity enforcement, and rate exhaustion. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
-| 3 — Identity and abuse protection | No | 45% | Signup and sign-in enter a cross-platform ownership screen until Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, and Dispatch commands require verified Auth claims; phone uniqueness is synchronized into a hashed server-owned registry. Account, Marketplace, Offer, Auction, and Dispatch callable groups now have transactional hourly quotas that deduplicate identical retries, fail with a safe retry message, deny client access, and clean expired buckets on a bounded schedule. Staging Phone Auth/App Check activation, admin MFA/claim migration, direct-message/report/upload/signup throttles, recovery, deletion, and export remain incomplete. |
+| 2 — Backend parity and commands | No | 81% | The 45 reviewed Function exports include idempotent account verification, abuse cleanup, saved/listing/offer/auction/Dispatch lifecycles, and protected conversation, upload, message, and report commands. Direct clients cannot author authoritative verification, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, conversation, message, upload-grant, report, dispute, or Dispatch state. A real Auth, Firestore, Functions, and Storage emulator suite verifies 37 marketplace plus 2 communication receipts and repeated-request idempotency. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
+| 3 — Identity and abuse protection | No | 65% | Signup and sign-in enter a cross-platform ownership screen until Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, Dispatch, messaging, reporting, and media commands require verified Auth claims; phone uniqueness is synchronized into a hashed server-owned registry. Separate transactional hourly quotas deduplicate identical retries and fail safely. Chat/report uploads require short-lived purpose, owner, target, path, size, and MIME grants. Staging Phone Auth/App Check activation, admin MFA/claim migration, Auth signup/listing-event controls, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 64% | Saved listings and normal listing lifecycle are locally verified. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards now create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Payment release/refund, provider approval, truck-route calculation, and carrier billing remain incomplete. |
-| 5 — Trust, notifications, policies | No | 15% | User reporting with attachments and some in-app notifications exist. Moderation operations, appeals, delivery providers, policies, and support operations remain incomplete. |
+| 5 — Trust, notifications, policies | No | 20% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, and administrator-readable cases are locally verified. Moderation operations, appeals, external delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **57%**.
+Overall Phase 1 launch readiness estimate: **60%**.
 
 Completed gates: **1 of 8**.
 
@@ -75,7 +75,7 @@ Completed gates: **1 of 8**.
 | Terminal states | Partially implemented | Completed, pre-confirmation cancelled, and disputed states have server commands and emulator coverage. Failed, payment-refunded, and funds-released states remain intentionally unavailable until a payment and settlement provider is approved. |
 | Transaction checklist | Source and emulator verified; staging pending | The accepted-offer UI shows agreed amount, quantity, both participant confirmations, controlled actions, and permanent revision history. Purchase, transfer, trucking, and Dispatch terms remain copied from the accepted offer. |
 | External notifications | Incomplete | In-app Firestore notifications exist; no verified push/email delivery and retry workflow. |
-| Message spam controls | Incomplete | Messages still use direct client writes without reviewed server throttling. |
+| Message spam controls | Source and emulator verified; staging pending | Conversation creation, unread state, sending, notification creation, and attachment consumption are verified server commands. Messaging has an independent hourly quota, retry receipts prevent duplicate messages, and Rules reject direct conversation/message writes. |
 
 ### Auctions
 
@@ -100,7 +100,7 @@ Completed gates: **1 of 8**.
 ## Live Firebase parity finding
 
 The July 23 read-only inventory for project `flutter-flow-pipe` predates the
-current 38-export reviewed source. The automated parity control therefore
+current 45-export reviewed source. The automated parity control therefore
 continues to fail closed on missing current handlers and two unexpected legacy
 handlers (`onDispatchBidCreated` and `onDispatchJobAwarded`). Offer, Auction,
 and Dispatch workflows must remain disabled until a refreshed, reviewed
@@ -151,6 +151,15 @@ staging deployment matches exactly and passes end-to-end acceptance.
   proves first-use, retry deduplication, quota exhaustion, and continued success
   of all existing workflows. Firestore rules deny all client reads and writes
   to rate buckets, and a bounded scheduled function removes expired buckets.
+- Verified communication commands now derive listing participants on the
+  server, prevent sellers from opening arbitrary buyer conversations, create
+  messages/notifications atomically, and consume retry-safe receipts.
+- User reports validate the target relationship and approved reason on the
+  server. Chat and report evidence use expiring upload grants that Storage
+  Rules bind to owner, purpose, target, exact byte size, MIME type, and path.
+  Twenty-four Firestore/Storage Rules tests include direct-write, cross-owner,
+  wrong-target, wrong-size, wrong-type, missing-ticket, and expired-ticket
+  rejection.
 - The current unified local release gate passes 0 analyzer issues, 68 Flutter
   tests, 51 Function/runtime tests, 20 Firestore rules tests, authenticated
   callable integration, high-severity dependency audits, Android packaging,

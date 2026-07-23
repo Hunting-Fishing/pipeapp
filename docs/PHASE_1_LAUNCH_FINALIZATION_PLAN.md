@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/server-abuse-throttles`
+Baseline branch: `agent/communication-command-controls`
 Created: July 20, 2026
 
 Current gate: Gate 3 — Identity, authorization, App Check, and abuse protection
 
-Current overall launch-readiness estimate: 57%
+Current overall launch-readiness estimate: 60%
 
 Completed gates: 1 of 8
 
@@ -17,10 +17,10 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 77% — local integration verified |
-| 3 — Identity, authorization, and abuse | 45% — ownership and callable throttles locally verified |
+| 2 — Backend parity and server commands | 81% — communication commands locally integrated |
+| 3 — Identity, authorization, and abuse | 65% — ownership, command throttles, and upload grants locally verified |
 | 4 — Product workflows | 64% — listing, offer, auction, and Dispatch transaction lifecycles locally verified |
-| 5 — Trust, notifications, and policies | 15% — incomplete |
+| 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
 | 7 — Release readiness | 5% — incomplete |
 
@@ -40,7 +40,7 @@ Gate 0 implementation evidence:
 
 Gate 2 implementation evidence in progress:
 
-- Release manifests declare the exact 36 expected Function exports
+- Release manifests declare the exact 45 expected Function exports
 - Unit-tested parity tooling compares that manifest with the deployed
   `marketplace` codebase and fails on missing, unexpected, or inactive handlers
 - Every controlled deploy now performs this comparison after deployment and
@@ -51,10 +51,10 @@ Gate 2 implementation evidence in progress:
 - Client listing creation and Marketplace-to-Auction conversion now use
   authenticated server commands; direct clients cannot author public listing,
   private reserve, bid, offer, or Dispatch transaction state
-- Auth, Firestore, and Functions emulator integration verifies 37 command
-  receipts across saved listings, Marketplace listing lifecycle, Offers,
-  Auctions, Buy It Now, and Dispatch, including repeated-request idempotency
-  and transaction state assertions
+- Auth, Firestore, and Functions emulator integration verifies 37 marketplace
+  receipts plus 2 communication receipts across saved listings, Marketplace
+  listing lifecycle, Offers, Auctions, Buy It Now, Dispatch, messages, uploads,
+  and reports, including repeated-request idempotency and state assertions
 - Normal Marketplace listing owners can edit revision-safe details, pause or
   reactivate, mark sold, archive, and relist to a new identifier. Every command
   writes immutable history that only the owner or an administrator may read.
@@ -91,8 +91,12 @@ Gate 2 implementation evidence in progress:
   transactional hourly abuse quotas. Identical retry fingerprints are not
   double-counted; distinct excess requests fail with a safe retry response.
   Buckets are private hashed records with bounded scheduled expiry cleanup.
-- Direct-client messaging, reporting, media-upload, and Auth signup throttles
-  still require server command migration or provider-level enforcement.
+- Conversation creation, unread updates, message sending, reporting, and
+  chat/report uploads now use verified, throttled commands. Uploads require a
+  15-minute, single-purpose authorization matching owner, target, exact size,
+  MIME type, and Firebase object path; direct Firestore writes are denied.
+- Auth signup/provider throttling and listing-event abuse controls still require
+  provider-level enforcement or server command migration.
 - The abuse-throttle checkpoint passes the unified local gate with 68 Flutter
   tests, 51 Function tests, 20 Firestore Rules tests, authenticated callable
   integration, Android and production web builds, and release-manifest checks.

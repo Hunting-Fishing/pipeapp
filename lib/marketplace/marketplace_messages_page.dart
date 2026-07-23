@@ -1153,7 +1153,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             const Divider(height: 20),
             Wrap(spacing: 8, runSpacing: 8, children: [
               OutlinedButton.icon(
-                  onPressed: () => _openBuyerConversation(context, event),
+                  onPressed: () =>
+                      _openBuyerConversation(context, event, offerId),
                   icon: const Icon(Icons.forum_outlined),
                   label: const Text('Message buyer')),
               FilledButton.icon(
@@ -1348,7 +1349,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
   }
 
   Future<void> _openBuyerConversation(
-      BuildContext context, Map<String, dynamic> offer,
+      BuildContext context, Map<String, dynamic> offer, String offerId,
       {bool openOfferComposer = false}) async {
     final buyerUid = '${offer['buyerUid'] ?? ''}';
     if (buyerUid.isEmpty) return;
@@ -1359,6 +1360,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
           listingTitle: listingTitle,
           sellerUid: sellerUid,
           buyerUid: buyerUid,
+          offerId: offerId,
           buyerDisplayName:
               '${offer['buyerDisplayName'] ?? 'Marketplace buyer'}');
       if (!context.mounted) return;
@@ -1385,7 +1387,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     );
     if (!context.mounted) return;
     if (decision == MarketplaceOfferDecision.counter) {
-      await _openBuyerConversation(context, offer, openOfferComposer: true);
+      await _openBuyerConversation(context, offer, offerId,
+          openOfferComposer: true);
       return;
     }
     if (decision != MarketplaceOfferDecision.accept) return;
@@ -1395,7 +1398,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             backgroundColor: Colors.green,
             content: Text('Offer accepted. Other offers were archived.')));
-        await _openBuyerConversation(context, offer);
+        await _openBuyerConversation(context, offer, offerId);
       }
     } catch (_) {
       if (context.mounted) {
@@ -2246,7 +2249,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
       final file = await ImagePicker().pickImage(
           source: ImageSource.gallery, imageQuality: 82, maxWidth: 1800);
       if (file == null) return;
-      if (await file.length() > 15 * 1024 * 1024) {
+      final sizeBytes = await file.length();
+      if (sizeBytes > 15 * 1024 * 1024) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               behavior: SnackBarBehavior.floating,
@@ -2255,24 +2259,36 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         return;
       }
       setState(() => _uploading = true);
-      final uid = FirebaseAuth.instance.currentUser!.uid;
       final extension = file.name.split('.').last.toLowerCase();
       final contentType = extension == 'png'
           ? 'image/png'
           : extension == 'webp'
               ? 'image/webp'
               : 'image/jpeg';
-      final reference = FirebaseStorage.instance.ref(
-          'chat_attachments/${widget.conversationId}/$uid/${DateTime.now().millisecondsSinceEpoch}_${file.name}');
+      final authorization = await _actions.authorizeUpload(
+          purpose: 'chat_attachment',
+          originalName: file.name,
+          contentType: contentType,
+          sizeBytes: sizeBytes,
+          conversationId: widget.conversationId);
+      final authorizationId = '${authorization['authorizationId']}';
+      final reference =
+          FirebaseStorage.instance.ref('${authorization['storagePath']}');
       await reference.putData(
           await file.readAsBytes(),
           SettableMetadata(
               contentType: contentType,
               customMetadata: {'conversationId': widget.conversationId}));
       final url = await reference.getDownloadURL();
+      await _actions.confirmUpload(
+          authorizationId: authorizationId, url: url);
       if (mounted) {
-        setState(() =>
-            _attachment = {'type': 'image', 'url': url, 'name': file.name});
+        setState(() => _attachment = {
+              'type': 'image',
+              'authorizationId': authorizationId,
+              'url': url,
+              'name': file.name
+            });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.green,

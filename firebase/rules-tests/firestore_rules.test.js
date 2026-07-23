@@ -409,7 +409,7 @@ test("auction settlement and history are participant-readable and server-only", 
   ), {event: "forged", actorUid: "buyer", revision: 2}));
 });
 
-test("conversation participants cannot replace members or forge negotiation state", async () => {
+test("conversation participants cannot bypass server communication commands", async () => {
   const buyerDb = testEnvironment
       .authenticatedContext("buyer")
       .firestore();
@@ -424,9 +424,51 @@ test("conversation participants cannot replace members or forge negotiation stat
       proposedByUid: "buyer",
     },
   }));
-  await assertSucceeds(updateDoc(conversation, {
+  await assertFails(updateDoc(conversation, {
     unreadCounts: {buyer: 0, seller: 0},
   }));
+  await assertFails(setDoc(
+      doc(buyerDb, "conversations", "conversation", "messages", "forged"),
+      {
+        senderUid: "buyer",
+        text: "Direct client write",
+        createdAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+      },
+  ));
+  await assertFails(setDoc(doc(buyerDb, "conversations", "forged"), {
+    memberUids: ["buyer", "seller"],
+    listingId: "listing",
+    sellerUid: "seller",
+  }));
+});
+
+test("reports, upload grants, and command receipts are server-owned", async () => {
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  await assertFails(setDoc(doc(buyerDb, "trust_reports", "forged"), {
+    reporterUid: "buyer",
+    reportedUid: "seller",
+    targetType: "listing",
+    listingId: "listing",
+    reason: "fraud_or_scam",
+    details: "This direct client report must be rejected.",
+    attachmentCount: 0,
+    status: "pending",
+  }));
+  await assertFails(setDoc(
+      doc(buyerDb, "media_upload_authorizations", "forged"),
+      {
+        ownerUid: "buyer",
+        purpose: "chat_attachment",
+        targetId: "conversation",
+        status: "authorized",
+      },
+  ));
+  await assertFails(setDoc(
+      doc(buyerDb, "communication_command_receipts", "forged"),
+      {actorUid: "buyer", command: "sendMarketplaceMessage"},
+  ));
 });
 
 test("buyer cannot forge the seller identity on a new offer", async () => {

@@ -84,49 +84,12 @@ class MarketplaceActionsRepository {
     required String sellerName,
     required String text,
   }) async {
-    if (sellerUid == uid) throw StateError('This is your listing.');
-    final members = [uid, sellerUid]..sort();
-    final conversationId = conversationIdFor(uid, sellerUid, listingId);
-    final conversation =
-        _firestore.collection('conversations').doc(conversationId);
-    final message = conversation.collection('messages').doc();
-    final notification = _firestore
-        .collection('users')
-        .doc(sellerUid)
-        .collection('notifications')
-        .doc();
-    final batch = _firestore.batch();
-    batch.set(
-        conversation,
-        {
-          'memberUids': members,
-          'listingId': listingId,
-          'listingTitle': listingTitle,
-          'sellerUid': sellerUid,
-          'sellerName': sellerName,
-          'lastMessage': text,
-          'lastMessageAt': FieldValue.serverTimestamp(),
-          'messageCount': FieldValue.increment(1),
-          'unreadCounts.$sellerUid': FieldValue.increment(1),
-          'unreadCounts.$uid': 0,
-        },
-        SetOptions(merge: true));
-    batch.set(message, {
-      'senderUid': uid,
-      'text': text,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    batch.set(notification, {
-      'recipientUid': sellerUid,
-      'actorUid': uid,
-      'type': 'message',
-      'listingId': listingId,
-      'conversationId': conversationId,
-      'title': 'New message about $listingTitle',
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
+    final conversationId = await ensureConversation(
+        listingId: listingId,
+        listingTitle: listingTitle,
+        sellerUid: sellerUid,
+        sellerName: sellerName);
+    await sendChatMessage(conversationId, text);
     return conversationId;
   }
 
@@ -136,92 +99,26 @@ class MarketplaceActionsRepository {
     required String sellerUid,
     required String sellerName,
   }) async {
-    if (sellerUid == uid) throw StateError('This is your listing.');
-    final members = [uid, sellerUid]..sort();
-    final conversationId = conversationIdFor(uid, sellerUid, listingId);
-    final reference =
-        _firestore.collection('conversations').doc(conversationId);
-    final buyerDisplayName = await _currentOfferDisplayName();
-    final existing = await reference.get();
-    final existingData = existing.data() ?? const <String, dynamic>{};
-    await reference.set({
-      'memberUids': members,
+    final result = await _commands.execute('openMarketplaceConversation', {
       'listingId': listingId,
-      'listingTitle': listingTitle,
-      'sellerUid': sellerUid,
-      'sellerName': sellerName,
-      'buyerDisplayName': buyerDisplayName,
-      'openedByUid': uid,
-      'openedAt': FieldValue.serverTimestamp(),
-      if (existingData['messageCount'] is! num) 'messageCount': 0,
-      if (existingData['unreadCounts'] is! Map)
-        'unreadCounts': {uid: 0, sellerUid: 0},
-    }, SetOptions(merge: true));
-    return conversationId;
+    });
+    return '${result['conversationId']}';
   }
 
   Future<void> sendChatMessage(String conversationId, String text,
       {Map<String, dynamic>? attachment}) async {
-    final conversation =
-        _firestore.collection('conversations').doc(conversationId);
-    final snapshot = await conversation.get();
-    final members =
-        List<String>.from(snapshot.data()?['memberUids'] ?? const []);
-    final recipients = members.where((member) => member != uid);
-    if (recipients.isEmpty) throw StateError('Conversation recipient missing.');
-    final recipient = recipients.first;
-    final unreadCounts = Map<String, dynamic>.from(
-        snapshot.data()?['unreadCounts'] is Map
-            ? snapshot.data()!['unreadCounts'] as Map
-            : const {});
-    unreadCounts[recipient] =
-        ((unreadCounts[recipient] as num?)?.toInt() ?? 0) + 1;
-    unreadCounts[uid] = 0;
-    final messageCount =
-        ((snapshot.data()?['messageCount'] as num?)?.toInt() ?? 0) + 1;
-    final message = conversation.collection('messages').doc();
-    final notification = _firestore
-        .collection('users')
-        .doc(recipient)
-        .collection('notifications')
-        .doc();
-    final batch = _firestore.batch();
-    batch.update(conversation, {
-      'lastMessage': text,
-      'lastMessageAt': FieldValue.serverTimestamp(),
-      'messageCount': messageCount,
-      'unreadCounts': unreadCounts,
-    });
-    batch.set(message, {
-      'senderUid': uid,
+    await _commands.execute('sendMarketplaceMessage', {
+      'requestId': _firestore.collection('messages').doc().id,
+      'conversationId': conversationId,
       'text': text,
       if (attachment != null) 'attachment': attachment,
-      'createdAt': FieldValue.serverTimestamp(),
     });
-    batch.set(notification, {
-      'recipientUid': recipient,
-      'actorUid': uid,
-      'type': 'message',
-      'listingId': snapshot.data()?['listingId'],
-      'conversationId': conversationId,
-      'title': 'New marketplace message',
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
   }
 
   Future<void> markConversationRead(String conversationId) async {
-    final reference =
-        _firestore.collection('conversations').doc(conversationId);
-    final snapshot = await reference.get();
-    if (!snapshot.exists) return;
-    final unreadCounts = Map<String, dynamic>.from(
-        snapshot.data()?['unreadCounts'] is Map
-            ? snapshot.data()!['unreadCounts'] as Map
-            : const {});
-    unreadCounts[uid] = 0;
-    await reference.update({'unreadCounts': unreadCounts});
+    await _commands.execute('markMarketplaceConversationRead', {
+      'conversationId': conversationId,
+    });
   }
 
   Future<String> ensureOfferConversation({
@@ -230,27 +127,46 @@ class MarketplaceActionsRepository {
     required String sellerUid,
     required String buyerUid,
     required String buyerDisplayName,
+    required String offerId,
   }) async {
     if (uid != sellerUid && uid != buyerUid) {
       throw StateError('Only offer participants can open this conversation.');
     }
-    final conversationId = conversationIdFor(buyerUid, sellerUid, listingId);
-    final reference =
-        _firestore.collection('conversations').doc(conversationId);
-    final existing = await reference.get();
-    final existingData = existing.data() ?? const <String, dynamic>{};
-    await reference.set({
-      'memberUids': [buyerUid, sellerUid]..sort(),
+    final result = await _commands.execute('openMarketplaceConversation', {
       'listingId': listingId,
-      'listingTitle': listingTitle,
-      'sellerUid': sellerUid,
-      'buyerDisplayName': buyerDisplayName,
-      'openedAt': FieldValue.serverTimestamp(),
-      if (existingData['messageCount'] is! num) 'messageCount': 0,
-      if (existingData['unreadCounts'] is! Map)
-        'unreadCounts': {buyerUid: 0, sellerUid: 0},
-    }, SetOptions(merge: true));
-    return conversationId;
+      'participantUid': buyerUid,
+      'offerId': offerId,
+    });
+    return '${result['conversationId']}';
+  }
+
+  Future<Map<String, dynamic>> authorizeUpload({
+    required String purpose,
+    required String originalName,
+    required String contentType,
+    required int sizeBytes,
+    String? conversationId,
+    String? reportId,
+  }) =>
+      _commands.execute('authorizeMarketplaceUpload', {
+        'requestId':
+            _firestore.collection('media_upload_authorizations').doc().id,
+        'purpose': purpose,
+        'originalName': originalName,
+        'contentType': contentType,
+        'sizeBytes': sizeBytes,
+        if (conversationId != null) 'conversationId': conversationId,
+        if (reportId != null) 'reportId': reportId,
+      });
+
+  Future<void> confirmUpload({
+    required String authorizationId,
+    required String url,
+  }) async {
+    await _commands.execute('confirmMarketplaceUpload', {
+      'authorizationId': authorizationId,
+      'url': url,
+    });
   }
 
   Future<void> acceptOffer(String offerId) async {
@@ -342,30 +258,6 @@ class MarketplaceActionsRepository {
         'dispatchDelivery':
             _dispatchCommandLocationData(dispatchDeliveryLocation),
     });
-  }
-
-  Future<String> _currentOfferDisplayName() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return 'Marketplace buyer';
-    try {
-      final personal = await _firestore.collection('users').doc(user.uid).get();
-      final accountType = '${personal.data()?['accountType'] ?? 'personal'}';
-      if (accountType == 'business') {
-        final business = await _firestore
-            .collection('public_business_profiles')
-            .doc(user.uid)
-            .get();
-        final businessName = '${business.data()?['publicName'] ?? ''}'.trim();
-        if (businessName.isNotEmpty) return businessName;
-      }
-      final personalName =
-          '${personal.data()?['display_name'] ?? user.displayName ?? ''}'
-              .trim();
-      if (personalName.isNotEmpty) return personalName;
-    } catch (_) {}
-    return user.displayName?.trim().isNotEmpty == true
-        ? user.displayName!.trim()
-        : 'Marketplace buyer';
   }
 
   Future<void> requestLocation({
