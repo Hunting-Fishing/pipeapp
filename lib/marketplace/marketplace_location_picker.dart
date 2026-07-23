@@ -472,21 +472,59 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
   }
 }
 
-class MarketplaceMapSheet extends StatelessWidget {
+class MarketplaceMapSheet extends StatefulWidget {
   const MarketplaceMapSheet({super.key});
 
   @override
+  State<MarketplaceMapSheet> createState() => _MarketplaceMapSheetState();
+}
+
+class _MarketplaceMapSheetState extends State<MarketplaceMapSheet> {
+  static const _mapResultLimit = 200;
+  late Future<QuerySnapshot<Map<String, dynamic>>> _listings;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _listings = FirebaseFirestore.instance
+        .collection('public_listings')
+        .where('status', isEqualTo: 'active')
+        .orderBy('createdAt', descending: true)
+        .limit(_mapResultLimit)
+        .get();
+  }
+
+  Future<void> _refresh() async {
+    setState(_reload);
+    try {
+      await _listings;
+    } catch (_) {
+      // FutureBuilder renders the actionable error state.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('Listings map')),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('public_listings')
-              .where('locationVisibility',
-                  whereIn: ['exact', 'approximate']).snapshots(),
+      appBar: AppBar(title: const Text('Listings map'), actions: [
+        IconButton(
+            tooltip: 'Refresh map listings',
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh))
+      ]),
+      body: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          future: _listings,
           builder: (context, snapshot) {
             final markers = (snapshot.data?.docs ?? const [])
                 .map((doc) {
                   final data = doc.data();
+                  if (data['locationVisibility'] != 'exact' &&
+                      data['locationVisibility'] != 'approximate') {
+                    return null;
+                  }
                   final point = data['publicGeoPoint'];
                   if (point is! GeoPoint) return null;
                   return Marker(
@@ -520,6 +558,26 @@ class MarketplaceMapSheet extends StatelessWidget {
               ),
               if (snapshot.connectionState == ConnectionState.waiting)
                 const Center(child: CircularProgressIndicator()),
+              if (snapshot.hasError)
+                Positioned(
+                    left: 18,
+                    right: 18,
+                    top: 18,
+                    child: Material(
+                        elevation: 2,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(children: [
+                              const Text('Map listings could not be loaded.',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 6),
+                              FilledButton.tonalIcon(
+                                  onPressed: _refresh,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Try again'))
+                            ])))),
               if (snapshot.hasData && markers.isEmpty)
                 Positioned(
                     left: 18,
@@ -532,6 +590,21 @@ class MarketplaceMapSheet extends StatelessWidget {
                             padding: EdgeInsets.all(12),
                             child: Text(
                                 'No public map listings yet. Hidden and request-only locations never appear here.'))))
+              else if (snapshot.hasData &&
+                  snapshot.data!.docs.length == _mapResultLimit)
+                Positioned(
+                    left: 18,
+                    right: 18,
+                    bottom: 18,
+                    child: Material(
+                        elevation: 2,
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: Text(
+                                'Showing mapped locations from the 200 newest active listings. Use Browse filters to narrow your search.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 12)))))
             ]);
           }));
 }

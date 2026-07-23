@@ -9,8 +9,9 @@ import 'marketplace_avatar_image.dart';
 import 'regional_phone_field.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_listing_media.dart';
+import 'marketplace_listing_query.dart';
 
-class MarketplacePublicProfilePage extends StatelessWidget {
+class MarketplacePublicProfilePage extends StatefulWidget {
   const MarketplacePublicProfilePage({
     super.key,
     required this.userUid,
@@ -20,31 +21,53 @@ class MarketplacePublicProfilePage extends StatelessWidget {
   final String userUid;
   final String fallbackName;
 
+  @override
+  State<MarketplacePublicProfilePage> createState() =>
+      _MarketplacePublicProfilePageState();
+}
+
+class _MarketplacePublicProfilePageState
+    extends State<MarketplacePublicProfilePage> {
+  late Future<_PublicProfileData> _profile;
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> _listings = [];
+  QueryDocumentSnapshot<Map<String, dynamic>>? _listingCursor;
+  bool _hasMoreListings = false;
+  bool _loadingMoreListings = false;
+  String? _listingLoadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _profile = _load();
+  }
+
+  Query<Map<String, dynamic>> _listingQuery() => FirebaseFirestore.instance
+      .collection('public_listings')
+      .where('sellerUid', isEqualTo: widget.userUid)
+      .where('status', whereIn: const ['active', 'published']).orderBy(
+          'createdAt',
+          descending: true);
+
   Future<_PublicProfileData> _load() async {
     final firestore = FirebaseFirestore.instance;
     final results = await Future.wait([
-      firestore.collection('public_business_profiles').doc(userUid).get(),
-      firestore.collection('public_seller_profiles').doc(userUid).get(),
       firestore
-          .collection('public_listings')
-          .where('sellerUid', isEqualTo: userUid)
+          .collection('public_business_profiles')
+          .doc(widget.userUid)
           .get(),
+      firestore.collection('public_seller_profiles').doc(widget.userUid).get(),
+      loadMarketplaceListingPage(_listingQuery()),
     ]);
     final business =
         (results[0] as DocumentSnapshot<Map<String, dynamic>>).data() ?? {};
     final personal =
         (results[1] as DocumentSnapshot<Map<String, dynamic>>).data() ?? {};
-    final listings =
-        (results[2] as QuerySnapshot<Map<String, dynamic>>).docs.where((doc) {
-      final status = '${doc.data()['status'] ?? 'active'}';
-      return status == 'active' || status == 'published';
-    }).toList()
-          ..sort((a, b) {
-            final at = a.data()['createdAt'] as Timestamp?;
-            final bt = b.data()['createdAt'] as Timestamp?;
-            return (bt?.millisecondsSinceEpoch ?? 0)
-                .compareTo(at?.millisecondsSinceEpoch ?? 0);
-          });
+    final listingPage = results[2] as MarketplaceListingDocumentPage;
+    _listings
+      ..clear()
+      ..addAll(listingPage.documents);
+    _listingCursor = listingPage.cursor;
+    _hasMoreListings = listingPage.hasMore;
     final tagIds = <String>{
       ...List<String>.from(business['approvedTagIds'] ?? const <String>[]),
       ...List<String>.from(personal['approvedTagIds'] ?? const <String>[]),
@@ -59,27 +82,72 @@ class MarketplacePublicProfilePage extends StatelessWidget {
         .toList()
       ..sort();
     return _PublicProfileData(
-        business: business, personal: personal, listings: listings, tags: tags);
+        business: business,
+        personal: personal,
+        listings: _listings,
+        tags: tags);
+  }
+
+  Future<void> _loadMoreListings() async {
+    if (_loadingMoreListings || !_hasMoreListings) return;
+    setState(() {
+      _loadingMoreListings = true;
+      _listingLoadError = null;
+    });
+    try {
+      final page = await loadMarketplaceListingPage(
+        _listingQuery(),
+        after: _listingCursor,
+      );
+      if (!mounted) return;
+      final merged = appendUniqueById(
+          _listings, page.documents, (document) => document.id);
+      setState(() {
+        _listings
+          ..clear()
+          ..addAll(merged);
+        _listingCursor = page.cursor;
+        _hasMoreListings = page.hasMore;
+      });
+    } catch (error) {
+      if (mounted) setState(() => _listingLoadError = '$error');
+    } finally {
+      if (mounted) setState(() => _loadingMoreListings = false);
+    }
+  }
+
+  void _retryProfile() {
+    setState(() {
+      _listingLoadError = null;
+      _profile = _load();
+    });
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('Member profile')),
       body: FutureBuilder<_PublicProfileData>(
-          future: _load(),
+          future: _profile,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return const Center(
-                  child: Text('This profile could not be loaded.'));
+              return Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text('This profile could not be loaded.'),
+                const SizedBox(height: 10),
+                FilledButton.tonalIcon(
+                    onPressed: _retryProfile,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try again'))
+              ]));
             }
             final data = snapshot.data!;
             final profile =
                 data.business.isNotEmpty ? data.business : data.personal;
             final name =
-                '${data.business['publicName'] ?? data.personal['displayName'] ?? fallbackName}'
+                '${data.business['publicName'] ?? data.personal['displayName'] ?? widget.fallbackName}'
                     .trim();
             final description =
                 '${profile['description'] ?? 'Marketplace member'}'.trim();
@@ -96,7 +164,7 @@ class MarketplacePublicProfilePage extends StatelessWidget {
             final publicPhone = '${data.business['publicPhone'] ?? ''}'.trim();
             final publicEmail = '${data.business['publicEmail'] ?? ''}'.trim();
             final isOwnProfile =
-                FirebaseAuth.instance.currentUser?.uid == userUid;
+                FirebaseAuth.instance.currentUser?.uid == widget.userUid;
             return ListView(padding: const EdgeInsets.all(18), children: [
               Center(
                   child: InkWell(
@@ -160,7 +228,7 @@ class MarketplacePublicProfilePage extends StatelessWidget {
                         avatar:
                             const Icon(Icons.inventory_2_outlined, size: 17),
                         label: Text(
-                            '${data.listings.length} active ${data.listings.length == 1 ? 'listing' : 'listings'}'))
+                            '${data.listings.length}${_hasMoreListings ? '+' : ''} active ${data.listings.length == 1 ? 'listing' : 'listings'}'))
                   ]),
               const SizedBox(height: 18),
               Card(
@@ -216,16 +284,42 @@ class MarketplacePublicProfilePage extends StatelessWidget {
                     child: Text('Active listings',
                         style: TextStyle(
                             fontSize: 19, fontWeight: FontWeight.w900))),
-                Chip(label: Text('${data.listings.length}'))
+                Chip(
+                    label: Text(
+                        '${data.listings.length}${_hasMoreListings ? '+' : ''} loaded'))
               ]),
-              if (data.listings.isEmpty)
+              if (_listings.isEmpty)
                 const Card(
                     child: Padding(
                         padding: EdgeInsets.all(18),
                         child: Text('This member has no active listings.')))
               else
-                ...data.listings.map(
+                ..._listings.map(
                     (doc) => _ListingCard(document: doc, sellerName: name)),
+              if (_listingLoadError != null)
+                Card(
+                    color: Colors.orange.shade50,
+                    child: ListTile(
+                        leading: const Icon(Icons.sync_problem_outlined),
+                        title: const Text('More listings could not be loaded.'),
+                        trailing: TextButton(
+                            onPressed: _loadMoreListings,
+                            child: const Text('Retry')))),
+              if (_hasMoreListings)
+                Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                            onPressed:
+                                _loadingMoreListings ? null : _loadMoreListings,
+                            icon: _loadingMoreListings
+                                ? const SizedBox.square(
+                                    dimension: 17,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.expand_more_rounded),
+                            label: const Text('Load more listings')))),
             ]);
           }));
 

@@ -29,3 +29,43 @@ test("bounded marketplace browse queries have required indexes", () => {
     {fieldPath: "createdAt", order: "DESCENDING"},
   ]), true);
 });
+
+test("bounded auction queries have required indexes", () => {
+  for (const fields of [
+    [
+      {fieldPath: "transactionType", order: "ASCENDING"},
+      {fieldPath: "status", order: "ASCENDING"},
+      {fieldPath: "auctionEndAt", order: "ASCENDING"},
+    ],
+    [
+      {fieldPath: "transactionType", order: "ASCENDING"},
+      {fieldPath: "status", order: "ASCENDING"},
+      {fieldPath: "auctionEndAt", order: "DESCENDING"},
+    ],
+    [
+      {fieldPath: "transactionType", order: "ASCENDING"},
+      {fieldPath: "status", order: "ASCENDING"},
+      {fieldPath: "auctionStartAt", order: "ASCENDING"},
+    ],
+    [
+      {fieldPath: "sellerUid", order: "ASCENDING"},
+      {fieldPath: "transactionType", order: "ASCENDING"},
+      {fieldPath: "status", order: "ASCENDING"},
+      {fieldPath: "createdAt", order: "DESCENDING"},
+    ],
+  ]) {
+    assert.equal(hasListingIndex(fields), true);
+  }
+});
+
+test("bounded seller listing queries have required indexes", () => {
+  assert.equal(hasListingIndex([
+    {fieldPath: "sellerUid", order: "ASCENDING"},
+    {fieldPath: "createdAt", order: "DESCENDING"},
+  ]), true);
+  assert.equal(hasListingIndex([
+    {fieldPath: "sellerUid", order: "ASCENDING"},
+    {fieldPath: "status", order: "ASCENDING"},
+    {fieldPath: "createdAt", order: "DESCENDING"},
+  ]), true);
+});

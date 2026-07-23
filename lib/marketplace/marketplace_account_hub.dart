@@ -10,6 +10,7 @@ import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
+import 'marketplace_listing_query.dart';
 import 'marketplace_money.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_command_client.dart';
@@ -475,7 +476,7 @@ class _AccountShortcut extends StatelessWidget {
           onTap: onTap));
 }
 
-class _MyListings extends StatelessWidget {
+class _MyListings extends StatefulWidget {
   const _MyListings(
       {required this.onAddListing,
       required this.auctionsEnabled,
@@ -486,139 +487,222 @@ class _MyListings extends StatelessWidget {
   final bool paidFeaturesEnabled;
 
   @override
+  State<_MyListings> createState() => _MyListingsState();
+}
+
+class _MyListingsState extends State<_MyListings> {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> _listings = [];
+  QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
+  bool _loading = false;
+  bool _hasMore = true;
+  String? _error;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(reset: true);
+  }
+
+  Future<void> _load({bool reset = false}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || (_loading && !reset) || (!reset && !_hasMore)) return;
+    final generation = reset ? ++_generation : _generation;
+    setState(() {
+      _loading = true;
+      _error = null;
+      if (reset) {
+        _listings.clear();
+        _cursor = null;
+        _hasMore = true;
+      }
+    });
+    try {
+      final query = FirebaseFirestore.instance
+          .collection('public_listings')
+          .where('sellerUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true);
+      final page = await loadMarketplaceListingPage(query,
+          after: reset ? null : _cursor);
+      if (!mounted || generation != _generation) return;
+      final merged = appendUniqueById(
+          reset
+              ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+              : _listings,
+          page.documents,
+          (document) => document.id);
+      setState(() {
+        _listings
+          ..clear()
+          ..addAll(merged);
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+      });
+    } catch (error) {
+      if (mounted && generation == _generation) {
+        setState(() => _error = error is FirebaseException &&
+                error.code == 'failed-precondition'
+            ? 'Your listing index is still being prepared. Try again shortly.'
+            : 'Check your connection and try again.');
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       return const Center(child: Text('Sign in to view listings.'));
     }
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('public_listings')
-            .where('sellerUid', isEqualTo: uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-                child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.sync_problem_outlined,
-                          size: 48, color: Colors.deepOrange),
-                      const SizedBox(height: 10),
-                      const Text('Could not load your listings.',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 6),
-                      Text('${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.black54)),
-                    ])));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final listings = snapshot.data!.docs.toList()
-            ..sort((a, b) {
-              final aTime = a.data()['createdAt'] as Timestamp?;
-              final bTime = b.data()['createdAt'] as Timestamp?;
-              return (bTime?.millisecondsSinceEpoch ?? 0)
-                  .compareTo(aTime?.millisecondsSinceEpoch ?? 0);
-            });
-          return Column(children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: Row(children: [
-                const Expanded(
-                    child: Text('My listings',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w900))),
-                FilledButton.icon(
-                    onPressed: onAddListing,
-                    icon: const Icon(Icons.add, size: 20),
-                    label: const Text('Add Listing')),
-              ]),
-            ),
-            Expanded(
-              child: listings.isEmpty
-                  ? Center(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.inventory_2_outlined,
-                            size: 44, color: Colors.black38),
-                        const SizedBox(height: 10),
-                        const Text('You have not published a listing yet.'),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                            onPressed: onAddListing,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add your first listing')),
-                      ]),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                      itemCount: listings.length,
-                      itemBuilder: (_, index) {
-                        final document = listings[index];
-                        final data = document.data();
-                        final thumbnail = marketplaceListingThumbnailUrl(data);
-                        final createdAt =
-                            (data['createdAt'] as Timestamp?)?.toDate();
-                        final isAuction = data['transactionType'] == 'Auction';
-                        return Card(
-                            child: ListTile(
-                          onTap: () async {
-                            await _markListingNotificationsRead(document.id);
-                            if (!context.mounted) return;
-                            showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                builder: (_) => _OwnerListingDetails(
-                                    listingId: document.id,
-                                    data: data,
-                                    auctionsEnabled: auctionsEnabled,
-                                    paidFeaturesEnabled: paidFeaturesEnabled));
-                          },
-                          leading: SizedBox.square(
-                              dimension: 54,
-                              child: Stack(fit: StackFit.expand, children: [
-                                thumbnail == null
-                                    ? const Icon(Icons.inventory_2_outlined)
-                                    : ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(thumbnail,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
-                                                const Icon(Icons
-                                                    .inventory_2_outlined))),
-                                Positioned(
-                                    right: 1,
-                                    bottom: 1,
-                                    child: CircleAvatar(
-                                        radius: 11,
-                                        backgroundColor: isAuction
-                                            ? Colors.deepOrange
-                                            : const Color(0xFF0878E8),
-                                        child: Icon(
-                                            isAuction
-                                                ? Icons.gavel
-                                                : Icons.storefront,
-                                            size: 13,
-                                            color: Colors.white)))
-                              ])),
-                          title: Text('${data['title'] ?? 'Untitled listing'}'),
-                          subtitle: Text(
-                              '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
-                              '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
-                          isThreeLine: createdAt != null,
-                          trailing:
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                            _ListingNotificationBadge(listingId: document.id),
-                            const Icon(Icons.chevron_right),
-                          ]),
-                        ));
-                      }),
-            ),
-          ]);
-        });
+    if (_error != null && _listings.isEmpty) {
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.sync_problem_outlined,
+                    size: 48, color: Colors.deepOrange),
+                const SizedBox(height: 10),
+                const Text('Could not load your listings.',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Text(_error!,
+                    textAlign: TextAlign.center,
+                    style:
+                        const TextStyle(fontSize: 11, color: Colors.black54)),
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                    onPressed: () => _load(reset: true),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try again')),
+              ])));
+    }
+    if (_loading && _listings.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Row(children: [
+          const Expanded(
+              child: Text('My listings',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))),
+          FilledButton.icon(
+              onPressed: widget.onAddListing,
+              icon: const Icon(Icons.add, size: 20),
+              label: const Text('Add Listing')),
+        ]),
+      ),
+      Expanded(
+        child: _listings.isEmpty
+            ? Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.inventory_2_outlined,
+                      size: 44, color: Colors.black38),
+                  const SizedBox(height: 10),
+                  const Text('You have not published a listing yet.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                      onPressed: widget.onAddListing,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add your first listing')),
+                ]),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                itemCount: _listings.length + 1,
+                itemBuilder: (_, index) {
+                  if (index == _listings.length) {
+                    if (_error != null) {
+                      return ListTile(
+                          leading: const Icon(Icons.sync_problem_outlined),
+                          title:
+                              const Text('More listings could not be loaded.'),
+                          trailing: TextButton(
+                              onPressed: () => _load(),
+                              child: const Text('Retry')));
+                    }
+                    if (!_hasMore) {
+                      return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                              child: Text('All your listings loaded.',
+                                  style: TextStyle(color: Color(0xFF66758A)))));
+                    }
+                    return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                            child: FilledButton.tonalIcon(
+                                onPressed: _loading ? null : () => _load(),
+                                icon: _loading
+                                    ? const SizedBox.square(
+                                        dimension: 17,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2))
+                                    : const Icon(Icons.expand_more_rounded),
+                                label: const Text('Load more listings'))));
+                  }
+                  final document = _listings[index];
+                  final data = document.data();
+                  final thumbnail = marketplaceListingThumbnailUrl(data);
+                  final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+                  final isAuction = data['transactionType'] == 'Auction';
+                  return Card(
+                      child: ListTile(
+                    onTap: () async {
+                      await _markListingNotificationsRead(document.id);
+                      if (!context.mounted) return;
+                      showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => _OwnerListingDetails(
+                              listingId: document.id,
+                              data: data,
+                              auctionsEnabled: widget.auctionsEnabled,
+                              paidFeaturesEnabled: widget.paidFeaturesEnabled));
+                    },
+                    leading: SizedBox.square(
+                        dimension: 54,
+                        child: Stack(fit: StackFit.expand, children: [
+                          thumbnail == null
+                              ? const Icon(Icons.inventory_2_outlined)
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(thumbnail,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                          Icons.inventory_2_outlined))),
+                          Positioned(
+                              right: 1,
+                              bottom: 1,
+                              child: CircleAvatar(
+                                  radius: 11,
+                                  backgroundColor: isAuction
+                                      ? Colors.deepOrange
+                                      : const Color(0xFF0878E8),
+                                  child: Icon(
+                                      isAuction
+                                          ? Icons.gavel
+                                          : Icons.storefront,
+                                      size: 13,
+                                      color: Colors.white)))
+                        ])),
+                    title: Text('${data['title'] ?? 'Untitled listing'}'),
+                    subtitle: Text(
+                        '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
+                        '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
+                    isThreeLine: createdAt != null,
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      _ListingNotificationBadge(listingId: document.id),
+                      const Icon(Icons.chevron_right),
+                    ]),
+                  ));
+                }),
+      ),
+    ]);
   }
 }
 

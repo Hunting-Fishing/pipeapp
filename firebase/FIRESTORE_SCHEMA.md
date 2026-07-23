@@ -89,6 +89,22 @@ Firestore uses collections and documents rather than SQL tables.
 - `users/{uid}/followed_sellers/{sellerUid}`: followed sellers and notification preference.
 - `users/{uid}/notifications/{notificationId}`: server-created marketplace notifications.
 
+## Listing query budgets
+
+User-facing listing discovery must remain bounded:
+
+- Marketplace Browse, Auctions, public seller profiles, and owner listing
+  history use 24-document pages with document cursors and duplicate-ID
+  suppression.
+- Auction filters apply `status`, `transactionType`, schedule, and owner
+  constraints on the server using the declared composite indexes.
+- The public map reads at most the 200 newest active listings and creates
+  markers only for `exact` or `approximate` public locations.
+- The Dispatch listing chooser reads at most the 50 newest active listings.
+
+Full-text and route-aware geospatial discovery require a dedicated indexed
+search provider; increasing these Firestore caps is not a substitute.
+
 ## Marketplace decision boundary
 
 Financial decisions are never accepted from a direct client document update.

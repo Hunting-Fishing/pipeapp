@@ -1,6 +1,6 @@
 # Phase 1 progress audit
 
-Audit date: July 23, 2026
+Audit date: July 24, 2026
 
 Branch: `agent/admin-role-controls`
 
@@ -28,12 +28,12 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
 | 2 — Backend parity and commands | No | 86% | The 57 reviewed Function exports include idempotent ownership synchronization, account-review submission/decision, private account export, session revocation, staged deletion/cleanup, abuse cleanup, draft-first listing publication, saved/listing/offer/auction/Dispatch lifecycles, and protected conversation, upload, message, and report commands. Direct clients cannot author authoritative verification, privacy, listing drafts, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, conversation, message, upload-grant, report, dispute, or Dispatch state. A real Auth, Firestore, Functions, and Storage emulator suite verifies marketplace, listing media, communication, account-review, privacy, and repeated-request idempotency. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
 | 3 — Identity and abuse protection | No | 90% | Signup and sign-in enter a cross-platform ownership screen until Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, Dispatch, messaging, reporting, media, and privacy commands require current Auth claims and bounded quotas; phone uniqueness is synchronized into a hashed server-owned registry. Account verification requires verified ownership, complete public-profile evidence, a server submission, and an MFA-authorized administrator decision with a required note, immutable history, and notifications. Administrator authorization requires an audited custom role plus a current-session MFA claim. Users can generate a private expiring export, revoke refresh sessions, schedule or cancel coordinated deletion, and start non-enumerating email/password recovery. Staging Phone Auth/App Check/MFA activation, assisted recovery for lost email/phone access, physical-device acceptance, live administrator acceptance, and retention-policy approval remain incomplete. |
-| 4 — Product workflows | No | 72% | Saved listings, normal listing lifecycle, draft-first media publication, and bounded Marketplace browse pages are locally verified. Browse now fetches indexed 24-record pages with cursor continuation, server-side category narrowing, refresh/retry states, and explicit load-more controls instead of subscribing to the entire active collection. A listing with selected photos/video remains private until bounded Storage uploads, server object verification, and explicit thumbnail validation all succeed; failures retain a retryable private draft and expired drafts are cleaned safely. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Full-text/geospatial search, bounded Auction/Map/supporting queries, deep links, payment release/refund, provider approval, truck-route calculation, and carrier billing remain incomplete. |
+| 4 — Product workflows | No | 76% | Saved listings, normal listing lifecycle, draft-first media publication, and bounded Marketplace listing discovery are locally verified. Browse, Auctions, seller profiles, and owner listings now use one indexed 24-record cursor pager with retry/load-more controls. The map is capped to the 200 newest active records, exposes refresh/error/result-scope states, and excludes private locations; the Dispatch listing picker is capped to 50 newest active records. A listing with selected photos/video remains private until bounded Storage uploads, server object verification, and explicit thumbnail validation all succeed; failures retain a retryable private draft and expired drafts are cleaned safely. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Full-text and true truck-route/geospatial search, bounded Dispatch job/bid feeds, deep links, payment release/refund, provider approval, route calculation, and carrier billing remain incomplete. |
 | 5 — Trust, notifications, policies | No | 20% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, and administrator-readable cases are locally verified. Moderation operations, appeals, external delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **66%**.
+Overall Phase 1 launch readiness estimate: **67%**.
 
 Completed gates: **1 of 8**.
 
@@ -140,8 +140,8 @@ staging deployment matches exactly and passes end-to-end acceptance.
 - All sensitive Marketplace, Offer, Auction, and Dispatch commands now require
   verified email and phone claims. Saved-listing state requires verified email
   but remains usable without forcing phone verification.
-- The unified local release gate passes 0 analyzer issues, 70 Flutter tests,
-  72 Function/runtime tests, 31 Firestore/Storage rules tests, the complete
+- The unified local release gate passes 0 analyzer issues, 72 Flutter tests,
+  77 Function/runtime tests, 31 Firestore/Storage rules tests, the complete
   authenticated callable integration including a negative unverified-publisher
   case, high-severity dependency audits, Android packaging, and production web
   packaging. A GitHub clean-run remains required for this branch.
@@ -162,8 +162,8 @@ staging deployment matches exactly and passes end-to-end acceptance.
   Twenty-nine Firestore/Storage Rules tests include direct-write, cross-owner,
   wrong-target, wrong-size, wrong-type, missing-ticket, and expired-ticket
   rejection.
-- The current unified local release gate passes 0 analyzer issues, 70 Flutter
-  tests, 72 Function/runtime tests, 31 Firestore/Storage rules tests, authenticated
+- The current unified local release gate passes 0 analyzer issues, 72 Flutter
+  tests, 77 Function/runtime tests, 31 Firestore/Storage rules tests, authenticated
   callable integration, high-severity dependency audits, Android packaging,
   production web packaging, and release-manifest controls. GitHub clean-run
   evidence remains pending for this branch.
@@ -207,6 +207,17 @@ staging deployment matches exactly and passes end-to-end acceptance.
   continues with a document cursor, suppresses duplicate IDs, supports refresh
   and retry, and makes client-side text filtering scope visible as loaded data.
   A configuration test prevents either required index from being removed.
+- Auctions, public seller profiles, and owner listings now share the same
+  bounded 24-record Firestore pager with cursor continuation, duplicate
+  suppression, retry controls, and explicit load-more states. Auction filters
+  use server-side transaction/status/time/owner constraints backed by declared
+  composite indexes.
+- The public listings map reads at most the 200 newest active records, filters
+  hidden and request-only locations before marker creation, exposes manual
+  refresh and failure recovery, and tells users when its result window is
+  capped. The Dispatch listing chooser reads at most 50 newest active records.
+- Source-contract tests prevent these surfaces from losing their limits, while
+  index-contract tests cover Browse, Auction, and seller-listing query shapes.
 
 ## Gate 1 checkpoint evidence
 

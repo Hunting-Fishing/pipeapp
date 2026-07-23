@@ -30,6 +30,7 @@ import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
+import 'marketplace_listing_query.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
@@ -1935,7 +1936,6 @@ class _BrowsePage extends StatefulWidget {
 }
 
 class _BrowsePageState extends State<_BrowsePage> {
-  static const _pageSize = 24;
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
   QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
   bool _loading = false;
@@ -1962,9 +1962,7 @@ class _BrowsePageState extends State<_BrowsePage> {
     if (widget.category != null) {
       query = query.where('category', isEqualTo: widget.category);
     }
-    query = query.orderBy('createdAt', descending: true).limit(_pageSize);
-    if (_cursor != null) query = query.startAfterDocument(_cursor!);
-    return query;
+    return query.orderBy('createdAt', descending: true);
   }
 
   Future<void> _loadPage({bool reset = false}) async {
@@ -1981,13 +1979,23 @@ class _BrowsePageState extends State<_BrowsePage> {
       }
     });
     try {
-      final result = await _query().get();
+      final page = await loadMarketplaceListingPage(
+        _query(),
+        after: reset ? null : _cursor,
+      );
       if (!mounted || generation != _queryGeneration) return;
+      final merged = appendUniqueById(
+          reset
+              ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+              : _documents,
+          page.documents,
+          (document) => document.id);
       setState(() {
-        final known = _documents.map((item) => item.id).toSet();
-        _documents.addAll(result.docs.where((item) => known.add(item.id)));
-        _cursor = result.docs.lastOrNull;
-        _hasMore = result.docs.length == _pageSize;
+        _documents
+          ..clear()
+          ..addAll(merged);
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
       });
     } on FirebaseException catch (error) {
       if (!mounted || generation != _queryGeneration) return;
