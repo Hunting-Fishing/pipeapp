@@ -2,6 +2,10 @@
 
 const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
+const {
+  AccountSecurityError,
+  requireAuthenticatedIdentity,
+} = require("./account_security");
 const {CommandPolicyError} = require("./marketplace_command_policy");
 const {
   FeatureFlagError,
@@ -29,11 +33,7 @@ function requiredId(data, fieldName) {
 }
 
 function requireAuth(request) {
-  const uid = request.auth && request.auth.uid;
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "Sign in to continue.");
-  }
-  return uid;
+  return requireAuthenticatedIdentity(request).uid;
 }
 
 function isAdministrator(request) {
@@ -47,7 +47,10 @@ function command(handler) {
       return await handler(request);
     } catch (error) {
       if (error instanceof HttpsError) throw error;
-      if (error instanceof CommandPolicyError) {
+      if (
+        error instanceof AccountSecurityError ||
+        error instanceof CommandPolicyError
+      ) {
         throw new HttpsError(error.code, error.message);
       }
       if (error instanceof FeatureFlagError) {

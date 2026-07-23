@@ -3,6 +3,10 @@
 const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
+  AccountSecurityError,
+  requireAuthenticatedIdentity,
+} = require("./account_security");
+const {
   CommandPolicyError,
   TERMINAL_AUCTION_STATUSES,
   validateAuctionConversion,
@@ -44,12 +48,8 @@ function requiredId(data, fieldName) {
   return value;
 }
 
-function requireAuth(request) {
-  const uid = request.auth && request.auth.uid;
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "Sign in to continue.");
-  }
-  return uid;
+function requireAuth(request, options) {
+  return requireAuthenticatedIdentity(request, options).uid;
 }
 
 function isAdministrator(request) {
@@ -67,6 +67,7 @@ function receiptReference(db, uid, command, identity) {
 function policyError(error) {
   if (error instanceof HttpsError) return error;
   if (
+    error instanceof AccountSecurityError ||
     error instanceof CommandPolicyError ||
     error instanceof ListingPolicyError ||
     error instanceof FeatureFlagError
@@ -461,7 +462,7 @@ function createMarketplaceCommands(admin) {
   const setMarketplaceListingSaved = featureCommand(
       "marketplace",
       async (request) => {
-    const uid = requireAuth(request);
+    const uid = requireAuth(request, {requirePhone: false});
     const requestId = requiredId(request.data, "requestId");
     const listingId = requiredId(request.data, "listingId");
     const saved = request.data && request.data.saved;

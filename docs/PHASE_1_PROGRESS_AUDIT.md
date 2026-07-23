@@ -2,7 +2,7 @@
 
 Audit date: July 23, 2026
 
-Branch: `agent/dispatch-terminal-lifecycle`
+Branch: `agent/account-verification-controls`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 75% | The 36 reviewed Function exports include idempotent saved-listing, Marketplace listing lifecycle, offer completion, auction finalization/settlement, and the complete Dispatch award-to-closure command. Direct clients cannot author authoritative saved, listing revision, reserve, offer, bid, settlement, delivery-proof, default-report, dispute, or Dispatch state. A real Auth, Firestore, and Functions emulator suite verifies 37 command receipts and repeated-request idempotency, including expired-auction winner calculation, Marketplace confirmations, and Dispatch delivery closure. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
-| 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
+| 2 — Backend parity and commands | No | 76% | The 37 reviewed Function exports include idempotent account-verification sync, saved-listing, Marketplace listing lifecycle, offer completion, auction finalization/settlement, and the complete Dispatch award-to-closure command. Direct clients cannot author authoritative verification, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, default-report, dispute, or Dispatch state. A real Auth, Firestore, and Functions emulator suite verifies 37 command receipts and repeated-request idempotency, including expired-auction winner calculation, Marketplace confirmations, Dispatch delivery closure, and verified-identity enforcement. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
+| 3 — Identity and abuse protection | No | 35% | Signup and sign-in now enter a cross-platform ownership screen until the Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, and Dispatch commands require verified Auth claims; phone uniqueness is provided by Firebase Auth and synchronized into a hashed, server-owned registry. Forged verification/profile/registry writes and unverified Dispatch signup are denied in emulator tests. Staging Phone Auth/App Check activation, MFA, rate limits, recovery, deletion, export, and administrator claim migration remain incomplete. |
 | 4 — Product workflows | No | 64% | Saved listings and normal listing lifecycle are locally verified. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards now create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Payment release/refund, provider approval, truck-route calculation, and carrier billing remain incomplete. |
 | 5 — Trust, notifications, policies | No | 15% | User reporting with attachments and some in-app notifications exist. Moderation operations, appeals, delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **53%**.
+Overall Phase 1 launch readiness estimate: **56%**.
 
 Completed gates: **1 of 8**.
 
@@ -43,8 +43,8 @@ Completed gates: **1 of 8**.
 
 | Workflow | Status | Evidence or remaining work |
 | --- | --- | --- |
-| Email ownership | Incomplete | Signup sends a verification email, but marketplace commands and rules do not require `email_verified`. |
-| Phone ownership | Incomplete | Phone Auth support exists in generated authentication code, but signup/profile workflows claim a phone registry without completing OTP ownership verification. |
+| Email ownership | Source and emulator verified; staging pending | Signup and incomplete sign-ins are held on the account-ownership screen. Protected commands require the Firebase Auth `email_verified` claim, and the callable emulator proves an unverified user cannot publish. Staging email-link acceptance remains required. |
+| Phone ownership | Source and emulator verified; staging pending | Web uses Firebase phone-link confirmation and native clients use OTP credentials linked to the existing account. Protected Marketplace/Offer/Auction/Dispatch commands require the Firebase Auth phone claim. Firebase Auth provides provider-level uniqueness; a callable synchronizes a SHA-256 registry key and verified profile fields that clients cannot forge. Phone Auth, authorized web domains, APNs/SHA configuration, quota and physical-device acceptance remain pending. |
 | Account verification meaning | Incomplete | `accountVerified` is driven by profile readiness/review rather than an approved identity-verification workflow. |
 | Administrator verification queue | Incomplete | Users can submit `verification_requests`; no complete administrator queue, evidence review, decision, notification, and audit workflow exists. |
 | Account deletion | Incomplete | No user-facing coordinated Auth, Firestore, Storage, and registry deletion workflow. |
@@ -100,7 +100,7 @@ Completed gates: **1 of 8**.
 ## Live Firebase parity finding
 
 The July 23 read-only inventory for project `flutter-flow-pipe` predates the
-current 36-export reviewed source. The automated parity control therefore
+current 37-export reviewed source. The automated parity control therefore
 continues to fail closed on missing current handlers and two unexpected legacy
 handlers (`onDispatchBidCreated` and `onDispatchJobAwarded`). Offer, Auction,
 and Dispatch workflows must remain disabled until a refreshed, reviewed
@@ -120,9 +120,29 @@ staging deployment matches exactly and passes end-to-end acceptance.
 - `.github/workflows/safe-default-rehearsal.yml` repeats the evidence in the
   protected staging environment and retains its structured artifact once the
   workflow reaches the default branch.
-- The current full local release gate passed with 0 analyzer issues, 68 Flutter
+- The Dispatch full local release gate passed with 0 analyzer issues, 68 Flutter
   tests, 46 Functions/runtime tests, 19 Firestore rules tests, 37 authenticated
   command receipts, dependency high-severity audits, and a release web build.
+
+## Gate 3 checkpoint evidence
+
+- Account signup no longer lets a client claim a phone number by writing a
+  predictable registry document. It stores only a pending phone hint until an
+  OTP credential is linked to the signed-in Firebase Auth identity.
+- The ownership screen supports email resend/status refresh, web phone linking,
+  native OTP linking, actionable error states, sign-out recovery, and a guarded
+  continuation into profile onboarding.
+- The server synchronizes only Firebase Auth ownership claims into protected
+  user fields and a SHA-256 phone registry key. Direct clients cannot write or
+  transfer the registry or forge verified ownership fields.
+- All sensitive Marketplace, Offer, Auction, and Dispatch commands now require
+  verified email and phone claims. Saved-listing state requires verified email
+  but remains usable without forcing phone verification.
+- The unified local release gate passes 0 analyzer issues, 68 Flutter tests,
+  49 Function/runtime tests, 20 Firestore rules tests, the complete
+  authenticated callable integration including a negative unverified-publisher
+  case, high-severity dependency audits, Android packaging, and production web
+  packaging. A GitHub clean-run remains required for this branch.
 
 ## Gate 1 checkpoint evidence
 

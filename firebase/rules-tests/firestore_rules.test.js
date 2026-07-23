@@ -628,6 +628,42 @@ test("disabled auction and Dispatch flags block legacy direct clients", async ()
   ));
 });
 
+test("ownership verification cannot be forged and Dispatch signup needs it", async () => {
+  const unverifiedDb = testEnvironment
+      .authenticatedContext("unverified")
+      .firestore();
+  const verifiedDb = testEnvironment
+      .authenticatedContext("verified-provider", {
+        email_verified: true,
+        phone_number: "+12505550123",
+      })
+      .firestore();
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+
+  await assertFails(updateDoc(doc(sellerDb, "users", "seller"), {
+    emailOwnershipVerified: true,
+    phoneOwnershipVerified: true,
+    verifiedPhoneE164: "+12505550123",
+  }));
+  await assertFails(setDoc(
+      doc(unverifiedDb, "dispatch_carriers", "unverified"),
+      {ownerUid: "unverified", operatingName: "Unverified Transport"},
+  ));
+  await assertSucceeds(setDoc(
+      doc(verifiedDb, "dispatch_carriers", "verified-provider"),
+      {
+        ownerUid: "verified-provider",
+        operatingName: "Verified Transport",
+      },
+  ));
+  await assertFails(setDoc(
+      doc(verifiedDb, "account_phone_registry", "forged"),
+      {uid: "verified-provider", phoneE164: "+12505550123"},
+  ));
+});
+
 test("only the auction owner can read the reserve amount", async () => {
   const sellerDb = testEnvironment
       .authenticatedContext("seller")
