@@ -3,6 +3,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
 const { createAdminRuntime } = require("./admin_runtime");
 const { createAccountCommands } = require("./account_commands");
+const { cleanupExpiredRateLimits } = require("./abuse_rate_limit");
 const { protectedCallableOptions } = require("./app_check_config");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
@@ -14,6 +15,10 @@ const marketplaceCommands = createMarketplaceCommands(admin);
 exports.syncAccountVerification = onCall(
   protectedCallableOptions,
   accountCommands.syncAccountVerification,
+);
+exports.cleanupExpiredSecurityRateLimits = onSchedule(
+  "every 24 hours",
+  async () => cleanupExpiredRateLimits(admin),
 );
 exports.createDispatchJob = onCall(
   protectedCallableOptions,

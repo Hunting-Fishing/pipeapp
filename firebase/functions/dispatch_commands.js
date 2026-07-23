@@ -6,6 +6,7 @@ const {
   AccountSecurityError,
   requireAuthenticatedIdentity,
 } = require("./account_security");
+const {enforceUserRateLimit} = require("./abuse_rate_limit");
 const {CommandPolicyError} = require("./marketplace_command_policy");
 const {
   FeatureFlagError,
@@ -139,6 +140,7 @@ function createDispatchCommands(admin) {
   const dispatchCommand = (handler) => command(async (request) => {
     const flags = await loadPhase1FeatureFlags(db);
     requirePhase1Feature(flags, "dispatch");
+    await enforceUserRateLimit({db, admin, request, scope: "dispatch"});
     return handler(request);
   });
 

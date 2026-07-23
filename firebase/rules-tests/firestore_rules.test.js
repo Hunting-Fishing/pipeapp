@@ -662,6 +662,13 @@ test("ownership verification cannot be forged and Dispatch signup needs it", asy
       doc(verifiedDb, "account_phone_registry", "forged"),
       {uid: "verified-provider", phoneE164: "+12505550123"},
   ));
+  await assertFails(setDoc(
+      doc(verifiedDb, "security_rate_limits", "forged"),
+      {actorUid: "verified-provider", scope: "marketplace", count: 0},
+  ));
+  await assertFails(getDoc(
+      doc(verifiedDb, "security_rate_limits", "forged"),
+  ));
 });
 
 test("only the auction owner can read the reserve amount", async () => {

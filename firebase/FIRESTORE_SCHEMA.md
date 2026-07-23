@@ -11,6 +11,9 @@ Firestore uses collections and documents rather than SQL tables.
 - `account_phone_registry/{sha256}`: server-owned mapping from a hashed,
   Firebase-verified E.164 phone number to one Auth UID. It supports duplicate
   account prevention without exposing phone numbers as document identifiers.
+- `security_rate_limits/{sha256}`: private server-owned hourly command buckets
+  containing bounded retry fingerprints, counts, expiry, and policy scope.
+  Clients cannot read or write them; an expiration scheduler removes old data.
 - `public_listings/{listingId}`: searchable active/draft listings and seller-selected public location.
 - `auction_private/{listingId}`: seller/admin-only reserve price and reserve
   total. Reserve amounts must never be stored in `public_listings`.
@@ -67,6 +70,7 @@ recalculates eligibility and minimums, writes the decision, and records an
 idempotency receipt. The current callable commands are:
 
 - `syncAccountVerification`
+- `cleanupExpiredSecurityRateLimits` (scheduled)
 - `placeAuctionBid`
 - `buyAuctionNow`
 - `withdrawAuctionBid`

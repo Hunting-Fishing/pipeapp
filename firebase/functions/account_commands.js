@@ -6,6 +6,7 @@ const {
   phoneRegistryKey,
   requireAuthenticatedIdentity,
 } = require("./account_security");
+const {enforceUserRateLimit} = require("./abuse_rate_limit");
 
 function commandError(error) {
   if (error instanceof HttpsError) return error;
@@ -25,6 +26,7 @@ function createAccountCommands(admin) {
 
   const syncAccountVerification = async (request) => {
     try {
+      await enforceUserRateLimit({db, admin, request, scope: "account"});
       const identity = requireAuthenticatedIdentity(request, {
         requireEmail: false,
         requirePhone: false,

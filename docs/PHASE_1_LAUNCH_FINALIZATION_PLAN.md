@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/account-verification-controls`
+Baseline branch: `agent/server-abuse-throttles`
 Created: July 20, 2026
 
 Current gate: Gate 3 — Identity, authorization, App Check, and abuse protection
 
-Current overall launch-readiness estimate: 56%
+Current overall launch-readiness estimate: 57%
 
 Completed gates: 1 of 8
 
@@ -17,8 +17,8 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 76% — local integration verified |
-| 3 — Identity, authorization, and abuse | 35% — ownership controls locally verified |
+| 2 — Backend parity and server commands | 77% — local integration verified |
+| 3 — Identity, authorization, and abuse | 45% — ownership and callable throttles locally verified |
 | 4 — Product workflows | 64% — listing, offer, auction, and Dispatch transaction lifecycles locally verified |
 | 5 — Trust, notifications, and policies | 15% — incomplete |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
@@ -87,6 +87,15 @@ Gate 2 implementation evidence in progress:
   Rules tests, the Flutter analyzer, and authenticated callable emulation,
   including rejection of an unverified listing publisher. Staging Phone Auth
   enablement and physical Web/Android/Apple OTP acceptance remain required.
+- Account, Marketplace, Offer, Auction, and Dispatch callable groups now use
+  transactional hourly abuse quotas. Identical retry fingerprints are not
+  double-counted; distinct excess requests fail with a safe retry response.
+  Buckets are private hashed records with bounded scheduled expiry cleanup.
+- Direct-client messaging, reporting, media-upload, and Auth signup throttles
+  still require server command migration or provider-level enforcement.
+- The abuse-throttle checkpoint passes the unified local gate with 68 Flutter
+  tests, 51 Function tests, 20 Firestore Rules tests, authenticated callable
+  integration, Android and production web builds, and release-manifest checks.
 
 Gate 1 implementation evidence in progress:
 

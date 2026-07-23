@@ -4,7 +4,10 @@ import {createRequire} from "node:module";
 const require = createRequire(import.meta.url);
 const {deleteApp, initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
-const {Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {
+  enforceUserRateLimit,
+} = require("../abuse_rate_limit");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -33,6 +36,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST || !authHost || !functionsHost) {
 const app = initializeApp({projectId}, `callable-integration-${Date.now()}`);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const rateLimitAdmin = {firestore: {FieldValue, Timestamp}};
 const now = Date.now();
 
 async function createUser(label, {verified = true} = {}) {
@@ -179,6 +183,46 @@ async function assertCollectionSize(collection, expected, filters = []) {
 }
 
 try {
+  const rateRequest = (sequence) => ({
+    auth: {uid: "rate-limit-integration"},
+    data: {sequence},
+    rawRequest: {path: "/integration-rate-limit"},
+  });
+  assert.equal((await enforceUserRateLimit({
+    db,
+    admin: rateLimitAdmin,
+    request: rateRequest(1),
+    scope: "marketplace",
+    limitOverride: 2,
+    nowMillis: now,
+  })).duplicate, false);
+  assert.equal((await enforceUserRateLimit({
+    db,
+    admin: rateLimitAdmin,
+    request: rateRequest(1),
+    scope: "marketplace",
+    limitOverride: 2,
+    nowMillis: now,
+  })).duplicate, true);
+  await enforceUserRateLimit({
+    db,
+    admin: rateLimitAdmin,
+    request: rateRequest(2),
+    scope: "marketplace",
+    limitOverride: 2,
+    nowMillis: now,
+  });
+  await assert.rejects(
+      enforceUserRateLimit({
+        db,
+        admin: rateLimitAdmin,
+        request: rateRequest(3),
+        scope: "marketplace",
+        limitOverride: 2,
+        nowMillis: now,
+      }),
+      (error) => error.code === "resource-exhausted",
+  );
   const [seller, buyer, carrier] = await Promise.all([
     createUser("seller"),
     createUser("buyer"),
