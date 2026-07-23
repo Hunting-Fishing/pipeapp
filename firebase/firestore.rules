@@ -328,10 +328,12 @@ service cloud.firestore {
     }
 
     match /marketplace_listing_drafts/{listingId} {
-      allow create: if signedIn() &&
-        request.resource.data.sellerUid == request.auth.uid;
-      allow read, update, delete: if signedIn() &&
-        resource.data.sellerUid == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() &&
+        resource.data.sellerUid == request.auth.uid);
+      // Draft creation, media readiness, and publication are coordinated by
+      // callable commands so clients cannot bypass validation or publish an
+      // incomplete public record.
+      allow create, update, delete: if false;
     }
 
     match /listing_private_locations/{listingId} {

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {createRequire} from "node:module";
 
 const require = createRequire(import.meta.url);
 const {deleteApp, initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
+const {getStorage} = require("firebase-admin/storage");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {
   enforceUserRateLimit,
@@ -29,16 +31,23 @@ if (!functionsHost && process.env.FIREBASE_EMULATOR_HUB) {
   }
 }
 
-if (!process.env.FIRESTORE_EMULATOR_HOST || !authHost || !functionsHost) {
+if (!process.env.FIRESTORE_EMULATOR_HOST ||
+    !process.env.FIREBASE_STORAGE_EMULATOR_HOST ||
+    !authHost || !functionsHost) {
   throw new Error(
       "Callable integration tests must run inside the Auth, Firestore, and " +
-      "Functions emulators.",
+      "Functions, and Storage emulators.",
   );
 }
 
-const app = initializeApp({projectId}, `callable-integration-${Date.now()}`);
+const storageBucket = `${projectId}.appspot.com`;
+const app = initializeApp(
+    {projectId, storageBucket},
+    `callable-integration-${Date.now()}`,
+);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const rateLimitAdmin = {firestore: {FieldValue, Timestamp}};
 const commandFirestore = Object.assign(() => db, {FieldValue, Timestamp});
 const accountVerificationCommands = createAccountVerificationCommands({
@@ -366,6 +375,138 @@ try {
   assert.match(blocked.message, /verify your email/i);
   assert.equal((await db.doc(`public_listings/${unverifiedListingId}`).get())
       .exists, false);
+
+  const bypassListingId = `media-bypass-${now}`;
+  await expectCallableError(
+      "createMarketplaceListing",
+      seller.token,
+      {
+        listingId: bypassListingId,
+        listing: {
+          ...listingInput("Unsafe media bypass"),
+          mediaPhotoCount: 1,
+          hasVideo: false,
+          imageUrls: [
+            "https://firebasestorage.googleapis.com/v0/b/example/o/fake.jpg",
+          ],
+        },
+        location: locationInput(),
+      },
+      "FAILED_PRECONDITION",
+  );
+  assert.equal(
+      (await db.doc(`public_listings/${bypassListingId}`).get()).exists,
+      false,
+  );
+
+  const draftListingId = `draft-listing-${now}`;
+  const draftData = {
+    listingId: draftListingId,
+    listing: {
+      ...listingInput("Draft-first integration listing"),
+      mediaPhotoCount: 0,
+      hasVideo: false,
+      imageUrls: [],
+      imageHashes: [],
+      thumbnailUrl: null,
+      videoUrl: null,
+      mediaUploadStatus: "none",
+    },
+    location: locationInput(),
+  };
+  const draftFirst = await call(
+      "createMarketplaceListingDraft",
+      seller.token,
+      draftData,
+  );
+  const draftRetry = await call(
+      "createMarketplaceListingDraft",
+      seller.token,
+      draftData,
+  );
+  assert.deepEqual(draftRetry, draftFirst);
+  assert.equal(
+      (await db.doc(`public_listings/${draftListingId}`).get()).exists,
+      false,
+  );
+  assert.equal(
+      (await db.doc(`marketplace_listing_drafts/${draftListingId}`).get())
+          .data().status,
+      "ready_to_publish",
+  );
+  const publishDraftData = {
+    requestId: `publish-draft-${now}`,
+    listingId: draftListingId,
+  };
+  const publishDraftFirst = await call(
+      "publishMarketplaceListingDraft",
+      seller.token,
+      publishDraftData,
+  );
+  const publishDraftRetry = await call(
+      "publishMarketplaceListingDraft",
+      seller.token,
+      publishDraftData,
+  );
+  assert.deepEqual(publishDraftRetry, publishDraftFirst);
+  assert.equal(
+      (await db.doc(`public_listings/${draftListingId}`).get()).data().status,
+      "active",
+  );
+  assert.equal(
+      (await db.doc(`marketplace_listing_drafts/${draftListingId}`).get())
+          .exists,
+      false,
+  );
+
+  const mediaDraftId = `media-draft-${now}`;
+  await call("createMarketplaceListingDraft", seller.token, {
+    listingId: mediaDraftId,
+    listing: {
+      ...listingInput("Media draft integration listing"),
+      mediaPhotoCount: 1,
+      hasVideo: false,
+      imageUrls: [],
+      imageHashes: [],
+      thumbnailUrl: null,
+      videoUrl: null,
+      mediaUploadStatus: "queued",
+    },
+    location: locationInput(),
+  });
+  await expectCallableError(
+      "publishMarketplaceListingDraft",
+      seller.token,
+      {requestId: `early-media-publish-${now}`, listingId: mediaDraftId},
+      "FAILED_PRECONDITION",
+  );
+  const photoBytes = Buffer.from("emulator listing photo fixture");
+  const photoPath =
+    `listing_media/${seller.uid}/${mediaDraftId}/photo_1.jpg`;
+  await storage.bucket().file(photoPath).save(photoBytes, {
+    contentType: "image/jpeg",
+  });
+  const photoUrl =
+    `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/` +
+    `${encodeURIComponent(photoPath)}?alt=media&token=emulator`;
+  await call("updateMarketplaceListingDraftMedia", seller.token, {
+    listingId: mediaDraftId,
+    status: "complete",
+    imageUrls: [photoUrl],
+    imageHashes: [createHash("sha256").update(photoBytes).digest("hex")],
+    thumbnailUrl: photoUrl,
+    videoUrl: null,
+  });
+  await call("publishMarketplaceListingDraft", seller.token, {
+    requestId: `publish-media-draft-${now}`,
+    listingId: mediaDraftId,
+  });
+  const publishedMediaListing = (
+    await db.doc(`public_listings/${mediaDraftId}`).get()
+  ).data();
+  assert.equal(publishedMediaListing.mediaUploadStatus, "complete");
+  assert.equal(publishedMediaListing.thumbnailUrl, photoUrl);
+  assert.equal(publishedMediaListing.imageUrls.length, 1);
 
   const offerListingId = `offer-listing-${now}`;
   const createListingData = {
@@ -1088,12 +1229,13 @@ try {
   );
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 37);
+  assert.equal(receipts.size, 41);
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
   assert.equal(communicationReceipts.size, 2);
   console.log(
-      "Callable integration passed: saved listings, listing lifecycle, " +
+      "Callable integration passed: private listing drafts, saved listings, " +
+      "listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "quote, award, delivery closure, protected messages/reports/uploads, " +
       "private export, staged deletion, session revocation, and retry idempotency.",

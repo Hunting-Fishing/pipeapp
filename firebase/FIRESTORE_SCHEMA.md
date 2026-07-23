@@ -21,7 +21,13 @@ Firestore uses collections and documents rather than SQL tables.
 - `security_rate_limits/{sha256}`: private server-owned hourly command buckets
   containing bounded retry fingerprints, counts, expiry, and policy scope.
   Clients cannot read or write them; an expiration scheduler removes old data.
-- `public_listings/{listingId}`: searchable active/draft listings and seller-selected public location.
+- `public_listings/{listingId}`: published searchable listings and the
+  seller-selected public location. Unpublished drafts are never stored here.
+- `marketplace_listing_drafts/{listingId}`: private, owner-readable,
+  server-written listing payload, exact location, expected media counts, upload
+  manifest, retry state, and 30-day expiry. Publication is a server transaction
+  that validates the draft and uploaded Storage objects before creating the
+  public listing and deleting the draft.
 - `auction_private/{listingId}`: seller/admin-only reserve price and reserve
   total. Reserve amounts must never be stored in `public_listings`.
 - `listing_private_locations/{listingId}`: exact address, coordinates and access notes; owner-only.
@@ -54,7 +60,8 @@ Firestore uses collections and documents rather than SQL tables.
   only by the marketplace command service.
 - `marketplace_command_receipts/{receiptId}`: deterministic, server-only
   idempotency receipts for bid placement, Buy It Now, bid withdrawal,
-  below-reserve acceptance, marketplace offers, and Dispatch commands.
+  below-reserve acceptance, listing draft creation/publication, marketplace
+  offers, and Dispatch commands.
 - `dispatch_jobs/{jobId}`: live user trucking requests. Stores route labels,
   optional mapped planning points, estimated distance, requested date, load
   details, current status, bid count and revision number. Creation, revision,

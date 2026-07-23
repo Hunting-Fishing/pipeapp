@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 84% | The 53 reviewed Function exports include idempotent ownership synchronization, account-review submission/decision, private account export, session revocation, staged deletion/cleanup, abuse cleanup, saved/listing/offer/auction/Dispatch lifecycles, and protected conversation, upload, message, and report commands. Direct clients cannot author authoritative verification, privacy, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, conversation, message, upload-grant, report, dispute, or Dispatch state. A real Auth, Firestore, Functions, and Storage emulator suite verifies marketplace, communication, account-review, privacy, and repeated-request idempotency. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
+| 2 — Backend parity and commands | No | 86% | The 57 reviewed Function exports include idempotent ownership synchronization, account-review submission/decision, private account export, session revocation, staged deletion/cleanup, abuse cleanup, draft-first listing publication, saved/listing/offer/auction/Dispatch lifecycles, and protected conversation, upload, message, and report commands. Direct clients cannot author authoritative verification, privacy, listing drafts, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, conversation, message, upload-grant, report, dispute, or Dispatch state. A real Auth, Firestore, Functions, and Storage emulator suite verifies marketplace, listing media, communication, account-review, privacy, and repeated-request idempotency. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
 | 3 — Identity and abuse protection | No | 90% | Signup and sign-in enter a cross-platform ownership screen until Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, Dispatch, messaging, reporting, media, and privacy commands require current Auth claims and bounded quotas; phone uniqueness is synchronized into a hashed server-owned registry. Account verification requires verified ownership, complete public-profile evidence, a server submission, and an MFA-authorized administrator decision with a required note, immutable history, and notifications. Administrator authorization requires an audited custom role plus a current-session MFA claim. Users can generate a private expiring export, revoke refresh sessions, schedule or cancel coordinated deletion, and start non-enumerating email/password recovery. Staging Phone Auth/App Check/MFA activation, assisted recovery for lost email/phone access, physical-device acceptance, live administrator acceptance, and retention-policy approval remain incomplete. |
-| 4 — Product workflows | No | 64% | Saved listings and normal listing lifecycle are locally verified. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards now create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Payment release/refund, provider approval, truck-route calculation, and carrier billing remain incomplete. |
+| 4 — Product workflows | No | 70% | Saved listings, normal listing lifecycle, and draft-first media publication are locally verified. A listing with selected photos/video remains private until bounded Storage uploads, server object verification, and explicit thumbnail validation all succeed; failures retain a retryable private draft and expired drafts are cleaned safely. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Indexed search/pagination, deep links, payment release/refund, provider approval, truck-route calculation, and carrier billing remain incomplete. |
 | 5 — Trust, notifications, policies | No | 20% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, and administrator-readable cases are locally verified. Moderation operations, appeals, external delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **65%**.
+Overall Phase 1 launch readiness estimate: **66%**.
 
 Completed gates: **1 of 8**.
 
@@ -59,6 +59,7 @@ Completed gates: **1 of 8**.
 | --- | --- | --- |
 | Persisted saved listings | Source and emulator verified; staging pending | Save and unsave use an idempotent server command, restore from `users/{uid}/saved_listings` after authentication, use consistent document IDs, and render live listing documents. Rules deny cross-user reads, direct saved-state writes, and forged save analytics. Staging acceptance remains outstanding. |
 | Listing lifecycle | Source and emulator verified; staging pending | Normal listings have revision-safe server commands and owner UI for editing, pause/reactivate, mark sold, archive, and relist. Immutable owner/admin revision history is enforced. Staging deployment and acceptance evidence remain outstanding. |
+| Listing media publication | Source and emulator verified; staging pending | The create form now saves an owner-private server draft first, uploads selected media with visible progress, preserves failed uploads for retry, sends the selected thumbnail explicitly, and publishes only after the server verifies exact media counts, Firebase Storage ownership path, type, size, and object existence. Direct draft writes and uploads without an owned open draft are denied. Thirty-day expiry cleanup and account export/deletion handling are included. Staging web/native upload acceptance remains outstanding. |
 | Search and filtering | Incomplete | Browse loads the active collection and performs search, filters, and sorting on the client. |
 | Pagination/geospatial search | Incomplete | No cursor pagination or bounded server/geospatial query workflow. |
 | Home notification action | Resolved in source | The former dead Home bell is no longer exposed. Account Notifications remains the working destination. |
@@ -101,7 +102,7 @@ Completed gates: **1 of 8**.
 ## Live Firebase parity finding
 
 The July 23 read-only inventory for project `flutter-flow-pipe` predates the
-current 53-export reviewed source. The automated parity control therefore
+current 57-export reviewed source. The automated parity control therefore
 continues to fail closed on missing current handlers and two unexpected legacy
 handlers (`onDispatchBidCreated` and `onDispatchJobAwarded`). Offer, Auction,
 and Dispatch workflows must remain disabled until a refreshed, reviewed
@@ -140,7 +141,7 @@ staging deployment matches exactly and passes end-to-end acceptance.
   verified email and phone claims. Saved-listing state requires verified email
   but remains usable without forcing phone verification.
 - The unified local release gate passes 0 analyzer issues, 70 Flutter tests,
-  69 Function/runtime tests, 29 Firestore/Storage rules tests, the complete
+  71 Function/runtime tests, 31 Firestore/Storage rules tests, the complete
   authenticated callable integration including a negative unverified-publisher
   case, high-severity dependency audits, Android packaging, and production web
   packaging. A GitHub clean-run remains required for this branch.
@@ -162,7 +163,7 @@ staging deployment matches exactly and passes end-to-end acceptance.
   wrong-target, wrong-size, wrong-type, missing-ticket, and expired-ticket
   rejection.
 - The current unified local release gate passes 0 analyzer issues, 70 Flutter
-  tests, 69 Function/runtime tests, 29 Firestore/Storage rules tests, authenticated
+  tests, 71 Function/runtime tests, 31 Firestore/Storage rules tests, authenticated
   callable integration, high-severity dependency audits, Android packaging,
   production web packaging, and release-manifest controls. GitHub clean-run
   evidence remains pending for this branch.
@@ -179,6 +180,28 @@ staging deployment matches exactly and passes end-to-end acceptance.
   Firebase password-reset email and returns a non-enumerating result for both
   registered and unknown addresses. Lost-email/lost-phone assisted recovery
   still requires an approved support and evidence policy.
+
+## Gate 4 checkpoint evidence
+
+- Listing creation no longer makes an active public document before selected
+  media finishes. A callable creates an owner-private draft with immutable
+  expected photo/video counts and a 30-day expiry.
+- Storage Rules require the authenticated owner, an open server-created draft,
+  approved file names, media MIME types, and five-megabyte photo or
+  twenty-five-megabyte video bounds. Arbitrary listing-media hosting is denied.
+- The server validates manifest counts, SHA-256 metadata, explicit thumbnail,
+  exact owner/listing Storage paths, object existence, content type, and size
+  before atomically creating the public listing, private location, and auction
+  reserve records.
+- Upload failures leave the form and private draft available for retry with
+  visible progress. The listing is absent from public browse until finalization
+  succeeds. Expired drafts remove their unreferenced Storage objects, while
+  account export and scheduled deletion include draft data and media cleanup.
+- Unit policy, Firestore/Storage Rules, and authenticated Auth/Firestore/
+  Functions/Storage emulator tests cover private drafts, premature publication
+  rejection, real uploaded-object verification, retry idempotency, public
+  promotion, and draft cleanup. Staging web and physical-device acceptance
+  remain pending.
 
 ## Gate 1 checkpoint evidence
 

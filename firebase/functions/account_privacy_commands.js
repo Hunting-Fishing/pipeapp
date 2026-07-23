@@ -210,6 +210,12 @@ async function buildAccountExport(db, auth, uid, generatedAt) {
       ),
     }
     : null;
+  const listingDrafts = await queryForUser(
+    db,
+    "marketplace_listing_drafts",
+    ["sellerUid"],
+    uid,
+  );
   return {
     schemaVersion: EXPORT_SCHEMA_VERSION,
     generatedAt: generatedAt.toISOString(),
@@ -234,6 +240,7 @@ async function buildAccountExport(db, auth, uid, generatedAt) {
     },
     accountCollections: owned,
     marketplace: {
+      drafts: listingDrafts,
       listings,
       offers: sections[1],
       conversations,
@@ -571,6 +578,12 @@ function createAccountPrivacyCommands(admin) {
         db.recursiveDelete(db.collection("business_private").doc(uid)),
         db.recursiveDelete(db.collection("verification_requests").doc(uid)),
         db.recursiveDelete(db.collection("dispatch_carriers").doc(uid)),
+        deleteMatching(
+          db,
+          "marketplace_listing_drafts",
+          ["sellerUid"],
+          uid,
+        ),
         deleteMatching(db, "verification_review_events", ["userUid"], uid),
         deleteMatching(db, "account_exports", ["ownerUid"], uid),
       ]);

@@ -80,6 +80,58 @@ class MarketplaceCatalogRepository {
     });
   }
 
+  Future<void> createListingDraft(Map<String, dynamic> values,
+      {required MarketplaceLocation location,
+      required String listingId}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw StateError('Sign in to save a listing draft.');
+    final response = await _commands.execute('createMarketplaceListingDraft', {
+      'listingId': listingId,
+      'listing': _callableValue(values),
+      'location': _locationValue(location),
+    });
+    if ('${response['listingId'] ?? ''}'.trim() != listingId) {
+      throw StateError(
+          'The listing service returned an invalid draft confirmation.');
+    }
+  }
+
+  Future<void> updateListingDraftMedia(String listingId,
+      {required List<String> imageUrls,
+      List<String> imageHashes = const [],
+      String? thumbnailUrl,
+      String? videoUrl,
+      required String status,
+      String? error}) async {
+    await _commands.execute(
+        'updateMarketplaceListingDraftMedia',
+        {
+          'listingId': listingId,
+          'imageUrls': imageUrls,
+          'imageHashes': imageHashes,
+          'thumbnailUrl': thumbnailUrl,
+          'videoUrl': videoUrl,
+          'status': status,
+          'error': error,
+        },
+        timeout: const Duration(seconds: 60));
+  }
+
+  Future<void> publishListingDraft(String listingId,
+      {required String requestId}) async {
+    final response = await _commands.execute(
+        'publishMarketplaceListingDraft',
+        {
+          'listingId': listingId,
+          'requestId': requestId,
+        },
+        timeout: const Duration(seconds: 60));
+    if ('${response['listingId'] ?? ''}'.trim() != listingId) {
+      throw StateError(
+          'The listing service returned an invalid publication confirmation.');
+    }
+  }
+
   Future<String> publishListing(Map<String, dynamic> values,
       {MarketplaceLocation? location, String? listingId}) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -91,7 +143,17 @@ class MarketplaceCatalogRepository {
     final response = await _commands.execute('createMarketplaceListing', {
       'listingId': id,
       'listing': _callableValue(values),
-      'location': {
+      'location': _locationValue(location),
+    });
+    final publishedId = '${response['listingId'] ?? ''}'.trim();
+    if (publishedId != id) {
+      throw StateError(
+          'The listing service returned an invalid confirmation. Try again.');
+    }
+    return publishedId;
+  }
+
+  Map<String, Object?> _locationValue(MarketplaceLocation location) => {
         'visibility': location.visibility.value,
         'point': {
           'latitude': location.point.latitude,
@@ -104,15 +166,7 @@ class MarketplaceCatalogRepository {
         'region': location.region,
         'postalCode': location.postalCode,
         'country': location.country,
-      },
-    });
-    final publishedId = '${response['listingId'] ?? ''}'.trim();
-    if (publishedId != id) {
-      throw StateError(
-          'The listing service returned an invalid confirmation. Try again.');
-    }
-    return publishedId;
-  }
+      };
 
   Object? _callableValue(Object? value) {
     if (value is Timestamp) return value.millisecondsSinceEpoch;

@@ -91,6 +91,11 @@ beforeEach(async () => {
       status: "active",
       transactionType: "Marketplace",
     });
+    await setDoc(doc(db, "marketplace_listing_drafts", "seller-draft"), {
+      sellerUid: "seller",
+      status: "awaiting_media",
+      expectedPhotoCount: 2,
+    });
     await setDoc(doc(db, "public_listings", "listing", "revisions", "2"), {
       actorUid: "seller",
       event: "details_updated",
@@ -807,6 +812,37 @@ test("only the auction owner can read the reserve amount", async () => {
   await assertFails(
       getDoc(doc(buyerDb, "auction_private", "auction")),
   );
+});
+
+test("listing drafts are private and command-owned", async () => {
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+  const draft = doc(sellerDb, "marketplace_listing_drafts", "seller-draft");
+
+  await assertSucceeds(getDoc(draft));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "marketplace_listing_drafts",
+      "seller-draft",
+  )));
+  await assertFails(getDoc(doc(
+      buyerDb,
+      "marketplace_listing_drafts",
+      "seller-draft",
+  )));
+  await assertFails(updateDoc(draft, {status: "ready_to_publish"}));
+  await assertFails(deleteDoc(draft));
+  await assertFails(setDoc(
+      doc(sellerDb, "marketplace_listing_drafts", "forged"),
+      {sellerUid: "seller", status: "ready_to_publish"},
+  ));
 });
 
 test("Dispatch job, quote, and award state cannot be forged by clients", async () => {

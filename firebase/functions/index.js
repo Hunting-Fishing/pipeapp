@@ -84,6 +84,10 @@ exports.cleanupExpiredMediaUploadAuthorizations = onSchedule(
   "every 24 hours",
   async () => cleanupExpiredMediaUploadAuthorizations(admin),
 );
+exports.cleanupExpiredMarketplaceListingDrafts = onSchedule(
+  "every 24 hours",
+  async () => marketplaceCommands.cleanupExpiredMarketplaceListingDrafts(),
+);
 exports.openMarketplaceConversation = onCall(
   protectedCallableOptions,
   communicationCommands.openMarketplaceConversation,
@@ -160,6 +164,14 @@ exports.createMarketplaceListing = onCall(
   protectedCallableOptions,
   marketplaceCommands.createMarketplaceListing,
 );
+exports.createMarketplaceListingDraft = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.createMarketplaceListingDraft,
+);
+exports.publishMarketplaceListingDraft = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.publishMarketplaceListingDraft,
+);
 exports.convertMarketplaceListingToAuction = onCall(
   protectedCallableOptions,
   marketplaceCommands.convertMarketplaceListingToAuction,
@@ -167,6 +179,10 @@ exports.convertMarketplaceListingToAuction = onCall(
 exports.updateMarketplaceListingMedia = onCall(
   protectedCallableOptions,
   marketplaceCommands.updateMarketplaceListingMedia,
+);
+exports.updateMarketplaceListingDraftMedia = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.updateMarketplaceListingDraftMedia,
 );
 exports.updateMarketplaceListingDetails = onCall(
   protectedCallableOptions,

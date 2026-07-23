@@ -29,7 +29,9 @@ const {
 } = require("./marketplace_command_policy");
 const {
   ListingPolicyError,
+  listingMediaObjectPath,
   validateLocation,
+  validateListingMediaManifest,
   validateMarketplaceListingInput,
   validateReserve,
 } = require("./marketplace_listing_policy");
@@ -139,6 +141,135 @@ function createMarketplaceCommands(admin) {
     await enforceUserRateLimit({db, admin, request, scope: feature});
     return handler(request, flags);
   });
+
+  async function loadListingPublisher(transaction, uid, request, listing) {
+    const userSnapshot = await transaction.get(
+        db.collection("users").doc(uid),
+    );
+    const businessSnapshot = await transaction.get(
+        db.collection("public_business_profiles").doc(uid),
+    );
+    const user = userSnapshot.data() || {};
+    const business = businessSnapshot.data() || {};
+    if (listing.transactionType === "Auction" &&
+        !isAdministrator(request) &&
+        (
+          Number(user.userScore || 70) <= 80 ||
+          Number(user.profileCompletion || 0) !== 100 ||
+          !approvedAccountVerification(user)
+        )) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Auction listings require a User Score above 80, a complete " +
+          "profile, and verified account status.",
+      );
+    }
+    const sellerName = String(
+        user.accountType === "business" ?
+          business.publicName || user.businessName || "" :
+          user.display_name || user.displayName || user.fullName || "",
+    ).trim() || String(
+        request.auth.token.name || request.auth.token.email ||
+        "Marketplace seller",
+    ).trim();
+    const sellerPhotoUrl = String(
+        business.photoUrl || user.photoUrl || user.photo_url ||
+        request.auth.token.picture || "",
+    ).trim();
+    return {
+      sellerName: sellerName.slice(0, 160),
+      sellerPhotoUrl: sellerPhotoUrl.slice(0, 2000),
+      sellerVerified: approvedAccountVerification(user),
+    };
+  }
+
+  function publicationValues(uid, listing, location, publisher) {
+    const exactPoint = new admin.firestore.GeoPoint(
+        location.point.latitude,
+        location.point.longitude,
+    );
+    const publicPoint = location.visibility === "hidden" ?
+      null :
+      location.visibility === "exact" ?
+        exactPoint :
+        new admin.firestore.GeoPoint(
+            Math.round(location.point.latitude * 20) / 20,
+            Math.round(location.point.longitude * 20) / 20,
+        );
+    return {
+      publicListing: {
+        ...listing,
+        ...(listing.auctionStartAt ? {
+          auctionStartAt: Timestamp.fromMillis(listing.auctionStartAt),
+        } : {}),
+        ...(listing.auctionEndAt ? {
+          auctionEndAt: Timestamp.fromMillis(listing.auctionEndAt),
+        } : {}),
+        locationVisibility: location.visibility,
+        publicLocationName: location.publicName,
+        nearestTown: location.nearestTown,
+        region: location.region,
+        country: location.country,
+        approximateRadiusKm: location.visibility === "exact" ? 0 : 10,
+        ...(publicPoint ? {publicGeoPoint: publicPoint} : {}),
+        sellerUid: uid,
+        ...publisher,
+        ...(typeof listing.price === "number" ? {
+          initialPrice: listing.price,
+        } : {}),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        source: "marketplace_callable",
+        status: "active",
+      },
+      privateLocation: {
+        ownerUid: uid,
+        exactGeoPoint: exactPoint,
+        fullAddress: location.address,
+        nearestTown: location.nearestTown,
+        region: location.region,
+        postalCode: location.postalCode,
+        country: location.country,
+        accessNotes: location.accessNotes,
+        visibility: location.visibility,
+        publicName: location.publicName,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    };
+  }
+
+  async function verifyDraftMediaObjects(media) {
+    const bucket = admin.storage().bucket();
+    const imagePaths = media.imageUrls.map(listingMediaObjectPath);
+    const videoPaths = media.videoUrl ?
+      [listingMediaObjectPath(media.videoUrl)] : [];
+    try {
+      await Promise.all([
+        ...imagePaths.map(async (path) => {
+          const [metadata] = await bucket.file(path).getMetadata();
+          if (!String(metadata.contentType || "").startsWith("image/") ||
+              Number(metadata.size || 0) <= 0 ||
+              Number(metadata.size || 0) > 5 * 1024 * 1024) {
+            throw new Error("invalid-photo");
+          }
+        }),
+        ...videoPaths.map(async (path) => {
+          const [metadata] = await bucket.file(path).getMetadata();
+          if (!String(metadata.contentType || "").startsWith("video/") ||
+              Number(metadata.size || 0) <= 0 ||
+              Number(metadata.size || 0) > 25 * 1024 * 1024) {
+            throw new Error("invalid-video");
+          }
+        }),
+      ]);
+    } catch (error) {
+      console.warn("Listing draft media verification failed", error);
+      throw new HttpsError(
+          "failed-precondition",
+          "One or more selected media files are missing or invalid. Retry the upload.",
+      );
+    }
+  }
 
   function auctionSettlementValues(listingId, listing, buyerUid, amount, source) {
     const quantity = Number(listing.auctionQuantity || listing.quantity || 1);
@@ -289,6 +420,313 @@ function createMarketplaceCommands(admin) {
     return result;
   });
 
+  const createMarketplaceListingDraft = featureCommand(
+      "marketplace",
+      async (request, flags) => {
+    const uid = requireAuth(request);
+    const listingId = requiredId(request.data, "listingId");
+    const rawListing = request.data && request.data.listing || {};
+    const requestedTransaction = String(
+        rawListing.transactionType || "For Sale",
+    );
+    if (requestedTransaction === "Auction") {
+      requirePhase1Feature(flags, "auctions");
+    }
+    if (requestedTransaction === "Wanted / Seeking") {
+      requirePhase1Feature(flags, "wantedAds");
+    }
+    if (rawListing.category === "Site & Property") {
+      requirePhase1Feature(flags, "regulatedListings");
+    }
+    if (rawListing.boostRequested === true ||
+        Number(rawListing.boostPrice || 0) > 0) {
+      requirePhase1Feature(flags, "paidFeatures");
+    }
+    const expectedPhotoCount = Number(rawListing.mediaPhotoCount || 0);
+    const expectsVideo = rawListing.hasVideo === true;
+    if (!Number.isInteger(expectedPhotoCount) || expectedPhotoCount < 0 ||
+        expectedPhotoCount > 12) {
+      throw new HttpsError(
+          "invalid-argument",
+          "A listing can contain up to 12 selected photos.",
+      );
+    }
+    const listing = validateMarketplaceListingInput(
+        rawListing,
+        new Date(),
+        {regulatedListingsEnabled: flags.regulatedListings},
+    );
+    Object.assign(listing, {
+      imageUrls: [],
+      imageHashes: [],
+      thumbnailUrl: null,
+      videoUrl: null,
+      mediaPhotoCount: expectedPhotoCount,
+      hasVideo: expectsVideo,
+      mediaUploadStatus: expectedPhotoCount > 0 || expectsVideo ?
+        "queued" : "none",
+    });
+    const location = validateLocation(request.data && request.data.location);
+    const reserve = validateReserve(rawListing, listing.transactionType);
+    const draftRef = db.collection("marketplace_listing_drafts").doc(listingId);
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "createMarketplaceListingDraft",
+        {listingId},
+    );
+    return db.runTransaction(async (transaction) => {
+      const draftSnapshot = await transaction.get(draftRef);
+      const listingSnapshot = await transaction.get(listingRef);
+      const receipt = await transaction.get(receiptRef);
+      if (listingSnapshot.exists) {
+        if (listingSnapshot.data().sellerUid !== uid) {
+          throw new HttpsError(
+              "already-exists",
+              "This listing identifier is already in use.",
+          );
+        }
+        return {listingId, status: "published", alreadyPublished: true};
+      }
+      if (draftSnapshot.exists) {
+        if (draftSnapshot.data().sellerUid !== uid) {
+          throw new HttpsError(
+              "already-exists",
+              "This listing identifier is already in use.",
+          );
+        }
+        return receipt.exists ? receipt.data().result : {
+          listingId,
+          status: String(draftSnapshot.data().status || "awaiting_media"),
+          alreadyPublished: false,
+        };
+      }
+      await loadListingPublisher(transaction, uid, request, listing);
+      const status = expectedPhotoCount > 0 || expectsVideo ?
+        "awaiting_media" : "ready_to_publish";
+      const result = {listingId, status, alreadyPublished: false};
+      transaction.create(draftRef, {
+        sellerUid: uid,
+        listing,
+        location,
+        reserve,
+        expectedPhotoCount,
+        expectsVideo,
+        media: {
+          status: expectedPhotoCount > 0 || expectsVideo ? "uploading" : "none",
+          imageUrls: [],
+          imageHashes: [],
+          thumbnailUrl: "",
+          videoUrl: "",
+        },
+        status,
+        revision: 1,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "createMarketplaceListingDraft", result, FieldValue),
+      );
+      return result;
+    });
+      },
+  );
+
+  const updateMarketplaceListingDraftMedia = featureCommand(
+      "marketplace",
+      async (request) => {
+    const uid = requireAuth(request);
+    const listingId = requiredId(request.data, "listingId");
+    const draftRef = db.collection("marketplace_listing_drafts").doc(listingId);
+    const initialSnapshot = await draftRef.get();
+    if (!initialSnapshot.exists) {
+      throw new HttpsError("not-found", "Listing draft not found.");
+    }
+    const initialDraft = initialSnapshot.data();
+    if (initialDraft.sellerUid !== uid) {
+      throw new HttpsError(
+          "permission-denied",
+          "Only the draft owner can update its media.",
+      );
+    }
+    const submittedMedia = validateListingMediaManifest(request.data, {
+      ownerUid: uid,
+      listingId,
+      expectedPhotoCount: Number(initialDraft.expectedPhotoCount || 0),
+      expectsVideo: initialDraft.expectsVideo === true,
+    });
+    if (submittedMedia.status === "complete") {
+      await verifyDraftMediaObjects(submittedMedia);
+    }
+    return db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(draftRef);
+      if (!snapshot.exists) {
+        throw new HttpsError("not-found", "Listing draft not found.");
+      }
+      const draft = snapshot.data();
+      if (draft.sellerUid !== uid) {
+        throw new HttpsError(
+            "permission-denied",
+            "Only the draft owner can update its media.",
+        );
+      }
+      if (draft.status === "publishing" || draft.status === "published") {
+        throw new HttpsError(
+            "failed-precondition",
+            "This draft is already being published.",
+        );
+      }
+      const media = validateListingMediaManifest(submittedMedia, {
+        ownerUid: uid,
+        listingId,
+        expectedPhotoCount: Number(draft.expectedPhotoCount || 0),
+        expectsVideo: draft.expectsVideo === true,
+      });
+      const status = media.status === "complete" ?
+        "ready_to_publish" : "awaiting_media";
+      transaction.update(draftRef, {
+        media,
+        status,
+        revision: Number(draft.revision || 1) + 1,
+        ...(media.status === "failed" ? {
+          mediaUploadError: String(request.data.error || "").slice(0, 800),
+        } : {mediaUploadError: FieldValue.delete()}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return {listingId, status, mediaStatus: media.status};
+    });
+      },
+  );
+
+  const publishMarketplaceListingDraft = featureCommand(
+      "marketplace",
+      async (request, flags) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const listingId = requiredId(request.data, "listingId");
+    const draftRef = db.collection("marketplace_listing_drafts").doc(listingId);
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const privateLocationRef = db.collection("listing_private_locations")
+        .doc(listingId);
+    const privateAuctionRef = db.collection("auction_private").doc(listingId);
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "publishMarketplaceListingDraft",
+        {requestId, listingId},
+    );
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const draftSnapshot = await transaction.get(draftRef);
+      const listingSnapshot = await transaction.get(listingRef);
+      if (listingSnapshot.exists) {
+        if (listingSnapshot.data().sellerUid !== uid) {
+          throw new HttpsError(
+              "already-exists",
+              "This listing identifier is already in use.",
+          );
+        }
+        const result = {listingId, alreadyPublished: true};
+        transaction.create(
+            receiptRef,
+            receiptData(
+                uid,
+                "publishMarketplaceListingDraft",
+                result,
+                FieldValue,
+            ),
+        );
+        return result;
+      }
+      if (!draftSnapshot.exists) {
+        throw new HttpsError("not-found", "Listing draft not found.");
+      }
+      const draft = draftSnapshot.data();
+      if (draft.sellerUid !== uid) {
+        throw new HttpsError(
+            "permission-denied",
+            "Only the draft owner can publish this listing.",
+        );
+      }
+      const listing = validateMarketplaceListingInput(
+          draft.listing,
+          new Date(),
+          {regulatedListingsEnabled: flags.regulatedListings},
+      );
+      if (listing.transactionType === "Auction") {
+        requirePhase1Feature(flags, "auctions");
+      }
+      if (listing.transactionType === "Wanted / Seeking") {
+        requirePhase1Feature(flags, "wantedAds");
+      }
+      if (listing.category === "Site & Property") {
+        requirePhase1Feature(flags, "regulatedListings");
+      }
+      if (listing.boostRequested === true || Number(listing.boostPrice || 0) > 0) {
+        requirePhase1Feature(flags, "paidFeatures");
+      }
+      const location = validateLocation(draft.location);
+      const hasExpectedMedia = Number(draft.expectedPhotoCount || 0) > 0 ||
+        draft.expectsVideo === true;
+      const media = hasExpectedMedia ?
+        validateListingMediaManifest(draft.media, {
+          ownerUid: uid,
+          listingId,
+          expectedPhotoCount: Number(draft.expectedPhotoCount || 0),
+          expectsVideo: draft.expectsVideo === true,
+          requireComplete: true,
+        }) : {
+          status: "none",
+          imageUrls: [],
+          imageHashes: [],
+          thumbnailUrl: "",
+          videoUrl: "",
+        };
+      Object.assign(listing, {
+        imageUrls: media.imageUrls,
+        imageHashes: media.imageHashes,
+        thumbnailUrl: media.thumbnailUrl || null,
+        videoUrl: media.videoUrl || null,
+        mediaPhotoCount: media.imageUrls.length,
+        hasVideo: Boolean(media.videoUrl),
+        mediaUploadStatus: hasExpectedMedia ? "complete" : "none",
+      });
+      const publisher = await loadListingPublisher(
+          transaction,
+          uid,
+          request,
+          listing,
+      );
+      const values = publicationValues(uid, listing, location, publisher);
+      const result = {listingId, alreadyPublished: false};
+      transaction.create(listingRef, values.publicListing);
+      transaction.create(privateLocationRef, values.privateLocation);
+      if (draft.reserve) {
+        transaction.create(privateAuctionRef, {
+          ownerUid: uid,
+          ...draft.reserve,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      transaction.delete(draftRef);
+      transaction.create(
+          receiptRef,
+          receiptData(
+              uid,
+              "publishMarketplaceListingDraft",
+              result,
+              FieldValue,
+          ),
+      );
+      return result;
+    });
+      },
+  );
+
   const createMarketplaceListing = featureCommand(
       "marketplace",
       async (request, flags) => {
@@ -312,6 +750,18 @@ function createMarketplaceCommands(admin) {
       Number(rawListing.boostPrice || 0) > 0
     ) {
       requirePhase1Feature(flags, "paidFeatures");
+    }
+    if (Number(rawListing.mediaPhotoCount || 0) > 0 ||
+        rawListing.hasVideo === true ||
+        Array.isArray(rawListing.imageUrls) && rawListing.imageUrls.length > 0 ||
+        Array.isArray(rawListing.imageHashes) &&
+          rawListing.imageHashes.length > 0 ||
+        String(rawListing.thumbnailUrl || "").trim() ||
+        String(rawListing.videoUrl || "").trim()) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Listings with selected media must use the draft upload workflow.",
+      );
     }
     const listing = validateMarketplaceListingInput(
         rawListing,
@@ -349,96 +799,17 @@ function createMarketplaceCommands(admin) {
           {listingId, alreadyPublished: true};
       }
 
-      const userSnapshot = await transaction.get(
-          db.collection("users").doc(uid),
+      const publisher = await loadListingPublisher(
+          transaction,
+          uid,
+          request,
+          listing,
       );
-      const businessSnapshot = await transaction.get(
-          db.collection("public_business_profiles").doc(uid),
-      );
-      const user = userSnapshot.data() || {};
-      const business = businessSnapshot.data() || {};
-      if (listing.transactionType === "Auction" &&
-          !isAdministrator(request) &&
-          (
-            Number(user.userScore || 70) <= 80 ||
-            Number(user.profileCompletion || 0) !== 100 ||
-            !approvedAccountVerification(user)
-          )) {
-        throw new HttpsError(
-            "failed-precondition",
-            "Auction listings require a User Score above 80, a complete " +
-            "profile, and verified account status.",
-        );
-      }
-
-      const sellerName = String(
-          user.accountType === "business" ?
-            business.publicName || user.businessName || "" :
-            user.display_name || user.displayName || user.fullName || "",
-      ).trim() || String(
-          request.auth.token.name || request.auth.token.email ||
-          "Marketplace seller",
-      ).trim();
-      const sellerPhotoUrl = String(
-          business.photoUrl || user.photoUrl || user.photo_url ||
-          request.auth.token.picture || "",
-      ).trim();
-
-      const exactPoint = new admin.firestore.GeoPoint(
-          location.point.latitude,
-          location.point.longitude,
-      );
-      const publicPoint = location.visibility === "hidden" ?
-        null :
-        location.visibility === "exact" ?
-          exactPoint :
-          new admin.firestore.GeoPoint(
-              Math.round(location.point.latitude * 20) / 20,
-              Math.round(location.point.longitude * 20) / 20,
-          );
-      const publicListing = {
-        ...listing,
-        ...(listing.auctionStartAt ? {
-          auctionStartAt: Timestamp.fromMillis(listing.auctionStartAt),
-        } : {}),
-        ...(listing.auctionEndAt ? {
-          auctionEndAt: Timestamp.fromMillis(listing.auctionEndAt),
-        } : {}),
-        locationVisibility: location.visibility,
-        publicLocationName: location.publicName,
-        nearestTown: location.nearestTown,
-        region: location.region,
-        country: location.country,
-        approximateRadiusKm: location.visibility === "exact" ? 0 : 10,
-        ...(publicPoint ? {publicGeoPoint: publicPoint} : {}),
-        sellerUid: uid,
-        sellerName: sellerName.slice(0, 160),
-        sellerPhotoUrl: sellerPhotoUrl.slice(0, 2000),
-        sellerVerified: approvedAccountVerification(user),
-        ...(typeof listing.price === "number" ? {
-          initialPrice: listing.price,
-        } : {}),
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        source: "marketplace_callable",
-        status: "active",
-      };
+      const values = publicationValues(uid, listing, location, publisher);
       const result = {listingId, alreadyPublished: false};
 
-      transaction.create(listingRef, publicListing);
-      transaction.create(privateLocationRef, {
-        ownerUid: uid,
-        exactGeoPoint: exactPoint,
-        fullAddress: location.address,
-        nearestTown: location.nearestTown,
-        region: location.region,
-        postalCode: location.postalCode,
-        country: location.country,
-        accessNotes: location.accessNotes,
-        visibility: location.visibility,
-        publicName: location.publicName,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      transaction.create(listingRef, values.publicListing);
+      transaction.create(privateLocationRef, values.privateLocation);
       if (reserve) {
         transaction.create(privateAuctionRef, {
           ownerUid: uid,
@@ -576,6 +947,30 @@ function createMarketplaceCommands(admin) {
     });
       },
   );
+
+  async function cleanupExpiredMarketplaceListingDrafts(batchLimit = 50) {
+    const expired = await db.collection("marketplace_listing_drafts")
+        .where("expiresAt", "<=", Timestamp.now())
+        .limit(batchLimit)
+        .get();
+    let removed = 0;
+    for (const snapshot of expired.docs) {
+      const listingSnapshot = await db.collection("public_listings")
+          .doc(snapshot.id)
+          .get();
+      if (!listingSnapshot.exists) {
+        const ownerUid = String(snapshot.data().sellerUid || "").trim();
+        if (ownerUid) {
+          await admin.storage().bucket().deleteFiles({
+            prefix: `listing_media/${ownerUid}/${snapshot.id}/`,
+          });
+        }
+      }
+      await db.recursiveDelete(snapshot.ref);
+      removed++;
+    }
+    return removed;
+  }
 
   const updateMarketplaceListingDetails = featureCommand(
       "marketplace",
@@ -2160,17 +2555,21 @@ function createMarketplaceCommands(admin) {
     acceptAuctionBidBelowReserve,
     acceptMarketplaceOffer,
     buyAuctionNow,
+    cleanupExpiredMarketplaceListingDrafts,
     convertMarketplaceListingToAuction,
+    createMarketplaceListingDraft,
     createMarketplaceListing,
     createMarketplaceOffer,
     finalizeAuction,
     placeAuctionBid,
     relistMarketplaceListing,
     setMarketplaceListingSaved,
+    publishMarketplaceListingDraft,
     transitionMarketplaceListing,
     updateAuctionTransaction,
     updateMarketplaceTransaction,
     updateMarketplaceListingDetails,
+    updateMarketplaceListingDraftMedia,
     updateMarketplaceListingMedia,
     withdrawAuctionBid,
     finalizeAuctionRecord,

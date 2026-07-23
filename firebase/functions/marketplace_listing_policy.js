@@ -301,9 +301,102 @@ function validateReserve(data, transactionType) {
   };
 }
 
+function listingMediaObjectPath(rawUrl) {
+  let url;
+  try {
+    url = new URL(String(rawUrl || "").trim());
+  } catch (_) {
+    invalid("A listing media URL is invalid.");
+  }
+  if (url.protocol !== "https:") {
+    invalid("Listing media must use a secure Firebase Storage URL.");
+  }
+  if (url.hostname === "firebasestorage.googleapis.com") {
+    const marker = "/o/";
+    const offset = url.pathname.indexOf(marker);
+    if (offset < 0) invalid("A listing media URL is invalid.");
+    try {
+      return decodeURIComponent(url.pathname.slice(offset + marker.length));
+    } catch (_) {
+      invalid("A listing media URL is invalid.");
+    }
+  }
+  if (url.hostname === "storage.googleapis.com") {
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length < 2) invalid("A listing media URL is invalid.");
+    return parts.slice(1).join("/");
+  }
+  invalid("Listing media must be stored in the application storage bucket.");
+}
+
+function validateListingMediaManifest(data, options) {
+  if (!isPlainObject(data)) invalid("Listing media details are missing.");
+  const ownerUid = String(options && options.ownerUid || "").trim();
+  const listingId = String(options && options.listingId || "").trim();
+  const expectedPhotoCount = Number(
+      options && options.expectedPhotoCount || 0,
+  );
+  const expectsVideo = options && options.expectsVideo === true;
+  const requireComplete = options && options.requireComplete === true;
+  if (!ownerUid || !listingId || !Number.isInteger(expectedPhotoCount) ||
+      expectedPhotoCount < 0 || expectedPhotoCount > 12) {
+    invalid("Listing media expectations are invalid.");
+  }
+
+  const status = String(data.status || "").trim();
+  if (!["uploading", "complete", "failed"].includes(status)) {
+    invalid("Listing media status is invalid.");
+  }
+  if (requireComplete && status !== "complete") {
+    throw new ListingPolicyError(
+        "failed-precondition",
+        "Finish uploading the selected listing media before publishing.",
+    );
+  }
+  const imageUrls = Array.isArray(data.imageUrls) ?
+    data.imageUrls.map((value) => String(value || "").trim()) : [];
+  const imageHashes = Array.isArray(data.imageHashes) ?
+    data.imageHashes.map((value) => String(value || "").trim()) : [];
+  const thumbnailUrl = String(data.thumbnailUrl || "").trim();
+  const videoUrl = String(data.videoUrl || "").trim();
+  if (imageUrls.length > 12 || imageHashes.length > 12 ||
+      new Set(imageUrls).size !== imageUrls.length ||
+      imageHashes.some((value) => !/^[a-f0-9]{64}$/.test(value))) {
+    invalid("Listing photo metadata is invalid.");
+  }
+  if (status === "complete" &&
+      (imageUrls.length !== expectedPhotoCount ||
+       imageHashes.length !== expectedPhotoCount ||
+       Boolean(videoUrl) !== expectsVideo)) {
+    invalid("Uploaded listing media does not match the selected files.");
+  }
+  if (thumbnailUrl && !imageUrls.includes(thumbnailUrl)) {
+    invalid("Choose one of the uploaded photos as the listing thumbnail.");
+  }
+  if (status === "complete" && imageUrls.length > 0 && !thumbnailUrl) {
+    invalid("Choose a listing thumbnail before publishing.");
+  }
+  const expectedPrefix = `listing_media/${ownerUid}/${listingId}/`;
+  for (const imageUrl of imageUrls) {
+    const path = listingMediaObjectPath(imageUrl);
+    if (!path.startsWith(expectedPrefix) || !path.includes("/photo_")) {
+      invalid("A listing photo does not belong to this draft.");
+    }
+  }
+  if (videoUrl) {
+    const path = listingMediaObjectPath(videoUrl);
+    if (!path.startsWith(expectedPrefix) || !path.includes("/video.")) {
+      invalid("The listing video does not belong to this draft.");
+    }
+  }
+  return {status, imageUrls, imageHashes, thumbnailUrl, videoUrl};
+}
+
 module.exports = {
   ListingPolicyError,
+  listingMediaObjectPath,
   validateLocation,
+  validateListingMediaManifest,
   validateMarketplaceListingInput,
   validateReserve,
 };

@@ -74,6 +74,12 @@ beforeEach(async () => {
       sizeBytes: 4,
       expiresAt: Timestamp.fromMillis(Date.now() - 1000),
     });
+    await setDoc(doc(db, "marketplace_listing_drafts", "listing-draft"), {
+      sellerUid: "buyer",
+      status: "awaiting_media",
+      expectedPhotoCount: 1,
+      expectsVideo: false,
+    });
   });
 });
 
@@ -105,6 +111,45 @@ test("chat uploads require an exact live server authorization", async () => {
       ),
       Uint8Array.from([1, 2, 3, 4]),
       {contentType: "image/jpeg"},
+  ));
+});
+
+test("listing uploads require an owned open draft and bounded file type", async () => {
+  const buyerStorage = testEnvironment
+      .authenticatedContext("buyer")
+      .storage();
+  const sellerStorage = testEnvironment
+      .authenticatedContext("seller")
+      .storage();
+  const photo = ref(
+      buyerStorage,
+      "listing_media/buyer/listing-draft/photo_1.jpg",
+  );
+
+  await assertSucceeds(uploadBytes(
+      photo,
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(buyerStorage, "listing_media/buyer/no-draft/photo_1.jpg"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(sellerStorage, "listing_media/buyer/listing-draft/photo_1.jpg"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(buyerStorage, "listing_media/buyer/listing-draft/photo_13.jpg"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(buyerStorage, "listing_media/buyer/listing-draft/photo_2.pdf"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "application/pdf"},
   ));
 });
 

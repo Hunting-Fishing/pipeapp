@@ -3433,6 +3433,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   int _mediaCompleted = 0;
   int _mediaTotal = 0;
   String? _backgroundUploadMessage;
+  String? _pendingDraftId;
+  String? _pendingPublishRequestId;
 
   bool get _isAuction => _listingType == 'Auction';
   bool get _isWanted => _listingType == 'Wanted / Seeking';
@@ -4667,12 +4669,16 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.publish_outlined),
               label: Text(_publishing
-                  ? 'Publishing…'
-                  : isWanted
-                      ? 'Publish wanted ad'
-                      : _isAuction
-                          ? 'Publish timed auction'
-                          : 'Publish listing'),
+                  ? _mediaTotal > 0 && _mediaCompleted < _mediaTotal
+                      ? 'Uploading $_mediaCompleted of $_mediaTotal…'
+                      : 'Publishing…'
+                  : _pendingDraftId != null
+                      ? 'Retry draft upload and publish'
+                      : isWanted
+                          ? 'Publish wanted ad'
+                          : _isAuction
+                              ? 'Publish timed auction'
+                              : 'Publish listing'),
               style: FilledButton.styleFrom(
                   backgroundColor: _orange,
                   foregroundColor: Colors.white,
@@ -5226,7 +5232,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       final enteredAnnualRevenue = marketplaceMoneyValue(_annualRevenue.text);
       final annualRevenue = enteredAnnualRevenue ??
           (monthlyRevenue == null ? null : monthlyRevenue * 12);
-      final listingId = _repository.newListingId();
+      final listingId = _pendingDraftId ?? _repository.newListingId();
+      _pendingDraftId = listingId;
+      _pendingPublishRequestId ??=
+          FirebaseFirestore.instance.collection('draft_publications').doc().id;
       final queuedPhotos = List<XFile>.from(_photos);
       final selectedThumbnail = _thumbnailPhotoIndex;
       if (selectedThumbnail != null &&
@@ -5237,7 +5246,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       }
       final queuedVideo = _video;
       final hasQueuedMedia = queuedPhotos.isNotEmpty || queuedVideo != null;
-      await _repository.publishListing({
+      final listingValues = <String, dynamic>{
         'title': _title.text.trim(),
         'category': _category,
         'productType': _productType == _otherCatalogValue
@@ -5336,7 +5345,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         'shareCount': 0,
         'messageCount': 0,
         'offerCount': 0,
-      }, location: _location, listingId: listingId);
+      };
+      await _repository.createListingDraft(listingValues,
+          location: _location!, listingId: listingId);
+      if (hasQueuedMedia) {
+        await _uploadDraftMedia(listingId, queuedPhotos, queuedVideo);
+      }
+      await _repository.publishListingDraft(listingId,
+          requestId: _pendingPublishRequestId!);
       final catalogSuggestions = <Map<String, String>>[
         if (_productType == _otherCatalogValue)
           {
@@ -5439,10 +5455,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         _auctionEndAt = null;
         _listingType = widget.initialAuction ? 'Auction' : 'For Sale';
       });
-      if (hasQueuedMedia) {
-        unawaited(
-            _uploadMediaInBackground(listingId, queuedPhotos, queuedVideo));
-      }
+      _pendingDraftId = null;
+      _pendingPublishRequestId = null;
+      _mediaCompleted = 0;
+      _mediaTotal = 0;
+      _backgroundUploadMessage = null;
       try {
         await _showPublishedOptions(listingId);
       } catch (error) {
@@ -5475,7 +5492,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     }
   }
 
-  Future<void> _uploadMediaInBackground(
+  Future<void> _uploadDraftMedia(
       String listingId, List<XFile> photos, XFile? video) async {
     final total = photos.length + (video == null ? 0 : 1);
     if (mounted) {
@@ -5483,11 +5500,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         _mediaCompleted = 0;
         _mediaTotal = total;
         _backgroundUploadMessage =
-            'Listing published — uploading media in the background…';
+            'Uploading selected media before the listing becomes public…';
       });
     }
     try {
-      await _repository.updateListingMedia(listingId,
+      await _repository.updateListingDraftMedia(listingId,
           imageUrls: const [], thumbnailUrl: null, status: 'uploading');
       final media = await _mediaRepository.upload(
         listingId: listingId,
@@ -5497,7 +5514,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           if (mounted) setState(() => _mediaCompleted = completed);
         },
       );
-      await _repository.updateListingMedia(listingId,
+      await _repository.updateListingDraftMedia(listingId,
           imageUrls: media.imageUrls,
           imageHashes: media.imageHashes,
           thumbnailUrl: media.imageUrls.firstOrNull,
@@ -5506,12 +5523,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (mounted) {
         setState(() {
           _mediaCompleted = total;
-          _backgroundUploadMessage = 'Media upload complete';
+          _backgroundUploadMessage =
+              'Media upload complete — finalizing publication…';
         });
       }
     } catch (error) {
       try {
-        await _repository.updateListingMedia(listingId,
+        await _repository.updateListingDraftMedia(listingId,
             imageUrls: const [],
             thumbnailUrl: null,
             status: 'failed',
@@ -5519,11 +5537,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       } catch (_) {}
       if (mounted) {
         setState(() => _backgroundUploadMessage =
-            'Listing is live, but media could not upload. Firebase Storage setup is required.');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Listing published. Media upload failed; check Firebase Storage setup.')));
+            'Upload paused. The listing remains a private draft; retry when your connection is ready.');
       }
+      rethrow;
     }
   }
 
