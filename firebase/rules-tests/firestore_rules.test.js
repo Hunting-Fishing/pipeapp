@@ -85,6 +85,11 @@ beforeEach(async () => {
       status: "active",
       transactionType: "Marketplace",
     });
+    await setDoc(doc(db, "public_listings", "listing", "revisions", "2"), {
+      actorUid: "seller",
+      event: "details_updated",
+      revision: 2,
+    });
     await setDoc(doc(db, "offers", "offer"), {
       sellerUid: "seller",
       buyerUid: "buyer",
@@ -363,6 +368,54 @@ test("clients cannot create or convert authoritative auction state", async () =>
         minimumBidIncrement: 5,
       },
   ));
+});
+
+test("listing revision history is immutable and private to owner or admin", async () => {
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", {admin: true})
+      .firestore();
+  const sellerRevision = doc(
+      sellerDb,
+      "public_listings",
+      "listing",
+      "revisions",
+      "2",
+  );
+
+  await assertSucceeds(getDoc(sellerRevision));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "public_listings",
+      "listing",
+      "revisions",
+      "2",
+  )));
+  await assertFails(getDoc(doc(
+      buyerDb,
+      "public_listings",
+      "listing",
+      "revisions",
+      "2",
+  )));
+  await assertFails(updateDoc(sellerRevision, {event: "forged"}));
+  await assertFails(setDoc(doc(
+      sellerDb,
+      "public_listings",
+      "listing",
+      "revisions",
+      "3",
+  ), {
+    actorUid: "seller",
+    event: "forged",
+    revision: 3,
+  }));
+  await assertFails(deleteDoc(sellerRevision));
 });
 
 test("disabled auction and Dispatch flags block legacy direct clients", async () => {

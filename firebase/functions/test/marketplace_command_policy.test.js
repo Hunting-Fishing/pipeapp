@@ -9,6 +9,9 @@ const {
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,
+  validateListingDetailsUpdate,
+  validateListingRelist,
+  validateListingTransition,
   validateOfferAcceptance,
   validateOfferFrequency,
   validateOfferProposal,
@@ -185,6 +188,76 @@ test("auction conversion rejects unsafe money and duration combinations", () => 
         (error) => error.code === "invalid-argument",
     );
   }
+});
+
+test("listing edits are owner-only, revision-safe, and field-bounded", () => {
+  const update = validateListingDetailsUpdate({
+    listing: {...marketplaceListing(), revision: 4},
+    actorUid: "seller",
+    data: {
+      expectedRevision: 4,
+      patch: {title: "Updated pipe", price: 75, quantity: 50},
+    },
+  });
+  assert.deepEqual(update.changes, {
+    title: "Updated pipe",
+    price: 75,
+    quantity: 50,
+  });
+  assert.equal(update.nextRevision, 5);
+  assert.throws(
+      () => validateListingDetailsUpdate({
+        listing: {...marketplaceListing(), revision: 4},
+        actorUid: "seller",
+        data: {expectedRevision: 3, patch: {title: "Stale"}},
+      }),
+      (error) => error.code === "aborted",
+  );
+  assert.throws(
+      () => validateListingDetailsUpdate({
+        listing: marketplaceListing(),
+        actorUid: "seller",
+        data: {expectedRevision: 1, patch: {sellerUid: "forged"}},
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+});
+
+test("normal listing transitions enforce a finite lifecycle", () => {
+  assert.equal(validateListingTransition({
+    listing: marketplaceListing(),
+    actorUid: "seller",
+    action: "pause",
+  }).status, "paused");
+  assert.equal(validateListingTransition({
+    listing: marketplaceListing({status: "paused"}),
+    actorUid: "seller",
+    action: "activate",
+  }).status, "active");
+  assert.throws(
+      () => validateListingTransition({
+        listing: marketplaceListing({status: "sold"}),
+        actorUid: "seller",
+        action: "activate",
+      }),
+      (error) => error.code === "failed-precondition",
+  );
+});
+
+test("relisting preserves history by requiring a new listing identifier", () => {
+  assert.deepEqual(validateListingRelist({
+    listing: {...marketplaceListing({status: "archived"}), id: "old"},
+    actorUid: "seller",
+    newListingId: "new",
+  }), {newListingId: "new"});
+  assert.throws(
+      () => validateListingRelist({
+        listing: {...marketplaceListing({status: "sold"}), id: "old"},
+        actorUid: "seller",
+        newListingId: "old",
+      }),
+      (error) => error.code === "invalid-argument",
+  );
 });
 
 test("bid must meet the server-calculated minimum", () => {

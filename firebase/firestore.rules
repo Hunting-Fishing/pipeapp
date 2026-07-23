@@ -291,6 +291,13 @@ service cloud.firestore {
           'notifyNewBids', 'notifyReserveReached',
           'notifyAuctionEnding', 'updatedAt'
         ]);
+
+      match /revisions/{revisionId} {
+        allow read: if signedIn() &&
+          (isAdmin() ||
+           get(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid == request.auth.uid);
+        allow create, update, delete: if false;
+      }
     }
 
     match /auction_private/{listingId} {

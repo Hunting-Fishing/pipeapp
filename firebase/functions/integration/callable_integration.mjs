@@ -240,6 +240,92 @@ try {
       "pending_sale",
   );
 
+  const lifecycleListingId = `lifecycle-listing-${now}`;
+  await call("createMarketplaceListing", seller.token, {
+    listingId: lifecycleListingId,
+    listing: listingInput("Lifecycle integration listing"),
+    location: locationInput(),
+  });
+  const detailsData = {
+    requestId: `edit-listing-${now}`,
+    listingId: lifecycleListingId,
+    expectedRevision: 1,
+    patch: {
+      title: "Updated lifecycle listing",
+      price: 75,
+      quantity: 50,
+      description: "Updated through the authenticated listing command.",
+    },
+  };
+  const detailsFirst = await call(
+      "updateMarketplaceListingDetails",
+      seller.token,
+      detailsData,
+  );
+  const detailsRetry = await call(
+      "updateMarketplaceListingDetails",
+      seller.token,
+      detailsData,
+  );
+  assert.deepEqual(detailsRetry, detailsFirst);
+  assert.equal(detailsFirst.revision, 2);
+
+  let transitionNumber = 0;
+  for (const [action, status] of [
+    ["pause", "paused"],
+    ["activate", "active"],
+    ["mark_sold", "sold"],
+    ["archive", "archived"],
+  ]) {
+    transitionNumber += 1;
+    const transitionData = {
+      requestId: `transition-${transitionNumber}-${now}`,
+      listingId: lifecycleListingId,
+      action,
+    };
+    const transitionFirst = await call(
+        "transitionMarketplaceListing",
+        seller.token,
+        transitionData,
+    );
+    const transitionRetry = await call(
+        "transitionMarketplaceListing",
+        seller.token,
+        transitionData,
+    );
+    assert.deepEqual(transitionRetry, transitionFirst);
+    assert.equal(transitionFirst.status, status);
+  }
+  const relistedListingId = `relisted-${now}`;
+  const relistData = {
+    requestId: `relist-${now}`,
+    listingId: lifecycleListingId,
+    newListingId: relistedListingId,
+  };
+  const relistFirst = await call(
+      "relistMarketplaceListing",
+      seller.token,
+      relistData,
+  );
+  const relistRetry = await call(
+      "relistMarketplaceListing",
+      seller.token,
+      relistData,
+  );
+  assert.deepEqual(relistRetry, relistFirst);
+  const relisted = (
+    await db.doc(`public_listings/${relistedListingId}`).get()
+  ).data();
+  assert.equal(relisted.status, "active");
+  assert.equal(relisted.revision, 1);
+  assert.equal(relisted.relistedFromListingId, lifecycleListingId);
+  assert.equal(relisted.offerCount, 0);
+  assert.equal(
+      (await db.doc(`listing_private_locations/${relistedListingId}`).get())
+          .exists,
+      true,
+  );
+
   const auctionListingId = `auction-listing-${now}`;
   await call("createMarketplaceListing", seller.token, {
     listingId: auctionListingId,
@@ -418,10 +504,10 @@ try {
   assert.equal(awardedJob.revision, 3);
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 15);
+  assert.equal(receipts.size, 22);
   console.log(
-      "Callable integration passed: listing, offer, auction, bid, Buy It " +
-      "Now, Dispatch revision, quote, award, and retry idempotency.",
+      "Callable integration passed: listing lifecycle, offer, auction, bid, " +
+      "Buy It Now, Dispatch revision, quote, award, and retry idempotency.",
   );
 } finally {
   await deleteApp(app);

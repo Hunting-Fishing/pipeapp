@@ -194,6 +194,156 @@ function validateAuctionConversion({
   };
 }
 
+const LISTING_EDITABLE_FIELDS = new Set([
+  "title",
+  "price",
+  "priceBasis",
+  "priceFlexibility",
+  "openToOffers",
+  "quantity",
+  "condition",
+  "description",
+  "inspectionStatus",
+  "inspectionDetails",
+]);
+
+function validateListingDetailsUpdate({listing, actorUid, data}) {
+  if (!listing || listing.sellerUid !== actorUid) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the listing owner can edit this listing.",
+    );
+  }
+  if (listing.transactionType === "Auction") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Live auctions cannot be edited as Marketplace listings.",
+    );
+  }
+  if (!["active", "paused"].includes(listing.status)) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Only active or paused listings can be edited.",
+    );
+  }
+  const expectedRevision = Number(data && data.expectedRevision);
+  const currentRevision = Number(listing.revision || 1);
+  if (!Number.isInteger(expectedRevision) || expectedRevision !== currentRevision) {
+    throw new CommandPolicyError(
+        "aborted",
+        "This listing changed on another device. Refresh it before editing.",
+    );
+  }
+  const patch = data && data.patch;
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw new CommandPolicyError("invalid-argument", "Listing changes are missing.");
+  }
+  const keys = Object.keys(patch);
+  if (keys.length === 0 || keys.length > LISTING_EDITABLE_FIELDS.size ||
+      keys.some((key) => !LISTING_EDITABLE_FIELDS.has(key))) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "The listing contains unsupported changes.",
+    );
+  }
+  const changes = {};
+  for (const key of keys) {
+    const value = patch[key];
+    if (["title", "priceBasis", "priceFlexibility", "condition"].includes(key)) {
+      const text = String(value || "").trim();
+      if (!text || text.length > 240) {
+        throw new CommandPolicyError("invalid-argument", `${key} is invalid.`);
+      }
+      changes[key] = text;
+    } else if (["description", "inspectionDetails"].includes(key)) {
+      const text = String(value || "").trim();
+      if (text.length > 12000) {
+        throw new CommandPolicyError("invalid-argument", `${key} is too long.`);
+      }
+      changes[key] = text;
+    } else if (key === "inspectionStatus") {
+      changes[key] = String(value || "").trim().slice(0, 240);
+    } else if (key === "price") {
+      changes[key] = requireMoney(value, "Price");
+    } else if (key === "quantity") {
+      const quantity = Number(value);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1_000_000) {
+        throw new CommandPolicyError(
+            "invalid-argument",
+            "Quantity must be a whole number between 1 and 1,000,000.",
+        );
+      }
+      changes[key] = quantity;
+    } else if (key === "openToOffers") {
+      if (typeof value !== "boolean") {
+        throw new CommandPolicyError(
+            "invalid-argument",
+            "Offer availability must be true or false.",
+        );
+      }
+      changes[key] = value;
+    }
+  }
+  return {changes, currentRevision, nextRevision: currentRevision + 1};
+}
+
+function validateListingTransition({listing, actorUid, action}) {
+  if (!listing || listing.sellerUid !== actorUid) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the listing owner can change this listing.",
+    );
+  }
+  if (listing.transactionType === "Auction") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Auction status is controlled by the auction lifecycle.",
+    );
+  }
+  const transitions = {
+    pause: {from: ["active"], to: "paused"},
+    activate: {from: ["paused"], to: "active"},
+    mark_sold: {from: ["active", "pending_sale"], to: "sold"},
+    archive: {from: ["active", "paused", "sold"], to: "archived"},
+  };
+  const transition = transitions[action];
+  if (!transition || !transition.from.includes(listing.status)) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This listing status change is not available.",
+    );
+  }
+  return {
+    action,
+    previousStatus: listing.status,
+    status: transition.to,
+    nextRevision: Number(listing.revision || 1) + 1,
+  };
+}
+
+function validateListingRelist({listing, actorUid, newListingId}) {
+  if (!listing || listing.sellerUid !== actorUid) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the listing owner can relist this item.",
+    );
+  }
+  if (listing.transactionType === "Auction" ||
+      !["sold", "archived"].includes(listing.status)) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Only sold or archived Marketplace listings can be relisted.",
+    );
+  }
+  if (!newListingId || newListingId === listing.id) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "A new listing identifier is required for relisting.",
+    );
+  }
+  return {newListingId};
+}
+
 function requireLiveAuction(listing, actorUid, now) {
   if (!listing || listing.transactionType !== "Auction") {
     throw new CommandPolicyError("not-found", "This auction is unavailable.");
@@ -658,6 +808,9 @@ module.exports = {
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,
+  validateListingDetailsUpdate,
+  validateListingRelist,
+  validateListingTransition,
   validateOfferAcceptance,
   validateOfferFrequency,
   validateOfferProposal,

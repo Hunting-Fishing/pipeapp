@@ -8,6 +8,9 @@ const {
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,
+  validateListingDetailsUpdate,
+  validateListingRelist,
+  validateListingTransition,
   validateOfferAcceptance,
   validateOfferFrequency,
   validateOfferProposal,
@@ -356,6 +359,199 @@ function createMarketplaceCommands(admin) {
         updatedAt: FieldValue.serverTimestamp(),
       });
       return {listingId, status};
+    });
+      },
+  );
+
+  const updateMarketplaceListingDetails = featureCommand(
+      "marketplace",
+      async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const listingId = requiredId(request.data, "listingId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "updateMarketplaceListingDetails",
+        {requestId},
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const snapshot = await transaction.get(listingRef);
+      const listing = snapshot.exists ? snapshot.data() : null;
+      const update = validateListingDetailsUpdate({
+        listing,
+        actorUid: uid,
+        data: request.data,
+      });
+      const result = {listingId, revision: update.nextRevision};
+      transaction.update(listingRef, {
+        ...update.changes,
+        revision: update.nextRevision,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(
+          listingRef.collection("revisions").doc(String(update.nextRevision)),
+          {
+            actorUid: uid,
+            event: "details_updated",
+            previousRevision: update.currentRevision,
+            revision: update.nextRevision,
+            changes: update.changes,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "updateMarketplaceListingDetails", result, FieldValue),
+      );
+      return result;
+    });
+      },
+  );
+
+  const transitionMarketplaceListing = featureCommand(
+      "marketplace",
+      async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const listingId = requiredId(request.data, "listingId");
+    const action = String(request.data && request.data.action || "").trim();
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "transitionMarketplaceListing",
+        {requestId},
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const snapshot = await transaction.get(listingRef);
+      const listing = snapshot.exists ? snapshot.data() : null;
+      const transition = validateListingTransition({listing, actorUid: uid, action});
+      const result = {
+        listingId,
+        status: transition.status,
+        revision: transition.nextRevision,
+      };
+      transaction.update(listingRef, {
+        status: transition.status,
+        revision: transition.nextRevision,
+        statusChangedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(action === "mark_sold" ? {
+          soldAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(action === "archive" ? {
+          archivedAt: FieldValue.serverTimestamp(),
+        } : {}),
+      });
+      transaction.create(
+          listingRef.collection("revisions").doc(String(transition.nextRevision)),
+          {
+            actorUid: uid,
+            event: action,
+            previousStatus: transition.previousStatus,
+            status: transition.status,
+            revision: transition.nextRevision,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "transitionMarketplaceListing", result, FieldValue),
+      );
+      return result;
+    });
+      },
+  );
+
+  const relistMarketplaceListing = featureCommand(
+      "marketplace",
+      async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const listingId = requiredId(request.data, "listingId");
+    const newListingId = requiredId(request.data, "newListingId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "relistMarketplaceListing",
+        {requestId},
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const newListingRef = db.collection("public_listings").doc(newListingId);
+    const locationRef = db.collection("listing_private_locations").doc(listingId);
+    const newLocationRef =
+      db.collection("listing_private_locations").doc(newListingId);
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const listingSnapshot = await transaction.get(listingRef);
+      const newListingSnapshot = await transaction.get(newListingRef);
+      const locationSnapshot = await transaction.get(locationRef);
+      const listing = listingSnapshot.exists ?
+        {...listingSnapshot.data(), id: listingId} :
+        null;
+      validateListingRelist({listing, actorUid: uid, newListingId});
+      if (newListingSnapshot.exists) {
+        throw new CommandPolicyError(
+            "already-exists",
+            "The new listing identifier is already in use.",
+        );
+      }
+      const clone = {...listing};
+      for (const field of [
+        "id", "acceptedOfferId", "acceptedBuyerUid", "offerAcceptedAt",
+        "soldAt", "archivedAt", "statusChangedAt", "currentBidId",
+        "highBidderUid", "acceptedBidderUid", "lastBidAt", "buyNowBuyerUid",
+        "acceptedBidAmount", "winningBidId", "winningBidderUid", "wonAt",
+        "auctionStatus", "auctionStartAt", "auctionEndAt", "startingBid",
+        "minimumBidIncrement", "currentBid", "bidCount", "reserveMet",
+        "buyNowPrice", "convertedAt", "conversionSource",
+      ]) delete clone[field];
+      Object.assign(clone, {
+        status: "active",
+        saleStatus: "available",
+        source: "marketplace_relist_callable",
+        relistedFromListingId: listingId,
+        initialPrice: Number(clone.price || 0),
+        revision: 1,
+        viewCount: 0,
+        saveCount: 0,
+        shareCount: 0,
+        likeCount: 0,
+        messageCount: 0,
+        offerCount: 0,
+        pendingOfferCount: 0,
+        withdrawnBidCount: 0,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      const result = {listingId: newListingId, relistedFromListingId: listingId};
+      transaction.create(newListingRef, clone);
+      if (locationSnapshot.exists) {
+        transaction.create(newLocationRef, {
+          ...locationSnapshot.data(),
+          ownerUid: uid,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      transaction.create(newListingRef.collection("revisions").doc("1"), {
+        actorUid: uid,
+        event: "relisted",
+        relistedFromListingId: listingId,
+        revision: 1,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "relistMarketplaceListing", result, FieldValue),
+      );
+      return result;
     });
       },
   );
@@ -1274,6 +1470,9 @@ function createMarketplaceCommands(admin) {
     createMarketplaceListing,
     createMarketplaceOffer,
     placeAuctionBid,
+    relistMarketplaceListing,
+    transitionMarketplaceListing,
+    updateMarketplaceListingDetails,
     updateMarketplaceListingMedia,
     withdrawAuctionBid,
   };
