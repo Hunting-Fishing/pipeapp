@@ -18,7 +18,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
 | 2 — Backend parity and server commands | 84% — privacy and commerce commands locally integrated |
-| 3 — Identity, authorization, and abuse | 89% — ownership, reviewed verification, MFA admin controls, export, session revocation, and staged deletion locally verified |
+| 3 — Identity, authorization, and abuse | 90% — ownership, reviewed verification, MFA admin controls, password recovery, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 64% — listing, offer, auction, and Dispatch transaction lifecycles locally verified |
 | 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |

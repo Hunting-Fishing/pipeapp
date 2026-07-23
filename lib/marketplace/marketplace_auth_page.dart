@@ -208,9 +208,10 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                           ? 'Already have an account? Sign in'
                           : 'New to Pipe Buyer? Create an account')),
                   if (!_signup)
-                    TextButton(
-                        onPressed: _busy ? null : _resetPassword,
-                        child: const Text('Forgot password?')),
+                    TextButton.icon(
+                        onPressed: _busy ? null : _startAccountRecovery,
+                        icon: const Icon(Icons.health_and_safety_outlined),
+                        label: const Text('Recover account')),
                 ]),
               ),
             ),
@@ -391,19 +392,53 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
     }
   }
 
-  Future<void> _resetPassword() async {
-    if (_email.text.trim().isEmpty) {
-      return _notice('Enter your email address first.',
+  Future<void> _startAccountRecovery() async {
+    final email = _email.text.trim();
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      return _notice('Enter the email address used for your account first.',
           error: true, icon: Icons.email_outlined);
     }
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: const Icon(Icons.health_and_safety_outlined, size: 36),
+            title: const Text('Recover your account'),
+            content: Text(
+                'Pipe Buyer will send password-reset instructions to $email if it belongs to an account. The message may take a few minutes; check your spam folder as well.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel')),
+              FilledButton.icon(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  icon: const Icon(Icons.mark_email_read_outlined),
+                  label: const Text('Send recovery email')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    setState(() => _busy = true);
     try {
-      await FirebaseAuth.instance
-          .sendPasswordResetEmail(email: _email.text.trim());
-      _notice('Password reset email sent. Check your inbox and spam folder.',
-          error: false, icon: Icons.mark_email_read_outlined);
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      _notice(
+          'If that email belongs to a Pipe Buyer account, recovery instructions have been sent. Check your inbox and spam folder.',
+          error: false,
+          icon: Icons.mark_email_read_outlined);
     } on FirebaseAuthException catch (error) {
-      _notice(_friendlyAuthError(error),
-          error: true, icon: _authErrorIcon(error.code));
+      if (error.code == 'user-not-found') {
+        // Do not reveal whether an email is registered; this prevents account
+        // discovery while preserving the same helpful recovery response.
+        _notice(
+            'If that email belongs to a Pipe Buyer account, recovery instructions have been sent. Check your inbox and spam folder.',
+            error: false,
+            icon: Icons.mark_email_read_outlined);
+      } else {
+        _notice(_friendlyAuthError(error),
+            error: true, icon: _authErrorIcon(error.code));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
