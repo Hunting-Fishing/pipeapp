@@ -244,18 +244,27 @@ try {
       userScore: 95,
       profileCompletion: 100,
       accountVerified: true,
+      accountVerificationReviewVersion: 1,
     }),
     db.doc(`users/${buyer.uid}`).set({
       displayName: "Production Buyer",
       userScore: 90,
       profileCompletion: 100,
       accountVerified: true,
+      accountVerificationReviewVersion: 1,
     }),
     db.doc(`users/${carrier.uid}`).set({
       displayName: "Production Carrier",
       userScore: 90,
       profileCompletion: 100,
       accountVerified: true,
+      accountVerificationReviewVersion: 1,
+    }),
+    db.doc(`public_seller_profiles/${buyer.uid}`).set({
+      ownerUid: buyer.uid,
+      displayName: "Production Buyer",
+      photoUrl: "https://storage.test/production-buyer.jpg",
+      approvedTagIds: ["pipe"],
     }),
     db.doc(`dispatch_carriers/${carrier.uid}`).set({
       ownerUid: carrier.uid,
@@ -280,6 +289,24 @@ try {
   for (const result of verificationResults) {
     assert.deepEqual(result, {emailVerified: true, phoneVerified: true});
   }
+  const verificationRequestId = `verification-${now}`;
+  const verificationFirst = await call(
+      "submitAccountVerification",
+      buyer.token,
+      {requestId: verificationRequestId},
+  );
+  const verificationRetry = await call(
+      "submitAccountVerification",
+      buyer.token,
+      {requestId: verificationRequestId},
+  );
+  assert.deepEqual(verificationRetry, verificationFirst);
+  assert.equal(verificationFirst.status, "pending");
+  assert.equal(verificationFirst.submitted, true);
+  assert.equal(
+      (await db.doc(`verification_requests/${buyer.uid}`).get()).data().status,
+      "pending",
+  );
   await assertCollectionSize("account_phone_registry", 3);
   assert.deepEqual(
       await call("syncAccountVerification", unverified.token, {}),

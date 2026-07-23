@@ -11,6 +11,13 @@ Firestore uses collections and documents rather than SQL tables.
 - `account_phone_registry/{sha256}`: server-owned mapping from a hashed,
   Firebase-verified E.164 phone number to one Auth UID. It supports duplicate
   account prevention without exposing phone numbers as document identifiers.
+- `verification_requests/{uid}`: server-captured ownership and public-profile
+  evidence for the current review revision. Users and MFA-authorized
+  administrators may read it; only callable commands may submit or decide it.
+- `verification_review_events/{uid-revision-event}`: immutable submission and
+  administrator decision history with required review notes.
+- `account_verification_command_receipts/{sha256}`: server-only retry receipts
+  for verification submission and administrator decisions.
 - `security_rate_limits/{sha256}`: private server-owned hourly command buckets
   containing bounded retry fingerprints, counts, expiry, and policy scope.
   Clients cannot read or write them; an expiration scheduler removes old data.
@@ -84,6 +91,8 @@ recalculates eligibility and minimums, writes the decision, and records an
 idempotency receipt. The current callable commands are:
 
 - `syncAccountVerification`
+- `submitAccountVerification`
+- `reviewAccountVerification`
 - `cleanupExpiredSecurityRateLimits` (scheduled)
 - `cleanupExpiredMediaUploadAuthorizations` (scheduled)
 - `openMarketplaceConversation`

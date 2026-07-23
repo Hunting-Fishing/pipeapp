@@ -146,7 +146,9 @@ class _Overview extends StatelessWidget {
                   : userScore > 50
                       ? 'Standard marketplace standing'
                       : 'Auction buying is restricted'),
-              trailing: data['accountVerified'] == true
+              trailing: data['accountVerified'] == true &&
+                      (data['accountVerificationReviewVersion'] as num? ?? 0) >=
+                          1
                   ? const Icon(Icons.verified, color: Colors.green)
                   : const Chip(label: Text('Not verified')),
             )),
@@ -235,6 +237,16 @@ Future<void> _showUserScore(
   final accountType = '${data['accountType'] ?? 'personal'}';
   final checks = <(String, bool, String)>[
     (
+      'Verified email ownership',
+      data['emailOwnershipVerified'] == true,
+      'Open Account Security and verify the email address you own.',
+    ),
+    (
+      'Verified mobile ownership',
+      data['phoneOwnershipVerified'] == true,
+      'Open Account Security and verify your mobile number by SMS.',
+    ),
+    (
       'Profile details',
       (data['profileCompletion'] as num? ?? 0) >= 100,
       'Complete every required field in Profile.'
@@ -271,6 +283,10 @@ Future<void> _showUserScore(
     ],
   ];
   final readyForReview = checks.every((item) => item.$2);
+  final ownershipReady = data['emailOwnershipVerified'] == true &&
+      data['phoneOwnershipVerified'] == true;
+  final reviewApproved = data['accountVerified'] == true &&
+      (data['accountVerificationReviewVersion'] as num? ?? 0) >= 1;
   final verificationStatus = '${verification['status'] ?? 'not_requested'}';
   showDialog<void>(
       context: context,
@@ -291,7 +307,7 @@ Future<void> _showUserScore(
                           onPressed: () => Navigator.pop(dialogContext),
                           icon: const Icon(Icons.close))
                     ]),
-                    if (data['accountVerified'] != true)
+                    if (!reviewApproved)
                       Card(
                           color: const Color(0xFFFFF4E5),
                           child: ConstrainedBox(
@@ -340,31 +356,63 @@ Future<void> _showUserScore(
                                               child: FilledButton.icon(
                                                   onPressed: readyForReview
                                                       ? () async {
-                                                          await _requestVerification(
-                                                              uid, accountType);
-                                                          if (dialogContext
-                                                              .mounted) {
-                                                            Navigator.pop(
-                                                                dialogContext);
-                                                            ScaffoldMessenger
-                                                                    .of(context)
-                                                                .showSnackBar(
-                                                                    const SnackBar(
-                                                                        content:
-                                                                            Text('Verification submitted for review.')));
+                                                          try {
+                                                            final result =
+                                                                await _requestVerification();
+                                                            if (dialogContext
+                                                                .mounted) {
+                                                              Navigator.pop(
+                                                                  dialogContext);
+                                                            }
+                                                            if (context
+                                                                .mounted) {
+                                                              final status =
+                                                                  '${result['status'] ?? 'pending'}';
+                                                              ScaffoldMessenger
+                                                                      .of(
+                                                                          context)
+                                                                  .showSnackBar(SnackBar(
+                                                                      content: Text(status ==
+                                                                              'approved'
+                                                                          ? 'Your account is already verified.'
+                                                                          : 'Verification submitted for secure administrator review.')));
+                                                            }
+                                                          } catch (error) {
+                                                            if (context
+                                                                .mounted) {
+                                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                                  content: Text('$error'
+                                                                      .replaceFirst(
+                                                                          'Bad state: ',
+                                                                          '')),
+                                                                  backgroundColor:
+                                                                      Colors.red
+                                                                          .shade700));
+                                                            }
                                                           }
                                                         }
                                                       : () {
                                                           Navigator.pop(
                                                               dialogContext);
-                                                          onOpenTab(1);
+                                                          if (!ownershipReady) {
+                                                            Navigator.of(
+                                                                    context)
+                                                                .push(MaterialPageRoute<
+                                                                        void>(
+                                                                    builder: (_) =>
+                                                                        const MarketplaceAccountSecurityPage()));
+                                                          } else {
+                                                            onOpenTab(1);
+                                                          }
                                                         },
                                                   icon: Icon(readyForReview
                                                       ? Icons.send_outlined
                                                       : Icons.edit_outlined),
                                                   label: Text(readyForReview
                                                       ? 'Submit verification for review'
-                                                      : 'Complete missing profile items')))
+                                                      : ownershipReady
+                                                          ? 'Complete missing profile items'
+                                                          : 'Verify email and mobile')))
                                       ])))),
                     const Align(
                         alignment: Alignment.centerLeft,
@@ -399,17 +447,16 @@ Future<void> _showUserScore(
                   ])))));
 }
 
-Future<void> _requestVerification(String uid, String accountType) =>
-    FirebaseFirestore.instance
-        .collection('verification_requests')
-        .doc(uid)
-        .set({
-      'userUid': uid,
-      'accountType': accountType,
-      'status': 'pending',
-      'requestedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+Future<Map<String, dynamic>> _requestVerification() {
+  final requestId = FirebaseFirestore.instance
+      .collection('account_verification_command_receipts')
+      .doc()
+      .id;
+  return MarketplaceCommandClient().execute(
+    'submitAccountVerification',
+    {'requestId': requestId},
+  );
+}
 
 class _AccountShortcut extends StatelessWidget {
   const _AccountShortcut(

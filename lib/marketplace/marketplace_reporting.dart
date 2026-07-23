@@ -193,8 +193,7 @@ class _ReportDialogState extends State<_ReportDialog> {
             FirebaseStorage.instance.ref('${authorization['storagePath']}');
         await ref.putData(bytes, SettableMetadata(contentType: contentType));
         final url = await ref.getDownloadURL();
-        await actions.confirmUpload(
-            authorizationId: authorizationId, url: url);
+        await actions.confirmUpload(authorizationId: authorizationId, url: url);
         evidence.add({
           'authorizationId': authorizationId,
           'url': url,
@@ -363,6 +362,314 @@ class _ReportDialogState extends State<_ReportDialog> {
 
 class AdminModerationDashboard extends StatelessWidget {
   const AdminModerationDashboard({super.key});
+
+  @override
+  Widget build(BuildContext context) => DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            const Material(
+              color: Colors.white,
+              child: TabBar(
+                tabs: [
+                  Tab(
+                    icon: Icon(Icons.verified_user_outlined),
+                    text: 'Account verification',
+                  ),
+                  Tab(icon: Icon(Icons.gpp_bad_outlined), text: 'Reports'),
+                ],
+              ),
+            ),
+            const Expanded(
+              child: TabBarView(
+                children: [_AccountVerificationQueue(), _ModerationCaseQueue()],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _AccountVerificationQueue extends StatelessWidget {
+  const _AccountVerificationQueue();
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('verification_requests')
+            .where('status', isEqualTo: 'pending')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('Unable to load account verification requests.'),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final requests = snapshot.data!.docs.toList()
+            ..sort(
+              (a, b) => _ModerationCaseQueue._millis(b.data()['requestedAt'])
+                  .compareTo(
+                _ModerationCaseQueue._millis(a.data()['requestedAt']),
+              ),
+            );
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.fact_check_outlined, size: 42, color: Colors.blue),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Identity review queue',
+                      style:
+                          TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+              const Text(
+                'Review verified contact ownership and the public profile evidence captured at submission.',
+              ),
+              const SizedBox(height: 14),
+              if (requests.isEmpty)
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.verified_outlined),
+                    title: Text('No account reviews are waiting'),
+                  ),
+                ),
+              ...requests.map((request) {
+                final data = request.data();
+                final evidence = Map<String, dynamic>.from(
+                  data['evidence'] is Map ? data['evidence'] as Map : const {},
+                );
+                final displayName = '${data['displayName'] ?? ''}'.trim();
+                return Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      child: Text(
+                        (displayName.isEmpty
+                                ? 'U'
+                                : displayName.characters.first)
+                            .toUpperCase(),
+                      ),
+                    ),
+                    title: Text(
+                      displayName.isEmpty ? 'Account review' : displayName,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: Text(
+                      '${data['accountType'] ?? evidence['accountType'] ?? 'personal'} account • revision ${data['revision'] ?? 1}',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _openRequest(context, request),
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+      );
+
+  static Future<void> _openRequest(
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> request,
+  ) async {
+    final data = request.data() ?? const <String, dynamic>{};
+    final evidence = Map<String, dynamic>.from(
+      data['evidence'] is Map ? data['evidence'] as Map : const {},
+    );
+    final checks = List<Map<String, dynamic>>.from(
+      (evidence['checks'] as List? ?? const []).map(
+        (item) => Map<String, dynamic>.from(item as Map),
+      ),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${data['displayName'] ?? 'Account verification'}'),
+        content: SizedBox(
+          width: 620,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${data['accountType'] ?? 'Personal'} account • revision ${data['revision'] ?? 1}',
+                ),
+                const SizedBox(height: 12),
+                if ('${evidence['photoUrl'] ?? ''}'.startsWith('https://'))
+                  Center(
+                    child: CircleAvatar(
+                      radius: 45,
+                      backgroundImage: NetworkImage('${evidence['photoUrl']}'),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                ...checks.map(
+                  (check) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      check['complete'] == true
+                          ? Icons.check_circle
+                          : Icons.error_outline,
+                      color:
+                          check['complete'] == true ? Colors.green : Colors.red,
+                    ),
+                    title: Text('${check['label'] ?? check['code']}'),
+                  ),
+                ),
+                if ('${evidence['businessDescription'] ?? ''}'.isNotEmpty) ...[
+                  const Divider(),
+                  const Text(
+                    'Public business evidence',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text('${evidence['businessDescription']}'),
+                  Text('Service area: ${evidence['serviceAreaLabel'] ?? '—'}'),
+                ],
+                const SizedBox(height: 10),
+                const Text(
+                  'Approval confirms the reviewed ownership and public profile evidence. It is not a government identity guarantee.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () => _review(
+              context,
+              dialogContext,
+              request.id,
+              'changes_requested',
+            ),
+            child: const Text('Request changes'),
+          ),
+          TextButton(
+            onPressed: () => _review(
+              context,
+              dialogContext,
+              request.id,
+              'rejected',
+            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+            child: const Text('Reject'),
+          ),
+          FilledButton.icon(
+            onPressed: () => _review(
+              context,
+              dialogContext,
+              request.id,
+              'approved',
+            ),
+            icon: const Icon(Icons.verified_outlined),
+            label: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> _review(
+    BuildContext pageContext,
+    BuildContext requestDialogContext,
+    String userUid,
+    String decision,
+  ) async {
+    final controller = TextEditingController();
+    final label = switch (decision) {
+      'approved' => 'Approve account verification',
+      'changes_requested' => 'Request profile changes',
+      _ => 'Reject account verification',
+    };
+    final confirmed = await showDialog<bool>(
+      context: requestDialogContext,
+      builder: (noteContext) => AlertDialog(
+        title: Text(label),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 6,
+          maxLength: 1000,
+          decoration: const InputDecoration(
+            labelText: 'Review note *',
+            hintText: 'Explain the evidence reviewed or the changes required.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(noteContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().length < 10) {
+                ScaffoldMessenger.of(noteContext).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Add a clear review note of at least 10 characters.'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(noteContext, true);
+            },
+            child: const Text('Confirm decision'),
+          ),
+        ],
+      ),
+    );
+    final reason = controller.text.trim();
+    controller.dispose();
+    if (confirmed != true) return;
+    try {
+      final requestId = FirebaseFirestore.instance
+          .collection('account_verification_command_receipts')
+          .doc()
+          .id;
+      await MarketplaceCommandClient().execute('reviewAccountVerification', {
+        'requestId': requestId,
+        'userUid': userUid,
+        'decision': decision,
+        'reason': reason,
+      });
+      if (requestDialogContext.mounted) {
+        Navigator.pop(requestDialogContext);
+      }
+      if (pageContext.mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          SnackBar(content: Text('Verification review saved: $decision.')),
+        );
+      }
+    } catch (error) {
+      if (pageContext.mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          SnackBar(
+            content: Text('$error'.replaceFirst('Bad state: ', '')),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+}
+
+class _ModerationCaseQueue extends StatelessWidget {
+  const _ModerationCaseQueue();
 
   @override
   Widget build(BuildContext context) =>

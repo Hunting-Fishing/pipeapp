@@ -3,6 +3,9 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
 const { createAdminRuntime } = require("./admin_runtime");
 const { createAccountCommands } = require("./account_commands");
+const {
+  createAccountVerificationCommands,
+} = require("./account_verification_commands");
 const { cleanupExpiredRateLimits } = require("./abuse_rate_limit");
 const { protectedCallableOptions } = require("./app_check_config");
 const {
@@ -31,12 +34,21 @@ async function notifyActiveAdministrators(notification) {
 }
 
 const accountCommands = createAccountCommands(admin);
+const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 exports.syncAccountVerification = onCall(
   protectedCallableOptions,
   accountCommands.syncAccountVerification,
+);
+exports.submitAccountVerification = onCall(
+  protectedCallableOptions,
+  accountVerificationCommands.submitAccountVerification,
+);
+exports.reviewAccountVerification = onCall(
+  protectedCallableOptions,
+  accountVerificationCommands.reviewAccountVerification,
 );
 exports.cleanupExpiredSecurityRateLimits = onSchedule(
   "every 24 hours",

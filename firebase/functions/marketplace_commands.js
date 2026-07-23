@@ -34,6 +34,9 @@ const {
   validateReserve,
 } = require("./marketplace_listing_policy");
 const {
+  approvedAccountVerification,
+} = require("./account_verification_policy");
+const {
   FeatureFlagError,
   loadPhase1FeatureFlags,
   requirePhase1Feature,
@@ -359,7 +362,7 @@ function createMarketplaceCommands(admin) {
           (
             Number(user.userScore || 70) <= 80 ||
             Number(user.profileCompletion || 0) !== 100 ||
-            user.accountVerified !== true
+            !approvedAccountVerification(user)
           )) {
         throw new HttpsError(
             "failed-precondition",
@@ -411,7 +414,7 @@ function createMarketplaceCommands(admin) {
         sellerUid: uid,
         sellerName: sellerName.slice(0, 160),
         sellerPhotoUrl: sellerPhotoUrl.slice(0, 2000),
-        sellerVerified: user.accountVerified === true,
+        sellerVerified: approvedAccountVerification(user),
         ...(typeof listing.price === "number" ? {
           initialPrice: listing.price,
         } : {}),

@@ -5188,7 +5188,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (!isAdmin &&
           (score <= 80 ||
               completion != 100 ||
-              data['accountVerified'] != true)) {
+              data['accountVerified'] != true ||
+              (data['accountVerificationReviewVersion'] as num? ?? 0) < 1)) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
                 'Auction listings require a User Score above 80, 100% profile completion, and verified account status.')));

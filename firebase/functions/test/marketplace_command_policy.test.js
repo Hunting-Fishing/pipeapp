@@ -41,6 +41,7 @@ function verifiedSeller(overrides = {}) {
     userScore: 90,
     profileCompletion: 100,
     accountVerified: true,
+    accountVerificationReviewVersion: 1,
     ...overrides,
   };
 }

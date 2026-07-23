@@ -1,5 +1,9 @@
 "use strict";
 
+const {
+  approvedAccountVerification,
+} = require("./account_verification_policy");
+
 const TERMINAL_AUCTION_STATUSES = new Set([
   "bought_now",
   "accepted_below_reserve",
@@ -93,7 +97,7 @@ function validateAuctionConversion({
   if (!administrator && (
     Number(user && user.userScore || 70) <= 80 ||
     Number(user && user.profileCompletion || 0) !== 100 ||
-    user && user.accountVerified !== true
+    !approvedAccountVerification(user)
   )) {
     throw new CommandPolicyError(
         "failed-precondition",
