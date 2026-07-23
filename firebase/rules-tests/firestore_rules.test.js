@@ -21,7 +21,6 @@ const {
   setDoc,
   Timestamp,
   updateDoc,
-  writeBatch,
 } = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-rules";
@@ -326,7 +325,7 @@ test("seller can still change safe auction notification preferences", async () =
   await assertFails(deleteDoc(auction));
 });
 
-test("new auctions must start with clean server-controlled bid state", async () => {
+test("clients cannot create or convert authoritative auction state", async () => {
   const sellerDb = testEnvironment
       .authenticatedContext("seller")
       .firestore();
@@ -348,26 +347,22 @@ test("new auctions must start with clean server-controlled bid state", async () 
     bidCount: 0,
   };
 
-  await assertFails(setDoc(auction, {
-    ...validAuction,
-    currentBid: 1000,
-    highBidderUid: "forged-bidder",
-  }));
-  await assertFails(setDoc(auction, {
-    ...validAuction,
-    reservePrice: 175,
-  }));
-
   const privateAuction = doc(sellerDb, "auction_private", "new-auction");
-  const batch = writeBatch(sellerDb);
-  batch.set(auction, validAuction);
-  batch.set(privateAuction, {
+  await assertFails(setDoc(auction, validAuction));
+  await assertFails(setDoc(privateAuction, {
     ownerUid: "seller",
     reservePrice: 175,
-  });
-  await assertSucceeds(batch.commit());
-  const privateSnapshot = await assertSucceeds(getDoc(privateAuction));
-  assert.equal(privateSnapshot.data().reservePrice, 175);
+  }));
+  await assertFails(updateDoc(
+      doc(sellerDb, "public_listings", "listing"),
+      {
+        transactionType: "Auction",
+        auctionStatus: "live",
+        startingBid: 100,
+        currentBid: 0,
+        minimumBidIncrement: 5,
+      },
+  ));
 });
 
 test("disabled auction and Dispatch flags block legacy direct clients", async () => {

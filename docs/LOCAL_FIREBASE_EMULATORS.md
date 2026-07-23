@@ -53,13 +53,14 @@ not fall back to production.
 The emulator UI is available at `http://127.0.0.1:4000` on the development
 machine.
 
-The repository smoke check verifies all four ports and calls a real exported
-Function so a source-loading failure cannot be mistaken for a healthy suite:
+The repository integration check runs with the production Functions runtime
+(Node 22), creates isolated Auth identities, and executes authenticated
+Marketplace, Offer, Auction, bidding, Buy It Now, and Dispatch commands. It
+repeats commands to prove retries do not duplicate records or state changes:
 
 ```powershell
-npx --yes firebase-tools@15.24.0 emulators:exec `
-  --project flutter-flow-pipe `
-  --config firebase.json `
-  --only auth,firestore,functions,storage `
-  'node tool/firebase_emulator_smoke.mjs'
+.\tool\callable_emulator_integration.ps1
 ```
+
+This check uses only the demo project namespace
+`demo-pipe-buyer-integration`; it cannot reach staging or production.

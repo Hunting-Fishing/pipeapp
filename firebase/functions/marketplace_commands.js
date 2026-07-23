@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   CommandPolicyError,
+  validateAuctionConversion,
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,
@@ -355,6 +356,116 @@ function createMarketplaceCommands(admin) {
         updatedAt: FieldValue.serverTimestamp(),
       });
       return {listingId, status};
+    });
+      },
+  );
+
+  const convertMarketplaceListingToAuction = featureCommand(
+      "auctions",
+      async (request, flags) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const listingId = requiredId(request.data, "listingId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "convertMarketplaceListingToAuction",
+        {requestId},
+    );
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const privateAuctionRef = db.collection("auction_private").doc(listingId);
+
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const listingSnapshot = await transaction.get(listingRef);
+      const userSnapshot = await transaction.get(
+          db.collection("users").doc(uid),
+      );
+      const privateAuctionSnapshot = await transaction.get(privateAuctionRef);
+      const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
+      const user = userSnapshot.data() || {};
+      const conversion = validateAuctionConversion({
+        listing,
+        actorUid: uid,
+        user,
+        administrator: isAdministrator(request),
+        data: request.data,
+        paidFeaturesEnabled: flags.paidFeatures,
+        now: Timestamp.now(),
+      });
+      const reserveTotal = conversion.reservePrice == null ?
+        null :
+        (conversion.priceBasis.toLowerCase().includes("total") ||
+          conversion.quantity == null ?
+          conversion.reservePrice :
+          conversion.reservePrice * conversion.quantity);
+      const buyItNowTotal = conversion.buyItNowPrice == null ?
+        null :
+        (conversion.priceBasis.toLowerCase().includes("total") ||
+          conversion.quantity == null ?
+          conversion.buyItNowPrice :
+          conversion.buyItNowPrice * conversion.quantity);
+      const result = {
+        listingId,
+        status: "live",
+        durationDays: conversion.durationDays,
+        customAuction: conversion.customAuction,
+      };
+
+      transaction.update(listingRef, {
+        transactionType: "Auction",
+        startingBid: conversion.startingBid,
+        currentBid: 0,
+        minimumBidIncrement: conversion.minimumBidIncrement,
+        bidIncrementPricingBasis: conversion.priceBasis,
+        reservePrice: FieldValue.delete(),
+        reserveTotal: FieldValue.delete(),
+        buyItNowPrice: conversion.buyItNowPrice == null ?
+          FieldValue.delete() :
+          conversion.buyItNowPrice,
+        buyItNowTotal: buyItNowTotal == null ?
+          FieldValue.delete() :
+          buyItNowTotal,
+        auctionPricingBasis: conversion.priceBasis,
+        auctionQuantity: conversion.quantity,
+        askingPriceAtConversion: conversion.askingPrice,
+        askingTotalAtConversion: conversion.askingTotal,
+        auctionDurationDays: conversion.durationDays,
+        customAuction: conversion.customAuction,
+        bidWithdrawalAfterDays: conversion.customAuction ? 32 : null,
+        customAuctionUpfrontFee: conversion.customAuction ? 29.99 : 0,
+        customAuctionSaleFeePercent: conversion.customAuction ? 5 : 0,
+        additionalAuctionFeesDisclosure: conversion.customAuction,
+        auctionStartAt: Timestamp.fromMillis(conversion.auctionStartAt),
+        auctionEndAt: Timestamp.fromMillis(conversion.auctionEndAt),
+        auctionStatus: "live",
+        bidCount: 0,
+        notifyNewBids: true,
+        notifyReserveReached: true,
+        notifyAuctionEnding: true,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      if (conversion.reservePrice != null) {
+        transaction.set(privateAuctionRef, {
+          ownerUid: uid,
+          reservePrice: conversion.reservePrice,
+          ...(reserveTotal == null ? {} : {reserveTotal}),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (privateAuctionSnapshot.exists) {
+        transaction.delete(privateAuctionRef);
+      }
+      transaction.set(
+          receiptRef,
+          receiptData(
+              uid,
+              "convertMarketplaceListingToAuction",
+              result,
+              FieldValue,
+          ),
+      );
+      return result;
     });
       },
   );
@@ -1159,6 +1270,7 @@ function createMarketplaceCommands(admin) {
     acceptAuctionBidBelowReserve,
     acceptMarketplaceOffer,
     buyAuctionNow,
+    convertMarketplaceListingToAuction,
     createMarketplaceListing,
     createMarketplaceOffer,
     placeAuctionBid,

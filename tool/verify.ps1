@@ -30,6 +30,7 @@ Assert-NativeSuccess 'Flutter SDK inspection'
 Write-Host 'Validating PowerShell release tools'
 $releaseToolScripts = @(
   (Join-Path $workspace 'tool\verify.ps1'),
+  (Join-Path $workspace 'tool\callable_emulator_integration.ps1'),
   (Join-Path $workspace 'tool\web_visual_smoke.ps1'),
   (Join-Path $workspace 'tool\phase1_safe_default_rehearsal.ps1')
 )
@@ -74,6 +75,8 @@ if (-not $SkipDependencyRestore) {
   npm ci --prefix firebase/functions
   Assert-NativeSuccess 'Functions dependency restore'
 }
+npm run lint --prefix firebase/functions
+Assert-NativeSuccess 'Functions lint validation'
 npm run check --prefix firebase/functions
 Assert-NativeSuccess 'Functions validation'
 npm audit --omit=dev --audit-level=high --prefix firebase/functions
@@ -117,6 +120,9 @@ if (-not $SkipRulesEmulator) {
       'npm test --prefix firebase/rules-tests'
     Assert-NativeSuccess 'Firestore security rules tests'
   }
+
+  Write-Host 'Testing authenticated callable workflows and retries'
+  & (Join-Path $workspace 'tool\callable_emulator_integration.ps1')
 }
 
 if (-not $SkipWebBuild) {

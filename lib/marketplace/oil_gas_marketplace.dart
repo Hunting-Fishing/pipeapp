@@ -978,6 +978,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       const MarketplaceMessagesPage(),
       MarketplaceAccountHub(
           onAddListing: () => _openCreate(),
+          auctionsEnabled: _features.auctions,
+          paidFeaturesEnabled: _features.paidFeatures,
           onBrowse: () =>
               _selectControlledTab(1, _features.marketplace, 'Marketplace')),
       _features.auctions
