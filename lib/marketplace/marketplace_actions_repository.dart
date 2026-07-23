@@ -259,6 +259,19 @@ class MarketplaceActionsRepository {
     });
   }
 
+  Future<void> updateMarketplaceTransaction(
+    String offerId,
+    String action, {
+    String reason = '',
+  }) async {
+    await _commands.execute('updateMarketplaceTransaction', {
+      'requestId': 'transaction-$offerId-$action-$uid',
+      'offerId': offerId,
+      'action': action,
+      if (reason.trim().isNotEmpty) 'reason': reason.trim(),
+    });
+  }
+
   Future<void> makeConversationOffer({
     required String conversationId,
     required String listingId,

@@ -2,7 +2,7 @@
 
 Audit date: July 23, 2026
 
-Branch: `agent/persisted-saved-listings`
+Branch: `agent/offer-transaction-lifecycle`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 66% | The 32 reviewed Function exports include idempotent saved-listing, Marketplace listing edit, lifecycle, relist, and Marketplace-to-Auction commands. Direct clients cannot create listings or author authoritative saved state, listing revisions, reserve, offer, bid, or Dispatch transaction state. A real Auth, Firestore, and Functions emulator suite verifies 24 command receipts and repeated-request idempotency across saved listings, listing lifecycle, offers, auctions, Buy It Now, Dispatch revisions, carrier quotes, and awards. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
+| 2 — Backend parity and commands | No | 69% | The 33 reviewed Function exports include idempotent saved-listing, Marketplace listing edit/lifecycle/relist, Marketplace-to-Auction, and post-acceptance transaction commands. Direct clients cannot create listings or author authoritative saved state, listing revisions, reserve, offer, bid, Dispatch, transaction, or dispute state. A real Auth, Firestore, and Functions emulator suite verifies 26 command receipts and repeated-request idempotency across saved listings, listing lifecycle, offers, buyer/seller completion, auctions, Buy It Now, Dispatch revisions, carrier quotes, and awards. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
-| 4 — Product workflows | No | 39% | Saved listings now restore from the authenticated account after login or refresh and display live Firestore listings with signed-out, loading, unavailable, and retry states. Normal Marketplace listings have owner-facing edit, pause/reactivate, mark-sold, archive, and relist controls backed by revision-safe idempotent commands and immutable history. Offer, auction, and Dispatch terminal lifecycles remain incomplete. |
+| 4 — Product workflows | No | 47% | Saved listings restore after login or refresh and normal Marketplace listings have revision-safe edit, pause/reactivate, mark-sold, archive, and relist controls. Accepted offers now have participant-only buyer/seller completion confirmations, pre-confirmation cancellation, disputes, notifications, and immutable transaction history. Payment release/refund, auction settlement, and Dispatch terminal lifecycles remain incomplete. |
 | 5 — Trust, notifications, policies | No | 15% | User reporting with attachments and some in-app notifications exist. Moderation operations, appeals, delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **45%**.
+Overall Phase 1 launch readiness estimate: **47%**.
 
 Completed gates: **1 of 8**.
 
@@ -71,9 +71,9 @@ Completed gates: **1 of 8**.
 | Workflow | Status | Evidence or remaining work |
 | --- | --- | --- |
 | Live Offer commands | Source only; live incomplete | `createMarketplaceOffer` and `acceptMarketplaceOffer` exist in source and are used by Flutter, but are absent from the deployed `flutter-flow-pipe` Functions inventory. |
-| Post-acceptance lifecycle | Incomplete | Acceptance stops at `pending_sale`. |
-| Terminal states | Incomplete | No complete completed, cancelled, failed, disputed, refunded, or released command/state workflow. |
-| Transaction checklist | Incomplete | Dates are displayed, but final buyer/seller confirmations and a controlled completion checklist are absent. |
+| Post-acceptance lifecycle | Source and emulator verified; staging pending | Acceptance creates a participant-only transaction. Buyer and seller confirmations advance independently and both are required to complete the sale; early cancellation reopens the listing, disputes preserve the pending sale, and each transition is revisioned and idempotent. |
+| Terminal states | Partially implemented | Completed, pre-confirmation cancelled, and disputed states have server commands and emulator coverage. Failed, payment-refunded, and funds-released states remain intentionally unavailable until a payment and settlement provider is approved. |
+| Transaction checklist | Source and emulator verified; staging pending | The accepted-offer UI shows agreed amount, quantity, both participant confirmations, controlled actions, and permanent revision history. Purchase, transfer, trucking, and Dispatch terms remain copied from the accepted offer. |
 | External notifications | Incomplete | In-app Firestore notifications exist; no verified push/email delivery and retry workflow. |
 | Message spam controls | Incomplete | Messages still use direct client writes without reviewed server throttling. |
 
@@ -122,8 +122,8 @@ matches exactly and passes end-to-end acceptance.
   protected staging environment and retains its structured artifact once the
   workflow reaches the default branch.
 - The current full local release gate passed with 0 analyzer issues, 68 Flutter
-  tests, 32 Functions/runtime tests, 14 Firestore rules tests, dependency
-  high-severity audits, and a 319-file release web build.
+  tests, 41 Functions/runtime tests, 17 Firestore rules tests, 26 authenticated
+  command receipts, dependency high-severity audits, and a release web build.
 
 ## Gate 1 checkpoint evidence
 

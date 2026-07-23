@@ -570,6 +570,136 @@ function validateOfferAcceptance(offer, actorUid, listing) {
   }
 }
 
+function validateMarketplaceTransactionAction({
+  sale,
+  offer,
+  actorUid,
+  action,
+  reason,
+}) {
+  if (!offer || offer.status !== "accepted") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "An accepted offer is required for this transaction.",
+    );
+  }
+  const buyerUid = String(offer.buyerUid || "");
+  const sellerUid = String(offer.sellerUid || "");
+  const actorRole = actorUid === buyerUid ?
+    "buyer" :
+    actorUid === sellerUid ? "seller" : null;
+  if (!actorRole) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the buyer or seller can update this transaction.",
+    );
+  }
+  if (sale && (
+    String(sale.offerId || "") !== String(offer.id || "") ||
+    String(sale.buyerUid || "") !== buyerUid ||
+    String(sale.sellerUid || "") !== sellerUid
+  )) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "The transaction participants do not match the accepted offer.",
+    );
+  }
+  const status = String(sale && sale.status || "pending_completion");
+  const buyerConfirmed = sale && sale.buyerConfirmed === true;
+  const sellerConfirmed = sale && sale.sellerConfirmed === true;
+  if (action === "confirm_completion") {
+    const alreadyConfirmed = actorRole === "buyer" ?
+      buyerConfirmed :
+      sellerConfirmed;
+    if (status === "completed" && alreadyConfirmed) {
+      return {
+        actorRole,
+        alreadyApplied: true,
+        buyerConfirmed,
+        sellerConfirmed,
+        status,
+      };
+    }
+    if (![
+      "pending_completion",
+      "awaiting_buyer_confirmation",
+      "awaiting_seller_confirmation",
+    ].includes(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "This transaction cannot be confirmed in its current state.",
+      );
+    }
+    const nextBuyerConfirmed = buyerConfirmed || actorRole === "buyer";
+    const nextSellerConfirmed = sellerConfirmed || actorRole === "seller";
+    return {
+      actorRole,
+      alreadyApplied: alreadyConfirmed,
+      buyerConfirmed: nextBuyerConfirmed,
+      sellerConfirmed: nextSellerConfirmed,
+      status: nextBuyerConfirmed && nextSellerConfirmed ?
+        "completed" :
+        nextBuyerConfirmed ?
+          "awaiting_seller_confirmation" :
+          "awaiting_buyer_confirmation",
+    };
+  }
+  if (action === "cancel") {
+    if (
+      status !== "pending_completion" ||
+      buyerConfirmed ||
+      sellerConfirmed
+    ) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "Cancellation is unavailable after either party confirms completion.",
+      );
+    }
+    const normalizedReason = String(reason || "").trim();
+    if (normalizedReason.length < 10 || normalizedReason.length > 1000) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "Provide a cancellation reason between 10 and 1,000 characters.",
+      );
+    }
+    return {
+      actorRole,
+      alreadyApplied: false,
+      buyerConfirmed,
+      sellerConfirmed,
+      status: "cancelled",
+      reason: normalizedReason,
+    };
+  }
+  if (action === "dispute") {
+    if (["completed", "cancelled", "disputed"].includes(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "This transaction cannot be disputed in its current state.",
+      );
+    }
+    const normalizedReason = String(reason || "").trim();
+    if (normalizedReason.length < 10 || normalizedReason.length > 2000) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "Describe the dispute in 10 to 2,000 characters.",
+      );
+    }
+    return {
+      actorRole,
+      alreadyApplied: false,
+      buyerConfirmed,
+      sellerConfirmed,
+      status: "disputed",
+      reason: normalizedReason,
+    };
+  }
+  throw new CommandPolicyError(
+      "invalid-argument",
+      "The transaction action is unsupported.",
+  );
+}
+
 function optionalOfferDate(value, fieldName, now) {
   if (value == null) return null;
   const milliseconds = Number(value);
@@ -811,6 +941,7 @@ module.exports = {
   validateListingDetailsUpdate,
   validateListingRelist,
   validateListingTransition,
+  validateMarketplaceTransactionAction,
   validateOfferAcceptance,
   validateOfferFrequency,
   validateOfferProposal,

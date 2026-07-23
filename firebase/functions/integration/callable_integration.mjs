@@ -239,6 +239,53 @@ try {
       (await db.doc(`public_listings/${offerListingId}`).get()).data().status,
       "pending_sale",
   );
+  const buyerConfirmationData = {
+    requestId: `buyer-confirm-${now}`,
+    offerId,
+    action: "confirm_completion",
+  };
+  const buyerConfirmation = await call(
+      "updateMarketplaceTransaction",
+      buyer.token,
+      buyerConfirmationData,
+  );
+  assert.deepEqual(
+      await call(
+          "updateMarketplaceTransaction",
+          buyer.token,
+          buyerConfirmationData,
+      ),
+      buyerConfirmation,
+  );
+  assert.equal(
+      buyerConfirmation.status,
+      "awaiting_seller_confirmation",
+  );
+  const sellerConfirmationData = {
+    requestId: `seller-confirm-${now}`,
+    offerId,
+    action: "confirm_completion",
+  };
+  const sellerConfirmation = await call(
+      "updateMarketplaceTransaction",
+      seller.token,
+      sellerConfirmationData,
+  );
+  assert.deepEqual(
+      await call(
+          "updateMarketplaceTransaction",
+          seller.token,
+          sellerConfirmationData,
+      ),
+      sellerConfirmation,
+  );
+  assert.equal(sellerConfirmation.status, "completed");
+  assert.equal(sellerConfirmation.buyerConfirmed, true);
+  assert.equal(sellerConfirmation.sellerConfirmed, true);
+  assert.equal(
+      (await db.doc(`public_listings/${offerListingId}`).get()).data().status,
+      "sold",
+  );
 
   const lifecycleListingId = `lifecycle-listing-${now}`;
   await call("createMarketplaceListing", seller.token, {
@@ -549,11 +596,11 @@ try {
   assert.equal(awardedJob.revision, 3);
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 24);
+  assert.equal(receipts.size, 26);
   console.log(
       "Callable integration passed: saved listings, listing lifecycle, " +
-      "offer, auction, bid, Buy It Now, Dispatch revision, quote, award, " +
-      "and retry idempotency.",
+      "offer completion, auction, bid, Buy It Now, Dispatch revision, " +
+      "quote, award, and retry idempotency.",
   );
 } finally {
   await deleteApp(app);

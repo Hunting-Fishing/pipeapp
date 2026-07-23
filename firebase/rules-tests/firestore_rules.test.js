@@ -100,6 +100,27 @@ beforeEach(async () => {
       listingId: "listing",
       status: "pending",
     });
+    await setDoc(doc(db, "marketplace_transactions", "accepted-offer"), {
+      offerId: "accepted-offer",
+      listingId: "listing",
+      buyerUid: "buyer",
+      sellerUid: "seller",
+      status: "pending_completion",
+      buyerConfirmed: false,
+      sellerConfirmed: false,
+      revision: 1,
+    });
+    await setDoc(doc(
+        db,
+        "marketplace_transactions",
+        "accepted-offer",
+        "revisions",
+        "1",
+    ), {
+      event: "offer_accepted",
+      actorUid: "seller",
+      revision: 1,
+    });
     await setDoc(doc(db, "conversations", "conversation"), {
       memberUids: ["buyer", "seller"],
       listingId: "listing",
@@ -272,6 +293,48 @@ test("seller cannot accept an offer with a direct client update", async () => {
     status: "accepted",
     acceptedByUid: "seller",
   }));
+});
+
+test("transaction state and history are participant-readable and server-only", async () => {
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const buyerTransaction = doc(
+      buyerDb,
+      "marketplace_transactions",
+      "accepted-offer",
+  );
+
+  await assertSucceeds(getDoc(buyerTransaction));
+  await assertSucceeds(getDoc(doc(
+      sellerDb,
+      "marketplace_transactions",
+      "accepted-offer",
+      "revisions",
+      "1",
+  )));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "marketplace_transactions",
+      "accepted-offer",
+  )));
+  await assertFails(updateDoc(buyerTransaction, {
+    status: "completed",
+    buyerConfirmed: true,
+  }));
+  await assertFails(setDoc(doc(
+      buyerDb,
+      "marketplace_transactions",
+      "accepted-offer",
+      "revisions",
+      "2",
+  ), {event: "forged", actorUid: "buyer", revision: 2}));
 });
 
 test("conversation participants cannot replace members or forge negotiation state", async () => {

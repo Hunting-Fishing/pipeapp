@@ -12,6 +12,7 @@ const {
   validateListingDetailsUpdate,
   validateListingRelist,
   validateListingTransition,
+  validateMarketplaceTransactionAction,
   validateOfferAcceptance,
   validateOfferFrequency,
   validateOfferProposal,
@@ -487,6 +488,96 @@ test("listing offers use authoritative participants and quantity", () => {
         now,
       }),
       (error) => error.code === "invalid-argument",
+  );
+});
+
+test("marketplace transaction completes only after both parties confirm", () => {
+  const offer = {
+    id: "offer",
+    status: "accepted",
+    buyerUid: "buyer",
+    sellerUid: "seller",
+  };
+  const buyerResult = validateMarketplaceTransactionAction({
+    sale: null,
+    offer,
+    actorUid: "buyer",
+    action: "confirm_completion",
+  });
+  assert.equal(buyerResult.status, "awaiting_seller_confirmation");
+  assert.equal(buyerResult.buyerConfirmed, true);
+  assert.equal(buyerResult.sellerConfirmed, false);
+  const sellerResult = validateMarketplaceTransactionAction({
+    sale: {
+      offerId: "offer",
+      buyerUid: "buyer",
+      sellerUid: "seller",
+      status: buyerResult.status,
+      buyerConfirmed: true,
+      sellerConfirmed: false,
+    },
+    offer,
+    actorUid: "seller",
+    action: "confirm_completion",
+  });
+  assert.equal(sellerResult.status, "completed");
+  assert.equal(sellerResult.buyerConfirmed, true);
+  assert.equal(sellerResult.sellerConfirmed, true);
+});
+
+test("transaction cancellation and disputes are participant controlled", () => {
+  const offer = {
+    id: "offer",
+    status: "accepted",
+    buyerUid: "buyer",
+    sellerUid: "seller",
+  };
+  const cancelled = validateMarketplaceTransactionAction({
+    sale: null,
+    offer,
+    actorUid: "buyer",
+    action: "cancel",
+    reason: "The parties mutually agreed not to proceed.",
+  });
+  assert.equal(cancelled.status, "cancelled");
+  const disputed = validateMarketplaceTransactionAction({
+    sale: {
+      offerId: "offer",
+      buyerUid: "buyer",
+      sellerUid: "seller",
+      status: "awaiting_buyer_confirmation",
+      sellerConfirmed: true,
+    },
+    offer,
+    actorUid: "buyer",
+    action: "dispute",
+    reason: "The delivered quantity does not match the agreement.",
+  });
+  assert.equal(disputed.status, "disputed");
+  assert.throws(
+      () => validateMarketplaceTransactionAction({
+        sale: null,
+        offer,
+        actorUid: "stranger",
+        action: "confirm_completion",
+      }),
+      (error) => error.code === "permission-denied",
+  );
+  assert.throws(
+      () => validateMarketplaceTransactionAction({
+        sale: {
+          offerId: "offer",
+          buyerUid: "buyer",
+          sellerUid: "seller",
+          status: "awaiting_seller_confirmation",
+          buyerConfirmed: true,
+        },
+        offer,
+        actorUid: "seller",
+        action: "cancel",
+        reason: "Attempting a late cancellation.",
+      }),
+      (error) => error.code === "failed-precondition",
   );
 });
 
