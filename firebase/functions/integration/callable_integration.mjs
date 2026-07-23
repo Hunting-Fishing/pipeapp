@@ -8,6 +8,9 @@ const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore"
 const {
   enforceUserRateLimit,
 } = require("../abuse_rate_limit");
+const {
+  createAccountVerificationCommands,
+} = require("../account_verification_commands");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -37,6 +40,11 @@ const app = initializeApp({projectId}, `callable-integration-${Date.now()}`);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const rateLimitAdmin = {firestore: {FieldValue, Timestamp}};
+const commandFirestore = Object.assign(() => db, {FieldValue, Timestamp});
+const accountVerificationCommands = createAccountVerificationCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
 const now = Date.now();
 
 async function createUser(label, {verified = true} = {}) {
@@ -306,6 +314,37 @@ try {
   assert.equal(
       (await db.doc(`verification_requests/${buyer.uid}`).get()).data().status,
       "pending",
+  );
+  const reviewRequest = {
+    auth: {
+      uid: "integration-admin",
+      token: {
+        admin: true,
+        role: "administrator",
+        firebase: {sign_in_second_factor: "phone"},
+      },
+    },
+    data: {
+      requestId: `review-${now}`,
+      userUid: buyer.uid,
+      decision: "approved",
+      reason: "Verified ownership and public profile evidence were reviewed.",
+    },
+  };
+  const reviewFirst = await accountVerificationCommands
+      .reviewAccountVerification(reviewRequest);
+  const reviewRetry = await accountVerificationCommands
+      .reviewAccountVerification(reviewRequest);
+  assert.deepEqual(reviewRetry, reviewFirst);
+  assert.equal(reviewFirst.status, "approved");
+  assert.equal(
+      (await db.doc(`users/${buyer.uid}`).get())
+          .data().accountVerificationReviewVersion,
+      1,
+  );
+  assert.equal(
+      (await db.doc(`verification_requests/${buyer.uid}`).get()).data().status,
+      "approved",
   );
   await assertCollectionSize("account_phone_registry", 3);
   assert.deepEqual(
