@@ -63,7 +63,10 @@ service cloud.firestore {
         request.resource.data.accountType in ['personal', 'business'] &&
         request.resource.data.userScore == 70 &&
         request.resource.data.accountVerified == false;
-      allow read, delete: if owns(uid);
+      allow read: if owns(uid);
+      // Account deletion is coordinated by a server command so authentication,
+      // media, private data, obligations, and the grace period stay consistent.
+      allow delete: if false;
       allow update: if owns(uid) &&
         request.resource.data.accountType in ['personal', 'business'] &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
@@ -74,7 +77,8 @@ service cloud.firestore {
           'phoneE164', 'phone_number', 'phoneRegistryKey',
           'accountVerificationVersion', 'verificationSyncedAt',
           'accountVerificationStatus', 'accountVerificationRevision',
-          'accountVerificationReviewVersion', 'accountVerificationReviewedAt'
+          'accountVerificationReviewVersion', 'accountVerificationReviewedAt',
+          'accountStatus', 'deletionScheduledAt'
         ]);
       allow update: if isAdmin();
 
@@ -289,6 +293,34 @@ service cloud.firestore {
 
     match /account_verification_command_receipts/{receiptId} {
       allow read, create, update, delete: if false;
+    }
+
+    match /account_exports/{exportId} {
+      allow read: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create, update, delete: if false;
+
+      match /chunks/{chunkId} {
+        allow read: if signedIn() &&
+          resource.data.ownerUid == request.auth.uid &&
+          get(/databases/$(database)/documents/account_exports/$(exportId)).data.ownerUid == request.auth.uid;
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /account_deletion_requests/{uid} {
+      allow read: if owns(uid) || isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /account_privacy_events/{eventId} {
+      allow read: if signedIn() &&
+        (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /account_deletion_audits/{auditId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /business_private/{businessId} {

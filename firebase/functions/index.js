@@ -6,6 +6,7 @@ const { createAccountCommands } = require("./account_commands");
 const {
   createAccountVerificationCommands,
 } = require("./account_verification_commands");
+const { createAccountPrivacyCommands } = require("./account_privacy_commands");
 const { cleanupExpiredRateLimits } = require("./abuse_rate_limit");
 const { protectedCallableOptions } = require("./app_check_config");
 const {
@@ -34,6 +35,7 @@ async function notifyActiveAdministrators(notification) {
 }
 
 const accountCommands = createAccountCommands(admin);
+const accountPrivacyCommands = createAccountPrivacyCommands(admin);
 const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
@@ -50,9 +52,33 @@ exports.reviewAccountVerification = onCall(
   protectedCallableOptions,
   accountVerificationCommands.reviewAccountVerification,
 );
+exports.requestAccountDataExport = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.requestAccountDataExport,
+);
+exports.revokeAccountSessions = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.revokeAccountSessions,
+);
+exports.requestAccountDeletion = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.requestAccountDeletion,
+);
+exports.cancelAccountDeletion = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.cancelAccountDeletion,
+);
 exports.cleanupExpiredSecurityRateLimits = onSchedule(
   "every 24 hours",
   async () => cleanupExpiredRateLimits(admin),
+);
+exports.cleanupExpiredAccountExports = onSchedule(
+  "every 24 hours",
+  async () => accountPrivacyCommands.cleanupExpiredAccountExports(),
+);
+exports.finalizeScheduledAccountDeletions = onSchedule(
+  "every 24 hours",
+  async () => accountPrivacyCommands.finalizeScheduledAccountDeletions(),
 );
 exports.cleanupExpiredMediaUploadAuthorizations = onSchedule(
   "every 24 hours",

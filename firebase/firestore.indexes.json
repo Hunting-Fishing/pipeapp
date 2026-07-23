@@ -32,6 +32,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "auctionEndAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "account_deletion_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "deleteAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

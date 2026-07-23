@@ -13,7 +13,7 @@ test("every protected command group has a bounded hourly policy", () => {
   assert.deepEqual(Object.keys(RATE_LIMITS).sort(), [
     "account", "administration", "auctions", "dispatch", "marketplace",
     "media",
-    "messaging", "offers", "reporting",
+    "messaging", "offers", "privacy", "reporting",
   ]);
   for (const scope of Object.keys(RATE_LIMITS)) {
     const policy = rateLimitSpec(scope);

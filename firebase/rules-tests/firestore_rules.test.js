@@ -112,6 +112,26 @@ beforeEach(async () => {
       status: "pending",
       revision: 1,
     });
+    await setDoc(doc(db, "account_exports", "buyer-export"), {
+      ownerUid: "buyer",
+      status: "ready",
+      chunkCount: 1,
+    });
+    await setDoc(doc(
+        db,
+        "account_exports",
+        "buyer-export",
+        "chunks",
+        "000000",
+    ), {ownerUid: "buyer", index: 0, content: "{}"});
+    await setDoc(doc(db, "account_deletion_requests", "buyer"), {
+      ownerUid: "buyer",
+      status: "scheduled",
+    });
+    await setDoc(doc(db, "account_privacy_events", "buyer-exported"), {
+      ownerUid: "buyer",
+      type: "data_export_generated",
+    });
     await setDoc(doc(db, "offers", "offer"), {
       sellerUid: "seller",
       buyerUid: "buyer",
@@ -924,4 +944,43 @@ test("account verification decisions are server-only and privately readable", as
     event: "approved",
     status: "approved",
   }));
+});
+
+test("account privacy records are owner-readable and server-only", async () => {
+  const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const exportRef = doc(ownerDb, "account_exports", "buyer-export");
+  const chunkRef = doc(
+      ownerDb,
+      "account_exports",
+      "buyer-export",
+      "chunks",
+      "000000",
+  );
+
+  await assertSucceeds(getDoc(exportRef));
+  await assertSucceeds(getDoc(chunkRef));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "account_deletion_requests",
+      "buyer",
+  )));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "account_privacy_events",
+      "buyer-exported",
+  )));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "account_exports",
+      "buyer-export",
+  )));
+  await assertFails(setDoc(doc(ownerDb, "account_exports", "forged"), {
+    ownerUid: "buyer",
+    status: "ready",
+  }));
+  await assertFails(updateDoc(exportRef, {status: "expired"}));
+  await assertFails(deleteDoc(doc(ownerDb, "users", "buyer")));
 });

@@ -8,6 +8,7 @@ test("Admin 14 modular adapter exposes only the command runtime contract", () =>
 
   assert.equal(typeof runtime.auth, "function");
   assert.equal(typeof runtime.firestore, "function");
+  assert.equal(typeof runtime.storage, "function");
   assert.equal(typeof runtime.firestore.FieldValue.serverTimestamp, "function");
   assert.equal(typeof runtime.firestore.FieldValue.increment, "function");
   assert.equal(typeof runtime.firestore.GeoPoint, "function");

@@ -1043,6 +1043,50 @@ try {
       "completed",
   );
 
+  const privacyUser = await createUser("privacy");
+  await db.doc(`users/${privacyUser.uid}`).set({
+    displayName: "Privacy Integration User",
+    accountType: "personal",
+    accountStatus: "active",
+    userScore: 70,
+    accountVerified: false,
+  });
+  const accountExport = await call(
+      "requestAccountDataExport",
+      privacyUser.token,
+      {},
+  );
+  assert.equal(accountExport.chunkCount > 0, true);
+  const exportSnapshot = await db.doc(
+      `account_exports/${accountExport.exportId}`,
+  ).get();
+  assert.equal(exportSnapshot.data().status, "ready");
+  assert.equal(
+      (await db.collection(
+          `account_exports/${accountExport.exportId}/chunks`,
+      ).get()).size,
+      accountExport.chunkCount,
+  );
+  const deletion = await call(
+      "requestAccountDeletion",
+      privacyUser.token,
+      {confirmation: "DELETE MY ACCOUNT"},
+  );
+  assert.equal(deletion.status, "scheduled");
+  assert.equal(
+      (await db.doc(`account_deletion_requests/${privacyUser.uid}`).get())
+          .data().status,
+      "scheduled",
+  );
+  assert.equal(
+      (await call("cancelAccountDeletion", privacyUser.token, {})).status,
+      "cancelled",
+  );
+  assert.equal(
+      (await call("revokeAccountSessions", privacyUser.token, {})).revoked,
+      true,
+  );
+
   const receipts = await db.collection("marketplace_command_receipts").get();
   assert.equal(receipts.size, 37);
   const communicationReceipts = await db
@@ -1052,7 +1096,7 @@ try {
       "Callable integration passed: saved listings, listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "quote, award, delivery closure, protected messages/reports/uploads, " +
-      "and retry idempotency.",
+      "private export, staged deletion, session revocation, and retry idempotency.",
   );
 } finally {
   await deleteApp(app);

@@ -13,6 +13,7 @@ import 'marketplace_listing_media.dart';
 import 'marketplace_money.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_command_client.dart';
+import 'account_export_downloader.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -2034,8 +2035,149 @@ class _AccountTabBadge extends StatelessWidget {
   }
 }
 
-class _AccountSettings extends StatelessWidget {
+class _AccountSettings extends StatefulWidget {
   const _AccountSettings();
+
+  @override
+  State<_AccountSettings> createState() => _AccountSettingsState();
+}
+
+class _AccountSettingsState extends State<_AccountSettings> {
+  bool _exporting = false;
+  bool _revoking = false;
+  bool _deleting = false;
+
+  void _notice(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: error ? Colors.red.shade700 : null,
+        content: Text(message)));
+  }
+
+  Future<void> _exportData() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final result = await MarketplaceCommandClient().execute(
+          'requestAccountDataExport', const {},
+          timeout: const Duration(minutes: 2));
+      final exportId = '${result['exportId'] ?? ''}';
+      final fileName = '${result['fileName'] ?? 'pipe-account-export.json'}';
+      if (exportId.isEmpty) {
+        throw StateError('The export reference is missing.');
+      }
+      final chunks = await FirebaseFirestore.instance
+          .collection('account_exports')
+          .doc(exportId)
+          .collection('chunks')
+          .orderBy('index')
+          .get();
+      final content =
+          chunks.docs.map((doc) => '${doc.data()['content'] ?? ''}').join();
+      if (content.isEmpty) {
+        throw StateError('The generated export was empty.');
+      }
+      final location = await downloadAccountExport(fileName, content);
+      _notice('Your private account export was saved to $location.');
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _revokeSessions() async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: const Icon(Icons.devices_outlined, size: 34),
+            title: const Text('Sign out all devices?'),
+            content: const Text(
+                'Your refresh sessions will be revoked, then this device will sign out. Other devices may remain active briefly until their current security token expires.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Sign out all devices')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    setState(() => _revoking = true);
+    try {
+      await MarketplaceCommandClient()
+          .execute('revokeAccountSessions', const {});
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      MarketplaceNavigation.goHome(context);
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+      if (mounted) setState(() => _revoking = false);
+    }
+  }
+
+  Future<void> _requestDeletion() async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: Icon(Icons.delete_forever_outlined,
+                size: 36, color: Colors.red.shade700),
+            title: const Text('Schedule account deletion'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text(
+                  'Open listings, transactions, Dispatch jobs, and administrator responsibilities must be closed first. A 14-day cancellation period begins after this request.'),
+              const SizedBox(height: 14),
+              TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                      labelText: 'Enter DELETE MY ACCOUNT',
+                      border: OutlineInputBorder())),
+            ]),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Keep account')),
+              FilledButton(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red.shade700),
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Schedule deletion')),
+            ],
+          ),
+        ) ??
+        false;
+    final confirmation = controller.text.trim();
+    controller.dispose();
+    if (!confirmed || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      final result = await MarketplaceCommandClient()
+          .execute('requestAccountDeletion', {'confirmation': confirmation});
+      _notice('Account deletion is scheduled for ${result['deleteAt']}.');
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  Future<void> _cancelDeletion() async {
+    setState(() => _deleting = true);
+    try {
+      await MarketplaceCommandClient()
+          .execute('cancelAccountDeletion', const {});
+      _notice('Scheduled account deletion was cancelled.');
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2073,6 +2215,83 @@ class _AccountSettings extends StatelessWidget {
                   .sendPasswordResetEmail(email: user.email!)),
       const SizedBox(height: 12),
       const _WatchKeywords(),
+      const SizedBox(height: 12),
+      Card(
+          child: Column(children: [
+        ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Download my account data'),
+            subtitle: const Text(
+                'Creates a private JSON export that expires after 7 days.'),
+            trailing: _exporting
+                ? const SizedBox.square(
+                    dimension: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
+            onTap: _exporting ? null : _exportData),
+        const Divider(height: 1),
+        ListTile(
+            leading: const Icon(Icons.devices_outlined),
+            title: const Text('Sign out all devices'),
+            subtitle:
+                const Text('Revoke active refresh sessions for this account.'),
+            trailing: _revoking
+                ? const SizedBox.square(
+                    dimension: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
+            onTap: _revoking ? null : _revokeSessions),
+      ])),
+      const SizedBox(height: 12),
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('account_deletion_requests')
+              .doc(user.uid)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final data = snapshot.data?.data();
+            final scheduled = data?['status'] == 'scheduled';
+            return Card(
+                color: Colors.red.shade50,
+                child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Colors.red.shade700),
+                            const SizedBox(width: 10),
+                            Text(
+                                scheduled
+                                    ? 'Deletion scheduled'
+                                    : 'Delete account',
+                                style: const TextStyle(
+                                    fontSize: 17, fontWeight: FontWeight.w800)),
+                          ]),
+                          const SizedBox(height: 6),
+                          Text(scheduled
+                              ? 'Your account remains available during the cancellation period.'
+                              : 'Permanently remove your account after a 14-day cancellation period. Shared transaction and safety records may be retained where required.'),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                              onPressed: _deleting
+                                  ? null
+                                  : scheduled
+                                      ? _cancelDeletion
+                                      : _requestDeletion,
+                              style: OutlinedButton.styleFrom(
+                                  foregroundColor: scheduled
+                                      ? Colors.blue.shade700
+                                      : Colors.red.shade700),
+                              icon: Icon(scheduled
+                                  ? Icons.undo_outlined
+                                  : Icons.delete_forever_outlined),
+                              label: Text(scheduled
+                                  ? 'Cancel scheduled deletion'
+                                  : 'Schedule account deletion')),
+                        ])));
+          }),
       const SizedBox(height: 12),
       OutlinedButton.icon(
           onPressed: () => _signOutFromSettings(context),
