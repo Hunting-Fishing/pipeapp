@@ -52,6 +52,148 @@ function minimumAuctionBid(listing) {
   return current > 0 ? current + increment : starting;
 }
 
+function optionalMoney(value, fieldName) {
+  if (value == null || value === "") return null;
+  return requireMoney(value, fieldName);
+}
+
+function validateAuctionConversion({
+  listing,
+  actorUid,
+  user,
+  administrator,
+  data,
+  paidFeaturesEnabled,
+  now,
+}) {
+  if (!listing || listing.sellerUid !== actorUid) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the listing owner can move this item to Auctions.",
+    );
+  }
+  if (listing.status !== "active") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Only an active listing can be moved to Auctions.",
+    );
+  }
+  if (listing.transactionType === "Auction") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This listing is already a timed auction.",
+    );
+  }
+  if (listing.transactionType === "Wanted / Seeking") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Wanted ads cannot be converted to timed auctions.",
+    );
+  }
+  if (!administrator && (
+    Number(user && user.userScore || 70) <= 80 ||
+    Number(user && user.profileCompletion || 0) !== 100 ||
+    user && user.accountVerified !== true
+  )) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Auction listings require a User Score above 80, a complete " +
+        "profile, and verified account status.",
+    );
+  }
+
+  const startingBid = requireMoney(data && data.startingBid, "Starting bid");
+  const minimumBidIncrement = requireMoney(
+      data && data.minimumBidIncrement,
+      "Minimum bid increase",
+  );
+  if (minimumBidIncrement < 0.5 || minimumBidIncrement > 1000) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Minimum bid increase must be between 0.50 and 1,000.00.",
+    );
+  }
+  const reservePrice = optionalMoney(
+      data && data.reservePrice,
+      "Reserve price",
+  );
+  const buyItNowPrice = optionalMoney(
+      data && data.buyItNowPrice,
+      "Buy It Now price",
+  );
+  if (reservePrice != null && reservePrice < startingBid) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Reserve price must be at least the starting bid.",
+    );
+  }
+  if (
+    buyItNowPrice != null &&
+    (buyItNowPrice < startingBid ||
+      (reservePrice != null && buyItNowPrice < reservePrice))
+  ) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Buy It Now must be at least the starting bid and reserve price.",
+    );
+  }
+
+  const durationDays = Number(data && data.durationDays);
+  const customAuction = data && data.customAuction === true;
+  const standardDurations = new Set([1, 3, 5, 7, 10, 14, 30]);
+  if (
+    !Number.isInteger(durationDays) ||
+    durationDays < 1 ||
+    durationDays > 360 ||
+    (!customAuction && !standardDurations.has(durationDays))
+  ) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Choose a supported auction duration from 1 to 360 days.",
+    );
+  }
+  if (customAuction && paidFeaturesEnabled !== true) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Paid custom auctions are not currently available.",
+    );
+  }
+  const nowMillis = timestampMillis(now);
+  if (!Number.isFinite(nowMillis)) {
+    throw new CommandPolicyError(
+        "internal",
+        "Auction timing could not be established.",
+    );
+  }
+  const quantity = Number(listing.quantity);
+  const normalizedQuantity = Number.isFinite(quantity) && quantity > 0 ?
+    quantity :
+    null;
+  const askingPrice = Number(listing.price || 0);
+  const totalBasis = String(listing.priceBasis || "")
+      .toLowerCase().includes("total");
+  const askingTotal = Number.isFinite(askingPrice) && askingPrice > 0 ?
+    (totalBasis || normalizedQuantity == null ?
+      askingPrice :
+      askingPrice * normalizedQuantity) :
+    0;
+
+  return {
+    startingBid,
+    minimumBidIncrement,
+    reservePrice,
+    buyItNowPrice,
+    durationDays,
+    customAuction,
+    auctionStartAt: nowMillis,
+    auctionEndAt: nowMillis + durationDays * 24 * 60 * 60 * 1000,
+    priceBasis: String(listing.priceBasis || "Per item").slice(0, 120),
+    quantity: normalizedQuantity,
+    askingPrice: Number.isFinite(askingPrice) ? askingPrice : 0,
+    askingTotal,
+  };
+}
+
 function requireLiveAuction(listing, actorUid, now) {
   if (!listing || listing.transactionType !== "Auction") {
     throw new CommandPolicyError("not-found", "This auction is unavailable.");
@@ -512,6 +654,7 @@ module.exports = {
   TERMINAL_AUCTION_STATUSES,
   minimumAuctionBid,
   requireMoney,
+  validateAuctionConversion,
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,

@@ -5,6 +5,7 @@ const test = require("node:test");
 const {
   CommandPolicyError,
   minimumAuctionBid,
+  validateAuctionConversion,
   validateAcceptBelowReserve,
   validateBuyNow,
   validateLeadingBidRecord,
@@ -16,6 +17,27 @@ const {
 } = require("../marketplace_command_policy");
 
 const now = new Date("2026-07-19T12:00:00.000Z");
+
+function marketplaceListing(overrides = {}) {
+  return {
+    sellerUid: "seller",
+    status: "active",
+    transactionType: "Marketplace",
+    price: 73,
+    priceBasis: "Per piece",
+    quantity: 54,
+    ...overrides,
+  };
+}
+
+function verifiedSeller(overrides = {}) {
+  return {
+    userScore: 90,
+    profileCompletion: 100,
+    accountVerified: true,
+    ...overrides,
+  };
+}
 
 function liveAuction(overrides = {}) {
   return {
@@ -39,6 +61,130 @@ test("minimum bid follows starting price then current plus increment", () => {
       minimumAuctionBid(liveAuction({currentBid: 125})),
       130,
   );
+});
+
+test("marketplace conversion derives authoritative auction analytics", () => {
+  const conversion = validateAuctionConversion({
+    listing: marketplaceListing(),
+    actorUid: "seller",
+    user: verifiedSeller(),
+    administrator: false,
+    data: {
+      startingBid: 73,
+      minimumBidIncrement: 0.5,
+      reservePrice: 80,
+      buyItNowPrice: 100,
+      durationDays: 30,
+      customAuction: false,
+    },
+    paidFeaturesEnabled: false,
+    now,
+  });
+  assert.equal(conversion.askingTotal, 3942);
+  assert.equal(conversion.quantity, 54);
+  assert.equal(conversion.priceBasis, "Per piece");
+  assert.equal(
+      conversion.auctionEndAt - conversion.auctionStartAt,
+      30 * 24 * 60 * 60 * 1000,
+  );
+});
+
+test("marketplace conversion enforces ownership and seller eligibility", () => {
+  assert.throws(
+      () => validateAuctionConversion({
+        listing: marketplaceListing(),
+        actorUid: "buyer",
+        user: verifiedSeller(),
+        administrator: false,
+        data: {
+          startingBid: 73,
+          minimumBidIncrement: 1,
+          durationDays: 7,
+        },
+        paidFeaturesEnabled: false,
+        now,
+      }),
+      (error) => error.code === "permission-denied",
+  );
+  assert.throws(
+      () => validateAuctionConversion({
+        listing: marketplaceListing(),
+        actorUid: "seller",
+        user: verifiedSeller({profileCompletion: 80}),
+        administrator: false,
+        data: {
+          startingBid: 73,
+          minimumBidIncrement: 1,
+          durationDays: 7,
+        },
+        paidFeaturesEnabled: false,
+        now,
+      }),
+      (error) => error.code === "failed-precondition",
+  );
+});
+
+test("custom auctions remain disabled until paid features are live", () => {
+  const request = {
+    listing: marketplaceListing(),
+    actorUid: "seller",
+    user: verifiedSeller(),
+    administrator: false,
+    data: {
+      startingBid: 73,
+      minimumBidIncrement: 1,
+      durationDays: 45,
+      customAuction: true,
+    },
+    now,
+  };
+  assert.throws(
+      () => validateAuctionConversion({
+        ...request,
+        paidFeaturesEnabled: false,
+      }),
+      (error) => error.code === "failed-precondition",
+  );
+  assert.equal(
+      validateAuctionConversion({
+        ...request,
+        paidFeaturesEnabled: true,
+      }).durationDays,
+      45,
+  );
+});
+
+test("auction conversion rejects unsafe money and duration combinations", () => {
+  const base = {
+    listing: marketplaceListing(),
+    actorUid: "seller",
+    user: verifiedSeller(),
+    administrator: false,
+    paidFeaturesEnabled: false,
+    now,
+  };
+  for (const data of [
+    {startingBid: 73, minimumBidIncrement: 0.49, durationDays: 7},
+    {startingBid: 73, minimumBidIncrement: 1, durationDays: 2},
+    {
+      startingBid: 73,
+      minimumBidIncrement: 1,
+      reservePrice: 70,
+      durationDays: 7,
+    },
+    {
+      startingBid: 73,
+      minimumBidIncrement: 1,
+      reservePrice: 90,
+      buyItNowPrice: 80,
+      durationDays: 7,
+    },
+  ]) {
+    assert.throws(
+        () => validateAuctionConversion({...base, data}),
+        (error) => error.code === "invalid-argument",
+    );
+  }
 });
 
 test("bid must meet the server-calculated minimum", () => {

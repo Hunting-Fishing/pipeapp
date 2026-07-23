@@ -81,8 +81,9 @@ Storage. Confirm:
 
 ## Stage 4 — Enforce callable Functions
 
-Callable enforcement is controlled by the typed Functions parameter
-`PIPE_ENFORCE_APP_CHECK`. It defaults to `false`.
+Callable enforcement is compiled into the callable deployment options from the
+strict boolean deployment environment value `PIPE_ENFORCE_APP_CHECK`. It
+defaults to `false`; only the exact value `true` enables enforcement.
 
 Create the ignored project-specific environment file
 `firebase/functions/.env.flutter-flow-pipe`:
@@ -101,7 +102,7 @@ Verify a registered release succeeds and an unregistered client receives an
 App Check rejection. Monitor Functions errors, support reports, and valid versus
 invalid request metrics immediately after deployment.
 
-To roll back callable enforcement, set the parameter to `false` and redeploy
+To roll back callable enforcement, set the deployment value to `false` and redeploy
 the same reviewed commit. Do not weaken Firestore rules as a workaround.
 
 ## Stage 5 — Enforce Firebase products
@@ -113,4 +114,3 @@ Dispatch acceptance journeys after each change.
 
 App Check does not authorize data access. Firestore and Storage rules remain
 the source of truth for which authenticated user may read or change a record.
-

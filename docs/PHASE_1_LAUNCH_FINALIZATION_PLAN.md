@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/north-america-foundation`  
+Baseline branch: `agent/gate2-command-integration`
 Created: July 20, 2026
 
 Current gate: Gate 1 — Reproducible environments, builds, and diagnostics
 
-Current overall launch-readiness estimate: 39%
+Current overall launch-readiness estimate: 42%
 
 Completed gates: 1 of 8
 
@@ -17,7 +17,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 35% — automated mismatch proof |
+| 2 — Backend parity and server commands | 58% — local integration verified |
 | 3 — Identity, authorization, and abuse | 10% — incomplete |
 | 4 — Product workflows | 25% — incomplete |
 | 5 — Trust, notifications, and policies | 15% — incomplete |
@@ -40,15 +40,25 @@ Gate 0 implementation evidence:
 
 Gate 2 implementation evidence in progress:
 
-- Release manifests declare the exact 27 expected Function exports
+- Release manifests declare the exact 28 expected Function exports
 - Unit-tested parity tooling compares that manifest with the deployed
   `marketplace` codebase and fails on missing, unexpected, or inactive handlers
 - Every controlled deploy now performs this comparison after deployment and
   records the structured result in its release summary
-- A read-only production inventory currently fails safely: 15 handlers are
-  deployed, 14 expected handlers are missing, and 2 obsolete handlers remain
-- Staging Function deployment and callable integration evidence remain blocked
-  on the staging billing-plan decision
+- The last read-only production inventory fails safely: 15 handlers were
+  deployed; with the new conversion command, 15 expected handlers are missing
+  and 2 obsolete handlers remain
+- Client listing creation and Marketplace-to-Auction conversion now use
+  authenticated server commands; direct clients cannot author public listing,
+  private reserve, bid, offer, or Dispatch transaction state
+- Auth, Firestore, and Functions emulator integration verifies 15 command
+  receipts across Marketplace, Offers, Auctions, Buy It Now, and Dispatch,
+  including repeated-request idempotency and transaction state assertions
+- Functions discovery and CI now use the declared Node 22 runtime, and App
+  Check enforcement is a concrete deployment option rather than an unsupported
+  parameter expression
+- Staging Function deployment and exact deployed parity remain blocked on the
+  staging billing-plan decision
 
 Gate 1 implementation evidence in progress:
 

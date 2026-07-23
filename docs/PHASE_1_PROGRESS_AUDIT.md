@@ -2,7 +2,7 @@
 
 Audit date: July 23, 2026
 
-Branch: `agent/north-america-foundation`
+Branch: `agent/gate2-command-integration`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 35% | Offer, Auction, and Dispatch commands and policy tests exist in source. Unit-tested release automation now compares the 27 expected Functions with the deployed `marketplace` codebase and rejects missing, unexpected, or inactive handlers after deploy. Staging deployment and callable integration evidence remain blocked. |
+| 2 — Backend parity and commands | No | 58% | The 28 reviewed Function exports include an idempotent Marketplace-to-Auction conversion. Direct clients cannot create listings or author authoritative listing, reserve, offer, bid, or Dispatch transaction state. A real Auth, Firestore, and Functions emulator suite verifies 15 command receipts and repeated-request idempotency across listings, offers, auctions, Buy It Now, Dispatch revisions, carrier quotes, and awards. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. Staging deployment and exact deployed parity remain blocked on the billing-plan decision. |
 | 3 — Identity and abuse protection | No | 10% | Basic Firebase authentication and a client-written phone registry exist. Verified email enforcement, phone OTP ownership, server uniqueness, App Check enforcement, MFA, rate limits, recovery, deletion, and export remain incomplete. |
 | 4 — Product workflows | No | 25% | Rich listing, offer, auction, and Dispatch UI foundations exist. The mandatory persisted and terminal transaction lifecycles remain incomplete. |
 | 5 — Trust, notifications, policies | No | 15% | User reporting with attachments and some in-app notifications exist. Moderation operations, appeals, delivery providers, policies, and support operations remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **39%**.
+Overall Phase 1 launch readiness estimate: **42%**.
 
 Completed gates: **1 of 8**.
 

@@ -277,85 +277,20 @@ service cloud.firestore {
 
     match /public_listings/{listingId} {
       allow read: if true;
-      allow create: if phase1FeatureEnabled('marketplace') &&
-        signedIn() &&
-        request.resource.data.sellerUid == request.auth.uid &&
-        request.resource.data.status in ['active', 'draft'] &&
-        (request.resource.data.transactionType != 'Wanted / Seeking' ||
-          phase1FeatureEnabled('wantedAds')) &&
-        (request.resource.data.transactionType != 'Auction' ||
-          phase1FeatureEnabled('auctions')) &&
-        (request.resource.data.get('category', '') != 'Site & Property' ||
-          phase1FeatureEnabled('regulatedListings')) &&
-        ((request.resource.data.get('boostRequested', false) != true &&
-          request.resource.data.get('boostPrice', 0) == 0) ||
-          phase1FeatureEnabled('paidFeatures')) &&
-        !request.resource.data.keys().hasAny([
-          'reservePrice', 'reserveTotal'
-        ]) &&
-        (request.resource.data.transactionType != 'Auction' ||
-          ((isAdmin() ||
-            (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)) &&
-           request.resource.data.auctionStartAt is timestamp &&
-           request.resource.data.auctionEndAt is timestamp &&
-           request.resource.data.auctionEndAt >
-             request.resource.data.auctionStartAt &&
-           request.resource.data.startingBid is number &&
-           request.resource.data.startingBid > 0 &&
-           request.resource.data.minimumBidIncrement is number &&
-           request.resource.data.minimumBidIncrement > 0 &&
-           request.resource.data.get('currentBid', 0) == 0 &&
-           request.resource.data.get('bidCount', 0) == 0 &&
-           request.resource.data.auctionStatus in ['scheduled', 'live']));
-      allow update: if phase1FeatureEnabled('marketplace') &&
+      // Listing creation, conversion, lifecycle, analytics, media, and sale
+      // state are server-command responsibilities. The only client update is
+      // an owner's non-authoritative auction notification preference.
+      allow create, delete: if false;
+      allow update: if phase1FeatureEnabled('auctions') &&
         signedIn() &&
         resource.data.sellerUid == request.auth.uid &&
         request.resource.data.sellerUid == request.auth.uid &&
-        (request.resource.data.transactionType != 'Wanted / Seeking' ||
-          phase1FeatureEnabled('wantedAds')) &&
-        (request.resource.data.transactionType != 'Auction' ||
-          phase1FeatureEnabled('auctions')) &&
-        (request.resource.data.get('category', '') != 'Site & Property' ||
-          phase1FeatureEnabled('regulatedListings')) &&
-        ((request.resource.data.get('boostRequested', false) != true &&
-          request.resource.data.get('boostPrice', 0) == 0) ||
-          phase1FeatureEnabled('paidFeatures')) &&
-        (
-          (resource.data.transactionType != 'Auction' &&
-           request.resource.data.transactionType != 'Auction') ||
-          (resource.data.transactionType != 'Auction' &&
-           request.resource.data.transactionType == 'Auction' &&
-           (isAdmin() ||
-             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userScore', 70) > 80 &&
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.profileCompletion == 100 &&
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountVerified', false) == true)) &&
-           request.resource.data.auctionStartAt is timestamp &&
-           request.resource.data.auctionEndAt is timestamp &&
-           request.resource.data.auctionEndAt >
-             request.resource.data.auctionStartAt &&
-           request.resource.data.startingBid is number &&
-           request.resource.data.startingBid > 0 &&
-           request.resource.data.minimumBidIncrement is number &&
-           request.resource.data.minimumBidIncrement > 0 &&
-           !request.resource.data.keys().hasAny([
-             'reservePrice', 'reserveTotal'
-           ]) &&
-           request.resource.data.get('currentBid', 0) == 0 &&
-           request.resource.data.get('bidCount', 0) == 0 &&
-           request.resource.data.auctionStatus in ['scheduled', 'live']) ||
-          (resource.data.transactionType == 'Auction' &&
-           request.resource.data.transactionType == 'Auction' &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-             'notifyNewBids', 'notifyReserveReached',
-             'notifyAuctionEnding', 'updatedAt'
-           ]))
-        );
-      allow delete: if phase1FeatureEnabled('marketplace') &&
-        signedIn() &&
-        resource.data.sellerUid == request.auth.uid &&
-        resource.data.transactionType != 'Auction';
+        resource.data.transactionType == 'Auction' &&
+        request.resource.data.transactionType == 'Auction' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'notifyNewBids', 'notifyReserveReached',
+          'notifyAuctionEnding', 'updatedAt'
+        ]);
     }
 
     match /auction_private/{listingId} {
@@ -364,27 +299,9 @@ service cloud.firestore {
         (signedIn() &&
           get(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
             request.auth.uid));
-      allow create, update: if phase1FeatureEnabled('auctions') &&
-        (isAdmin() ||
-        (signedIn() &&
-         request.resource.data.ownerUid == request.auth.uid &&
-         request.resource.data.keys().hasOnly([
-           'ownerUid', 'reservePrice', 'reserveTotal', 'updatedAt'
-         ]) &&
-         request.resource.data.reservePrice is number &&
-         request.resource.data.reservePrice > 0 &&
-         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid ==
-           request.auth.uid &&
-         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.transactionType ==
-           'Auction' &&
-         getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
-          getAfter(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0));
-      allow delete: if phase1FeatureEnabled('auctions') &&
-        (isAdmin() ||
-        (signedIn() &&
-         resource.data.ownerUid == request.auth.uid &&
-         get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('currentBid', 0) == 0 &&
-          get(/databases/$(database)/documents/public_listings/$(listingId)).data.get('bidCount', 0) == 0));
+      // Reserve mutations are part of the same server transaction as auction
+      // creation or conversion. Clients may read their own reserve only.
+      allow create, update, delete: if false;
     }
 
     match /listing_events/{eventId} {

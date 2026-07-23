@@ -57,6 +57,10 @@ exports.createMarketplaceListing = onCall(
   protectedCallableOptions,
   marketplaceCommands.createMarketplaceListing,
 );
+exports.convertMarketplaceListingToAuction = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.convertMarketplaceListingToAuction,
+);
 exports.updateMarketplaceListingMedia = onCall(
   protectedCallableOptions,
   marketplaceCommands.updateMarketplaceListingMedia,

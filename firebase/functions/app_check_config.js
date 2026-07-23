@@ -1,18 +1,22 @@
 "use strict";
 
-const {defineBoolean} = require("firebase-functions/params");
+function environmentBoolean(name, defaultValue = false) {
+  const value = process.env[name];
+  if (value == null || String(value).trim() === "") return defaultValue;
+  return String(value).trim().toLowerCase() === "true";
+}
 
-const enforceAppCheck = defineBoolean("PIPE_ENFORCE_APP_CHECK", {
-  default: false,
-  description:
-    "Require valid Firebase App Check tokens for marketplace callables.",
-});
+// onCall expects a concrete boolean in its deployment options. Passing a
+// parameter expression makes the Functions SDK evaluate it while discovering
+// every callable, which can time out deployment and emulator startup.
+const enforceAppCheck = environmentBoolean("PIPE_ENFORCE_APP_CHECK", false);
 
 const protectedCallableOptions = Object.freeze({
   enforceAppCheck,
 });
 
 module.exports = {
+  environmentBoolean,
   enforceAppCheck,
   protectedCallableOptions,
 };

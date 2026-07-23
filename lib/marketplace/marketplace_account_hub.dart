@@ -10,13 +10,20 @@ import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_money.dart';
 import 'marketplace_property_details.dart';
+import 'marketplace_command_client.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
-      {super.key, required this.onAddListing, required this.onBrowse});
+      {super.key,
+      required this.onAddListing,
+      required this.onBrowse,
+      required this.auctionsEnabled,
+      required this.paidFeaturesEnabled});
 
   final VoidCallback onAddListing;
   final VoidCallback onBrowse;
+  final bool auctionsEnabled;
+  final bool paidFeaturesEnabled;
 
   @override
   State<MarketplaceAccountHub> createState() => _MarketplaceAccountHubState();
@@ -74,7 +81,10 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
             child: TabBarView(controller: _tabs, children: [
           _Overview(onOpen: _tabs.animateTo),
           const MarketplaceProfilePage(),
-          _MyListings(onAddListing: widget.onAddListing),
+          _MyListings(
+              onAddListing: widget.onAddListing,
+              auctionsEnabled: widget.auctionsEnabled,
+              paidFeaturesEnabled: widget.paidFeaturesEnabled),
           const MarketplaceMessagesPage(),
           _AccountNotifications(
               onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
@@ -414,9 +424,14 @@ class _AccountShortcut extends StatelessWidget {
 }
 
 class _MyListings extends StatelessWidget {
-  const _MyListings({required this.onAddListing});
+  const _MyListings(
+      {required this.onAddListing,
+      required this.auctionsEnabled,
+      required this.paidFeaturesEnabled});
 
   final VoidCallback onAddListing;
+  final bool auctionsEnabled;
+  final bool paidFeaturesEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -505,7 +520,10 @@ class _MyListings extends StatelessWidget {
                                 context: context,
                                 isScrollControlled: true,
                                 builder: (_) => _OwnerListingDetails(
-                                    listingId: document.id, data: data));
+                                    listingId: document.id,
+                                    data: data,
+                                    auctionsEnabled: auctionsEnabled,
+                                    paidFeaturesEnabled: paidFeaturesEnabled));
                           },
                           leading: SizedBox.square(
                               dimension: 54,
@@ -708,16 +726,25 @@ class _OwnerPropertyDetails extends StatelessWidget {
 }
 
 class _OwnerListingDetails extends StatefulWidget {
-  const _OwnerListingDetails({required this.listingId, required this.data});
+  const _OwnerListingDetails(
+      {required this.listingId,
+      required this.data,
+      required this.auctionsEnabled,
+      required this.paidFeaturesEnabled});
 
   final String listingId;
   final Map<String, dynamic> data;
+  final bool auctionsEnabled;
+  final bool paidFeaturesEnabled;
 
   @override
   State<_OwnerListingDetails> createState() => _OwnerListingDetailsState();
 }
 
 class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
+  bool _convertingToAuction = false;
+  String? _auctionConversionRequestId;
+
   @override
   Widget build(BuildContext context) =>
       StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -794,12 +821,19 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             const SizedBox(height: 12),
             _OwnerPropertyDetails(data: data),
           ],
-          if (!isAuction) ...[
+          if (!isAuction && widget.auctionsEnabled) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
-                onPressed: () => _convertToAuction(data),
-                icon: const Icon(Icons.gavel_outlined),
-                label: const Text('Move listing to timed auction'),
+                onPressed:
+                    _convertingToAuction ? null : () => _convertToAuction(data),
+                icon: _convertingToAuction
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.gavel_outlined),
+                label: Text(_convertingToAuction
+                    ? 'Publishing timed auction…'
+                    : 'Move listing to timed auction'),
                 style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(50)))
           ] else ...[
@@ -1152,18 +1186,20 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                               customDuration = false;
                                               formError = null;
                                             }))),
-                                    ChoiceChip(
-                                        selected: customDuration,
-                                        avatar: const Icon(Icons.tune_outlined,
-                                            size: 17),
-                                        label: const Text('Custom'),
-                                        onSelected: (_) => update(() {
-                                              customDuration = true;
-                                              durationDays = int.tryParse(
-                                                      customDays.text) ??
-                                                  30;
-                                              formError = null;
-                                            }))
+                                    if (widget.paidFeaturesEnabled)
+                                      ChoiceChip(
+                                          selected: customDuration,
+                                          avatar: const Icon(
+                                              Icons.tune_outlined,
+                                              size: 17),
+                                          label: const Text('Custom'),
+                                          onSelected: (_) => update(() {
+                                                customDuration = true;
+                                                durationDays = int.tryParse(
+                                                        customDays.text) ??
+                                                    30;
+                                                formError = null;
+                                              }))
                                   ]),
                                   if (customDuration) ...[
                                     const SizedBox(height: 12),
@@ -1354,63 +1390,39 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                     ])) ??
         false;
     if (!confirmed) return;
-    final firestore = FirebaseFirestore.instance;
-    final listing =
-        firestore.collection('public_listings').doc(widget.listingId);
     final reserveAmount = num.tryParse(reserve.text);
-    final reserveTotal = reserveAmount == null
-        ? null
-        : isTotalBasis
-            ? reserveAmount
-            : reserveAmount * (quantity ?? 1);
-    final batch = firestore.batch();
-    batch.update(listing, {
-      'transactionType': 'Auction',
-      'startingBid': startAmount,
-      'currentBid': 0,
-      'minimumBidIncrement': increase,
-      'bidIncrementPricingBasis': priceBasis,
-      'reservePrice': FieldValue.delete(),
-      'reserveTotal': FieldValue.delete(),
-      'buyItNowPrice': num.tryParse(buyNow.text),
-      'buyItNowTotal': num.tryParse(buyNow.text) == null
-          ? null
-          : isTotalBasis
-              ? num.tryParse(buyNow.text)
-              : num.tryParse(buyNow.text)! * (quantity ?? 1),
-      'auctionPricingBasis': priceBasis,
-      'auctionQuantity': quantity,
-      'askingPriceAtConversion': askingPrice,
-      'askingTotalAtConversion': askingTotal,
-      'auctionDurationDays': durationDays,
-      'customAuction': customDuration,
-      'bidWithdrawalAfterDays': customDuration ? 32 : null,
-      'customAuctionUpfrontFee': customDuration ? 29.99 : 0,
-      'customAuctionSaleFeePercent': customDuration ? 5 : 0,
-      'additionalAuctionFeesDisclosure': customDuration,
-      'auctionStartAt': Timestamp.fromDate(DateTime.now()),
-      'auctionEndAt':
-          Timestamp.fromDate(DateTime.now().add(Duration(days: durationDays))),
-      'auctionStatus': 'live',
-      'bidCount': 0,
-      'notifyNewBids': true,
-      'notifyReserveReached': true,
-      'notifyAuctionEnding': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    if (reserveAmount != null && reserveAmount > 0) {
-      batch.set(firestore.collection('auction_private').doc(widget.listingId), {
-        'ownerUid': FirebaseAuth.instance.currentUser!.uid,
+    setState(() => _convertingToAuction = true);
+    try {
+      _auctionConversionRequestId ??=
+          '${widget.listingId}-${DateTime.now().microsecondsSinceEpoch}';
+      await MarketplaceCommandClient()
+          .execute('convertMarketplaceListingToAuction', {
+        'requestId': _auctionConversionRequestId,
+        'listingId': widget.listingId,
+        'startingBid': startAmount,
+        'minimumBidIncrement': increase,
         'reservePrice': reserveAmount,
-        if (reserveTotal != null) 'reserveTotal': reserveTotal,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'buyItNowPrice': num.tryParse(buyNow.text),
+        'durationDays': durationDays,
+        'customAuction': customDuration,
       });
-    }
-    await batch.commit();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.green,
-          content: Text('Listing moved to Auctions.')));
+      if (mounted) {
+        _auctionConversionRequestId = null;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.green,
+            content: Text('Listing moved to Auctions.')));
+      }
+    } catch (error) {
+      if (mounted) {
+        final message = '$error'.replaceFirst('Bad state: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text(message.isEmpty
+                ? 'The listing could not be moved to Auctions.'
+                : message)));
+      }
+    } finally {
+      if (mounted) setState(() => _convertingToAuction = false);
     }
   }
 
