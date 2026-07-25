@@ -5,11 +5,16 @@ const { createAdminRuntime } = require("./admin_runtime");
 const { createAccountCommands } = require("./account_commands");
 const { cleanupExpiredRateLimits } = require("./abuse_rate_limit");
 const { protectedCallableOptions } = require("./app_check_config");
+const {
+  cleanupExpiredMediaUploadAuthorizations,
+  createCommunicationCommands,
+} = require("./communication_commands");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
 const admin = createAdminRuntime();
 
 const accountCommands = createAccountCommands(admin);
+const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 exports.syncAccountVerification = onCall(
@@ -19,6 +24,34 @@ exports.syncAccountVerification = onCall(
 exports.cleanupExpiredSecurityRateLimits = onSchedule(
   "every 24 hours",
   async () => cleanupExpiredRateLimits(admin),
+);
+exports.cleanupExpiredMediaUploadAuthorizations = onSchedule(
+  "every 24 hours",
+  async () => cleanupExpiredMediaUploadAuthorizations(admin),
+);
+exports.openMarketplaceConversation = onCall(
+  protectedCallableOptions,
+  communicationCommands.openMarketplaceConversation,
+);
+exports.markMarketplaceConversationRead = onCall(
+  protectedCallableOptions,
+  communicationCommands.markMarketplaceConversationRead,
+);
+exports.authorizeMarketplaceUpload = onCall(
+  protectedCallableOptions,
+  communicationCommands.authorizeMarketplaceUpload,
+);
+exports.confirmMarketplaceUpload = onCall(
+  protectedCallableOptions,
+  communicationCommands.confirmMarketplaceUpload,
+);
+exports.sendMarketplaceMessage = onCall(
+  protectedCallableOptions,
+  communicationCommands.sendMarketplaceMessage,
+);
+exports.submitMarketplaceReport = onCall(
+  protectedCallableOptions,
+  communicationCommands.submitMarketplaceReport,
 );
 exports.createDispatchJob = onCall(
   protectedCallableOptions,

@@ -17,6 +17,20 @@ service firebase.storage {
       return request.resource.contentType.matches('video/.*');
     }
 
+    function validUploadAuthorization(fileName, userId, purpose, targetId) {
+      let authorization = firestore.get(
+        /databases/(default)/documents/media_upload_authorizations/$(fileName)
+      ).data;
+      return isOwner(userId)
+        && authorization.ownerUid == userId
+        && authorization.purpose == purpose
+        && authorization.targetId == targetId
+        && authorization.status == 'authorized'
+        && authorization.expiresAt > request.time
+        && authorization.contentType == request.resource.contentType
+        && authorization.sizeBytes == request.resource.size;
+    }
+
     match /listing_media/{userId}/{listingId}/{fileName} {
       allow read: if true;
       allow create, update: if isOwner(userId)
@@ -47,16 +61,19 @@ service firebase.storage {
           ).data.memberUids;
       }
       allow read: if isConversationMember();
-      allow create, update: if isOwner(userId)
+      allow create: if validUploadAuthorization(
+          fileName, userId, 'chat_attachment', conversationId)
         && isConversationMember()
         && request.resource.size <= 15 * 1024 * 1024
         && (isImage() || isVideo()
           || request.resource.contentType == 'application/pdf');
+      allow update: if false;
       allow delete: if isOwner(userId) && isConversationMember();
     }
 
     match /report_evidence/{userId}/{reportId}/{fileName} {
-      allow create: if isOwner(userId)
+      allow create: if validUploadAuthorization(
+          fileName, userId, 'report_evidence', reportId)
         && request.resource.size <= 10 * 1024 * 1024
         && isImage();
       allow read: if signedIn() && (

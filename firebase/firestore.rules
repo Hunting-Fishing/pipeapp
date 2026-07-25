@@ -378,34 +378,16 @@ service cloud.firestore {
     }
 
     match /conversations/{conversationId} {
-      allow create: if signedIn() &&
-        request.resource.data.memberUids is list &&
-        request.resource.data.memberUids.size() == 2 &&
-        request.auth.uid in request.resource.data.memberUids &&
-        request.resource.data.sellerUid in request.resource.data.memberUids &&
-        get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId)).data.sellerUid ==
-          request.resource.data.sellerUid;
       allow read: if signedIn() &&
         request.auth.uid in resource.data.memberUids;
-      allow update: if signedIn() &&
-        request.auth.uid in resource.data.memberUids &&
-        request.resource.data.memberUids == resource.data.memberUids &&
-        request.resource.data.listingId == resource.data.listingId &&
-        request.resource.data.sellerUid == resource.data.sellerUid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'listingTitle', 'sellerName', 'buyerDisplayName', 'openedByUid',
-          'openedAt', 'lastMessage', 'lastMessageAt', 'messageCount',
-          'unreadCounts'
-        ]);
-      allow delete: if false;
+      // Conversation membership, counters, unread state, and messages are
+      // mutated only by verified, throttled server commands.
+      allow create, update, delete: if false;
 
       match /messages/{messageId} {
-        allow create: if signedIn() &&
-          request.resource.data.senderUid == request.auth.uid &&
-          request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.memberUids;
         allow read: if signedIn() &&
           request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.memberUids;
-        allow update, delete: if false;
+        allow create, update, delete: if false;
       }
 
     }
@@ -485,21 +467,23 @@ service cloud.firestore {
     }
 
     match /trust_reports/{reportId} {
-      allow create: if signedIn() &&
-        request.resource.data.reporterUid == request.auth.uid &&
-        request.resource.data.reportedUid != request.auth.uid &&
-        request.resource.data.status == 'pending' &&
-        request.resource.data.reason is string &&
-        request.resource.data.details is string &&
-        request.resource.data.details.size() >= 10 &&
-        request.resource.data.attachmentCount is int &&
-        request.resource.data.attachmentCount >= 0 &&
-        request.resource.data.attachmentCount <= 5 &&
-        request.resource.data.targetType in ['listing', 'message', 'offer', 'user'];
       allow read: if isAdmin() ||
         (signedIn() && resource.data.reporterUid == request.auth.uid);
       allow update: if isAdmin();
-      allow delete: if false;
+      // User reports are validated, throttled, and created by a server command.
+      allow create, delete: if false;
+    }
+
+    match /media_upload_authorizations/{authorizationId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /communication_command_receipts/{receiptId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.actorUid == request.auth.uid);
+      allow create, update, delete: if false;
     }
 
     match /user_score_events/{eventId} {

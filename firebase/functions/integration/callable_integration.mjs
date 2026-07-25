@@ -344,6 +344,108 @@ try {
       [["listingId", "==", offerListingId]],
   );
 
+  const conversationData = {listingId: offerListingId};
+  const conversationFirst = await call(
+      "openMarketplaceConversation",
+      buyer.token,
+      conversationData,
+  );
+  const conversationRetry = await call(
+      "openMarketplaceConversation",
+      buyer.token,
+      conversationData,
+  );
+  assert.deepEqual(conversationRetry, conversationFirst);
+  const sellerConversation = await call(
+      "openMarketplaceConversation",
+      seller.token,
+      {
+        listingId: offerListingId,
+        participantUid: buyer.uid,
+        offerId,
+      },
+  );
+  assert.equal(sellerConversation.conversationId,
+      conversationFirst.conversationId);
+  const uploadAuthorization = await call(
+      "authorizeMarketplaceUpload",
+      buyer.token,
+      {
+        requestId: `chat-upload-${now}`,
+        purpose: "chat_attachment",
+        conversationId: conversationFirst.conversationId,
+        originalName: "integration.jpg",
+        contentType: "image/jpeg",
+        sizeBytes: 4,
+      },
+  );
+  assert.match(uploadAuthorization.storagePath, /chat_attachments/);
+  const uploadUrl = "https://firebasestorage.googleapis.com/v0/b/" +
+    "integration/o/" + encodeURIComponent(uploadAuthorization.storagePath) +
+    "?alt=media";
+  await call("confirmMarketplaceUpload", buyer.token, {
+    authorizationId: uploadAuthorization.authorizationId,
+    url: uploadUrl,
+  });
+  const messageData = {
+    requestId: `message-${now}`,
+    conversationId: conversationFirst.conversationId,
+    text: "The production communication command is ready.",
+    attachment: {
+      authorizationId: uploadAuthorization.authorizationId,
+      url: uploadUrl,
+      name: "integration.jpg",
+    },
+  };
+  const messageFirst = await call(
+      "sendMarketplaceMessage",
+      buyer.token,
+      messageData,
+  );
+  assert.deepEqual(
+      await call("sendMarketplaceMessage", buyer.token, messageData),
+      messageFirst,
+  );
+  await assertCollectionSize(
+      `conversations/${conversationFirst.conversationId}/messages`,
+      1,
+  );
+  assert.equal((await call(
+      "markMarketplaceConversationRead",
+      seller.token,
+      {conversationId: conversationFirst.conversationId},
+  )).changed, true);
+  const reportData = {
+    requestId: `report-${now}`,
+    reportedUid: seller.uid,
+    targetType: "listing",
+    listingId: offerListingId,
+    reason: "misleading_information",
+    details: "Integration evidence for the protected reporting command.",
+    attachments: [],
+  };
+  const reportFirst = await call(
+      "submitMarketplaceReport",
+      buyer.token,
+      reportData,
+  );
+  assert.deepEqual(
+      await call("submitMarketplaceReport", buyer.token, reportData),
+      reportFirst,
+  );
+  assert.equal(
+      (await db.doc(`trust_reports/${reportFirst.reportId}`).get())
+          .data().status,
+      "pending",
+  );
+  const blockedMessage = await expectCallableError(
+      "openMarketplaceConversation",
+      unverified.token,
+      {listingId: offerListingId},
+      "FAILED_PRECONDITION",
+  );
+  assert.match(blockedMessage.message, /verify your email/i);
+
   const acceptanceFirst = await call(
       "acceptMarketplaceOffer",
       seller.token,
@@ -877,10 +979,14 @@ try {
 
   const receipts = await db.collection("marketplace_command_receipts").get();
   assert.equal(receipts.size, 37);
+  const communicationReceipts = await db
+      .collection("communication_command_receipts").get();
+  assert.equal(communicationReceipts.size, 2);
   console.log(
       "Callable integration passed: saved listings, listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
-      "quote, award, delivery closure, and retry idempotency.",
+      "quote, award, delivery closure, protected messages/reports/uploads, " +
+      "and retry idempotency.",
   );
 } finally {
   await deleteApp(app);
