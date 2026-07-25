@@ -9,7 +9,9 @@ const {
 } = require("./account_security");
 const {
   DELETION_GRACE_DAYS,
+  DEVICE_HISTORY_DAYS,
   EXPORT_RETENTION_DAYS,
+  normalizeDeviceRegistration,
   requireDeletionConfirmation,
   requireNoDeletionBlockers,
   requireRecentAuthentication,
@@ -22,6 +24,13 @@ const EXPORT_CHUNK_CHARACTERS = 180000;
 const EXPORT_DOCUMENT_LIMIT = 5000;
 const EXPORT_SCHEMA_VERSION = 1;
 const DELETION_POLICY_VERSION = 1;
+
+function accountDeviceDocumentId(uid, deviceId) {
+  return crypto
+      .createHash("sha256")
+      .update(`${uid}|${deviceId}`)
+      .digest("hex");
+}
 
 function privacyError(error) {
   if (error instanceof HttpsError) return error;
@@ -154,6 +163,7 @@ async function buildAccountExport(db, auth, uid, generatedAt) {
     "profile_tags",
     "notifications",
     "watch_keywords",
+    "account_devices",
   ];
   const owned = {};
   for (const collection of userCollections) {
@@ -419,12 +429,86 @@ function createAccountPrivacyCommands(admin) {
     requireRecentAuthentication(request);
     await enforceUserRateLimit({ db, admin, request, scope: "privacy" });
     await admin.auth().revokeRefreshTokens(identity.uid);
-    await db.collection("account_privacy_events").add({
-      ownerUid: identity.uid,
-      type: "sessions_revoked",
-      createdAt: FieldValue.serverTimestamp(),
+    let historyUpdated = true;
+    try {
+      const devices = await db
+          .collection("users")
+          .doc(identity.uid)
+          .collection("account_devices")
+          .limit(50)
+          .get();
+      const batch = db.batch();
+      for (const device of devices.docs) {
+        batch.update(device.ref, {
+          status: "revoked",
+          revokedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      batch.create(db.collection("account_privacy_events").doc(), {
+        ownerUid: identity.uid,
+        type: "sessions_revoked",
+        deviceCount: devices.size,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      await batch.commit();
+    } catch (error) {
+      // Refresh-token revocation is the security boundary. A history-write
+      // outage must not make the client believe revocation itself failed.
+      historyUpdated = false;
+      console.error("Session history could not be updated after revocation", error);
+    }
+    return { revoked: true, historyUpdated };
+  });
+
+  const registerAccountDevice = command(async (request) => {
+    const identity = requireAuthenticatedIdentity(request, {requirePhone: false});
+    const device = normalizeDeviceRegistration(request.data);
+    await enforceUserRateLimit({db, admin, request, scope: "privacy"});
+    const deviceDocumentId = accountDeviceDocumentId(
+        identity.uid,
+        device.deviceId,
+    );
+    const deviceRef = db
+        .collection("users")
+        .doc(identity.uid)
+        .collection("account_devices")
+        .doc(deviceDocumentId);
+    let isNew = false;
+    const authTimeSeconds = Number(request.auth.token.auth_time);
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(deviceRef);
+      isNew = !snapshot.exists;
+      transaction.set(deviceRef, {
+        ownerUid: identity.uid,
+        label: device.label,
+        platform: device.platform,
+        status: "active",
+        lastSeenAt: FieldValue.serverTimestamp(),
+        lastAuthenticationAt: Number.isFinite(authTimeSeconds) &&
+            authTimeSeconds > 0 ?
+          admin.firestore.Timestamp.fromMillis(authTimeSeconds * 1000) :
+          FieldValue.serverTimestamp(),
+        revokedAt: FieldValue.delete(),
+        ...(!snapshot.exists ?
+          {firstSeenAt: FieldValue.serverTimestamp()} : {}),
+      }, {merge: true});
+      if (isNew) {
+        transaction.create(
+            db.collection("users").doc(identity.uid)
+                .collection("notifications")
+                .doc(`new-device-${deviceDocumentId}`),
+            {
+              recipientUid: identity.uid,
+              type: "new_device",
+              title: "New device remembered",
+              message: `${device.label} was added to your account device history.`,
+              read: false,
+              createdAt: FieldValue.serverTimestamp(),
+            },
+        );
+      }
     });
-    return { revoked: true };
+    return {deviceDocumentId, isNew};
   });
 
   const requestAccountDeletion = command(async (request) => {
@@ -530,6 +614,22 @@ function createAccountPrivacyCommands(admin) {
     return expired.size;
   }
 
+  async function cleanupStaleAccountDevices(batchLimit = 200) {
+    const cutoff = admin.firestore.Timestamp.fromMillis(
+        Date.now() - DEVICE_HISTORY_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const stale = await db
+        .collectionGroup("account_devices")
+        .where("lastSeenAt", "<=", cutoff)
+        .limit(batchLimit)
+        .get();
+    if (stale.empty) return 0;
+    const batch = db.batch();
+    for (const document of stale.docs) batch.delete(document.ref);
+    await batch.commit();
+    return stale.size;
+  }
+
   async function finalizeScheduledAccountDeletions(batchLimit = 10) {
     const due = await db
       .collection("account_deletion_requests")
@@ -615,7 +715,9 @@ function createAccountPrivacyCommands(admin) {
   return {
     cancelAccountDeletion,
     cleanupExpiredAccountExports,
+    cleanupStaleAccountDevices,
     finalizeScheduledAccountDeletions,
+    registerAccountDevice,
     requestAccountDataExport,
     requestAccountDeletion,
     revokeAccountSessions,
@@ -623,6 +725,7 @@ function createAccountPrivacyCommands(admin) {
 }
 
 module.exports = {
+  accountDeviceDocumentId,
   buildAccountExport,
   createAccountPrivacyCommands,
   deletionBlockers,

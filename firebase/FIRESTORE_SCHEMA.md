@@ -6,6 +6,12 @@ Firestore uses collections and documents rather than SQL tables.
   Auth email/phone claims are synchronized into protected ownership fields by
   `syncAccountVerification`; clients cannot mark themselves verified.
   - `saved_locations/{locationId}`: private reusable yards, remote sites, storage/pipe locations, personal sale areas, and observed-interest pins. Each record stores purpose, exact point, privacy, nearby-notification opt-in, and radius.
+  - `account_devices/{deviceHash}`: server-owned remembered app-installation
+    history with a bounded platform label, first/last seen timestamps, last
+    authentication time, and active/revoked state. Owners can read this
+    history; callables perform all writes and remove entries after 180 days of
+    inactivity. IP addresses, GPS locations, advertising IDs, and hardware
+    fingerprints are not collected.
 - `public_business_profiles/{uid}`: publicly visible business profile. Structured `serviceArea` supports radius, selected places, or selected regions; normalized `serviceCountryCodes`, `serviceRegionKeys`, and `servicePlaceKeys` arrays support targeting and reporting queries.
 - `business_private/{uid}`: legal name, private address and team membership.
 - `account_phone_registry/{sha256}`: server-owned mapping from a hashed,

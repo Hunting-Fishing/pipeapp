@@ -22,6 +22,7 @@ import 'marketplace_navigation.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_account_hub.dart';
+import 'marketplace_account_device_repository.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_public_profile_page.dart';
 import 'marketplace_avatar_image.dart';
@@ -831,6 +832,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   final Map<String, String> _savedRequestIds = {};
   final _actions = MarketplaceActionsRepository();
   final _featureRepository = Phase1FeatureFlagRepository();
+  final _deviceRepository = MarketplaceAccountDeviceRepository();
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<Set<String>>? _savedSubscription;
   StreamSubscription<Phase1FeatureFlags>? _featureSubscription;
@@ -1264,6 +1266,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       _savedLoading = user != null;
     });
     if (user == null) return;
+    unawaited(_registerCurrentDevice(user));
     final userUid = user.uid;
     _savedSubscription = _actions.watchSavedListingIds(userUid).listen(
       (listingIds) {
@@ -1295,6 +1298,21 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
         });
       },
     );
+  }
+
+  Future<void> _registerCurrentDevice(User user) async {
+    try {
+      await _deviceRepository.registerCurrentDevice();
+    } catch (error, stackTrace) {
+      if (FirebaseAuth.instance.currentUser?.uid != user.uid) return;
+      AppDiagnostics.record(
+        error,
+        stackTrace,
+        subsystem: 'account_security',
+        operation: 'register_account_device',
+        fatal: false,
+      );
+    }
   }
 
   Widget _unreadBadge() => StreamBuilder<int>(

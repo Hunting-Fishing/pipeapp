@@ -7,6 +7,7 @@ import '../core/data/bounded_firestore_query.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_account_security_page.dart';
+import 'marketplace_account_device_repository.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
@@ -2301,6 +2302,8 @@ class _AccountSettingsState extends State<_AccountSettings> {
       const SizedBox(height: 12),
       const _WatchKeywords(),
       const SizedBox(height: 12),
+      const _AccountDevicesCard(),
+      const SizedBox(height: 12),
       Card(
           child: Column(children: [
         ListTile(
@@ -2384,6 +2387,150 @@ class _AccountSettingsState extends State<_AccountSettings> {
           label: const Text('Sign out')),
     ]);
   }
+}
+
+class _AccountDevicesCard extends StatefulWidget {
+  const _AccountDevicesCard();
+
+  @override
+  State<_AccountDevicesCard> createState() => _AccountDevicesCardState();
+}
+
+class _AccountDevicesCardState extends State<_AccountDevicesCard> {
+  final _repository = MarketplaceAccountDeviceRepository();
+  String? _currentDeviceId;
+  Object? _registrationError;
+  bool _registering = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    if (mounted) {
+      setState(() {
+        _registering = true;
+        _registrationError = null;
+      });
+    }
+    try {
+      final registered = await _repository.registerCurrentDevice();
+      final current =
+          registered ?? await _repository.currentDeviceDocumentId();
+      if (mounted) setState(() => _currentDeviceId = current);
+    } catch (error) {
+      if (mounted) setState(() => _registrationError = error);
+    } finally {
+      if (mounted) setState(() => _registering = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox.shrink();
+    return Card(
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      ListTile(
+        leading: const Icon(Icons.devices_outlined),
+        title: const Text('Remembered devices'),
+        subtitle: const Text(
+            'App installations seen in the last 180 days. No location, IP address, or hardware fingerprint is stored.'),
+        trailing: _registering
+            ? const SizedBox.square(
+                dimension: 22,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : IconButton(
+                tooltip: 'Refresh device history',
+                onPressed: _refresh,
+                icon: const Icon(Icons.refresh_outlined)),
+      ),
+      if (!user.emailVerified)
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Text('Verify your email to begin protected device history.',
+              style: TextStyle(color: Colors.orange)),
+        )
+      else if (_registrationError != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Text(
+            'Device history could not refresh. Check your connection and try again.',
+            style: TextStyle(color: Colors.red.shade700),
+          ),
+        ),
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('account_devices')
+            .orderBy('lastSeenAt', descending: true)
+            .limit(20)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text('Remembered devices are temporarily unavailable.',
+                  style: TextStyle(color: Colors.red.shade700)),
+            );
+          }
+          final devices = snapshot.data?.docs ?? const [];
+          if (devices.isEmpty && !_registering) {
+            return const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text('No remembered device activity is available yet.'),
+            );
+          }
+          return Column(
+              children: devices.map((device) {
+            final data = device.data();
+            final current = device.id == _currentDeviceId;
+            final active = data['status'] != 'revoked';
+            return ListTile(
+              dense: true,
+              leading: Icon(_deviceIcon('${data['platform'] ?? ''}'),
+                  color: active ? Colors.blue.shade700 : Colors.grey),
+              title: Row(children: [
+                Flexible(child: Text('${data['label'] ?? 'Pipe Buyer device'}')),
+                if (current) ...[
+                  const SizedBox(width: 8),
+                  const Chip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text('This device')),
+                ],
+              ]),
+              subtitle: Text(active
+                  ? 'Last active ${_deviceActivity(data['lastSeenAt'])}'
+                  : 'Sessions revoked ${_deviceActivity(data['revokedAt'])}'),
+            );
+          }).toList(growable: false));
+        },
+      ),
+    ]));
+  }
+}
+
+IconData _deviceIcon(String platform) => switch (platform) {
+      'android' => Icons.phone_android_outlined,
+      'ios' => Icons.phone_iphone_outlined,
+      'windows' || 'macos' || 'linux' => Icons.computer_outlined,
+      'web' => Icons.language_outlined,
+      _ => Icons.devices_other_outlined,
+    };
+
+String _deviceActivity(Object? value) {
+  if (value is! Timestamp) return 'recently';
+  final difference = DateTime.now().difference(value.toDate());
+  if (difference.inMinutes < 2) return 'now';
+  if (difference.inHours < 1) return '${difference.inMinutes} min ago';
+  if (difference.inDays < 1) return '${difference.inHours} hr ago';
+  if (difference.inDays < 30) return '${difference.inDays} days ago';
+  final date = value.toDate();
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
 
 Future<void> _signOutFromSettings(BuildContext context) async {
