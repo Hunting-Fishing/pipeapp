@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/data/bounded_firestore_query.dart';
+
 import 'marketplace_actions_repository.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_money.dart';
@@ -9,7 +11,6 @@ import 'marketplace_avatar_image.dart';
 import 'regional_phone_field.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_listing_media.dart';
-import 'marketplace_listing_query.dart';
 
 class MarketplacePublicProfilePage extends StatefulWidget {
   const MarketplacePublicProfilePage({
@@ -56,13 +57,13 @@ class _MarketplacePublicProfilePageState
           .doc(widget.userUid)
           .get(),
       firestore.collection('public_seller_profiles').doc(widget.userUid).get(),
-      loadMarketplaceListingPage(_listingQuery()),
+      loadFirestoreDocumentPage(_listingQuery()),
     ]);
     final business =
         (results[0] as DocumentSnapshot<Map<String, dynamic>>).data() ?? {};
     final personal =
         (results[1] as DocumentSnapshot<Map<String, dynamic>>).data() ?? {};
-    final listingPage = results[2] as MarketplaceListingDocumentPage;
+    final listingPage = results[2] as FirestoreDocumentPage;
     _listings
       ..clear()
       ..addAll(listingPage.documents);
@@ -95,7 +96,7 @@ class _MarketplacePublicProfilePageState
       _listingLoadError = null;
     });
     try {
-      final page = await loadMarketplaceListingPage(
+      final page = await loadFirestoreDocumentPage(
         _listingQuery(),
         after: _listingCursor,
       );

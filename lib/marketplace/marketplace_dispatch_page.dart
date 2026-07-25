@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_dispatch_repository.dart';
 import 'marketplace_dispatch_distance.dart';
@@ -313,6 +317,27 @@ class _JobBoard extends StatefulWidget {
 
 class _JobBoardState extends State<_JobBoard> {
   MarketplaceDispatchRepository get repo => widget.repo;
+  late Future<({int jobs, int bids})> _activityCounts;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshActivityCounts();
+  }
+
+  void _refreshActivityCounts() {
+    _activityCounts = Future.wait([repo.myJobCount(), repo.myBidCount()])
+        .then((counts) => (jobs: counts[0], bids: counts[1]));
+  }
+
+  Future<void> _refreshBoard() async {
+    setState(_refreshActivityCounts);
+    try {
+      await _activityCounts;
+    } catch (_) {
+      // The activity cards render their unavailable state independently.
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Column(
@@ -329,67 +354,35 @@ class _JobBoardState extends State<_JobBoard> {
             ),
           ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: repo.openJobs(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(
-                      child: Text('Dispatch jobs could not load.'));
-                }
-                final jobs = snapshot.data?.docs ?? [];
-                if (jobs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IndustrialAssetIcon(
-                          label: 'Dispatch load board',
-                          assetPath: IndustrialIconAssets.dispatchLoadBoard,
-                          size: 108,
-                          fallback: Icon(
-                            Icons.local_shipping_outlined,
-                            size: 56,
-                            color: Color(0xFF0878E8),
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          'No open trucking jobs yet.',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        SizedBox(height: 4),
-                        Text('New loads will appear here for carrier bidding.'),
-                      ],
+            child: _DispatchPagedCollection(
+              query: repo.openJobsQuery,
+              onRefresh: _refreshBoard,
+              empty: const _DispatchEmptyState(
+                icon: Icons.local_shipping_outlined,
+                title: 'No open trucking jobs yet.',
+                message: 'New loads will appear here for carrier bidding.',
+              ),
+              itemBuilder: (context, job) {
+                final data = job.data();
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.local_shipping_outlined),
                     ),
-                  );
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
-                  itemCount: jobs.length,
-                  itemBuilder: (_, index) {
-                    final job = jobs[index];
-                    final data = job.data();
-                    return Card(
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.local_shipping_outlined),
-                        ),
-                        title: Text(
-                          '${data['title'] ?? 'Dispatch load'}',
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                        subtitle: Text(
-                          '${data['pickupLabel'] ?? ''} → ${data['deliveryLabel'] ?? ''}\n${dispatchDistanceLabel(data)} • ${data['estimatedWeightKg'] == null ? 'Weight to confirm' : '${data['estimatedWeightKg']} kg estimated'}\n${data['bidCount'] ?? 0} carrier bids',
-                        ),
-                        isThreeLine: true,
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => data['createdByUid'] ==
-                                FirebaseAuth.instance.currentUser?.uid
-                            ? _showJobManager(context, job)
-                            : _openCarrierJob(context, job),
-                      ),
-                    );
-                  },
+                    title: Text(
+                      '${data['title'] ?? 'Dispatch load'}',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    subtitle: Text(
+                      '${data['pickupLabel'] ?? ''} → ${data['deliveryLabel'] ?? ''}\n${dispatchDistanceLabel(data)} • ${data['estimatedWeightKg'] == null ? 'Weight to confirm' : '${data['estimatedWeightKg']} kg estimated'}\n${data['bidCount'] ?? 0} carrier bids',
+                    ),
+                    isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => data['createdByUid'] ==
+                            FirebaseAuth.instance.currentUser?.uid
+                        ? _showJobManager(context, job)
+                        : _openCarrierJob(context, job),
+                  ),
                 );
               },
             ),
@@ -397,42 +390,39 @@ class _JobBoardState extends State<_JobBoard> {
         ],
       );
 
-  Widget _myDispatchActivity(BuildContext context) => Container(
-        color: const Color(0xFFEAF4FD),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: repo.myJobs(),
-                builder: (context, snapshot) => _activityCard(
-                  icon: Icons.route_outlined,
-                  title: 'My requests',
-                  count: snapshot.data?.docs.length ?? 0,
-                  onTap: () => _showMyRequests(context),
+  Widget _myDispatchActivity(BuildContext context) =>
+      FutureBuilder<({int jobs, int bids})>(
+          future: _activityCounts,
+          builder: (context, counts) => Container(
+                color: const Color(0xFFEAF4FD),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _activityCard(
+                        icon: Icons.route_outlined,
+                        title: 'My requests',
+                        count: counts.hasError ? -1 : counts.data?.jobs,
+                        onTap: () => _showMyRequests(context),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _activityCard(
+                        icon: Icons.request_quote_outlined,
+                        title: 'My carrier quotes',
+                        count: counts.hasError ? -1 : counts.data?.bids,
+                        onTap: () => _showMyQuotes(context),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: repo.myBids(),
-                builder: (context, snapshot) => _activityCard(
-                  icon: Icons.request_quote_outlined,
-                  title: 'My carrier quotes',
-                  count: snapshot.data?.docs.length ?? 0,
-                  onTap: () => _showMyQuotes(context),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+              ));
 
   Widget _activityCard({
     required IconData icon,
     required String title,
-    required int count,
+    required int? count,
     required VoidCallback onTap,
   }) =>
       Card(
@@ -446,24 +436,17 @@ class _JobBoardState extends State<_JobBoard> {
             maxLines: 1,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          subtitle: Text('$count total'),
+          subtitle: Text(count == null
+              ? 'Loading…'
+              : count < 0
+                  ? 'Unavailable'
+                  : '$count total'),
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
         ),
       );
 
   Future<void> _showMyRequests(BuildContext context) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('dispatch_jobs')
-        .where(
-          'createdByUid',
-          isEqualTo: FirebaseAuth.instance.currentUser?.uid,
-        )
-        .get();
-    if (!context.mounted) return;
-    final jobs = [...snapshot.docs]..sort(
-        (a, b) => _dispatchDate(b.data()).compareTo(_dispatchDate(a.data())),
-      );
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -486,36 +469,38 @@ class _JobBoardState extends State<_JobBoard> {
                 ),
               ),
               Expanded(
-                child: jobs.isEmpty
-                    ? const Center(child: Text('No Dispatch requests yet.'))
-                    : ListView(
-                        padding: const EdgeInsets.all(12),
-                        children: jobs.map((job) {
-                          final data = job.data();
-                          return Card(
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.local_shipping_outlined),
-                              ),
-                              title: Text(
-                                '${data['title'] ?? 'Dispatch request'}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${data['pickupLabel'] ?? ''} → ${data['deliveryLabel'] ?? ''}\n${dispatchDistanceLabel(data)} • ${('${data['status'] ?? 'open'}').toUpperCase()}',
-                              ),
-                              isThreeLine: true,
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () {
-                                Navigator.pop(sheetContext);
-                                _showJobManager(context, job);
-                              },
-                            ),
-                          );
-                        }).toList(),
+                child: _DispatchPagedCollection(
+                  query: repo.myJobsQuery,
+                  padding: const EdgeInsets.all(12),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.route_outlined,
+                    title: 'No Dispatch requests yet.',
+                    message: 'Requests you publish will appear here.',
+                  ),
+                  itemBuilder: (_, job) {
+                    final data = job.data();
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.local_shipping_outlined),
+                        ),
+                        title: Text(
+                          '${data['title'] ?? 'Dispatch request'}',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          '${data['pickupLabel'] ?? ''} → ${data['deliveryLabel'] ?? ''}\n${dispatchDistanceLabel(data)} • ${('${data['status'] ?? 'open'}').toUpperCase()}',
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _showJobManager(context, job);
+                        },
                       ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -525,14 +510,6 @@ class _JobBoardState extends State<_JobBoard> {
   }
 
   Future<void> _showMyQuotes(BuildContext context) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('dispatch_bids')
-        .where('carrierUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-        .get();
-    if (!context.mounted) return;
-    final bids = [...snapshot.docs]..sort(
-        (a, b) => _dispatchDate(b.data()).compareTo(_dispatchDate(a.data())),
-      );
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -555,45 +532,45 @@ class _JobBoardState extends State<_JobBoard> {
                 ),
               ),
               Expanded(
-                child: bids.isEmpty
-                    ? const Center(
-                        child: Text('No carrier quotes submitted yet.'),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.all(12),
-                        children: bids.map((bid) {
-                          final data = bid.data();
-                          return Card(
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.request_quote_outlined),
-                              ),
-                              title: Text(
-                                marketplaceMoney(data['amount'] as num? ?? 0),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()}\n${data['note'] ?? ''}',
-                              ),
-                              isThreeLine: true,
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () async {
-                                final job = await FirebaseFirestore.instance
-                                    .collection('dispatch_jobs')
-                                    .doc('${data['jobId']}')
-                                    .get();
-                                if (!sheetContext.mounted) return;
-                                Navigator.pop(sheetContext);
-                                if (job.exists && context.mounted) {
-                                  _showCarrierQuote(context, job, bid);
-                                }
-                              },
-                            ),
-                          );
-                        }).toList(),
+                child: _DispatchPagedCollection(
+                  query: repo.myBidsQuery,
+                  padding: const EdgeInsets.all(12),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.request_quote_outlined,
+                    title: 'No carrier quotes submitted yet.',
+                    message: 'Quotes you submit will appear here.',
+                  ),
+                  itemBuilder: (_, bid) {
+                    final data = bid.data();
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.request_quote_outlined),
+                        ),
+                        title: Text(
+                          marketplaceMoney(data['amount'] as num? ?? 0),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()}\n${data['note'] ?? ''}',
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          final job = await FirebaseFirestore.instance
+                              .collection('dispatch_jobs')
+                              .doc('${data['jobId']}')
+                              .get();
+                          if (!sheetContext.mounted) return;
+                          Navigator.pop(sheetContext);
+                          if (job.exists && context.mounted) {
+                            _showCarrierQuote(context, job, bid);
+                          }
+                        },
                       ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -871,7 +848,7 @@ class _JobBoardState extends State<_JobBoard> {
     await _showRevisionHistory(
       context: context,
       title: '${job['title'] ?? 'Dispatch request'} history',
-      stream: repo.jobHistory(jobId),
+      query: () => repo.jobHistoryQuery(jobId),
       amountLabel: null,
     );
   }
@@ -883,129 +860,97 @@ class _JobBoardState extends State<_JobBoard> {
       builder: (sheetContext) => SafeArea(
         child: SizedBox(
           height: MediaQuery.sizeOf(sheetContext).height * .82,
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('dispatch_bids')
-                .where('jobId', isEqualTo: jobId)
-                .snapshots(),
-            builder: (_, snapshot) {
-              final bids = snapshot.data?.docs ?? [];
-              return Column(
-                children: [
-                  const ListTile(
-                    leading: Icon(Icons.local_shipping_outlined),
-                    title: Text(
-                      'Carrier bids',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
+          child: Column(
+            children: [
+              const ListTile(
+                leading: Icon(Icons.local_shipping_outlined),
+                title: Text(
+                  'Carrier bids',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                ),
+              ),
+              Expanded(
+                child: _DispatchPagedCollection(
+                  query: () => repo.bidsForJobQuery(jobId),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.request_quote_outlined,
+                    title: 'No carrier bids yet.',
+                    message: 'Carrier quotes will appear here as they arrive.',
+                  ),
+                  itemBuilder: (_, bid) {
+                    final data = bid.data();
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      child: ListTile(
+                        title: Text(
+                          '${data['carrierName'] ?? 'Carrier'} • ${marketplaceMoney(data['amount'] as num? ?? 0)}',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()} • ${data['revision'] ?? 1} revision(s)\n${data['note'] ?? ''}',
+                        ),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Quote history',
+                              onPressed: () => _showRevisionHistory(
+                                context: sheetContext,
+                                title:
+                                    '${data['carrierName'] ?? 'Carrier'} quote history',
+                                query: () => repo.bidHistoryQuery(bid.id),
+                                amountLabel: 'Quoted total',
+                              ),
+                              icon: const Icon(Icons.history_outlined),
+                            ),
+                            if (data['status'] == 'pending')
+                              FilledButton(
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                        context: sheetContext,
+                                        builder: (dialogContext) => AlertDialog(
+                                          title: const Text(
+                                              'Select this carrier?'),
+                                          content: const Text(
+                                            'The carrier will be notified and this dispatch job will close to new bids.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(
+                                                  dialogContext, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () => Navigator.pop(
+                                                  dialogContext, true),
+                                              child: const Text('Award job'),
+                                            ),
+                                          ],
+                                        ),
+                                      ) ??
+                                      false;
+                                  if (!confirmed) return;
+                                  await repo.awardBid(
+                                    jobId: jobId,
+                                    bidId: bid.id,
+                                    carrierUid: '${data['carrierUid']}',
+                                    amount: data['amount'] as num,
+                                  );
+                                  if (sheetContext.mounted) {
+                                    Navigator.pop(sheetContext);
+                                  }
+                                },
+                                child: const Text('Select'),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: bids.isEmpty
-                        ? const Center(child: Text('No carrier bids yet.'))
-                        : ListView(
-                            children: bids.map((bid) {
-                              final data = bid.data();
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 5,
-                                ),
-                                child: ListTile(
-                                  title: Text(
-                                    '${data['carrierName'] ?? 'Carrier'} • ${marketplaceMoney(data['amount'] as num? ?? 0)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()} • ${data['revision'] ?? 1} revision(s)\n${data['note'] ?? ''}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'Quote history',
-                                        onPressed: () => _showRevisionHistory(
-                                          context: sheetContext,
-                                          title:
-                                              '${data['carrierName'] ?? 'Carrier'} quote history',
-                                          stream: repo.bidHistory(bid.id),
-                                          amountLabel: 'Quoted total',
-                                        ),
-                                        icon: const Icon(
-                                          Icons.history_outlined,
-                                        ),
-                                      ),
-                                      if (data['status'] == 'pending')
-                                        FilledButton(
-                                          onPressed: () async {
-                                            final confirmed =
-                                                await showDialog<bool>(
-                                                      context: sheetContext,
-                                                      builder:
-                                                          (dialogContext) =>
-                                                              AlertDialog(
-                                                        title: const Text(
-                                                          'Select this carrier?',
-                                                        ),
-                                                        content: const Text(
-                                                          'The carrier will be notified and this dispatch job will close to new bids.',
-                                                        ),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                              dialogContext,
-                                                              false,
-                                                            ),
-                                                            child: const Text(
-                                                              'Cancel',
-                                                            ),
-                                                          ),
-                                                          FilledButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                              dialogContext,
-                                                              true,
-                                                            ),
-                                                            child: const Text(
-                                                              'Award job',
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ) ??
-                                                    false;
-                                            if (!confirmed) {
-                                              return;
-                                            }
-                                            await repo.awardBid(
-                                              jobId: jobId,
-                                              bidId: bid.id,
-                                              carrierUid:
-                                                  '${data['carrierUid']}',
-                                              amount: data['amount'] as num,
-                                            );
-                                            if (sheetContext.mounted) {
-                                              Navigator.pop(sheetContext);
-                                            }
-                                          },
-                                          child: const Text('Select'),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                  ),
-                ],
-              );
-            },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1111,7 +1056,7 @@ class _JobBoardState extends State<_JobBoard> {
                           _showRevisionHistory(
                             context: context,
                             title: 'Carrier quote history',
-                            stream: repo.bidHistory(bid.id),
+                            query: () => repo.bidHistoryQuery(bid.id),
                             amountLabel: 'Quoted total',
                           );
                         },
@@ -1132,7 +1077,7 @@ class _JobBoardState extends State<_JobBoard> {
   Future<void> _showRevisionHistory({
     required BuildContext context,
     required String title,
-    required Stream<QuerySnapshot<Map<String, dynamic>>> stream,
+    required Query<Map<String, dynamic>> Function() query,
     required String? amountLabel,
   }) async {
     await showModalBottomSheet<void>(
@@ -1141,65 +1086,63 @@ class _JobBoardState extends State<_JobBoard> {
       builder: (sheetContext) => SafeArea(
         child: SizedBox(
           height: MediaQuery.sizeOf(sheetContext).height * .72,
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: stream,
-            builder: (context, snapshot) {
-              final revisions = snapshot.data?.docs ?? [];
-              return Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.history_outlined),
-                    title: Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Permanent activity and revision history',
-                    ),
-                    trailing: IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(sheetContext),
-                      icon: const Icon(Icons.close),
-                    ),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.history_outlined),
+                title: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
                   ),
-                  Expanded(
-                    child: revisions.isEmpty
-                        ? const Center(child: Text('No history recorded yet.'))
-                        : ListView(
-                            padding: const EdgeInsets.all(12),
-                            children: revisions.map((revision) {
-                              final data = revision.data();
-                              final amount = data['amount'] as num?;
-                              return Card(
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    child: Text('${data['revision'] ?? '—'}'),
-                                  ),
-                                  title: Text(
-                                    amountLabel != null && amount != null
-                                        ? '$amountLabel • ${marketplaceMoney(amount)}'
-                                        : _dispatchEventLabel(
-                                            '${data['event'] ?? 'updated'}',
-                                          ),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${_dispatchEventLabel('${data['event'] ?? 'updated'}')} • ${('${data['status'] ?? ''}').toUpperCase()}\n${_dispatchDateLabel(data)}${('${data['note'] ?? ''}').trim().isEmpty ? '' : '\n${data['note']}'}',
-                                  ),
-                                  isThreeLine: true,
+                ),
+                subtitle: const Text(
+                  'Permanent activity and revision history',
+                ),
+                trailing: IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(sheetContext),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+              Expanded(
+                child: _DispatchPagedCollection(
+                  query: query,
+                  padding: const EdgeInsets.all(12),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.history_outlined,
+                    title: 'No history recorded yet.',
+                    message: 'Permanent revisions will appear here.',
+                  ),
+                  itemBuilder: (_, revision) {
+                    final data = revision.data();
+                    final amount = data['amount'] as num?;
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text('${data['revision'] ?? '—'}'),
+                        ),
+                        title: Text(
+                          amountLabel != null && amount != null
+                              ? '$amountLabel • ${marketplaceMoney(amount)}'
+                              : _dispatchEventLabel(
+                                  '${data['event'] ?? 'updated'}',
                                 ),
-                              );
-                            }).toList(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
                           ),
-                  ),
-                ],
-              );
-            },
+                        ),
+                        subtitle: Text(
+                          '${_dispatchEventLabel('${data['event'] ?? 'updated'}')} • ${('${data['status'] ?? ''}').toUpperCase()}\n${_dispatchDateLabel(data)}${('${data['note'] ?? ''}').trim().isEmpty ? '' : '\n${data['note']}'}',
+                        ),
+                        isThreeLine: true,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1216,6 +1159,7 @@ class _JobBoardState extends State<_JobBoard> {
         .collection('dispatch_carriers')
         .doc(FirebaseAuth.instance.currentUser?.uid)
         .collection('vehicles')
+        .limit(100)
         .get();
     if (fleet.docs.isEmpty) {
       if (context.mounted) {
@@ -1385,6 +1329,278 @@ class _JobBoardState extends State<_JobBoard> {
       }
     }
   }
+}
+
+typedef _DispatchDocumentBuilder = Widget Function(
+  BuildContext context,
+  QueryDocumentSnapshot<Map<String, dynamic>> document,
+);
+
+class _DispatchPagedCollection extends StatefulWidget {
+  const _DispatchPagedCollection({
+    required this.query,
+    required this.itemBuilder,
+    required this.empty,
+    this.onRefresh,
+    this.padding = const EdgeInsets.fromLTRB(14, 4, 14, 20),
+  });
+
+  final Query<Map<String, dynamic>> Function() query;
+  final _DispatchDocumentBuilder itemBuilder;
+  final Widget empty;
+  final Future<void> Function()? onRefresh;
+  final EdgeInsets padding;
+
+  @override
+  State<_DispatchPagedCollection> createState() =>
+      _DispatchPagedCollectionState();
+}
+
+class _DispatchPagedCollectionState extends State<_DispatchPagedCollection> {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
+  final Set<String> _firstPageIds = {};
+  QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _firstPage;
+  bool _loading = false;
+  bool _hasMore = true;
+  String? _error;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToFirstPage();
+  }
+
+  void _listenToFirstPage() {
+    _loading = true;
+    _firstPage =
+        widget.query().limit(defaultFirestorePageSize).snapshots().listen(
+      (snapshot) {
+        if (!mounted) return;
+        final tail = _documents
+            .where((document) => !_firstPageIds.contains(document.id))
+            .toList();
+        final merged = appendUniqueById(
+          snapshot.docs,
+          tail,
+          (document) => document.id,
+        );
+        setState(() {
+          _documents
+            ..clear()
+            ..addAll(merged);
+          _firstPageIds
+            ..clear()
+            ..addAll(snapshot.docs.map((document) => document.id));
+          if (tail.isEmpty) _cursor = snapshot.docs.lastOrNull;
+          _hasMore = tail.isNotEmpty ||
+              snapshot.docs.length == defaultFirestorePageSize;
+          _loading = false;
+          _error = null;
+        });
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = error is FirebaseException &&
+                  error.code == 'failed-precondition'
+              ? 'The Dispatch index is still being prepared. Try again shortly.'
+              : 'Dispatch records could not be loaded. Check your connection.';
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _firstPage?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool reset = false}) async {
+    if ((_loading && !reset) || (!reset && !_hasMore)) return;
+    final generation = reset ? ++_generation : _generation;
+    setState(() {
+      _loading = true;
+      _error = null;
+      if (reset) {
+        _documents.clear();
+        _cursor = null;
+        _hasMore = true;
+      }
+    });
+    try {
+      final page = await loadFirestoreDocumentPage(
+        widget.query(),
+        after: reset ? null : _cursor,
+      );
+      if (!mounted || generation != _generation) return;
+      final merged = appendUniqueById(
+        reset
+            ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+            : _documents,
+        page.documents,
+        (document) => document.id,
+      );
+      setState(() {
+        _documents
+          ..clear()
+          ..addAll(merged);
+        if (reset) {
+          _firstPageIds
+            ..clear()
+            ..addAll(page.documents.map((document) => document.id));
+        }
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted || generation != _generation) return;
+      setState(() => _error = error.code == 'failed-precondition'
+          ? 'The Dispatch index is still being prepared. Try again shortly.'
+          : 'Dispatch records could not be loaded. Check your connection.');
+    } catch (_) {
+      if (mounted && generation == _generation) {
+        setState(() => _error =
+            'Dispatch records could not be loaded. Check your connection.');
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _refresh() async {
+    await _load(reset: true);
+    await widget.onRefresh?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading && _documents.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null && _documents.isEmpty) {
+      return _DispatchQueryError(error: _error!, onRetry: _refresh);
+    }
+    if (_documents.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [SizedBox(height: 420, child: Center(child: widget.empty))],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: widget.padding,
+        itemCount: _documents.length + 1,
+        itemBuilder: (context, index) {
+          if (index < _documents.length) {
+            return widget.itemBuilder(context, _documents[index]);
+          }
+          if (_error != null) {
+            return _DispatchQueryError(
+              error: _error!,
+              onRetry: () => _load(),
+              compact: true,
+            );
+          }
+          if (_hasMore) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: FilledButton.tonalIcon(
+                  onPressed: _loading ? null : () => _load(),
+                  icon: _loading
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.expand_more_rounded),
+                  label: const Text('Load more'),
+                ),
+              ),
+            );
+          }
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Center(
+              child: Text(
+                'All records loaded.',
+                style: TextStyle(color: Color(0xFF66758A)),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DispatchQueryError extends StatelessWidget {
+  const _DispatchQueryError({
+    required this.error,
+    required this.onRetry,
+    this.compact = false,
+  });
+
+  final String error;
+  final VoidCallback onRetry;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 12 : 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.sync_problem_outlined, color: Colors.deepOrange),
+              const SizedBox(height: 6),
+              Text(error, textAlign: TextAlign.center),
+              TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _DispatchEmptyState extends StatelessWidget {
+  const _DispatchEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 56, color: const Color(0xFF0878E8)),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            Text(message, textAlign: TextAlign.center),
+          ],
+        ),
+      );
 }
 
 class _PostJob extends StatefulWidget {

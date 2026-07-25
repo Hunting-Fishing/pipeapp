@@ -96,6 +96,47 @@
       ]
     },
     {
+      "collectionGroup": "dispatch_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dispatch_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdByUid", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dispatch_bids",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "carrierUid", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dispatch_bids",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "jobId", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dispatch_bids",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "carrierUid", "order": "ASCENDING" },
+        { "fieldPath": "jobId", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "account_deletion_requests",
       "queryScope": "COLLECTION",
       "fields": [

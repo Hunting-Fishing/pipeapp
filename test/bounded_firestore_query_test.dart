@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pipe_app/marketplace/marketplace_listing_query.dart';
+import 'package:pipe_app/core/data/bounded_firestore_query.dart';
 
 void main() {
   test('appendUniqueById preserves order and removes duplicate pages', () {
@@ -19,7 +19,7 @@ void main() {
     expect(merged.map((item) => item.value), [1, 2, 3]);
   });
 
-  test('marketplace listing page size is intentionally bounded', () {
-    expect(marketplaceListingPageSize, 24);
+  test('default Firestore page size is intentionally bounded', () {
+    expect(defaultFirestorePageSize, 24);
   });
 }

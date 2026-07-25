@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/config/phase1_feature_flags.dart';
 import '../core/config/phase1_feature_policy.dart';
+import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
@@ -30,7 +31,6 @@ import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
-import 'marketplace_listing_query.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
@@ -1979,7 +1979,7 @@ class _BrowsePageState extends State<_BrowsePage> {
       }
     });
     try {
-      final page = await loadMarketplaceListingPage(
+      final page = await loadFirestoreDocumentPage(
         _query(),
         after: reset ? null : _cursor,
       );

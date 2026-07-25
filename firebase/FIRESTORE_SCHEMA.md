@@ -101,6 +101,12 @@ User-facing listing discovery must remain bounded:
 - The public map reads at most the 200 newest active listings and creates
   markers only for `exact` or `approximate` public locations.
 - The Dispatch listing chooser reads at most the 50 newest active listings.
+- Dispatch open jobs, owner requests, carrier quotes, per-job bids, and job/bid
+  revision histories keep a live first page of 24 records and use document
+  cursors for older pages. Queries constrain status, owner, carrier, or job on
+  the server through declared composite indexes.
+- Dispatch activity totals use Firestore aggregate counts. Fleet, saved-lane,
+  verified-scale, and transaction-support reads use explicit safety caps.
 
 Full-text and route-aware geospatial discovery require a dedicated indexed
 search provider; increasing these Firestore caps is not a substitute.

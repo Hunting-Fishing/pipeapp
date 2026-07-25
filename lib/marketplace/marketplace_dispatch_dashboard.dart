@@ -135,6 +135,7 @@ class _MarketplaceDispatchDashboardState
       stream: FirebaseFirestore.instance
           .collection('dispatch_scales')
           .where('status', isEqualTo: 'verified')
+          .limit(500)
           .snapshots(),
       builder: (context, snapshot) {
         final scales = snapshot.data?.docs ?? [];

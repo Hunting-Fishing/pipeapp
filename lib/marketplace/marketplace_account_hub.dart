@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/data/bounded_firestore_query.dart';
+
 import 'marketplace_messages_page.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_account_security_page.dart';
@@ -10,7 +12,6 @@ import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
-import 'marketplace_listing_query.dart';
 import 'marketplace_money.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_command_client.dart';
@@ -522,8 +523,8 @@ class _MyListingsState extends State<_MyListings> {
           .collection('public_listings')
           .where('sellerUid', isEqualTo: uid)
           .orderBy('createdAt', descending: true);
-      final page = await loadMarketplaceListingPage(query,
-          after: reset ? null : _cursor);
+      final page =
+          await loadFirestoreDocumentPage(query, after: reset ? null : _cursor);
       if (!mounted || generation != _generation) return;
       final merged = appendUniqueById(
           reset

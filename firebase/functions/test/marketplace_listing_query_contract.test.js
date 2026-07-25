@@ -12,9 +12,9 @@ function source(relativePath) {
 }
 
 test("shared marketplace listing pages always apply a Firestore limit", () => {
-  const query = source("lib/marketplace/marketplace_listing_query.dart");
+  const query = source("lib/core/data/bounded_firestore_query.dart");
   assert.match(query, /query\.limit\(pageSize\)/);
-  assert.match(query, /marketplaceListingPageSize = 24/);
+  assert.match(query, /defaultFirestorePageSize = 24/);
 });
 
 test("auction and seller listing surfaces use bounded pages", () => {
@@ -23,9 +23,9 @@ test("auction and seller listing surfaces use bounded pages", () => {
   const profile = source(
       "lib/marketplace/marketplace_public_profile_page.dart",
   );
-  assert.match(auctions, /loadMarketplaceListingPage\(/);
-  assert.match(account, /loadMarketplaceListingPage\(/);
-  assert.match(profile, /loadMarketplaceListingPage\(/);
+  assert.match(auctions, /loadFirestoreDocumentPage\(/);
+  assert.match(account, /loadFirestoreDocumentPage\(/);
+  assert.match(profile, /loadFirestoreDocumentPage\(/);
 });
 
 test("map and Dispatch selectors use explicit maximum result counts", () => {

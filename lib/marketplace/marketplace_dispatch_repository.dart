@@ -9,7 +9,7 @@ import 'regional_phone_field.dart';
 
 class MarketplaceDispatchRepository {
   MarketplaceDispatchRepository({MarketplaceCommandClient? commandClient})
-    : _commands = commandClient ?? MarketplaceCommandClient();
+      : _commands = commandClient ?? MarketplaceCommandClient();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final MarketplaceCommandClient _commands;
@@ -22,6 +22,7 @@ class MarketplaceDispatchRepository {
       .collection('dispatch_carriers')
       .doc(uid)
       .collection('vehicles')
+      .limit(100)
       .snapshots();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> savedQuotes() => _firestore
@@ -29,6 +30,7 @@ class MarketplaceDispatchRepository {
       .doc(uid)
       .collection('saved_quotes')
       .orderBy('updatedAt', descending: true)
+      .limit(50)
       .snapshots();
 
   Future<String> saveQuote(
@@ -39,19 +41,21 @@ class MarketplaceDispatchRepository {
         .collection('dispatch_carriers')
         .doc(uid)
         .collection('saved_quotes');
-    final reference = quoteId == null
-        ? collection.doc()
-        : collection.doc(quoteId);
+    final reference =
+        quoteId == null ? collection.doc() : collection.doc(quoteId);
     final existing = await reference.get();
     final revision = (existing.data()?['revision'] as num? ?? 0).toInt() + 1;
     final batch = _firestore.batch();
-    batch.set(reference, {
-      ...quote,
-      'ownerUid': uid,
-      'revision': revision,
-      'updatedAt': FieldValue.serverTimestamp(),
-      if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    batch.set(
+        reference,
+        {
+          ...quote,
+          'ownerUid': uid,
+          'revision': revision,
+          'updatedAt': FieldValue.serverTimestamp(),
+          if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true));
     batch.set(reference.collection('revisions').doc('$revision'), {
       ...quote,
       'ownerUid': uid,
@@ -65,58 +69,91 @@ class MarketplaceDispatchRepository {
 
   Stream<QuerySnapshot<Map<String, dynamic>>> savedQuoteHistory(
     String quoteId,
-  ) => _firestore
-      .collection('dispatch_carriers')
-      .doc(uid)
-      .collection('saved_quotes')
-      .doc(quoteId)
-      .collection('revisions')
-      .orderBy('revision', descending: true)
-      .snapshots();
+  ) =>
+      _firestore
+          .collection('dispatch_carriers')
+          .doc(uid)
+          .collection('saved_quotes')
+          .doc(quoteId)
+          .collection('revisions')
+          .orderBy('revision', descending: true)
+          .limit(100)
+          .snapshots();
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> openJobs() => _firestore
+  Query<Map<String, dynamic>> openJobsQuery() => _firestore
       .collection('dispatch_jobs')
       .where('status', isEqualTo: 'open')
-      .snapshots();
+      .orderBy('createdAt', descending: true);
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> myJobs() => _firestore
+  Query<Map<String, dynamic>> myJobsQuery() => _firestore
       .collection('dispatch_jobs')
       .where('createdByUid', isEqualTo: uid)
-      .snapshots();
+      .orderBy('updatedAt', descending: true);
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> myBids() => _firestore
+  Query<Map<String, dynamic>> myBidsQuery() => _firestore
       .collection('dispatch_bids')
       .where('carrierUid', isEqualTo: uid)
-      .snapshots();
+      .orderBy('updatedAt', descending: true);
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> jobHistory(String jobId) =>
-      _firestore
-          .collection('dispatch_jobs')
-          .doc(jobId)
-          .collection('revisions')
-          .orderBy('revision', descending: true)
-          .snapshots();
+  Query<Map<String, dynamic>> bidsForJobQuery(String jobId) => _firestore
+      .collection('dispatch_bids')
+      .where('jobId', isEqualTo: jobId)
+      .orderBy('updatedAt', descending: true);
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> bidHistory(String bidId) =>
-      _firestore
-          .collection('dispatch_bids')
-          .doc(bidId)
-          .collection('revisions')
-          .orderBy('revision', descending: true)
-          .snapshots();
+  Future<int> openJobCount() async =>
+      (await _firestore
+              .collection('dispatch_jobs')
+              .where('status', isEqualTo: 'open')
+              .count()
+              .get())
+          .count ??
+      0;
+
+  Future<int> myJobCount() async =>
+      (await _firestore
+              .collection('dispatch_jobs')
+              .where('createdByUid', isEqualTo: uid)
+              .count()
+              .get())
+          .count ??
+      0;
+
+  Future<int> myBidCount() async =>
+      (await _firestore
+              .collection('dispatch_bids')
+              .where('carrierUid', isEqualTo: uid)
+              .count()
+              .get())
+          .count ??
+      0;
+
+  Query<Map<String, dynamic>> jobHistoryQuery(String jobId) => _firestore
+      .collection('dispatch_jobs')
+      .doc(jobId)
+      .collection('revisions')
+      .orderBy('revision', descending: true);
+
+  Query<Map<String, dynamic>> bidHistoryQuery(String bidId) => _firestore
+      .collection('dispatch_bids')
+      .doc(bidId)
+      .collection('revisions')
+      .orderBy('revision', descending: true);
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> dispatchTransaction(
     String jobId,
-  ) => _firestore.collection('dispatch_transactions').doc(jobId).snapshots();
+  ) =>
+      _firestore.collection('dispatch_transactions').doc(jobId).snapshots();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> dispatchTransactionHistory(
     String jobId,
-  ) => _firestore
-      .collection('dispatch_transactions')
-      .doc(jobId)
-      .collection('revisions')
-      .orderBy('revision', descending: true)
-      .snapshots();
+  ) =>
+      _firestore
+          .collection('dispatch_transactions')
+          .doc(jobId)
+          .collection('revisions')
+          .orderBy('revision', descending: true)
+          .limit(100)
+          .snapshots();
 
   Future<QueryDocumentSnapshot<Map<String, dynamic>>?> myBidForJob(
     String jobId,
@@ -124,22 +161,11 @@ class MarketplaceDispatchRepository {
     final snapshot = await _firestore
         .collection('dispatch_bids')
         .where('carrierUid', isEqualTo: uid)
+        .where('jobId', isEqualTo: jobId)
+        .orderBy('updatedAt', descending: true)
+        .limit(1)
         .get();
-    final matches =
-        snapshot.docs
-            .where((document) => document.data()['jobId'] == jobId)
-            .toList()
-          ..sort((a, b) {
-            final aPending = a.data()['status'] == 'pending' ? 1 : 0;
-            final bPending = b.data()['status'] == 'pending' ? 1 : 0;
-            if (aPending != bPending) return bPending.compareTo(aPending);
-            final aTime = a.data()['updatedAt'] as Timestamp?;
-            final bTime = b.data()['updatedAt'] as Timestamp?;
-            return (bTime?.millisecondsSinceEpoch ?? 0).compareTo(
-              aTime?.millisecondsSinceEpoch ?? 0,
-            );
-          });
-    return matches.firstOrNull;
+    return snapshot.docs.firstOrNull;
   }
 
   Future<void> publishDraftJob(String jobId) =>
@@ -199,11 +225,12 @@ class MarketplaceDispatchRepository {
     required List<String> services,
     required bool pilotTruck,
     String notes = '',
-  }) => _firestore
-      .collection('dispatch_carriers')
-      .doc(uid)
-      .collection('vehicles')
-      .add({
+  }) =>
+      _firestore
+          .collection('dispatch_carriers')
+          .doc(uid)
+          .collection('vehicles')
+          .add({
         'ownerUid': uid,
         'name': name,
         'vehicleType': vehicleType,
@@ -271,8 +298,7 @@ class MarketplaceDispatchRepository {
         },
       if (mappedDistance != null) 'distanceKm': mappedDistance,
       if (mappedDistance != null)
-        'distanceSource':
-            distanceSource ??
+        'distanceSource': distanceSource ??
             (distanceKm == null ? 'coordinate_estimate' : 'user_entered_route'),
       if (deliveryLocation != null) ...{
         'deliveryPoint': {

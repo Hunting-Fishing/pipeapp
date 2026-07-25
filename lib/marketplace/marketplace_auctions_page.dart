@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/data/bounded_firestore_query.dart';
+
 import 'marketplace_auction_repository.dart';
 import 'marketplace_auction_settlement.dart';
 import 'marketplace_avatar_image.dart';
@@ -13,7 +15,6 @@ import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
-import 'marketplace_listing_query.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
@@ -82,7 +83,7 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
       }
     });
     try {
-      final page = await loadMarketplaceListingPage(
+      final page = await loadFirestoreDocumentPage(
         _query(DateTime.now()),
         after: reset ? null : _cursor,
       );
@@ -103,10 +104,10 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
       });
     } catch (error) {
       if (!mounted || generation != _queryGeneration) return;
-      setState(() => _loadError = error is FirebaseException &&
-              error.code == 'failed-precondition'
-          ? 'The auction index is still being prepared. Try again shortly.'
-          : 'Check your connection and try again.');
+      setState(() => _loadError =
+          error is FirebaseException && error.code == 'failed-precondition'
+              ? 'The auction index is still being prepared. Try again shortly.'
+              : 'Check your connection and try again.');
     } finally {
       if (mounted && generation == _queryGeneration) {
         setState(() => _loading = false);
@@ -189,13 +190,12 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                       details: _loadError!,
                       onRetry: () => _loadPage(reset: true),
                     )
-                      : auctions.isEmpty
-                          ? _AuctionEmpty(
-                              filter: _filter,
-                              onCreate: widget.onCreateAuction,
-                              onLoadMore: _hasMore && !_loading
-                                  ? () => _loadPage()
-                                  : null)
+                  : auctions.isEmpty
+                      ? _AuctionEmpty(
+                          filter: _filter,
+                          onCreate: widget.onCreateAuction,
+                          onLoadMore:
+                              _hasMore && !_loading ? () => _loadPage() : null)
                       : RefreshIndicator(
                           onRefresh: () => _loadPage(reset: true),
                           child: ListView.builder(

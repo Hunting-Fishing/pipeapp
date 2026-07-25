@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-const marketplaceListingPageSize = 24;
+const defaultFirestorePageSize = 24;
 
-class MarketplaceListingDocumentPage {
-  const MarketplaceListingDocumentPage({
+class FirestoreDocumentPage {
+  const FirestoreDocumentPage({
     required this.documents,
     required this.cursor,
     required this.hasMore,
@@ -14,16 +14,16 @@ class MarketplaceListingDocumentPage {
   final bool hasMore;
 }
 
-Future<MarketplaceListingDocumentPage> loadMarketplaceListingPage(
+Future<FirestoreDocumentPage> loadFirestoreDocumentPage(
   Query<Map<String, dynamic>> query, {
   QueryDocumentSnapshot<Map<String, dynamic>>? after,
-  int pageSize = marketplaceListingPageSize,
+  int pageSize = defaultFirestorePageSize,
 }) async {
   assert(pageSize > 0);
   var bounded = query.limit(pageSize);
   if (after != null) bounded = bounded.startAfterDocument(after);
   final snapshot = await bounded.get();
-  return MarketplaceListingDocumentPage(
+  return FirestoreDocumentPage(
     documents: snapshot.docs,
     cursor: snapshot.docs.lastOrNull,
     hasMore: snapshot.docs.length == pageSize,

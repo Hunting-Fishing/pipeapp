@@ -17,10 +17,16 @@ const {
 const {
   deleteDoc,
   doc,
+  collection,
   getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
   setDoc,
   Timestamp,
   updateDoc,
+  where,
 } = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-rules";
@@ -219,6 +225,8 @@ beforeEach(async () => {
       status: "open",
       bidCount: 1,
       revision: 1,
+      createdAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+      updatedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
     });
     await setDoc(doc(db, "dispatch_bids", "bid"), {
       jobId: "job",
@@ -227,6 +235,7 @@ beforeEach(async () => {
       status: "pending",
       revision: 1,
       vehicleId: "truck",
+      updatedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
     });
     await setDoc(doc(db, "dispatch_transactions", "job"), {
       jobId: "job",
@@ -900,6 +909,49 @@ test("Dispatch job, quote, and award state cannot be forged by clients", async (
         revision: 2,
       },
   ));
+});
+
+test("bounded Dispatch discovery queries preserve participant access", async () => {
+  const carrierDb = testEnvironment
+      .authenticatedContext("carrier")
+      .firestore();
+  const ownerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+
+  await assertSucceeds(getDocs(query(
+      collection(carrierDb, "dispatch_jobs"),
+      where("status", "==", "open"),
+      orderBy("createdAt", "desc"),
+      limit(24),
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(ownerDb, "dispatch_jobs"),
+      where("createdByUid", "==", "buyer"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(carrierDb, "dispatch_bids"),
+      where("carrierUid", "==", "carrier"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(ownerDb, "dispatch_bids"),
+      where("jobId", "==", "job"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
+  await assertFails(getDocs(query(
+      collection(strangerDb, "dispatch_bids"),
+      where("jobId", "==", "job"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
 });
 
 test("Dispatch transaction and proof history are participant-only", async () => {
