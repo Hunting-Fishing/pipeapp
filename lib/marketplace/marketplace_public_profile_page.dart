@@ -1,16 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_actions_repository.dart';
-import 'marketplace_messages_page.dart';
 import 'marketplace_money.dart';
 import 'marketplace_avatar_image.dart';
 import 'regional_phone_field.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_listing_media.dart';
+import 'marketplace_deep_links.dart';
 
 class MarketplacePublicProfilePage extends StatefulWidget {
   const MarketplacePublicProfilePage({
@@ -384,15 +385,23 @@ class _ListingCard extends StatelessWidget {
               ])),
           Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                      onPressed: FirebaseAuth.instance.currentUser?.uid ==
-                              '${listing['sellerUid']}'
-                          ? null
-                          : () => _message(context, listing, title),
-                      icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Message about this listing'))))
+              child: Row(children: [
+                Expanded(
+                    child: OutlinedButton.icon(
+                        onPressed: () => context
+                            .push(MarketplaceDeepLinks.listing(document.id)),
+                        icon: const Icon(Icons.open_in_new_outlined),
+                        label: const Text('View listing'))),
+                if (FirebaseAuth.instance.currentUser?.uid !=
+                    '${listing['sellerUid']}') ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: FilledButton.tonalIcon(
+                          onPressed: () => _message(context, listing, title),
+                          icon: const Icon(Icons.chat_bubble_outline),
+                          label: const Text('Message'))),
+                ]
+              ]))
         ]));
   }
 
@@ -405,9 +414,7 @@ class _ListingCard extends StatelessWidget {
           sellerUid: '${listing['sellerUid']}',
           sellerName: sellerName);
       if (!context.mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) =>
-              MarketplaceChatPage(conversationId: id, title: title)));
+      await context.push(MarketplaceDeepLinks.conversation(id));
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
