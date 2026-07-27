@@ -88,7 +88,10 @@ void main() {
   });
 
   test('Apple privacy manifest declares collected data without tracking', () {
-    final manifest = source('ios/Runner/PrivacyInfo.xcprivacy');
+    // Git may check this plist out with CRLF on Windows runners. Normalize the
+    // text before asserting structure so the release contract is portable.
+    final manifest = source('ios/Runner/PrivacyInfo.xcprivacy')
+        .replaceAll('\r\n', '\n');
     expect(manifest, contains('<key>NSPrivacyTracking</key>\n\t<false/>'));
     expect(manifest, contains('<key>NSPrivacyTrackingDomains</key>'));
     expect(manifest, contains('<key>NSPrivacyCollectedDataTypes</key>'));
