@@ -14,7 +14,6 @@ import 'marketplace_freight_quote.dart';
 import 'marketplace_dispatch_dashboard.dart';
 import 'marketplace_dispatch_transaction.dart';
 import 'industrial_icon_assets.dart';
-import 'regional_phone_field.dart';
 
 const _dispatchServices = <({String name, IconData icon})>[
   (name: 'Flat deck', icon: Icons.view_stream_outlined),
@@ -326,8 +325,10 @@ class _JobBoardState extends State<_JobBoard> {
   }
 
   void _refreshActivityCounts() {
-    _activityCounts = Future.wait([repo.myJobCount(), repo.myBidCount()])
-        .then((counts) => (jobs: counts[0], bids: counts[1]));
+    _activityCounts = Future.wait([
+      repo.myJobCount(),
+      repo.myBidCount(),
+    ]).then((counts) => (jobs: counts[0], bids: counts[1]));
   }
 
   Future<void> _refreshBoard() async {
@@ -392,32 +393,33 @@ class _JobBoardState extends State<_JobBoard> {
 
   Widget _myDispatchActivity(BuildContext context) =>
       FutureBuilder<({int jobs, int bids})>(
-          future: _activityCounts,
-          builder: (context, counts) => Container(
-                color: const Color(0xFFEAF4FD),
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.route_outlined,
-                        title: 'My requests',
-                        count: counts.hasError ? -1 : counts.data?.jobs,
-                        onTap: () => _showMyRequests(context),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.request_quote_outlined,
-                        title: 'My carrier quotes',
-                        count: counts.hasError ? -1 : counts.data?.bids,
-                        onTap: () => _showMyQuotes(context),
-                      ),
-                    ),
-                  ],
+        future: _activityCounts,
+        builder: (context, counts) => Container(
+          color: const Color(0xFFEAF4FD),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _activityCard(
+                  icon: Icons.route_outlined,
+                  title: 'My requests',
+                  count: counts.hasError ? -1 : counts.data?.jobs,
+                  onTap: () => _showMyRequests(context),
                 ),
-              ));
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _activityCard(
+                  icon: Icons.request_quote_outlined,
+                  title: 'My carrier quotes',
+                  count: counts.hasError ? -1 : counts.data?.bids,
+                  onTap: () => _showMyQuotes(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _activityCard({
     required IconData icon,
@@ -436,11 +438,13 @@ class _JobBoardState extends State<_JobBoard> {
             maxLines: 1,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          subtitle: Text(count == null
-              ? 'Loading…'
-              : count < 0
-                  ? 'Unavailable'
-                  : '$count total'),
+          subtitle: Text(
+            count == null
+                ? 'Loading…'
+                : count < 0
+                    ? 'Unavailable'
+                    : '$count total',
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
         ),
@@ -911,19 +915,24 @@ class _JobBoardState extends State<_JobBoard> {
                                         context: sheetContext,
                                         builder: (dialogContext) => AlertDialog(
                                           title: const Text(
-                                              'Select this carrier?'),
+                                            'Select this carrier?',
+                                          ),
                                           content: const Text(
                                             'The carrier will be notified and this dispatch job will close to new bids.',
                                           ),
                                           actions: [
                                             TextButton(
                                               onPressed: () => Navigator.pop(
-                                                  dialogContext, false),
+                                                dialogContext,
+                                                false,
+                                              ),
                                               child: const Text('Cancel'),
                                             ),
                                             FilledButton(
                                               onPressed: () => Navigator.pop(
-                                                  dialogContext, true),
+                                                dialogContext,
+                                                true,
+                                              ),
                                               child: const Text('Award job'),
                                             ),
                                           ],
@@ -1097,9 +1106,7 @@ class _JobBoardState extends State<_JobBoard> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                subtitle: const Text(
-                  'Permanent activity and revision history',
-                ),
+                subtitle: const Text('Permanent activity and revision history'),
                 trailing: IconButton(
                   tooltip: 'Close',
                   onPressed: () => Navigator.pop(sheetContext),
@@ -1129,9 +1136,7 @@ class _JobBoardState extends State<_JobBoard> {
                               : _dispatchEventLabel(
                                   '${data['event'] ?? 'updated'}',
                                 ),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                         subtitle: Text(
                           '${_dispatchEventLabel('${data['event'] ?? 'updated'}')} • ${('${data['status'] ?? ''}').toUpperCase()}\n${_dispatchDateLabel(data)}${('${data['note'] ?? ''}').trim().isEmpty ? '' : '\n${data['note']}'}',
@@ -1458,13 +1463,17 @@ class _DispatchPagedCollectionState extends State<_DispatchPagedCollection> {
       });
     } on FirebaseException catch (error) {
       if (!mounted || generation != _generation) return;
-      setState(() => _error = error.code == 'failed-precondition'
-          ? 'The Dispatch index is still being prepared. Try again shortly.'
-          : 'Dispatch records could not be loaded. Check your connection.');
+      setState(
+        () => _error = error.code == 'failed-precondition'
+            ? 'The Dispatch index is still being prepared. Try again shortly.'
+            : 'Dispatch records could not be loaded. Check your connection.',
+      );
     } catch (_) {
       if (mounted && generation == _generation) {
-        setState(() => _error =
-            'Dispatch records could not be loaded. Check your connection.');
+        setState(
+          () => _error =
+              'Dispatch records could not be loaded. Check your connection.',
+        );
       }
     } finally {
       if (mounted && generation == _generation) {
@@ -1766,9 +1775,13 @@ class _PostJobState extends State<_PostJob> {
           .get();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
           content: Text(
-              'Listings could not be loaded. Check your connection and try again.')));
+            'Listings could not be loaded. Check your connection and try again.',
+          ),
+        ),
+      );
       return;
     }
     if (!mounted) return;
@@ -1859,7 +1872,25 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
   final email = TextEditingController();
   MarketplaceServiceArea? area;
   bool submitting = false;
+  bool editingApplication = false;
   String? signupError;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    email.text = user?.email ?? '';
+    phone.text = user?.phoneNumber ?? '';
+  }
+
+  @override
+  void dispose() {
+    operating.dispose();
+    legal.dispose();
+    phone.dispose();
+    email.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(
@@ -1869,6 +1900,12 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
         stream: widget.repo.carrierProfile(),
         builder: (context, snapshot) {
           final signedUp = snapshot.data?.exists == true;
+          final carrierData = snapshot.data?.data();
+          final storedStatus = '${carrierData?['status'] ?? ''}';
+          final effectiveStatus = storedStatus == 'active' &&
+                  carrierData?['providerReviewVersion'] != 1
+              ? 'review_required'
+              : storedStatus;
           return ListView(
             padding: const EdgeInsets.all(18),
             children: [
@@ -1892,10 +1929,38 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                 ),
               ),
               const SizedBox(height: 12),
-              if (!signedUp)
+              if (!signedUp || editingApplication)
                 _signupForm()
               else ...[
                 _accountSummary(snapshot.data!.data()!),
+                _providerReviewHistory(),
+                if (const {
+                  'changes_requested',
+                  'rejected',
+                  'suspended',
+                  'review_required',
+                }.contains(effectiveStatus)) ...[
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: () {
+                      final data = snapshot.data!.data()!;
+                      operating.text = '${data['operatingName'] ?? ''}';
+                      legal.text = '${data['companyName'] ?? ''}';
+                      email.text = '${data['email'] ?? ''}';
+                      phone.text =
+                          '${data['phoneE164'] ?? data['phone'] ?? ''}';
+                      final rawArea = data['serviceArea'];
+                      if (rawArea is Map) {
+                        area = MarketplaceServiceArea.fromMap(
+                          Map<String, dynamic>.from(rawArea),
+                        );
+                      }
+                      setState(() => editingApplication = true);
+                    },
+                    icon: const Icon(Icons.edit_note_outlined),
+                    label: const Text('Update and resubmit application'),
+                  ),
+                ],
                 const SizedBox(height: 18),
                 Row(
                   children: [
@@ -1935,20 +2000,30 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
             ]) ...[
               TextFormField(
                 controller: field.$1,
+                readOnly: identical(field.$1, email),
                 decoration: InputDecoration(
                   labelText: '${field.$2} *',
                   prefixIcon: Icon(field.$3),
+                  helperText: identical(field.$1, email)
+                      ? 'Uses the email verified on your Pipe account.'
+                      : null,
                 ),
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 10),
             ],
-            RegionalPhoneField(
-              label: 'Dispatch phone',
-              initialValue: phone.text,
-              required: true,
-              onChanged: (value) => phone.text = value,
+            TextFormField(
+              controller: phone,
+              readOnly: true,
+              decoration: const InputDecoration(
+                labelText: 'Verified Dispatch phone *',
+                prefixIcon: Icon(Icons.phone_outlined),
+                helperText: 'Uses the mobile number verified on your account.',
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Verify a mobile number in Account Settings first.'
+                  : null,
             ),
             const SizedBox(height: 10),
             ListTile(
@@ -1990,16 +2065,15 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                         await widget.repo.signupDispatch(
                           operatingName: operating.text.trim(),
                           companyName: legal.text.trim(),
-                          phone: phone.text.trim(),
-                          email: email.text.trim(),
                           serviceArea: area!,
                         );
                         if (mounted) {
+                          setState(() => editingApplication = false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              backgroundColor: Colors.green,
+                              backgroundColor: Colors.blue,
                               content: Text(
-                                'Dispatch account created. Welcome to Dispatch.',
+                                'Dispatch application submitted for administrator review.',
                               ),
                             ),
                           );
@@ -2012,7 +2086,12 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                           );
                         }
                       } catch (error) {
-                        if (mounted) setState(() => signupError = '$error');
+                        if (mounted) {
+                          setState(
+                            () => signupError =
+                                '$error'.replaceFirst('Bad state: ', ''),
+                          );
+                        }
                       } finally {
                         if (mounted) setState(() => submitting = false);
                       }
@@ -2025,8 +2104,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                   : const Icon(Icons.check_circle_outline),
               label: Text(
                 submitting
-                    ? 'Creating Dispatch account…'
-                    : 'Create Dispatch account',
+                    ? 'Submitting Dispatch application…'
+                    : 'Submit for review',
               ),
               style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(50)),
@@ -2049,19 +2128,87 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
         ),
       );
 
-  Widget _accountSummary(Map<String, dynamic> data) => Card(
-        child: ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.business_outlined)),
-          title: Text(
-            '${data['operatingName'] ?? 'Dispatch provider'}',
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-          subtitle: Text(
-            '${data['companyName'] ?? ''}\n${data['serviceAreaLabel'] ?? ''}',
-          ),
-          isThreeLine: true,
-          trailing: const Chip(label: Text('ACTIVE')),
+  Widget _accountSummary(Map<String, dynamic> data) {
+    final storedStatus = '${data['status'] ?? 'pending_review'}';
+    final status =
+        storedStatus == 'active' && data['providerReviewVersion'] != 1
+            ? 'review_required'
+            : storedStatus;
+    final statusLabel = switch (status) {
+      'active' => 'APPROVED',
+      'changes_requested' => 'CHANGES NEEDED',
+      'rejected' => 'NOT APPROVED',
+      'suspended' => 'SUSPENDED',
+      'review_required' => 'REVIEW REQUIRED',
+      _ => 'IN REVIEW',
+    };
+    final statusColor = switch (status) {
+      'active' => Colors.green,
+      'changes_requested' || 'review_required' => Colors.orange,
+      'rejected' || 'suspended' => Colors.red,
+      _ => Colors.blue,
+    };
+    final reason = '${data['reviewReason'] ?? ''}'.trim();
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: statusColor.withValues(alpha: .12),
+          child: Icon(Icons.business_outlined, color: statusColor),
         ),
+        title: Text(
+          '${data['operatingName'] ?? 'Dispatch provider'}',
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Text(
+          '${data['companyName'] ?? ''}\n${data['serviceAreaLabel'] ?? ''}'
+          '${reason.isEmpty ? '' : '\nReview note: $reason'}',
+        ),
+        isThreeLine: reason.isNotEmpty,
+        trailing: Chip(
+          side: BorderSide(color: statusColor),
+          label: Text(statusLabel),
+        ),
+      ),
+    );
+  }
+
+  Widget _providerReviewHistory() =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: widget.repo.providerReviewHistory(),
+        builder: (context, snapshot) {
+          final events = snapshot.data?.docs ?? const [];
+          return Card(
+            child: ExpansionTile(
+              leading: const Icon(Icons.history_outlined),
+              title: const Text('Application history'),
+              subtitle: Text('${events.length} recorded event(s)'),
+              children: [
+                if (snapshot.hasError)
+                  const ListTile(
+                    title: Text('History could not be loaded.'),
+                    subtitle: Text('Check your connection and try again.'),
+                  )
+                else if (!snapshot.hasData)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(),
+                  )
+                else
+                  ...events.map((event) {
+                    final data = event.data();
+                    final status = '${data['status'] ?? data['event'] ?? ''}'
+                        .replaceAll('_', ' ');
+                    return ListTile(
+                      leading: const Icon(Icons.fact_check_outlined),
+                      title: Text(status.toUpperCase()),
+                      subtitle:
+                          Text('${data['reason'] ?? 'Application submitted'}'),
+                    );
+                  }),
+              ],
+            ),
+          );
+        },
       );
 
   Widget _fleet() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(

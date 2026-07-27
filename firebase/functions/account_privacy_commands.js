@@ -195,6 +195,12 @@ async function buildAccountExport(db, auth, uid, generatedAt) {
     // someone else remain private to protect reporter safety.
     queryForUser(db, "trust_reports", ["reporterUid"], uid),
     queryForUser(db, "verification_review_events", ["userUid"], uid),
+    queryForUser(
+        db,
+        "dispatch_provider_review_events",
+        ["providerUid"],
+        uid,
+    ),
   ]);
   const [listings, conversations, marketplaceTransactions,
     auctionTransactions, dispatchJobs] = await Promise.all([
@@ -261,6 +267,7 @@ async function buildAccountExport(db, auth, uid, generatedAt) {
       jobs: dispatchJobs,
       bids: sections[7],
       transactions: sections[8],
+      providerReviewHistory: sections[11],
     },
     safety: { reports: sections[9], verificationHistory: sections[10] },
     retentionNote:
@@ -685,6 +692,12 @@ function createAccountPrivacyCommands(admin) {
           uid,
         ),
         deleteMatching(db, "verification_review_events", ["userUid"], uid),
+        deleteMatching(
+          db,
+          "dispatch_provider_review_events",
+          ["providerUid"],
+          uid,
+        ),
         deleteMatching(db, "account_exports", ["ownerUid"], uid),
       ]);
       if (phoneRegistryKey) {

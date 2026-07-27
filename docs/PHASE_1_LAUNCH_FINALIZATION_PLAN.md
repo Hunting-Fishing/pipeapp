@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/device-session-controls`
+Baseline branch: `agent/dispatch-provider-approval`
 Created: July 20, 2026
 
 Current gate: Gate 4 — Complete Phase 1 marketplace journeys
 
-Current overall launch-readiness estimate: 69%
+Current overall launch-readiness estimate: 70%
 
 Completed gates: 1 of 8
 
@@ -17,9 +17,9 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 87% — privacy and commerce commands locally integrated |
+| 2 — Backend parity and server commands | 88% — privacy, commerce, and Dispatch provider-review commands locally integrated |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
-| 4 — Product workflows | 79% — listing/transaction lifecycles and bounded Marketplace, Auction, map, seller, owner, Dispatch job, quote, bid, and history reads locally verified |
+| 4 — Product workflows | 82% — listing/transaction lifecycles, review-based Dispatch provider approval, and bounded Marketplace, Auction, map, seller, owner, Dispatch job, quote, bid, and history reads locally verified |
 | 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
 | 7 — Release readiness | 5% — incomplete |
@@ -318,6 +318,13 @@ Dispatch:
   and limit the estimate as non-binding.
 - Add provider approval status without collecting unnecessary private
   documents.
+
+Provider-approval source checkpoint: applications now use verified Firebase
+Auth contact claims, enter `pending_review`, and cannot quote until an
+MFA-authorized administrator approves. Approve, request-changes, reject, and
+suspend decisions require notes, notify the provider, and append immutable
+history. Unit, Rules, and authenticated four-emulator coverage is green;
+staging reviewer acceptance remains required.
 
 Exit evidence:
 

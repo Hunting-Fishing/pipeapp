@@ -214,6 +214,15 @@ beforeEach(async () => {
       operatingName: "Test Carrier",
       status: "active",
       availableForHire: true,
+      providerReviewVersion: 1,
+    });
+    await setDoc(doc(db, "dispatch_provider_review_events", "carrier-1"), {
+      providerUid: "carrier",
+      revision: 1,
+      event: "approved",
+      status: "active",
+      actorUid: "admin",
+      createdAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
     });
     await setDoc(
         doc(db, "dispatch_carriers", "carrier", "vehicles", "truck"),
@@ -772,7 +781,7 @@ test("disabled auction and Dispatch flags block legacy direct clients", async ()
   ));
 });
 
-test("ownership verification cannot be forged and Dispatch signup needs it", async () => {
+test("ownership verification and Dispatch provider approval cannot be forged", async () => {
   const unverifiedDb = testEnvironment
       .authenticatedContext("unverified")
       .firestore();
@@ -795,11 +804,13 @@ test("ownership verification cannot be forged and Dispatch signup needs it", asy
       doc(unverifiedDb, "dispatch_carriers", "unverified"),
       {ownerUid: "unverified", operatingName: "Unverified Transport"},
   ));
-  await assertSucceeds(setDoc(
+  await assertFails(setDoc(
       doc(verifiedDb, "dispatch_carriers", "verified-provider"),
       {
         ownerUid: "verified-provider",
         operatingName: "Verified Transport",
+        status: "active",
+        availableForHire: true,
       },
   ));
   await assertFails(setDoc(
@@ -812,6 +823,30 @@ test("ownership verification cannot be forged and Dispatch signup needs it", asy
   ));
   await assertFails(getDoc(
       doc(verifiedDb, "security_rate_limits", "forged"),
+  ));
+});
+
+test("Dispatch provider review history is immutable and participant limited", async () => {
+  const carrierDb = testEnvironment
+      .authenticatedContext("carrier")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+  await assertSucceeds(getDoc(doc(carrierDb, "dispatch_carriers", "carrier")));
+  await assertSucceeds(getDoc(doc(adminDb, "dispatch_carriers", "carrier")));
+  await assertFails(getDoc(doc(strangerDb, "dispatch_carriers", "carrier")));
+  const eventPath = "dispatch_provider_review_events/carrier-1";
+  await assertSucceeds(getDoc(doc(carrierDb, eventPath)));
+  await assertSucceeds(getDoc(doc(adminDb, eventPath)));
+  await assertFails(getDoc(doc(strangerDb, eventPath)));
+  await assertFails(updateDoc(doc(carrierDb, eventPath), {status: "active"}));
+  await assertFails(setDoc(
+      doc(adminDb, "dispatch_provider_review_events", "forged"),
+      {providerUid: "carrier", status: "active"},
   ));
 });
 

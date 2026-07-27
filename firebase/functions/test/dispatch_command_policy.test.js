@@ -6,11 +6,72 @@ const {
   validateDispatchAward,
   validateDispatchJobChange,
   validateDispatchJobInput,
+  validateDispatchProviderApplication,
+  validateDispatchProviderDecision,
   validateDispatchQuote,
   validateDispatchTransactionAction,
 } = require("../dispatch_command_policy");
 
 const now = new Date("2026-07-19T12:00:00.000Z");
+
+test("Dispatch provider applications use verified contact ownership", () => {
+  const application = validateDispatchProviderApplication({
+    operatingName: "Peace Country Heavy Haul",
+    companyName: "Peace Country Heavy Haul Ltd.",
+    serviceAreaLabel: "Dawson Creek and within 250 km",
+    serviceArea: {
+      mode: "radius",
+      center: {latitude: 55.76, longitude: -120.24},
+      centerLabel: "Dawson Creek, British Columbia",
+      radiusKm: 250,
+      places: [],
+    },
+  }, {
+    email: "dispatch@example.com",
+    phoneNumber: "+12505550199",
+  });
+  assert.equal(application.email, "dispatch@example.com");
+  assert.equal(application.phoneE164, "+12505550199");
+  assert.equal(application.serviceArea.mode, "radius");
+  assert.throws(
+      () => validateDispatchProviderApplication({
+        operatingName: "Carrier",
+        companyName: "Carrier Ltd.",
+        serviceAreaLabel: "Everywhere",
+        serviceArea: {
+          mode: "places",
+          center: {latitude: 55.76, longitude: -120.24},
+          centerLabel: "Dawson Creek",
+          radiusKm: 50,
+          places: [],
+        },
+      }, {
+        email: "dispatch@example.com",
+        phoneNumber: "+12505550199",
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+});
+
+test("Dispatch provider decisions require a professional review note", () => {
+  assert.deepEqual(
+      validateDispatchProviderDecision({
+        decision: "approved",
+        reason: "Verified service area and public operating information.",
+      }),
+      {
+        decision: "approved",
+        reason: "Verified service area and public operating information.",
+      },
+  );
+  assert.throws(
+      () => validateDispatchProviderDecision({
+        decision: "approved",
+        reason: "ok",
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+});
 
 test("Dispatch jobs require complete mapped and dated load details", () => {
   const job = validateDispatchJobInput({
@@ -68,6 +129,7 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
     carrier: {
       ownerUid: "carrier",
       status: "active",
+      providerReviewVersion: 1,
       availableForHire: true,
     },
     vehicle: {
@@ -88,6 +150,54 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
   assert.equal(proposal.amount, 2500);
   assert.throws(
       () => validateDispatchQuote({
+        job: {createdByUid: "customer", status: "open"},
+        carrier: {
+          ownerUid: "carrier",
+          status: "pending_review",
+          availableForHire: false,
+        },
+        vehicle: {
+          ownerUid: "carrier",
+          available: true,
+          maximumPayloadKg: 25000,
+        },
+        existingBid: null,
+        actorUid: "carrier",
+        data: {
+          jobId: "job",
+          amount: 2500,
+          availableDate: now.getTime() + 24 * 60 * 60 * 1000,
+        },
+        now,
+      }),
+      (error) => error.code === "permission-denied",
+  );
+  assert.throws(
+      () => validateDispatchQuote({
+        job: {createdByUid: "customer", status: "open"},
+        carrier: {
+          ownerUid: "carrier",
+          status: "active",
+          availableForHire: true,
+        },
+        vehicle: {
+          ownerUid: "carrier",
+          available: true,
+          maximumPayloadKg: 25000,
+        },
+        existingBid: null,
+        actorUid: "carrier",
+        data: {
+          jobId: "job",
+          amount: 2500,
+          availableDate: now.getTime() + 24 * 60 * 60 * 1000,
+        },
+        now,
+      }),
+      (error) => error.code === "permission-denied",
+  );
+  assert.throws(
+      () => validateDispatchQuote({
         job: {
           createdByUid: "customer",
           status: "open",
@@ -96,6 +206,7 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
         carrier: {
           ownerUid: "carrier",
           status: "active",
+          providerReviewVersion: 1,
         },
         vehicle: {
           ownerUid: "carrier",
@@ -118,7 +229,11 @@ test("job owners cannot quote their own requests", () => {
   assert.throws(
       () => validateDispatchQuote({
         job: {createdByUid: "carrier", status: "open"},
-        carrier: {ownerUid: "carrier", status: "active"},
+        carrier: {
+          ownerUid: "carrier",
+          status: "active",
+          providerReviewVersion: 1,
+        },
         vehicle: {ownerUid: "carrier", maximumPayloadKg: 25000},
         existingBid: null,
         actorUid: "carrier",

@@ -5,7 +5,6 @@ import 'marketplace_location.dart';
 import 'marketplace_service_area.dart';
 import 'marketplace_dispatch_distance.dart';
 import 'marketplace_command_client.dart';
-import 'regional_phone_field.dart';
 
 class MarketplaceDispatchRepository {
   MarketplaceDispatchRepository({MarketplaceCommandClient? commandClient})
@@ -17,6 +16,14 @@ class MarketplaceDispatchRepository {
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> carrierProfile() =>
       _firestore.collection('dispatch_carriers').doc(uid).snapshots();
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> providerReviewHistory() =>
+      _firestore
+          .collection('dispatch_provider_review_events')
+          .where('providerUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> fleet() => _firestore
       .collection('dispatch_carriers')
@@ -177,42 +184,41 @@ class MarketplaceDispatchRepository {
   Future<void> signupDispatch({
     required String operatingName,
     required String companyName,
-    required String phone,
-    required String email,
     required MarketplaceServiceArea serviceArea,
   }) async {
-    final reference = _firestore.collection('dispatch_carriers').doc(uid);
-    final existing = await reference.get();
-    final values = <String, dynamic>{
-      'ownerUid': uid,
+    final requestId = _firestore.collection('dispatch_carriers').doc().id;
+    await _commands.execute('submitDispatchProviderApplication', {
+      'requestId': requestId,
       'operatingName': operatingName,
       'companyName': companyName,
-      'phone': formatPhoneNumber(phone),
-      'phoneE164': normalizePhoneNumber(phone),
-      'email': email,
-      'serviceArea': serviceArea.toMap(),
+      // Contact ownership comes from verified Auth claims on the server.
+      'serviceArea': {
+        'mode': serviceArea.mode.name,
+        'center': {
+          'latitude': serviceArea.center.latitude,
+          'longitude': serviceArea.center.longitude,
+        },
+        'centerLabel': serviceArea.centerLabel,
+        'radiusKm': serviceArea.radiusKm,
+        'places': serviceArea.places
+            .map(
+              (place) => {
+                'name': place.name,
+                'region': place.region,
+                'country': place.country,
+                'countryCode': place.countryCode,
+                'osmType': place.osmType,
+                'osmId': place.osmId,
+                'point': {
+                  'latitude': place.point.latitude,
+                  'longitude': place.point.longitude,
+                },
+              },
+            )
+            .toList(),
+      },
       'serviceAreaLabel': serviceArea.summary,
-      'status': 'active',
-      'availableForHire': true,
-      'privacyVersion': 2,
-      'updatedAt': FieldValue.serverTimestamp(),
-      if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
-    };
-    if (existing.exists) {
-      values.addAll({
-        'legalName': FieldValue.delete(),
-        'registrationNumber': FieldValue.delete(),
-        'insuranceProvider': FieldValue.delete(),
-        'insuranceExpiry': FieldValue.delete(),
-        'equipment': FieldValue.delete(),
-        'capacityKg': FieldValue.delete(),
-      });
-    }
-    await reference.set(values, SetOptions(merge: true));
-    final confirmed = await reference.get();
-    if (!confirmed.exists || confirmed.data()?['ownerUid'] != uid) {
-      throw StateError('Dispatch signup was not confirmed by the database.');
-    }
+    });
   }
 
   Future<void> addVehicle({
