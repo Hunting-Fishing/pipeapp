@@ -88,6 +88,9 @@ jobs:
       - name: Test deployed Function parity controls
         run: node --test tool/function_parity_test.mjs
 
+      - name: Test Phase 1 acceptance evidence controls
+        run: node --test tool/phase1_acceptance_test.mjs
+
       - name: Build Android ARM64 debug artifact
         run: >
           flutter build apk

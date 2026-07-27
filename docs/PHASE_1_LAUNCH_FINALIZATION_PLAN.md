@@ -2,7 +2,7 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-operational-stream-safety`
+Baseline branch: `agent/phase1-release-acceptance-control`
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
@@ -22,7 +22,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
 | 6 — Accessibility, performance, and QA | 82% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic status feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
-| 7 — Release readiness | 5% — incomplete |
+| 7 — Release readiness | 10% — machine-validated release evidence contract locally verified; rehearsal and approvals incomplete |
 
 Gate 0 implementation evidence:
 
@@ -79,7 +79,8 @@ Gate 2 implementation evidence in progress:
   parameter expression
 - The July 28 staging Function retry authenticated as the project owner and
   selected `pipebuyer-5c77f`, but Google still reported that exact project was
-  not on Blaze and rejected Cloud Build enablement; no Function was created
+  not on Blaze and rejected both Cloud Build and Artifact Registry enablement;
+  no Function was created
 - The Functions dependency lock overrides the vulnerable transitive UUID below
   11.1.1. The moderate audit count fell from 7 to 0 while 95 Function tests, 36
   Firestore/Storage Rules tests, and the authenticated four-emulator workflow
@@ -136,7 +137,7 @@ Gate 1 implementation evidence in progress:
   `firebase.json` declaration and passed a disposable create/delete smoke test
 - Staging Functions remain blocked because Google still reports
   `pipebuyer-5c77f` is not on Blaze; the authenticated July 28 retry created no
-  Function
+  Function and left the deployed inventory at zero
 - Native staging/production diagnostics now use a centralized, release-tagged
   Crashlytics adapter with manifest-level default-off collection, an explicit
   build-time opt-in, safe correlation IDs, and a triage/validation runbook.
@@ -445,6 +446,15 @@ Exit evidence:
 ### Gate 7 — Launch rehearsal and approval
 
 Goal: Prove the service can launch and recover.
+
+`tool/phase1_acceptance.mjs` now binds final evidence to one controlled
+environment and full release SHA. It requires all ten acceptance journeys,
+measured Hosting/Functions/Rules/data recovery controls, a reviewed defect
+inventory with no open P0/critical/high defects, and named approvals from all
+seven required owner roles. Evidence paths cannot escape the controlled bundle;
+retained files are hashed into the readiness result. The validator and its
+fail-closed tests are part of local and CI verification. This control does not
+credit the still-unperformed rehearsals or approvals.
 
 - Run the complete staging acceptance matrix with new test identities.
 - Run load, abuse, upload, notification, and moderation queue tests.

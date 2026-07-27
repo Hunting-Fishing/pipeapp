@@ -70,6 +70,10 @@ Write-Host 'Testing deployed Function parity controls'
 node --test tool/function_parity_test.mjs
 Assert-NativeSuccess 'Function parity tests'
 
+Write-Host 'Testing Phase 1 acceptance evidence controls'
+node --test tool/phase1_acceptance_test.mjs
+Assert-NativeSuccess 'Phase 1 acceptance evidence tests'
+
 Write-Host 'Validating Firebase Functions'
 if (-not $SkipDependencyRestore) {
   npm ci --prefix firebase/functions
