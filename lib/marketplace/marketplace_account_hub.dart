@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_messages_page.dart';
+import 'marketplace_policy_center.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_account_device_repository.dart';
@@ -2308,6 +2309,14 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplaceSupportPage()))),
+      ListTile(
+          leading: const Icon(Icons.policy_outlined),
+          title: const Text('Policies and agreements'),
+          subtitle: const Text(
+              'Check current versions and review your account acceptance.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MarketplacePolicyCenterPage()))),
       const SizedBox(height: 12),
       const _WatchKeywords(),
       const SizedBox(height: 12),
