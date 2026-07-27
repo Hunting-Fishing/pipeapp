@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-marketplace-filters`
+Baseline branch: `agent/phase1-dispatch-links-search`
 Created: July 20, 2026
 
 Current gate: Gate 4 — Complete Phase 1 marketplace journeys
 
-Current overall launch-readiness estimate: 72%
+Current overall launch-readiness estimate: 73%
 
 Completed gates: 1 of 8
 
@@ -19,7 +19,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
 | 2 — Backend parity and server commands | 88% — privacy, commerce, and Dispatch provider-review commands locally integrated |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
-| 4 — Product workflows | 87% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace entity routes locally verified |
+| 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
 | 7 — Release readiness | 5% — incomplete |
@@ -294,8 +294,8 @@ Marketplace:
 - Complete indexed full-text search; structured category, listing-type,
   condition, price, sort, pagination, and bounded queries are source verified.
 - Finish approved-domain Android App Links and Apple Universal Links for the
-  source-verified listing, profile, Auction, and participant-conversation
-  routes; add Dispatch job routes where access permits.
+  source-verified listing, profile, Auction, participant-conversation, and
+  authenticated Dispatch-job routes.
 
 Offers and messages:
 
