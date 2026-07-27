@@ -16,6 +16,9 @@ const {
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
 const { createModerationCommands } = require("./moderation_commands");
+const {
+  createPolicyAcceptanceCommands,
+} = require("./policy_acceptance_commands");
 const { createSupportCommands } = require("./support_commands");
 const admin = createAdminRuntime();
 
@@ -43,6 +46,7 @@ const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 const moderationCommands = createModerationCommands(admin);
+const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const supportCommands = createSupportCommands(admin);
 exports.syncAccountVerification = onCall(
   protectedCallableOptions,
@@ -102,11 +106,15 @@ exports.cleanupExpiredMarketplaceListingDrafts = onSchedule(
 );
 exports.openMarketplaceConversation = onCall(
   protectedCallableOptions,
-  communicationCommands.openMarketplaceConversation,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.openMarketplaceConversation,
+  ),
 );
 exports.markMarketplaceConversationRead = onCall(
   protectedCallableOptions,
-  communicationCommands.markMarketplaceConversationRead,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.markMarketplaceConversationRead,
+  ),
 );
 exports.authorizeMarketplaceUpload = onCall(
   protectedCallableOptions,
@@ -118,7 +126,9 @@ exports.confirmMarketplaceUpload = onCall(
 );
 exports.sendMarketplaceMessage = onCall(
   protectedCallableOptions,
-  communicationCommands.sendMarketplaceMessage,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.sendMarketplaceMessage,
+  ),
 );
 exports.submitMarketplaceReport = onCall(
   protectedCallableOptions,
@@ -148,13 +158,29 @@ exports.updateSupportCase = onCall(
   protectedCallableOptions,
   supportCommands.updateSupportCase,
 );
+exports.publishPolicyDocument = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.publishPolicyDocument,
+);
+exports.acceptRequiredPolicies = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.acceptRequiredPolicies,
+);
+exports.setPolicyEnforcement = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.setPolicyEnforcement,
+);
 exports.createDispatchJob = onCall(
   protectedCallableOptions,
-  dispatchCommands.createDispatchJob,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.createDispatchJob,
+  ),
 );
 exports.submitDispatchProviderApplication = onCall(
   protectedCallableOptions,
-  dispatchCommands.submitDispatchProviderApplication,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.submitDispatchProviderApplication,
+  ),
 );
 exports.reviewDispatchProvider = onCall(
   protectedCallableOptions,
@@ -162,99 +188,147 @@ exports.reviewDispatchProvider = onCall(
 );
 exports.updateDispatchJob = onCall(
   protectedCallableOptions,
-  dispatchCommands.updateDispatchJob,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.updateDispatchJob,
+  ),
 );
 exports.publishDispatchJob = onCall(
   protectedCallableOptions,
-  dispatchCommands.publishDispatchJob,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.publishDispatchJob,
+  ),
 );
 exports.submitDispatchQuote = onCall(
   protectedCallableOptions,
-  dispatchCommands.submitDispatchQuote,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.submitDispatchQuote,
+  ),
 );
 exports.awardDispatchQuote = onCall(
   protectedCallableOptions,
-  dispatchCommands.awardDispatchQuote,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.awardDispatchQuote,
+  ),
 );
 exports.updateDispatchTransaction = onCall(
   protectedCallableOptions,
-  dispatchCommands.updateDispatchTransaction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.updateDispatchTransaction,
+  ),
 );
 exports.placeAuctionBid = onCall(
   protectedCallableOptions,
-  marketplaceCommands.placeAuctionBid,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.placeAuctionBid,
+  ),
 );
 exports.buyAuctionNow = onCall(
   protectedCallableOptions,
-  marketplaceCommands.buyAuctionNow,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.buyAuctionNow,
+  ),
 );
 exports.acceptAuctionBidBelowReserve = onCall(
   protectedCallableOptions,
-  marketplaceCommands.acceptAuctionBidBelowReserve,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.acceptAuctionBidBelowReserve,
+  ),
 );
 exports.withdrawAuctionBid = onCall(
   protectedCallableOptions,
-  marketplaceCommands.withdrawAuctionBid,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.withdrawAuctionBid,
+  ),
 );
 exports.createMarketplaceOffer = onCall(
   protectedCallableOptions,
-  marketplaceCommands.createMarketplaceOffer,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.createMarketplaceOffer,
+  ),
 );
 exports.acceptMarketplaceOffer = onCall(
   protectedCallableOptions,
-  marketplaceCommands.acceptMarketplaceOffer,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.acceptMarketplaceOffer,
+  ),
 );
 exports.createMarketplaceListing = onCall(
   protectedCallableOptions,
-  marketplaceCommands.createMarketplaceListing,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.createMarketplaceListing,
+  ),
 );
 exports.createMarketplaceListingDraft = onCall(
   protectedCallableOptions,
-  marketplaceCommands.createMarketplaceListingDraft,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.createMarketplaceListingDraft,
+  ),
 );
 exports.publishMarketplaceListingDraft = onCall(
   protectedCallableOptions,
-  marketplaceCommands.publishMarketplaceListingDraft,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.publishMarketplaceListingDraft,
+  ),
 );
 exports.convertMarketplaceListingToAuction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.convertMarketplaceListingToAuction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.convertMarketplaceListingToAuction,
+  ),
 );
 exports.updateMarketplaceListingMedia = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceListingMedia,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceListingMedia,
+  ),
 );
 exports.updateMarketplaceListingDraftMedia = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceListingDraftMedia,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceListingDraftMedia,
+  ),
 );
 exports.updateMarketplaceListingDetails = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceListingDetails,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceListingDetails,
+  ),
 );
 exports.transitionMarketplaceListing = onCall(
   protectedCallableOptions,
-  marketplaceCommands.transitionMarketplaceListing,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.transitionMarketplaceListing,
+  ),
 );
 exports.relistMarketplaceListing = onCall(
   protectedCallableOptions,
-  marketplaceCommands.relistMarketplaceListing,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.relistMarketplaceListing,
+  ),
 );
 exports.setMarketplaceListingSaved = onCall(
   protectedCallableOptions,
-  marketplaceCommands.setMarketplaceListingSaved,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.setMarketplaceListingSaved,
+  ),
 );
 exports.updateMarketplaceTransaction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceTransaction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceTransaction,
+  ),
 );
 exports.finalizeAuction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.finalizeAuction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.finalizeAuction,
+  ),
 );
 exports.updateAuctionTransaction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateAuctionTransaction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateAuctionTransaction,
+  ),
 );
 
 exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {

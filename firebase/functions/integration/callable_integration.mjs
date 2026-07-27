@@ -20,6 +20,9 @@ const {
 } = require("../account_verification_commands");
 const {createDispatchCommands} = require("../dispatch_commands");
 const {createModerationCommands} = require("../moderation_commands");
+const {
+  createPolicyAcceptanceCommands,
+} = require("../policy_acceptance_commands");
 const {createSupportCommands} = require("../support_commands");
 
 const projectId = process.env.GCLOUD_PROJECT ||
@@ -70,6 +73,10 @@ const dispatchCommands = createDispatchCommands({
   auth: () => auth,
 });
 const moderationCommands = createModerationCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
+const policyAcceptanceCommands = createPolicyAcceptanceCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
@@ -864,6 +871,135 @@ try {
       4,
       [["caseId", "==", supportFirst.caseId]],
   );
+  const requiredPolicies = [
+    "terms_of_service",
+    "privacy_notice",
+    "prohibited_items",
+    "mapping_location",
+    "communications",
+  ];
+  const policyAcceptanceItems = [];
+  for (const policyId of requiredPolicies) {
+    const contentSha256 = createHash("sha256")
+        .update(`reviewed-${policyId}-2026.07`)
+        .digest("hex");
+    const publicationRequest = {
+      auth: reviewRequest.auth,
+      data: {
+        requestId: `publish-${policyId}-${now}`,
+        policyId,
+        version: "2026.07",
+        summary: `Reviewed integration summary for the ${policyId} policy.`,
+        documentUrl: `https://example.test/policies/${policyId}`,
+        contentSha256,
+        effectiveAtMillis: now + 24 * 60 * 60 * 1000,
+        approvalNote:
+          "Approved only for the isolated authenticated emulator acceptance exercise.",
+      },
+    };
+    const published = await policyAcceptanceCommands
+        .publishPolicyDocument(publicationRequest);
+    assert.deepEqual(
+        await policyAcceptanceCommands
+            .publishPolicyDocument(publicationRequest),
+        published,
+    );
+    policyAcceptanceItems.push({
+      policyId,
+      version: published.version,
+      contentSha256,
+    });
+  }
+  const enablePolicyEnforcement = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `policy-enforcement-enable-${now}`,
+      enabled: true,
+      approvalNote:
+        "Enable policy enforcement for the isolated authenticated emulator exercise.",
+    },
+  };
+  const enforcementFirst = await policyAcceptanceCommands
+      .setPolicyEnforcement(enablePolicyEnforcement);
+  assert.deepEqual(
+      await policyAcceptanceCommands
+          .setPolicyEnforcement(enablePolicyEnforcement),
+      enforcementFirst,
+  );
+  assert.equal(enforcementFirst.enabled, true);
+  await expectCallableError(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      {
+        requestId: `policy-blocked-save-${now}`,
+        listingId: offerListingId,
+        saved: true,
+      },
+      "FAILED_PRECONDITION",
+  );
+  const policyAcceptanceData = {
+    requestId: `policy-acceptance-${now}`,
+    policies: policyAcceptanceItems,
+  };
+  const policyAcceptanceFirst = await call(
+      "acceptRequiredPolicies",
+      buyer.token,
+      policyAcceptanceData,
+  );
+  assert.deepEqual(
+      await call(
+          "acceptRequiredPolicies",
+          buyer.token,
+          policyAcceptanceData,
+      ),
+      policyAcceptanceFirst,
+  );
+  assert.equal(policyAcceptanceFirst.current, true);
+  assert.equal(
+      (await db.doc(`policy_acceptances/${buyer.uid}`).get())
+          .data().fingerprint.length,
+      64,
+  );
+  await assertCollectionSize(
+      "policy_acceptance_events",
+      1,
+      [["ownerUid", "==", buyer.uid]],
+  );
+  const policyVerifiedSave = {
+    requestId: `policy-verified-save-${now}`,
+    listingId: offerListingId,
+    saved: true,
+  };
+  const policySaveFirst = await call(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      policyVerifiedSave,
+  );
+  assert.deepEqual(
+      await call(
+          "setMarketplaceListingSaved",
+          buyer.token,
+          policyVerifiedSave,
+      ),
+      policySaveFirst,
+  );
+  await call("setMarketplaceListingSaved", buyer.token, {
+    requestId: `policy-verified-unsave-${now}`,
+    listingId: offerListingId,
+    saved: false,
+  });
+  assert.equal(
+      (await policyAcceptanceCommands.setPolicyEnforcement({
+        auth: reviewRequest.auth,
+        data: {
+          requestId: `policy-enforcement-disable-${now}`,
+          enabled: false,
+          approvalNote:
+            "Disable policy enforcement after the isolated emulator gate test completes.",
+        },
+      })).enabled,
+      false,
+  );
   const blockedMessage = await expectCallableError(
       "openMarketplaceConversation",
       unverified.token,
@@ -1470,7 +1606,7 @@ try {
   );
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 43);
+  assert.equal(receipts.size, 45);
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
   assert.equal(communicationReceipts.size, 2);
@@ -1479,6 +1615,7 @@ try {
       "listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "provider review, quote, award, delivery closure, protected messages/reports/uploads, " +
+      "versioned policy publication and acceptance, " +
       "private export, staged deletion, remembered devices, session revocation, " +
       "and retry idempotency.",
   );

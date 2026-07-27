@@ -161,6 +161,41 @@ beforeEach(async () => {
       actorUid: "buyer",
       command: "createSupportCase",
     });
+    await setDoc(doc(db, "platform_policies", "privacy_notice"), {
+      policyId: "privacy_notice",
+      title: "Privacy Notice",
+      version: "2026.07",
+      contentSha256: "a".repeat(64),
+      documentUrl: "https://example.test/privacy",
+      status: "published",
+      required: true,
+    });
+    await setDoc(doc(db, "policy_acceptances", "buyer"), {
+      ownerUid: "buyer",
+      acceptedVersions: {privacy_notice: "2026.07"},
+    });
+    await setDoc(doc(db, "policy_acceptance_events", "buyer-accepted"), {
+      ownerUid: "buyer",
+      event: "required_policies_accepted",
+    });
+    await setDoc(doc(db, "policy_publication_events", "privacy-1"), {
+      policyId: "privacy_notice",
+      actorUid: "admin",
+      event: "published",
+    });
+    await setDoc(doc(db, "policy_enforcement_events", "enable-1"), {
+      actorUid: "admin",
+      event: "enabled",
+      enabled: true,
+    });
+    await setDoc(
+        doc(db, "platform_configuration", "policy_enforcement"),
+        {enabled: false, revision: 1},
+    );
+    await setDoc(doc(db, "policy_command_receipts", "policy-receipt"), {
+      actorUid: "buyer",
+      command: "acceptRequiredPolicies",
+    });
     await setDoc(doc(db, "account_exports", "buyer-export"), {
       ownerUid: "buyer",
       status: "ready",
@@ -727,6 +762,82 @@ test("support cases are owner-private and all writes are server-only", async () 
       doc(adminDb, "support_case_events", "forged"),
       {caseId: "support-1", ownerUid: "buyer", event: "resolved"},
   ));
+});
+
+test("published policies are public while acceptance history stays private", async () => {
+  const publicDb = testEnvironment.unauthenticatedContext().firestore();
+  const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const strangerDb = testEnvironment.authenticatedContext("stranger").firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+
+  await assertSucceeds(getDoc(doc(
+      publicDb,
+      "platform_policies",
+      "privacy_notice",
+  )));
+  await assertSucceeds(getDoc(doc(ownerDb, "policy_acceptances", "buyer")));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "policy_acceptance_events",
+      "buyer-accepted",
+  )));
+  await assertFails(getDoc(doc(strangerDb, "policy_acceptances", "buyer")));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "policy_acceptance_events",
+      "buyer-accepted",
+  )));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "policy_publication_events",
+      "privacy-1",
+  )));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "policy_enforcement_events",
+      "enable-1",
+  )));
+  await assertFails(getDoc(doc(
+      ownerDb,
+      "policy_publication_events",
+      "privacy-1",
+  )));
+  await assertFails(getDoc(doc(
+      ownerDb,
+      "policy_enforcement_events",
+      "enable-1",
+  )));
+  await assertSucceeds(getDoc(doc(
+      publicDb,
+      "platform_configuration",
+      "policy_enforcement",
+  )));
+  await assertFails(setDoc(doc(
+      adminDb,
+      "platform_policies",
+      "forged",
+  ), {status: "published"}));
+  await assertFails(updateDoc(doc(
+      adminDb,
+      "platform_configuration",
+      "policy_enforcement",
+  ), {enabled: true}));
+  await assertFails(updateDoc(
+      doc(ownerDb, "policy_acceptances", "buyer"),
+      {acceptedVersions: {privacy_notice: "forged"}},
+  ));
+  await assertFails(setDoc(doc(
+      ownerDb,
+      "policy_acceptance_events",
+      "forged",
+  ), {ownerUid: "buyer", event: "required_policies_accepted"}));
+  await assertFails(getDoc(doc(
+      ownerDb,
+      "policy_command_receipts",
+      "policy-receipt",
+  )));
 });
 
 test("buyer cannot forge the seller identity on a new offer", async () => {
