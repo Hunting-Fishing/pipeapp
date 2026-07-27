@@ -947,8 +947,11 @@ class _ModerationCaseQueue extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream:
-            FirebaseFirestore.instance.collection('trust_reports').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('trust_reports')
+            .orderBy('createdAt', descending: true)
+            .limit(100)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const Center(
@@ -981,7 +984,13 @@ class _ModerationCaseQueue extends StatelessWidget {
             Wrap(spacing: 10, children: [
               _metric(
                   'Open',
-                  cases.where((e) => e.data()['status'] == 'pending').length,
+                  cases
+                      .where((e) => [
+                            'pending',
+                            'information_requested',
+                            'appealed'
+                          ].contains(e.data()['status']))
+                      .length,
                   Colors.orange),
               _metric(
                   'High priority',
@@ -1077,31 +1086,366 @@ class _ModerationCaseQueue extends StatelessWidget {
                                                   Icons.broken_image_outlined)),
                                     )))
                                 .toList())
-                      ]
+                      ],
+                      const SizedBox(height: 18),
+                      const Text('Case history',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 6),
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('trust_report_events')
+                            .where('reportId', isEqualTo: doc.id)
+                            .limit(100)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return const Text(
+                                'Case history is temporarily unavailable.');
+                          }
+                          if (!snapshot.hasData) {
+                            return const LinearProgressIndicator();
+                          }
+                          final events = snapshot.data!.docs.toList()
+                            ..sort((a, b) => _millis(b.data()['createdAt'])
+                                .compareTo(_millis(a.data()['createdAt'])));
+                          if (events.isEmpty) {
+                            return const Text(
+                                'No review actions recorded yet.');
+                          }
+                          return Column(
+                            children: events.map((event) {
+                              final value = event.data();
+                              return ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.history_outlined),
+                                title: Text('${value['event'] ?? 'case update'}'
+                                    .replaceAll('_', ' ')),
+                                subtitle: Text(
+                                  '${value['status'] ?? ''}'
+                                  '${'${value['reason'] ?? ''}'.trim().isEmpty ? '' : '\n${value['reason']}'}',
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
                     ],
                   ))),
               actions: [
                 TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Close')),
+                if (['pending', 'information_requested']
+                    .contains('${data['status'] ?? 'pending'}'))
+                  FilledButton.icon(
                     onPressed: () async {
-                      await doc.reference.update({
-                        'status': 'dismissed',
-                        'reviewedAt': FieldValue.serverTimestamp(),
-                        'reviewedByUid': FirebaseAuth.instance.currentUser?.uid
-                      });
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      final completed = await _reviewCase(
+                        dialogContext,
+                        reportId: doc.id,
+                        targetType: '${data['targetType'] ?? ''}',
+                      );
+                      if (completed && dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
                     },
-                    child: const Text('Dismiss')),
-                FilledButton(
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Review case'),
+                  ),
+                if ('${data['status']}' == 'appealed')
+                  FilledButton.icon(
                     onPressed: () async {
-                      await doc.reference.update({
-                        'status': 'actioned',
-                        'reviewedAt': FieldValue.serverTimestamp(),
-                        'reviewedByUid': FirebaseAuth.instance.currentUser?.uid
-                      });
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      final completed =
+                          await _reviewAppeal(dialogContext, doc.id);
+                      if (completed && dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
                     },
-                    child: const Text('Confirm violation')),
+                    icon: const Icon(Icons.balance_outlined),
+                    label: const Text('Review appeal'),
+                  ),
               ],
             ));
+  }
+
+  static Future<bool> _reviewCase(
+    BuildContext context, {
+    required String reportId,
+    required String targetType,
+  }) async {
+    var decision = 'dismissed';
+    var enforcementAction = 'none';
+    final reason = TextEditingController();
+    var submitting = false;
+    String? error;
+    final completed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (reviewContext) => StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              icon: const Icon(Icons.gpp_good_outlined, size: 36),
+              title: const Text('Record moderation decision'),
+              content: SizedBox(
+                width: 540,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        initialValue: decision,
+                        decoration: const InputDecoration(
+                          labelText: 'Decision',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'dismissed',
+                              child: Text('Dismiss — no violation found')),
+                          DropdownMenuItem(
+                              value: 'information_requested',
+                              child: Text('Request more information')),
+                          DropdownMenuItem(
+                              value: 'violation_confirmed',
+                              child: Text('Confirm policy violation')),
+                        ],
+                        onChanged: submitting
+                            ? null
+                            : (value) => setState(() {
+                                  decision = value ?? 'dismissed';
+                                  if (decision != 'violation_confirmed') {
+                                    enforcementAction = 'none';
+                                  }
+                                }),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: enforcementAction,
+                        decoration: const InputDecoration(
+                          labelText: 'Enforcement action',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                              value: 'none', child: Text('No enforcement')),
+                          if (decision == 'violation_confirmed')
+                            const DropdownMenuItem(
+                                value: 'warning',
+                                child: Text('Formal account warning')),
+                          if (decision == 'violation_confirmed' &&
+                              ['listing', 'message'].contains(targetType))
+                            const DropdownMenuItem(
+                                value: 'content_removed',
+                                child: Text('Remove reported content')),
+                        ],
+                        onChanged: submitting
+                            ? null
+                            : (value) => setState(
+                                () => enforcementAction = value ?? 'none'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: reason,
+                        enabled: !submitting,
+                        minLines: 3,
+                        maxLines: 6,
+                        maxLength: 1000,
+                        decoration: const InputDecoration(
+                          labelText: 'Decision rationale *',
+                          hintText:
+                              'Record the evidence reviewed and why this decision is appropriate.',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      if (decision == 'violation_confirmed')
+                        const Card(
+                          color: Color(0xFFFFF3E0),
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Text(
+                              'The affected user will receive this rationale and may appeal within 30 days.',
+                            ),
+                          ),
+                        ),
+                      if (error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(error!,
+                              style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.pop(reviewContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          if (reason.text.trim().length < 10) {
+                            setState(() => error =
+                                'Enter a clear rationale of at least 10 characters.');
+                            return;
+                          }
+                          setState(() {
+                            submitting = true;
+                            error = null;
+                          });
+                          try {
+                            final requestId = FirebaseFirestore.instance
+                                .collection('moderation_command_receipts')
+                                .doc()
+                                .id;
+                            await MarketplaceCommandClient()
+                                .execute('reviewModerationReport', {
+                              'requestId': requestId,
+                              'reportId': reportId,
+                              'decision': decision,
+                              'reason': reason.text.trim(),
+                              'enforcementAction': enforcementAction,
+                            });
+                            if (reviewContext.mounted) {
+                              Navigator.pop(reviewContext, true);
+                            }
+                          } catch (caught) {
+                            setState(() {
+                              submitting = false;
+                              error = '$caught'.replaceFirst('Bad state: ', '');
+                            });
+                          }
+                        },
+                  icon: submitting
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.verified_outlined),
+                  label: const Text('Confirm decision'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    reason.dispose();
+    return completed;
+  }
+
+  static Future<bool> _reviewAppeal(
+      BuildContext context, String reportId) async {
+    var decision = 'upheld';
+    final reason = TextEditingController();
+    var submitting = false;
+    String? error;
+    final completed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (reviewContext) => StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              icon: const Icon(Icons.balance_outlined, size: 36),
+              title: const Text('Review moderation appeal'),
+              content: SizedBox(
+                width: 520,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: decision,
+                      decoration: const InputDecoration(
+                        labelText: 'Appeal decision',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'upheld',
+                            child: Text('Uphold original decision')),
+                        DropdownMenuItem(
+                            value: 'overturned',
+                            child: Text('Overturn and restore content')),
+                      ],
+                      onChanged: submitting
+                          ? null
+                          : (value) =>
+                              setState(() => decision = value ?? 'upheld'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: reason,
+                      enabled: !submitting,
+                      minLines: 3,
+                      maxLines: 6,
+                      maxLength: 1000,
+                      decoration: const InputDecoration(
+                        labelText: 'Appeal rationale *',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    if (error != null)
+                      Text(error!, style: const TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.pop(reviewContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          if (reason.text.trim().length < 10) {
+                            setState(() => error =
+                                'Enter a clear rationale of at least 10 characters.');
+                            return;
+                          }
+                          setState(() {
+                            submitting = true;
+                            error = null;
+                          });
+                          try {
+                            final requestId = FirebaseFirestore.instance
+                                .collection('moderation_command_receipts')
+                                .doc()
+                                .id;
+                            await MarketplaceCommandClient()
+                                .execute('reviewModerationAppeal', {
+                              'requestId': requestId,
+                              'reportId': reportId,
+                              'decision': decision,
+                              'reason': reason.text.trim(),
+                            });
+                            if (reviewContext.mounted) {
+                              Navigator.pop(reviewContext, true);
+                            }
+                          } catch (caught) {
+                            setState(() {
+                              submitting = false;
+                              error = '$caught'.replaceFirst('Bad state: ', '');
+                            });
+                          }
+                        },
+                  child: submitting
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Confirm appeal decision'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    reason.dispose();
+    return completed;
   }
 }

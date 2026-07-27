@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-dispatch-links-search`
+Baseline branch: `agent/phase1-moderation-appeals`
 Created: July 20, 2026
 
-Current gate: Gate 4 — Complete Phase 1 marketplace journeys
+Current gate: Gate 5 — Trust, notifications, policies, and support
 
-Current overall launch-readiness estimate: 73%
+Current overall launch-readiness estimate: 76%
 
 Completed gates: 1 of 8
 
@@ -17,10 +17,10 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 88% — privacy, commerce, and Dispatch provider-review commands locally integrated |
+| 2 — Backend parity and server commands | 89% — privacy, commerce, Dispatch review, and moderation/appeal commands locally integrated |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
-| 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
+| 5 — Trust, notifications, and policies | 63% — protected reporting, review, reversible enforcement, private notices, and appeals locally verified |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
 | 7 — Release readiness | 5% — incomplete |
 
@@ -40,7 +40,7 @@ Gate 0 implementation evidence:
 
 Gate 2 implementation evidence in progress:
 
-- Release manifests declare the exact 59 expected Function exports
+- Release manifests derive and declare the exact 64 expected Function exports
 - Unit-tested parity tooling compares that manifest with the deployed
   `marketplace` codebase and fails on missing, unexpected, or inactive handlers
 - Every controlled deploy now performs this comparison after deployment and

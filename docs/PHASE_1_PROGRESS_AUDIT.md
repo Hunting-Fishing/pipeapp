@@ -2,7 +2,7 @@
 
 Audit date: July 27, 2026
 
-Branch: `agent/phase1-dispatch-links-search`
+Branch: `agent/phase1-moderation-appeals`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 88% | The 61 reviewed Function exports include idempotent ownership synchronization, account-review submission/decision, private account export, remembered-device registration/expiry, session revocation, staged deletion/cleanup, abuse cleanup, draft-first listing publication, saved/listing/offer/auction/Dispatch lifecycles, Dispatch provider submission/review, and protected conversation, upload, message, and report commands. Direct clients cannot author authoritative verification, privacy, device history, listing drafts, provider approval, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, conversation, message, upload-grant, report, dispute, or Dispatch state. A real Auth, Firestore, Functions, and Storage emulator suite verifies marketplace, listing media, communication, account-review, provider review, privacy, remembered devices, and repeated-request idempotency. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. GitHub billing is available; staging deployment and exact deployed parity remain pending. |
+| 2 — Backend parity and commands | No | 89% | The 64 reviewed Function exports include idempotent ownership synchronization, account-review submission/decision, private account export, remembered-device registration/expiry, session revocation, staged deletion/cleanup, abuse cleanup, draft-first listing publication, saved/listing/offer/auction/Dispatch lifecycles, Dispatch provider submission/review, protected communication/reporting, and moderation review/appeal commands. Direct clients cannot author authoritative verification, privacy, device history, listing drafts, provider approval, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, conversation, message, upload-grant, report, moderation decision, appeal, dispute, or Dispatch state. A real Auth, Firestore, Functions, and Storage emulator suite verifies marketplace, listing media, communication, account review, provider review, moderation appeals, privacy, remembered devices, and repeated-request idempotency. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. GitHub billing is available; staging deployment and exact deployed parity remain pending. |
 | 3 — Identity and abuse protection | No | 93% | Signup and sign-in enter a cross-platform ownership screen until Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, Dispatch, messaging, reporting, media, and privacy commands require current Auth claims and bounded quotas; phone uniqueness is synchronized into a hashed server-owned registry. Account verification requires verified ownership, complete public-profile evidence, a server submission, and an MFA-authorized administrator decision with a required note, immutable history, and notifications. Administrator authorization requires an audited custom role plus a current-session MFA claim. Users can review privacy-limited remembered app installations, receive a new-device notification, generate a private expiring export, revoke all refresh sessions, schedule or cancel coordinated deletion, and start non-enumerating email/password recovery. Staging Phone Auth/App Check/MFA activation, assisted recovery for lost email/phone access, physical-device acceptance, live administrator acceptance, suspicious-device operations, and retention-policy approval remain incomplete. |
 | 4 — Product workflows | No | 89% | Saved listings, normal listing lifecycle, draft-first media publication, bounded Marketplace/Dispatch discovery, review-based Dispatch provider enrollment, recoverable entity routes, and indexed Marketplace filters are locally verified. Browse supports server-side listing type, exact condition, minimum/maximum price, newest, and price sorting across bounded pages, while clearly labelling keyword search as loaded-result scope. Browse, Auctions, seller profiles, owner listings, open Dispatch jobs, personal requests, carrier quotes, per-job bids, and revision histories use one indexed 24-record cursor pager with retry/load-more controls. Listings, Auctions, public profiles, participant conversations, and authenticated Dispatch jobs have encoded GoRouter paths with loading, not-found, access-denied, privacy, and return-to-Marketplace states; Firebase Hosting rewrites browser refreshes to Flutter. Dispatch job links expose only public route/load facts and participant-authorized transaction data, then open Dispatch management or quoting. Dispatch provider applications use verified Auth contact claims, begin in `pending_review`, require an MFA-authorized administrator decision, block quoting until approval, and retain notifications and immutable review history. Dispatch keeps only its newest page live, uses server-side owner/carrier/job filters, and obtains activity totals through aggregate counts instead of downloading records. The map is capped to the 200 newest active records, exposes refresh/error/result-scope states, and excludes private locations; the Dispatch listing picker is capped to 50 newest active records. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Indexed full-text search, true truck-route/geospatial search, native universal-link association, payment release/refund, route calculation, and carrier billing remain incomplete. |
-| 5 — Trust, notifications, policies | No | 20% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, and administrator-readable cases are locally verified. Moderation operations, appeals, external delivery providers, policies, and support operations remain incomplete. |
+| 5 — Trust, notifications, policies | No | 63% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, MFA-authorized administrator decisions, required rationale, immutable case history, private affected-user notices, reversible content removal, a 30-day user appeal, and administrator appeal review are locally and emulator verified. External push/email delivery, approved policies, support operations, and staging acceptance remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **73%**.
+Overall Phase 1 launch readiness estimate: **76%**.
 
 Completed gates: **1 of 8**.
 
@@ -102,7 +102,7 @@ Completed gates: **1 of 8**.
 ## Live Firebase parity finding
 
 The July 23 read-only inventory for project `flutter-flow-pipe` predates the
-current 61-export reviewed source. The automated parity control therefore
+current 64-export reviewed source. The automated parity control therefore
 continues to fail closed on missing current handlers and two unexpected legacy
 handlers (`onDispatchBidCreated` and `onDispatchJobAwarded`). Offer, Auction,
 and Dispatch workflows must remain disabled until a refreshed, reviewed
@@ -261,6 +261,33 @@ staging deployment matches exactly and passes end-to-end acceptance.
   access-denied and unavailable recovery, participant-protected transaction
   details, link copying from the load board, and direct continuation into
   Dispatch management or quoting. Exact private locations remain undisclosed.
+
+## Gate 5 checkpoint evidence
+
+- Administrators no longer edit report status directly from Flutter. Three
+  retry-safe callable commands own report decisions, user appeals, and appeal
+  review; Firestore Rules deny every direct client create/update/delete of
+  decisions, sanitized notices, receipts, and immutable case events.
+- Administrator review requires the audited administrator role and a current
+  Firebase MFA session. Every dismissal, request for information, confirmed
+  violation, warning, or content-removal action requires a bounded rationale
+  and is recorded in permanent case history.
+- Confirmed violations create a private, sanitized notice for the affected
+  account without exposing the reporter or private evidence. Account Settings
+  displays those notices and offers one server-validated appeal during the
+  30-day appeal window.
+- Appeal review supports uphold or overturn with a required administrator
+  rationale. Overturning restores a listing's pre-moderation state or unhides
+  a moderated message when the report still owns that enforcement marker.
+- Reporter, affected-user, and appeal-result notifications are deterministic.
+  Message rendering suppresses both text and attachments while content is
+  hidden, and the original server record remains available for review and a
+  safe reversal.
+- The clean analyzer, 78 Flutter tests, 88 Functions/policy tests, 34
+  Firestore/Storage Rules tests, and the authenticated Auth/Firestore/
+  Functions/Storage workflow pass locally, including decision and appeal retry
+  idempotency. Staging deployment, reviewer acceptance, external notification
+  delivery, policy approval, and support operations remain pending.
 
 ## Gate 1 checkpoint evidence
 

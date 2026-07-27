@@ -2158,6 +2158,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 itemBuilder: (context, index) {
                   final message = snapshot.data!.docs[index].data();
                   final mine = message['senderUid'] == uid;
+                  final hiddenByModeration =
+                      message['moderationVisibility'] == 'hidden';
                   return Align(
                     alignment:
                         mine ? Alignment.centerRight : Alignment.centerLeft,
@@ -2175,7 +2177,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (message['attachment'] is Map &&
+                            if (!hiddenByModeration &&
+                                message['attachment'] is Map &&
                                 (message['attachment'] as Map)['type'] ==
                                     'image')
                               ClipRRect(
@@ -2187,7 +2190,32 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                                   fit: BoxFit.cover,
                                 ),
                               ),
-                            if ('${message['text'] ?? ''}'.isNotEmpty)
+                            if (hiddenByModeration)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.gpp_maybe_outlined,
+                                        size: 17,
+                                        color: mine
+                                            ? Colors.white70
+                                            : Colors.black54),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Removed by Trust & Safety',
+                                        style: TextStyle(
+                                            fontStyle: FontStyle.italic,
+                                            color: mine
+                                                ? Colors.white70
+                                                : Colors.black54),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else if ('${message['text'] ?? ''}'.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text('${message['text'] ?? ''}',

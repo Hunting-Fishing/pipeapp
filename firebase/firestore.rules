@@ -525,9 +525,26 @@ service cloud.firestore {
     match /trust_reports/{reportId} {
       allow read: if isAdmin() ||
         (signedIn() && resource.data.reporterUid == request.auth.uid);
-      allow update: if isAdmin();
-      // User reports are validated, throttled, and created by a server command.
-      allow create, delete: if false;
+      // Intake, decisions, appeals, enforcement, and audit events are written
+      // by server commands so clients cannot forge moderation outcomes.
+      allow create, update, delete: if false;
+    }
+
+    match /trust_report_events/{eventId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /moderation_notices/{reportId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.reportedUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /moderation_command_receipts/{receiptId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.actorUid == request.auth.uid);
+      allow create, update, delete: if false;
     }
 
     match /media_upload_authorizations/{authorizationId} {

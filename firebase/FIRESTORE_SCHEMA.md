@@ -136,6 +136,9 @@ idempotency receipt. The current callable commands are:
 - `confirmMarketplaceUpload`
 - `sendMarketplaceMessage`
 - `submitMarketplaceReport`
+- `reviewModerationReport`
+- `appealModerationDecision`
+- `reviewModerationAppeal`
 - `placeAuctionBid`
 - `buyAuctionNow`
 - `withdrawAuctionBid`
@@ -148,6 +151,17 @@ idempotency receipt. The current callable commands are:
 - `submitDispatchQuote`
 - `awardDispatchQuote`
 - `updateDispatchTransaction`
+
+Trust & Safety records are split by audience:
+
+- `trust_reports/{reportId}` retains reporter evidence for administrators and
+  the submitting reporter. Intake and every status change are server-only.
+- `trust_report_events/{eventId}` is immutable administrator-only decision and
+  appeal history.
+- `moderation_notices/{reportId}` contains only the sanitized decision visible
+  to the affected account; it never includes reporter identity or attachments.
+- `moderation_command_receipts/{receiptId}` provides private retry safety for
+  review and appeal commands.
 
 Firestore rules deny client writes to auction bid state, offer decisions,
 Dispatch jobs, Dispatch quote state, and their immutable revision histories.
