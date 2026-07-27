@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/data/bounded_firestore_query.dart';
 
@@ -10,13 +11,89 @@ import 'marketplace_auction_repository.dart';
 import 'marketplace_auction_settlement.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_money.dart';
-import 'marketplace_public_profile_page.dart';
 import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
+import 'marketplace_deep_links.dart';
+
+/// Full-page auction destination used by browser refreshes and shared links.
+class MarketplaceAuctionRoutePage extends StatefulWidget {
+  const MarketplaceAuctionRoutePage({super.key, required this.listingId});
+
+  final String listingId;
+
+  @override
+  State<MarketplaceAuctionRoutePage> createState() =>
+      _MarketplaceAuctionRoutePageState();
+}
+
+class _MarketplaceAuctionRoutePageState
+    extends State<MarketplaceAuctionRoutePage> {
+  late Future<QuerySnapshot<Map<String, dynamic>>> _auction;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _auction = FirebaseFirestore.instance
+        .collection('public_listings')
+        .where(FieldPath.documentId, isEqualTo: widget.listingId)
+        .where('transactionType', isEqualTo: 'Auction')
+        .limit(1)
+        .get();
+  }
+
+  void _retry() => setState(_load);
+
+  @override
+  Widget build(BuildContext context) =>
+      FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        future: _auction,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasError) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Timed auction')),
+              body: _AuctionLoadError(
+                details:
+                    'Check your connection or account access, then try again.',
+                onRetry: _retry,
+              ),
+            );
+          }
+          final documents = snapshot.data?.docs ?? const [];
+          if (documents.isEmpty) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Timed auction'),
+                actions: [
+                  IconButton(
+                    tooltip: 'Marketplace home',
+                    onPressed: () => context.go('/'),
+                    icon: const Icon(Icons.home_outlined),
+                  ),
+                ],
+              ),
+              body: _AuctionLoadError(
+                details:
+                    'This auction may have ended, been removed, or the link may be incorrect.',
+                onRetry: _retry,
+              ),
+            );
+          }
+          return _AuctionDetails(document: documents.single, fullPage: true);
+        },
+      );
+}
 
 class MarketplaceAuctionsPage extends StatefulWidget {
   const MarketplaceAuctionsPage({super.key, required this.onCreateAuction});
@@ -336,9 +413,8 @@ class _AuctionCard extends StatelessWidget {
                 width: presentation.emphasized ? 2 : 1),
             borderRadius: BorderRadius.circular(14)),
         child: InkWell(
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) =>
-                    _AuctionDetails(document: document, fullPage: true))),
+            onTap: () =>
+                context.push(MarketplaceDeepLinks.auction(document.id)),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               SizedBox(
                   width: 122,
@@ -650,27 +726,23 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                 ],
                                 const SizedBox(height: 12),
                                 ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: MarketplaceUserAvatar(
-                                        userUid: '${data['sellerUid'] ?? ''}',
-                                        photoUrl:
-                                            '${data['sellerPhotoUrl'] ?? data['sellerAvatarUrl'] ?? ''}',
-                                        size: 42,
-                                        fallback: const Center(
-                                            child: Icon(Icons.person_outline))),
-                                    title: Text(
-                                        '${data['sellerName'] ?? 'Marketplace seller'}'),
-                                    subtitle: const Text(
-                                        'View seller profile and listings'),
-                                    trailing: const Icon(Icons.chevron_right),
-                                    onTap: () => Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                MarketplacePublicProfilePage(
-                                                    userUid:
-                                                        '${data['sellerUid'] ?? ''}',
-                                                    fallbackName:
-                                                        '${data['sellerName'] ?? 'Marketplace seller'}')))),
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: MarketplaceUserAvatar(
+                                      userUid: '${data['sellerUid'] ?? ''}',
+                                      photoUrl:
+                                          '${data['sellerPhotoUrl'] ?? data['sellerAvatarUrl'] ?? ''}',
+                                      size: 42,
+                                      fallback: const Center(
+                                          child: Icon(Icons.person_outline))),
+                                  title: Text(
+                                      '${data['sellerName'] ?? 'Marketplace seller'}'),
+                                  subtitle: const Text(
+                                      'View seller profile and listings'),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => context.push(
+                                      MarketplaceDeepLinks.profile(
+                                          '${data['sellerUid'] ?? ''}')),
+                                ),
                                 const Divider(),
                                 MarketplaceDispatchQuoteCard(
                                     auction: true,

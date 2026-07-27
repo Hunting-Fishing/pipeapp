@@ -10,6 +10,10 @@ import '/auth/base_auth_user_provider.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 
 import '/marketplace/oil_gas_marketplace.dart';
+import '/marketplace/marketplace_auctions_page.dart';
+import '/marketplace/marketplace_deep_links.dart';
+import '/marketplace/marketplace_messages_page.dart';
+import '/marketplace/marketplace_public_profile_page.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -82,6 +86,41 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: '_initialize',
           path: '/',
           builder: (context, _) => const OilGasMarketplaceApp(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.listingRouteName,
+          path: '/listings/:listingId',
+          builder: (context, params) => MarketplaceListingRoutePage(
+            listingId:
+                params.getParam<String>('listingId', ParamType.string) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.auctionRouteName,
+          path: '/auctions/:listingId',
+          builder: (context, params) => MarketplaceAuctionRoutePage(
+            listingId:
+                params.getParam<String>('listingId', ParamType.string) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.profileRouteName,
+          path: '/profiles/:userUid',
+          builder: (context, params) => MarketplacePublicProfilePage(
+            userUid: params.getParam<String>('userUid', ParamType.string) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.conversationRouteName,
+          path: '/conversations/:conversationId',
+          requireAuth: true,
+          builder: (context, params) => MarketplaceConversationRoutePage(
+            conversationId: params.getParam<String>(
+                  'conversationId',
+                  ParamType.string,
+                ) ??
+                '',
+          ),
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

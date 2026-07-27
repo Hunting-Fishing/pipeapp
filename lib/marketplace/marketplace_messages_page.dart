@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/config/phase1_feature_flags.dart';
 import '../core/diagnostics/app_diagnostics.dart';
@@ -12,11 +13,11 @@ import 'marketplace_reporting.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_navigation.dart';
-import 'marketplace_public_profile_page.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_offer_schedule.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
+import 'marketplace_deep_links.dart';
 
 class MarketplaceMessagesPage extends StatelessWidget {
   const MarketplaceMessagesPage({super.key});
@@ -103,9 +104,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
                 trailing: unread > 0
                     ? Badge(label: Text('$unread'))
                     : const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => MarketplaceChatPage(
-                        conversationId: doc.id, title: title))),
+                onTap: () =>
+                    context.push(MarketplaceDeepLinks.conversation(doc.id)),
               ),
             );
           },
@@ -1333,12 +1333,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   OutlinedButton.icon(
                       onPressed: () {
                         Navigator.pop(dialogContext);
-                        Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => MarketplacePublicProfilePage(
-                                userUid: buyerUid,
-                                fallbackName: name.isEmpty
-                                    ? 'Marketplace buyer'
-                                    : name)));
+                        context.push(MarketplaceDeepLinks.profile(buyerUid));
                       },
                       icon: const Icon(Icons.open_in_new),
                       label: const Text('View full profile')),
@@ -1946,6 +1941,96 @@ class _EmptyMessages extends StatelessWidget {
       ]));
 }
 
+/// Participant-only full-page conversation destination for restored links.
+class MarketplaceConversationRoutePage extends StatelessWidget {
+  const MarketplaceConversationRoutePage({
+    super.key,
+    required this.conversationId,
+  });
+
+  final String conversationId;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Marketplace conversation')),
+        body: Center(
+          child: FilledButton(
+            onPressed: () => context.go('/'),
+            child: const Text('Sign in to open this conversation'),
+          ),
+        ),
+      );
+    }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('conversations')
+          .doc(conversationId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _ConversationRouteFailure(
+            message:
+                'This conversation could not be loaded. Check your account and connection.',
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        final document = snapshot.data;
+        final data = document?.data();
+        final members = List<String>.from(
+          data?['memberUids'] as List? ?? const <String>[],
+        );
+        if (document == null ||
+            !document.exists ||
+            !members.contains(user.uid)) {
+          return const _ConversationRouteFailure(
+            message:
+                'This conversation is unavailable or your account is not a participant.',
+          );
+        }
+        final title = '${data?['listingTitle'] ?? 'Marketplace conversation'}';
+        return MarketplaceChatPage(
+          conversationId: conversationId,
+          title: title,
+        );
+      },
+    );
+  }
+}
+
+class _ConversationRouteFailure extends StatelessWidget {
+  const _ConversationRouteFailure({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Marketplace conversation')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.forum_outlined,
+                  size: 48, color: Colors.deepOrange),
+              const SizedBox(height: 12),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: () => context.go('/'),
+                icon: const Icon(Icons.home_outlined),
+                label: const Text('Return to Marketplace'),
+              ),
+            ]),
+          ),
+        ),
+      );
+}
+
 class MarketplaceChatPage extends StatefulWidget {
   const MarketplaceChatPage(
       {super.key,
@@ -2181,12 +2266,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
       }
       return;
     }
-    final fallbackName = currentUid == conversation['sellerUid']
-        ? '${conversation['buyerDisplayName'] ?? 'Marketplace buyer'}'
-        : '${conversation['sellerName'] ?? 'Marketplace seller'}';
-    await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => MarketplacePublicProfilePage(
-            userUid: otherUid, fallbackName: fallbackName)));
+    await context.push(MarketplaceDeepLinks.profile(otherUid));
   }
 
   Future<void> _send() async {
@@ -2280,8 +2360,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               contentType: contentType,
               customMetadata: {'conversationId': widget.conversationId}));
       final url = await reference.getDownloadURL();
-      await _actions.confirmUpload(
-          authorizationId: authorizationId, url: url);
+      await _actions.confirmUpload(authorizationId: authorizationId, url: url);
       if (mounted) {
         setState(() => _attachment = {
               'type': 'image',

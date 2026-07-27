@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/dispatch-provider-approval`
+Baseline branch: `agent/phase1-deep-links`
 Created: July 20, 2026
 
 Current gate: Gate 4 — Complete Phase 1 marketplace journeys
 
-Current overall launch-readiness estimate: 70%
+Current overall launch-readiness estimate: 71%
 
 Completed gates: 1 of 8
 
@@ -19,7 +19,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
 | 2 — Backend parity and server commands | 88% — privacy, commerce, and Dispatch provider-review commands locally integrated |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
-| 4 — Product workflows | 82% — listing/transaction lifecycles, review-based Dispatch provider approval, and bounded Marketplace, Auction, map, seller, owner, Dispatch job, quote, bid, and history reads locally verified |
+| 4 — Product workflows | 84% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, and recoverable Marketplace entity routes locally verified |
 | 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
 | 7 — Release readiness | 5% — incomplete |
@@ -292,8 +292,9 @@ Marketplace:
   publish when required data is complete.
 - Edit, pause, archive, relist, mark pending, mark sold, and close listings.
 - Add indexed search, pagination, sorting, filters, and bounded queries.
-- Add shareable routes for listings, profiles, auctions, conversations, and
-  Dispatch jobs where access permits.
+- Finish approved-domain Android App Links and Apple Universal Links for the
+  source-verified listing, profile, Auction, and participant-conversation
+  routes; add Dispatch job routes where access permits.
 
 Offers and messages:
 
