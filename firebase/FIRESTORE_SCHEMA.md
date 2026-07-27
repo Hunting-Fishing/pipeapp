@@ -11,10 +11,23 @@ Firestore uses collections and documents rather than SQL tables.
 - `account_phone_registry/{sha256}`: server-owned mapping from a hashed,
   Firebase-verified E.164 phone number to one Auth UID. It supports duplicate
   account prevention without exposing phone numbers as document identifiers.
+- `verification_requests/{uid}`: server-captured ownership and public-profile
+  evidence for the current review revision. Users and MFA-authorized
+  administrators may read it; only callable commands may submit or decide it.
+- `verification_review_events/{uid-revision-event}`: immutable submission and
+  administrator decision history with required review notes.
+- `account_verification_command_receipts/{sha256}`: server-only retry receipts
+  for verification submission and administrator decisions.
 - `security_rate_limits/{sha256}`: private server-owned hourly command buckets
   containing bounded retry fingerprints, counts, expiry, and policy scope.
   Clients cannot read or write them; an expiration scheduler removes old data.
-- `public_listings/{listingId}`: searchable active/draft listings and seller-selected public location.
+- `public_listings/{listingId}`: published searchable listings and the
+  seller-selected public location. Unpublished drafts are never stored here.
+- `marketplace_listing_drafts/{listingId}`: private, owner-readable,
+  server-written listing payload, exact location, expected media counts, upload
+  manifest, retry state, and 30-day expiry. Publication is a server transaction
+  that validates the draft and uploaded Storage objects before creating the
+  public listing and deleting the draft.
 - `auction_private/{listingId}`: seller/admin-only reserve price and reserve
   total. Reserve amounts must never be stored in `public_listings`.
 - `listing_private_locations/{listingId}`: exact address, coordinates and access notes; owner-only.
@@ -22,6 +35,12 @@ Firestore uses collections and documents rather than SQL tables.
 - `geography_catalog/schema`: provider, hierarchy, normalization and dataset metadata.
 - `geography_places/{placeId}`: normalized countries, states/provinces, regions, municipalities, towns and communities imported from the selected gazetteer.
 - `marketplace_tags/{tagId}`: administrator-approved searchable marketplace taxonomy.
+- `administrator_roles/{uid}`: server-owned active administrator directory used
+  for secure notification routing; it does not grant authority by itself.
+- `administrator_role_audits/{auditId}`: immutable operator-script history for
+  administrator grants and revocations. Runtime authority comes from reviewed
+  Firebase Authentication custom claims plus the signed per-session second
+  factor claim.
 - `tag_requests/{requestId}`: user suggestions with pending, approved, or rejected moderation status.
 - `users/{uid}/profile_tags/{tagId}`: approved selections and visibly pending user suggestions.
 - `public_seller_profiles/{uid}`: public discovery index containing approved tag IDs and account type.
@@ -41,7 +60,8 @@ Firestore uses collections and documents rather than SQL tables.
   only by the marketplace command service.
 - `marketplace_command_receipts/{receiptId}`: deterministic, server-only
   idempotency receipts for bid placement, Buy It Now, bid withdrawal,
-  below-reserve acceptance, marketplace offers, and Dispatch commands.
+  below-reserve acceptance, listing draft creation/publication, marketplace
+  offers, and Dispatch commands.
 - `dispatch_jobs/{jobId}`: live user trucking requests. Stores route labels,
   optional mapped planning points, estimated distance, requested date, load
   details, current status, bid count and revision number. Creation, revision,
@@ -69,6 +89,28 @@ Firestore uses collections and documents rather than SQL tables.
 - `users/{uid}/followed_sellers/{sellerUid}`: followed sellers and notification preference.
 - `users/{uid}/notifications/{notificationId}`: server-created marketplace notifications.
 
+## Listing query budgets
+
+User-facing listing discovery must remain bounded:
+
+- Marketplace Browse, Auctions, public seller profiles, and owner listing
+  history use 24-document pages with document cursors and duplicate-ID
+  suppression.
+- Auction filters apply `status`, `transactionType`, schedule, and owner
+  constraints on the server using the declared composite indexes.
+- The public map reads at most the 200 newest active listings and creates
+  markers only for `exact` or `approximate` public locations.
+- The Dispatch listing chooser reads at most the 50 newest active listings.
+- Dispatch open jobs, owner requests, carrier quotes, per-job bids, and job/bid
+  revision histories keep a live first page of 24 records and use document
+  cursors for older pages. Queries constrain status, owner, carrier, or job on
+  the server through declared composite indexes.
+- Dispatch activity totals use Firestore aggregate counts. Fleet, saved-lane,
+  verified-scale, and transaction-support reads use explicit safety caps.
+
+Full-text and route-aware geospatial discovery require a dedicated indexed
+search provider; increasing these Firestore caps is not a substitute.
+
 ## Marketplace decision boundary
 
 Financial decisions are never accepted from a direct client document update.
@@ -78,6 +120,8 @@ recalculates eligibility and minimums, writes the decision, and records an
 idempotency receipt. The current callable commands are:
 
 - `syncAccountVerification`
+- `submitAccountVerification`
+- `reviewAccountVerification`
 - `cleanupExpiredSecurityRateLimits` (scheduled)
 - `cleanupExpiredMediaUploadAuthorizations` (scheduled)
 - `openMarketplaceConversation`

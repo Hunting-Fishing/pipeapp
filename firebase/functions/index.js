@@ -3,6 +3,10 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
 const { createAdminRuntime } = require("./admin_runtime");
 const { createAccountCommands } = require("./account_commands");
+const {
+  createAccountVerificationCommands,
+} = require("./account_verification_commands");
+const { createAccountPrivacyCommands } = require("./account_privacy_commands");
 const { cleanupExpiredRateLimits } = require("./abuse_rate_limit");
 const { protectedCallableOptions } = require("./app_check_config");
 const {
@@ -13,7 +17,26 @@ const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
 const admin = createAdminRuntime();
 
+async function notifyActiveAdministrators(notification) {
+  const roles = await admin.firestore().collection("administrator_roles")
+    .where("active", "==", true)
+    .get();
+  if (roles.empty) {
+    console.warn("Administrator notification skipped: no active roles");
+    return;
+  }
+  await Promise.all(roles.docs.map((role) =>
+    admin.firestore().collection("users").doc(role.id)
+      .collection("notifications").add({
+        ...notification,
+        recipientUid: role.id,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })));
+}
+
 const accountCommands = createAccountCommands(admin);
+const accountPrivacyCommands = createAccountPrivacyCommands(admin);
+const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
@@ -21,13 +44,49 @@ exports.syncAccountVerification = onCall(
   protectedCallableOptions,
   accountCommands.syncAccountVerification,
 );
+exports.submitAccountVerification = onCall(
+  protectedCallableOptions,
+  accountVerificationCommands.submitAccountVerification,
+);
+exports.reviewAccountVerification = onCall(
+  protectedCallableOptions,
+  accountVerificationCommands.reviewAccountVerification,
+);
+exports.requestAccountDataExport = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.requestAccountDataExport,
+);
+exports.revokeAccountSessions = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.revokeAccountSessions,
+);
+exports.requestAccountDeletion = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.requestAccountDeletion,
+);
+exports.cancelAccountDeletion = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.cancelAccountDeletion,
+);
 exports.cleanupExpiredSecurityRateLimits = onSchedule(
   "every 24 hours",
   async () => cleanupExpiredRateLimits(admin),
 );
+exports.cleanupExpiredAccountExports = onSchedule(
+  "every 24 hours",
+  async () => accountPrivacyCommands.cleanupExpiredAccountExports(),
+);
+exports.finalizeScheduledAccountDeletions = onSchedule(
+  "every 24 hours",
+  async () => accountPrivacyCommands.finalizeScheduledAccountDeletions(),
+);
 exports.cleanupExpiredMediaUploadAuthorizations = onSchedule(
   "every 24 hours",
   async () => cleanupExpiredMediaUploadAuthorizations(admin),
+);
+exports.cleanupExpiredMarketplaceListingDrafts = onSchedule(
+  "every 24 hours",
+  async () => marketplaceCommands.cleanupExpiredMarketplaceListingDrafts(),
 );
 exports.openMarketplaceConversation = onCall(
   protectedCallableOptions,
@@ -105,6 +164,14 @@ exports.createMarketplaceListing = onCall(
   protectedCallableOptions,
   marketplaceCommands.createMarketplaceListing,
 );
+exports.createMarketplaceListingDraft = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.createMarketplaceListingDraft,
+);
+exports.publishMarketplaceListingDraft = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.publishMarketplaceListingDraft,
+);
 exports.convertMarketplaceListingToAuction = onCall(
   protectedCallableOptions,
   marketplaceCommands.convertMarketplaceListingToAuction,
@@ -112,6 +179,10 @@ exports.convertMarketplaceListingToAuction = onCall(
 exports.updateMarketplaceListingMedia = onCall(
   protectedCallableOptions,
   marketplaceCommands.updateMarketplaceListingMedia,
+);
+exports.updateMarketplaceListingDraftMedia = onCall(
+  protectedCallableOptions,
+  marketplaceCommands.updateMarketplaceListingDraftMedia,
 );
 exports.updateMarketplaceListingDetails = onCall(
   protectedCallableOptions,
@@ -348,7 +419,6 @@ exports.syncUserAccountRole = onDocumentWritten("users/{uid}", async (event) => 
     accountType,
     personal: accountType === "personal",
     business: accountType === "business",
-    admin: (user.email || "").toLowerCase() === "jordilwbailey@gmail.com",
   });
   await event.data.after.ref.set({
     roleVersion: 1,
@@ -361,19 +431,13 @@ exports.onTagRequestCreated = onDocumentCreated(
   "tag_requests/{requestId}",
   async (event) => {
     const request = event.data.data();
-    const developer = await admin.auth().getUserByEmail("jordilwbailey@gmail.com");
-    await admin.firestore()
-      .collection("users")
-      .doc(developer.uid)
-      .collection("notifications")
-      .add({
-        type: "tag_approval_request",
-        title: "New marketplace tag request",
-        body: `${request.requestedByEmail || "A user"} requested “${request.label || "Untitled tag"}”.`,
-        tagRequestId: event.params.requestId,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await notifyActiveAdministrators({
+      type: "tag_approval_request",
+      title: "New marketplace tag request",
+      body: `${request.requestedByEmail || "A user"} requested “${request.label || "Untitled tag"}”.`,
+      tagRequestId: event.params.requestId,
+      read: false,
+    });
     return null;
   },
 );
@@ -382,23 +446,16 @@ exports.onCatalogSuggestionCreated = onDocumentCreated(
   "catalog_suggestions/{suggestionId}",
   async (event) => {
     const suggestion = event.data.data();
-    const developer = await admin.auth()
-      .getUserByEmail("jordilwbailey@gmail.com");
-    await admin.firestore()
-      .collection("users")
-      .doc(developer.uid)
-      .collection("notifications")
-      .add({
-        type: "catalog_suggestion",
-        title: "New marketplace catalog suggestion",
-        body: `${suggestion.requestedByEmail || "A user"} suggested ` +
-          `“${suggestion.value || "Untitled"}” for ` +
-          `${suggestion.field || "the marketplace catalog"}.`,
-        catalogSuggestionId: event.params.suggestionId,
-        listingId: suggestion.listingId || null,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await notifyActiveAdministrators({
+      type: "catalog_suggestion",
+      title: "New marketplace catalog suggestion",
+      body: `${suggestion.requestedByEmail || "A user"} suggested ` +
+        `“${suggestion.value || "Untitled"}” for ` +
+        `${suggestion.field || "the marketplace catalog"}.`,
+      catalogSuggestionId: event.params.suggestionId,
+      listingId: suggestion.listingId || null,
+      read: false,
+    });
     return null;
   },
 );
@@ -416,26 +473,17 @@ exports.onDispatchSignupCreated = onDocumentCreated(
       read: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    const writes = [
+    await Promise.all([
       admin.firestore().collection("users").doc(userId)
         .collection("notifications").add(notification),
-    ];
-    try {
-      const developer = await admin.auth()
-        .getUserByEmail("jordilwbailey@gmail.com");
-      writes.push(admin.firestore().collection("users").doc(developer.uid)
-        .collection("notifications").add({
-          type: "dispatch_signup",
-          title: "New Dispatch provider signup",
-          body: `${signup.operatingName || "A provider"} joined Dispatch in ${signup.serviceAreaLabel || "an unspecified service area"}.`,
-          dispatchAccountUid: userId,
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        }));
-    } catch (error) {
-      console.warn("Dispatch admin notification skipped", error);
-    }
-    await Promise.all(writes);
+      notifyActiveAdministrators({
+        type: "dispatch_signup",
+        title: "New Dispatch provider signup",
+        body: `${signup.operatingName || "A provider"} joined Dispatch in ${signup.serviceAreaLabel || "an unspecified service area"}.`,
+        dispatchAccountUid: userId,
+        read: false,
+      }),
+    ]);
     return null;
   },
 );
@@ -618,18 +666,13 @@ exports.onWeightSuggestionCreated = onDocumentCreated(
   "weight_suggestions/{suggestionId}",
   async (event) => {
     const suggestion = event.data.data();
-    const administrators = await admin.firestore().collection("users")
-      .where("email", "==", "jordilwbailey@gmail.com").limit(1).get();
-    if (administrators.empty) return null;
-    const adminUser = administrators.docs[0];
-    await adminUser.ref.collection("notifications").add({
+    await notifyActiveAdministrators({
       type: "catalog_suggestion",
       title: "New shipping-weight correction to review",
       body: `${suggestion.listingTitle || "Listing"} • ${suggestion.suggestedWeightKg} kg`,
       suggestionId: event.params.suggestionId,
       listingId: suggestion.listingId || null,
       read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return null;
   },

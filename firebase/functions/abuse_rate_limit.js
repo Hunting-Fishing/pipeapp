@@ -5,6 +5,7 @@ const {AccountSecurityError} = require("./account_security");
 
 const RATE_LIMITS = Object.freeze({
   account: 20,
+  administration: 120,
   marketplace: 240,
   offers: 80,
   auctions: 180,
@@ -12,6 +13,7 @@ const RATE_LIMITS = Object.freeze({
   messaging: 120,
   reporting: 20,
   media: 60,
+  privacy: 10,
 });
 const WINDOW_SECONDS = 60 * 60;
 

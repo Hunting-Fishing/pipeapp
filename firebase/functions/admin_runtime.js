@@ -1,5 +1,6 @@
 const { getApps, initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
+const { getStorage } = require("firebase-admin/storage");
 const {
   FieldValue,
   GeoPoint,
@@ -21,6 +22,7 @@ function createAdminRuntime() {
   return {
     auth: () => getAuth(),
     firestore,
+    storage: () => getStorage(),
   };
 }
 

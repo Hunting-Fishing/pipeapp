@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/data/bounded_firestore_query.dart';
+
 import 'marketplace_auction_repository.dart';
 import 'marketplace_auction_settlement.dart';
 import 'marketplace_avatar_image.dart';
@@ -27,113 +29,266 @@ class MarketplaceAuctionsPage extends StatefulWidget {
 
 class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
   String _filter = 'Live';
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
+  QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
+  bool _loading = false;
+  bool _hasMore = true;
+  String? _loadError;
+  int _queryGeneration = 0;
 
   @override
-  Widget build(BuildContext context) =>
-      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('public_listings')
-              .where('status', isEqualTo: 'active')
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const Center(child: Text('Auctions could not be loaded.'));
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final now = DateTime.now();
-            final uid = FirebaseAuth.instance.currentUser?.uid;
-            final auctions = snapshot.data!.docs.where((doc) {
-              final data = doc.data();
-              if (data['transactionType'] != 'Auction') return false;
-              final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
-              final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
-              return switch (_filter) {
-                'Upcoming' => start != null && now.isBefore(start),
-                'Ended' => end != null && !now.isBefore(end),
-                'My auctions' => data['sellerUid'] == uid,
-                _ => start != null &&
-                    end != null &&
-                    !now.isBefore(start) &&
-                    now.isBefore(end),
-              };
-            }).toList()
-              ..sort((a, b) {
-                final at = a.data()['auctionEndAt'] as Timestamp?;
-                final bt = b.data()['auctionEndAt'] as Timestamp?;
-                return (at?.millisecondsSinceEpoch ?? 0)
-                    .compareTo(bt?.millisecondsSinceEpoch ?? 0);
-              });
-            return Column(children: [
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+  void initState() {
+    super.initState();
+    _loadPage(reset: true);
+  }
+
+  Query<Map<String, dynamic>> _query(DateTime now) {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('public_listings')
+        .where('status', isEqualTo: 'active')
+        .where('transactionType', isEqualTo: 'Auction');
+    switch (_filter) {
+      case 'Upcoming':
+        return query
+            .where('auctionStartAt', isGreaterThan: Timestamp.fromDate(now))
+            .orderBy('auctionStartAt');
+      case 'Ended':
+        return query
+            .where('auctionEndAt', isLessThanOrEqualTo: Timestamp.fromDate(now))
+            .orderBy('auctionEndAt', descending: true);
+      case 'My auctions':
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid == null) return query.where('sellerUid', isEqualTo: '__none__');
+        return query
+            .where('sellerUid', isEqualTo: uid)
+            .orderBy('createdAt', descending: true);
+      default:
+        return query
+            .where('auctionEndAt', isGreaterThan: Timestamp.fromDate(now))
+            .orderBy('auctionEndAt');
+    }
+  }
+
+  Future<void> _loadPage({bool reset = false}) async {
+    if (_loading && !reset) return;
+    if (!reset && !_hasMore) return;
+    final generation = reset ? ++_queryGeneration : _queryGeneration;
+    setState(() {
+      _loading = true;
+      _loadError = null;
+      if (reset) {
+        _documents.clear();
+        _cursor = null;
+        _hasMore = true;
+      }
+    });
+    try {
+      final page = await loadFirestoreDocumentPage(
+        _query(DateTime.now()),
+        after: reset ? null : _cursor,
+      );
+      if (!mounted || generation != _queryGeneration) return;
+      final merged = appendUniqueById(
+        reset
+            ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+            : _documents,
+        page.documents,
+        (document) => document.id,
+      );
+      setState(() {
+        _documents
+          ..clear()
+          ..addAll(merged);
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+      });
+    } catch (error) {
+      if (!mounted || generation != _queryGeneration) return;
+      setState(() => _loadError =
+          error is FirebaseException && error.code == 'failed-precondition'
+              ? 'The auction index is still being prepared. Try again shortly.'
+              : 'Check your connection and try again.');
+    } finally {
+      if (mounted && generation == _queryGeneration) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final auctions = _documents.where((doc) {
+      if (_filter != 'Live') return true;
+      final start = (doc.data()['auctionStartAt'] as Timestamp?)?.toDate();
+      return start != null && !now.isBefore(start);
+    }).toList(growable: false);
+    return Column(children: [
+      Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Expanded(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(children: [
-                          const Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                Text('Timed auctions',
-                                    style: TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w900)),
-                                Text('Bid live on verified oilfield inventory.',
-                                    style: TextStyle(
-                                        color: Color(0xFF66758A), fontSize: 12))
-                              ])),
-                          IconButton.outlined(
-                              tooltip: 'Listing color key',
-                              onPressed: () =>
-                                  showMarketplaceListingLegend(context),
-                              icon: const Icon(Icons.info_outline_rounded)),
-                          const SizedBox(width: 7),
-                          FilledButton.icon(
-                              onPressed: widget.onCreateAuction,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Sell'))
-                        ]),
-                        const SizedBox(height: 12),
-                        SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: SegmentedButton<String>(
-                                segments: const [
-                                  ButtonSegment(
-                                      value: 'Live',
-                                      icon: Icon(Icons.fiber_manual_record),
-                                      label: Text('Live')),
-                                  ButtonSegment(
-                                      value: 'Upcoming',
-                                      icon: Icon(Icons.schedule_outlined),
-                                      label: Text('Upcoming')),
-                                  ButtonSegment(
-                                      value: 'Ended',
-                                      icon: Icon(Icons.history_outlined),
-                                      label: Text('Ended')),
-                                  ButtonSegment(
-                                      value: 'My auctions',
-                                      icon: Icon(Icons.person_outline),
-                                      label: Text('My auctions'))
-                                ],
-                                selected: {
-                                  _filter
-                                },
-                                onSelectionChanged: (value) =>
-                                    setState(() => _filter = value.first)))
-                      ])),
-              Expanded(
-                  child: auctions.isEmpty
+                    Text('Timed auctions',
+                        style: TextStyle(
+                            fontSize: 28, fontWeight: FontWeight.w900)),
+                    Text('Bid live on verified oilfield inventory.',
+                        style:
+                            TextStyle(color: Color(0xFF66758A), fontSize: 12))
+                  ])),
+              IconButton.outlined(
+                  tooltip: 'Listing color key',
+                  onPressed: () => showMarketplaceListingLegend(context),
+                  icon: const Icon(Icons.info_outline_rounded)),
+              const SizedBox(width: 7),
+              FilledButton.icon(
+                  onPressed: widget.onCreateAuction,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Sell'))
+            ]),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                          value: 'Live',
+                          icon: Icon(Icons.fiber_manual_record),
+                          label: Text('Live')),
+                      ButtonSegment(
+                          value: 'Upcoming',
+                          icon: Icon(Icons.schedule_outlined),
+                          label: Text('Upcoming')),
+                      ButtonSegment(
+                          value: 'Ended',
+                          icon: Icon(Icons.history_outlined),
+                          label: Text('Ended')),
+                      ButtonSegment(
+                          value: 'My auctions',
+                          icon: Icon(Icons.person_outline),
+                          label: Text('My auctions'))
+                    ],
+                    selected: {
+                      _filter
+                    },
+                    onSelectionChanged: (value) {
+                      final next = value.first;
+                      if (next == _filter) return;
+                      setState(() => _filter = next);
+                      _loadPage(reset: true);
+                    }))
+          ])),
+      Expanded(
+          child: _loading && _documents.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : _loadError != null && _documents.isEmpty
+                  ? _AuctionLoadError(
+                      details: _loadError!,
+                      onRetry: () => _loadPage(reset: true),
+                    )
+                  : auctions.isEmpty
                       ? _AuctionEmpty(
-                          filter: _filter, onCreate: widget.onCreateAuction)
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
-                          itemCount: auctions.length,
-                          itemBuilder: (context, index) =>
-                              _AuctionCard(document: auctions[index])))
-            ]);
-          });
+                          filter: _filter,
+                          onCreate: widget.onCreateAuction,
+                          onLoadMore:
+                              _hasMore && !_loading ? () => _loadPage() : null)
+                      : RefreshIndicator(
+                          onRefresh: () => _loadPage(reset: true),
+                          child: ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+                              itemCount: auctions.length + 1,
+                              itemBuilder: (context, index) {
+                                if (index < auctions.length) {
+                                  return _AuctionCard(
+                                      document: auctions[index]);
+                                }
+                                if (_loadError != null) {
+                                  return _AuctionPageError(
+                                      onRetry: () => _loadPage(),
+                                      details: _loadError!);
+                                }
+                                if (_hasMore) {
+                                  return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                      child: Center(
+                                          child: FilledButton.tonalIcon(
+                                              onPressed:
+                                                  _loading ? null : _loadPage,
+                                              icon: _loading
+                                                  ? const SizedBox.square(
+                                                      dimension: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                              strokeWidth: 2))
+                                                  : const Icon(Icons
+                                                      .expand_more_rounded),
+                                              label: const Text(
+                                                  'Load more auctions'))));
+                                }
+                                return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 14),
+                                    child: Center(
+                                        child: Text('All auctions loaded.',
+                                            style: TextStyle(
+                                                color: Color(0xFF66758A)))));
+                              })))
+    ]);
+  }
+}
+
+class _AuctionLoadError extends StatelessWidget {
+  const _AuctionLoadError({required this.details, required this.onRetry});
+  final String details;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+      child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off_outlined,
+                size: 46, color: Colors.deepOrange),
+            const SizedBox(height: 10),
+            const Text('Auctions could not be loaded.',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Text(details,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again')),
+          ])));
+}
+
+class _AuctionPageError extends StatelessWidget {
+  const _AuctionPageError({required this.onRetry, required this.details});
+  final VoidCallback onRetry;
+  final String details;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(children: [
+        const Text('More auctions could not be loaded.'),
+        Text(details,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10, color: Colors.black54)),
+        TextButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry')),
+      ]));
 }
 
 class _AuctionCard extends StatelessWidget {
@@ -1089,9 +1244,11 @@ class _BidHistory extends StatelessWidget {
 }
 
 class _AuctionEmpty extends StatelessWidget {
-  const _AuctionEmpty({required this.filter, required this.onCreate});
+  const _AuctionEmpty(
+      {required this.filter, required this.onCreate, this.onLoadMore});
   final String filter;
   final VoidCallback onCreate;
+  final VoidCallback? onLoadMore;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -1108,6 +1265,13 @@ class _AuctionEmpty extends StatelessWidget {
             const Text(
                 'Timed auction listings will appear here, separately from marketplace inventory.',
                 textAlign: TextAlign.center),
+            if (onLoadMore != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                  onPressed: onLoadMore,
+                  icon: const Icon(Icons.expand_more_rounded),
+                  label: const Text('Check more auctions')),
+            ],
             const SizedBox(height: 15),
             FilledButton.icon(
                 onPressed: onCreate,

@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/data/bounded_firestore_query.dart';
+
 import 'marketplace_messages_page.dart';
+import 'marketplace_admin_access.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
@@ -12,6 +15,7 @@ import 'marketplace_listing_media.dart';
 import 'marketplace_money.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_command_client.dart';
+import 'account_export_downloader.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -115,9 +119,6 @@ class _Overview extends StatelessWidget {
               ((data['profileCompletion'] as num?)?.toInt() ?? 0).clamp(0, 100);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
-          final isAdmin = data['isAdmin'] == true ||
-              data['admin'] == true ||
-              (user.email ?? '').toLowerCase() == 'jordilwbailey@gmail.com';
           return ListView(padding: const EdgeInsets.all(18), children: [
             Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
                 style:
@@ -148,7 +149,9 @@ class _Overview extends StatelessWidget {
                   : userScore > 50
                       ? 'Standard marketplace standing'
                       : 'Auction buying is restricted'),
-              trailing: data['accountVerified'] == true
+              trailing: data['accountVerified'] == true &&
+                      (data['accountVerificationReviewVersion'] as num? ?? 0) >=
+                          1
                   ? const Icon(Icons.verified, color: Colors.green)
                   : const Chip(label: Text('Not verified')),
             )),
@@ -173,16 +176,21 @@ class _Overview extends StatelessWidget {
                 icon: Icons.settings_outlined,
                 title: 'Account settings',
                 onTap: () => onOpen(5)),
-            if (isAdmin)
-              _AccountShortcut(
-                  icon: Icons.admin_panel_settings_outlined,
-                  title: 'Trust & Safety admin dashboard',
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => Scaffold(
-                            appBar:
-                                AppBar(title: const Text('Admin moderation')),
-                            body: const AdminModerationDashboard(),
-                          )))),
+            FutureBuilder<bool>(
+                future: marketplaceAdministratorAccess(),
+                builder: (context, access) => access.data == true
+                    ? _AccountShortcut(
+                        icon: Icons.admin_panel_settings_outlined,
+                        title: 'Trust & Safety admin dashboard',
+                        onTap: () =>
+                            Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => Scaffold(
+                                      appBar: AppBar(
+                                          title:
+                                              const Text('Admin moderation')),
+                                      body: const AdminModerationDashboard(),
+                                    ))))
+                    : const SizedBox.shrink()),
           ]);
         });
   }
@@ -232,6 +240,16 @@ Future<void> _showUserScore(
   final accountType = '${data['accountType'] ?? 'personal'}';
   final checks = <(String, bool, String)>[
     (
+      'Verified email ownership',
+      data['emailOwnershipVerified'] == true,
+      'Open Account Security and verify the email address you own.',
+    ),
+    (
+      'Verified mobile ownership',
+      data['phoneOwnershipVerified'] == true,
+      'Open Account Security and verify your mobile number by SMS.',
+    ),
+    (
       'Profile details',
       (data['profileCompletion'] as num? ?? 0) >= 100,
       'Complete every required field in Profile.'
@@ -268,6 +286,10 @@ Future<void> _showUserScore(
     ],
   ];
   final readyForReview = checks.every((item) => item.$2);
+  final ownershipReady = data['emailOwnershipVerified'] == true &&
+      data['phoneOwnershipVerified'] == true;
+  final reviewApproved = data['accountVerified'] == true &&
+      (data['accountVerificationReviewVersion'] as num? ?? 0) >= 1;
   final verificationStatus = '${verification['status'] ?? 'not_requested'}';
   showDialog<void>(
       context: context,
@@ -288,7 +310,7 @@ Future<void> _showUserScore(
                           onPressed: () => Navigator.pop(dialogContext),
                           icon: const Icon(Icons.close))
                     ]),
-                    if (data['accountVerified'] != true)
+                    if (!reviewApproved)
                       Card(
                           color: const Color(0xFFFFF4E5),
                           child: ConstrainedBox(
@@ -337,31 +359,63 @@ Future<void> _showUserScore(
                                               child: FilledButton.icon(
                                                   onPressed: readyForReview
                                                       ? () async {
-                                                          await _requestVerification(
-                                                              uid, accountType);
-                                                          if (dialogContext
-                                                              .mounted) {
-                                                            Navigator.pop(
-                                                                dialogContext);
-                                                            ScaffoldMessenger
-                                                                    .of(context)
-                                                                .showSnackBar(
-                                                                    const SnackBar(
-                                                                        content:
-                                                                            Text('Verification submitted for review.')));
+                                                          try {
+                                                            final result =
+                                                                await _requestVerification();
+                                                            if (dialogContext
+                                                                .mounted) {
+                                                              Navigator.pop(
+                                                                  dialogContext);
+                                                            }
+                                                            if (context
+                                                                .mounted) {
+                                                              final status =
+                                                                  '${result['status'] ?? 'pending'}';
+                                                              ScaffoldMessenger
+                                                                      .of(
+                                                                          context)
+                                                                  .showSnackBar(SnackBar(
+                                                                      content: Text(status ==
+                                                                              'approved'
+                                                                          ? 'Your account is already verified.'
+                                                                          : 'Verification submitted for secure administrator review.')));
+                                                            }
+                                                          } catch (error) {
+                                                            if (context
+                                                                .mounted) {
+                                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                                  content: Text('$error'
+                                                                      .replaceFirst(
+                                                                          'Bad state: ',
+                                                                          '')),
+                                                                  backgroundColor:
+                                                                      Colors.red
+                                                                          .shade700));
+                                                            }
                                                           }
                                                         }
                                                       : () {
                                                           Navigator.pop(
                                                               dialogContext);
-                                                          onOpenTab(1);
+                                                          if (!ownershipReady) {
+                                                            Navigator.of(
+                                                                    context)
+                                                                .push(MaterialPageRoute<
+                                                                        void>(
+                                                                    builder: (_) =>
+                                                                        const MarketplaceAccountSecurityPage()));
+                                                          } else {
+                                                            onOpenTab(1);
+                                                          }
                                                         },
                                                   icon: Icon(readyForReview
                                                       ? Icons.send_outlined
                                                       : Icons.edit_outlined),
                                                   label: Text(readyForReview
                                                       ? 'Submit verification for review'
-                                                      : 'Complete missing profile items')))
+                                                      : ownershipReady
+                                                          ? 'Complete missing profile items'
+                                                          : 'Verify email and mobile')))
                                       ])))),
                     const Align(
                         alignment: Alignment.centerLeft,
@@ -396,17 +450,16 @@ Future<void> _showUserScore(
                   ])))));
 }
 
-Future<void> _requestVerification(String uid, String accountType) =>
-    FirebaseFirestore.instance
-        .collection('verification_requests')
-        .doc(uid)
-        .set({
-      'userUid': uid,
-      'accountType': accountType,
-      'status': 'pending',
-      'requestedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+Future<Map<String, dynamic>> _requestVerification() {
+  final requestId = FirebaseFirestore.instance
+      .collection('account_verification_command_receipts')
+      .doc()
+      .id;
+  return MarketplaceCommandClient().execute(
+    'submitAccountVerification',
+    {'requestId': requestId},
+  );
+}
 
 class _AccountShortcut extends StatelessWidget {
   const _AccountShortcut(
@@ -424,7 +477,7 @@ class _AccountShortcut extends StatelessWidget {
           onTap: onTap));
 }
 
-class _MyListings extends StatelessWidget {
+class _MyListings extends StatefulWidget {
   const _MyListings(
       {required this.onAddListing,
       required this.auctionsEnabled,
@@ -435,139 +488,222 @@ class _MyListings extends StatelessWidget {
   final bool paidFeaturesEnabled;
 
   @override
+  State<_MyListings> createState() => _MyListingsState();
+}
+
+class _MyListingsState extends State<_MyListings> {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> _listings = [];
+  QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
+  bool _loading = false;
+  bool _hasMore = true;
+  String? _error;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(reset: true);
+  }
+
+  Future<void> _load({bool reset = false}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || (_loading && !reset) || (!reset && !_hasMore)) return;
+    final generation = reset ? ++_generation : _generation;
+    setState(() {
+      _loading = true;
+      _error = null;
+      if (reset) {
+        _listings.clear();
+        _cursor = null;
+        _hasMore = true;
+      }
+    });
+    try {
+      final query = FirebaseFirestore.instance
+          .collection('public_listings')
+          .where('sellerUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true);
+      final page =
+          await loadFirestoreDocumentPage(query, after: reset ? null : _cursor);
+      if (!mounted || generation != _generation) return;
+      final merged = appendUniqueById(
+          reset
+              ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+              : _listings,
+          page.documents,
+          (document) => document.id);
+      setState(() {
+        _listings
+          ..clear()
+          ..addAll(merged);
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+      });
+    } catch (error) {
+      if (mounted && generation == _generation) {
+        setState(() => _error = error is FirebaseException &&
+                error.code == 'failed-precondition'
+            ? 'Your listing index is still being prepared. Try again shortly.'
+            : 'Check your connection and try again.');
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       return const Center(child: Text('Sign in to view listings.'));
     }
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('public_listings')
-            .where('sellerUid', isEqualTo: uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-                child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.sync_problem_outlined,
-                          size: 48, color: Colors.deepOrange),
-                      const SizedBox(height: 10),
-                      const Text('Could not load your listings.',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 6),
-                      Text('${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.black54)),
-                    ])));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final listings = snapshot.data!.docs.toList()
-            ..sort((a, b) {
-              final aTime = a.data()['createdAt'] as Timestamp?;
-              final bTime = b.data()['createdAt'] as Timestamp?;
-              return (bTime?.millisecondsSinceEpoch ?? 0)
-                  .compareTo(aTime?.millisecondsSinceEpoch ?? 0);
-            });
-          return Column(children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: Row(children: [
-                const Expanded(
-                    child: Text('My listings',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w900))),
-                FilledButton.icon(
-                    onPressed: onAddListing,
-                    icon: const Icon(Icons.add, size: 20),
-                    label: const Text('Add Listing')),
-              ]),
-            ),
-            Expanded(
-              child: listings.isEmpty
-                  ? Center(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.inventory_2_outlined,
-                            size: 44, color: Colors.black38),
-                        const SizedBox(height: 10),
-                        const Text('You have not published a listing yet.'),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                            onPressed: onAddListing,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add your first listing')),
-                      ]),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                      itemCount: listings.length,
-                      itemBuilder: (_, index) {
-                        final document = listings[index];
-                        final data = document.data();
-                        final thumbnail = marketplaceListingThumbnailUrl(data);
-                        final createdAt =
-                            (data['createdAt'] as Timestamp?)?.toDate();
-                        final isAuction = data['transactionType'] == 'Auction';
-                        return Card(
-                            child: ListTile(
-                          onTap: () async {
-                            await _markListingNotificationsRead(document.id);
-                            if (!context.mounted) return;
-                            showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                builder: (_) => _OwnerListingDetails(
-                                    listingId: document.id,
-                                    data: data,
-                                    auctionsEnabled: auctionsEnabled,
-                                    paidFeaturesEnabled: paidFeaturesEnabled));
-                          },
-                          leading: SizedBox.square(
-                              dimension: 54,
-                              child: Stack(fit: StackFit.expand, children: [
-                                thumbnail == null
-                                    ? const Icon(Icons.inventory_2_outlined)
-                                    : ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(thumbnail,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
-                                                const Icon(Icons
-                                                    .inventory_2_outlined))),
-                                Positioned(
-                                    right: 1,
-                                    bottom: 1,
-                                    child: CircleAvatar(
-                                        radius: 11,
-                                        backgroundColor: isAuction
-                                            ? Colors.deepOrange
-                                            : const Color(0xFF0878E8),
-                                        child: Icon(
-                                            isAuction
-                                                ? Icons.gavel
-                                                : Icons.storefront,
-                                            size: 13,
-                                            color: Colors.white)))
-                              ])),
-                          title: Text('${data['title'] ?? 'Untitled listing'}'),
-                          subtitle: Text(
-                              '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
-                              '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
-                          isThreeLine: createdAt != null,
-                          trailing:
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                            _ListingNotificationBadge(listingId: document.id),
-                            const Icon(Icons.chevron_right),
-                          ]),
-                        ));
-                      }),
-            ),
-          ]);
-        });
+    if (_error != null && _listings.isEmpty) {
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.sync_problem_outlined,
+                    size: 48, color: Colors.deepOrange),
+                const SizedBox(height: 10),
+                const Text('Could not load your listings.',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Text(_error!,
+                    textAlign: TextAlign.center,
+                    style:
+                        const TextStyle(fontSize: 11, color: Colors.black54)),
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                    onPressed: () => _load(reset: true),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try again')),
+              ])));
+    }
+    if (_loading && _listings.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Row(children: [
+          const Expanded(
+              child: Text('My listings',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))),
+          FilledButton.icon(
+              onPressed: widget.onAddListing,
+              icon: const Icon(Icons.add, size: 20),
+              label: const Text('Add Listing')),
+        ]),
+      ),
+      Expanded(
+        child: _listings.isEmpty
+            ? Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.inventory_2_outlined,
+                      size: 44, color: Colors.black38),
+                  const SizedBox(height: 10),
+                  const Text('You have not published a listing yet.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                      onPressed: widget.onAddListing,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add your first listing')),
+                ]),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                itemCount: _listings.length + 1,
+                itemBuilder: (_, index) {
+                  if (index == _listings.length) {
+                    if (_error != null) {
+                      return ListTile(
+                          leading: const Icon(Icons.sync_problem_outlined),
+                          title:
+                              const Text('More listings could not be loaded.'),
+                          trailing: TextButton(
+                              onPressed: () => _load(),
+                              child: const Text('Retry')));
+                    }
+                    if (!_hasMore) {
+                      return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                              child: Text('All your listings loaded.',
+                                  style: TextStyle(color: Color(0xFF66758A)))));
+                    }
+                    return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                            child: FilledButton.tonalIcon(
+                                onPressed: _loading ? null : () => _load(),
+                                icon: _loading
+                                    ? const SizedBox.square(
+                                        dimension: 17,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2))
+                                    : const Icon(Icons.expand_more_rounded),
+                                label: const Text('Load more listings'))));
+                  }
+                  final document = _listings[index];
+                  final data = document.data();
+                  final thumbnail = marketplaceListingThumbnailUrl(data);
+                  final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+                  final isAuction = data['transactionType'] == 'Auction';
+                  return Card(
+                      child: ListTile(
+                    onTap: () async {
+                      await _markListingNotificationsRead(document.id);
+                      if (!context.mounted) return;
+                      showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => _OwnerListingDetails(
+                              listingId: document.id,
+                              data: data,
+                              auctionsEnabled: widget.auctionsEnabled,
+                              paidFeaturesEnabled: widget.paidFeaturesEnabled));
+                    },
+                    leading: SizedBox.square(
+                        dimension: 54,
+                        child: Stack(fit: StackFit.expand, children: [
+                          thumbnail == null
+                              ? const Icon(Icons.inventory_2_outlined)
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(thumbnail,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                          Icons.inventory_2_outlined))),
+                          Positioned(
+                              right: 1,
+                              bottom: 1,
+                              child: CircleAvatar(
+                                  radius: 11,
+                                  backgroundColor: isAuction
+                                      ? Colors.deepOrange
+                                      : const Color(0xFF0878E8),
+                                  child: Icon(
+                                      isAuction
+                                          ? Icons.gavel
+                                          : Icons.storefront,
+                                      size: 13,
+                                      color: Colors.white)))
+                        ])),
+                    title: Text('${data['title'] ?? 'Untitled listing'}'),
+                    subtitle: Text(
+                        '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
+                        '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
+                    isThreeLine: createdAt != null,
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      _ListingNotificationBadge(listingId: document.id),
+                      const Icon(Icons.chevron_right),
+                    ]),
+                  ));
+                }),
+      ),
+    ]);
   }
 }
 
@@ -1984,8 +2120,149 @@ class _AccountTabBadge extends StatelessWidget {
   }
 }
 
-class _AccountSettings extends StatelessWidget {
+class _AccountSettings extends StatefulWidget {
   const _AccountSettings();
+
+  @override
+  State<_AccountSettings> createState() => _AccountSettingsState();
+}
+
+class _AccountSettingsState extends State<_AccountSettings> {
+  bool _exporting = false;
+  bool _revoking = false;
+  bool _deleting = false;
+
+  void _notice(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: error ? Colors.red.shade700 : null,
+        content: Text(message)));
+  }
+
+  Future<void> _exportData() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final result = await MarketplaceCommandClient().execute(
+          'requestAccountDataExport', const {},
+          timeout: const Duration(minutes: 2));
+      final exportId = '${result['exportId'] ?? ''}';
+      final fileName = '${result['fileName'] ?? 'pipe-account-export.json'}';
+      if (exportId.isEmpty) {
+        throw StateError('The export reference is missing.');
+      }
+      final chunks = await FirebaseFirestore.instance
+          .collection('account_exports')
+          .doc(exportId)
+          .collection('chunks')
+          .orderBy('index')
+          .get();
+      final content =
+          chunks.docs.map((doc) => '${doc.data()['content'] ?? ''}').join();
+      if (content.isEmpty) {
+        throw StateError('The generated export was empty.');
+      }
+      final location = await downloadAccountExport(fileName, content);
+      _notice('Your private account export was saved to $location.');
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _revokeSessions() async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: const Icon(Icons.devices_outlined, size: 34),
+            title: const Text('Sign out all devices?'),
+            content: const Text(
+                'Your refresh sessions will be revoked, then this device will sign out. Other devices may remain active briefly until their current security token expires.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Sign out all devices')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    setState(() => _revoking = true);
+    try {
+      await MarketplaceCommandClient()
+          .execute('revokeAccountSessions', const {});
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      MarketplaceNavigation.goHome(context);
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+      if (mounted) setState(() => _revoking = false);
+    }
+  }
+
+  Future<void> _requestDeletion() async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: Icon(Icons.delete_forever_outlined,
+                size: 36, color: Colors.red.shade700),
+            title: const Text('Schedule account deletion'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text(
+                  'Open listings, transactions, Dispatch jobs, and administrator responsibilities must be closed first. A 14-day cancellation period begins after this request.'),
+              const SizedBox(height: 14),
+              TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                      labelText: 'Enter DELETE MY ACCOUNT',
+                      border: OutlineInputBorder())),
+            ]),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Keep account')),
+              FilledButton(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red.shade700),
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Schedule deletion')),
+            ],
+          ),
+        ) ??
+        false;
+    final confirmation = controller.text.trim();
+    controller.dispose();
+    if (!confirmed || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      final result = await MarketplaceCommandClient()
+          .execute('requestAccountDeletion', {'confirmation': confirmation});
+      _notice('Account deletion is scheduled for ${result['deleteAt']}.');
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  Future<void> _cancelDeletion() async {
+    setState(() => _deleting = true);
+    try {
+      await MarketplaceCommandClient()
+          .execute('cancelAccountDeletion', const {});
+      _notice('Scheduled account deletion was cancelled.');
+    } catch (error) {
+      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2023,6 +2300,83 @@ class _AccountSettings extends StatelessWidget {
                   .sendPasswordResetEmail(email: user.email!)),
       const SizedBox(height: 12),
       const _WatchKeywords(),
+      const SizedBox(height: 12),
+      Card(
+          child: Column(children: [
+        ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Download my account data'),
+            subtitle: const Text(
+                'Creates a private JSON export that expires after 7 days.'),
+            trailing: _exporting
+                ? const SizedBox.square(
+                    dimension: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
+            onTap: _exporting ? null : _exportData),
+        const Divider(height: 1),
+        ListTile(
+            leading: const Icon(Icons.devices_outlined),
+            title: const Text('Sign out all devices'),
+            subtitle:
+                const Text('Revoke active refresh sessions for this account.'),
+            trailing: _revoking
+                ? const SizedBox.square(
+                    dimension: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
+            onTap: _revoking ? null : _revokeSessions),
+      ])),
+      const SizedBox(height: 12),
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('account_deletion_requests')
+              .doc(user.uid)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final data = snapshot.data?.data();
+            final scheduled = data?['status'] == 'scheduled';
+            return Card(
+                color: Colors.red.shade50,
+                child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Colors.red.shade700),
+                            const SizedBox(width: 10),
+                            Text(
+                                scheduled
+                                    ? 'Deletion scheduled'
+                                    : 'Delete account',
+                                style: const TextStyle(
+                                    fontSize: 17, fontWeight: FontWeight.w800)),
+                          ]),
+                          const SizedBox(height: 6),
+                          Text(scheduled
+                              ? 'Your account remains available during the cancellation period.'
+                              : 'Permanently remove your account after a 14-day cancellation period. Shared transaction and safety records may be retained where required.'),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                              onPressed: _deleting
+                                  ? null
+                                  : scheduled
+                                      ? _cancelDeletion
+                                      : _requestDeletion,
+                              style: OutlinedButton.styleFrom(
+                                  foregroundColor: scheduled
+                                      ? Colors.blue.shade700
+                                      : Colors.red.shade700),
+                              icon: Icon(scheduled
+                                  ? Icons.undo_outlined
+                                  : Icons.delete_forever_outlined),
+                              label: Text(scheduled
+                                  ? 'Cancel scheduled deletion'
+                                  : 'Schedule account deletion')),
+                        ])));
+          }),
       const SizedBox(height: 12),
       OutlinedButton.icon(
           onPressed: () => _signOutFromSettings(context),

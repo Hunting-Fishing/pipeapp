@@ -17,10 +17,16 @@ const {
 const {
   deleteDoc,
   doc,
+  collection,
   getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
   setDoc,
   Timestamp,
   updateDoc,
+  where,
 } = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-rules";
@@ -41,6 +47,12 @@ function phase1Features(overrides = {}) {
     ...overrides,
   };
 }
+
+const administratorClaims = {
+  admin: true,
+  role: "administrator",
+  firebase: {sign_in_second_factor: "phone"},
+};
 
 before(async () => {
   const rules = fs.readFileSync(
@@ -85,6 +97,11 @@ beforeEach(async () => {
       status: "active",
       transactionType: "Marketplace",
     });
+    await setDoc(doc(db, "marketplace_listing_drafts", "seller-draft"), {
+      sellerUid: "seller",
+      status: "awaiting_media",
+      expectedPhotoCount: 2,
+    });
     await setDoc(doc(db, "public_listings", "listing", "revisions", "2"), {
       actorUid: "seller",
       event: "details_updated",
@@ -93,6 +110,38 @@ beforeEach(async () => {
     await setDoc(doc(db, "users", "buyer", "saved_listings", "listing"), {
       listingId: "listing",
       savedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+    });
+    await setDoc(doc(db, "verification_requests", "buyer"), {
+      userUid: "buyer",
+      displayName: "Buyer Business",
+      status: "pending",
+      revision: 1,
+    });
+    await setDoc(doc(db, "verification_review_events", "buyer-1-submitted"), {
+      userUid: "buyer",
+      event: "submitted",
+      status: "pending",
+      revision: 1,
+    });
+    await setDoc(doc(db, "account_exports", "buyer-export"), {
+      ownerUid: "buyer",
+      status: "ready",
+      chunkCount: 1,
+    });
+    await setDoc(doc(
+        db,
+        "account_exports",
+        "buyer-export",
+        "chunks",
+        "000000",
+    ), {ownerUid: "buyer", index: 0, content: "{}"});
+    await setDoc(doc(db, "account_deletion_requests", "buyer"), {
+      ownerUid: "buyer",
+      status: "scheduled",
+    });
+    await setDoc(doc(db, "account_privacy_events", "buyer-exported"), {
+      ownerUid: "buyer",
+      type: "data_export_generated",
     });
     await setDoc(doc(db, "offers", "offer"), {
       sellerUid: "seller",
@@ -176,6 +225,8 @@ beforeEach(async () => {
       status: "open",
       bidCount: 1,
       revision: 1,
+      createdAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+      updatedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
     });
     await setDoc(doc(db, "dispatch_bids", "bid"), {
       jobId: "job",
@@ -184,6 +235,7 @@ beforeEach(async () => {
       status: "pending",
       revision: 1,
       vehicleId: "truck",
+      updatedAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
     });
     await setDoc(doc(db, "dispatch_transactions", "job"), {
       jobId: "job",
@@ -224,7 +276,7 @@ test("normal users cannot read or write jurisdiction policies", async () => {
 
 test("admin claims can manage control-plane configuration", async () => {
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const policy = doc(adminDb, "jurisdiction_policies", "ca-ab-test");
 
@@ -233,13 +285,55 @@ test("admin claims can manage control-plane configuration", async () => {
   assert.equal(snapshot.data().status, "designOnly");
 });
 
+test("administrator rules fail closed for email or incomplete claims", async () => {
+  const emailOnly = testEnvironment.authenticatedContext("email-only", {
+    email: "jordilwbailey@gmail.com",
+    email_verified: true,
+  }).firestore();
+  const adminWithoutMfa = testEnvironment.authenticatedContext(
+      "admin-without-mfa",
+      {admin: true, role: "administrator"},
+  ).firestore();
+  const adminWithoutRole = testEnvironment.authenticatedContext(
+      "admin-without-role",
+      {admin: true, firebase: {sign_in_second_factor: "phone"}},
+  ).firestore();
+
+  await assertFails(getDoc(doc(
+      emailOnly,
+      "jurisdiction_policies",
+      "ca-ab-test",
+  )));
+  await assertFails(getDoc(doc(
+      adminWithoutMfa,
+      "jurisdiction_policies",
+      "ca-ab-test",
+  )));
+  await assertFails(getDoc(doc(
+      adminWithoutRole,
+      "jurisdiction_policies",
+      "ca-ab-test",
+  )));
+});
+
+test("administrator role records and audits are server owned", async () => {
+  const adminDb = testEnvironment
+      .authenticatedContext("admin-user", administratorClaims)
+      .firestore();
+  const role = doc(adminDb, "administrator_roles", "admin-user");
+  const audit = doc(adminDb, "administrator_role_audits", "audit-1");
+
+  await assertFails(setDoc(role, {active: true}));
+  await assertFails(setDoc(audit, {action: "grant"}));
+});
+
 test("feature configuration is public read and admin-only validated write", async () => {
   const publicDb = testEnvironment.unauthenticatedContext().firestore();
   const userDb = testEnvironment
       .authenticatedContext("ordinary-user")
       .firestore();
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const publicFlags = doc(
       publicDb,
@@ -286,7 +380,7 @@ test("feature configuration is public read and admin-only validated write", asyn
 
 test("property listings remain closed even to signed-in clients", async () => {
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const listing = doc(adminDb, "property_listings", "not-yet-enabled");
 
@@ -296,7 +390,7 @@ test("property listings remain closed even to signed-in clients", async () => {
 
 test("property audit events cannot be forged by client admins", async () => {
   const adminDb = testEnvironment
-      .authenticatedContext("admin-user", {admin: true})
+      .authenticatedContext("admin-user", administratorClaims)
       .firestore();
   const event = doc(adminDb, "property_audit_events", "forged-event");
 
@@ -592,7 +686,7 @@ test("listing revision history is immutable and private to owner or admin", asyn
       .authenticatedContext("buyer")
       .firestore();
   const adminDb = testEnvironment
-      .authenticatedContext("admin", {admin: true})
+      .authenticatedContext("admin", administratorClaims)
       .firestore();
   const sellerRevision = doc(
       sellerDb,
@@ -729,6 +823,37 @@ test("only the auction owner can read the reserve amount", async () => {
   );
 });
 
+test("listing drafts are private and command-owned", async () => {
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+  const draft = doc(sellerDb, "marketplace_listing_drafts", "seller-draft");
+
+  await assertSucceeds(getDoc(draft));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "marketplace_listing_drafts",
+      "seller-draft",
+  )));
+  await assertFails(getDoc(doc(
+      buyerDb,
+      "marketplace_listing_drafts",
+      "seller-draft",
+  )));
+  await assertFails(updateDoc(draft, {status: "ready_to_publish"}));
+  await assertFails(deleteDoc(draft));
+  await assertFails(setDoc(
+      doc(sellerDb, "marketplace_listing_drafts", "forged"),
+      {sellerUid: "seller", status: "ready_to_publish"},
+  ));
+});
+
 test("Dispatch job, quote, and award state cannot be forged by clients", async () => {
   const carrierDb = testEnvironment
       .authenticatedContext("carrier")
@@ -786,6 +911,49 @@ test("Dispatch job, quote, and award state cannot be forged by clients", async (
   ));
 });
 
+test("bounded Dispatch discovery queries preserve participant access", async () => {
+  const carrierDb = testEnvironment
+      .authenticatedContext("carrier")
+      .firestore();
+  const ownerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+
+  await assertSucceeds(getDocs(query(
+      collection(carrierDb, "dispatch_jobs"),
+      where("status", "==", "open"),
+      orderBy("createdAt", "desc"),
+      limit(24),
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(ownerDb, "dispatch_jobs"),
+      where("createdByUid", "==", "buyer"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(carrierDb, "dispatch_bids"),
+      where("carrierUid", "==", "carrier"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(ownerDb, "dispatch_bids"),
+      where("jobId", "==", "job"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
+  await assertFails(getDocs(query(
+      collection(strangerDb, "dispatch_bids"),
+      where("jobId", "==", "job"),
+      orderBy("updatedAt", "desc"),
+      limit(24),
+  )));
+});
+
 test("Dispatch transaction and proof history are participant-only", async () => {
   const carrierDb = testEnvironment
       .authenticatedContext("carrier")
@@ -821,4 +989,86 @@ test("Dispatch transaction and proof history are participant-only", async () => 
     event: "mark_delivered",
     revision: 2,
   }));
+});
+
+test("account verification decisions are server-only and privately readable", async () => {
+  const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+  const requestRef = doc(ownerDb, "verification_requests", "buyer");
+
+  await assertSucceeds(getDoc(requestRef));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "verification_review_events",
+      "buyer-1-submitted",
+  )));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "verification_requests",
+      "buyer",
+  )));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "verification_requests",
+      "buyer",
+  )));
+  await assertFails(updateDoc(requestRef, {status: "approved"}));
+  await assertFails(updateDoc(doc(
+      adminDb,
+      "verification_requests",
+      "buyer",
+  ), {status: "approved"}));
+  await assertFails(setDoc(doc(
+      ownerDb,
+      "verification_review_events",
+      "forged",
+  ), {
+    userUid: "buyer",
+    event: "approved",
+    status: "approved",
+  }));
+});
+
+test("account privacy records are owner-readable and server-only", async () => {
+  const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const exportRef = doc(ownerDb, "account_exports", "buyer-export");
+  const chunkRef = doc(
+      ownerDb,
+      "account_exports",
+      "buyer-export",
+      "chunks",
+      "000000",
+  );
+
+  await assertSucceeds(getDoc(exportRef));
+  await assertSucceeds(getDoc(chunkRef));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "account_deletion_requests",
+      "buyer",
+  )));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "account_privacy_events",
+      "buyer-exported",
+  )));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "account_exports",
+      "buyer-export",
+  )));
+  await assertFails(setDoc(doc(ownerDb, "account_exports", "forged"), {
+    ownerUid: "buyer",
+    status: "ready",
+  }));
+  await assertFails(updateDoc(exportRef, {status: "expired"}));
+  await assertFails(deleteDoc(doc(ownerDb, "users", "buyer")));
 });

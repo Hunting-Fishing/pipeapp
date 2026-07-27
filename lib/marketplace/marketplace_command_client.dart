@@ -3,16 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class MarketplaceCommandClient {
   MarketplaceCommandClient({FirebaseFunctions? functions, FirebaseAuth? auth})
-    : _functions = functions ?? FirebaseFunctions.instance,
-      _auth = auth ?? FirebaseAuth.instance;
+      : _functions = functions ?? FirebaseFunctions.instance,
+        _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFunctions _functions;
   final FirebaseAuth _auth;
 
   Future<Map<String, dynamic>> execute(
     String command,
-    Map<String, Object?> payload,
-  ) async {
+    Map<String, Object?> payload, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     if (_auth.currentUser == null) {
       throw StateError('Sign in to continue.');
     }
@@ -20,7 +21,7 @@ class MarketplaceCommandClient {
       final response = await _functions
           .httpsCallable(
             command,
-            options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
+            options: HttpsCallableOptions(timeout: timeout),
           )
           .call(payload);
       if (response.data is! Map) {
@@ -36,9 +37,11 @@ class MarketplaceCommandClient {
           'Too many requests were made in a short period. Wait and try again.',
         'failed-precondition' =>
           'This action is not available until the account requirements are complete.',
-        'deadline-exceeded' || 'unavailable' =>
+        'deadline-exceeded' ||
+        'unavailable' =>
           'The marketplace service is temporarily unavailable. Try again.',
-        'not-found' || 'unimplemented' =>
+        'not-found' ||
+        'unimplemented' =>
           'This marketplace service is being updated. Refresh and try again.',
         _ => 'The marketplace action could not be completed.',
       };

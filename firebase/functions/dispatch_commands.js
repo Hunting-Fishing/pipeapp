@@ -7,6 +7,7 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
+const {isAdministrator} = require("./administrator_authorization");
 const {CommandPolicyError} = require("./marketplace_command_policy");
 const {
   FeatureFlagError,
@@ -35,11 +36,6 @@ function requiredId(data, fieldName) {
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request).uid;
-}
-
-function isAdministrator(request) {
-  const token = request.auth && request.auth.token || {};
-  return token.admin === true || token.email === "jordilwbailey@gmail.com";
 }
 
 function command(handler) {

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_dispatch_repository.dart';
 import 'marketplace_dispatch_distance.dart';
@@ -75,16 +79,16 @@ String _dispatchDateLabel(Map<String, dynamic> data) {
 }
 
 String _dispatchEventLabel(String event) => switch (event) {
-  'request_created' => 'Request published',
-  'request_activated' || 'request_published' => 'Request opened',
-  'request_updated' => 'Request edited',
-  'quote_submitted' => 'Carrier quote submitted',
-  'quote_updated' => 'Carrier quote edited',
-  'quote_awarded' => 'Carrier selected',
-  'quote_archived' => 'Quote archived',
-  'carrier_awarded' => 'Dispatch job awarded',
-  _ => event.replaceAll('_', ' '),
-};
+      'request_created' => 'Request published',
+      'request_activated' || 'request_published' => 'Request opened',
+      'request_updated' => 'Request edited',
+      'quote_submitted' => 'Carrier quote submitted',
+      'quote_updated' => 'Carrier quote edited',
+      'quote_awarded' => 'Carrier selected',
+      'quote_archived' => 'Quote archived',
+      'carrier_awarded' => 'Dispatch job awarded',
+      _ => event.replaceAll('_', ' '),
+    };
 
 class MarketplaceDispatchPage extends StatefulWidget {
   const MarketplaceDispatchPage({super.key});
@@ -186,12 +190,12 @@ class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
           child: section == 0
               ? MarketplaceDispatchDashboard(repo: repo)
               : section == 1
-              ? _JobBoard(repo: repo)
-              : section == 2
-              ? _PostJob(repo: repo)
-              : section == 3
-              ? _CarrierEnrollment(repo: repo)
-              : _PilotTruckSection(repo: repo),
+                  ? _JobBoard(repo: repo)
+                  : section == 2
+                      ? _PostJob(repo: repo)
+                      : section == 3
+                          ? _CarrierEnrollment(repo: repo)
+                          : _PilotTruckSection(repo: repo),
         ),
       ],
     );
@@ -204,103 +208,103 @@ class _PilotTruckSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(18),
-    children: [
-      const Text(
-        'Pilot Truck Services',
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-      ),
-      const Text(
-        'Find or provide pilot and escort support for oversize and specialized loads.',
-      ),
-      const SizedBox(height: 12),
-      const Card(
-        color: Color(0xFFFFF4E5),
-        child: ListTile(
-          leading: Icon(Icons.warning_amber_outlined),
-          title: Text('Job-specific requirements'),
-          subtitle: Text(
-            'Permit, signage, lighting and escort requirements vary by route and jurisdiction. Confirm requirements before accepting work.',
+        padding: const EdgeInsets.all(18),
+        children: [
+          const Text(
+            'Pilot Truck Services',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
           ),
-        ),
-      ),
-      const SizedBox(height: 14),
-      const Text(
-        'My pilot vehicles',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-      ),
-      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: repo.fleet(),
-        builder: (context, snapshot) {
-          final pilots = (snapshot.data?.docs ?? [])
-              .where(
-                (doc) =>
-                    doc.data()['pilotTruck'] == true ||
-                    List<String>.from(
-                      doc.data()['services'] ?? const <String>[],
-                    ).contains('Pilot / escort'),
-              )
-              .toList();
-          if (pilots.isEmpty) {
-            return const Card(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    IndustrialAssetIcon(
-                      label: 'Pilot truck',
-                      assetPath: IndustrialIconAssets.pilotCar,
-                      size: 64,
-                      fallback: Icon(
-                        Icons.assistant_direction_outlined,
-                        size: 38,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'No pilot truck added',
-                            style: TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                          Text(
-                            'Open Signup, add a truck, and enable Pilot / escort services.',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+          const Text(
+            'Find or provide pilot and escort support for oversize and specialized loads.',
+          ),
+          const SizedBox(height: 12),
+          const Card(
+            color: Color(0xFFFFF4E5),
+            child: ListTile(
+              leading: Icon(Icons.warning_amber_outlined),
+              title: Text('Job-specific requirements'),
+              subtitle: Text(
+                'Permit, signage, lighting and escort requirements vary by route and jurisdiction. Confirm requirements before accepting work.',
               ),
-            );
-          }
-          return Column(
-            children: pilots
-                .map(
-                  (doc) => Card(
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.assistant_direction_outlined),
-                      ),
-                      title: Text(
-                        '${doc.data()['name'] ?? 'Pilot truck'}',
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      subtitle: Text(
-                        '${doc.data()['vehicleType'] ?? 'Pilot truck'} • Available for escort work',
-                      ),
-                      trailing: const Chip(label: Text('PILOT')),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'My pilot vehicles',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: repo.fleet(),
+            builder: (context, snapshot) {
+              final pilots = (snapshot.data?.docs ?? [])
+                  .where(
+                    (doc) =>
+                        doc.data()['pilotTruck'] == true ||
+                        List<String>.from(
+                          doc.data()['services'] ?? const <String>[],
+                        ).contains('Pilot / escort'),
+                  )
+                  .toList();
+              if (pilots.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        IndustrialAssetIcon(
+                          label: 'Pilot truck',
+                          assetPath: IndustrialIconAssets.pilotCar,
+                          size: 64,
+                          fallback: Icon(
+                            Icons.assistant_direction_outlined,
+                            size: 38,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'No pilot truck added',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                              Text(
+                                'Open Signup, add a truck, and enable Pilot / escort services.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                )
-                .toList(),
-          );
-        },
-      ),
-    ],
-  );
+                );
+              }
+              return Column(
+                children: pilots
+                    .map(
+                      (doc) => Card(
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.assistant_direction_outlined),
+                          ),
+                          title: Text(
+                            '${doc.data()['name'] ?? 'Pilot truck'}',
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          subtitle: Text(
+                            '${doc.data()['vehicleType'] ?? 'Pilot truck'} • Available for escort work',
+                          ),
+                          trailing: const Chip(label: Text('PILOT')),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+        ],
+      );
 }
 
 class _JobBoard extends StatefulWidget {
@@ -313,60 +317,52 @@ class _JobBoard extends StatefulWidget {
 
 class _JobBoardState extends State<_JobBoard> {
   MarketplaceDispatchRepository get repo => widget.repo;
+  late Future<({int jobs, int bids})> _activityCounts;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshActivityCounts();
+  }
+
+  void _refreshActivityCounts() {
+    _activityCounts = Future.wait([repo.myJobCount(), repo.myBidCount()])
+        .then((counts) => (jobs: counts[0], bids: counts[1]));
+  }
+
+  Future<void> _refreshBoard() async {
+    setState(_refreshActivityCounts);
+    try {
+      await _activityCounts;
+    } catch (_) {
+      // The activity cards render their unavailable state independently.
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      _myDispatchActivity(context),
-      const Padding(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'Open carrier jobs',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+        children: [
+          _myDispatchActivity(context),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Open carrier jobs',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+              ),
+            ),
           ),
-        ),
-      ),
-      Expanded(
-        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: repo.openJobs(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const Center(child: Text('Dispatch jobs could not load.'));
-            }
-            final jobs = snapshot.data?.docs ?? [];
-            if (jobs.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IndustrialAssetIcon(
-                      label: 'Dispatch load board',
-                      assetPath: IndustrialIconAssets.dispatchLoadBoard,
-                      size: 108,
-                      fallback: Icon(
-                        Icons.local_shipping_outlined,
-                        size: 56,
-                        color: Color(0xFF0878E8),
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'No open trucking jobs yet.',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    SizedBox(height: 4),
-                    Text('New loads will appear here for carrier bidding.'),
-                  ],
-                ),
-              );
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
-              itemCount: jobs.length,
-              itemBuilder: (_, index) {
-                final job = jobs[index];
+          Expanded(
+            child: _DispatchPagedCollection(
+              query: repo.openJobsQuery,
+              onRefresh: _refreshBoard,
+              empty: const _DispatchEmptyState(
+                icon: Icons.local_shipping_outlined,
+                title: 'No open trucking jobs yet.',
+                message: 'New loads will appear here for carrier bidding.',
+              ),
+              itemBuilder: (context, job) {
                 final data = job.data();
                 return Card(
                   child: ListTile(
@@ -382,88 +378,75 @@ class _JobBoardState extends State<_JobBoard> {
                     ),
                     isThreeLine: true,
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () =>
-                        data['createdByUid'] ==
+                    onTap: () => data['createdByUid'] ==
                             FirebaseAuth.instance.currentUser?.uid
                         ? _showJobManager(context, job)
                         : _openCarrierJob(context, job),
                   ),
                 );
               },
-            );
-          },
-        ),
-      ),
-    ],
-  );
+            ),
+          ),
+        ],
+      );
 
-  Widget _myDispatchActivity(BuildContext context) => Container(
-    color: const Color(0xFFEAF4FD),
-    padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-    child: Row(
-      children: [
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: repo.myJobs(),
-            builder: (context, snapshot) => _activityCard(
-              icon: Icons.route_outlined,
-              title: 'My requests',
-              count: snapshot.data?.docs.length ?? 0,
-              onTap: () => _showMyRequests(context),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: repo.myBids(),
-            builder: (context, snapshot) => _activityCard(
-              icon: Icons.request_quote_outlined,
-              title: 'My carrier quotes',
-              count: snapshot.data?.docs.length ?? 0,
-              onTap: () => _showMyQuotes(context),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
+  Widget _myDispatchActivity(BuildContext context) =>
+      FutureBuilder<({int jobs, int bids})>(
+          future: _activityCounts,
+          builder: (context, counts) => Container(
+                color: const Color(0xFFEAF4FD),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _activityCard(
+                        icon: Icons.route_outlined,
+                        title: 'My requests',
+                        count: counts.hasError ? -1 : counts.data?.jobs,
+                        onTap: () => _showMyRequests(context),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _activityCard(
+                        icon: Icons.request_quote_outlined,
+                        title: 'My carrier quotes',
+                        count: counts.hasError ? -1 : counts.data?.bids,
+                        onTap: () => _showMyQuotes(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ));
 
   Widget _activityCard({
     required IconData icon,
     required String title,
-    required int count,
+    required int? count,
     required VoidCallback onTap,
-  }) => Card(
-    margin: EdgeInsets.zero,
-    child: ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-      leading: Icon(icon, color: const Color(0xFF0878E8)),
-      title: Text(
-        title,
-        maxLines: 1,
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      ),
-      subtitle: Text('$count total'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
-    ),
-  );
+  }) =>
+      Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+          leading: Icon(icon, color: const Color(0xFF0878E8)),
+          title: Text(
+            title,
+            maxLines: 1,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text(count == null
+              ? 'Loading…'
+              : count < 0
+                  ? 'Unavailable'
+                  : '$count total'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: onTap,
+        ),
+      );
 
   Future<void> _showMyRequests(BuildContext context) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('dispatch_jobs')
-        .where(
-          'createdByUid',
-          isEqualTo: FirebaseAuth.instance.currentUser?.uid,
-        )
-        .get();
-    if (!context.mounted) return;
-    final jobs = [...snapshot.docs]
-      ..sort(
-        (a, b) => _dispatchDate(b.data()).compareTo(_dispatchDate(a.data())),
-      );
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -486,36 +469,38 @@ class _JobBoardState extends State<_JobBoard> {
                 ),
               ),
               Expanded(
-                child: jobs.isEmpty
-                    ? const Center(child: Text('No Dispatch requests yet.'))
-                    : ListView(
-                        padding: const EdgeInsets.all(12),
-                        children: jobs.map((job) {
-                          final data = job.data();
-                          return Card(
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.local_shipping_outlined),
-                              ),
-                              title: Text(
-                                '${data['title'] ?? 'Dispatch request'}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${data['pickupLabel'] ?? ''} → ${data['deliveryLabel'] ?? ''}\n${dispatchDistanceLabel(data)} • ${('${data['status'] ?? 'open'}').toUpperCase()}',
-                              ),
-                              isThreeLine: true,
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () {
-                                Navigator.pop(sheetContext);
-                                _showJobManager(context, job);
-                              },
-                            ),
-                          );
-                        }).toList(),
+                child: _DispatchPagedCollection(
+                  query: repo.myJobsQuery,
+                  padding: const EdgeInsets.all(12),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.route_outlined,
+                    title: 'No Dispatch requests yet.',
+                    message: 'Requests you publish will appear here.',
+                  ),
+                  itemBuilder: (_, job) {
+                    final data = job.data();
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.local_shipping_outlined),
+                        ),
+                        title: Text(
+                          '${data['title'] ?? 'Dispatch request'}',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          '${data['pickupLabel'] ?? ''} → ${data['deliveryLabel'] ?? ''}\n${dispatchDistanceLabel(data)} • ${('${data['status'] ?? 'open'}').toUpperCase()}',
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _showJobManager(context, job);
+                        },
                       ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -525,15 +510,6 @@ class _JobBoardState extends State<_JobBoard> {
   }
 
   Future<void> _showMyQuotes(BuildContext context) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('dispatch_bids')
-        .where('carrierUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-        .get();
-    if (!context.mounted) return;
-    final bids = [...snapshot.docs]
-      ..sort(
-        (a, b) => _dispatchDate(b.data()).compareTo(_dispatchDate(a.data())),
-      );
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -556,45 +532,45 @@ class _JobBoardState extends State<_JobBoard> {
                 ),
               ),
               Expanded(
-                child: bids.isEmpty
-                    ? const Center(
-                        child: Text('No carrier quotes submitted yet.'),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.all(12),
-                        children: bids.map((bid) {
-                          final data = bid.data();
-                          return Card(
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.request_quote_outlined),
-                              ),
-                              title: Text(
-                                marketplaceMoney(data['amount'] as num? ?? 0),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()}\n${data['note'] ?? ''}',
-                              ),
-                              isThreeLine: true,
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () async {
-                                final job = await FirebaseFirestore.instance
-                                    .collection('dispatch_jobs')
-                                    .doc('${data['jobId']}')
-                                    .get();
-                                if (!sheetContext.mounted) return;
-                                Navigator.pop(sheetContext);
-                                if (job.exists && context.mounted) {
-                                  _showCarrierQuote(context, job, bid);
-                                }
-                              },
-                            ),
-                          );
-                        }).toList(),
+                child: _DispatchPagedCollection(
+                  query: repo.myBidsQuery,
+                  padding: const EdgeInsets.all(12),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.request_quote_outlined,
+                    title: 'No carrier quotes submitted yet.',
+                    message: 'Quotes you submit will appear here.',
+                  ),
+                  itemBuilder: (_, bid) {
+                    final data = bid.data();
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.request_quote_outlined),
+                        ),
+                        title: Text(
+                          marketplaceMoney(data['amount'] as num? ?? 0),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()}\n${data['note'] ?? ''}',
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          final job = await FirebaseFirestore.instance
+                              .collection('dispatch_jobs')
+                              .doc('${data['jobId']}')
+                              .get();
+                          if (!sheetContext.mounted) return;
+                          Navigator.pop(sheetContext);
+                          if (job.exists && context.mounted) {
+                            _showCarrierQuote(context, job, bid);
+                          }
+                        },
                       ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -718,11 +694,9 @@ class _JobBoardState extends State<_JobBoard> {
     final distance = TextEditingController(
       text: data['distanceKm'] == null ? '' : '${data['distanceKm']}',
     );
-    var date =
-        (data['truckingDate'] as Timestamp?)?.toDate() ??
+    var date = (data['truckingDate'] as Timestamp?)?.toDate() ??
         DateTime.now().add(const Duration(days: 1));
-    final saved =
-        await showDialog<bool>(
+    final saved = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => StatefulBuilder(
             builder: (context, update) => AlertDialog(
@@ -874,7 +848,7 @@ class _JobBoardState extends State<_JobBoard> {
     await _showRevisionHistory(
       context: context,
       title: '${job['title'] ?? 'Dispatch request'} history',
-      stream: repo.jobHistory(jobId),
+      query: () => repo.jobHistoryQuery(jobId),
       amountLabel: null,
     );
   }
@@ -886,128 +860,97 @@ class _JobBoardState extends State<_JobBoard> {
       builder: (sheetContext) => SafeArea(
         child: SizedBox(
           height: MediaQuery.sizeOf(sheetContext).height * .82,
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('dispatch_bids')
-                .where('jobId', isEqualTo: jobId)
-                .snapshots(),
-            builder: (_, snapshot) {
-              final bids = snapshot.data?.docs ?? [];
-              return Column(
-                children: [
-                  const ListTile(
-                    leading: Icon(Icons.local_shipping_outlined),
-                    title: Text(
-                      'Carrier bids',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
+          child: Column(
+            children: [
+              const ListTile(
+                leading: Icon(Icons.local_shipping_outlined),
+                title: Text(
+                  'Carrier bids',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                ),
+              ),
+              Expanded(
+                child: _DispatchPagedCollection(
+                  query: () => repo.bidsForJobQuery(jobId),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.request_quote_outlined,
+                    title: 'No carrier bids yet.',
+                    message: 'Carrier quotes will appear here as they arrive.',
+                  ),
+                  itemBuilder: (_, bid) {
+                    final data = bid.data();
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      child: ListTile(
+                        title: Text(
+                          '${data['carrierName'] ?? 'Carrier'} • ${marketplaceMoney(data['amount'] as num? ?? 0)}',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()} • ${data['revision'] ?? 1} revision(s)\n${data['note'] ?? ''}',
+                        ),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Quote history',
+                              onPressed: () => _showRevisionHistory(
+                                context: sheetContext,
+                                title:
+                                    '${data['carrierName'] ?? 'Carrier'} quote history',
+                                query: () => repo.bidHistoryQuery(bid.id),
+                                amountLabel: 'Quoted total',
+                              ),
+                              icon: const Icon(Icons.history_outlined),
+                            ),
+                            if (data['status'] == 'pending')
+                              FilledButton(
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                        context: sheetContext,
+                                        builder: (dialogContext) => AlertDialog(
+                                          title: const Text(
+                                              'Select this carrier?'),
+                                          content: const Text(
+                                            'The carrier will be notified and this dispatch job will close to new bids.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(
+                                                  dialogContext, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () => Navigator.pop(
+                                                  dialogContext, true),
+                                              child: const Text('Award job'),
+                                            ),
+                                          ],
+                                        ),
+                                      ) ??
+                                      false;
+                                  if (!confirmed) return;
+                                  await repo.awardBid(
+                                    jobId: jobId,
+                                    bidId: bid.id,
+                                    carrierUid: '${data['carrierUid']}',
+                                    amount: data['amount'] as num,
+                                  );
+                                  if (sheetContext.mounted) {
+                                    Navigator.pop(sheetContext);
+                                  }
+                                },
+                                child: const Text('Select'),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: bids.isEmpty
-                        ? const Center(child: Text('No carrier bids yet.'))
-                        : ListView(
-                            children: bids.map((bid) {
-                              final data = bid.data();
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 5,
-                                ),
-                                child: ListTile(
-                                  title: Text(
-                                    '${data['carrierName'] ?? 'Carrier'} • ${marketplaceMoney(data['amount'] as num? ?? 0)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()} • ${data['revision'] ?? 1} revision(s)\n${data['note'] ?? ''}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'Quote history',
-                                        onPressed: () => _showRevisionHistory(
-                                          context: sheetContext,
-                                          title:
-                                              '${data['carrierName'] ?? 'Carrier'} quote history',
-                                          stream: repo.bidHistory(bid.id),
-                                          amountLabel: 'Quoted total',
-                                        ),
-                                        icon: const Icon(
-                                          Icons.history_outlined,
-                                        ),
-                                      ),
-                                      if (data['status'] == 'pending')
-                                        FilledButton(
-                                          onPressed: () async {
-                                            final confirmed =
-                                                await showDialog<bool>(
-                                                  context: sheetContext,
-                                                  builder: (dialogContext) =>
-                                                      AlertDialog(
-                                                        title: const Text(
-                                                          'Select this carrier?',
-                                                        ),
-                                                        content: const Text(
-                                                          'The carrier will be notified and this dispatch job will close to new bids.',
-                                                        ),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                  dialogContext,
-                                                                  false,
-                                                                ),
-                                                            child: const Text(
-                                                              'Cancel',
-                                                            ),
-                                                          ),
-                                                          FilledButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                  dialogContext,
-                                                                  true,
-                                                                ),
-                                                            child: const Text(
-                                                              'Award job',
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                ) ??
-                                                false;
-                                            if (!confirmed) {
-                                              return;
-                                            }
-                                            await repo.awardBid(
-                                              jobId: jobId,
-                                              bidId: bid.id,
-                                              carrierUid:
-                                                  '${data['carrierUid']}',
-                                              amount: data['amount'] as num,
-                                            );
-                                            if (sheetContext.mounted) {
-                                              Navigator.pop(sheetContext);
-                                            }
-                                          },
-                                          child: const Text('Select'),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                  ),
-                ],
-              );
-            },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1094,8 +1037,7 @@ class _JobBoardState extends State<_JobBoard> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed:
-                            data['status'] == 'pending' &&
+                        onPressed: data['status'] == 'pending' &&
                                 jobData['status'] == 'open'
                             ? () {
                                 Navigator.pop(sheetContext);
@@ -1114,7 +1056,7 @@ class _JobBoardState extends State<_JobBoard> {
                           _showRevisionHistory(
                             context: context,
                             title: 'Carrier quote history',
-                            stream: repo.bidHistory(bid.id),
+                            query: () => repo.bidHistoryQuery(bid.id),
                             amountLabel: 'Quoted total',
                           );
                         },
@@ -1135,7 +1077,7 @@ class _JobBoardState extends State<_JobBoard> {
   Future<void> _showRevisionHistory({
     required BuildContext context,
     required String title,
-    required Stream<QuerySnapshot<Map<String, dynamic>>> stream,
+    required Query<Map<String, dynamic>> Function() query,
     required String? amountLabel,
   }) async {
     await showModalBottomSheet<void>(
@@ -1144,65 +1086,63 @@ class _JobBoardState extends State<_JobBoard> {
       builder: (sheetContext) => SafeArea(
         child: SizedBox(
           height: MediaQuery.sizeOf(sheetContext).height * .72,
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: stream,
-            builder: (context, snapshot) {
-              final revisions = snapshot.data?.docs ?? [];
-              return Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.history_outlined),
-                    title: Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Permanent activity and revision history',
-                    ),
-                    trailing: IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(sheetContext),
-                      icon: const Icon(Icons.close),
-                    ),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.history_outlined),
+                title: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
                   ),
-                  Expanded(
-                    child: revisions.isEmpty
-                        ? const Center(child: Text('No history recorded yet.'))
-                        : ListView(
-                            padding: const EdgeInsets.all(12),
-                            children: revisions.map((revision) {
-                              final data = revision.data();
-                              final amount = data['amount'] as num?;
-                              return Card(
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    child: Text('${data['revision'] ?? '—'}'),
-                                  ),
-                                  title: Text(
-                                    amountLabel != null && amount != null
-                                        ? '$amountLabel • ${marketplaceMoney(amount)}'
-                                        : _dispatchEventLabel(
-                                            '${data['event'] ?? 'updated'}',
-                                          ),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${_dispatchEventLabel('${data['event'] ?? 'updated'}')} • ${('${data['status'] ?? ''}').toUpperCase()}\n${_dispatchDateLabel(data)}${('${data['note'] ?? ''}').trim().isEmpty ? '' : '\n${data['note']}'}',
-                                  ),
-                                  isThreeLine: true,
+                ),
+                subtitle: const Text(
+                  'Permanent activity and revision history',
+                ),
+                trailing: IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(sheetContext),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+              Expanded(
+                child: _DispatchPagedCollection(
+                  query: query,
+                  padding: const EdgeInsets.all(12),
+                  empty: const _DispatchEmptyState(
+                    icon: Icons.history_outlined,
+                    title: 'No history recorded yet.',
+                    message: 'Permanent revisions will appear here.',
+                  ),
+                  itemBuilder: (_, revision) {
+                    final data = revision.data();
+                    final amount = data['amount'] as num?;
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text('${data['revision'] ?? '—'}'),
+                        ),
+                        title: Text(
+                          amountLabel != null && amount != null
+                              ? '$amountLabel • ${marketplaceMoney(amount)}'
+                              : _dispatchEventLabel(
+                                  '${data['event'] ?? 'updated'}',
                                 ),
-                              );
-                            }).toList(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
                           ),
-                  ),
-                ],
-              );
-            },
+                        ),
+                        subtitle: Text(
+                          '${_dispatchEventLabel('${data['event'] ?? 'updated'}')} • ${('${data['status'] ?? ''}').toUpperCase()}\n${_dispatchDateLabel(data)}${('${data['note'] ?? ''}').trim().isEmpty ? '' : '\n${data['note']}'}',
+                        ),
+                        isThreeLine: true,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1219,6 +1159,7 @@ class _JobBoardState extends State<_JobBoard> {
         .collection('dispatch_carriers')
         .doc(FirebaseAuth.instance.currentUser?.uid)
         .collection('vehicles')
+        .limit(100)
         .get();
     if (fleet.docs.isEmpty) {
       if (context.mounted) {
@@ -1233,8 +1174,7 @@ class _JobBoardState extends State<_JobBoard> {
       return;
     }
     final existingData = existing?.data();
-    var selectedVehicle =
-        fleet.docs
+    var selectedVehicle = fleet.docs
             .where((vehicle) => vehicle.id == existingData?['vehicleId'])
             .firstOrNull ??
         fleet.docs.first;
@@ -1242,13 +1182,11 @@ class _JobBoardState extends State<_JobBoard> {
       text: '${existingData?['amount'] ?? ''}',
     );
     final note = TextEditingController(text: '${existingData?['note'] ?? ''}');
-    var date =
-        (existingData?['availableDate'] as Timestamp?)?.toDate() ??
+    var date = (existingData?['availableDate'] as Timestamp?)?.toDate() ??
         (data['truckingDate'] as Timestamp?)?.toDate() ??
         DateTime.now();
     if (!context.mounted) return;
-    final submit =
-        await showDialog<bool>(
+    final submit = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => StatefulBuilder(
             builder: (context, update) => AlertDialog(
@@ -1344,8 +1282,7 @@ class _JobBoardState extends State<_JobBoard> {
     if (!submit || !context.mounted) return;
     final value = num.tryParse(amount.text);
     if (value == null || value <= 0) return;
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text(
@@ -1394,6 +1331,278 @@ class _JobBoardState extends State<_JobBoard> {
   }
 }
 
+typedef _DispatchDocumentBuilder = Widget Function(
+  BuildContext context,
+  QueryDocumentSnapshot<Map<String, dynamic>> document,
+);
+
+class _DispatchPagedCollection extends StatefulWidget {
+  const _DispatchPagedCollection({
+    required this.query,
+    required this.itemBuilder,
+    required this.empty,
+    this.onRefresh,
+    this.padding = const EdgeInsets.fromLTRB(14, 4, 14, 20),
+  });
+
+  final Query<Map<String, dynamic>> Function() query;
+  final _DispatchDocumentBuilder itemBuilder;
+  final Widget empty;
+  final Future<void> Function()? onRefresh;
+  final EdgeInsets padding;
+
+  @override
+  State<_DispatchPagedCollection> createState() =>
+      _DispatchPagedCollectionState();
+}
+
+class _DispatchPagedCollectionState extends State<_DispatchPagedCollection> {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
+  final Set<String> _firstPageIds = {};
+  QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _firstPage;
+  bool _loading = false;
+  bool _hasMore = true;
+  String? _error;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToFirstPage();
+  }
+
+  void _listenToFirstPage() {
+    _loading = true;
+    _firstPage =
+        widget.query().limit(defaultFirestorePageSize).snapshots().listen(
+      (snapshot) {
+        if (!mounted) return;
+        final tail = _documents
+            .where((document) => !_firstPageIds.contains(document.id))
+            .toList();
+        final merged = appendUniqueById(
+          snapshot.docs,
+          tail,
+          (document) => document.id,
+        );
+        setState(() {
+          _documents
+            ..clear()
+            ..addAll(merged);
+          _firstPageIds
+            ..clear()
+            ..addAll(snapshot.docs.map((document) => document.id));
+          if (tail.isEmpty) _cursor = snapshot.docs.lastOrNull;
+          _hasMore = tail.isNotEmpty ||
+              snapshot.docs.length == defaultFirestorePageSize;
+          _loading = false;
+          _error = null;
+        });
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = error is FirebaseException &&
+                  error.code == 'failed-precondition'
+              ? 'The Dispatch index is still being prepared. Try again shortly.'
+              : 'Dispatch records could not be loaded. Check your connection.';
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _firstPage?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool reset = false}) async {
+    if ((_loading && !reset) || (!reset && !_hasMore)) return;
+    final generation = reset ? ++_generation : _generation;
+    setState(() {
+      _loading = true;
+      _error = null;
+      if (reset) {
+        _documents.clear();
+        _cursor = null;
+        _hasMore = true;
+      }
+    });
+    try {
+      final page = await loadFirestoreDocumentPage(
+        widget.query(),
+        after: reset ? null : _cursor,
+      );
+      if (!mounted || generation != _generation) return;
+      final merged = appendUniqueById(
+        reset
+            ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+            : _documents,
+        page.documents,
+        (document) => document.id,
+      );
+      setState(() {
+        _documents
+          ..clear()
+          ..addAll(merged);
+        if (reset) {
+          _firstPageIds
+            ..clear()
+            ..addAll(page.documents.map((document) => document.id));
+        }
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted || generation != _generation) return;
+      setState(() => _error = error.code == 'failed-precondition'
+          ? 'The Dispatch index is still being prepared. Try again shortly.'
+          : 'Dispatch records could not be loaded. Check your connection.');
+    } catch (_) {
+      if (mounted && generation == _generation) {
+        setState(() => _error =
+            'Dispatch records could not be loaded. Check your connection.');
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _refresh() async {
+    await _load(reset: true);
+    await widget.onRefresh?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading && _documents.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null && _documents.isEmpty) {
+      return _DispatchQueryError(error: _error!, onRetry: _refresh);
+    }
+    if (_documents.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [SizedBox(height: 420, child: Center(child: widget.empty))],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: widget.padding,
+        itemCount: _documents.length + 1,
+        itemBuilder: (context, index) {
+          if (index < _documents.length) {
+            return widget.itemBuilder(context, _documents[index]);
+          }
+          if (_error != null) {
+            return _DispatchQueryError(
+              error: _error!,
+              onRetry: () => _load(),
+              compact: true,
+            );
+          }
+          if (_hasMore) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: FilledButton.tonalIcon(
+                  onPressed: _loading ? null : () => _load(),
+                  icon: _loading
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.expand_more_rounded),
+                  label: const Text('Load more'),
+                ),
+              ),
+            );
+          }
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Center(
+              child: Text(
+                'All records loaded.',
+                style: TextStyle(color: Color(0xFF66758A)),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DispatchQueryError extends StatelessWidget {
+  const _DispatchQueryError({
+    required this.error,
+    required this.onRetry,
+    this.compact = false,
+  });
+
+  final String error;
+  final VoidCallback onRetry;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 12 : 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.sync_problem_outlined, color: Colors.deepOrange),
+              const SizedBox(height: 6),
+              Text(error, textAlign: TextAlign.center),
+              TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _DispatchEmptyState extends StatelessWidget {
+  const _DispatchEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 56, color: const Color(0xFF0878E8)),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            Text(message, textAlign: TextAlign.center),
+          ],
+        ),
+      );
+}
+
 class _PostJob extends StatefulWidget {
   const _PostJob({required this.repo});
   final MarketplaceDispatchRepository repo;
@@ -1411,144 +1620,157 @@ class _PostJobState extends State<_PostJob> {
   DateTime date = DateTime.now().add(const Duration(days: 1));
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(18),
-    children: [
-      const Text(
-        'Post a trucking job',
-        style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
-      ),
-      const Text(
-        'Only operational details are shared. Private offer and payment information stays protected.',
-      ),
-      const SizedBox(height: 14),
-      Card(
-        color: const Color(0xFFEAF4FD),
-        child: ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.inventory_2_outlined)),
-          title: const Text(
-            'Select a listing for quote',
-            style: TextStyle(fontWeight: FontWeight.w900),
+        padding: const EdgeInsets.all(18),
+        children: [
+          const Text(
+            'Post a trucking job',
+            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
           ),
-          subtitle: const Text(
-            'Use the listing details and weight estimate to prepare the load.',
+          const Text(
+            'Only operational details are shared. Private offer and payment information stays protected.',
           ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: _selectListing,
-        ),
-      ),
-      const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Expanded(child: Divider()),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                'OR ENTER A LOAD MANUALLY',
-                style: TextStyle(fontSize: 11, color: Color(0xFF66758A)),
+          const SizedBox(height: 14),
+          Card(
+            color: const Color(0xFFEAF4FD),
+            child: ListTile(
+              leading:
+                  const CircleAvatar(child: Icon(Icons.inventory_2_outlined)),
+              title: const Text(
+                'Select a listing for quote',
+                style: TextStyle(fontWeight: FontWeight.w900),
               ),
+              subtitle: const Text(
+                'Use the listing details and weight estimate to prepare the load.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _selectListing,
             ),
-            Expanded(child: Divider()),
-          ],
-        ),
-      ),
-      Form(
-        key: form,
-        child: Column(
-          children: [
-            for (final field in [
-              (title, 'Load title', Icons.inventory_2_outlined),
-              (pickup, 'Pickup location', Icons.trip_origin),
-              (delivery, 'Delivery location', Icons.flag_outlined),
-            ]) ...[
-              TextFormField(
-                controller: field.$1,
-                decoration: InputDecoration(
-                  labelText: '${field.$2} *',
-                  prefixIcon: Icon(field.$3),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'OR ENTER A LOAD MANUALLY',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF66758A)),
+                  ),
                 ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 10),
-            ],
-            TextFormField(
-              controller: distance,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Estimated route distance *',
-                helperText:
-                    'Enter the practical truck-route distance, not straight-line distance.',
-                suffixText: 'km',
-                prefixIcon: Icon(Icons.route_outlined),
-              ),
-              validator: (value) => (num.tryParse(value ?? '') ?? 0) <= 0
-                  ? 'Enter the estimated route distance'
-                  : null,
+                Expanded(child: Divider()),
+              ],
             ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: details,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Load, dimensions and equipment needed *',
-                prefixIcon: Icon(Icons.straighten_outlined),
-              ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Required' : null,
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_month_outlined),
-              title: const Text('Requested trucking date'),
-              subtitle: Text('${date.year}-${date.month}-${date.day}'),
-              onTap: () async {
-                final value = await showDatePicker(
-                  context: context,
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime.now().add(const Duration(days: 730)),
-                  initialDate: date,
-                );
-                if (value != null) setState(() => date = value);
-              },
-            ),
-            FilledButton.icon(
-              onPressed: () async {
-                if (!form.currentState!.validate()) return;
-                await widget.repo.createJob(
-                  title: title.text.trim(),
-                  pickup: pickup.text.trim(),
-                  delivery: delivery.text.trim(),
-                  truckingDate: date,
-                  loadDetails: details.text.trim(),
-                  distanceKm: num.parse(distance.text),
-                  distanceSource: 'user_entered_route',
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Dispatch job published for carrier bids.'),
+          ),
+          Form(
+            key: form,
+            child: Column(
+              children: [
+                for (final field in [
+                  (title, 'Load title', Icons.inventory_2_outlined),
+                  (pickup, 'Pickup location', Icons.trip_origin),
+                  (delivery, 'Delivery location', Icons.flag_outlined),
+                ]) ...[
+                  TextFormField(
+                    controller: field.$1,
+                    decoration: InputDecoration(
+                      labelText: '${field.$2} *',
+                      prefixIcon: Icon(field.$3),
                     ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.publish_outlined),
-              label: const Text('Publish dispatch job'),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                TextFormField(
+                  controller: distance,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Estimated route distance *',
+                    helperText:
+                        'Enter the practical truck-route distance, not straight-line distance.',
+                    suffixText: 'km',
+                    prefixIcon: Icon(Icons.route_outlined),
+                  ),
+                  validator: (value) => (num.tryParse(value ?? '') ?? 0) <= 0
+                      ? 'Enter the estimated route distance'
+                      : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: details,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Load, dimensions and equipment needed *',
+                    prefixIcon: Icon(Icons.straighten_outlined),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                ListTile(
+                  leading: const Icon(Icons.calendar_month_outlined),
+                  title: const Text('Requested trucking date'),
+                  subtitle: Text('${date.year}-${date.month}-${date.day}'),
+                  onTap: () async {
+                    final value = await showDatePicker(
+                      context: context,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 730)),
+                      initialDate: date,
+                    );
+                    if (value != null) setState(() => date = value);
+                  },
+                ),
+                FilledButton.icon(
+                  onPressed: () async {
+                    if (!form.currentState!.validate()) return;
+                    await widget.repo.createJob(
+                      title: title.text.trim(),
+                      pickup: pickup.text.trim(),
+                      delivery: delivery.text.trim(),
+                      truckingDate: date,
+                      loadDetails: details.text.trim(),
+                      distanceKm: num.parse(distance.text),
+                      distanceSource: 'user_entered_route',
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text('Dispatch job published for carrier bids.'),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.publish_outlined),
+                  label: const Text('Publish dispatch job'),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    ],
-  );
+          ),
+        ],
+      );
 
   Future<void> _selectListing() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final result = await FirebaseFirestore.instance
-        .collection('public_listings')
-        .where('status', isEqualTo: 'active')
-        .get();
+    QuerySnapshot<Map<String, dynamic>> result;
+    try {
+      result = await FirebaseFirestore.instance
+          .collection('public_listings')
+          .where('status', isEqualTo: 'active')
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .get();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Listings could not be loaded. Check your connection and try again.')));
+      return;
+    }
     if (!mounted) return;
     final listings = result.docs;
     if (listings.isEmpty) {
@@ -1563,52 +1785,54 @@ class _PostJobState extends State<_PostJob> {
     }
     final selected =
         await showModalBottomSheet<QueryDocumentSnapshot<Map<String, dynamic>>>(
-          context: context,
-          isScrollControlled: true,
-          builder: (sheetContext) => SafeArea(
-            child: SizedBox(
-              height: MediaQuery.sizeOf(sheetContext).height * .72,
-              child: Column(
-                children: [
-                  const ListTile(
-                    leading: Icon(Icons.local_shipping_outlined),
-                    title: Text(
-                      'Choose a listing',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Choose any active Marketplace or Auction listing',
-                    ),
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * .72,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.local_shipping_outlined),
+                title: const Text(
+                  'Choose a listing',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
                   ),
-                  Expanded(
-                    child: ListView(
-                      children: listings
-                          .map(
-                            (doc) => ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.inventory_2_outlined),
-                              ),
-                              title: Text(
-                                '${doc.data()['title'] ?? 'Listing'}',
-                              ),
-                              subtitle: Text(
-                                '${doc.data()['sellerUid'] == uid ? 'Your listing' : 'Marketplace listing'} • ${doc.data()['category'] ?? ''} • ${doc.data()['publicLocationName'] ?? 'Location by request'}',
-                              ),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () => Navigator.pop(sheetContext, doc),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ],
+                ),
+                subtitle: Text(
+                  result.docs.length == 50
+                      ? 'Showing the 50 newest active Marketplace and Auction listings'
+                      : 'Choose any active Marketplace or Auction listing',
+                ),
               ),
-            ),
+              Expanded(
+                child: ListView(
+                  children: listings
+                      .map(
+                        (doc) => ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.inventory_2_outlined),
+                          ),
+                          title: Text(
+                            '${doc.data()['title'] ?? 'Listing'}',
+                          ),
+                          subtitle: Text(
+                            '${doc.data()['sellerUid'] == uid ? 'Your listing' : 'Marketplace listing'} • ${doc.data()['category'] ?? ''} • ${doc.data()['publicLocationName'] ?? 'Location by request'}',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.pop(sheetContext, doc),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
           ),
-        );
+        ),
+      ),
+    );
     if (selected != null && mounted) {
       await MarketplaceFreightQuote.show(
         context,
@@ -1640,294 +1864,300 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
   @override
   Widget build(
     BuildContext context,
-  ) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    stream: widget.repo.carrierProfile(),
-    builder: (context, snapshot) {
-      final signedUp = snapshot.data?.exists == true;
-      return ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          Text(
-            signedUp ? 'Dispatch account' : 'Dispatch Signup',
-            style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
-          ),
-          const Text(
-            'Only the contact and service information needed to connect you with trucking work is collected.',
-          ),
-          const SizedBox(height: 10),
-          const Card(
-            color: Color(0xFFEAF4FD),
-            child: ListTile(
-              leading: Icon(Icons.privacy_tip_outlined),
-              title: Text('Privacy-minimal signup'),
-              subtitle: Text(
-                'Pipe does not request insurance policy details or personal identity documents here.',
+  ) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: widget.repo.carrierProfile(),
+        builder: (context, snapshot) {
+          final signedUp = snapshot.data?.exists == true;
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              Text(
+                signedUp ? 'Dispatch account' : 'Dispatch Signup',
+                style:
+                    const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (!signedUp)
-            _signupForm()
-          else ...[
-            _accountSummary(snapshot.data!.data()!),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'My fleet',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              const Text(
+                'Only the contact and service information needed to connect you with trucking work is collected.',
+              ),
+              const SizedBox(height: 10),
+              const Card(
+                color: Color(0xFFEAF4FD),
+                child: ListTile(
+                  leading: Icon(Icons.privacy_tip_outlined),
+                  title: Text('Privacy-minimal signup'),
+                  subtitle: Text(
+                    'Pipe does not request insurance policy details or personal identity documents here.',
                   ),
                 ),
-                FilledButton.icon(
-                  onPressed: _addVehicle,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add truck'),
+              ),
+              const SizedBox(height: 12),
+              if (!signedUp)
+                _signupForm()
+              else ...[
+                _accountSummary(snapshot.data!.data()!),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'My fleet',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _addVehicle,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add truck'),
+                    ),
+                  ],
                 ),
+                const Text(
+                  'Add every truck separately so its payload and services are accurate when bidding.',
+                ),
+                const SizedBox(height: 10),
+                _fleet(),
               ],
-            ),
-            const Text(
-              'Add every truck separately so its payload and services are accurate when bidding.',
-            ),
-            const SizedBox(height: 10),
-            _fleet(),
-          ],
-        ],
+            ],
+          );
+        },
       );
-    },
-  );
 
   Widget _signupForm() => Form(
-    key: form,
-    child: Column(
-      children: [
-        for (final field in [
-          (operating, 'Public operating name', Icons.storefront_outlined),
-          (legal, 'Company name', Icons.business_outlined),
-          (email, 'Dispatch email', Icons.email_outlined),
-        ]) ...[
-          TextFormField(
-            controller: field.$1,
-            decoration: InputDecoration(
-              labelText: '${field.$2} *',
-              prefixIcon: Icon(field.$3),
-            ),
-            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-          ),
-          const SizedBox(height: 10),
-        ],
-        RegionalPhoneField(
-          label: 'Dispatch phone',
-          initialValue: phone.text,
-          required: true,
-          onChanged: (value) => phone.text = value,
-        ),
-        const SizedBox(height: 10),
-        ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          tileColor: const Color(0xFFF2F6FA),
-          leading: const Icon(Icons.map_outlined),
-          title: const Text('Area of service *'),
-          subtitle: Text(area?.summary ?? 'Select operating area'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () async {
-            final value = await MarketplaceServiceAreaPicker.show(
-              context,
-              area,
-            );
-            if (value != null) setState(() => area = value);
-          },
-        ),
-        const SizedBox(height: 14),
-        FilledButton.icon(
-          onPressed: submitting
-              ? null
-              : () async {
-                  if (!form.currentState!.validate() || area == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Complete the signup and service area.'),
-                      ),
-                    );
-                    return;
-                  }
-                  setState(() {
-                    submitting = true;
-                    signupError = null;
-                  });
-                  try {
-                    await widget.repo.signupDispatch(
-                      operatingName: operating.text.trim(),
-                      companyName: legal.text.trim(),
-                      phone: phone.text.trim(),
-                      email: email.text.trim(),
-                      serviceArea: area!,
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: Colors.green,
-                          content: Text(
-                            'Dispatch account created. Welcome to Dispatch.',
-                          ),
-                        ),
-                      );
-                    }
-                  } on FirebaseException catch (error) {
-                    if (mounted) {
-                      setState(
-                        () => signupError =
-                            'Firebase ${error.code}: ${error.message ?? 'The signup could not be saved.'}',
-                      );
-                    }
-                  } catch (error) {
-                    if (mounted) setState(() => signupError = '$error');
-                  } finally {
-                    if (mounted) setState(() => submitting = false);
-                  }
-                },
-          icon: submitting
-              ? const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.check_circle_outline),
-          label: Text(
-            submitting
-                ? 'Creating Dispatch account…'
-                : 'Create Dispatch account',
-          ),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-        ),
-        if (signupError != null)
-          Card(
-            color: const Color(0xFFFFE9E7),
-            child: ListTile(
-              leading: const Icon(Icons.error_outline, color: Colors.red),
-              title: const Text('Dispatch signup was not completed'),
-              subtitle: SelectableText(signupError!),
-              trailing: IconButton(
-                tooltip: 'Dismiss',
-                onPressed: () => setState(() => signupError = null),
-                icon: const Icon(Icons.close),
+        key: form,
+        child: Column(
+          children: [
+            for (final field in [
+              (operating, 'Public operating name', Icons.storefront_outlined),
+              (legal, 'Company name', Icons.business_outlined),
+              (email, 'Dispatch email', Icons.email_outlined),
+            ]) ...[
+              TextFormField(
+                controller: field.$1,
+                decoration: InputDecoration(
+                  labelText: '${field.$2} *',
+                  prefixIcon: Icon(field.$3),
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
               ),
+              const SizedBox(height: 10),
+            ],
+            RegionalPhoneField(
+              label: 'Dispatch phone',
+              initialValue: phone.text,
+              required: true,
+              onChanged: (value) => phone.text = value,
             ),
-          ),
-      ],
-    ),
-  );
+            const SizedBox(height: 10),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              tileColor: const Color(0xFFF2F6FA),
+              leading: const Icon(Icons.map_outlined),
+              title: const Text('Area of service *'),
+              subtitle: Text(area?.summary ?? 'Select operating area'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final value = await MarketplaceServiceAreaPicker.show(
+                  context,
+                  area,
+                );
+                if (value != null) setState(() => area = value);
+              },
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (!form.currentState!.validate() || area == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Complete the signup and service area.'),
+                          ),
+                        );
+                        return;
+                      }
+                      setState(() {
+                        submitting = true;
+                        signupError = null;
+                      });
+                      try {
+                        await widget.repo.signupDispatch(
+                          operatingName: operating.text.trim(),
+                          companyName: legal.text.trim(),
+                          phone: phone.text.trim(),
+                          email: email.text.trim(),
+                          serviceArea: area!,
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: Colors.green,
+                              content: Text(
+                                'Dispatch account created. Welcome to Dispatch.',
+                              ),
+                            ),
+                          );
+                        }
+                      } on FirebaseException catch (error) {
+                        if (mounted) {
+                          setState(
+                            () => signupError =
+                                'Firebase ${error.code}: ${error.message ?? 'The signup could not be saved.'}',
+                          );
+                        }
+                      } catch (error) {
+                        if (mounted) setState(() => signupError = '$error');
+                      } finally {
+                        if (mounted) setState(() => submitting = false);
+                      }
+                    },
+              icon: submitting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline),
+              label: Text(
+                submitting
+                    ? 'Creating Dispatch account…'
+                    : 'Create Dispatch account',
+              ),
+              style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50)),
+            ),
+            if (signupError != null)
+              Card(
+                color: const Color(0xFFFFE9E7),
+                child: ListTile(
+                  leading: const Icon(Icons.error_outline, color: Colors.red),
+                  title: const Text('Dispatch signup was not completed'),
+                  subtitle: SelectableText(signupError!),
+                  trailing: IconButton(
+                    tooltip: 'Dismiss',
+                    onPressed: () => setState(() => signupError = null),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
 
   Widget _accountSummary(Map<String, dynamic> data) => Card(
-    child: ListTile(
-      leading: const CircleAvatar(child: Icon(Icons.business_outlined)),
-      title: Text(
-        '${data['operatingName'] ?? 'Dispatch provider'}',
-        style: const TextStyle(fontWeight: FontWeight.w900),
-      ),
-      subtitle: Text(
-        '${data['companyName'] ?? ''}\n${data['serviceAreaLabel'] ?? ''}',
-      ),
-      isThreeLine: true,
-      trailing: const Chip(label: Text('ACTIVE')),
-    ),
-  );
+        child: ListTile(
+          leading: const CircleAvatar(child: Icon(Icons.business_outlined)),
+          title: Text(
+            '${data['operatingName'] ?? 'Dispatch provider'}',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          subtitle: Text(
+            '${data['companyName'] ?? ''}\n${data['serviceAreaLabel'] ?? ''}',
+          ),
+          isThreeLine: true,
+          trailing: const Chip(label: Text('ACTIVE')),
+        ),
+      );
 
   Widget _fleet() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-    stream: widget.repo.fleet(),
-    builder: (context, snapshot) {
-      final vehicles = snapshot.data?.docs ?? [];
-      if (vehicles.isEmpty) {
-        return const Card(
-          child: ListTile(
-            leading: Icon(Icons.add_road_outlined),
-            title: Text('Add your first truck'),
-            subtitle: Text(
-              'A fleet vehicle is required before bidding on dispatch work.',
-            ),
-          ),
-        );
-      }
-      return Column(
-        children: vehicles.map((vehicle) {
-          final data = vehicle.data();
-          final services = List<String>.from(
-            data['services'] ?? const <String>[],
-          );
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: IndustrialAssetIcon(
-                      label: '${data['vehicleType'] ?? 'Truck'}',
-                      assetPath: IndustrialIconAssets.forVehicleType(
-                        '${data['vehicleType'] ?? 'Truck'}',
-                      ),
-                      size: 42,
-                      borderRadius: 10,
-                      fallback: Icon(
-                        _vehicleTypeFallbackIcon(
-                          '${data['vehicleType'] ?? 'Truck'}',
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      '${data['name'] ?? 'Fleet vehicle'}',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text(
-                      '${data['vehicleType'] ?? 'Truck'} • Safe payload ${data['maximumPayloadKg'] ?? 0} kg\nTare ${data['tareWeightKg'] ?? '—'} kg • Gross ${data['grossWeightKg'] ?? '—'} kg',
-                    ),
-                    isThreeLine: true,
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) async {
-                        if (value == 'remove') {
-                          await widget.repo.removeVehicle(vehicle.id);
-                        }
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: 'remove',
-                          child: MarketplaceFormOption(
-                            label: 'Remove truck',
-                            icon: Icons.delete_outline,
-                            iconColor: Colors.red,
+        stream: widget.repo.fleet(),
+        builder: (context, snapshot) {
+          final vehicles = snapshot.data?.docs ?? [];
+          if (vehicles.isEmpty) {
+            return const Card(
+              child: ListTile(
+                leading: Icon(Icons.add_road_outlined),
+                title: Text('Add your first truck'),
+                subtitle: Text(
+                  'A fleet vehicle is required before bidding on dispatch work.',
+                ),
+              ),
+            );
+          }
+          return Column(
+            children: vehicles.map((vehicle) {
+              final data = vehicle.data();
+              final services = List<String>.from(
+                data['services'] ?? const <String>[],
+              );
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: IndustrialAssetIcon(
+                          label: '${data['vehicleType'] ?? 'Truck'}',
+                          assetPath: IndustrialIconAssets.forVehicleType(
+                            '${data['vehicleType'] ?? 'Truck'}',
+                          ),
+                          size: 42,
+                          borderRadius: 10,
+                          fallback: Icon(
+                            _vehicleTypeFallbackIcon(
+                              '${data['vehicleType'] ?? 'Truck'}',
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 5,
-                      children: services
-                          .map(
-                            (service) => Chip(
-                              visualDensity: VisualDensity.compact,
-                              avatar: Icon(
-                                _dispatchServiceIcon(service),
-                                size: 17,
+                        title: Text(
+                          '${data['name'] ?? 'Fleet vehicle'}',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          '${data['vehicleType'] ?? 'Truck'} • Safe payload ${data['maximumPayloadKg'] ?? 0} kg\nTare ${data['tareWeightKg'] ?? '—'} kg • Gross ${data['grossWeightKg'] ?? '—'} kg',
+                        ),
+                        isThreeLine: true,
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (value) async {
+                            if (value == 'remove') {
+                              await widget.repo.removeVehicle(vehicle.id);
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'remove',
+                              child: MarketplaceFormOption(
+                                label: 'Remove truck',
+                                icon: Icons.delete_outline,
+                                iconColor: Colors.red,
                               ),
-                              label: Text(service),
                             ),
-                          )
-                          .toList(),
-                    ),
+                          ],
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 5,
+                          children: services
+                              .map(
+                                (service) => Chip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: Icon(
+                                    _dispatchServiceIcon(service),
+                                    size: 17,
+                                  ),
+                                  label: Text(service),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            }).toList(),
           );
-        }).toList(),
+        },
       );
-    },
-  );
 
   Future<void> _addVehicle() async {
     final name = TextEditingController();
@@ -1940,8 +2170,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
     var usePounds = false;
     var weightSource = 'Vehicle plate / registration';
     final services = <String>{};
-    final submitted =
-        await showDialog<bool>(
+    final submitted = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => StatefulBuilder(
             builder: (_, setDialogState) => AlertDialog(
@@ -1966,28 +2195,27 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                         decoration: const InputDecoration(
                           labelText: 'Vehicle type',
                         ),
-                        items:
-                            const [
-                                  'Truck',
-                                  'Pickup',
-                                  'Tractor',
-                                  'Hotshot',
-                                  'Pilot truck',
-                                ]
-                                .map(
-                                  (value) => DropdownMenuItem(
-                                    value: value,
-                                    child: MarketplaceFormOption(
-                                      label: value,
-                                      icon: _vehicleTypeFallbackIcon(value),
-                                      assetPath:
-                                          IndustrialIconAssets.forVehicleType(
-                                            value,
-                                          ),
-                                    ),
+                        items: const [
+                          'Truck',
+                          'Pickup',
+                          'Tractor',
+                          'Hotshot',
+                          'Pilot truck',
+                        ]
+                            .map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: MarketplaceFormOption(
+                                  label: value,
+                                  icon: _vehicleTypeFallbackIcon(value),
+                                  assetPath:
+                                      IndustrialIconAssets.forVehicleType(
+                                    value,
                                   ),
-                                )
-                                .toList(),
+                                ),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (value) =>
                             setDialogState(() => type = value ?? type),
                       ),
@@ -2056,23 +2284,22 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                         decoration: const InputDecoration(
                           labelText: 'Weight source',
                         ),
-                        items:
-                            const [
-                                  'Vehicle plate / registration',
-                                  'Manufacturer specification',
-                                  'Certified scale ticket',
-                                  'Owner estimate',
-                                ]
-                                .map(
-                                  (value) => DropdownMenuItem(
-                                    value: value,
-                                    child: MarketplaceFormOption(
-                                      label: value,
-                                      icon: _weightSourceIcon(value),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                        items: const [
+                          'Vehicle plate / registration',
+                          'Manufacturer specification',
+                          'Certified scale ticket',
+                          'Owner estimate',
+                        ]
+                            .map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: MarketplaceFormOption(
+                                  label: value,
+                                  icon: _weightSourceIcon(value),
+                                ),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (value) => setDialogState(
                           () => weightSource = value ?? weightSource,
                         ),
@@ -2088,8 +2315,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                           );
                           final safe = calculated > 0 && rated > 0
                               ? calculated < rated
-                                    ? calculated
-                                    : rated
+                                  ? calculated
+                                  : rated
                               : 0;
                           return Card(
                             color: const Color(0xFFEAF4FD),
@@ -2186,23 +2413,19 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
     final tareInput = num.tryParse(tare.text);
     final grossInput = num.tryParse(gross.text);
     const poundsToKg = 0.45359237;
-    final ratedKg = ratedInput == null
-        ? null
-        : ratedInput * (usePounds ? poundsToKg : 1);
-    final tareKg = tareInput == null
-        ? null
-        : tareInput * (usePounds ? poundsToKg : 1);
-    final grossKg = grossInput == null
-        ? null
-        : grossInput * (usePounds ? poundsToKg : 1);
-    final calculatedKg = tareKg == null || grossKg == null
-        ? null
-        : grossKg - tareKg;
+    final ratedKg =
+        ratedInput == null ? null : ratedInput * (usePounds ? poundsToKg : 1);
+    final tareKg =
+        tareInput == null ? null : tareInput * (usePounds ? poundsToKg : 1);
+    final grossKg =
+        grossInput == null ? null : grossInput * (usePounds ? poundsToKg : 1);
+    final calculatedKg =
+        tareKg == null || grossKg == null ? null : grossKg - tareKg;
     final payload = ratedKg == null || calculatedKg == null
         ? null
         : ratedKg < calculatedKg
-        ? ratedKg
-        : calculatedKg;
+            ? ratedKg
+            : calculatedKg;
     if (!submitted ||
         name.text.trim().isEmpty ||
         payload == null ||

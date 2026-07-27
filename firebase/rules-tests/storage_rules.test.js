@@ -9,7 +9,7 @@ const {
   initializeTestEnvironment,
 } = require("@firebase/rules-unit-testing");
 const {doc, setDoc, Timestamp} = require("firebase/firestore");
-const {ref, uploadBytes} = require("firebase/storage");
+const {deleteObject, getBytes, ref, uploadBytes} = require("firebase/storage");
 
 const projectId = "demo-pipe-buyer-rules";
 let testEnvironment;
@@ -74,6 +74,12 @@ beforeEach(async () => {
       sizeBytes: 4,
       expiresAt: Timestamp.fromMillis(Date.now() - 1000),
     });
+    await setDoc(doc(db, "marketplace_listing_drafts", "listing-draft"), {
+      sellerUid: "buyer",
+      status: "awaiting_media",
+      expectedPhotoCount: 1,
+      expectsVideo: false,
+    });
   });
 });
 
@@ -105,6 +111,45 @@ test("chat uploads require an exact live server authorization", async () => {
       ),
       Uint8Array.from([1, 2, 3, 4]),
       {contentType: "image/jpeg"},
+  ));
+});
+
+test("listing uploads require an owned open draft and bounded file type", async () => {
+  const buyerStorage = testEnvironment
+      .authenticatedContext("buyer")
+      .storage();
+  const sellerStorage = testEnvironment
+      .authenticatedContext("seller")
+      .storage();
+  const photo = ref(
+      buyerStorage,
+      "listing_media/buyer/listing-draft/photo_1.jpg",
+  );
+
+  await assertSucceeds(uploadBytes(
+      photo,
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(buyerStorage, "listing_media/buyer/no-draft/photo_1.jpg"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(sellerStorage, "listing_media/buyer/listing-draft/photo_1.jpg"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(buyerStorage, "listing_media/buyer/listing-draft/photo_13.jpg"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(buyerStorage, "listing_media/buyer/listing-draft/photo_2.pdf"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "application/pdf"},
   ));
 });
 
@@ -161,4 +206,48 @@ test("report evidence authorization is owner and report specific", async () => {
       Uint8Array.from([1, 2, 3, 4]),
       {contentType: "image/png"},
   ));
+});
+
+test("report evidence admin access requires approved MFA claims", async () => {
+  const buyerStorage = testEnvironment.authenticatedContext("buyer").storage();
+  const evidence = ref(
+      buyerStorage,
+      "report_evidence/buyer/report-1/report-upload",
+  );
+  await assertSucceeds(uploadBytes(
+      evidence,
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/png"},
+  ));
+
+  const approvedAdmin = testEnvironment.authenticatedContext("admin", {
+    admin: true,
+    role: "administrator",
+    firebase: {sign_in_second_factor: "phone"},
+  }).storage();
+  const emailOnly = testEnvironment.authenticatedContext("email-only", {
+    email: "jordilwbailey@gmail.com",
+    email_verified: true,
+  }).storage();
+  const adminWithoutMfa = testEnvironment.authenticatedContext(
+      "admin-without-mfa",
+      {admin: true, role: "administrator"},
+  ).storage();
+
+  await assertSucceeds(getBytes(ref(
+      approvedAdmin,
+      "report_evidence/buyer/report-1/report-upload",
+  )));
+  await assertFails(getBytes(ref(
+      emailOnly,
+      "report_evidence/buyer/report-1/report-upload",
+  )));
+  await assertFails(getBytes(ref(
+      adminWithoutMfa,
+      "report_evidence/buyer/report-1/report-upload",
+  )));
+  await assertSucceeds(deleteObject(ref(
+      approvedAdmin,
+      "report_evidence/buyer/report-1/report-upload",
+  )));
 });

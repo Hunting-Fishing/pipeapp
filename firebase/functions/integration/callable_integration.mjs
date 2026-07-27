@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {createRequire} from "node:module";
 
 const require = createRequire(import.meta.url);
 const {deleteApp, initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
+const {getStorage} = require("firebase-admin/storage");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {
   enforceUserRateLimit,
 } = require("../abuse_rate_limit");
+const {
+  createAccountVerificationCommands,
+} = require("../account_verification_commands");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -26,17 +31,29 @@ if (!functionsHost && process.env.FIREBASE_EMULATOR_HUB) {
   }
 }
 
-if (!process.env.FIRESTORE_EMULATOR_HOST || !authHost || !functionsHost) {
+if (!process.env.FIRESTORE_EMULATOR_HOST ||
+    !process.env.FIREBASE_STORAGE_EMULATOR_HOST ||
+    !authHost || !functionsHost) {
   throw new Error(
       "Callable integration tests must run inside the Auth, Firestore, and " +
-      "Functions emulators.",
+      "Functions, and Storage emulators.",
   );
 }
 
-const app = initializeApp({projectId}, `callable-integration-${Date.now()}`);
+const storageBucket = `${projectId}.appspot.com`;
+const app = initializeApp(
+    {projectId, storageBucket},
+    `callable-integration-${Date.now()}`,
+);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const rateLimitAdmin = {firestore: {FieldValue, Timestamp}};
+const commandFirestore = Object.assign(() => db, {FieldValue, Timestamp});
+const accountVerificationCommands = createAccountVerificationCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
 const now = Date.now();
 
 async function createUser(label, {verified = true} = {}) {
@@ -244,18 +261,27 @@ try {
       userScore: 95,
       profileCompletion: 100,
       accountVerified: true,
+      accountVerificationReviewVersion: 1,
     }),
     db.doc(`users/${buyer.uid}`).set({
       displayName: "Production Buyer",
       userScore: 90,
       profileCompletion: 100,
       accountVerified: true,
+      accountVerificationReviewVersion: 1,
     }),
     db.doc(`users/${carrier.uid}`).set({
       displayName: "Production Carrier",
       userScore: 90,
       profileCompletion: 100,
       accountVerified: true,
+      accountVerificationReviewVersion: 1,
+    }),
+    db.doc(`public_seller_profiles/${buyer.uid}`).set({
+      ownerUid: buyer.uid,
+      displayName: "Production Buyer",
+      photoUrl: "https://storage.test/production-buyer.jpg",
+      approvedTagIds: ["pipe"],
     }),
     db.doc(`dispatch_carriers/${carrier.uid}`).set({
       ownerUid: carrier.uid,
@@ -280,6 +306,55 @@ try {
   for (const result of verificationResults) {
     assert.deepEqual(result, {emailVerified: true, phoneVerified: true});
   }
+  const verificationRequestId = `verification-${now}`;
+  const verificationFirst = await call(
+      "submitAccountVerification",
+      buyer.token,
+      {requestId: verificationRequestId},
+  );
+  const verificationRetry = await call(
+      "submitAccountVerification",
+      buyer.token,
+      {requestId: verificationRequestId},
+  );
+  assert.deepEqual(verificationRetry, verificationFirst);
+  assert.equal(verificationFirst.status, "pending");
+  assert.equal(verificationFirst.submitted, true);
+  assert.equal(
+      (await db.doc(`verification_requests/${buyer.uid}`).get()).data().status,
+      "pending",
+  );
+  const reviewRequest = {
+    auth: {
+      uid: "integration-admin",
+      token: {
+        admin: true,
+        role: "administrator",
+        firebase: {sign_in_second_factor: "phone"},
+      },
+    },
+    data: {
+      requestId: `review-${now}`,
+      userUid: buyer.uid,
+      decision: "approved",
+      reason: "Verified ownership and public profile evidence were reviewed.",
+    },
+  };
+  const reviewFirst = await accountVerificationCommands
+      .reviewAccountVerification(reviewRequest);
+  const reviewRetry = await accountVerificationCommands
+      .reviewAccountVerification(reviewRequest);
+  assert.deepEqual(reviewRetry, reviewFirst);
+  assert.equal(reviewFirst.status, "approved");
+  assert.equal(
+      (await db.doc(`users/${buyer.uid}`).get())
+          .data().accountVerificationReviewVersion,
+      1,
+  );
+  assert.equal(
+      (await db.doc(`verification_requests/${buyer.uid}`).get()).data().status,
+      "approved",
+  );
   await assertCollectionSize("account_phone_registry", 3);
   assert.deepEqual(
       await call("syncAccountVerification", unverified.token, {}),
@@ -300,6 +375,138 @@ try {
   assert.match(blocked.message, /verify your email/i);
   assert.equal((await db.doc(`public_listings/${unverifiedListingId}`).get())
       .exists, false);
+
+  const bypassListingId = `media-bypass-${now}`;
+  await expectCallableError(
+      "createMarketplaceListing",
+      seller.token,
+      {
+        listingId: bypassListingId,
+        listing: {
+          ...listingInput("Unsafe media bypass"),
+          mediaPhotoCount: 1,
+          hasVideo: false,
+          imageUrls: [
+            "https://firebasestorage.googleapis.com/v0/b/example/o/fake.jpg",
+          ],
+        },
+        location: locationInput(),
+      },
+      "FAILED_PRECONDITION",
+  );
+  assert.equal(
+      (await db.doc(`public_listings/${bypassListingId}`).get()).exists,
+      false,
+  );
+
+  const draftListingId = `draft-listing-${now}`;
+  const draftData = {
+    listingId: draftListingId,
+    listing: {
+      ...listingInput("Draft-first integration listing"),
+      mediaPhotoCount: 0,
+      hasVideo: false,
+      imageUrls: [],
+      imageHashes: [],
+      thumbnailUrl: null,
+      videoUrl: null,
+      mediaUploadStatus: "none",
+    },
+    location: locationInput(),
+  };
+  const draftFirst = await call(
+      "createMarketplaceListingDraft",
+      seller.token,
+      draftData,
+  );
+  const draftRetry = await call(
+      "createMarketplaceListingDraft",
+      seller.token,
+      draftData,
+  );
+  assert.deepEqual(draftRetry, draftFirst);
+  assert.equal(
+      (await db.doc(`public_listings/${draftListingId}`).get()).exists,
+      false,
+  );
+  assert.equal(
+      (await db.doc(`marketplace_listing_drafts/${draftListingId}`).get())
+          .data().status,
+      "ready_to_publish",
+  );
+  const publishDraftData = {
+    requestId: `publish-draft-${now}`,
+    listingId: draftListingId,
+  };
+  const publishDraftFirst = await call(
+      "publishMarketplaceListingDraft",
+      seller.token,
+      publishDraftData,
+  );
+  const publishDraftRetry = await call(
+      "publishMarketplaceListingDraft",
+      seller.token,
+      publishDraftData,
+  );
+  assert.deepEqual(publishDraftRetry, publishDraftFirst);
+  assert.equal(
+      (await db.doc(`public_listings/${draftListingId}`).get()).data().status,
+      "active",
+  );
+  assert.equal(
+      (await db.doc(`marketplace_listing_drafts/${draftListingId}`).get())
+          .exists,
+      false,
+  );
+
+  const mediaDraftId = `media-draft-${now}`;
+  await call("createMarketplaceListingDraft", seller.token, {
+    listingId: mediaDraftId,
+    listing: {
+      ...listingInput("Media draft integration listing"),
+      mediaPhotoCount: 1,
+      hasVideo: false,
+      imageUrls: [],
+      imageHashes: [],
+      thumbnailUrl: null,
+      videoUrl: null,
+      mediaUploadStatus: "queued",
+    },
+    location: locationInput(),
+  });
+  await expectCallableError(
+      "publishMarketplaceListingDraft",
+      seller.token,
+      {requestId: `early-media-publish-${now}`, listingId: mediaDraftId},
+      "FAILED_PRECONDITION",
+  );
+  const photoBytes = Buffer.from("emulator listing photo fixture");
+  const photoPath =
+    `listing_media/${seller.uid}/${mediaDraftId}/photo_1.jpg`;
+  await storage.bucket().file(photoPath).save(photoBytes, {
+    contentType: "image/jpeg",
+  });
+  const photoUrl =
+    `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/` +
+    `${encodeURIComponent(photoPath)}?alt=media&token=emulator`;
+  await call("updateMarketplaceListingDraftMedia", seller.token, {
+    listingId: mediaDraftId,
+    status: "complete",
+    imageUrls: [photoUrl],
+    imageHashes: [createHash("sha256").update(photoBytes).digest("hex")],
+    thumbnailUrl: photoUrl,
+    videoUrl: null,
+  });
+  await call("publishMarketplaceListingDraft", seller.token, {
+    requestId: `publish-media-draft-${now}`,
+    listingId: mediaDraftId,
+  });
+  const publishedMediaListing = (
+    await db.doc(`public_listings/${mediaDraftId}`).get()
+  ).data();
+  assert.equal(publishedMediaListing.mediaUploadStatus, "complete");
+  assert.equal(publishedMediaListing.thumbnailUrl, photoUrl);
+  assert.equal(publishedMediaListing.imageUrls.length, 1);
 
   const offerListingId = `offer-listing-${now}`;
   const createListingData = {
@@ -977,16 +1184,61 @@ try {
       "completed",
   );
 
+  const privacyUser = await createUser("privacy");
+  await db.doc(`users/${privacyUser.uid}`).set({
+    displayName: "Privacy Integration User",
+    accountType: "personal",
+    accountStatus: "active",
+    userScore: 70,
+    accountVerified: false,
+  });
+  const accountExport = await call(
+      "requestAccountDataExport",
+      privacyUser.token,
+      {},
+  );
+  assert.equal(accountExport.chunkCount > 0, true);
+  const exportSnapshot = await db.doc(
+      `account_exports/${accountExport.exportId}`,
+  ).get();
+  assert.equal(exportSnapshot.data().status, "ready");
+  assert.equal(
+      (await db.collection(
+          `account_exports/${accountExport.exportId}/chunks`,
+      ).get()).size,
+      accountExport.chunkCount,
+  );
+  const deletion = await call(
+      "requestAccountDeletion",
+      privacyUser.token,
+      {confirmation: "DELETE MY ACCOUNT"},
+  );
+  assert.equal(deletion.status, "scheduled");
+  assert.equal(
+      (await db.doc(`account_deletion_requests/${privacyUser.uid}`).get())
+          .data().status,
+      "scheduled",
+  );
+  assert.equal(
+      (await call("cancelAccountDeletion", privacyUser.token, {})).status,
+      "cancelled",
+  );
+  assert.equal(
+      (await call("revokeAccountSessions", privacyUser.token, {})).revoked,
+      true,
+  );
+
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 37);
+  assert.equal(receipts.size, 41);
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
   assert.equal(communicationReceipts.size, 2);
   console.log(
-      "Callable integration passed: saved listings, listing lifecycle, " +
+      "Callable integration passed: private listing drafts, saved listings, " +
+      "listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "quote, award, delivery closure, protected messages/reports/uploads, " +
-      "and retry idempotency.",
+      "private export, staged deletion, session revocation, and retry idempotency.",
   );
 } finally {
   await deleteApp(app);

@@ -9,6 +9,18 @@ service firebase.storage {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return signedIn()
+        && 'admin' in request.auth.token
+        && 'role' in request.auth.token
+        && 'firebase' in request.auth.token
+        && 'sign_in_second_factor' in request.auth.token.firebase
+        && request.auth.token.admin == true
+        && request.auth.token.role == 'administrator'
+        && request.auth.token.firebase.sign_in_second_factor is string
+        && request.auth.token.firebase.sign_in_second_factor.size() > 0;
+    }
+
     function isImage() {
       return request.resource.contentType.matches('image/.*');
     }
@@ -31,11 +43,27 @@ service firebase.storage {
         && authorization.sizeBytes == request.resource.size;
     }
 
+    function ownsOpenListingDraft(userId, listingId) {
+      let draft = firestore.get(
+        /databases/(default)/documents/marketplace_listing_drafts/$(listingId)
+      ).data;
+      return isOwner(userId)
+        && draft.sellerUid == userId
+        && draft.status == 'awaiting_media';
+    }
+
     match /listing_media/{userId}/{listingId}/{fileName} {
       allow read: if true;
-      allow create, update: if isOwner(userId)
-        && request.resource.size <= 25 * 1024 * 1024
-        && (isImage() || isVideo());
+      allow create, update: if ownsOpenListingDraft(userId, listingId)
+        && (
+          (fileName.matches('photo_([1-9]|1[0-2])\\.(jpg|jpeg|png)')
+            && isImage()
+            && request.resource.size <= 5 * 1024 * 1024)
+          ||
+          (fileName.matches('video\\.(mp4|mov)')
+            && isVideo()
+            && request.resource.size <= 25 * 1024 * 1024)
+        );
       allow delete: if isOwner(userId);
     }
 
@@ -78,11 +106,10 @@ service firebase.storage {
         && isImage();
       allow read: if signedIn() && (
         isOwner(userId) ||
-        request.auth.token.admin == true ||
-        request.auth.token.email == 'jordilwbailey@gmail.com'
+        isAdmin()
       );
       allow update: if false;
-      allow delete: if isOwner(userId) || request.auth.token.admin == true;
+      allow delete: if isOwner(userId) || isAdmin();
     }
   }
 }

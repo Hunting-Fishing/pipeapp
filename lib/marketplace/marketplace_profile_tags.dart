@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-const pipeBuyerAdminEmail = 'jordilwbailey@gmail.com';
+import 'marketplace_admin_access.dart';
 
 class MarketplaceProfileTags extends StatefulWidget {
   const MarketplaceProfileTags({super.key, required this.accountType});
@@ -114,8 +114,11 @@ class _MarketplaceProfileTagsState extends State<MarketplaceProfileTags> {
                                   backgroundColor: const Color(0xFFFFF4E5))))
                     ]);
               })),
-      if ((user.email ?? '').toLowerCase() == pipeBuyerAdminEmail)
-        const _TagModerationPanel(),
+      FutureBuilder<bool>(
+          future: marketplaceAdministratorAccess(),
+          builder: (context, access) => access.data == true
+              ? const _TagModerationPanel()
+              : const SizedBox.shrink()),
       const SizedBox(height: 12),
     ]);
   }

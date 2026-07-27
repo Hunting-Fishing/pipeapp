@@ -36,7 +36,7 @@ $arguments = @(
   'emulators:exec',
   '--project', 'demo-pipe-buyer-integration',
   '--config', 'firebase.json',
-  '--only', 'auth,firestore,functions',
+  '--only', 'auth,firestore,functions,storage',
   'node firebase/functions/integration/callable_integration.mjs'
 )
 

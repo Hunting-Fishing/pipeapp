@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/communication-command-controls`
+Baseline branch: `agent/admin-role-controls`
 Created: July 20, 2026
 
-Current gate: Gate 3 — Identity, authorization, App Check, and abuse protection
+Current gate: Gate 4 — Complete Phase 1 marketplace journeys
 
-Current overall launch-readiness estimate: 60%
+Current overall launch-readiness estimate: 68%
 
 Completed gates: 1 of 8
 
@@ -17,9 +17,9 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 81% — communication commands locally integrated |
-| 3 — Identity, authorization, and abuse | 65% — ownership, command throttles, and upload grants locally verified |
-| 4 — Product workflows | 64% — listing, offer, auction, and Dispatch transaction lifecycles locally verified |
+| 2 — Backend parity and server commands | 86% — privacy and commerce commands locally integrated |
+| 3 — Identity, authorization, and abuse | 90% — ownership, reviewed verification, MFA admin controls, password recovery, export, session revocation, and staged deletion locally verified |
+| 4 — Product workflows | 79% — listing/transaction lifecycles and bounded Marketplace, Auction, map, seller, owner, Dispatch job, quote, bid, and history reads locally verified |
 | 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
 | 6 — Accessibility, performance, and QA | 15% — incomplete |
 | 7 — Release readiness | 5% — incomplete |

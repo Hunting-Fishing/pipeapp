@@ -5,6 +5,7 @@ const test = require("node:test");
 const {
   ListingPolicyError,
   validateLocation,
+  validateListingMediaManifest,
   validateMarketplaceListingInput,
   validateReserve,
 } = require("../marketplace_listing_policy");
@@ -142,5 +143,84 @@ test("regulated property listings fail closed by default", () => {
       (error) =>
         error instanceof ListingPolicyError &&
         error.code === "failed-precondition",
+  );
+});
+
+function mediaUrl(path) {
+  return "https://firebasestorage.googleapis.com/v0/b/demo.appspot.com/o/" +
+    `${encodeURIComponent(path)}?alt=media&token=test`;
+}
+
+test("accepts a complete listing draft media manifest and thumbnail", () => {
+  const first = mediaUrl("listing_media/seller/draft-1/photo_1.jpg");
+  const second = mediaUrl("listing_media/seller/draft-1/photo_2.png");
+  const video = mediaUrl("listing_media/seller/draft-1/video.mp4");
+  const result = validateListingMediaManifest({
+    status: "complete",
+    imageUrls: [first, second],
+    imageHashes: ["a".repeat(64), "b".repeat(64)],
+    thumbnailUrl: second,
+    videoUrl: video,
+  }, {
+    ownerUid: "seller",
+    listingId: "draft-1",
+    expectedPhotoCount: 2,
+    expectsVideo: true,
+    requireComplete: true,
+  });
+
+  assert.equal(result.thumbnailUrl, second);
+  assert.equal(result.videoUrl, video);
+  assert.equal(result.imageUrls.length, 2);
+});
+
+test("draft publication rejects incomplete or foreign media", () => {
+  const first = mediaUrl("listing_media/seller/draft-1/photo_1.jpg");
+  assert.throws(
+      () => validateListingMediaManifest({
+        status: "uploading",
+        imageUrls: [],
+        imageHashes: [],
+      }, {
+        ownerUid: "seller",
+        listingId: "draft-1",
+        expectedPhotoCount: 1,
+        expectsVideo: false,
+        requireComplete: true,
+      }),
+      (error) => error instanceof ListingPolicyError &&
+        error.code === "failed-precondition",
+  );
+  assert.throws(
+      () => validateListingMediaManifest({
+        status: "complete",
+        imageUrls: [first],
+        imageHashes: ["a".repeat(64)],
+        thumbnailUrl: "",
+      }, {
+        ownerUid: "seller",
+        listingId: "draft-1",
+        expectedPhotoCount: 1,
+        expectsVideo: false,
+      }),
+      (error) => error instanceof ListingPolicyError,
+  );
+  assert.throws(
+      () => validateListingMediaManifest({
+        status: "complete",
+        imageUrls: [mediaUrl(
+          "listing_media/another-user/draft-1/photo_1.jpg",
+        )],
+        imageHashes: ["a".repeat(64)],
+        thumbnailUrl: mediaUrl(
+          "listing_media/another-user/draft-1/photo_1.jpg",
+        ),
+      }, {
+        ownerUid: "seller",
+        listingId: "draft-1",
+        expectedPhotoCount: 1,
+        expectsVideo: false,
+      }),
+      (error) => error instanceof ListingPolicyError,
   );
 });
