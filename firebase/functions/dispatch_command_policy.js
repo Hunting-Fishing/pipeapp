@@ -84,6 +84,122 @@ function optionalPoint(value, fieldName) {
   return {latitude, longitude};
 }
 
+function validateDispatchProviderApplication(data, identity) {
+  const submittedEmail = String(data && data.email || "")
+      .trim().toLowerCase();
+  const submittedPhone = String(data && data.phone || "").trim();
+  if (submittedEmail && submittedEmail !== identity.email) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Dispatch email must match the verified account email.",
+    );
+  }
+  if (submittedPhone && submittedPhone !== identity.phoneNumber) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Dispatch phone must match the verified account phone number.",
+    );
+  }
+  const serviceArea = data && data.serviceArea;
+  if (!serviceArea || typeof serviceArea !== "object" ||
+      Array.isArray(serviceArea)) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Choose a valid Dispatch service area.",
+    );
+  }
+  const mode = String(serviceArea.mode || "").trim();
+  if (!["radius", "places", "regions"].includes(mode)) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Dispatch service-area mode is invalid.",
+    );
+  }
+  const center = optionalPoint(serviceArea.center, "Service-area center");
+  if (!center) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Choose a mapped center for the service area.",
+    );
+  }
+  const radiusKm = Number(serviceArea.radiusKm || 0);
+  if (!Number.isFinite(radiusKm) || radiusKm < 1 || radiusKm > 5000) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Service radius must be between 1 and 5,000 km.",
+    );
+  }
+  const rawPlaces = Array.isArray(serviceArea.places) ?
+    serviceArea.places : [];
+  if (rawPlaces.length > 100) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Select no more than 100 service areas.",
+    );
+  }
+  const places = rawPlaces.map((place) => ({
+    name: requireText(place && place.name, "Service-area name", 160),
+    region: optionalText(place && place.region, "Service-area region", 160),
+    country: optionalText(place && place.country, "Service-area country", 120),
+    countryCode: optionalText(
+        place && place.countryCode,
+        "Service-area country code",
+        3,
+    ),
+    osmType: optionalText(place && place.osmType, "Map area type", 30),
+    osmId: optionalText(place && place.osmId, "Map area identifier", 80),
+    point: optionalPoint(place && place.point, "Service-area location"),
+  }));
+  if (mode !== "radius" && places.length === 0) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Select at least one town or region for this service area.",
+    );
+  }
+  return {
+    operatingName: requireText(data.operatingName, "Operating name", 160),
+    companyName: requireText(data.companyName, "Company name", 160),
+    email: identity.email,
+    phoneE164: identity.phoneNumber,
+    serviceAreaLabel: requireText(
+        data.serviceAreaLabel,
+        "Service-area summary",
+        500,
+    ),
+    serviceArea: {
+      mode,
+      center,
+      centerLabel: requireText(
+          serviceArea.centerLabel,
+          "Service-area center label",
+          240,
+      ),
+      radiusKm,
+      places,
+      schemaVersion: 2,
+    },
+  };
+}
+
+function validateDispatchProviderDecision(data) {
+  const decision = String(data && data.decision || "").trim();
+  if (!["approved", "changes_requested", "rejected", "suspended"]
+      .includes(decision)) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Select a valid Dispatch provider decision.",
+    );
+  }
+  const reason = requireText(data && data.reason, "Review note", 1000);
+  if (reason.length < 10) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Review notes must contain at least 10 characters.",
+    );
+  }
+  return {decision, reason};
+}
+
 function validateDispatchJobInput(data, now) {
   const sourceType = String(data.sourceType || "manual").trim();
   if (!["manual", "marketplace", "auction"].includes(sourceType)) {
@@ -237,11 +353,12 @@ function validateDispatchQuote({
     !carrier ||
     carrier.ownerUid !== actorUid ||
     carrier.status !== "active" ||
+    carrier.providerReviewVersion !== 1 ||
     carrier.availableForHire === false
   ) {
     throw new CommandPolicyError(
         "permission-denied",
-        "Complete active Dispatch enrollment before quoting.",
+        "Dispatch provider approval and availability are required before quoting.",
     );
   }
   if (
@@ -574,5 +691,7 @@ module.exports = {
   validateDispatchJobInput,
   validateDispatchJobPublish,
   validateDispatchQuote,
+  validateDispatchProviderApplication,
+  validateDispatchProviderDecision,
   validateDispatchTransactionAction,
 };

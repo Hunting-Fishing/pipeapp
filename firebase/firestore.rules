@@ -176,12 +176,13 @@ service cloud.firestore {
     }
 
     match /dispatch_carriers/{carrierId} {
-      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
-      allow create, update: if phase1FeatureEnabled('dispatch') &&
-        owns(carrierId) &&
-        verifiedEmail() && verifiedPhone() &&
-        request.resource.data.ownerUid == request.auth.uid;
-      allow update: if phase1FeatureEnabled('dispatch') && isAdmin();
+      // The enrollment record contains verified contact details and is not a
+      // public carrier profile. Jobs and quotes carry the bounded public name.
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        (owns(carrierId) || isAdmin());
+      // Provider enrollment and review state are authoritative callable
+      // workflows. Clients cannot self-approve or overwrite review evidence.
+      allow create, update: if false;
       allow delete: if phase1FeatureEnabled('dispatch') &&
         (owns(carrierId) || isAdmin());
 
@@ -211,6 +212,12 @@ service cloud.firestore {
           allow update, delete: if false;
         }
       }
+    }
+
+    match /dispatch_provider_review_events/{eventId} {
+      allow read: if signedIn() &&
+        (resource.data.providerUid == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
     }
 
     match /dispatch_scales/{scaleId} {

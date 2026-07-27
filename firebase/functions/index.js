@@ -124,6 +124,14 @@ exports.createDispatchJob = onCall(
   protectedCallableOptions,
   dispatchCommands.createDispatchJob,
 );
+exports.submitDispatchProviderApplication = onCall(
+  protectedCallableOptions,
+  dispatchCommands.submitDispatchProviderApplication,
+);
+exports.reviewDispatchProvider = onCall(
+  protectedCallableOptions,
+  dispatchCommands.reviewDispatchProvider,
+);
 exports.updateDispatchJob = onCall(
   protectedCallableOptions,
   dispatchCommands.updateDispatchJob,

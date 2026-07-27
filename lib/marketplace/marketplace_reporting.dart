@@ -365,7 +365,7 @@ class AdminModerationDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 2,
+        length: 3,
         child: Column(
           children: [
             const Material(
@@ -376,13 +376,21 @@ class AdminModerationDashboard extends StatelessWidget {
                     icon: Icon(Icons.verified_user_outlined),
                     text: 'Account verification',
                   ),
+                  Tab(
+                    icon: Icon(Icons.local_shipping_outlined),
+                    text: 'Dispatch providers',
+                  ),
                   Tab(icon: Icon(Icons.gpp_bad_outlined), text: 'Reports'),
                 ],
               ),
             ),
             const Expanded(
               child: TabBarView(
-                children: [_AccountVerificationQueue(), _ModerationCaseQueue()],
+                children: [
+                  _AccountVerificationQueue(),
+                  _DispatchProviderReviewQueue(),
+                  _ModerationCaseQueue(),
+                ],
               ),
             ),
           ],
@@ -661,6 +669,271 @@ class _AccountVerificationQueue extends StatelessWidget {
           SnackBar(
             content: Text('$error'.replaceFirst('Bad state: ', '')),
             backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+}
+
+class _DispatchProviderReviewQueue extends StatelessWidget {
+  const _DispatchProviderReviewQueue();
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('dispatch_carriers')
+            .where('status', whereIn: const [
+              'pending_review',
+              'active',
+              'changes_requested',
+              'suspended',
+            ])
+            .limit(50)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('Unable to load Dispatch provider applications.'),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final providers = snapshot.data!.docs.toList()
+            ..sort(
+              (a, b) => _ModerationCaseQueue._millis(b.data()['submittedAt'])
+                  .compareTo(
+                _ModerationCaseQueue._millis(a.data()['submittedAt']),
+              ),
+            );
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.local_shipping_outlined,
+                      size: 42, color: Colors.blue),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Dispatch provider review',
+                      style:
+                          TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+              const Text(
+                'Review public operating information and service coverage. No insurance or personal identity documents are collected here.',
+              ),
+              const SizedBox(height: 14),
+              if (providers.isEmpty)
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.task_alt_outlined),
+                    title: Text('No Dispatch providers are available'),
+                  ),
+                ),
+              ...providers.map((provider) {
+                final data = provider.data();
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.local_shipping_outlined),
+                    ),
+                    title: Text(
+                      '${data['operatingName'] ?? 'Dispatch provider'}',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: Text(
+                      '${data['companyName'] ?? ''}\n${data['serviceAreaLabel'] ?? 'Service area not available'} • ${('${data['status'] ?? ''}').replaceAll('_', ' ')}',
+                    ),
+                    isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _open(context, provider),
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+      );
+
+  static Future<void> _open(
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> provider,
+  ) async {
+    final data = provider.data() ?? const <String, dynamic>{};
+    final status = '${data['status'] ?? ''}';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${data['operatingName'] ?? 'Dispatch provider'}'),
+        content: SizedBox(
+          width: 620,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('${data['companyName'] ?? ''}'),
+                const SizedBox(height: 10),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.map_outlined),
+                  title: const Text('Service area'),
+                  subtitle: Text('${data['serviceAreaLabel'] ?? '—'}'),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.email_outlined),
+                  title: const Text('Verified account email'),
+                  subtitle: Text('${data['email'] ?? '—'}'),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.phone_outlined),
+                  title: const Text('Verified account phone'),
+                  subtitle: Text('${data['phoneE164'] ?? '—'}'),
+                ),
+                const Text(
+                  'Approval enables carrier quoting. It does not certify insurance, permits, licensing, vehicle condition, or route legality.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          if (status == 'pending_review')
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          if (status == 'pending_review')
+            TextButton(
+              onPressed: () => _review(
+                context,
+                dialogContext,
+                provider.id,
+                'changes_requested',
+              ),
+              child: const Text('Request changes'),
+            ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+            onPressed: () => _review(
+              context,
+              dialogContext,
+              provider.id,
+              'rejected',
+            ),
+            child: const Text('Reject'),
+          ),
+          if (status == 'active')
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+              onPressed: () => _review(
+                context,
+                dialogContext,
+                provider.id,
+                'suspended',
+              ),
+              icon: const Icon(Icons.block_outlined),
+              label: const Text('Suspend provider'),
+            ),
+          if (status == 'pending_review')
+            FilledButton.icon(
+              onPressed: () => _review(
+                context,
+                dialogContext,
+                provider.id,
+                'approved',
+              ),
+              icon: const Icon(Icons.verified_outlined),
+              label: const Text('Approve provider'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> _review(
+    BuildContext pageContext,
+    BuildContext providerDialogContext,
+    String providerUid,
+    String decision,
+  ) async {
+    final note = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: providerDialogContext,
+      builder: (noteContext) => AlertDialog(
+        title: const Text('Confirm provider decision'),
+        content: TextField(
+          controller: note,
+          minLines: 3,
+          maxLines: 6,
+          maxLength: 1000,
+          decoration: const InputDecoration(
+            labelText: 'Review note *',
+            hintText: 'Record what was reviewed or what must be corrected.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(noteContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (note.text.trim().length < 10) {
+                ScaffoldMessenger.of(noteContext).showSnackBar(
+                  const SnackBar(
+                    content:
+                        Text('Enter a clear note of at least 10 characters.'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(noteContext, true);
+            },
+            child: const Text('Confirm decision'),
+          ),
+        ],
+      ),
+    );
+    final reason = note.text.trim();
+    note.dispose();
+    if (confirmed != true) return;
+    try {
+      final requestId = FirebaseFirestore.instance
+          .collection('marketplace_command_receipts')
+          .doc()
+          .id;
+      await MarketplaceCommandClient().execute('reviewDispatchProvider', {
+        'requestId': requestId,
+        'providerUid': providerUid,
+        'decision': decision,
+        'reason': reason,
+      });
+      if (providerDialogContext.mounted) {
+        Navigator.pop(providerDialogContext);
+      }
+      if (pageContext.mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          SnackBar(
+              content: Text('Dispatch provider decision saved: $decision.')),
+        );
+      }
+    } catch (error) {
+      if (pageContext.mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red.shade700,
+            content: Text('$error'.replaceFirst('Bad state: ', '')),
           ),
         );
       }

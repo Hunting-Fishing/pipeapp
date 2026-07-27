@@ -6,13 +6,19 @@ const require = createRequire(import.meta.url);
 const {deleteApp, initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
 const {getStorage} = require("firebase-admin/storage");
-const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {
+  FieldValue,
+  GeoPoint,
+  Timestamp,
+  getFirestore,
+} = require("firebase-admin/firestore");
 const {
   enforceUserRateLimit,
 } = require("../abuse_rate_limit");
 const {
   createAccountVerificationCommands,
 } = require("../account_verification_commands");
+const {createDispatchCommands} = require("../dispatch_commands");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -49,8 +55,15 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const rateLimitAdmin = {firestore: {FieldValue, Timestamp}};
-const commandFirestore = Object.assign(() => db, {FieldValue, Timestamp});
+const commandFirestore = Object.assign(
+    () => db,
+    {FieldValue, GeoPoint, Timestamp},
+);
 const accountVerificationCommands = createAccountVerificationCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
+const dispatchCommands = createDispatchCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
@@ -283,12 +296,6 @@ try {
       photoUrl: "https://storage.test/production-buyer.jpg",
       approvedTagIds: ["pipe"],
     }),
-    db.doc(`dispatch_carriers/${carrier.uid}`).set({
-      ownerUid: carrier.uid,
-      operatingName: "Integration Transport",
-      status: "active",
-      availableForHire: true,
-    }),
     db.doc(`dispatch_carriers/${carrier.uid}/vehicles/truck-1`).set({
       ownerUid: carrier.uid,
       name: "Integration Truck 1",
@@ -354,6 +361,54 @@ try {
   assert.equal(
       (await db.doc(`verification_requests/${buyer.uid}`).get()).data().status,
       "approved",
+  );
+  const providerRequest = {
+    requestId: `dispatch-provider-${now}`,
+    operatingName: "Integration Transport",
+    companyName: "Integration Transport Ltd.",
+    serviceAreaLabel: "Dawson Creek and within 250 km",
+    serviceArea: {
+      mode: "radius",
+      center: {latitude: 55.76, longitude: -120.24},
+      centerLabel: "Dawson Creek, British Columbia",
+      radiusKm: 250,
+      places: [],
+    },
+  };
+  const providerFirst = await call(
+      "submitDispatchProviderApplication",
+      carrier.token,
+      providerRequest,
+  );
+  const providerRetry = await call(
+      "submitDispatchProviderApplication",
+      carrier.token,
+      providerRequest,
+  );
+  assert.deepEqual(providerRetry, providerFirst);
+  assert.equal(providerFirst.status, "pending_review");
+  assert.equal(
+      (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data().status,
+      "pending_review",
+  );
+  const providerReviewRequest = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `dispatch-provider-review-${now}`,
+      providerUid: carrier.uid,
+      decision: "approved",
+      reason: "Verified public operating information and service coverage.",
+    },
+  };
+  const providerReviewFirst = await dispatchCommands
+      .reviewDispatchProvider(providerReviewRequest);
+  const providerReviewRetry = await dispatchCommands
+      .reviewDispatchProvider(providerReviewRequest);
+  assert.deepEqual(providerReviewRetry, providerReviewFirst);
+  assert.equal(providerReviewFirst.status, "active");
+  assert.equal(
+      (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data().status,
+      "active",
   );
   await assertCollectionSize("account_phone_registry", 3);
   assert.deepEqual(
@@ -1251,7 +1306,7 @@ try {
   );
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 41);
+  assert.equal(receipts.size, 43);
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
   assert.equal(communicationReceipts.size, 2);
@@ -1259,7 +1314,7 @@ try {
       "Callable integration passed: private listing drafts, saved listings, " +
       "listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
-      "quote, award, delivery closure, protected messages/reports/uploads, " +
+      "provider review, quote, award, delivery closure, protected messages/reports/uploads, " +
       "private export, staged deletion, remembered devices, session revocation, " +
       "and retry idempotency.",
   );

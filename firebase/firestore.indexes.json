@@ -137,6 +137,14 @@
       ]
     },
     {
+      "collectionGroup": "dispatch_provider_review_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "providerUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "account_deletion_requests",
       "queryScope": "COLLECTION",
       "fields": [
