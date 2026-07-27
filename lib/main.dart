@@ -10,6 +10,7 @@ import 'auth/firebase_auth/auth_util.dart';
 
 import 'backend/firebase/firebase_config.dart';
 import 'core/accessibility/pipe_accessibility_theme.dart';
+import 'core/accessibility/pipe_status_feedback.dart';
 import 'core/diagnostics/app_diagnostics.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
@@ -37,34 +38,23 @@ Future<void> _bootstrapPipeBuyer() async {
 
 Future<void> _initializePipeBuyer() async {
   WidgetsFlutterBinding.ensureInitialized();
-  ErrorWidget.builder = (details) => Material(
-        color: const Color(0xFFF7FAFE),
-        child: Center(
-          child: Card(
-            margin: const EdgeInsets.all(20),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.sync_problem_outlined,
-                    size: 42, color: Colors.deepOrange),
-                const SizedBox(height: 12),
-                const Text('This section could not be displayed',
-                    style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                const Text(
-                    'Your information is still saved. Refresh this page or try again in a moment.',
-                    textAlign: TextAlign.center),
-                if (kDebugMode) ...[
-                  const SizedBox(height: 8),
-                  Text(details.exceptionAsString().split('\n').first,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF66758A))),
-                ]
-              ]),
+  ErrorWidget.builder = (details) => Builder(
+        builder: (context) => Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: PipeStatusSurface(
+                  tone: PipeStatusTone.error,
+                  icon: Icons.sync_problem_outlined,
+                  title: 'This section could not be displayed',
+                  message: kDebugMode
+                      ? 'Your information is still saved. Refresh this page or try again in a moment. ${details.exceptionAsString().split('\n').first}'
+                      : 'Your information is still saved. Refresh this page or try again in a moment.',
+                ),
+              ),
             ),
           ),
         ),

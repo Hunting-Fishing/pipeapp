@@ -104,6 +104,14 @@ and vertical overflow in the offer schedule and confirmation dialog. The
 schedule now stacks its heading and milestone rows for large text, and the
 decision dialog scrolls while keeping every action available.
 
+Success, information, warning, and failure feedback now use one semantic color
+system. Each state combines an icon, readable text, and a border so meaning is
+not communicated by color alone. The palettes adapt to light and dark themes;
+tests require at least 4.5:1 text contrast, live-region announcements,
+dismissible snackbars, and usable rendering at 200 percent text. Startup and
+framework recovery, authentication, and profile-photo upload feedback use the
+shared implementation.
+
 Listing media now presents an explicit camera-or-gallery choice, catches denied
 permissions and unavailable platform plugins, revalidates size before storage,
 and reports monotonic byte progress instead of only completed-file counts.
@@ -119,7 +127,8 @@ The baseline does not replace human acceptance. Gate 6 still requires:
 - TalkBack and VoiceOver journey testing;
 - complete keyboard-only web and desktop journey testing beyond the automated
   sign-in and offer coverage;
-- contrast review for all state and analytics colors;
+- contrast review for remaining legacy state and analytics colors outside the
+  centralized status and account-recovery surfaces;
 - 200 percent text testing across authentication, listing, offer, auction,
   messaging, reporting, support, and Dispatch workflows;
 - portrait/landscape and phone/tablet layout checks;
