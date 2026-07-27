@@ -27,6 +27,7 @@ import 'marketplace_account_device_repository.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_auctions_page.dart';
+import 'marketplace_browse_filters.dart';
 import 'marketplace_dispatch_page.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_freight_quote.dart';
@@ -41,6 +42,62 @@ const _panel = Colors.white;
 const _orange = Color(0xFF0878E8);
 const _muted = Color(0xFF66758A);
 const _otherCatalogValue = 'Other / not listed';
+
+List<String> marketplaceConditionsFor(String? category, String? productType) {
+  if (category == 'Pipe, Tubing & Materials' ||
+      const {
+        'Drill Pipe',
+        'Casing',
+        'Tubing',
+        'Line Pipe',
+        'OCTG',
+        'Sucker Rod'
+      }.contains(productType)) {
+    return const [
+      'New / never used',
+      'New surplus',
+      'Used — Premium class',
+      'Used — Class 2',
+      'Used — serviceable, class unknown',
+      'Used — structural / farm use only',
+      'Fair — wear or corrosion present',
+      'Poor — repair or sorting required',
+      'Reject / salvage / scrap',
+    ];
+  }
+  if (category == 'Tanks & Containers') {
+    return const [
+      'New',
+      'Like new',
+      'Used — cleaned and inspected',
+      'Used — leak tested',
+      'Used — serviceable',
+      'Fair — repairs recommended',
+      'Poor — repair required',
+      'For parts / salvage',
+    ];
+  }
+  if (category == 'Site & Property') {
+    return const [
+      'Ready for use',
+      'Developed / serviced',
+      'Partially developed',
+      'Vacant / undeveloped',
+      'Repairs or remediation required',
+    ];
+  }
+  return const [
+    'New',
+    'New surplus',
+    'Like new',
+    'Excellent',
+    'Good',
+    'Fair',
+    'Poor — repair required',
+    'For parts / not operational',
+    'Salvage / scrap',
+  ];
+}
 
 int naturalCompare(String left, String right) {
   final pattern = RegExp(r'(\d+(?:\.\d+)?)|([^\d]+)');
@@ -2072,6 +2129,7 @@ class _BrowsePage extends StatefulWidget {
 class _BrowsePageState extends State<_BrowsePage> {
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
   QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
+  MarketplaceBrowseFilters _filters = const MarketplaceBrowseFilters();
   bool _loading = false;
   bool _hasMore = true;
   String? _loadError;
@@ -2086,7 +2144,14 @@ class _BrowsePageState extends State<_BrowsePage> {
   @override
   void didUpdateWidget(covariant _BrowsePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.category != widget.category) _loadPage(reset: true);
+    if (oldWidget.category != widget.category) {
+      final allowedConditions = marketplaceConditionsFor(widget.category, null);
+      if (_filters.condition != null &&
+          !allowedConditions.contains(_filters.condition)) {
+        _filters = _filters.copyWith(clearCondition: true);
+      }
+      _loadPage(reset: true);
+    }
   }
 
   Query<Map<String, dynamic>> _query() {
@@ -2096,7 +2161,32 @@ class _BrowsePageState extends State<_BrowsePage> {
     if (widget.category != null) {
       query = query.where('category', isEqualTo: widget.category);
     }
-    return query.orderBy('createdAt', descending: true);
+    if (_filters.transactionType == null) {
+      query = query.where('transactionType',
+          whereIn: const ['For Sale', 'Wanted / Seeking']);
+    } else {
+      query =
+          query.where('transactionType', isEqualTo: _filters.transactionType);
+    }
+    if (_filters.condition != null) {
+      query = query.where('condition', isEqualTo: _filters.condition);
+    }
+    if (_filters.minimumPrice != null) {
+      query =
+          query.where('price', isGreaterThanOrEqualTo: _filters.minimumPrice);
+    }
+    if (_filters.maximumPrice != null) {
+      query = query.where('price', isLessThanOrEqualTo: _filters.maximumPrice);
+    }
+    return switch (_filters.effectiveSort) {
+      MarketplaceBrowseSort.newest =>
+        query.orderBy('createdAt', descending: true),
+      MarketplaceBrowseSort.priceLowToHigh =>
+        query.orderBy('price').orderBy('createdAt', descending: true),
+      MarketplaceBrowseSort.priceHighToLow => query
+          .orderBy('price', descending: true)
+          .orderBy('createdAt', descending: true),
+    };
   }
 
   Future<void> _loadPage({bool reset = false}) async {
@@ -2156,22 +2246,41 @@ class _BrowsePageState extends State<_BrowsePage> {
         liveListings.isEmpty && Phase1FeaturePolicy.current.demoContentEnabled
             ? demoListings
             : liveListings;
+    final usingDemo =
+        liveListings.isEmpty && Phase1FeaturePolicy.current.demoContentEnabled;
     final results = inventory
         .where((item) =>
             item.transactionType != 'Auction' &&
             (item.category != 'Site & Property' ||
                 widget.features.regulatedListings) &&
             (widget.category == null || item.category == widget.category) &&
+            (_filters.transactionType == null ||
+                item.transactionType == _filters.transactionType) &&
+            (_filters.condition == null ||
+                item.condition == _filters.condition) &&
+            (_filters.minimumPrice == null ||
+                (item.numericPrice != null &&
+                    item.numericPrice! >= _filters.minimumPrice!)) &&
+            (_filters.maximumPrice == null ||
+                (item.numericPrice != null &&
+                    item.numericPrice! <= _filters.maximumPrice!)) &&
             (widget.search.isEmpty ||
-                '${item.title} ${item.category} ${item.location}'
+                '${item.title} ${item.category} ${item.location} ${item.condition}'
                     .toLowerCase()
                     .contains(widget.search.toLowerCase())))
-        .toList()
-      ..sort((a, b) {
-        if (a.boosted != b.boosted) return a.boosted ? -1 : 1;
-        return (b.createdAt ?? DateTime(2000))
-            .compareTo(a.createdAt ?? DateTime(2000));
-      });
+        .toList();
+    if (usingDemo) {
+      results.sort((a, b) => switch (_filters.effectiveSort) {
+            MarketplaceBrowseSort.newest => (b.createdAt ?? DateTime(2000))
+                .compareTo(a.createdAt ?? DateTime(2000)),
+            MarketplaceBrowseSort.priceLowToHigh =>
+              (a.numericPrice ?? double.infinity)
+                  .compareTo(b.numericPrice ?? double.infinity),
+            MarketplaceBrowseSort.priceHighToLow =>
+              (b.numericPrice ?? double.negativeInfinity)
+                  .compareTo(a.numericPrice ?? double.negativeInfinity),
+          });
+    }
     return Column(children: [
       Padding(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
@@ -2188,7 +2297,9 @@ class _BrowsePageState extends State<_BrowsePage> {
                 onChanged: widget.onSearch,
                 decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.search),
-                    hintText: 'Search equipment, pipe, tanks…')),
+                    hintText: 'Search the listings loaded below…',
+                    helperText:
+                        'Keyword search checks loaded results. Filters query the full Marketplace.')),
             const SizedBox(height: 10),
             Row(children: [
               Expanded(
@@ -2214,8 +2325,11 @@ class _BrowsePageState extends State<_BrowsePage> {
               const SizedBox(width: 6),
               IconButton.filledTonal(
                   tooltip: 'More filters',
-                  onPressed: () => _showFilterHelp(context),
-                  icon: const Icon(Icons.tune_rounded)),
+                  onPressed: _showFilters,
+                  icon: Badge(
+                      isLabelVisible: _filters.activeCount > 0,
+                      label: Text('${_filters.activeCount}'),
+                      child: const Icon(Icons.tune_rounded))),
             ]),
             const SizedBox(height: 9),
             Row(children: [
@@ -2229,7 +2343,39 @@ class _BrowsePageState extends State<_BrowsePage> {
                     label: Text(widget.category!,
                         style: const TextStyle(fontSize: 11)),
                     onPressed: () => widget.onCategory(null))
-            ])
+            ]),
+            if (_filters.activeCount > 0) ...[
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                if (_filters.transactionType != null)
+                  InputChip(
+                      label: Text(_filters.transactionType!),
+                      onDeleted: () => _applyFilters(
+                          _filters.copyWith(clearTransactionType: true))),
+                if (_filters.condition != null)
+                  InputChip(
+                      label: Text(_filters.condition!),
+                      onDeleted: () => _applyFilters(
+                          _filters.copyWith(clearCondition: true))),
+                if (_filters.minimumPrice != null)
+                  InputChip(
+                      label: Text(
+                          'From ${marketplaceMoney(_filters.minimumPrice!)}'),
+                      onDeleted: () => _applyFilters(
+                          _filters.copyWith(clearMinimumPrice: true))),
+                if (_filters.maximumPrice != null)
+                  InputChip(
+                      label: Text(
+                          'To ${marketplaceMoney(_filters.maximumPrice!)}'),
+                      onDeleted: () => _applyFilters(
+                          _filters.copyWith(clearMaximumPrice: true))),
+                if (_filters.sort != MarketplaceBrowseSort.newest)
+                  InputChip(
+                      label: Text(marketplaceBrowseSortLabel(_filters.sort)),
+                      onDeleted: () => _applyFilters(_filters.copyWith(
+                          sort: MarketplaceBrowseSort.newest))),
+              ])
+            ]
           ])),
       Expanded(child: _buildResults(results)),
     ]);
@@ -2301,6 +2447,229 @@ class _BrowsePageState extends State<_BrowsePage> {
             }));
   }
 
+  void _applyFilters(MarketplaceBrowseFilters filters) {
+    setState(() => _filters = filters);
+    _loadPage(reset: true);
+  }
+
+  Future<void> _showFilters() async {
+    final minimumController = TextEditingController(
+        text: _filters.minimumPrice?.toStringAsFixed(2) ?? '');
+    final maximumController = TextEditingController(
+        text: _filters.maximumPrice?.toStringAsFixed(2) ?? '');
+    var draft = _filters;
+    String? errorMessage;
+    final conditions = <String>{
+      ...marketplaceConditionsFor(null, null),
+      ...marketplaceConditionsFor('Pipe, Tubing & Materials', null),
+      ...marketplaceConditionsFor('Tanks & Containers', null),
+      ...marketplaceConditionsFor('Site & Property', null),
+    }.toList()
+      ..sort();
+    final selectedCondition =
+        conditions.contains(draft.condition) ? draft.condition : null;
+    if (selectedCondition == null && draft.condition != null) {
+      draft = draft.copyWith(clearCondition: true);
+    }
+
+    final result = await showModalBottomSheet<MarketplaceBrowseFilters>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (sheetContext) => StatefulBuilder(
+            builder: (context, setSheetState) => Padding(
+                padding: EdgeInsets.fromLTRB(
+                    20, 18, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
+                child: SingleChildScrollView(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                      Row(children: [
+                        const Icon(Icons.tune_rounded, color: _orange),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text('Filter Marketplace',
+                                  style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900)),
+                              Text('Filters search the complete live inventory',
+                                  style:
+                                      TextStyle(color: _muted, fontSize: 12)),
+                            ])),
+                        IconButton(
+                            tooltip: 'Close',
+                            onPressed: () => Navigator.pop(sheetContext),
+                            icon: const Icon(Icons.close))
+                      ]),
+                      const SizedBox(height: 18),
+                      DropdownButtonFormField<String>(
+                          initialValue: draft.transactionType ?? '__all__',
+                          decoration: const InputDecoration(
+                              labelText: 'Listing type',
+                              prefixIcon: Icon(Icons.sell_outlined)),
+                          items: const [
+                            DropdownMenuItem(
+                                value: '__all__',
+                                child: Text('All Marketplace listings')),
+                            DropdownMenuItem(
+                                value: 'For Sale', child: Text('For sale')),
+                            DropdownMenuItem(
+                                value: 'Wanted / Seeking',
+                                child: Text('Wanted / seeking')),
+                          ],
+                          onChanged: (value) => setSheetState(() => draft =
+                              value == null || value == '__all__'
+                                  ? draft.copyWith(clearTransactionType: true)
+                                  : draft.copyWith(transactionType: value))),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                          initialValue: draft.condition ?? '__all__',
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                              labelText: 'Condition / quality',
+                              prefixIcon: Icon(Icons.fact_check_outlined)),
+                          items: [
+                            const DropdownMenuItem(
+                                value: '__all__',
+                                child: Text('All conditions')),
+                            ...conditions.map((condition) => DropdownMenuItem(
+                                value: condition,
+                                child: Text(condition,
+                                    overflow: TextOverflow.ellipsis)))
+                          ],
+                          onChanged: (value) => setSheetState(() => draft =
+                              value == null || value == '__all__'
+                                  ? draft.copyWith(clearCondition: true)
+                                  : draft.copyWith(condition: value))),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(
+                            child: TextField(
+                                controller: minimumController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration: const InputDecoration(
+                                    labelText: 'Minimum price',
+                                    prefixText: '\$ '))),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: TextField(
+                                controller: maximumController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration: const InputDecoration(
+                                    labelText: 'Maximum price',
+                                    prefixText: '\$ ')))
+                      ]),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<MarketplaceBrowseSort>(
+                          initialValue: draft.sort,
+                          decoration: const InputDecoration(
+                              labelText: 'Sort results',
+                              prefixIcon: Icon(Icons.sort_rounded)),
+                          items: MarketplaceBrowseSort.values
+                              .map((sort) => DropdownMenuItem(
+                                  value: sort,
+                                  child:
+                                      Text(marketplaceBrowseSortLabel(sort))))
+                              .toList(),
+                          onChanged: (value) => setSheetState(() => draft =
+                              draft.copyWith(
+                                  sort:
+                                      value ?? MarketplaceBrowseSort.newest))),
+                      const SizedBox(height: 12),
+                      Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFEAF4FF),
+                              borderRadius: BorderRadius.circular(12)),
+                          child: const Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline,
+                                    size: 19, color: _orange),
+                                SizedBox(width: 8),
+                                Expanded(
+                                    child: Text(
+                                        'Listings without a numeric price are excluded from price ranges and price sorting. Price ranges use price order so every page remains accurate.',
+                                        style: TextStyle(fontSize: 12)))
+                              ])),
+                      if (errorMessage != null) ...[
+                        const SizedBox(height: 10),
+                        Text(errorMessage!,
+                            style: const TextStyle(
+                                color: Colors.red, fontWeight: FontWeight.w700))
+                      ],
+                      const SizedBox(height: 18),
+                      Row(children: [
+                        Expanded(
+                            child: OutlinedButton(
+                                onPressed: () => Navigator.pop(sheetContext,
+                                    const MarketplaceBrowseFilters()),
+                                child: const Text('Clear all'))),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            flex: 2,
+                            child: FilledButton.icon(
+                                onPressed: () {
+                                  final minimumText =
+                                      minimumController.text.trim();
+                                  final maximumText =
+                                      maximumController.text.trim();
+                                  final minimum = minimumText.isEmpty
+                                      ? null
+                                      : marketplaceMoneyValue(minimumText)
+                                          ?.toDouble();
+                                  final maximum = maximumText.isEmpty
+                                      ? null
+                                      : marketplaceMoneyValue(maximumText)
+                                          ?.toDouble();
+                                  if ((minimumText.isNotEmpty &&
+                                          minimum == null) ||
+                                      (maximumText.isNotEmpty &&
+                                          maximum == null)) {
+                                    setSheetState(() => errorMessage =
+                                        'Enter valid numeric price amounts.');
+                                    return;
+                                  }
+                                  var candidate = MarketplaceBrowseFilters(
+                                      transactionType: draft.transactionType,
+                                      condition: draft.condition,
+                                      minimumPrice: minimum,
+                                      maximumPrice: maximum,
+                                      sort: draft.sort);
+                                  final validation =
+                                      candidate.validationMessage;
+                                  if (validation != null) {
+                                    setSheetState(
+                                        () => errorMessage = validation);
+                                    return;
+                                  }
+                                  if (candidate.hasPriceRange &&
+                                      candidate.sort ==
+                                          MarketplaceBrowseSort.newest) {
+                                    candidate = candidate.copyWith(
+                                        sort: MarketplaceBrowseSort
+                                            .priceLowToHigh);
+                                  }
+                                  Navigator.pop(sheetContext, candidate);
+                                },
+                                icon: const Icon(Icons.check),
+                                label: const Text('Apply filters')))
+                      ])
+                    ])))));
+    minimumController.dispose();
+    maximumController.dispose();
+    if (result != null && mounted) _applyFilters(result);
+  }
+
   static Future<void> _showCategoryPicker(
       BuildContext context,
       String? selected,
@@ -2346,23 +2715,6 @@ class _BrowsePageState extends State<_BrowsePage> {
     if (value == '__all__') onCategory(null);
     if (value != null && value != '__all__') onCategory(value);
   }
-
-  static void _showFilterHelp(BuildContext context) => showModalBottomSheet(
-      context: context,
-      builder: (_) => const SafeArea(
-          child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.tune_rounded, size: 38, color: _orange),
-                SizedBox(height: 10),
-                Text('Advanced filters',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                SizedBox(height: 8),
-                Text(
-                    'Price, distance, condition, listing type and seller filters will appear here as live inventory grows.',
-                    textAlign: TextAlign.center)
-              ]))));
 }
 
 class _WelcomeUser extends StatelessWidget {
@@ -3989,7 +4341,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     final displayedPriceBasis = priceBasisOptions.contains(_priceBasis)
         ? _priceBasis
         : priceBasisOptions.first;
-    final conditionOptions = _conditionsFor(_category, _productType);
+    final conditionOptions = marketplaceConditionsFor(_category, _productType);
     final isWanted = _isWanted;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
@@ -5862,62 +6214,6 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         backgroundColor: _panel,
         builder: (_) => _ListingDetails(
             MarketplaceListing.fromFirestore(result.docs.first)));
-  }
-
-  List<String> _conditionsFor(String? category, String? productType) {
-    if (category == 'Pipe, Tubing & Materials' ||
-        const {
-          'Drill Pipe',
-          'Casing',
-          'Tubing',
-          'Line Pipe',
-          'OCTG',
-          'Sucker Rod'
-        }.contains(productType)) {
-      return const [
-        'New / never used',
-        'New surplus',
-        'Used — Premium class',
-        'Used — Class 2',
-        'Used — serviceable, class unknown',
-        'Used — structural / farm use only',
-        'Fair — wear or corrosion present',
-        'Poor — repair or sorting required',
-        'Reject / salvage / scrap',
-      ];
-    }
-    if (category == 'Tanks & Containers') {
-      return const [
-        'New',
-        'Like new',
-        'Used — cleaned and inspected',
-        'Used — leak tested',
-        'Used — serviceable',
-        'Fair — repairs recommended',
-        'Poor — repair required',
-        'For parts / salvage',
-      ];
-    }
-    if (category == 'Site & Property') {
-      return const [
-        'Ready for use',
-        'Developed / serviced',
-        'Partially developed',
-        'Vacant / undeveloped',
-        'Repairs or remediation required',
-      ];
-    }
-    return const [
-      'New',
-      'New surplus',
-      'Like new',
-      'Excellent',
-      'Good',
-      'Fair',
-      'Poor — repair required',
-      'For parts / not operational',
-      'Salvage / scrap',
-    ];
   }
 }
 
