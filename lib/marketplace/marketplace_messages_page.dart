@@ -325,6 +325,7 @@ class _ConversationNegotiationPanelState
                                   Text('Price and quantity history')
                                 ])),
                             IconButton(
+                                tooltip: 'Close offer history',
                                 onPressed: () => Navigator.pop(dialogContext),
                                 icon: const Icon(Icons.close))
                           ]),
@@ -2267,6 +2268,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               ])),
               const SizedBox(width: 6),
               IconButton.filled(
+                  tooltip: 'Send message',
                   onPressed: _sending ? null : _send,
                   icon: const Icon(Icons.send_rounded))
             ]),

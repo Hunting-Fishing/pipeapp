@@ -67,8 +67,8 @@ class _MarketplaceDispatchTransactionCardState
     final customer = uid == transaction['customerUid'];
     final status = '${transaction['status'] ?? 'awarded'}';
     final terminal = const {'closed', 'cancelled', 'disputed'}.contains(status);
-    final scheduledDate = (transaction['scheduledDate'] as Timestamp?)
-        ?.toDate();
+    final scheduledDate =
+        (transaction['scheduledDate'] as Timestamp?)?.toDate();
     final proof = transaction['proofOfDelivery'] is Map
         ? Map<String, dynamic>.from(transaction['proofOfDelivery'] as Map)
         : const <String, dynamic>{};
@@ -212,25 +212,21 @@ class _MarketplaceDispatchTransactionCardState
     return Wrap(
       spacing: 5,
       runSpacing: 5,
-      children: steps
-          .asMap()
-          .entries
-          .map((entry) {
-            final reached = entry.key <= current;
-            return Chip(
-              avatar: Icon(
-                reached ? Icons.check_circle : Icons.circle_outlined,
-                size: 16,
-                color: reached ? Colors.green : Colors.grey,
-              ),
-              label: Text(
-                _statusLabel(entry.value),
-                style: const TextStyle(fontSize: 10),
-              ),
-              visualDensity: VisualDensity.compact,
-            );
-          })
-          .toList(growable: false),
+      children: steps.asMap().entries.map((entry) {
+        final reached = entry.key <= current;
+        return Chip(
+          avatar: Icon(
+            reached ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: reached ? Colors.green : Colors.grey,
+          ),
+          label: Text(
+            _statusLabel(entry.value),
+            style: const TextStyle(fontSize: 10),
+          ),
+          visualDensity: VisualDensity.compact,
+        );
+      }).toList(growable: false),
     );
   }
 
@@ -341,8 +337,7 @@ class _MarketplaceDispatchTransactionCardState
     required String action,
     required String success,
   }) async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text(title),
@@ -364,12 +359,12 @@ class _MarketplaceDispatchTransactionCardState
   }
 
   Future<void> _simpleAction(String action, String success) => _run(
-    () => widget.repository.updateDispatchTransaction(
-      jobId: widget.jobId,
-      action: action,
-    ),
-    success,
-  );
+        () => widget.repository.updateDispatchTransaction(
+          jobId: widget.jobId,
+          action: action,
+        ),
+        success,
+      );
 
   Future<void> _reasonAction(String action) async {
     final controller = TextEditingController();
@@ -461,6 +456,7 @@ class _MarketplaceDispatchTransactionCardState
                     ),
                     subtitle: const Text('Permanent participant activity'),
                     trailing: IconButton(
+                      tooltip: 'Close transaction history',
                       onPressed: () => Navigator.pop(sheetContext),
                       icon: const Icon(Icons.close),
                     ),
@@ -470,33 +466,30 @@ class _MarketplaceDispatchTransactionCardState
                         ? const Center(child: Text('No activity recorded yet.'))
                         : ListView(
                             padding: const EdgeInsets.all(12),
-                            children: revisions
-                                .map((revision) {
-                                  final data = revision.data();
-                                  final created =
-                                      (data['createdAt'] as Timestamp?)
-                                          ?.toDate();
-                                  return Card(
-                                    child: ListTile(
-                                      leading: CircleAvatar(
-                                        child: Text(
-                                          '${data['revision'] ?? '—'}',
-                                        ),
-                                      ),
-                                      title: Text(
-                                        _statusLabel(
-                                          '${data['status'] ?? data['event'] ?? ''}',
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        '${data['event'] ?? 'updated'}'
-                                        '${created == null ? '' : ' • ${_dateLabel(created)}'}'
-                                        '${data['reason'] == null ? '' : '\n${data['reason']}'}',
-                                      ),
+                            children: revisions.map((revision) {
+                              final data = revision.data();
+                              final created =
+                                  (data['createdAt'] as Timestamp?)?.toDate();
+                              return Card(
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    child: Text(
+                                      '${data['revision'] ?? '—'}',
                                     ),
-                                  );
-                                })
-                                .toList(growable: false),
+                                  ),
+                                  title: Text(
+                                    _statusLabel(
+                                      '${data['status'] ?? data['event'] ?? ''}',
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${data['event'] ?? 'updated'}'
+                                    '${created == null ? '' : ' • ${_dateLabel(created)}'}'
+                                    '${data['reason'] == null ? '' : '\n${data['reason']}'}',
+                                  ),
+                                ),
+                              );
+                            }).toList(growable: false),
                           ),
                   ),
                 ],
@@ -509,16 +502,16 @@ class _MarketplaceDispatchTransactionCardState
   }
 
   String _statusLabel(String status) => switch (status) {
-    'awarded' => 'AWARDED',
-    'accepted' => 'ACCEPTED',
-    'scheduled' => 'SCHEDULED',
-    'in_transit' => 'IN TRANSIT',
-    'delivered' => 'DELIVERED',
-    'closed' => 'COMPLETED',
-    'cancelled' => 'CANCELLED',
-    'disputed' => 'DISPUTED',
-    _ => status.replaceAll('_', ' ').toUpperCase(),
-  };
+        'awarded' => 'AWARDED',
+        'accepted' => 'ACCEPTED',
+        'scheduled' => 'SCHEDULED',
+        'in_transit' => 'IN TRANSIT',
+        'delivered' => 'DELIVERED',
+        'closed' => 'COMPLETED',
+        'cancelled' => 'CANCELLED',
+        'disputed' => 'DISPUTED',
+        _ => status.replaceAll('_', ' ').toUpperCase(),
+      };
 
   String _dateLabel(DateTime value) =>
       '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
