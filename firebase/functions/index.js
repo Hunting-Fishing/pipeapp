@@ -56,6 +56,10 @@ exports.requestAccountDataExport = onCall(
   protectedCallableOptions,
   accountPrivacyCommands.requestAccountDataExport,
 );
+exports.registerAccountDevice = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.registerAccountDevice,
+);
 exports.revokeAccountSessions = onCall(
   protectedCallableOptions,
   accountPrivacyCommands.revokeAccountSessions,
@@ -75,6 +79,10 @@ exports.cleanupExpiredSecurityRateLimits = onSchedule(
 exports.cleanupExpiredAccountExports = onSchedule(
   "every 24 hours",
   async () => accountPrivacyCommands.cleanupExpiredAccountExports(),
+);
+exports.cleanupStaleAccountDevices = onSchedule(
+  "every 24 hours",
+  async () => accountPrivacyCommands.cleanupStaleAccountDevices(),
 );
 exports.finalizeScheduledAccountDeletions = onSchedule(
   "every 24 hours",

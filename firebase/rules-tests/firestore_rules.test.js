@@ -143,6 +143,14 @@ beforeEach(async () => {
       ownerUid: "buyer",
       type: "data_export_generated",
     });
+    await setDoc(doc(db, "users", "buyer", "account_devices", "browser"), {
+      ownerUid: "buyer",
+      label: "Web browser",
+      platform: "web",
+      status: "active",
+      firstSeenAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+      lastSeenAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+    });
     await setDoc(doc(db, "offers", "offer"), {
       sellerUid: "seller",
       buyerUid: "buyer",
@@ -1060,6 +1068,13 @@ test("account privacy records are owner-readable and server-only", async () => {
       "account_privacy_events",
       "buyer-exported",
   )));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "users",
+      "buyer",
+      "account_devices",
+      "browser",
+  )));
   await assertFails(getDoc(doc(
       strangerDb,
       "account_exports",
@@ -1070,5 +1085,24 @@ test("account privacy records are owner-readable and server-only", async () => {
     status: "ready",
   }));
   await assertFails(updateDoc(exportRef, {status: "expired"}));
+  await assertFails(setDoc(doc(
+      ownerDb,
+      "users",
+      "buyer",
+      "account_devices",
+      "forged",
+  ), {
+    ownerUid: "buyer",
+    label: "Forged device",
+    platform: "web",
+    status: "active",
+  }));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "users",
+      "buyer",
+      "account_devices",
+      "browser",
+  )));
   await assertFails(deleteDoc(doc(ownerDb, "users", "buyer")));
 });

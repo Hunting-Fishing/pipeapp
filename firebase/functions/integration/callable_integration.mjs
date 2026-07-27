@@ -1192,6 +1192,22 @@ try {
     userScore: 70,
     accountVerified: false,
   });
+  const rememberedDevice = await call(
+      "registerAccountDevice",
+      privacyUser.token,
+      {
+        deviceId: "a1b2c3d4-1111-4222-8333-1234567890ab",
+        label: "Integration web browser",
+        platform: "web",
+      },
+  );
+  assert.equal(rememberedDevice.isNew, true);
+  assert.equal(
+      (await db.doc(
+          `users/${privacyUser.uid}/account_devices/${rememberedDevice.deviceDocumentId}`,
+      ).get()).data().status,
+      "active",
+  );
   const accountExport = await call(
       "requestAccountDataExport",
       privacyUser.token,
@@ -1227,6 +1243,12 @@ try {
       (await call("revokeAccountSessions", privacyUser.token, {})).revoked,
       true,
   );
+  assert.equal(
+      (await db.doc(
+          `users/${privacyUser.uid}/account_devices/${rememberedDevice.deviceDocumentId}`,
+      ).get()).data().status,
+      "revoked",
+  );
 
   const receipts = await db.collection("marketplace_command_receipts").get();
   assert.equal(receipts.size, 41);
@@ -1238,7 +1260,8 @@ try {
       "listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "quote, award, delivery closure, protected messages/reports/uploads, " +
-      "private export, staged deletion, session revocation, and retry idempotency.",
+      "private export, staged deletion, remembered devices, session revocation, " +
+      "and retry idempotency.",
   );
 } finally {
   await deleteApp(app);

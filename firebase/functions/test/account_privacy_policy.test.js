@@ -4,11 +4,39 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   DELETION_CONFIRMATION,
+  normalizeDeviceRegistration,
   requireDeletionConfirmation,
   requireNoDeletionBlockers,
   requireRecentAuthentication,
   summarizeDeletionBlockers,
 } = require("../account_privacy_policy");
+
+test("device registration accepts only bounded app installation metadata", () => {
+  assert.deepEqual(
+    normalizeDeviceRegistration({
+      deviceId: "A1B2C3D4-1111-4222-8333-1234567890AB",
+      label: "  Android   device  ",
+      platform: "ANDROID",
+    }),
+    {
+      deviceId: "a1b2c3d4-1111-4222-8333-1234567890ab",
+      label: "Android device",
+      platform: "android",
+    },
+  );
+  assert.throws(
+    () => normalizeDeviceRegistration({deviceId: "phone", label: "Phone", platform: "android"}),
+    (error) => error.code === "invalid-argument",
+  );
+  assert.throws(
+    () => normalizeDeviceRegistration({
+      deviceId: "a1b2c3d4-1111-4222-8333-1234567890ab",
+      label: "Phone",
+      platform: "gps-tracker",
+    }),
+    (error) => error.code === "invalid-argument",
+  );
+});
 
 test("sensitive privacy commands require a recent authenticated session", () => {
   assert.equal(

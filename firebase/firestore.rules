@@ -114,6 +114,14 @@ service cloud.firestore {
             ['message', 'offer', 'location_request', 'dispatch'];
       }
 
+      match /account_devices/{deviceId} {
+        // Device history contains no location, IP address, advertising ID, or
+        // hardware fingerprint. Only the owner can read it and only trusted
+        // account commands can create, update, revoke, or expire entries.
+        allow read: if owns(uid);
+        allow create, update, delete: if false;
+      }
+
       match /watch_keywords/{watchId} {
         allow read, create, update, delete: if owns(uid);
       }

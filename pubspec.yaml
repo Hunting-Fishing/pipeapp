@@ -22,6 +22,7 @@ environment:
 
 dependencies:
   crypto: ^3.0.6
+  uuid: 4.6.0
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -121,7 +122,6 @@ dependencies:
   http_parser: any
 dependency_overrides:
   http: 1.6.0
-  uuid: ^4.0.0
 
 dev_dependencies:
   flutter_launcher_icons: 0.13.1
