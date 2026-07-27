@@ -90,10 +90,19 @@ documented Xcode target, entitlement, dependency, and device-test work.
 ## Accessibility baseline
 
 The application theme enforces padded Material touch targets with a minimum of
-48 logical pixels for icon buttons and primary button controls. Important
-icon-only actions now expose visible tooltips and explicit semantic labels.
-Automated widget coverage verifies minimum target size, a 200 percent text-scale
-scenario, and an accessible icon action.
+48 logical pixels for icon buttons and primary button controls. It also
+establishes reading-order keyboard traversal, a three-pixel high-contrast focus
+indicator for light and dark themes, and a visible focus border for the filled
+outline fields used by Marketplace forms. Important icon-only actions expose
+visible tooltips and explicit semantic labels.
+
+The automated viewport matrix exercises sign-in at 320x568, 390x844, 844x390,
+and 1024x768 with 200 percent text; compact account creation; keyboard movement
+from email to password; labelled icon controls; the offer milestone schedule;
+and the accept/counter-offer decision dialog. That matrix exposed horizontal
+and vertical overflow in the offer schedule and confirmation dialog. The
+schedule now stacks its heading and milestone rows for large text, and the
+decision dialog scrolls while keeping every action available.
 
 Listing media now presents an explicit camera-or-gallery choice, catches denied
 permissions and unavailable platform plugins, revalidates size before storage,
@@ -108,7 +117,8 @@ size enforcement.
 The baseline does not replace human acceptance. Gate 6 still requires:
 
 - TalkBack and VoiceOver journey testing;
-- keyboard-only web and desktop testing, including visible focus order;
+- complete keyboard-only web and desktop journey testing beyond the automated
+  sign-in and offer coverage;
 - contrast review for all state and analytics colors;
 - 200 percent text testing across authentication, listing, offer, auction,
   messaging, reporting, support, and Dispatch workflows;

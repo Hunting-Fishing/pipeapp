@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-brand-privacy-assets`
+Baseline branch: `agent/phase1-accessibility-matrix`
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 87%
+Current overall launch-readiness estimate: 88%
 
 Completed gates: 1 of 8
 
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 58% — cross-platform identity, generated release artwork, Apple privacy declarations, permission disclosures, fail-closed signing, accessible controls, and resilient camera/gallery listing media locally verified |
+| 6 — Accessibility, performance, and QA | 68% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
 | 7 — Release readiness | 5% — incomplete |
 
 Gate 0 implementation evidence:
@@ -388,6 +388,15 @@ is archived outside the active iOS project. Local verification passes 88
 Flutter tests, the analyzer, an ARM64 Android build, and the production web/Wasm
 build. Store-console review, signed mobile artifacts, linked-SDK privacy review,
 physical-device accessibility, and device/network matrices remain mandatory.
+
+The application root now applies reading-order keyboard traversal and visible,
+high-contrast focus treatments across light and dark themes. Automated 200
+percent text acceptance covers compact portrait, phone portrait/landscape, and
+tablet sign-in plus account creation and offer decisions. It caught and drove
+repairs for clipped offer milestones and inaccessible compact-dialog actions.
+The complete checkpoint passes 99 Flutter tests, the analyzer, ARM64 Android,
+and production web/Wasm builds. Full manual screen-reader, keyboard, contrast,
+orientation, and physical-device acceptance remains mandatory.
 
 Exit evidence:
 

@@ -3,6 +3,23 @@ import 'package:flutter/material.dart';
 /// Release-wide interaction defaults for touch, keyboard, and assistive tech.
 abstract final class PipeAccessibilityTheme {
   static const double minimumTouchTarget = 48;
+  static const Color lightFocusIndicator = Color(0xFF111827);
+  static const Color darkFocusIndicator = Color(0xFFFFFFFF);
+
+  static WidgetStateProperty<BorderSide?> _focusSide(
+    Color color, {
+    BorderSide normal = BorderSide.none,
+  }) =>
+      WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.focused)
+              ? BorderSide(color: color, width: 3)
+              : normal);
+
+  static WidgetStateProperty<Color?> _focusOverlay(Color color) =>
+      WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.focused)
+              ? color.withValues(alpha: 0.14)
+              : null);
 
   static ThemeData apply(ThemeData base) {
     const squareMinimum = WidgetStatePropertyAll(
@@ -12,36 +29,60 @@ abstract final class PipeAccessibilityTheme {
       Size(64, minimumTouchTarget),
     );
     const padded = MaterialTapTargetSize.padded;
+    final focusIndicator = base.brightness == Brightness.dark
+        ? darkFocusIndicator
+        : lightFocusIndicator;
+    final outlineBorder = base.inputDecorationTheme.border;
+    final focusedInputBorder = outlineBorder is OutlineInputBorder
+        ? outlineBorder.copyWith(
+            borderSide: BorderSide(color: focusIndicator, width: 3),
+          )
+        : base.inputDecorationTheme.focusedBorder;
     return base.copyWith(
+      focusColor: focusIndicator.withValues(alpha: 0.14),
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
-      iconButtonTheme: const IconButtonThemeData(
+      iconButtonTheme: IconButtonThemeData(
         style: ButtonStyle(
           minimumSize: squareMinimum,
           tapTargetSize: padded,
+          side: _focusSide(focusIndicator),
+          overlayColor: _focusOverlay(focusIndicator),
         ),
       ),
-      filledButtonTheme: const FilledButtonThemeData(
+      filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
           minimumSize: buttonMinimum,
           tapTargetSize: padded,
+          side: _focusSide(focusIndicator),
+          overlayColor: _focusOverlay(focusIndicator),
         ),
       ),
-      outlinedButtonTheme: const OutlinedButtonThemeData(
+      outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
           minimumSize: buttonMinimum,
           tapTargetSize: padded,
+          side: _focusSide(
+            focusIndicator,
+            normal: BorderSide(color: base.colorScheme.outline),
+          ),
+          overlayColor: _focusOverlay(focusIndicator),
         ),
       ),
-      textButtonTheme: const TextButtonThemeData(
+      textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
           minimumSize: buttonMinimum,
           tapTargetSize: padded,
+          side: _focusSide(focusIndicator),
+          overlayColor: _focusOverlay(focusIndicator),
         ),
       ),
       checkboxTheme: const CheckboxThemeData(materialTapTargetSize: padded),
       radioTheme: const RadioThemeData(materialTapTargetSize: padded),
       switchTheme: const SwitchThemeData(materialTapTargetSize: padded),
+      inputDecorationTheme: base.inputDecorationTheme.copyWith(
+        focusedBorder: focusedInputBorder,
+      ),
       tooltipTheme: base.tooltipTheme.copyWith(
         waitDuration: const Duration(milliseconds: 400),
         showDuration: const Duration(seconds: 4),
@@ -49,6 +90,20 @@ abstract final class PipeAccessibilityTheme {
       ),
     );
   }
+}
+
+/// Establishes predictable reading-order keyboard traversal around the app's
+/// Navigator while allowing dialogs and routes to keep their own focus scopes.
+class PipeAccessibilityRoot extends StatelessWidget {
+  const PipeAccessibilityRoot({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => FocusTraversalGroup(
+        policy: ReadingOrderTraversalPolicy(),
+        child: child,
+      );
 }
 
 /// An icon-only action with an explicit, testable screen-reader label.

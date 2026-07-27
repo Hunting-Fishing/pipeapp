@@ -209,6 +209,9 @@ class MyAppState extends State<MyApp> {
         useMaterial3: false,
       )),
       themeMode: _themeMode,
+      builder: (context, child) => PipeAccessibilityRoot(
+        child: child ?? const SizedBox.shrink(),
+      ),
       routerConfig: _router,
     );
   }
