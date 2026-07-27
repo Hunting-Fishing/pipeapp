@@ -15,6 +15,7 @@ const {
 } = require("./communication_commands");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
+const { createModerationCommands } = require("./moderation_commands");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
@@ -40,6 +41,7 @@ const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
+const moderationCommands = createModerationCommands(admin);
 exports.syncAccountVerification = onCall(
   protectedCallableOptions,
   accountCommands.syncAccountVerification,
@@ -119,6 +121,18 @@ exports.sendMarketplaceMessage = onCall(
 exports.submitMarketplaceReport = onCall(
   protectedCallableOptions,
   communicationCommands.submitMarketplaceReport,
+);
+exports.reviewModerationReport = onCall(
+  protectedCallableOptions,
+  moderationCommands.reviewModerationReport,
+);
+exports.appealModerationDecision = onCall(
+  protectedCallableOptions,
+  moderationCommands.appealModerationDecision,
+);
+exports.reviewModerationAppeal = onCall(
+  protectedCallableOptions,
+  moderationCommands.reviewModerationAppeal,
 );
 exports.createDispatchJob = onCall(
   protectedCallableOptions,

@@ -2302,6 +2302,8 @@ class _AccountSettingsState extends State<_AccountSettings> {
       const SizedBox(height: 12),
       const _WatchKeywords(),
       const SizedBox(height: 12),
+      const _ModerationNoticesCard(),
+      const SizedBox(height: 12),
       const _AccountDevicesCard(),
       const SizedBox(height: 12),
       Card(
@@ -2389,6 +2391,197 @@ class _AccountSettingsState extends State<_AccountSettings> {
   }
 }
 
+class _ModerationNoticesCard extends StatelessWidget {
+  const _ModerationNoticesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('moderation_notices')
+          .where('reportedUid', isEqualTo: uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Card(
+            child: ListTile(
+              leading:
+                  Icon(Icons.gpp_maybe_outlined, color: Colors.red.shade700),
+              title: const Text('Trust & Safety notices'),
+              subtitle: const Text(
+                  'Safety notices are temporarily unavailable. Try again shortly.'),
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Card(
+            child: ListTile(
+              leading: SizedBox.square(
+                dimension: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              title: Text('Checking Trust & Safety notices'),
+            ),
+          );
+        }
+        final notices = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aTime = a.data()['updatedAt'] as Timestamp?;
+            final bTime = b.data()['updatedAt'] as Timestamp?;
+            return (bTime?.millisecondsSinceEpoch ?? 0)
+                .compareTo(aTime?.millisecondsSinceEpoch ?? 0);
+          });
+        if (notices.isEmpty) return const SizedBox.shrink();
+        return Card(
+          color: Colors.orange.shade50,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ListTile(
+                leading: Icon(Icons.gpp_maybe_outlined),
+                title: Text('Trust & Safety notices',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                subtitle:
+                    Text('Review decisions affecting your account or content.'),
+              ),
+              ...notices.map((notice) {
+                final data = notice.data();
+                final status = '${data['status'] ?? 'reviewed'}';
+                final appealAvailable = data['appealAvailable'] == true &&
+                    data['appealDeadline'] is Timestamp &&
+                    (data['appealDeadline'] as Timestamp)
+                        .toDate()
+                        .isAfter(DateTime.now());
+                return Column(
+                  children: [
+                    const Divider(height: 1),
+                    ListTile(
+                      title: Text('${data['reasonLabel'] ?? 'Safety decision'}',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(
+                        '${status.replaceAll('_', ' ')} • ${data['enforcementAction'] ?? 'none'}\n'
+                        '${data['reviewReason'] ?? ''}',
+                      ),
+                      isThreeLine: true,
+                      trailing: appealAvailable
+                          ? OutlinedButton(
+                              onPressed: () => _appeal(context, notice.id),
+                              child: const Text('Appeal'),
+                            )
+                          : null,
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static Future<void> _appeal(BuildContext context, String reportId) async {
+    final pageContext = context;
+    final reason = TextEditingController();
+    var submitting = false;
+    String? error;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          icon: const Icon(Icons.balance_outlined, size: 36),
+          title: const Text('Appeal this decision?'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                    'Explain what was misunderstood and identify any evidence an administrator should review.'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reason,
+                  enabled: !submitting,
+                  minLines: 4,
+                  maxLines: 7,
+                  maxLength: 2000,
+                  decoration: const InputDecoration(
+                    labelText: 'Appeal explanation *',
+                    hintText:
+                        'For example: I own the original photos and can provide the source files.',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (error != null)
+                  Text(error!,
+                      style: const TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (reason.text.trim().length < 20) {
+                        setState(() => error =
+                            'Provide at least 20 characters so the appeal can be reviewed fairly.');
+                        return;
+                      }
+                      setState(() {
+                        submitting = true;
+                        error = null;
+                      });
+                      try {
+                        final requestId = FirebaseFirestore.instance
+                            .collection('moderation_command_receipts')
+                            .doc()
+                            .id;
+                        await MarketplaceCommandClient()
+                            .execute('appealModerationDecision', {
+                          'requestId': requestId,
+                          'reportId': reportId,
+                          'reason': reason.text.trim(),
+                        });
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(pageContext).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Appeal submitted for administrator review.')),
+                          );
+                        }
+                      } catch (caught) {
+                        setState(() {
+                          submitting = false;
+                          error = '$caught'.replaceFirst('Bad state: ', '');
+                        });
+                      }
+                    },
+              icon: submitting
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.send_outlined),
+              label: const Text('Submit appeal'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reason.dispose();
+  }
+}
+
 class _AccountDevicesCard extends StatefulWidget {
   const _AccountDevicesCard();
 
@@ -2417,8 +2610,7 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
     }
     try {
       final registered = await _repository.registerCurrentDevice();
-      final current =
-          registered ?? await _repository.currentDeviceDocumentId();
+      final current = registered ?? await _repository.currentDeviceDocumentId();
       if (mounted) setState(() => _currentDeviceId = current);
     } catch (error) {
       if (mounted) setState(() => _registrationError = error);
@@ -2432,8 +2624,7 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox.shrink();
     return Card(
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       ListTile(
         leading: const Icon(Icons.devices_outlined),
         title: const Text('Remembered devices'),
@@ -2441,8 +2632,7 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
             'App installations seen in the last 180 days. No location, IP address, or hardware fingerprint is stored.'),
         trailing: _registering
             ? const SizedBox.square(
-                dimension: 22,
-                child: CircularProgressIndicator(strokeWidth: 2))
+                dimension: 22, child: CircularProgressIndicator(strokeWidth: 2))
             : IconButton(
                 tooltip: 'Refresh device history',
                 onPressed: _refresh,
@@ -2495,7 +2685,8 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
               leading: Icon(_deviceIcon('${data['platform'] ?? ''}'),
                   color: active ? Colors.blue.shade700 : Colors.grey),
               title: Row(children: [
-                Flexible(child: Text('${data['label'] ?? 'Pipe Buyer device'}')),
+                Flexible(
+                    child: Text('${data['label'] ?? 'Pipe Buyer device'}')),
                 if (current) ...[
                   const SizedBox(width: 8),
                   const Chip(

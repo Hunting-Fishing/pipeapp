@@ -19,6 +19,7 @@ const {
   createAccountVerificationCommands,
 } = require("../account_verification_commands");
 const {createDispatchCommands} = require("../dispatch_commands");
+const {createModerationCommands} = require("../moderation_commands");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -64,6 +65,10 @@ const accountVerificationCommands = createAccountVerificationCommands({
   auth: () => auth,
 });
 const dispatchCommands = createDispatchCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
+const moderationCommands = createModerationCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
@@ -699,6 +704,96 @@ try {
       (await db.doc(`trust_reports/${reportFirst.reportId}`).get())
           .data().status,
       "pending",
+  );
+  const moderationReviewRequest = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `moderation-review-${now}`,
+      reportId: reportFirst.reportId,
+      decision: "violation_confirmed",
+      reason: "The submitted listing evidence confirms misleading information.",
+      enforcementAction: "warning",
+    },
+  };
+  const moderationReviewFirst = await moderationCommands
+      .reviewModerationReport(moderationReviewRequest);
+  assert.deepEqual(
+      await moderationCommands.reviewModerationReport(moderationReviewRequest),
+      moderationReviewFirst,
+  );
+  assert.equal(
+      (await db.doc(`trust_reports/${reportFirst.reportId}`).get())
+          .data().status,
+      "violation_confirmed",
+  );
+  assert.equal(
+      (await db.doc(`moderation_notices/${reportFirst.reportId}`).get())
+          .data().reportedUid,
+      seller.uid,
+  );
+  const appealRequest = {
+    auth: {
+      uid: seller.uid,
+      token: {
+        email_verified: true,
+        phone_number: "+15555551001",
+        auth_time: Math.floor(Date.now() / 1000),
+      },
+    },
+    data: {
+      requestId: `moderation-appeal-${now}`,
+      reportId: reportFirst.reportId,
+      reason: "The listing facts can be verified with the original documents.",
+    },
+  };
+  const appealFirst = await moderationCommands
+      .appealModerationDecision(appealRequest);
+  assert.deepEqual(
+      await moderationCommands.appealModerationDecision(appealRequest),
+      appealFirst,
+  );
+  assert.equal(appealFirst.status, "appealed");
+  const appealReviewRequest = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `moderation-appeal-review-${now}`,
+      reportId: reportFirst.reportId,
+      decision: "overturned",
+      reason: "Original documentation resolves the reported discrepancy.",
+    },
+  };
+  const appealReviewFirst = await moderationCommands
+      .reviewModerationAppeal(appealReviewRequest);
+  assert.deepEqual(
+      await moderationCommands.reviewModerationAppeal(appealReviewRequest),
+      appealReviewFirst,
+  );
+  assert.equal(appealReviewFirst.status, "appeal_overturned");
+  const dismissedReportId = `dismissed-report-${now}`;
+  await db.doc(`trust_reports/${dismissedReportId}`).set({
+    reporterUid: buyer.uid,
+    reportedUid: seller.uid,
+    targetType: "user",
+    reason: "other",
+    reasonLabel: "Something else",
+    details: "A report that should be dismissed without notifying its target.",
+    source: "user",
+    status: "pending",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  await moderationCommands.reviewModerationReport({
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `moderation-dismiss-${now}`,
+      reportId: dismissedReportId,
+      decision: "dismissed",
+      reason: "The available evidence does not support a policy violation.",
+      enforcementAction: "none",
+    },
+  });
+  assert.equal(
+      (await db.doc(`moderation_notices/${dismissedReportId}`).get()).exists,
+      false,
   );
   const blockedMessage = await expectCallableError(
       "openMarketplaceConversation",

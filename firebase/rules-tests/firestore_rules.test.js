@@ -123,6 +123,28 @@ beforeEach(async () => {
       status: "pending",
       revision: 1,
     });
+    await setDoc(doc(db, "trust_reports", "report-1"), {
+      reporterUid: "buyer",
+      reportedUid: "seller",
+      targetType: "listing",
+      listingId: "listing",
+      reason: "fraud_or_scam",
+      status: "violation_confirmed",
+    });
+    await setDoc(doc(db, "trust_report_events", "report-1-reviewed"), {
+      reportId: "report-1",
+      event: "reviewed",
+      actorUid: "admin",
+    });
+    await setDoc(doc(db, "moderation_notices", "report-1"), {
+      reportId: "report-1",
+      reportedUid: "seller",
+      status: "violation_confirmed",
+    });
+    await setDoc(doc(db, "moderation_command_receipts", "buyer-receipt"), {
+      actorUid: "buyer",
+      command: "appealModerationDecision",
+    });
     await setDoc(doc(db, "account_exports", "buyer-export"), {
       ownerUid: "buyer",
       status: "ready",
@@ -580,6 +602,64 @@ test("reports, upload grants, and command receipts are server-owned", async () =
       doc(buyerDb, "communication_command_receipts", "forged"),
       {actorUid: "buyer", command: "sendMarketplaceMessage"},
   ));
+  await assertFails(updateDoc(
+      doc(buyerDb, "trust_reports", "report-1"),
+      {status: "dismissed"},
+  ));
+  await assertFails(setDoc(
+      doc(buyerDb, "trust_report_events", "forged"),
+      {reportId: "report-1", event: "reviewed"},
+  ));
+  await assertFails(setDoc(
+      doc(buyerDb, "moderation_notices", "forged"),
+      {reportedUid: "buyer", status: "dismissed"},
+  ));
+  await assertFails(setDoc(
+      doc(buyerDb, "moderation_command_receipts", "forged"),
+      {actorUid: "buyer", command: "reviewModerationReport"},
+  ));
+});
+
+test("moderation notices are private and audit history is administrator-only", async () => {
+  const reporterDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const reportedDb = testEnvironment.authenticatedContext("seller").firestore();
+  const strangerDb = testEnvironment.authenticatedContext("stranger").firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+
+  await assertSucceeds(getDoc(doc(reporterDb, "trust_reports", "report-1")));
+  await assertFails(getDoc(doc(reportedDb, "trust_reports", "report-1")));
+  await assertSucceeds(getDoc(doc(
+      reportedDb,
+      "moderation_notices",
+      "report-1",
+  )));
+  await assertFails(getDoc(doc(
+      reporterDb,
+      "moderation_notices",
+      "report-1",
+  )));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "moderation_notices",
+      "report-1",
+  )));
+  await assertSucceeds(getDoc(doc(
+      adminDb,
+      "trust_report_events",
+      "report-1-reviewed",
+  )));
+  await assertFails(getDoc(doc(
+      reporterDb,
+      "trust_report_events",
+      "report-1-reviewed",
+  )));
+  await assertSucceeds(getDoc(doc(
+      reporterDb,
+      "moderation_command_receipts",
+      "buyer-receipt",
+  )));
 });
 
 test("buyer cannot forge the seller identity on a new offer", async () => {
