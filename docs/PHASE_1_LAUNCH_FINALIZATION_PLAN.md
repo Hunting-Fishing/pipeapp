@@ -7,7 +7,7 @@ Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 88%
+Current overall launch-readiness estimate: 89%
 
 Completed gates: 1 of 8
 
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 74% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic status feedback, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
+| 6 — Accessibility, performance, and QA | 79% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic status feedback, bounded activity feeds, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
 | 7 — Release readiness | 5% — incomplete |
 
 Gate 0 implementation evidence:
@@ -415,6 +415,15 @@ rendering. Startup failures, framework recovery, sign-in/account creation, and
 profile-photo upload outcomes use this system. The checkpoint passes 103
 Flutter tests, a clean analyzer, an ARM64 Android APK, production web, and an
 actual WebAssembly build.
+
+The account notification, notification badge, and conversation surfaces now
+read only the 100 newest indexed records instead of opening unbounded realtime
+listeners. At the boundary, the UI states that only the newest activity is in
+view. Listing notification updates use an indexed listing/read query and stay
+below Firestore's 500-operation batch ceiling. Contract tests prevent these
+limits from being removed. Backend load tests also prove that 64 simultaneous
+unique requests cannot exceed a 20-request quota and 50 simultaneous retries
+consume one quota unit. The Function suite now passes 98 tests.
 
 Exit evidence:
 

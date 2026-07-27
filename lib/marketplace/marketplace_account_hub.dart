@@ -741,11 +741,12 @@ Future<void> _markListingNotificationsRead(String listingId) async {
       .collection('users')
       .doc(uid)
       .collection('notifications')
+      .where('listingId', isEqualTo: listingId)
       .where('read', isEqualTo: false)
+      .limit(defaultBatchMutationLimit)
       .get();
   final batch = FirebaseFirestore.instance.batch();
   for (final document in snapshot.docs) {
-    if (document.data()['listingId'] != listingId) continue;
     batch.update(document.reference,
         {'read': true, 'readAt': FieldValue.serverTimestamp()});
   }
@@ -765,13 +766,12 @@ class _ListingNotificationBadge extends StatelessWidget {
             .collection('users')
             .doc(uid)
             .collection('notifications')
+            .where('listingId', isEqualTo: listingId)
             .where('read', isEqualTo: false)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (_, snapshot) {
-          final count = snapshot.data?.docs
-                  .where((doc) => doc.data()['listingId'] == listingId)
-                  .length ??
-              0;
+          final count = snapshot.data?.docs.length ?? 0;
           return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Badge(
@@ -2022,6 +2022,8 @@ class _AccountNotifications extends StatelessWidget {
             .collection('users')
             .doc(uid)
             .collection('notifications')
+            .orderBy('createdAt', descending: true)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -2041,11 +2043,20 @@ class _AccountNotifications extends StatelessWidget {
           if (items.isEmpty) {
             return const Center(child: Text('No notifications yet.'));
           }
+          final atLimit = items.length == defaultActivityFeedLimit;
           return ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: items.length,
+              itemCount: items.length + (atLimit ? 1 : 0),
               itemBuilder: (context, index) {
-                final document = items[index];
+                if (atLimit && index == 0) {
+                  return const Card(
+                    child: ListTile(
+                      leading: Icon(Icons.info_outline),
+                      title: Text('Showing the 100 most recent notifications.'),
+                    ),
+                  );
+                }
+                final document = items[index - (atLimit ? 1 : 0)];
                 final data = document.data();
                 final unread = data['read'] != true;
                 return Card(
@@ -2109,6 +2120,7 @@ class _AccountTabBadge extends StatelessWidget {
             .doc(uid)
             .collection('notifications')
             .where('read', isEqualTo: false)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (_, snapshot) {
           final count = snapshot.data?.docs.where((doc) {

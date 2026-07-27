@@ -122,6 +122,14 @@ rather than exposing a partially populated listing. Automated tests cover
 retry recovery, monotonic progress, fail-fast authorization, and upload-time
 size enforcement.
 
+Account notifications, unread badges, and conversation lists now use explicit
+100-record realtime ceilings. The conversation feed is newest-first through
+the checked-in composite index, and users receive an honest loaded-scope notice
+when the ceiling is reached. Listing-specific read updates use an indexed query
+and a 450-operation maximum so they cannot exceed Firestore's batch limit.
+Concurrent backend tests prove unique requests cannot oversubscribe their
+quota and retries consume only one unit.
+
 The baseline does not replace human acceptance. Gate 6 still requires:
 
 - TalkBack and VoiceOver journey testing;
