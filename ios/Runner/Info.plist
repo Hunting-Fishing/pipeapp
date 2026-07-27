@@ -1,110 +1,100 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-	<!-- Runtime diagnostics opt in only for controlled staging/production. -->
-	<key>FirebaseCrashlyticsCollectionEnabled</key>
-	<false/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Pipe Buyer uses your location only when you choose to position a yard, site, storage, service-area, or interest pin.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Pipe Buyer uses the camera only when you choose to take a listing, message, report, or profile photo.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Pipe Buyer opens your photo library only when you choose an image for a listing, message, report, or profile.</string>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Pipe Buyer</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>Pipe Buyer</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleLocalizations</key>
-	<array>
-		<string>en</string>
-		<string>ar</string>
-		<string>ur</string>
-		<string>hi</string>
-		<string>zh_Hans</string>
-		<string>zh_Hant</string>
-		<string>af</string>
-		<string>es</string>
-		<string>fr</string>
-		<string>de</string>
-		<string>da</string>
-		<string>it</string>
-		<string>sv</string>
-		<string>tr</string>
-		<string>nl</string>
-		<string>ja</string>
-	</array>
-
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-        <dict>
-            <key>CFBundleTypeRole</key>
-            <string>Editor</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <!--FF_REVERSED_CLIENT_ID-->
-                
-            </array>
-        </dict>
-
-        <dict>
-        <key>CFBundleTypeRole</key>
-        <string>Editor</string>
-        <key>CFBundleURLName</key>
-        <string>pipeapp.com</string>
-        <key>CFBundleURLSchemes</key>
-        <array>
-        <string>pipeapp</string>
-        </array>
-        </dict>
-    </array>
-    <key>FlutterDeepLinkingEnabled</key>
-    <true/>
-
-
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-
-
-
-
-
-
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
-
-</dict>
+	<dict>
+		<!-- Runtime diagnostics opt in only for controlled staging/production. -->
+		<key>FirebaseCrashlyticsCollectionEnabled</key>
+		<false/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Pipe Buyer uses your location only when you choose to position a yard, site, storage, service-area, or interest pin.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>Pipe Buyer uses the camera only when you choose to take a listing, message, report, or profile photo.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Pipe Buyer opens your photo library only when you choose an image for a listing, message, report, or profile.</string>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<key>CFBundleDisplayName</key>
+		<string>Pipe Buyer</string>
+		<key>CFBundleExecutable</key>
+		<string>$(EXECUTABLE_NAME)</string>
+		<key>CFBundleIdentifier</key>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundleName</key>
+		<string>Pipe Buyer</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>en</string>
+			<string>ar</string>
+			<string>ur</string>
+			<string>hi</string>
+			<string>zh_Hans</string>
+			<string>zh_Hant</string>
+			<string>af</string>
+			<string>es</string>
+			<string>fr</string>
+			<string>de</string>
+			<string>da</string>
+			<string>it</string>
+			<string>sv</string>
+			<string>tr</string>
+			<string>nl</string>
+			<string>ja</string>
+		</array>
+		<key>CFBundleShortVersionString</key>
+		<string>$(FLUTTER_BUILD_NAME)</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<!--FF_REVERSED_CLIENT_ID-->
+				</array>
+			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>pipeapp.com</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>pipeapp</string>
+				</array>
+			</dict>
+		</array>
+		<key>FlutterDeepLinkingEnabled</key>
+		<true/>
+		<key>CFBundleVersion</key>
+		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+		<key>UIMainStoryboardFile</key>
+		<string>Main</string>
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>UISupportedInterfaceOrientations~ipad</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>UIViewControllerBasedStatusBarAppearance</key>
+		<false/>
+		<key>UIStatusBarHidden</key>
+		<false/>
+	</dict>
 </plist>
