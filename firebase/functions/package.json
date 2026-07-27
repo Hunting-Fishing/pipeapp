@@ -6,7 +6,8 @@
     "firebase-functions": "^7.3.0"
   },
   "overrides": {
-    "brace-expansion": "5.0.8"
+    "brace-expansion": "5.0.8",
+    "uuid": "11.1.1"
   },
   "scripts": {
     "check": "node --check index.js && node --check admin_runtime.js && node --check load_check.js && node --check app_check_config.js && node --check account_security.js && node --check account_commands.js && node --check account_verification_policy.js && node --check account_verification_commands.js && node --check account_privacy_policy.js && node --check account_privacy_commands.js && node --check abuse_rate_limit.js && node --check administrator_authorization.js && node --check scripts/set_administrator_role.js && node --check communication_command_policy.js && node --check communication_commands.js && node --check moderation_policy.js && node --check moderation_commands.js && node --check support_policy.js && node --check support_commands.js && node --check policy_acceptance_policy.js && node --check policy_acceptance_commands.js && node --check phase1_feature_flags.js && node --check jurisdiction_policy.js && node --check marketplace_listing_policy.js && node --check marketplace_command_policy.js && node --check marketplace_commands.js && node --check dispatch_command_policy.js && node --check dispatch_commands.js && node --check integration/callable_integration.mjs && node load_check.js && npm test",

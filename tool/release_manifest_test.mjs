@@ -51,6 +51,62 @@ test("controlled environments require an explicit Firebase project", () => {
     environment: "staging",
     releaseSha: "b".repeat(40),
     firebaseProjectId: "pipe-staging",
+    appCheckMode: "disabled",
+  }));
+});
+
+test("App Check rollout modes are explicit and production fails closed", () => {
+  for (const appCheckMode of ["disabled", "observe", "enforce"]) {
+    assert.doesNotThrow(() => validateReleaseInputs({
+      environment: "staging",
+      releaseSha: "d".repeat(40),
+      firebaseProjectId: "pipe-staging",
+      appCheckMode,
+    }));
+  }
+  assert.throws(
+      () => validateReleaseInputs({
+        environment: "production",
+        releaseSha: "e".repeat(40),
+        firebaseProjectId: "pipe-production",
+        appCheckMode: "observe",
+      }),
+      /require App Check enforce mode/u,
+  );
+  assert.doesNotThrow(() => validateReleaseInputs({
+    environment: "production",
+    releaseSha: "f".repeat(40),
+    firebaseProjectId: "pipe-production",
+    appCheckMode: "enforce",
+  }));
+  assert.throws(
+      () => validateReleaseInputs({
+        environment: "staging",
+        releaseSha: "0".repeat(40),
+        firebaseProjectId: "pipe-staging",
+        appCheckMode: "almost",
+      }),
+      /Unsupported App Check mode/u,
+  );
+});
+
+test("controlled release manifests reject uncommitted tracked source", () => {
+  assert.throws(
+      () => validateReleaseInputs({
+        environment: "staging",
+        releaseSha: "1".repeat(40),
+        firebaseProjectId: "pipe-staging",
+        appCheckMode: "disabled",
+        workingTreeClean: false,
+      }),
+      /require a clean working tree/u,
+  );
+  assert.doesNotThrow(() => validateReleaseInputs({
+    environment: "local-verification",
+    releaseSha: "2".repeat(40),
+    firebaseProjectId: "",
+    appCheckMode: "disabled",
+    workingTreeClean: false,
   }));
 });
 

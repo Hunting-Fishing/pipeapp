@@ -17,7 +17,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 91% — privacy, commerce, Dispatch review, moderation/appeal, support, and policy acceptance commands locally integrated |
+| 2 — Backend parity and server commands | 92% — reviewed command boundary, zero-vulnerability runtime lock, emulator coverage, staged App Check release records, and parity controls locally verified |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
@@ -77,8 +77,16 @@ Gate 2 implementation evidence in progress:
 - Functions discovery and CI now use the declared Node 22 runtime, and App
   Check enforcement is a concrete deployment option rather than an unsupported
   parameter expression
-- Staging Function deployment and exact deployed parity remain blocked on the
-  staging billing-plan decision
+- The July 28 staging Function retry authenticated as the project owner and
+  selected `pipebuyer-5c77f`, but Google still reported that exact project was
+  not on Blaze and rejected Cloud Build enablement; no Function was created
+- The Functions dependency lock overrides the vulnerable transitive UUID below
+  11.1.1. The moderate audit count fell from 7 to 0 while 95 Function tests, 36
+  Firestore/Storage Rules tests, and the authenticated four-emulator workflow
+  continued to pass
+- Controlled deploys now record App Check as `disabled`, `observe`, or
+  `enforce`; production rejects every mode except `enforce`, while staging can
+  bootstrap safely before progressing through token observation
 - Verified-email and linked-phone claims now guard protected Marketplace,
   Offer, Auction, and Dispatch commands. Signup/sign-in route incomplete users
   through an ownership screen; Firebase Auth phone uniqueness is synchronized
@@ -126,8 +134,9 @@ Gate 1 implementation evidence in progress:
   monitoring ownership, and data backup/restore rehearsal remain required
 - Staging Email/Password Authentication is provisioned from the reviewed
   `firebase.json` declaration and passed a disposable create/delete smoke test
-- Staging Functions are blocked on the owner's Blaze billing-plan decision;
-  no Function was created by the failed deployment attempt
+- Staging Functions remain blocked because Google still reports
+  `pipebuyer-5c77f` is not on Blaze; the authenticated July 28 retry created no
+  Function
 - Native staging/production diagnostics now use a centralized, release-tagged
   Crashlytics adapter with manifest-level default-off collection, an explicit
   build-time opt-in, safe correlation IDs, and a triage/validation runbook.

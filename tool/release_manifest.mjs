@@ -12,8 +12,9 @@ import {
 import path from "node:path";
 import {pathToFileURL} from "node:url";
 
-const manifestSchemaVersion = 1;
+const manifestSchemaVersion = 2;
 const controlledEnvironments = new Set(["staging", "production"]);
+const appCheckModes = new Set(["disabled", "observe", "enforce"]);
 const knownEnvironments = new Set([
   "development",
   "local",
@@ -121,6 +122,8 @@ export function validateReleaseInputs({
   environment,
   releaseSha,
   firebaseProjectId,
+  appCheckMode = "disabled",
+  workingTreeClean = true,
 }) {
   if (!knownEnvironments.has(environment)) {
     throw new Error(`Unsupported release environment: ${environment}`);
@@ -133,6 +136,17 @@ export function validateReleaseInputs({
         `PIPE_FIREBASE_PROJECT_ID is required for ${environment}.`,
     );
   }
+  if (!appCheckModes.has(appCheckMode)) {
+    throw new Error(`Unsupported App Check mode: ${appCheckMode}`);
+  }
+  if (environment === "production" && appCheckMode !== "enforce") {
+    throw new Error("Production releases require App Check enforce mode.");
+  }
+  if (controlledEnvironments.has(environment) && !workingTreeClean) {
+    throw new Error(
+        `${environment} release manifests require a clean working tree.`,
+    );
+  }
 }
 
 export function createReleaseManifest({
@@ -140,9 +154,20 @@ export function createReleaseManifest({
   environment,
   releaseSha,
   firebaseProjectId,
+  appCheckMode = "disabled",
   requireWeb,
 }) {
-  validateReleaseInputs({environment, releaseSha, firebaseProjectId});
+  const workingTreeClean = git(
+      root,
+      ["status", "--porcelain", "--untracked-files=no"],
+  ).length === 0;
+  validateReleaseInputs({
+    environment,
+    releaseSha,
+    firebaseProjectId,
+    appCheckMode,
+    workingTreeClean,
+  });
 
   const actualSha = git(root, ["rev-parse", "HEAD"]);
   if (actualSha.toLowerCase() !== releaseSha.toLowerCase()) {
@@ -207,6 +232,13 @@ export function createReleaseManifest({
       expectedFunctions,
       expectedFunctionCount: expectedFunctions.length,
     },
+    security: {
+      appCheck: {
+        mode: appCheckMode,
+        clientRequired: appCheckMode !== "disabled",
+        callableEnforcement: appCheckMode === "enforce",
+      },
+    },
     webArtifact,
     toolchain: {
       flutter: process.env.PIPE_FLUTTER_VERSION || "3.44.6",
@@ -221,6 +253,7 @@ function parseArguments(argumentsList) {
     environment: process.env.PIPE_ENV || "local-verification",
     releaseSha: process.env.PIPE_RELEASE_SHA || "",
     firebaseProjectId: process.env.PIPE_FIREBASE_PROJECT_ID || "",
+    appCheckMode: process.env.PIPE_APP_CHECK_MODE || "disabled",
     output: "build/release-manifest.json",
     requireWeb: false,
   };
@@ -245,6 +278,9 @@ function parseArguments(argumentsList) {
       case "--firebase-project":
         options.firebaseProjectId = value;
         break;
+      case "--app-check-mode":
+        options.appCheckMode = value;
+        break;
       case "--output":
         options.output = value;
         break;
@@ -264,6 +300,7 @@ function writeManifest(options) {
     environment: options.environment.trim().toLowerCase(),
     releaseSha,
     firebaseProjectId: options.firebaseProjectId.trim(),
+    appCheckMode: options.appCheckMode.trim().toLowerCase(),
     requireWeb: options.requireWeb,
   });
   const output = path.resolve(root, options.output);
