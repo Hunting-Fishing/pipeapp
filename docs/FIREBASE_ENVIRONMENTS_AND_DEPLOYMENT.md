@@ -79,9 +79,12 @@ Firebase application. GitHub authenticates with Workload Identity Federation;
 do not create or store a long-lived service-account JSON key in the
 repository.
 
-App Check and Workload Identity values remain deliberately absent in both
-environments, so deployment fails closed until those cloud controls are
-created and verified.
+Workload Identity values remain deliberately absent in both environments, so
+the protected deployment fails closed until keyless cloud authentication is
+created and verified. App Check uses the explicit `disabled`, `observe`, or
+`enforce` workflow mode documented in `APP_CHECK_ROLLOUT.md`; production rejects
+anything except `enforce`, and `observe`/`enforce` require the public web
+provider key.
 
 Native Crashlytics collection is also fail-closed. Android and Apple manifests
 default it off, and the centralized reporter enables it only for a controlled
@@ -105,6 +108,14 @@ undeployed because Cloud Build and Artifact Registry require the staging owner
 to upgrade the project to Blaze. App Check, keyless CI deployment, visual
 acceptance, and data/full-service rollback remain to be configured and
 verified.
+
+A second deployment preflight on July 28, 2026 authenticated as the project
+owner and again reached the explicit `pipebuyer-5c77f` target, but Google
+rejected Cloud Build enablement because that project still was not on Blaze.
+No Function was created. The attempt confirmed 70 expected exports, 0 deployed
+Functions, 95 passing Function tests, and that the billing change must be made
+on this exact Firebase project rather than on GitHub or another Firebase
+project.
 
 ## Release procedure
 
@@ -132,8 +143,9 @@ as visual acceptance.
 Before deployment, the workflow generates `build/release-manifest.json`. It
 records the exact commit and environment, explicit Firebase project, expected
 Function names, Functions source hash, Firebase config/rules/index hashes, and
-the deterministic web artifact hash. The manifest is included in the protected
-workflow summary as release evidence.
+the deterministic web artifact hash. Controlled manifests reject uncommitted
+tracked source and record the exact App Check rollout state. The manifest is
+included in the protected workflow summary as release evidence.
 
 ## Rollback
 
