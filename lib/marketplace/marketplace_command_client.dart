@@ -1,6 +1,26 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+String marketplaceCommandErrorMessage(
+  Object error, {
+  String fallback = 'The marketplace action could not be completed. Try again.',
+}) {
+  final raw = switch (error) {
+    StateError state => state.message.toString(),
+    ArgumentError argument => argument.message?.toString() ?? '',
+    _ => '',
+  };
+  final message = raw.trim().replaceFirst(RegExp(r'^Bad state:\s*'), '');
+  if (message.isEmpty ||
+      message.length > 220 ||
+      RegExp(r'(FIRESTORE|firebasejs|gstatic|stack trace|#\d+)',
+              caseSensitive: false)
+          .hasMatch(message)) {
+    return fallback;
+  }
+  return message;
+}
+
 class MarketplaceCommandClient {
   MarketplaceCommandClient({FirebaseFunctions? functions, FirebaseAuth? auth})
       : _functions = functions ?? FirebaseFunctions.instance,

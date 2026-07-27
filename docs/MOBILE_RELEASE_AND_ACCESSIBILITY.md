@@ -112,6 +112,13 @@ dismissible snackbars, and usable rendering at 200 percent text. Startup and
 framework recovery, authentication, and profile-photo upload feedback use the
 shared implementation.
 
+Critical auction, offer, marketplace-transaction, Dispatch-transaction,
+message, and chat-image actions also use this feedback path. A shared command
+error formatter retains short actionable state messages while rejecting raw
+Firebase internals and unknown implementation exceptions. Source contracts
+keep these commerce surfaces from falling back to unlabelled, color-only
+SnackBars.
+
 Listing media now presents an explicit camera-or-gallery choice, catches denied
 permissions and unavailable platform plugins, revalidates size before storage,
 and reports monotonic byte progress instead of only completed-file counts.

@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_auction_repository.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_money.dart';
 
 class MarketplaceAuctionSettlement extends StatefulWidget {
@@ -271,14 +273,18 @@ class _MarketplaceAuctionSettlementState
     try {
       await command();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.green, content: Text(success)),
+        PipeFeedback.show(
+          context,
+          message: success,
+          tone: PipeStatusTone.success,
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$error')),
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
         );
       }
     } finally {
