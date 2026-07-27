@@ -57,6 +57,21 @@ void main() {
     );
   });
 
+  test('marketplace feedback does not reintroduce color-only snackbars', () {
+    final marketplace =
+        File('lib/marketplace/oil_gas_marketplace.dart').readAsStringSync();
+    expect(
+      RegExp(r'PipeFeedback\.show\(').allMatches(marketplace).length,
+      greaterThanOrEqualTo(7),
+    );
+    expect(
+      marketplace,
+      isNot(contains('ScaffoldMessenger.of(context).showSnackBar')),
+      reason:
+          'The primary marketplace shell must use the accessible feedback system.',
+    );
+  });
+
   testWidgets('status surfaces announce meaning and survive 200 percent text',
       (tester) async {
     final semantics = tester.ensureSemantics();

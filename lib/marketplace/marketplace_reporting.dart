@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_actions_repository.dart';
@@ -635,11 +636,10 @@ class _AccountVerificationQueue extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (controller.text.trim().length < 10) {
-                ScaffoldMessenger.of(noteContext).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Add a clear review note of at least 10 characters.'),
-                  ),
+                PipeFeedback.show(
+                  noteContext,
+                  message: 'Add a clear review note of at least 10 characters.',
+                  tone: PipeStatusTone.warning,
                 );
                 return;
               }
@@ -668,17 +668,21 @@ class _AccountVerificationQueue extends StatelessWidget {
         Navigator.pop(requestDialogContext);
       }
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(content: Text('Verification review saved: $decision.')),
+        PipeFeedback.show(
+          pageContext,
+          message: 'Verification review saved: $decision.',
+          tone: PipeStatusTone.success,
         );
       }
     } catch (error) {
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(
-            content: Text('$error'.replaceFirst('Bad state: ', '')),
-            backgroundColor: Colors.red.shade700,
+        PipeFeedback.show(
+          pageContext,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The verification review could not be saved.',
           ),
+          tone: PipeStatusTone.error,
         );
       }
     }
@@ -899,11 +903,10 @@ class _DispatchProviderReviewQueue extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (note.text.trim().length < 10) {
-                ScaffoldMessenger.of(noteContext).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Enter a clear note of at least 10 characters.'),
-                  ),
+                PipeFeedback.show(
+                  noteContext,
+                  message: 'Enter a clear note of at least 10 characters.',
+                  tone: PipeStatusTone.warning,
                 );
                 return;
               }
@@ -932,18 +935,21 @@ class _DispatchProviderReviewQueue extends StatelessWidget {
         Navigator.pop(providerDialogContext);
       }
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(
-              content: Text('Dispatch provider decision saved: $decision.')),
+        PipeFeedback.show(
+          pageContext,
+          message: 'Dispatch provider decision saved: $decision.',
+          tone: PipeStatusTone.success,
         );
       }
     } catch (error) {
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red.shade700,
-            content: Text('$error'.replaceFirst('Bad state: ', '')),
+        PipeFeedback.show(
+          pageContext,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The Dispatch provider decision could not be saved.',
           ),
+          tone: PipeStatusTone.error,
         );
       }
     }

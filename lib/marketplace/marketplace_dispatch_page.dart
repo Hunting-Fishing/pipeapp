@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 
+import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_repository.dart';
 import 'marketplace_dispatch_distance.dart';
 import 'marketplace_money.dart';
@@ -127,10 +129,13 @@ class _MarketplaceDispatchJobRoutePageState
         MarketplaceDeepLinks.dispatchJob(widget.jobId));
     await Clipboard.setData(ClipboardData(text: target));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(target.startsWith('http')
-            ? 'Dispatch job link copied.'
-            : 'Dispatch app route copied.')));
+    PipeFeedback.show(
+      context,
+      message: target.startsWith('http')
+          ? 'Dispatch job link copied.'
+          : 'Dispatch app route copied.',
+      tone: PipeStatusTone.success,
+    );
   }
 
   @override
@@ -593,10 +598,13 @@ class _JobBoardState extends State<_JobBoard> {
         MarketplaceDeepLinks.dispatchJob(jobId));
     await Clipboard.setData(ClipboardData(text: target));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(target.startsWith('http')
-            ? 'Dispatch job link copied.'
-            : 'Dispatch app route copied.')));
+    PipeFeedback.show(
+      context,
+      message: target.startsWith('http')
+          ? 'Dispatch job link copied.'
+          : 'Dispatch app route copied.',
+      tone: PipeStatusTone.success,
+    );
   }
 
   @override
@@ -1083,29 +1091,43 @@ class _JobBoardState extends State<_JobBoard> {
       details,
     ].any((controller) => controller.text.trim().isEmpty)) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Complete all required job fields.')),
+        PipeFeedback.show(
+          context,
+          message: 'Complete all required job fields.',
+          tone: PipeStatusTone.warning,
         );
       }
       return;
     }
-    await repo.updateJob(
-      jobId: job.id,
-      title: title.text,
-      pickup: pickup.text,
-      delivery: delivery.text,
-      truckingDate: date,
-      loadDetails: details.text,
-      estimatedWeightKg: num.tryParse(weight.text),
-      distanceKm: num.tryParse(distance.text),
-    );
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.green,
-          content: Text('Dispatch request updated. Revision saved.'),
-        ),
+    try {
+      await repo.updateJob(
+        jobId: job.id,
+        title: title.text,
+        pickup: pickup.text,
+        delivery: delivery.text,
+        truckingDate: date,
+        loadDetails: details.text,
+        estimatedWeightKg: num.tryParse(weight.text),
+        distanceKm: num.tryParse(distance.text),
       );
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: 'Dispatch request updated. Revision saved.',
+          tone: PipeStatusTone.success,
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The Dispatch request could not be updated.',
+          ),
+          tone: PipeStatusTone.error,
+        );
+      }
     }
   }
 
@@ -1433,12 +1455,11 @@ class _JobBoardState extends State<_JobBoard> {
         .get();
     if (fleet.docs.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+        PipeFeedback.show(
+          context,
+          message:
               'Create your Dispatch account and add a fleet vehicle before bidding.',
-            ),
-          ),
+          tone: PipeStatusTone.warning,
         );
       }
       return;
@@ -1577,25 +1598,35 @@ class _JobBoardState extends State<_JobBoard> {
         ) ??
         false;
     if (confirmed) {
-      await repo.bid(
-        jobId: id,
-        amount: value,
-        note: note.text.trim(),
-        availableDate: date,
-        vehicleId: selectedVehicle.id,
-        vehicleName: '${selectedVehicle.data()['name'] ?? 'Fleet vehicle'}',
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.green,
-            content: Text(
-              existing == null
-                  ? 'Carrier quote submitted.'
-                  : 'Carrier quote updated. Revision saved.',
-            ),
-          ),
+      try {
+        await repo.bid(
+          jobId: id,
+          amount: value,
+          note: note.text.trim(),
+          availableDate: date,
+          vehicleId: selectedVehicle.id,
+          vehicleName: '${selectedVehicle.data()['name'] ?? 'Fleet vehicle'}',
         );
+        if (context.mounted) {
+          PipeFeedback.show(
+            context,
+            message: existing == null
+                ? 'Carrier quote submitted.'
+                : 'Carrier quote updated. Revision saved.',
+            tone: PipeStatusTone.success,
+          );
+        }
+      } catch (error) {
+        if (context.mounted) {
+          PipeFeedback.show(
+            context,
+            message: marketplaceCommandErrorMessage(
+              error,
+              fallback: 'The carrier quote could not be saved.',
+            ),
+            tone: PipeStatusTone.error,
+          );
+        }
       }
     }
   }
@@ -2000,22 +2031,35 @@ class _PostJobState extends State<_PostJob> {
                 FilledButton.icon(
                   onPressed: () async {
                     if (!form.currentState!.validate()) return;
-                    await widget.repo.createJob(
-                      title: title.text.trim(),
-                      pickup: pickup.text.trim(),
-                      delivery: delivery.text.trim(),
-                      truckingDate: date,
-                      loadDetails: details.text.trim(),
-                      distanceKm: num.parse(distance.text),
-                      distanceSource: 'user_entered_route',
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text('Dispatch job published for carrier bids.'),
-                        ),
+                    try {
+                      await widget.repo.createJob(
+                        title: title.text.trim(),
+                        pickup: pickup.text.trim(),
+                        delivery: delivery.text.trim(),
+                        truckingDate: date,
+                        loadDetails: details.text.trim(),
+                        distanceKm: num.parse(distance.text),
+                        distanceSource: 'user_entered_route',
                       );
+                      if (context.mounted) {
+                        PipeFeedback.show(
+                          context,
+                          message: 'Dispatch job published for carrier bids.',
+                          tone: PipeStatusTone.success,
+                        );
+                      }
+                    } catch (error) {
+                      if (context.mounted) {
+                        PipeFeedback.show(
+                          context,
+                          message: marketplaceCommandErrorMessage(
+                            error,
+                            fallback:
+                                'The Dispatch job could not be published.',
+                          ),
+                          tone: PipeStatusTone.error,
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.publish_outlined),
@@ -2038,26 +2082,27 @@ class _PostJobState extends State<_PostJob> {
           .orderBy('createdAt', descending: true)
           .limit(50)
           .get();
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Listings could not be loaded. Check your connection and try again.',
-          ),
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback:
+              'Listings could not be loaded. Check your connection and try again.',
         ),
+        tone: PipeStatusTone.error,
       );
       return;
     }
     if (!mounted) return;
     final listings = result.docs;
     if (listings.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
+      PipeFeedback.show(
+        context,
+        message:
             'No eligible listings found. Open any listing and choose Get trucking quote.',
-          ),
-        ),
+        tone: PipeStatusTone.info,
       );
       return;
     }
@@ -2314,11 +2359,10 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                   ? null
                   : () async {
                       if (!form.currentState!.validate() || area == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Complete the signup and service area.'),
-                          ),
+                        PipeFeedback.show(
+                          context,
+                          message: 'Complete the signup and service area.',
+                          tone: PipeStatusTone.warning,
                         );
                         return;
                       }
@@ -2334,13 +2378,11 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                         );
                         if (mounted) {
                           setState(() => editingApplication = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: Colors.blue,
-                              content: Text(
+                          PipeFeedback.show(
+                            context,
+                            message:
                                 'Dispatch application submitted for administrator review.',
-                              ),
-                            ),
+                            tone: PipeStatusTone.info,
                           );
                         }
                       } on FirebaseException catch (error) {
@@ -2848,12 +2890,11 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
         grossKg <= tareKg ||
         services.isEmpty) {
       if (submitted && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+        PipeFeedback.show(
+          context,
+          message:
               'Enter valid tare, registered gross and rated payload weights, then select at least one service.',
-            ),
-          ),
+          tone: PipeStatusTone.warning,
         );
       }
       return;
