@@ -9,6 +9,7 @@ import 'auth/firebase_auth/firebase_user_provider.dart';
 import 'auth/firebase_auth/auth_util.dart';
 
 import 'backend/firebase/firebase_config.dart';
+import 'core/accessibility/pipe_accessibility_theme.dart';
 import 'core/diagnostics/app_diagnostics.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
@@ -199,14 +200,14 @@ class MyAppState extends State<MyApp> {
         Locale('nl'),
         Locale('ja'),
       ],
-      theme: ThemeData(
+      theme: PipeAccessibilityTheme.apply(ThemeData(
         brightness: Brightness.light,
         useMaterial3: false,
-      ),
-      darkTheme: ThemeData(
+      )),
+      darkTheme: PipeAccessibilityTheme.apply(ThemeData(
         brightness: Brightness.dark,
         useMaterial3: false,
-      ),
+      )),
       themeMode: _themeMode,
       routerConfig: _router,
     );

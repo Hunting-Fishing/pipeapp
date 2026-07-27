@@ -136,6 +136,8 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
+                          tooltip:
+                              _hidePassword ? 'Show password' : 'Hide password',
                           onPressed: () =>
                               setState(() => _hidePassword = !_hidePassword),
                           icon: Icon(_hidePassword

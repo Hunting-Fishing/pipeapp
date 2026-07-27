@@ -310,6 +310,7 @@ Future<void> _showUserScore(
                               style: TextStyle(
                                   fontSize: 22, fontWeight: FontWeight.w900))),
                       IconButton(
+                          tooltip: 'Close score history',
                           onPressed: () => Navigator.pop(dialogContext),
                           icon: const Icon(Icons.close))
                     ]),
@@ -2824,6 +2825,7 @@ class _WatchKeywordsState extends State<_WatchKeywords> {
                             hintText:
                                 'Example: 2 7/8 drill pipe Grande Prairie'))),
                 IconButton.filled(
+                    tooltip: 'Add listing alert',
                     onPressed: () async {
                       final words = controller.text
                           .toLowerCase()

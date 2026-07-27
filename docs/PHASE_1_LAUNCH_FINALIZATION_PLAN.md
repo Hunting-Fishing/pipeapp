@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-policy-acceptance`
+Baseline branch: `agent/phase1-product-identity-accessibility`
 Created: July 20, 2026
 
-Current gate: Gate 5 — Trust, notifications, policies, and support
+Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 82%
+Current overall launch-readiness estimate: 84%
 
 Completed gates: 1 of 8
 
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 15% — incomplete |
+| 6 — Accessibility, performance, and QA | 38% — cross-platform product identity, mobile permission disclosures, fail-closed Android release signing, and first accessibility controls locally verified |
 | 7 — Release readiness | 5% — incomplete |
 
 Gate 0 implementation evidence:
@@ -374,6 +374,11 @@ Goal: Produce installable, professional release artifacts.
   orientation testing.
 - Test supported phones, tablets, browsers, slow networks, and expired
   sessions.
+
+Current engineering evidence is recorded in
+`docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md`. Gate 5 remains at 88% while its
+policy approval, external delivery, staffing, alerting, and staging-acceptance
+evidence is completed by the responsible owners.
 
 Exit evidence:
 

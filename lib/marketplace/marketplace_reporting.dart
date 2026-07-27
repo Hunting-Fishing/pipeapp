@@ -258,6 +258,7 @@ class _ReportDialogState extends State<_ReportDialog> {
                           'Your report is private and reviewed by a trained administrator.')
                     ])),
                 IconButton(
+                    tooltip: 'Close report form',
                     onPressed:
                         _submitting ? null : () => Navigator.pop(context),
                     icon: const Icon(Icons.close))

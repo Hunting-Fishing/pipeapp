@@ -7,10 +7,14 @@
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Pipe Buyer uses your location only when you choose to position a yard, site, storage, service-area, or interest pin.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Pipe Buyer uses the camera only when you choose to take a listing, message, report, or profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pipe Buyer opens your photo library only when you choose an image for a listing, message, report, or profile.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>VehicleAppPageTemplates</string>
+	<string>Pipe Buyer</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,7 +22,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>PipeApp</string>
+	<string>Pipe Buyer</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleLocalizations</key>

@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/config/phase1_feature_flags.dart';
 import '../core/config/phase1_feature_policy.dart';
+import '../core/accessibility/pipe_accessibility_theme.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_actions_repository.dart';
@@ -1182,19 +1183,21 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     ];
 
     return Theme(
-      data: ThemeData.light(useMaterial3: true).copyWith(
-        scaffoldBackgroundColor: _navy,
-        colorScheme: const ColorScheme.light(
-          primary: _orange,
-          surface: _panel,
-          onSurface: Color(0xFF17202A),
+      data: PipeAccessibilityTheme.apply(
+        ThemeData.light(useMaterial3: true).copyWith(
+          scaffoldBackgroundColor: _navy,
+          colorScheme: const ColorScheme.light(
+            primary: _orange,
+            surface: _panel,
+            onSurface: Color(0xFF17202A),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: const Color(0xFFF0F5FA),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none)),
         ),
-        inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: const Color(0xFFF0F5FA),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none)),
       ),
       child: Scaffold(
         key: _scaffoldKey,
@@ -1202,8 +1205,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
           elevation: 0,
-          leading: IconButton(
-              tooltip: 'Open navigation',
+          leading: PipeAccessibleIconButton(
+              label: 'Open navigation',
+              onTapHint: 'Opens the main navigation menu',
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               icon: const Icon(Icons.menu_rounded)),
           title: Text(
@@ -1221,7 +1225,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                   const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           actions: [
             if (_features.marketplace)
-              IconButton(
+              PipeAccessibleIconButton(
+                  label: 'Search Marketplace',
+                  onTapHint: 'Opens Marketplace search',
                   onPressed: () => _selectTab(1),
                   icon: const Icon(Icons.search_rounded))
           ],
@@ -2934,6 +2940,9 @@ class _ListingCard extends StatelessWidget {
                               listingId: listing.id,
                               sellerUid: listing.sellerUid),
                           IconButton(
+                              tooltip: saved
+                                  ? 'Remove from saved listings'
+                                  : 'Save listing',
                               visualDensity: VisualDensity.compact,
                               onPressed: onSaved,
                               icon: Icon(
@@ -3057,6 +3066,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                     const SizedBox(width: 8),
                     Expanded(child: Text(_statusMessage!)),
                     IconButton(
+                        tooltip: 'Dismiss status message',
                         visualDensity: VisualDensity.compact,
                         onPressed: () => setState(() => _statusMessage = null),
                         icon: const Icon(Icons.close, size: 18))
