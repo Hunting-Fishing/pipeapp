@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import 'industrial_icon_assets.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_repository.dart';
 import 'marketplace_location.dart';
 import 'marketplace_trucking_plan.dart';
@@ -108,9 +110,11 @@ class MarketplaceFreightQuote {
       required Map<String, dynamic> listing,
       bool auction = false}) async {
     if (FirebaseAuth.instance.currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Sign in to request carrier quotes.')));
+      PipeFeedback.show(
+        context,
+        message: 'Sign in to request carrier quotes.',
+        tone: PipeStatusTone.warning,
+      );
       return false;
     }
     final estimate = await FreightWeightEstimate.resolve(listing);
@@ -148,18 +152,23 @@ class MarketplaceFreightQuote {
               ? listing['publicGeoPoint'] as GeoPoint
               : null);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text(
-                'Carrier request published. Dispatch providers can now bid.')));
+        PipeFeedback.show(
+          context,
+          message: 'Carrier request published. Dispatch providers can now bid.',
+          tone: PipeStatusTone.success,
+        );
       }
       return true;
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red.shade800,
-            content: Text(
-                'Carrier request was not published. ${_friendlyError(error)}')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Carrier request was not published. Nothing was changed.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
       return false;
     }
@@ -239,17 +248,6 @@ class MarketplaceFreightQuote {
                 ],
               )) ??
       false;
-
-  static String _friendlyError(Object error) {
-    final message = error.toString().toLowerCase();
-    if (message.contains('permission') || message.contains('unauthenticated')) {
-      return 'Refresh your account and try again.';
-    }
-    if (message.contains('network') || message.contains('unavailable')) {
-      return 'Check your connection and try again.';
-    }
-    return 'Please review the details and try again.';
-  }
 
   static Future<void> suggestWeightCorrection(BuildContext context,
       {required String listingId,

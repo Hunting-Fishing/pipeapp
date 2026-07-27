@@ -11,11 +11,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/config/phase1_feature_flags.dart';
 import '../core/config/phase1_feature_policy.dart';
 import '../core/accessibility/pipe_accessibility_theme.dart';
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_catalog_repository.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_location.dart';
 import 'marketplace_location_picker.dart';
 import 'marketplace_media_repository.dart';
@@ -1055,12 +1057,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   }
 
   void _showFeatureUnavailable(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(
-        '$label is temporarily unavailable. No account or listing data was changed.',
-      ),
-    ));
+    PipeFeedback.show(
+      context,
+      message:
+          '$label is temporarily unavailable. No account or listing data was changed.',
+      tone: PipeStatusTone.warning,
+    );
   }
 
   void _handleFeatureFlags(Phase1FeatureFlags flags) {
@@ -1400,11 +1402,14 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       if (!mounted) return;
       setState(
           () => saving ? _saved.remove(listing.id) : _saved.add(listing.id));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(error is StateError
-              ? error.message.toString()
-              : 'Could not update saved listings.')));
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Could not update saved listings. Try again.',
+        ),
+        tone: PipeStatusTone.error,
+      );
     } finally {
       _savingListingIds.remove(listing.id);
     }
@@ -1427,9 +1432,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _saved.add(listingId));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Could not remove the saved listing. Try again.')));
+      PipeFeedback.show(
+        context,
+        message: 'Could not remove the saved listing. Try again.',
+        tone: PipeStatusTone.error,
+      );
     } finally {
       _savingListingIds.remove(listingId);
     }
@@ -1507,15 +1514,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     if (mounted) {
       setState(() {});
       if (signedIn == true) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
-            content: Row(children: [
-              Icon(Icons.check_circle_outline, color: Colors.white),
-              SizedBox(width: 10),
-              Expanded(
-                  child: Text('Signed in successfully. Your account is ready.'))
-            ])));
+        PipeFeedback.show(
+          context,
+          message: 'Signed in successfully. Your account is ready.',
+          tone: PipeStatusTone.success,
+        );
       }
     }
   }
@@ -1545,22 +1548,21 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
       setState(() => _tab = 0);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Row(children: [
-            Icon(Icons.check_circle_outline, color: Colors.white),
-            SizedBox(width: 10),
-            Expanded(
-                child: Text(
-                    'Signed out successfully. Sign in again from the menu.'))
-          ])));
-    } catch (_) {
+      PipeFeedback.show(
+        context,
+        message: 'Signed out successfully. Sign in again from the menu.',
+        tone: PipeStatusTone.success,
+      );
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-          content:
-              Text('Sign out failed. Check your connection and try again.')));
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Sign out failed. Check your connection and try again.',
+        ),
+        tone: PipeStatusTone.error,
+      );
     }
   }
 }
@@ -3279,14 +3281,13 @@ class _ListingDetailsState extends State<_ListingDetails> {
       _actions.recordListingEvent(listing.id, 'share').catchError((_) {});
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          target.startsWith('http')
-              ? 'Shareable listing link copied.'
-              : 'Listing route copied. Public mobile links activate after the app domain is approved.',
-        ),
-      ));
+      PipeFeedback.show(
+        context,
+        message: target.startsWith('http')
+            ? 'Shareable listing link copied.'
+            : 'Listing route copied. Public mobile links activate after the app domain is approved.',
+        tone: PipeStatusTone.success,
+      );
     }
   }
 
@@ -5816,9 +5817,12 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (_photos.isNotEmpty) _thumbnailPhotoIndex ??= 0;
     });
     if (selected.isEmpty && !pickerFailed) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'No photo was added. Use JPEG or PNG files no larger than 5 MB each.')));
+      PipeFeedback.show(
+        context,
+        message:
+            'No photo was added. Use JPEG or PNG files no larger than 5 MB each.',
+        tone: PipeStatusTone.warning,
+      );
     }
   }
 
@@ -5855,8 +5859,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     }
     if (!mounted) return;
     if (selected == null && !pickerFailed) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Video must be 45 seconds or less and under 25 MB.')));
+      PipeFeedback.show(
+        context,
+        message: 'Video must be 45 seconds or less and under 25 MB.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
     if (selected == null) return;
@@ -5875,11 +5882,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _ =>
         'The selected media could not be opened. Try another file or restart the chooser.',
     };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: Colors.red.shade700,
-      content: Text(message),
-    ));
+    PipeFeedback.show(
+      context,
+      message: message,
+      tone: PipeStatusTone.error,
+    );
   }
 
   Future<void> _publish() async {
@@ -5902,10 +5909,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     }
     if (!_formKey.currentState!.validate()) return;
     if (_location == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_isWanted
-              ? 'Set the requested delivery or search area and privacy level.'
-              : 'Set a pickup location and privacy level.')));
+      PipeFeedback.show(
+        context,
+        message: _isWanted
+            ? 'Set the requested delivery or search area and privacy level.'
+            : 'Set a pickup location and privacy level.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
     if (_listingType == 'Auction') {
@@ -5924,17 +5934,23 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               completion != 100 ||
               data['accountVerified'] != true ||
               (data['accountVerificationReviewVersion'] as num? ?? 0) < 1)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Auction listings require a User Score above 80, 100% profile completion, and verified account status.')));
+        PipeFeedback.show(
+          context,
+          message:
+              'Auction listings require a User Score above 80, 100% profile completion, and verified account status.',
+          tone: PipeStatusTone.warning,
+        );
         return;
       }
       if (_auctionStartAt == null ||
           _auctionEndAt == null ||
           !_auctionEndAt!.isAfter(_auctionStartAt!)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Choose a valid auction start and end time. The end must be after the start.')));
+        PipeFeedback.show(
+          context,
+          message:
+              'Choose a valid auction start and end time. The end must be after the start.',
+          tone: PipeStatusTone.warning,
+        );
         return;
       }
     }
@@ -6193,10 +6209,12 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         await _showPublishedOptions(listingId);
       } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              backgroundColor: Colors.orange,
-              content: Text(
-                  'Listing published successfully, but the preview could not open. View it from My Listings or Auctions.')));
+          PipeFeedback.show(
+            context,
+            message:
+                'Listing published successfully, but the preview could not open. View it from My Listings or Auctions.',
+            tone: PipeStatusTone.warning,
+          );
         }
       }
     } catch (error) {
@@ -6208,15 +6226,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           _ => 'The listing could not be published. Your form is still here; '
               'check your connection and try again.',
         };
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red.shade700,
-            duration: const Duration(seconds: 8),
-            content: Row(children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(child: Text(message)),
-            ])));
+        PipeFeedback.show(
+          context,
+          message: message,
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _publishing = false);
@@ -6696,13 +6710,22 @@ class _AddListingPageState extends State<_AddListingPage> {
                       'imageUrls': const <String>[],
                     }, location: _location);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Listing published to Firebase.')));
-                  } catch (_) {
+                    PipeFeedback.show(
+                      context,
+                      message: 'Listing published successfully.',
+                      tone: PipeStatusTone.success,
+                    );
+                  } catch (error) {
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text(
-                            'Firebase save failed. Check Firestore rules and sign-in.')));
+                    PipeFeedback.show(
+                      context,
+                      message: marketplaceCommandErrorMessage(
+                        error,
+                        fallback:
+                            'The listing could not be published. Check your connection and sign-in, then try again.',
+                      ),
+                      tone: PipeStatusTone.error,
+                    );
                   }
                 },
                 style: FilledButton.styleFrom(

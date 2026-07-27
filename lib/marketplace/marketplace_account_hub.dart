@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_messages_page.dart';
@@ -1211,9 +1212,11 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         amount <= 0 ||
         count == null ||
         count < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Enter a title, valid price, and valid quantity.')));
+      PipeFeedback.show(
+        context,
+        message: 'Enter a title, valid price, and valid quantity.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
     await _runListingCommand(
@@ -1312,14 +1315,19 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         _listingRequestIds.remove('$key-listing');
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(backgroundColor: Colors.green, content: Text(success)));
+        PipeFeedback.show(
+          context,
+          message: success,
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('$error'.replaceFirst('Bad state: ', ''))));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _listingActionBusy = null);
@@ -1794,18 +1802,22 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
       });
       if (mounted) {
         _auctionConversionRequestId = null;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Listing moved to Auctions.')));
+        PipeFeedback.show(
+          context,
+          message: 'Listing moved to Auctions.',
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (mounted) {
-        final message = '$error'.replaceFirst('Bad state: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(message.isEmpty
-                ? 'The listing could not be moved to Auctions.'
-                : message)));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The listing could not be moved to Auctions.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _convertingToAuction = false);
@@ -2161,10 +2173,11 @@ class _AccountSettingsState extends State<_AccountSettings> {
 
   void _notice(String message, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: error ? Colors.red.shade700 : null,
-        content: Text(message)));
+    PipeFeedback.show(
+      context,
+      message: message,
+      tone: error ? PipeStatusTone.error : PipeStatusTone.success,
+    );
   }
 
   Future<void> _exportData() async {
@@ -2792,22 +2805,18 @@ Future<void> _signOutFromSettings(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     MarketplaceNavigation.goHome(context);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Row(children: [
-          Icon(Icons.check_circle_outline, color: Colors.white),
-          SizedBox(width: 10),
-          Expanded(
-              child: Text(
-                  'Signed out successfully. You can sign in again from the menu.'))
-        ])));
+    PipeFeedback.show(
+      context,
+      message: 'Signed out successfully. You can sign in again from the menu.',
+      tone: PipeStatusTone.success,
+    );
   } catch (_) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
-        content: Text(
-            'Sign out failed. Please check your connection and try again.')));
+    PipeFeedback.show(
+      context,
+      message: 'Sign out failed. Please check your connection and try again.',
+      tone: PipeStatusTone.error,
+    );
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_command_client.dart';
 
 const requiredMarketplacePolicyIds = <String>[
@@ -29,11 +30,11 @@ class _MarketplacePolicyCenterPageState
 
   void _notice(String message, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: error ? Colors.red.shade700 : null,
-      content: Text(message),
-    ));
+    PipeFeedback.show(
+      context,
+      message: message,
+      tone: error ? PipeStatusTone.error : PipeStatusTone.success,
+    );
   }
 
   Future<void> _openPolicy(
