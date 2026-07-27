@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/config/phase1_feature_flags.dart';
+import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_reporting.dart';
 
@@ -28,6 +29,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
     return FirebaseFirestore.instance
         .collection('conversations')
         .where('memberUids', arrayContains: uid)
+        .orderBy('lastMessageAt', descending: true)
+        .limit(defaultActivityFeedLimit)
         .snapshots()
         .map((snapshot) => snapshot.docs.fold<int>(0, (total, doc) {
               final counts = doc.data()['unreadCounts'] as Map? ?? {};
@@ -43,6 +46,7 @@ class MarketplaceMessagesPage extends StatelessWidget {
         .doc(uid)
         .collection('notifications')
         .where('read', isEqualTo: false)
+        .limit(defaultActivityFeedLimit)
         .snapshots()
         .map((snapshot) => snapshot.docs.length);
   }
@@ -55,6 +59,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('conversations')
           .where('memberUids', arrayContains: uid)
+          .orderBy('lastMessageAt', descending: true)
+          .limit(defaultActivityFeedLimit)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -72,7 +78,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
                 .compareTo(aTime?.millisecondsSinceEpoch ?? 0);
           });
         if (conversations.isEmpty) return const _EmptyMessages();
-        return ListView.separated(
+        final atLimit = conversations.length == defaultActivityFeedLimit;
+        final list = ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: conversations.length,
           separatorBuilder: (_, __) => const SizedBox(height: 5),
@@ -110,9 +117,50 @@ class MarketplaceMessagesPage extends StatelessWidget {
             );
           },
         );
+        if (!atLimit) return list;
+        return Column(children: [
+          const _ActivityLimitNotice(
+            message: 'Showing the 100 most recent conversations.',
+          ),
+          Expanded(child: list),
+        ]);
       },
     );
   }
+}
+
+class _ActivityLimitNotice extends StatelessWidget {
+  const _ActivityLimitNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        container: true,
+        label: message,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(children: [
+            Icon(Icons.info_outline,
+                color: Theme.of(context).colorScheme.onPrimaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ]),
+        ),
+      );
 }
 
 class _LoadFailure extends StatelessWidget {
