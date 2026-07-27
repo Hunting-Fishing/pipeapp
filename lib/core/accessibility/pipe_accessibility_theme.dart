@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'pipe_status_feedback.dart';
+
 /// Release-wide interaction defaults for touch, keyboard, and assistive tech.
 abstract final class PipeAccessibilityTheme {
   static const double minimumTouchTarget = 48;
@@ -38,7 +40,14 @@ abstract final class PipeAccessibilityTheme {
             borderSide: BorderSide(color: focusIndicator, width: 3),
           )
         : base.inputDecorationTheme.focusedBorder;
+    final semanticColors = base.brightness == Brightness.dark
+        ? const PipeStatusColors.dark()
+        : const PipeStatusColors.light();
     return base.copyWith(
+      extensions: [
+        ...base.extensions.values.where((item) => item is! PipeStatusColors),
+        semanticColors,
+      ],
       focusColor: focusIndicator.withValues(alpha: 0.14),
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,

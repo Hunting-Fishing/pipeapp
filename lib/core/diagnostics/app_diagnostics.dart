@@ -5,6 +5,8 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../accessibility/pipe_accessibility_theme.dart';
+import '../accessibility/pipe_status_feedback.dart';
 import 'diagnostic_reporting.dart';
 
 /// Non-sensitive release context attached to every structured diagnostic.
@@ -198,49 +200,23 @@ class PipeStartupFailureApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Pipe Buyer',
+        theme: PipeAccessibilityTheme.apply(ThemeData.light()),
+        darkTheme: PipeAccessibilityTheme.apply(ThemeData.dark()),
         home: Scaffold(
-          backgroundColor: const Color(0xFFF7FAFE),
           body: SafeArea(
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
-                child: Card(
-                  margin: const EdgeInsets.all(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.cloud_off_outlined,
-                          size: 48,
-                          color: Colors.deepOrange,
-                        ),
-                        const SizedBox(height: 14),
-                        const Text(
-                          'Pipe Buyer could not start',
-                          style: TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Check your connection, close and reopen the app, '
-                          'then try again. Your marketplace information has '
-                          'not been changed.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Environment: ${AppBuildContext.current.environment}',
-                          style: const TextStyle(
-                            color: Color(0xFF66758A),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: PipeStatusSurface(
+                    tone: PipeStatusTone.error,
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Pipe Buyer could not start',
+                    message: 'Check your connection, close and reopen the app, '
+                        'then try again. Your marketplace information has not '
+                        'been changed. Environment: '
+                        '${AppBuildContext.current.environment}.',
                   ),
                 ),
               ),

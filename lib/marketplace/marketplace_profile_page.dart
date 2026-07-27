@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_profile_repository.dart';
 import 'marketplace_profile_tags.dart';
 import 'industrial_icon_assets.dart';
@@ -532,35 +533,45 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
         _avatarBytes = cropped;
         _avatarUploadProgress = 1;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.green,
-          content: Text('Profile photo updated.')));
+      PipeFeedback.show(
+        context,
+        message: 'Profile photo updated.',
+        tone: PipeStatusTone.success,
+      );
     } on FirebaseException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(_avatarFirebaseError(error))));
+        PipeFeedback.show(
+          context,
+          message: _avatarFirebaseError(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } on ProfilePhotoUploadException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(_avatarTransportError(error))));
+        PipeFeedback.show(
+          context,
+          message: _avatarTransportError(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } on MissingPluginException {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(
-                'Photo chooser is unavailable. Refresh the app and try again.')));
+        PipeFeedback.show(
+          context,
+          message:
+              'Photo chooser is unavailable. Refresh the app and try again.',
+          tone: PipeStatusTone.error,
+        );
       }
     } on PlatformException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(error.code == 'photo_access_denied'
-                ? 'Photo access was denied. Allow photo access and try again.'
-                : 'The photo could not be opened. Please try another image.')));
+        PipeFeedback.show(
+          context,
+          message: error.code == 'photo_access_denied'
+              ? 'Photo access was denied. Allow photo access and try again.'
+              : 'The photo could not be opened. Please try another image.',
+          tone: PipeStatusTone.error,
+        );
       }
     } catch (error) {
       if (mounted) {
@@ -569,8 +580,11 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             : _avatarTransferStarted
                 ? 'The photo upload did not finish. Check your connection and try again.'
                 : 'The profile photo could not be prepared. Please try another image.';
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(backgroundColor: Colors.red, content: Text(message)));
+        PipeFeedback.show(
+          context,
+          message: message,
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) {
