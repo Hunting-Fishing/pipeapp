@@ -20,6 +20,7 @@ const {
 } = require("../account_verification_commands");
 const {createDispatchCommands} = require("../dispatch_commands");
 const {createModerationCommands} = require("../moderation_commands");
+const {createSupportCommands} = require("../support_commands");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -69,6 +70,10 @@ const dispatchCommands = createDispatchCommands({
   auth: () => auth,
 });
 const moderationCommands = createModerationCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
+const supportCommands = createSupportCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
@@ -794,6 +799,70 @@ try {
   assert.equal(
       (await db.doc(`moderation_notices/${dismissedReportId}`).get()).exists,
       false,
+  );
+  const supportCaseData = {
+    requestId: `support-${now}`,
+    category: "technical",
+    subject: "Listing photo upload fails",
+    description: "The upload stops before completion when publishing a listing.",
+    relatedType: "listing",
+    relatedId: offerListingId,
+  };
+  const supportFirst = await call(
+      "createSupportCase",
+      buyer.token,
+      supportCaseData,
+  );
+  assert.deepEqual(
+      await call("createSupportCase", buyer.token, supportCaseData),
+      supportFirst,
+  );
+  const supportResponse = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `support-response-${now}`,
+      caseId: supportFirst.caseId,
+      action: "respond",
+      message: "Please retry once and provide the image format and file size.",
+    },
+  };
+  assert.equal(
+      (await supportCommands.updateSupportCase(supportResponse)).status,
+      "waiting_customer",
+  );
+  const supportReply = {
+    requestId: `support-reply-${now}`,
+    caseId: supportFirst.caseId,
+    message: "The image is a four megabyte JPEG and retrying has the same result.",
+  };
+  const supportReplyFirst = await call(
+      "replySupportCase",
+      buyer.token,
+      supportReply,
+  );
+  assert.deepEqual(
+      await call("replySupportCase", buyer.token, supportReply),
+      supportReplyFirst,
+  );
+  const resolveSupport = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `support-resolve-${now}`,
+      caseId: supportFirst.caseId,
+      action: "resolve",
+      message: "The upload authorization was refreshed and the issue is resolved.",
+    },
+  };
+  const resolvedSupport = await supportCommands.updateSupportCase(resolveSupport);
+  assert.deepEqual(
+      await supportCommands.updateSupportCase(resolveSupport),
+      resolvedSupport,
+  );
+  assert.equal(resolvedSupport.status, "resolved");
+  await assertCollectionSize(
+      "support_case_events",
+      4,
+      [["caseId", "==", supportFirst.caseId]],
   );
   const blockedMessage = await expectCallableError(
       "openMarketplaceConversation",

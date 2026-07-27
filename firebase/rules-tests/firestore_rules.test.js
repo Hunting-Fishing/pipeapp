@@ -145,6 +145,22 @@ beforeEach(async () => {
       actorUid: "buyer",
       command: "appealModerationDecision",
     });
+    await setDoc(doc(db, "support_cases", "support-1"), {
+      ownerUid: "buyer",
+      category: "technical",
+      subject: "Unable to upload a listing photo",
+      status: "open",
+    });
+    await setDoc(doc(db, "support_case_events", "support-1-submitted"), {
+      caseId: "support-1",
+      ownerUid: "buyer",
+      event: "submitted",
+      status: "open",
+    });
+    await setDoc(doc(db, "support_command_receipts", "support-receipt"), {
+      actorUid: "buyer",
+      command: "createSupportCase",
+    });
     await setDoc(doc(db, "account_exports", "buyer-export"), {
       ownerUid: "buyer",
       status: "ready",
@@ -660,6 +676,57 @@ test("moderation notices are private and audit history is administrator-only", a
       "moderation_command_receipts",
       "buyer-receipt",
   )));
+});
+
+test("support cases are owner-private and all writes are server-only", async () => {
+  const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const strangerDb = testEnvironment.authenticatedContext("stranger").firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+
+  await assertSucceeds(getDoc(doc(ownerDb, "support_cases", "support-1")));
+  await assertSucceeds(getDocs(query(
+      collection(ownerDb, "support_cases"),
+      where("ownerUid", "==", "buyer"),
+      limit(50),
+  )));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "support_case_events",
+      "support-1-submitted",
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(ownerDb, "support_case_events"),
+      where("caseId", "==", "support-1"),
+      where("ownerUid", "==", "buyer"),
+      limit(100),
+  )));
+  await assertSucceeds(getDoc(doc(
+      ownerDb,
+      "support_command_receipts",
+      "support-receipt",
+  )));
+  await assertSucceeds(getDoc(doc(adminDb, "support_cases", "support-1")));
+  await assertFails(getDoc(doc(strangerDb, "support_cases", "support-1")));
+  await assertFails(getDoc(doc(
+      strangerDb,
+      "support_case_events",
+      "support-1-submitted",
+  )));
+  await assertFails(setDoc(doc(ownerDb, "support_cases", "forged"), {
+    ownerUid: "buyer",
+    category: "safety",
+    status: "urgent",
+  }));
+  await assertFails(updateDoc(
+      doc(ownerDb, "support_cases", "support-1"),
+      {status: "resolved"},
+  ));
+  await assertFails(setDoc(
+      doc(adminDb, "support_case_events", "forged"),
+      {caseId: "support-1", ownerUid: "buyer", event: "resolved"},
+  ));
 });
 
 test("buyer cannot forge the seller identity on a new offer", async () => {

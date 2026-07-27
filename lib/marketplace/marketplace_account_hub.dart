@@ -11,6 +11,7 @@ import 'marketplace_account_device_repository.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
+import 'marketplace_support.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_money.dart';
@@ -2299,6 +2300,14 @@ class _AccountSettingsState extends State<_AccountSettings> {
               ? null
               : () => FirebaseAuth.instance
                   .sendPasswordResetEmail(email: user.email!)),
+      ListTile(
+          leading: const Icon(Icons.support_agent_outlined),
+          title: const Text('Help & Support'),
+          subtitle:
+              const Text('Submit a private case and review response history.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MarketplaceSupportPage()))),
       const SizedBox(height: 12),
       const _WatchKeywords(),
       const SizedBox(height: 12),

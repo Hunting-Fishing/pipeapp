@@ -139,6 +139,9 @@ idempotency receipt. The current callable commands are:
 - `reviewModerationReport`
 - `appealModerationDecision`
 - `reviewModerationAppeal`
+- `createSupportCase`
+- `replySupportCase`
+- `updateSupportCase`
 - `placeAuctionBid`
 - `buyAuctionNow`
 - `withdrawAuctionBid`
@@ -162,6 +165,10 @@ Trust & Safety records are split by audience:
   to the affected account; it never includes reporter identity or attachments.
 - `moderation_command_receipts/{receiptId}` provides private retry safety for
   review and appeal commands.
+- `support_cases/{caseId}` contains the owner-private current support state and
+  server-derived response target.
+- `support_case_events/{eventId}` is immutable customer-visible case history.
+- `support_command_receipts/{receiptId}` makes intake and replies retry-safe.
 
 Firestore rules deny client writes to auction bid state, offer decisions,
 Dispatch jobs, Dispatch quote state, and their immutable revision histories.
