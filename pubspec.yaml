@@ -126,6 +126,7 @@ dependency_overrides:
 dev_dependencies:
   flutter_launcher_icons: 0.13.1
   flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.4.4
   flutter_test:
     sdk: flutter
 
@@ -136,7 +137,28 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   web:
     generate: true
-  image_path: 'assets/images/pipe_buyer_logo.png'
+    image_path: 'tool/brand/pipe_buyer_app_icon_master_v1.png'
+    background_color: '#061D49'
+    theme_color: '#0878E8'
+  windows:
+    generate: true
+    image_path: 'tool/brand/pipe_buyer_app_icon_master_v1.png'
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: 'tool/brand/pipe_buyer_app_icon_master_v1.png'
+  image_path: 'tool/brand/pipe_buyer_app_icon_master_v1.png'
+
+flutter_native_splash:
+  color: '#061D49'
+  image: 'tool/brand/pipe_buyer_app_icon_master_v1.png'
+  android: true
+  ios: true
+  web: true
+  android_12:
+    color: '#061D49'
+    image: 'tool/brand/pipe_buyer_app_icon_master_v1.png'
+    icon_background_color: '#061D49'
 
 
 # For information on the generic Dart part of this file, see the

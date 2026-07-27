@@ -2,7 +2,7 @@
 
 Audit date: July 27, 2026
 
-Branch: `agent/phase1-policy-acceptance`
+Branch: `agent/phase1-brand-privacy-assets`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -30,10 +30,10 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 3 — Identity and abuse protection | No | 93% | Signup and sign-in enter a cross-platform ownership screen until Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, Dispatch, messaging, reporting, media, and privacy commands require current Auth claims and bounded quotas; phone uniqueness is synchronized into a hashed server-owned registry. Account verification requires verified ownership, complete public-profile evidence, a server submission, and an MFA-authorized administrator decision with a required note, immutable history, and notifications. Administrator authorization requires an audited custom role plus a current-session MFA claim. Users can review privacy-limited remembered app installations, receive a new-device notification, generate a private expiring export, revoke all refresh sessions, schedule or cancel coordinated deletion, and start non-enumerating email/password recovery. Staging Phone Auth/App Check/MFA activation, assisted recovery for lost email/phone access, physical-device acceptance, live administrator acceptance, suspicious-device operations, and retention-policy approval remain incomplete. |
 | 4 — Product workflows | No | 89% | Saved listings, normal listing lifecycle, draft-first media publication, bounded Marketplace/Dispatch discovery, review-based Dispatch provider enrollment, recoverable entity routes, and indexed Marketplace filters are locally verified. Browse supports server-side listing type, exact condition, minimum/maximum price, newest, and price sorting across bounded pages, while clearly labelling keyword search as loaded-result scope. Browse, Auctions, seller profiles, owner listings, open Dispatch jobs, personal requests, carrier quotes, per-job bids, and revision histories use one indexed 24-record cursor pager with retry/load-more controls. Listings, Auctions, public profiles, participant conversations, and authenticated Dispatch jobs have encoded GoRouter paths with loading, not-found, access-denied, privacy, and return-to-Marketplace states; Firebase Hosting rewrites browser refreshes to Flutter. Dispatch job links expose only public route/load facts and participant-authorized transaction data, then open Dispatch management or quoting. Dispatch provider applications use verified Auth contact claims, begin in `pending_review`, require an MFA-authorized administrator decision, block quoting until approval, and retain notifications and immutable review history. Dispatch keeps only its newest page live, uses server-side owner/carrier/job filters, and obtains activity totals through aggregate counts instead of downloading records. The map is capped to the 200 newest active records, exposes refresh/error/result-scope states, and excludes private locations; the Dispatch listing picker is capped to 50 newest active records. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Indexed full-text search, true truck-route/geospatial search, native universal-link association, payment release/refund, route calculation, and carrier billing remain incomplete. |
 | 5 — Trust, notifications, policies | No | 88% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, MFA-authorized administrator decisions, required rationale, immutable case history, private affected-user notices, reversible content removal, a 30-day user appeal, administrator appeal review, private support operations, and exact-version policy publication/acceptance/enforcement are locally and emulator verified. External push/email delivery, approved policy text/retention ownership, support staffing, alerting, and staging acceptance remain incomplete. |
-| 6 — Accessibility, performance, QA | No | 46% | Pipe Buyer now has consistent public product naming across Android, Apple, web, Windows, Linux, and macOS; user-initiated camera/photo permission descriptions; no legacy Android external-storage opt-in; a 48-logical-pixel interaction theme; semantic labels/tooltips on key icon-only actions; resilient camera-or-gallery listing selection; monotonic byte upload progress; bounded transient retries at deterministic object paths; private-draft preservation; automated 200% text, touch-target, semantics, branding, permission, signing, retry, authorization, and size contracts; successful ARM64 Android debug builds; and a verified fail-closed release-signing guard. Real Android signing/AAB installation, Apple signing/archive/privacy manifest, complete screen-reader/keyboard/contrast review, physical-device matrices including real denied-permission and interrupted-network cases, icons/splash/store metadata, and abuse/load testing remain incomplete. |
+| 6 — Accessibility, performance, QA | No | 58% | Pipe Buyer now has consistent public product naming across Android, Apple, web, Windows, Linux, and macOS; a hash-pinned release-art master with generated launcher and splash assets; a syntax- and contract-checked Apple privacy manifest; user-initiated camera/photo permission descriptions; no legacy Android external-storage opt-in; a 48-logical-pixel interaction theme; semantic labels/tooltips on key icon-only actions; resilient camera-or-gallery listing selection; monotonic byte upload progress; bounded transient retries at deterministic object paths; private-draft preservation; automated 200% text, touch-target, semantics, branding, privacy, permission, signing, retry, authorization, and size contracts; successful ARM64 Android debug builds; and a verified fail-closed release-signing guard. Real Android signing/AAB installation, Apple signing/archive and linked-SDK privacy review, complete screen-reader/keyboard/contrast review, physical-device matrices, store metadata/screenshots, and abuse/load testing remain incomplete. |
 | 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
 
-Overall Phase 1 launch readiness estimate: **85%**.
+Overall Phase 1 launch readiness estimate: **87%**.
 
 Completed gates: **1 of 8**.
 
@@ -345,6 +345,19 @@ staging deployment matches exactly and passes end-to-end acceptance.
   retryable draft. Three repository tests inject transient and permanent
   failures; the full clean analyzer, 86 Flutter tests, ARM64 Android debug
   build, and production web/Wasm dry run pass locally.
+- A checked-in, SHA-256-pinned release-art master now generates branded
+  launcher icons and launch screens for Android, iOS, web, Windows, and macOS.
+  Representative Android, Apple, and web outputs were visually reviewed; tests
+  prevent placeholder or missing generated assets from silently returning.
+- The Apple privacy manifest now declares the current app-level data categories
+  as app-functionality use without tracking, advertising, or analytics
+  purposes. Its XML and required declarations are verified locally. The unused,
+  unreferenced notification-service sample is preserved under
+  `archive/phase1-disabled` rather than presented as an active capability.
+- The complete local checkpoint passes 88 Flutter tests, a clean analyzer, a
+  confirmed ARM64 Android APK build, and a production web build with a
+  successful Wasm dry run. Signed artifacts, App Store/Play Console review, and
+  physical-device acceptance remain pending.
 
 ## Gate 1 checkpoint evidence
 

@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-product-identity-accessibility`
+Baseline branch: `agent/phase1-brand-privacy-assets`
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 85%
+Current overall launch-readiness estimate: 87%
 
 Completed gates: 1 of 8
 
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 46% — cross-platform identity, permission disclosures, fail-closed signing, accessible controls, and resilient camera/gallery listing media locally verified |
+| 6 — Accessibility, performance, and QA | 58% — cross-platform identity, generated release artwork, Apple privacy declarations, permission disclosures, fail-closed signing, accessible controls, and resilient camera/gallery listing media locally verified |
 | 7 — Release readiness | 5% — incomplete |
 
 Gate 0 implementation evidence:
@@ -379,6 +379,15 @@ Current engineering evidence is recorded in
 `docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md`. Gate 5 remains at 88% while its
 policy approval, external delivery, staffing, alerting, and staging-acceptance
 evidence is completed by the responsible owners.
+
+The repository now owns one hash-pinned release-art master and generated
+launcher/splash assets for Android, iOS, web, Windows, and macOS. The Apple
+privacy manifest declares current app-level collection without tracking,
+advertising, or analytics purposes. An unreferenced notification-service sample
+is archived outside the active iOS project. Local verification passes 88
+Flutter tests, the analyzer, an ARM64 Android build, and the production web/Wasm
+build. Store-console review, signed mobile artifacts, linked-SDK privacy review,
+physical-device accessibility, and device/network matrices remain mandatory.
 
 Exit evidence:
 

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String source(String path) => File(path).readAsStringSync();
@@ -44,5 +45,76 @@ void main() {
     expect(gradle, contains('releaseSigningFields'));
     expect(gradle, contains('releaseSigningConfigured'));
     expect(gradle, contains('Android release signing is not configured'));
+  });
+
+  test('launcher icons and splash screens are generated from pinned branding',
+      () {
+    const masterPath = 'tool/brand/pipe_buyer_app_icon_master_v1.png';
+    final master = File(masterPath);
+    expect(master.existsSync(), isTrue);
+    expect(
+      sha256.convert(master.readAsBytesSync()).toString(),
+      'd51ebeff1e134a97e691d2f08fba4ea75c185afa0fe46406b367bf5784235ef6',
+    );
+    final pubspec = source('pubspec.yaml');
+    expect(pubspec, contains("image_path: '$masterPath'"));
+    expect(pubspec, contains('flutter_native_splash:'));
+
+    final generatedAssets = <String, int>{
+      'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png': 20000,
+      'android/app/src/main/res/drawable-mdpi/splash.png': 50000,
+      'ios/Runner/Assets.xcassets/AppIcon.appiconset/'
+          'Icon-App-1024x1024@1x.png': 500000,
+      'ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png': 50000,
+      'web/icons/Icon-512.png': 100000,
+      'web/splash/img/light-1x.png': 50000,
+      'windows/runner/resources/app_icon.ico': 2000,
+    };
+    for (final entry in generatedAssets.entries) {
+      final file = File(entry.key);
+      expect(file.existsSync(), isTrue, reason: entry.key);
+      expect(file.lengthSync(), greaterThan(entry.value), reason: entry.key);
+    }
+
+    expect(source('web/manifest.json'), contains('Icon-maskable-512.png'));
+    expect(source('android/app/src/main/res/values-v31/styles.xml'),
+        contains('@drawable/android12splash'));
+    expect(Directory('ios/ImageNotification').existsSync(), isFalse);
+    expect(
+      File('archive/phase1-disabled/ios-image-notification/README.md')
+          .existsSync(),
+      isTrue,
+    );
+  });
+
+  test('Apple privacy manifest declares collected data without tracking', () {
+    final manifest = source('ios/Runner/PrivacyInfo.xcprivacy');
+    expect(manifest, contains('<key>NSPrivacyTracking</key>\n\t<false/>'));
+    expect(manifest, contains('<key>NSPrivacyTrackingDomains</key>'));
+    expect(manifest, contains('<key>NSPrivacyCollectedDataTypes</key>'));
+    for (final dataType in <String>[
+      'NSPrivacyCollectedDataTypeName',
+      'NSPrivacyCollectedDataTypeEmailAddress',
+      'NSPrivacyCollectedDataTypePhoneNumber',
+      'NSPrivacyCollectedDataTypePhysicalAddress',
+      'NSPrivacyCollectedDataTypeOtherFinancialInfo',
+      'NSPrivacyCollectedDataTypePreciseLocation',
+      'NSPrivacyCollectedDataTypeCoarseLocation',
+      'NSPrivacyCollectedDataTypeEmailsOrTextMessages',
+      'NSPrivacyCollectedDataTypePhotosorVideos',
+      'NSPrivacyCollectedDataTypeCustomerSupport',
+      'NSPrivacyCollectedDataTypeOtherUserContent',
+      'NSPrivacyCollectedDataTypeUserID',
+      'NSPrivacyCollectedDataTypeDeviceID',
+      'NSPrivacyCollectedDataTypePurchaseHistory',
+      'NSPrivacyCollectedDataTypeProductInteraction',
+      'NSPrivacyCollectedDataTypeCrashData',
+      'NSPrivacyCollectedDataTypeOtherDiagnosticData',
+    ]) {
+      expect(manifest, contains('<string>$dataType</string>'),
+          reason: dataType);
+    }
+    expect(manifest, isNot(contains('PurposeAnalytics')));
+    expect(manifest, isNot(contains('PurposeThirdPartyAdvertising')));
   });
 }
