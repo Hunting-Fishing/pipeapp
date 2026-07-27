@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_support.dart';
 
 class MarketplaceReportReason {
   const MarketplaceReportReason(
@@ -365,7 +366,7 @@ class AdminModerationDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 3,
+        length: 4,
         child: Column(
           children: [
             const Material(
@@ -381,6 +382,9 @@ class AdminModerationDashboard extends StatelessWidget {
                     text: 'Dispatch providers',
                   ),
                   Tab(icon: Icon(Icons.gpp_bad_outlined), text: 'Reports'),
+                  Tab(
+                      icon: Icon(Icons.support_agent_outlined),
+                      text: 'Support'),
                 ],
               ),
             ),
@@ -390,6 +394,7 @@ class AdminModerationDashboard extends StatelessWidget {
                   _AccountVerificationQueue(),
                   _DispatchProviderReviewQueue(),
                   _ModerationCaseQueue(),
+                  AdminSupportQueue(),
                 ],
               ),
             ),

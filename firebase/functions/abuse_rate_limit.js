@@ -14,6 +14,7 @@ const RATE_LIMITS = Object.freeze({
   reporting: 20,
   media: 60,
   privacy: 10,
+  support: 10,
 });
 const WINDOW_SECONDS = 60 * 60;
 

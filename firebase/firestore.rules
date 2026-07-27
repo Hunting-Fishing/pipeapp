@@ -547,6 +547,24 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /support_cases/{caseId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /support_case_events/{eventId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /support_command_receipts/{receiptId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.actorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /media_upload_authorizations/{authorizationId} {
       allow read: if isAdmin() ||
         (signedIn() && resource.data.ownerUid == request.auth.uid);
