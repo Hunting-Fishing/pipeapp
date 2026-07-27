@@ -12,7 +12,10 @@ permissions:
 jobs:
   verify:
     runs-on: windows-latest
-    timeout-minutes: 45
+    # Windows cold runners can spend more than 35 minutes installing the
+    # Android and Firebase toolchains before the emulator suites begin. Keep
+    # the full production gate and give it an evidence-based completion budget.
+    timeout-minutes: 75
     env:
       FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
 
@@ -33,11 +36,16 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          cache: gradle
 
       - name: Install Functions Node runtime
         uses: actions/setup-node@v6.4.0
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            firebase/functions/package-lock.json
+            firebase/rules-tests/package-lock.json
 
       - name: Restore Flutter dependencies
         run: flutter pub get
@@ -107,7 +115,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high --prefix firebase/rules-tests
 
       - name: Install pinned Firebase CLI
-        run: npm install --global firebase-tools@15.24.0
+        run: npm install --global firebase-tools@15.24.0 --no-audit --no-fund
 
       - name: Test Firestore and Storage security rules
         run: >
