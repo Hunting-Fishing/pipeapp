@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "environment": "staging",
+  "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA",
+  "executedAt": "REPLACE_WITH_UTC_ISO_TIMESTAMP",
+  "journeys": [
+    {"id": "account-ownership-profile-media", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "listing-lifecycle", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "saved-state-recovery", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "communications-moderation", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "offers-transactions", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "auctions-settlement", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "dispatch-delivery", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "failure-and-retry", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "administrator-security", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "deployment-and-recovery", "status": "pending", "tester": "", "evidenceFiles": []}
+  ],
+  "recovery": [
+    {"id": "hosting-rollback", "status": "pending", "actualMinutes": null, "evidenceFiles": []},
+    {"id": "functions-rules-rollback", "status": "pending", "actualMinutes": null, "evidenceFiles": []},
+    {"id": "firestore-backup-restore", "status": "pending", "actualMinutes": null, "evidenceFiles": []}
+  ],
+  "defects": {
+    "reviewedAt": "REPLACE_WITH_UTC_ISO_TIMESTAMP",
+    "reviewedBy": "",
+    "items": []
+  },
+  "signoffs": [
+    {"id": "product", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "engineering", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "security", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "trust-and-safety", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "support", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "privacy", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "legal", "status": "pending", "approvedBy": "", "approvedAt": ""}
+  ]
+}

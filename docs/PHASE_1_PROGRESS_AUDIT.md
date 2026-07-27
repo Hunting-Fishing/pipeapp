@@ -2,7 +2,7 @@
 
 Audit date: July 28, 2026
 
-Branch: `agent/phase1-operational-stream-safety`
+Branch: `agent/phase1-release-acceptance-control`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -31,7 +31,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | 4 — Product workflows | No | 89% | Saved listings, normal listing lifecycle, draft-first media publication, bounded Marketplace/Dispatch discovery, review-based Dispatch provider enrollment, recoverable entity routes, and indexed Marketplace filters are locally verified. Browse supports server-side listing type, exact condition, minimum/maximum price, newest, and price sorting across bounded pages, while clearly labelling keyword search as loaded-result scope. Browse, Auctions, seller profiles, owner listings, open Dispatch jobs, personal requests, carrier quotes, per-job bids, and revision histories use one indexed 24-record cursor pager with retry/load-more controls. Listings, Auctions, public profiles, participant conversations, and authenticated Dispatch jobs have encoded GoRouter paths with loading, not-found, access-denied, privacy, and return-to-Marketplace states; Firebase Hosting rewrites browser refreshes to Flutter. Dispatch job links expose only public route/load facts and participant-authorized transaction data, then open Dispatch management or quoting. Dispatch provider applications use verified Auth contact claims, begin in `pending_review`, require an MFA-authorized administrator decision, block quoting until approval, and retain notifications and immutable review history. Dispatch keeps only its newest page live, uses server-side owner/carrier/job filters, and obtains activity totals through aggregate counts instead of downloading records. The map is capped to the 200 newest active records, exposes refresh/error/result-scope states, and excludes private locations; the Dispatch listing picker is capped to 50 newest active records. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Indexed full-text search, true truck-route/geospatial search, native universal-link association, payment release/refund, route calculation, and carrier billing remain incomplete. |
 | 5 — Trust, notifications, policies | No | 88% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, MFA-authorized administrator decisions, required rationale, immutable case history, private affected-user notices, reversible content removal, a 30-day user appeal, administrator appeal review, private support operations, and exact-version policy publication/acceptance/enforcement are locally and emulator verified. External push/email delivery, approved policy text/retention ownership, support staffing, alerting, and staging acceptance remain incomplete. |
 | 6 — Accessibility, performance, QA | No | 82% | Pipe Buyer now has consistent public product naming; generated release artwork; a checked Apple privacy manifest; permission disclosures; no legacy Android storage opt-in; 48-pixel interactions; reading-order keyboard traversal; high-contrast light/dark focus indicators; focused form borders; semantic labels/tooltips; responsive compact offer controls; resilient listing media; a shared success/information/warning/error system with text, icon, and border cues; and bounded conversation, notification, bid, offer, message, saved-item, verification, moderation, and tag streams. Automated tests enforce WCAG AA status-text contrast in both themes, live screen-reader announcements, dismissible feedback, concurrent abuse quotas/retries, bounded activity/history/operations reads, participant-scoped offer queries, batch ceilings, 200% text, viewport, touch-target, branding, privacy, permission, signing, retry, authorization, and size contracts. The clean analyzer, 103 Flutter tests, 99 Function tests, validated indexes, ARM64 Android, production web, an actual WebAssembly build, and the fail-closed signing guard pass locally. Signed mobile installation, Apple archive and linked-SDK privacy review, complete manual screen-reader/keyboard/contrast acceptance, physical-device matrices, store metadata/screenshots, and representative staging load testing remain incomplete. |
-| 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
+| 7 — Release readiness | No | 10% | A quality workflow and a release-SHA-bound acceptance validator exist. The validator requires all ten journeys, measured Hosting/Functions/Rules/data recovery controls, a reviewed defect inventory with no open P0/critical/high defects, and named product, engineering, security, Trust & Safety, support, privacy, and legal approvals. It rejects missing, stale, mismatched, unsafe-path, and incomplete evidence and hashes retained artifacts. Actual staging rehearsal, operational ownership, backup restore, rollback proof, launch review, monitoring, approvals, and invitation-only pilot remain incomplete. |
 
 Overall Phase 1 launch readiness estimate: **90%**.
 
@@ -447,10 +447,11 @@ staging deployment matches exactly and passes end-to-end acceptance.
   Registry require the staging project to be upgraded to the Blaze plan.
 - App Check and Workload Identity configuration are intentionally absent, so
   staging and production deployments still fail closed.
-- The July 28 retry authenticated as `jordilwbailey@gmail.com`, confirmed zero
-  staging Functions and 70 reviewed exports, then stopped when Google again
-  rejected Cloud Build enablement because `pipebuyer-5c77f` was not on Blaze.
-  No Function was created and production was never selected.
+- The July 28 retry used the pinned Firebase CLI 15.24.0, authenticated as
+  `jordilwbailey@gmail.com`, confirmed zero staging Functions and 70 reviewed
+  exports, then stopped when Google again rejected Cloud Build and Artifact
+  Registry enablement because `pipebuyer-5c77f` was not on Blaze. No Function
+  was created and production was never selected.
 - The Function runtime now pins the affected transitive UUID dependency to
   11.1.1. The audit changed from 7 moderate findings to 0; 95 Function tests,
   36 Firestore/Storage Rules tests, and the authenticated four-service emulator
