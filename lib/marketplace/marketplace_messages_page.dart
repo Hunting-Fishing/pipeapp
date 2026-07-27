@@ -971,7 +971,10 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('offers')
+            .where('listingId', isEqualTo: listingId)
             .where(roleField, isEqualTo: uid)
+            .orderBy('createdAt', descending: true)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -980,7 +983,6 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
           }
           final events = snapshot.data!.docs
               .where((doc) =>
-                  doc.data()['listingId'] == listingId &&
                   (isSeller || doc.data()['buyerUid'] == buyerUid) &&
                   doc.data()['sellerUid'] == sellerUid &&
                   doc.data()['status'] != 'archived')
@@ -1016,6 +1018,14 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                       ? event.data()['offeredTotal'] as num
                       : best);
           return Column(children: [
+            if (snapshot.data!.docs.length == defaultActivityFeedLimit)
+              const ListTile(
+                dense: true,
+                leading: Icon(Icons.info_outline),
+                title: Text('Showing the latest 100 offer updates'),
+                subtitle: Text(
+                    'Older revisions remain in the authoritative transaction history.'),
+              ),
             if (isSeller)
               Container(
                   width: double.infinity,
@@ -2163,6 +2173,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 .doc(widget.conversationId)
                 .collection('messages')
                 .orderBy('createdAt', descending: true)
+                .limit(defaultActivityFeedLimit)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -2200,11 +2211,22 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                               textAlign: TextAlign.center)
                         ])));
               }
+              final reachedWindow =
+                  snapshot.data!.docs.length == defaultActivityFeedLimit;
               return ListView.builder(
                 reverse: true,
                 padding: const EdgeInsets.all(12),
-                itemCount: snapshot.data!.docs.length,
+                itemCount: snapshot.data!.docs.length + (reachedWindow ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (reachedWindow && index == snapshot.data!.docs.length) {
+                    return const ListTile(
+                      dense: true,
+                      leading: Icon(Icons.info_outline),
+                      title: Text('Showing the latest 100 messages'),
+                      subtitle: Text(
+                          'Older messages remain stored in the conversation record.'),
+                    );
+                  }
                   final message = snapshot.data!.docs[index].data();
                   final mine = message['senderUid'] == uid;
                   final hiddenByModeration =

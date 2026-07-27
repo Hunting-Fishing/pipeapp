@@ -1234,6 +1234,8 @@ class _BidHistory extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('auction_bids')
           .where('listingId', isEqualTo: listingId)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
           .snapshots(),
       builder: (context, snapshot) {
         final bids = snapshot.data?.docs.toList() ?? []
@@ -1248,37 +1250,47 @@ class _BidHistory extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 20),
               child: Text('No bids yet. Be the first bidder.'));
         }
-        return Column(
-            children: bids.map((bid) {
-          final data = bid.data();
-          final uid = FirebaseAuth.instance.currentUser?.uid;
-          final start = (listing['auctionStartAt'] as Timestamp?)?.toDate();
-          final canWithdraw = listing['customAuction'] == true &&
-              start != null &&
-              !DateTime.now().isBefore(start.add(const Duration(days: 32))) &&
-              data['bidderUid'] == uid &&
-              data['status'] != 'withdrawn' &&
-              data['status'] != 'buy_now';
-          return ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-              title: Text(marketplaceMoney(data['amount'] as num? ?? 0)),
-              subtitle: Text(data['status'] == 'withdrawn'
-                  ? 'Withdrawn'
-                  : data['createdAt'] is Timestamp
-                      ? (data['createdAt'] as Timestamp)
-                          .toDate()
-                          .toLocal()
-                          .toString()
-                      : 'Submitting…'),
-              trailing: data['status'] == 'withdrawn'
-                  ? const Chip(label: Text('WITHDRAWN'))
-                  : canWithdraw
-                      ? TextButton.icon(
-                          onPressed: () => _confirmWithdrawal(context, bid.id),
-                          icon: const Icon(Icons.undo, size: 18),
-                          label: const Text('Withdraw'))
-                      : null);
-        }).toList());
+        return Column(children: [
+          if (bids.length == defaultActivityFeedLimit)
+            const ListTile(
+              dense: true,
+              leading: Icon(Icons.info_outline),
+              title: Text('Showing the latest 100 bids'),
+              subtitle: Text(
+                  'The complete authoritative history remains stored for review.'),
+            ),
+          ...bids.map((bid) {
+            final data = bid.data();
+            final uid = FirebaseAuth.instance.currentUser?.uid;
+            final start = (listing['auctionStartAt'] as Timestamp?)?.toDate();
+            final canWithdraw = listing['customAuction'] == true &&
+                start != null &&
+                !DateTime.now().isBefore(start.add(const Duration(days: 32))) &&
+                data['bidderUid'] == uid &&
+                data['status'] != 'withdrawn' &&
+                data['status'] != 'buy_now';
+            return ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                title: Text(marketplaceMoney(data['amount'] as num? ?? 0)),
+                subtitle: Text(data['status'] == 'withdrawn'
+                    ? 'Withdrawn'
+                    : data['createdAt'] is Timestamp
+                        ? (data['createdAt'] as Timestamp)
+                            .toDate()
+                            .toLocal()
+                            .toString()
+                        : 'Submitting…'),
+                trailing: data['status'] == 'withdrawn'
+                    ? const Chip(label: Text('WITHDRAWN'))
+                    : canWithdraw
+                        ? TextButton.icon(
+                            onPressed: () =>
+                                _confirmWithdrawal(context, bid.id),
+                            icon: const Icon(Icons.undo, size: 18),
+                            label: const Text('Withdraw'))
+                        : null);
+          }),
+        ]);
       });
 
   Future<void> _confirmWithdrawal(BuildContext context, String bidId) async {

@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-semantic-feedback`
+Baseline branch: `agent/phase1-operational-stream-safety`
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 89%
+Current overall launch-readiness estimate: 90%
 
 Completed gates: 1 of 8
 
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 79% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic status feedback, bounded activity feeds, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
+| 6 — Accessibility, performance, and QA | 82% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic status feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
 | 7 — Release readiness | 5% — incomplete |
 
 Gate 0 implementation evidence:
@@ -424,6 +424,16 @@ below Firestore's 500-operation batch ceiling. Contract tests prevent these
 limits from being removed. Backend load tests also prove that 64 simultaneous
 unique requests cannot exceed a 20-request quota and 50 simultaneous retries
 consume one quota unit. The Function suite now passes 98 tests.
+
+Bid histories, negotiation revisions, message threads, saved listings,
+verification queues, moderation notices, and profile/tag data now have
+explicit live-query ceilings. Offer histories are scoped to the active listing
+and participant before download, with a checked buyer-side composite index.
+User-facing history surfaces disclose when the latest-100 window has been
+reached instead of implying that the visible set is complete. This expanded
+checkpoint passes a clean analyzer, 103 Flutter tests, 99 Function/policy
+tests, a validated Firestore index file, an ARM64 Android artifact, and a
+production web build with a successful Wasm dry run.
 
 Exit evidence:
 

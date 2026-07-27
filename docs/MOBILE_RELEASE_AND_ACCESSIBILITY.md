@@ -130,6 +130,12 @@ and a 450-operation maximum so they cannot exceed Firestore's batch limit.
 Concurrent backend tests prove unique requests cannot oversubscribe their
 quota and retries consume only one unit.
 
+Bid and offer histories, message threads, saved listings, account-verification
+reviews, moderation notices, and profile/tag streams also use explicit
+ceilings. Reached history windows are disclosed in the UI, and offer reads are
+scoped by listing and participant before download. The buyer-side offer query
+is backed by a checked-in composite index.
+
 The baseline does not replace human acceptance. Gate 6 still requires:
 
 - TalkBack and VoiceOver journey testing;

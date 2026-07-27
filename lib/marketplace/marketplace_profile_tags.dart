@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/data/bounded_firestore_query.dart';
 import 'marketplace_admin_access.dart';
 
 class MarketplaceProfileTags extends StatefulWidget {
@@ -37,6 +38,8 @@ class _MarketplaceProfileTagsState extends State<MarketplaceProfileTags> {
           stream: FirebaseFirestore.instance
               .collection('marketplace_tags')
               .where('status', isEqualTo: 'approved')
+              .orderBy('label')
+              .limit(defaultReferenceDataLimit)
               .snapshots(),
           builder: (context, catalogSnapshot) => StreamBuilder<
                   QuerySnapshot<Map<String, dynamic>>>(
@@ -44,6 +47,7 @@ class _MarketplaceProfileTagsState extends State<MarketplaceProfileTags> {
                   .collection('users')
                   .doc(user.uid)
                   .collection('profile_tags')
+                  .limit(defaultActivityFeedLimit)
                   .snapshots(),
               builder: (context, selectedSnapshot) {
                 final selected = {
@@ -255,6 +259,8 @@ class _TagModerationPanel extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('tag_requests')
           .where('status', isEqualTo: 'pending')
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
           .snapshots(),
       builder: (context, snapshot) {
         final requests = snapshot.data?.docs ?? const [];
