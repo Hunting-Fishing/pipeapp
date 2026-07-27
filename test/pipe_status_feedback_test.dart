@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/core/accessibility/pipe_accessibility_theme.dart';
@@ -30,6 +32,29 @@ void main() {
     expect(dark, isNotNull);
     expect(light!.error.background, const Color(0xFFFFEBEF));
     expect(dark!.error.background, const Color(0xFF441824));
+  });
+
+  test('critical commerce commands use controlled semantic feedback', () {
+    for (final path in const [
+      'lib/marketplace/marketplace_auction_settlement.dart',
+      'lib/marketplace/marketplace_dispatch_transaction.dart',
+      'lib/marketplace/marketplace_auctions_page.dart',
+    ]) {
+      final source = File(path).readAsStringSync();
+      expect(source, contains('PipeFeedback.show('), reason: path);
+      expect(source, contains('marketplaceCommandErrorMessage('), reason: path);
+      expect(source, isNot(contains('ScaffoldMessenger.of(')), reason: path);
+    }
+
+    final messages = File(
+      'lib/marketplace/marketplace_messages_page.dart',
+    ).readAsStringSync();
+    expect(RegExp(r'PipeFeedback\.show\(').allMatches(messages).length,
+        greaterThanOrEqualTo(10));
+    expect(
+      messages,
+      contains('The transaction could not be updated. Nothing was changed.'),
+    );
   });
 
   testWidgets('status surfaces announce meaning and survive 200 percent text',

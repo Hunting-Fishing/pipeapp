@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-release-acceptance-control`
+Baseline branch: `agent/phase1-commerce-feedback-safety`
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 90%
+Current overall launch-readiness estimate: 91%
 
 Completed gates: 1 of 8
 
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 82% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic status feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
+| 6 — Accessibility, performance, and QA | 85% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic commerce feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
 | 7 — Release readiness | 10% — machine-validated release evidence contract locally verified; rehearsal and approvals incomplete |
 
 Gate 0 implementation evidence:
@@ -435,6 +435,16 @@ reached instead of implying that the visible set is complete. This expanded
 checkpoint passes a clean analyzer, 103 Flutter tests, 99 Function/policy
 tests, a validated Firestore index file, an ARM64 Android artifact, and a
 production web build with a successful Wasm dry run.
+
+Critical auction, offer, marketplace-transaction, Dispatch-transaction,
+message, and chat-image outcomes now use the same accessible live-region
+feedback system. Success and failure are conveyed through text, icon, border,
+and AA-checked colors. A shared command-error boundary preserves short
+actionable server messages while suppressing raw Firebase internals and unknown
+exception text. Source contracts prevent critical commerce surfaces from
+returning to raw SnackBars. The checkpoint passes a clean analyzer, 107 Flutter
+tests, an ARM64 Android artifact, and a production web build with a successful
+Wasm dry run.
 
 Exit evidence:
 

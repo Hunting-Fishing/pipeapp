@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_repository.dart';
 import 'marketplace_money.dart';
 
@@ -417,15 +419,19 @@ class _MarketplaceDispatchTransactionCardState
     try {
       await command();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.green, content: Text(message)),
+        PipeFeedback.show(
+          context,
+          message: message,
+          tone: PipeStatusTone.success,
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        PipeFeedback.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('$error')));
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/config/phase1_feature_flags.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
@@ -13,6 +14,7 @@ import 'marketplace_reporting.dart';
 
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_offer_schedule.dart';
@@ -849,18 +851,26 @@ class _ConversationNegotiationPanelState
             dispatchDelivery: dispatchDeliveryLocation?.publicName.trim() ?? '',
             dispatchDeliveryLocation: dispatchDeliveryLocation);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(truckingPlan ==
-                      MarketplaceTruckingPlan.requestDispatch
-                  ? 'Offer submitted. Dispatch request is live for carrier bids.'
-                  : initialOffer == null
-                      ? 'Offer submitted and added to offer history.'
-                      : 'Counter offer sent and added to offer history.')));
+          PipeFeedback.show(
+            context,
+            message: truckingPlan == MarketplaceTruckingPlan.requestDispatch
+                ? 'Offer submitted. Dispatch request is live for carrier bids.'
+                : initialOffer == null
+                    ? 'Offer submitted and added to offer history.'
+                    : 'Counter offer sent and added to offer history.',
+            tone: PipeStatusTone.success,
+          );
         }
-      } catch (_) {
+      } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('The proposal could not be sent.')));
+          PipeFeedback.show(
+            context,
+            message: marketplaceCommandErrorMessage(
+              error,
+              fallback: 'The proposal could not be sent. Try again.',
+            ),
+            tone: PipeStatusTone.error,
+          );
         }
       }
     }
@@ -1425,10 +1435,16 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               title: listingTitle,
               openOfferComposer: openOfferComposer,
               initialOffer: openOfferComposer ? offer : null)));
-    } catch (_) {
+    } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('The buyer conversation could not be opened.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The buyer conversation could not be opened.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -1449,16 +1465,23 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     try {
       await MarketplaceActionsRepository().acceptOffer(offerId);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Offer accepted. Other offers were archived.')));
+        PipeFeedback.show(
+          context,
+          message: 'Offer accepted. Other offers were archived.',
+          tone: PipeStatusTone.success,
+        );
         await _openBuyerConversation(context, offer, offerId);
       }
-    } catch (_) {
+    } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('The offer could not be accepted.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The offer could not be accepted. Nothing was changed.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -1747,14 +1770,15 @@ class _MarketplaceTransactionPanelState
         reason: reason,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: Colors.green,
-        content: Text(action == 'confirm_completion'
+      PipeFeedback.show(
+        context,
+        message: action == 'confirm_completion'
             ? 'Your confirmation was recorded.'
             : action == 'cancel'
                 ? 'The transaction was cancelled.'
-                : 'The dispute was opened for review.'),
-      ));
+                : 'The dispute was opened for review.',
+        tone: PipeStatusTone.success,
+      );
     } catch (error, stackTrace) {
       AppDiagnostics.record(
         error,
@@ -1764,12 +1788,12 @@ class _MarketplaceTransactionPanelState
         fatal: false,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(
-            'The transaction could not be updated. Nothing was changed. Try again.',
-          ),
-        ));
+        PipeFeedback.show(
+          context,
+          message:
+              'The transaction could not be updated. Nothing was changed. Try again.',
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1827,11 +1851,16 @@ class _MarketplaceTransactionPanelState
           ],
         ),
       );
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Transaction history could not be loaded.'),
-        ));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Transaction history could not be loaded.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -2361,8 +2390,11 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         members.where((member) => member != currentUid).firstOrNull;
     if (otherUid == null || !mounted) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('The other member’s profile is unavailable.')));
+        PipeFeedback.show(
+          context,
+          message: 'The other member’s profile is unavailable.',
+          tone: PipeStatusTone.warning,
+        );
       }
       return;
     }
@@ -2378,10 +2410,16 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
           attachment: _attachment);
       _controller.clear();
       setState(() => _attachment = null);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Message could not be sent.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Message could not be sent. Try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -2432,9 +2470,11 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
       final sizeBytes = await file.length();
       if (sizeBytes > 15 * 1024 * 1024) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              behavior: SnackBarBehavior.floating,
-              content: Text('Attachment must be under 15 MB.')));
+          PipeFeedback.show(
+            context,
+            message: 'Attachment must be under 15 MB.',
+            tone: PipeStatusTone.warning,
+          );
         }
         return;
       }
@@ -2468,26 +2508,32 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               'url': url,
               'name': file.name
             });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
-            content: Text('Image attached. Add a message or press Send.')));
+        PipeFeedback.show(
+          context,
+          message: 'Image attached. Add a message or press Send.',
+          tone: PipeStatusTone.success,
+        );
       }
     } on FirebaseException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-            content: Text(error.code == 'unauthorized'
-                ? 'Image upload is not authorized. Refresh your account and try again.'
-                : 'Image upload failed (${error.code}). Please try again.')));
+        PipeFeedback.show(
+          context,
+          message: error.code == 'unauthorized'
+              ? 'Image upload is not authorized. Refresh your account and try again.'
+              : 'Image upload failed. Please try again.',
+          tone: PipeStatusTone.error,
+        );
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-            content: Text('Could not attach this image. Try another file.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Could not attach this image. Try another file.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
