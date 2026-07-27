@@ -4076,6 +4076,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   bool _selectingVideo = false;
   int _mediaCompleted = 0;
   int _mediaTotal = 0;
+  double _mediaProgress = 0;
   String? _backgroundUploadMessage;
   String? _pendingDraftId;
   String? _pendingPublishRequestId;
@@ -5278,9 +5279,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                       LinearProgressIndicator(
                           value: _mediaTotal == 0
                               ? null
-                              : _mediaCompleted / _mediaTotal),
+                              : _mediaProgress.clamp(0, 1)),
                       const SizedBox(height: 5),
-                      Text('$_mediaCompleted of $_mediaTotal files uploaded',
+                      Text(
+                          '${(_mediaProgress * 100).round()}% • $_mediaCompleted of $_mediaTotal files complete',
                           style: const TextStyle(fontSize: 11, color: _muted)),
                     ],
                   ),
@@ -5750,10 +5752,61 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   }
 
   Future<void> _selectPhotos() async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Add listing photos',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            ),
+            const SizedBox(height: 6),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                  'Choose existing photos or use this device camera. You can select the thumbnail before publishing.'),
+            ),
+            const SizedBox(height: 14),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from device'),
+              subtitle: const Text('Select one or more JPEG or PNG photos'),
+              onTap: () => Navigator.pop(sheetContext, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              subtitle: const Text('Open the camera for one new photo'),
+              onTap: () => Navigator.pop(sheetContext, 'camera'),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
     setState(() => _selectingPhotos = true);
     List<XFile> selected = const [];
+    var pickerFailed = false;
     try {
-      selected = await _mediaRepository.pickPhotos(_photos.length);
+      if (source == 'camera') {
+        final photo = await _mediaRepository.capturePhoto(_photos.length);
+        if (photo != null) selected = [photo];
+      } else {
+        selected = await _mediaRepository.pickPhotos(_photos.length);
+      }
+    } on MissingPluginException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } on PlatformException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
     } finally {
       if (mounted) setState(() => _selectingPhotos = false);
     }
@@ -5762,9 +5815,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _photos.addAll(selected);
       if (_photos.isNotEmpty) _thumbnailPhotoIndex ??= 0;
     });
-    if (selected.isEmpty) {
+    if (selected.isEmpty && !pickerFailed) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No eligible photos selected. Maximum is 5 MB each.')));
+          content: Text(
+              'No photo was added. Use JPEG or PNG files no larger than 5 MB each.')));
     }
   }
 
@@ -5784,18 +5838,48 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   Future<void> _selectVideo() async {
     setState(() => _selectingVideo = true);
     XFile? selected;
+    var pickerFailed = false;
     try {
       selected = await _mediaRepository.pickVideo();
+    } on MissingPluginException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } on PlatformException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
     } finally {
       if (mounted) setState(() => _selectingVideo = false);
     }
     if (!mounted) return;
-    if (selected == null) {
+    if (selected == null && !pickerFailed) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Video must be 45 seconds or less and under 25 MB.')));
       return;
     }
+    if (selected == null) return;
     setState(() => _video = selected);
+  }
+
+  void _showMediaPickerError(Object error) {
+    if (!mounted) return;
+    final message = switch (error) {
+      PlatformException(code: 'camera_access_denied') =>
+        'Camera access was denied. Allow camera access in device settings and try again.',
+      PlatformException(code: 'photo_access_denied') =>
+        'Photo access was denied. Allow photo access in device settings and try again.',
+      MissingPluginException() =>
+        'The photo chooser is unavailable. Refresh the app or restart it after installation.',
+      _ =>
+        'The selected media could not be opened. Try another file or restart the chooser.',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Colors.red.shade700,
+      content: Text(message),
+    ));
   }
 
   Future<void> _publish() async {
@@ -6103,6 +6187,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _pendingPublishRequestId = null;
       _mediaCompleted = 0;
       _mediaTotal = 0;
+      _mediaProgress = 0;
       _backgroundUploadMessage = null;
       try {
         await _showPublishedOptions(listingId);
@@ -6117,10 +6202,12 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     } catch (error) {
       debugPrint('Listing publication failed: $error');
       if (mounted) {
-        final message = error is StateError
-            ? error.message.toString()
-            : 'The listing could not be published. Your form is still here; '
-                'check your connection and try again.';
+        final message = switch (error) {
+          StateError() => error.message.toString(),
+          MarketplaceMediaUploadException() => error.userMessage,
+          _ => 'The listing could not be published. Your form is still here; '
+              'check your connection and try again.',
+        };
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.red.shade700,
@@ -6143,6 +6230,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       setState(() {
         _mediaCompleted = 0;
         _mediaTotal = total;
+        _mediaProgress = 0;
         _backgroundUploadMessage =
             'Uploading selected media before the listing becomes public…';
       });
@@ -6154,8 +6242,15 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         listingId: listingId,
         photos: photos,
         video: video,
-        onProgress: (completed, _) {
-          if (mounted) setState(() => _mediaCompleted = completed);
+        onProgress: (progress) {
+          if (!mounted) return;
+          setState(() {
+            _mediaCompleted = progress.completedFiles;
+            _mediaProgress = progress.overallProgress;
+            _backgroundUploadMessage = progress.retrying
+                ? 'Connection interrupted — retrying ${progress.currentFile} (${progress.attempt} of ${progress.maxAttempts})'
+                : 'Uploading ${progress.currentFile}…';
+          });
         },
       );
       await _repository.updateListingDraftMedia(listingId,
@@ -6167,6 +6262,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (mounted) {
         setState(() {
           _mediaCompleted = total;
+          _mediaProgress = 1;
           _backgroundUploadMessage =
               'Media upload complete — finalizing publication…';
         });

@@ -59,6 +59,16 @@ icon-only actions now expose visible tooltips and explicit semantic labels.
 Automated widget coverage verifies minimum target size, a 200 percent text-scale
 scenario, and an accessible icon action.
 
+Listing media now presents an explicit camera-or-gallery choice, catches denied
+permissions and unavailable platform plugins, revalidates size before storage,
+and reports monotonic byte progress instead of only completed-file counts.
+Transient storage failures retry at the same deterministic object path up to
+three times; authentication, authorization, quota, and size failures stop with
+an actionable message. A failed upload leaves the listing private and retryable
+rather than exposing a partially populated listing. Automated tests cover
+retry recovery, monotonic progress, fail-fast authorization, and upload-time
+size enforcement.
+
 The baseline does not replace human acceptance. Gate 6 still requires:
 
 - TalkBack and VoiceOver journey testing;
