@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../core/data/bounded_firestore_query.dart';
 import 'marketplace_location.dart';
 import 'marketplace_command_client.dart';
 
@@ -35,6 +36,7 @@ class MarketplaceActionsRepository {
         .doc(userUid)
         .collection('saved_listings')
         .orderBy('savedAt', descending: true)
+        .limit(defaultReferenceDataLimit)
         .snapshots()
         .map(
             (snapshot) => snapshot.docs.map((document) => document.id).toSet());

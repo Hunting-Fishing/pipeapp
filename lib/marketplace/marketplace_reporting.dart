@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/data/bounded_firestore_query.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
@@ -413,6 +414,8 @@ class _AccountVerificationQueue extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('verification_requests')
             .where('status', isEqualTo: 'pending')
+            .orderBy('requestedAt', descending: true)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {

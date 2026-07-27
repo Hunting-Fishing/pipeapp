@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 const defaultFirestorePageSize = 24;
 const defaultActivityFeedLimit = 100;
+const defaultReferenceDataLimit = 500;
 const defaultBatchMutationLimit = 450;
 
 class FirestoreDocumentPage {

@@ -209,6 +209,8 @@ Future<void> _showUserScore(
     FirebaseFirestore.instance
         .collection('user_score_events')
         .where('userUid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .limit(defaultActivityFeedLimit)
         .get(),
     FirebaseFirestore.instance
         .collection('public_business_profiles')
@@ -1962,6 +1964,8 @@ class _OwnerBidHistory extends StatelessWidget {
           stream: FirebaseFirestore.instance
               .collection('auction_bids')
               .where('listingId', isEqualTo: listingId)
+              .orderBy('createdAt', descending: true)
+              .limit(defaultActivityFeedLimit)
               .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const LinearProgressIndicator();
@@ -1973,24 +1977,31 @@ class _OwnerBidHistory extends StatelessWidget {
                     .compareTo(at?.millisecondsSinceEpoch ?? 0);
               });
             if (bids.isEmpty) return const Text('No bids received yet.');
-            return Column(
-                children: bids
-                    .map((bid) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const CircleAvatar(
-                            child: Icon(Icons.gavel, size: 18)),
-                        title: Text(
-                            '\$${(bid.data()['amount'] as num? ?? 0).toStringAsFixed(2)}'),
-                        subtitle: Text(bid.data()['createdAt'] is Timestamp
-                            ? (bid.data()['createdAt'] as Timestamp)
-                                .toDate()
-                                .toLocal()
-                                .toString()
-                            : 'Submitting…'),
-                        trailing: bid.data()['status'] == 'buy_now'
-                            ? const Chip(label: Text('BUY NOW'))
-                            : null))
-                    .toList());
+            return Column(children: [
+              if (bids.length == defaultActivityFeedLimit)
+                const ListTile(
+                  dense: true,
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Showing the latest 100 bids'),
+                  subtitle:
+                      Text('Older bids remain stored in the auction record.'),
+                ),
+              ...bids.map((bid) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading:
+                      const CircleAvatar(child: Icon(Icons.gavel, size: 18)),
+                  title: Text(
+                      '\$${(bid.data()['amount'] as num? ?? 0).toStringAsFixed(2)}'),
+                  subtitle: Text(bid.data()['createdAt'] is Timestamp
+                      ? (bid.data()['createdAt'] as Timestamp)
+                          .toDate()
+                          .toLocal()
+                          .toString()
+                      : 'Submitting…'),
+                  trailing: bid.data()['status'] == 'buy_now'
+                      ? const Chip(label: Text('BUY NOW'))
+                      : null))
+            ]);
           });
 }
 
@@ -2433,6 +2444,8 @@ class _ModerationNoticesCard extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('moderation_notices')
           .where('reportedUid', isEqualTo: uid)
+          .orderBy('updatedAt', descending: true)
+          .limit(defaultActivityFeedLimit)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
