@@ -7,7 +7,7 @@ Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 84%
+Current overall launch-readiness estimate: 85%
 
 Completed gates: 1 of 8
 
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 38% — cross-platform product identity, mobile permission disclosures, fail-closed Android release signing, and first accessibility controls locally verified |
+| 6 — Accessibility, performance, and QA | 46% — cross-platform identity, permission disclosures, fail-closed signing, accessible controls, and resilient camera/gallery listing media locally verified |
 | 7 — Release readiness | 5% — incomplete |
 
 Gate 0 implementation evidence:
