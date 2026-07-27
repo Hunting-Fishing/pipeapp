@@ -84,47 +84,44 @@ class MarketplaceAcceptOfferDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final milestones = marketplaceOfferMilestones(offer);
     return AlertDialog(
+      scrollable: true,
       insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
       icon: const Icon(Icons.handshake_outlined,
           size: 40, color: Color(0xFF00BFA5)),
       title: const Text('Accept this offer?'),
       content: SizedBox(
         width: 520,
-        child: SingleChildScrollView(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFEAF8F1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFB7E4CB))),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('OFFER TOTAL',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.green)),
-                    Text(
-                        '${marketplaceMoney(offer['offeredTotal'] as num? ?? 0)} '
-                        'for ${offer['requestedQuantity'] ?? 0} units',
-                        style: const TextStyle(
-                            fontSize: 19, fontWeight: FontWeight.w900)),
-                  ]),
-            ),
-            if (milestones.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              MarketplaceOfferScheduleCard(
-                  milestones: milestones, compact: false),
-            ],
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: const Color(0xFFEAF8F1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFB7E4CB))),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('OFFER TOTAL',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.green)),
+              Text(
+                  '${marketplaceMoney(offer['offeredTotal'] as num? ?? 0)} '
+                  'for ${offer['requestedQuantity'] ?? 0} units',
+                  style: const TextStyle(
+                      fontSize: 19, fontWeight: FontWeight.w900)),
+            ]),
+          ),
+          if (milestones.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Text(
-                'The buyer will be notified, all competing offers for this listing will be archived, and their conversation will open so you can finalize the purchase.'),
-          ]),
-        ),
+            MarketplaceOfferScheduleCard(
+                milestones: milestones, compact: false),
+          ],
+          const SizedBox(height: 12),
+          const Text(
+              'The buyer will be notified, all competing offers for this listing will be archived, and their conversation will open so you can finalize the purchase.'),
+        ]),
       ),
       actions: [
         OutlinedButton.icon(
@@ -159,6 +156,30 @@ class MarketplaceOfferScheduleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (milestones.isEmpty) return const SizedBox.shrink();
+    final largeText = MediaQuery.textScalerOf(context).scale(12) >= 18;
+    final stackedHeader = MediaQuery.sizeOf(context).width < 420 || largeText;
+    final title = const Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.calendar_month_outlined, size: 19, color: Color(0xFF0878E8)),
+      SizedBox(width: 7),
+      Flexible(
+          child: Text('Offer schedule',
+              style: TextStyle(fontWeight: FontWeight.w900))),
+    ]);
+    final openCalendar = TextButton.icon(
+      onPressed: () => _openCalendar(context, milestones.first),
+      icon: const Icon(Icons.open_in_full, size: 15),
+      label: const Text('Open calendar'),
+      style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5)),
+    );
+    final milestoneTiles = milestones
+        .map((milestone) => _MarketplaceMilestoneTile(
+              milestone: milestone,
+              expanded: largeText,
+              onTap: () => _openCalendar(context, milestone),
+            ))
+        .toList();
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 10 : 12),
@@ -170,34 +191,28 @@ class MarketplaceOfferScheduleCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.calendar_month_outlined,
-                size: 19, color: Color(0xFF0878E8)),
-            const SizedBox(width: 7),
-            const Expanded(
-                child: Text('Offer schedule',
-                    style: TextStyle(fontWeight: FontWeight.w900))),
-            TextButton.icon(
-              onPressed: () => _openCalendar(context, milestones.first),
-              icon: const Icon(Icons.open_in_full, size: 15),
-              label: const Text('Open calendar'),
-              style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 5)),
-            ),
-          ]),
+          if (stackedHeader) ...[
+            title,
+            Align(alignment: Alignment.centerLeft, child: openCalendar),
+          ] else
+            Row(children: [
+              Expanded(child: title),
+              openCalendar,
+            ]),
           const SizedBox(height: 7),
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: milestones
-                .map((milestone) => _MarketplaceMilestoneTile(
-                      milestone: milestone,
-                      onTap: () => _openCalendar(context, milestone),
-                    ))
-                .toList(),
-          ),
+          if (largeText)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var index = 0; index < milestoneTiles.length; index++) ...[
+                  milestoneTiles[index],
+                  if (index < milestoneTiles.length - 1)
+                    const SizedBox(height: 7),
+                ],
+              ],
+            )
+          else
+            Wrap(spacing: 7, runSpacing: 7, children: milestoneTiles),
         ],
       ),
     );
@@ -218,10 +233,12 @@ class _MarketplaceMilestoneTile extends StatelessWidget {
   const _MarketplaceMilestoneTile({
     required this.milestone,
     required this.onTap,
+    this.expanded = false,
   });
 
   final MarketplaceOfferMilestone milestone;
   final VoidCallback onTap;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -235,34 +252,43 @@ class _MarketplaceMilestoneTile extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 6, 10, 6),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                width: 34,
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text(_monthShort(milestone.date.month).toUpperCase(),
-                      style: TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          color: milestone.color)),
-                  Text('${milestone.date.day}',
-                      style: const TextStyle(
-                          height: 1,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900)),
+            child: Row(
+                mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 34,
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(_monthShort(milestone.date.month).toUpperCase(),
+                          style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              color: milestone.color)),
+                      Text('${milestone.date.day}',
+                          style: const TextStyle(
+                              height: 1,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900)),
+                    ]),
+                  ),
+                  const SizedBox(width: 7),
+                  Icon(milestone.icon, size: 17, color: milestone.color),
+                  const SizedBox(width: 5),
+                  if (expanded)
+                    Expanded(
+                      child: Text(milestone.shortLabel,
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w800)),
+                    )
+                  else
+                    Text(milestone.shortLabel,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800)),
                 ]),
-              ),
-              const SizedBox(width: 7),
-              Icon(milestone.icon, size: 17, color: milestone.color),
-              const SizedBox(width: 5),
-              Text(milestone.shortLabel,
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w800)),
-            ]),
           ),
         ),
       );
