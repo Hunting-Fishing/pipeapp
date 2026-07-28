@@ -92,6 +92,13 @@ framework metadata, and all Runner build configurations now declare the same
 15.0 minimum, with a test that rejects drift back to the incompatible iOS 14
 baseline. Store metadata must advertise iOS 15 or later.
 
+The iOS 15 build then exposed a hybrid CocoaPods/SPM link: legacy
+`sign_in_with_apple` and `sqflite` releases forced CocoaPods while Firebase was
+already supplied by Swift Package Manager, producing duplicate Firestore
+symbols. Both plugins are now on their SPM-capable production releases
+(`sign_in_with_apple` 8.1.0 and `sqflite` 2.4.3 with `sqflite_darwin` 2.4.3+1),
+so the native dependency graph has one owner for Firebase symbols.
+
 ## Media and location disclosures
 
 Android declares camera access for user-initiated captures and no longer opts

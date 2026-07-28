@@ -65,6 +65,9 @@ void main() {
       ),
     );
     expect(pubspec, contains('flutter_native_splash: ^2.4.8'));
+    expect(pubspec, contains('sign_in_with_apple: 8.1.0'));
+    expect(pubspec, contains('sqflite: 2.4.3'));
+    expect(pubspec, contains('sqflite_common: 2.5.11'));
   });
 
   test('Xcode project object identifiers are unique', () {
