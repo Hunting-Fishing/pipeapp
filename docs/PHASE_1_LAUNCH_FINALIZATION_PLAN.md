@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 89% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, and fail-closed signed-artifact/store/device evidence controls locally verified |
+| 6 — Accessibility, performance, and QA | 90% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, fail-closed signed-artifact/store/device evidence controls, and a required unsigned macOS `iphoneos` release compile gate |
 | 7 — Release readiness | 14% — schema-version-2 release-SHA evidence contract covers product/recovery journeys, signed artifacts, store/privacy review, physical-device/browser scenarios, defects, and approvals; execution remains incomplete |
 
 Gate 0 implementation evidence:
@@ -475,6 +475,14 @@ private evidence root through traversal or directory links, and a synchronized
 operator template is checked in. Seven validator tests and the complete local
 release gate pass. No signed artifact, store approval, privacy review, or
 device execution is credited until its real evidence is supplied.
+
+The required `Quality` workflow now also uses a separate macOS runner to compile
+the unsigned `iphoneos` release target and prove that Xcode produced the
+application bundle. A Flutter contract test prevents removal of the runner,
+release mode, no-signing boundary, output assertion, or unsigned-evidence
+disclaimer. The job detects Apple-native compilation regressions but cannot be
+used as evidence of distribution signing, IPA export, store validation, or a
+physical-device pass.
 
 Exit evidence:
 
