@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 90% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, fail-closed signed-artifact/store/device evidence controls, and a required unsigned macOS `iphoneos` release compile gate |
+| 6 — Accessibility, performance, and QA | 91% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, fail-closed signed-artifact/store/device evidence controls, a green unsigned macOS `iphoneos` release compile gate, and a protected signed-candidate workflow awaiting real credentials and execution |
 | 7 — Release readiness | 14% — schema-version-2 release-SHA evidence contract covers product/recovery journeys, signed artifacts, store/privacy review, physical-device/browser scenarios, defects, and approvals; execution remains incomplete |
 
 Gate 0 implementation evidence:
@@ -491,10 +491,10 @@ compatible JSONPath/Lottie dependency chain, gives every Xcode object a unique
 identifier, and preserves both behaviors with focused tests instead of
 disabling Swift Package Manager.
 
-The migrated Firebase Swift packages also require iOS 15. The Podfile, Flutter
-framework metadata, and every Runner build configuration now declare the same
-15.0 baseline, and a release contract test prevents a partial or incompatible
-deployment-target rollback.
+The migrated Firebase Swift packages also require iOS 15. Flutter framework
+metadata and every Runner build configuration declare the same 15.0 baseline,
+and a release contract test prevents a partial or incompatible deployment-
+target rollback.
 
 The subsequent link phase found duplicate Firestore symbols because the old
 Apple-sign-in and SQLite plugins forced a CocoaPods fallback alongside Firebase
@@ -504,6 +504,15 @@ xcconfig includes are removed. CI explicitly enables Swift Package Manager and
 a source contract rejects renewed CocoaPods integration. This removes the mixed
 native ownership instead of suppressing the linker error or turning Swift
 Package Manager off.
+
+A separate protected manual workflow now accepts only a full release SHA
+contained in `main`, builds a signed Android AAB and Apple IPA with
+environment-scoped credentials, verifies their identifiers, versions,
+signatures, and digests, removes decoded signing material on every outcome, and
+retains candidate evidence for 14 days. Its metadata remains explicitly not
+store-validated, so this repository control does not credit store submission,
+physical-device installation, or final acceptance before those external steps
+are performed.
 
 Exit evidence:
 
