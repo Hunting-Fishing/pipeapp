@@ -71,6 +71,18 @@ void main() {
     expect(pubspec, contains('sqflite_common: 2.5.11'));
   });
 
+  test('quality gate cancels superseded runs for the same PR or ref', () {
+    final workflow = source('.github/workflows/quality.yml');
+    expect(workflow, contains('concurrency:'));
+    expect(
+      workflow,
+      contains(
+        r'group: quality-${{ github.event.pull_request.number || github.ref }}',
+      ),
+    );
+    expect(workflow, contains('cancel-in-progress: true'));
+  });
+
   test('Xcode project object identifiers are unique', () {
     final project = source('ios/Runner.xcodeproj/project.pbxproj');
     final identifiers = RegExp(
