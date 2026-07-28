@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
@@ -167,7 +167,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
