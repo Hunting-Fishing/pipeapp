@@ -122,6 +122,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "sellerUid", "order": "ASCENDING" },
+        { "fieldPath": "imageHashes", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
+      "collectionGroup": "public_listings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sellerUid", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]

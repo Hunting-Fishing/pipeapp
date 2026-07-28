@@ -131,6 +131,15 @@ beforeEach(async () => {
       reason: "fraud_or_scam",
       status: "violation_confirmed",
     });
+    await setDoc(doc(db, "trust_reports", "automated-report"), {
+      reporterUid: "automated-moderation",
+      reportedUid: "seller",
+      targetType: "message",
+      reason: "possible_payment_fraud",
+      status: "pending",
+      humanReviewRequired: true,
+      automaticEnforcement: false,
+    });
     await setDoc(doc(db, "trust_report_events", "report-1-reviewed"), {
       reportId: "report-1",
       event: "reviewed",
@@ -681,6 +690,18 @@ test("moderation notices are private and audit history is administrator-only", a
 
   await assertSucceeds(getDoc(doc(reporterDb, "trust_reports", "report-1")));
   await assertFails(getDoc(doc(reportedDb, "trust_reports", "report-1")));
+  await assertFails(getDoc(
+      doc(reporterDb, "trust_reports", "automated-report"),
+  ));
+  await assertFails(getDoc(
+      doc(reportedDb, "trust_reports", "automated-report"),
+  ));
+  await assertFails(getDoc(
+      doc(strangerDb, "trust_reports", "automated-report"),
+  ));
+  await assertSucceeds(getDoc(
+      doc(adminDb, "trust_reports", "automated-report"),
+  ));
   await assertSucceeds(getDoc(doc(
       reportedDb,
       "moderation_notices",

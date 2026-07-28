@@ -1012,7 +1012,7 @@ class _ModerationCaseQueue extends StatelessWidget {
                   cases.where((e) => e.data()['priority'] == 'high').length,
                   Colors.red),
               _metric(
-                  'AI detected',
+                  'Automated signals',
                   cases.where((e) => e.data()['source'] == 'automated').length,
                   Colors.blue),
             ]),
@@ -1060,6 +1060,13 @@ class _ModerationCaseQueue extends StatelessWidget {
     final attachments = List<Map<String, dynamic>>.from(
         (data['attachments'] as List? ?? const [])
             .map((e) => Map<String, dynamic>.from(e as Map)));
+    final mediaEvidence = List<Map<String, dynamic>>.from(
+        (data['mediaEvidence'] as List? ?? const [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e)));
+    final contentEvidence = data['contentEvidence'] is Map
+        ? Map<String, dynamic>.from(data['contentEvidence'] as Map)
+        : const <String, dynamic>{};
     await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -1077,6 +1084,85 @@ class _ModerationCaseQueue extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(
                           '${data['details'] ?? 'No additional explanation provided.'}'),
+                      if ('${contentEvidence['excerpt'] ?? ''}'
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text('Message evidence',
+                            style: TextStyle(fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: SelectableText(
+                            '${contentEvidence['excerpt']}'
+                            '${contentEvidence['truncated'] == true ? '…' : ''}',
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${contentEvidence['characterCount'] ?? 0} characters'
+                          '${contentEvidence['truncated'] == true ? ' • excerpt limited for review' : ''}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                      if (mediaEvidence.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text('Exact-photo comparison',
+                            style: TextStyle(fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: mediaEvidence.map((item) {
+                            final photoUrl = '${item['photoUrl'] ?? ''}';
+                            final title =
+                                '${item['listingTitle'] ?? ''}'.trim();
+                            return SizedBox(
+                              width: 170,
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 170,
+                                      height: 110,
+                                      child: photoUrl.isEmpty
+                                          ? const Icon(Icons
+                                              .image_not_supported_outlined)
+                                          : Image.network(
+                                              photoUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const Icon(Icons
+                                                      .broken_image_outlined),
+                                            ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Text(
+                                        title.isEmpty
+                                            ? '${item['listingId'] ?? 'Listing'}'
+                                            : title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                       if (attachments.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         const Text('Evidence',
