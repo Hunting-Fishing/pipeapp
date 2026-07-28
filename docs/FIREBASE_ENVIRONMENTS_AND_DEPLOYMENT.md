@@ -70,9 +70,14 @@ Configure these Environment variables in each:
 - `PIPE_FIREBASE_MESSAGING_SENDER_ID`
 - `PIPE_FIREBASE_WEB_APP_ID`
 - `PIPE_FIREBASE_MEASUREMENT_ID` (optional)
+- `PIPE_PUBLIC_SUPPORT_EMAIL`
 - `PIPE_APP_CHECK_WEB_RECAPTCHA_KEY`
 - `GOOGLE_WORKLOAD_IDENTITY_PROVIDER`
 - `GOOGLE_DEPLOY_SERVICE_ACCOUNT`
+
+`PIPE_PUBLIC_SUPPORT_EMAIL` must be a monitored, public organizational
+mailbox. Controlled staging and production startup fail closed if it is missing
+or malformed. Do not use a developer's private address as a silent fallback.
 
 Configure this Environment secret separately in each Environment:
 
@@ -155,8 +160,9 @@ Before deployment, the workflow generates `build/release-manifest.json`. It
 records the exact commit and environment, explicit Firebase project, expected
 Function names, Functions source hash, Firebase config/rules/index hashes, and
 the deterministic web artifact hash. Controlled manifests reject uncommitted
-tracked source and record the exact App Check rollout state. The manifest is
-included in the protected workflow summary as release evidence.
+tracked source, reject a missing public support address, and record both that
+address and the exact App Check rollout state. The manifest is included in the
+protected workflow summary as release evidence.
 
 The Firebase CLI deployment message records the selected environment, exact
 release SHA, and GitHub workflow run. Whether deployment succeeds or fails, the

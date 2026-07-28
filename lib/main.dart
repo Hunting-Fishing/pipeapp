@@ -11,6 +11,7 @@ import 'auth/firebase_auth/auth_util.dart';
 import 'backend/firebase/firebase_config.dart';
 import 'core/accessibility/pipe_accessibility_theme.dart';
 import 'core/accessibility/pipe_status_feedback.dart';
+import 'core/config/public_release_config.dart';
 import 'core/diagnostics/app_diagnostics.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
@@ -38,6 +39,7 @@ Future<void> _bootstrapPipeBuyer() async {
 
 Future<void> _initializePipeBuyer() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PublicReleaseConfiguration.current.validate();
   ErrorWidget.builder = (details) => Builder(
         builder: (context) => Material(
           color: Theme.of(context).colorScheme.surface,

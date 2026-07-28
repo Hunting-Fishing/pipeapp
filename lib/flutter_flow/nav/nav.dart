@@ -14,6 +14,7 @@ import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
 import '/marketplace/marketplace_dispatch_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
+import '/marketplace/marketplace_public_information.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
 
 export 'package:go_router/go_router.dart';
@@ -129,6 +130,34 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           requireAuth: true,
           builder: (context, params) => MarketplaceDispatchJobRoutePage(
             jobId: params.getParam<String>('jobId', ParamType.string) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.privacyRouteName,
+          path: MarketplaceDeepLinks.privacyPath,
+          builder: (context, params) => const MarketplacePublicInformationPage(
+            kind: MarketplacePublicInformationKind.privacy,
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.termsRouteName,
+          path: MarketplaceDeepLinks.termsPath,
+          builder: (context, params) => const MarketplacePublicInformationPage(
+            kind: MarketplacePublicInformationKind.terms,
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.supportRouteName,
+          path: MarketplaceDeepLinks.supportPath,
+          builder: (context, params) => const MarketplacePublicInformationPage(
+            kind: MarketplacePublicInformationKind.support,
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.accountDeletionRouteName,
+          path: MarketplaceDeepLinks.accountDeletionPath,
+          builder: (context, params) => const MarketplacePublicInformationPage(
+            kind: MarketplacePublicInformationKind.accountDeletion,
           ),
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),

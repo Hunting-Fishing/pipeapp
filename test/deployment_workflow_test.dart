@@ -102,4 +102,18 @@ void main() {
       expect(workflow, contains(evidencePath));
     }
   });
+
+  test('controlled web releases require a public support address', () {
+    expect(
+      workflow,
+      contains(
+          r'PIPE_PUBLIC_SUPPORT_EMAIL: ${{ vars.PIPE_PUBLIC_SUPPORT_EMAIL }}'),
+    );
+    expect(workflow, contains('PIPE_PUBLIC_SUPPORT_EMAIL\n'));
+    expect(
+      workflow,
+      contains(
+          '--dart-define=PIPE_PUBLIC_SUPPORT_EMAIL=\$PIPE_PUBLIC_SUPPORT_EMAIL'),
+    );
+  });
 }

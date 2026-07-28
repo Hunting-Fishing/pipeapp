@@ -12,6 +12,10 @@ void main() {
         '/conversations/conversation-1');
     expect(MarketplaceDeepLinks.dispatchJob('dispatch job 1'),
         '/dispatch/jobs/dispatch%20job%201');
+    expect(MarketplaceDeepLinks.privacyPath, '/privacy');
+    expect(MarketplaceDeepLinks.termsPath, '/terms');
+    expect(MarketplaceDeepLinks.supportPath, '/support');
+    expect(MarketplaceDeepLinks.accountDeletionPath, '/account-deletion');
   });
 
   test('Marketplace entity links reject unsafe identifiers', () {
@@ -40,6 +44,10 @@ void main() {
         '/profiles/:userUid',
         '/conversations/:conversationId',
         '/dispatch/jobs/:jobId',
+        '/privacy',
+        '/terms',
+        '/support',
+        '/account-deletion',
       }),
     );
   });

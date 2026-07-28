@@ -8,6 +8,7 @@ import {
   extractFunctionExports,
   hashDirectory,
   hashRelativeFiles,
+  isValidPublicSupportEmail,
   validateReleaseInputs,
 } from "./release_manifest.mjs";
 
@@ -44,6 +45,7 @@ test("controlled environments require an explicit Firebase project", () => {
         environment: "production",
         releaseSha: "a".repeat(40),
         firebaseProjectId: "",
+        publicSupportEmail: "support@pipebuyer.com",
       }),
       /PIPE_FIREBASE_PROJECT_ID/u,
   );
@@ -51,6 +53,7 @@ test("controlled environments require an explicit Firebase project", () => {
     environment: "staging",
     releaseSha: "b".repeat(40),
     firebaseProjectId: "pipe-staging",
+    publicSupportEmail: "support@pipebuyer.com",
     appCheckMode: "disabled",
   }));
 });
@@ -61,6 +64,7 @@ test("App Check rollout modes are explicit and production fails closed", () => {
       environment: "staging",
       releaseSha: "d".repeat(40),
       firebaseProjectId: "pipe-staging",
+      publicSupportEmail: "support@pipebuyer.com",
       appCheckMode,
     }));
   }
@@ -69,6 +73,7 @@ test("App Check rollout modes are explicit and production fails closed", () => {
         environment: "production",
         releaseSha: "e".repeat(40),
         firebaseProjectId: "pipe-production",
+        publicSupportEmail: "support@pipebuyer.com",
         appCheckMode: "observe",
       }),
       /require App Check enforce mode/u,
@@ -77,6 +82,7 @@ test("App Check rollout modes are explicit and production fails closed", () => {
     environment: "production",
     releaseSha: "f".repeat(40),
     firebaseProjectId: "pipe-production",
+    publicSupportEmail: "support@pipebuyer.com",
     appCheckMode: "enforce",
   }));
   assert.throws(
@@ -84,6 +90,7 @@ test("App Check rollout modes are explicit and production fails closed", () => {
         environment: "staging",
         releaseSha: "0".repeat(40),
         firebaseProjectId: "pipe-staging",
+        publicSupportEmail: "support@pipebuyer.com",
         appCheckMode: "almost",
       }),
       /Unsupported App Check mode/u,
@@ -96,6 +103,7 @@ test("controlled release manifests reject uncommitted tracked source", () => {
         environment: "staging",
         releaseSha: "1".repeat(40),
         firebaseProjectId: "pipe-staging",
+        publicSupportEmail: "support@pipebuyer.com",
         appCheckMode: "disabled",
         workingTreeClean: false,
       }),
@@ -116,6 +124,7 @@ test("unknown environments and abbreviated commits are rejected", () => {
         environment: "produciton",
         releaseSha: "c".repeat(40),
         firebaseProjectId: "pipe-production",
+        publicSupportEmail: "support@pipebuyer.com",
       }),
       /Unsupported release environment/u,
   );
@@ -126,5 +135,23 @@ test("unknown environments and abbreviated commits are rejected", () => {
         firebaseProjectId: "",
       }),
       /full 40-character Git commit/u,
+  );
+});
+
+test("controlled manifests require a valid public support address", () => {
+  assert.equal(isValidPublicSupportEmail("support@pipebuyer.com"), true);
+  for (const value of ["", "support at pipebuyer.com", "user@example",
+    "user@@example.com", "user@-example.com"]) {
+    assert.equal(isValidPublicSupportEmail(value), false, value);
+  }
+  assert.throws(
+      () => validateReleaseInputs({
+        environment: "production",
+        releaseSha: "3".repeat(40),
+        firebaseProjectId: "pipe-production",
+        publicSupportEmail: "",
+        appCheckMode: "enforce",
+      }),
+      /PIPE_PUBLIC_SUPPORT_EMAIL/u,
   );
 });

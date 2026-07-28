@@ -2,7 +2,7 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `main` (`3259e463f9df57d8064addb03f56d620dbe7d408`)
+Baseline branch: `main` (`7db69f2e04887c697ef71385d54059699f1b2d92`)
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
@@ -21,7 +21,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 91% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, fail-closed signed-artifact/store/device evidence controls, a green unsigned macOS `iphoneos` release compile gate, and a protected signed-candidate workflow awaiting real credentials and execution |
+| 6 — Accessibility, performance, and QA | 92% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, public store-policy/support/deletion routes, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, fail-closed signed-artifact/store/device evidence controls, a green unsigned macOS `iphoneos` release compile gate, and a protected signed-candidate workflow awaiting real credentials and execution |
 | 7 — Release readiness | 15% — schema-version-2 release-SHA evidence contract covers product/recovery journeys, signed artifacts, store/privacy review, physical-device/browser scenarios, defects, and approvals; a fail-closed preparer now binds the working evidence bundle to the exact release without overwriting prior evidence; execution remains incomplete |
 
 Gate 0 implementation evidence:
@@ -524,6 +524,13 @@ retains candidate evidence for 14 days. Its metadata remains explicitly not
 store-validated, so this repository control does not credit store submission,
 physical-device installation, or final acceptance before those external steps
 are performed.
+
+The public store-information boundary now provides unauthenticated Privacy,
+Terms, Support, and Account Deletion routes. Reviewed policy metadata remains
+server-published and exact-document linked; missing policies fail closed. A
+controlled release also fails startup without a valid public support mailbox.
+Draft store copy and screenshot coverage are prepared without claiming legal,
+privacy, mailbox, store-console, or device approval.
 
 Exit evidence:
 

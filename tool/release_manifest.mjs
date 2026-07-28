@@ -122,6 +122,7 @@ export function validateReleaseInputs({
   environment,
   releaseSha,
   firebaseProjectId,
+  publicSupportEmail = "",
   appCheckMode = "disabled",
   workingTreeClean = true,
 }) {
@@ -134,6 +135,12 @@ export function validateReleaseInputs({
   if (controlledEnvironments.has(environment) && !firebaseProjectId) {
     throw new Error(
         `PIPE_FIREBASE_PROJECT_ID is required for ${environment}.`,
+    );
+  }
+  if (controlledEnvironments.has(environment) &&
+      !isValidPublicSupportEmail(publicSupportEmail)) {
+    throw new Error(
+        `PIPE_PUBLIC_SUPPORT_EMAIL is required for ${environment}.`,
     );
   }
   if (!appCheckModes.has(appCheckMode)) {
@@ -149,11 +156,33 @@ export function validateReleaseInputs({
   }
 }
 
+export function isValidPublicSupportEmail(value) {
+  const candidate = String(value || "").trim().toLowerCase();
+  if (candidate.length === 0 || candidate.length > 254 ||
+      candidate.includes(" ")) {
+    return false;
+  }
+  const separator = candidate.indexOf("@");
+  if (separator <= 0 || separator !== candidate.lastIndexOf("@")) return false;
+  const local = candidate.slice(0, separator);
+  const domain = candidate.slice(separator + 1);
+  if (local.length > 64 || local.startsWith(".") || local.endsWith(".") ||
+      local.includes("..") || !domain.includes(".")) {
+    return false;
+  }
+  const localPattern = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/u;
+  const domainPattern = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/u;
+  return localPattern.test(local) && domainPattern.test(domain) &&
+    domain.split(".").every((label) =>
+      !label.startsWith("-") && !label.endsWith("-"));
+}
+
 export function createReleaseManifest({
   root,
   environment,
   releaseSha,
   firebaseProjectId,
+  publicSupportEmail = "",
   appCheckMode = "disabled",
   requireWeb,
 }) {
@@ -165,6 +194,7 @@ export function createReleaseManifest({
     environment,
     releaseSha,
     firebaseProjectId,
+    publicSupportEmail,
     appCheckMode,
     workingTreeClean,
   });
@@ -239,6 +269,9 @@ export function createReleaseManifest({
         callableEnforcement: appCheckMode === "enforce",
       },
     },
+    publicContact: {
+      supportEmail: publicSupportEmail.trim().toLowerCase() || null,
+    },
     webArtifact,
     toolchain: {
       flutter: process.env.PIPE_FLUTTER_VERSION || "3.44.6",
@@ -253,6 +286,7 @@ function parseArguments(argumentsList) {
     environment: process.env.PIPE_ENV || "local-verification",
     releaseSha: process.env.PIPE_RELEASE_SHA || "",
     firebaseProjectId: process.env.PIPE_FIREBASE_PROJECT_ID || "",
+    publicSupportEmail: process.env.PIPE_PUBLIC_SUPPORT_EMAIL || "",
     appCheckMode: process.env.PIPE_APP_CHECK_MODE || "disabled",
     output: "build/release-manifest.json",
     requireWeb: false,
@@ -300,6 +334,7 @@ function writeManifest(options) {
     environment: options.environment.trim().toLowerCase(),
     releaseSha,
     firebaseProjectId: options.firebaseProjectId.trim(),
+    publicSupportEmail: options.publicSupportEmail.trim(),
     appCheckMode: options.appCheckMode.trim().toLowerCase(),
     requireWeb: options.requireWeb,
   });

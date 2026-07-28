@@ -107,4 +107,17 @@ void main() {
       expect(workflow, contains(variable));
     }
   });
+
+  test('both signed candidates require the public support address', () {
+    expect(
+      r'PIPE_PUBLIC_SUPPORT_EMAIL: ${{ vars.PIPE_PUBLIC_SUPPORT_EMAIL }}'
+          .allMatches(workflow),
+      hasLength(2),
+    );
+    expect(
+      '--dart-define="PIPE_PUBLIC_SUPPORT_EMAIL=\$PIPE_PUBLIC_SUPPORT_EMAIL"'
+          .allMatches(workflow),
+      hasLength(2),
+    );
+  });
 }
