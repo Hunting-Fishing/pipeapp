@@ -7,7 +7,7 @@ Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 92%
+Current overall launch-readiness estimate: 93%
 
 Completed gates: 1 of 8
 
@@ -20,7 +20,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 2 — Backend parity and server commands | 92% — reviewed command boundary, zero-vulnerability runtime lock, emulator coverage, staged App Check release records, and parity controls locally verified |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
-| 5 — Trust, notifications, and policies | 88% — protected reporting, review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
+| 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
 | 6 — Accessibility, performance, and QA | 88% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback across the primary Marketplace and Dispatch workflows, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
 | 7 — Release readiness | 10% — machine-validated release evidence contract locally verified; rehearsal and approvals incomplete |
 
@@ -82,7 +82,7 @@ Gate 2 implementation evidence in progress:
   not on Blaze and rejected both Cloud Build and Artifact Registry enablement;
   no Function was created
 - The Functions dependency lock overrides the vulnerable transitive UUID below
-  11.1.1. The moderate audit count fell from 7 to 0 while 95 Function tests, 36
+  11.1.1. The moderate audit count fell from 7 to 0 while 105 Function tests, 36
   Firestore/Storage Rules tests, and the authenticated four-emulator workflow
   continued to pass
 - Controlled deploys now record App Check as `disabled`, `observe`, or
@@ -362,6 +362,17 @@ Goal: Operate the marketplace safely after users arrive.
 - Record user acceptance of applicable policy versions.
 - Add support contact, case intake, incident escalation, and response targets.
 
+Current engineering evidence: listing publication now calculates trusted
+SHA-256 fingerprints from the stored Firebase objects and rejects client hash
+mismatches. A bounded indexed trigger creates a private exact-photo comparison
+case for same-seller reuse. Conservative message signals create private,
+bounded evidence excerpts. Both paths are idempotent, notify active
+administrators, require human review, and never hide content or penalize an
+account automatically. The authenticated four-emulator suite proves these
+invariants. This is exact-file detection, not perceptual similarity or a claim
+that a reviewed external AI classifier has been selected; those items and the
+staging deployment remain open.
+
 Exit evidence:
 
 - A report moves from submission through evidence review, decision,
@@ -386,7 +397,7 @@ Goal: Produce installable, professional release artifacts.
   sessions.
 
 Current engineering evidence is recorded in
-`docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md`. Gate 5 remains at 88% while its
+`docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md`. Gate 5 remains at 91% while its
 policy approval, external delivery, staffing, alerting, and staging-acceptance
 evidence is completed by the responsible owners.
 
@@ -450,7 +461,7 @@ The feedback boundary now also covers saved listings, sign-in/sign-out,
 listing publishing and media validation, Dispatch signup/jobs/quotes/fleet,
 policy notices, reporting review, and freight-quote publication. The primary
 Marketplace shell contains no direct SnackBars. This expanded checkpoint
-passes a clean analyzer, 108 Flutter tests, 99 Function tests, all local
+passes a clean analyzer, 108 Flutter tests, 105 Function tests, all local
 release/parity/acceptance controls, a zero-vulnerability production dependency
 audit, ARM64 Android, production web, and actual WebAssembly.
 
