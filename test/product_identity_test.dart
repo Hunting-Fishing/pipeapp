@@ -49,6 +49,7 @@ void main() {
 
   test('quality gate compiles the iOS release target on macOS', () {
     final workflow = source('.github/workflows/quality.yml');
+    final pubspec = source('pubspec.yaml');
     expect(workflow, contains('ios-compile:'));
     expect(workflow, contains('name: Compile iOS release target'));
     expect(workflow, contains('runs-on: macos-15'));
@@ -63,6 +64,19 @@ void main() {
         'not a distributable candidate',
       ),
     );
+    expect(pubspec, contains('flutter_native_splash: ^2.4.8'));
+  });
+
+  test('Xcode project object identifiers are unique', () {
+    final project = source('ios/Runner.xcodeproj/project.pbxproj');
+    final identifiers = RegExp(
+      r'^\s*([A-F0-9]{24}) /\*.*?\*/ = \{',
+      multiLine: true,
+    ).allMatches(project).map((match) => match.group(1)!).toList();
+
+    expect(identifiers, isNotEmpty);
+    expect(identifiers.toSet().length, identifiers.length);
+    expect(project, contains('6436409F27A31CDB00820AF8 /* tr */'));
   });
 
   test('launcher icons and splash screens are generated from pinned branding',
