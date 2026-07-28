@@ -87,6 +87,11 @@ entries shared one Xcode object identifier. The repair upgrades
 and adds regression tests for Xcode object uniqueness and JSONPath extraction.
 Swift Package Manager remains enabled; the release gate is not bypassed.
 
+The migrated Firebase Swift packages require iOS 15.0. The Podfile, Flutter
+framework metadata, and all Runner build configurations now declare the same
+15.0 minimum, with a test that rejects drift back to the incompatible iOS 14
+baseline. Store metadata must advertise iOS 15 or later.
+
 ## Media and location disclosures
 
 Android declares camera access for user-initiated captures and no longer opts
