@@ -47,6 +47,24 @@ void main() {
     expect(gradle, contains('Android release signing is not configured'));
   });
 
+  test('quality gate compiles the iOS release target on macOS', () {
+    final workflow = source('.github/workflows/quality.yml');
+    expect(workflow, contains('ios-compile:'));
+    expect(workflow, contains('name: Compile iOS release target'));
+    expect(workflow, contains('runs-on: macos-15'));
+    expect(workflow, contains('flutter build ios'));
+    expect(workflow, contains('--release'));
+    expect(workflow, contains('--no-codesign'));
+    expect(workflow, contains('build/ios/iphoneos/Runner.app'));
+    expect(
+      workflow,
+      contains(
+        'Signing: intentionally disabled; this is compile evidence, '
+        'not a distributable candidate',
+      ),
+    );
+  });
+
   test('launcher icons and splash screens are generated from pinned branding',
       () {
     const masterPath = 'tool/brand/pipe_buyer_app_icon_master_v1.png';
@@ -90,8 +108,8 @@ void main() {
   test('Apple privacy manifest declares collected data without tracking', () {
     // Git may check this plist out with CRLF on Windows runners. Normalize the
     // text before asserting structure so the release contract is portable.
-    final manifest = source('ios/Runner/PrivacyInfo.xcprivacy')
-        .replaceAll('\r\n', '\n');
+    final manifest =
+        source('ios/Runner/PrivacyInfo.xcprivacy').replaceAll('\r\n', '\n');
     expect(manifest, contains('<key>NSPrivacyTracking</key>\n\t<false/>'));
     expect(manifest, contains('<key>NSPrivacyTrackingDomains</key>'));
     expect(manifest, contains('<key>NSPrivacyCollectedDataTypes</key>'));

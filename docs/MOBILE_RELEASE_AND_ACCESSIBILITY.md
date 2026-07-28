@@ -65,6 +65,19 @@ Production completion still requires a real repository-excluded keystore,
 signed AAB, Play Console upload validation, and install/upgrade testing on
 supported physical devices.
 
+## Apple compile gate
+
+The `Quality` workflow has a separate pinned `macos-15` job that compiles the
+`iphoneos` release target with `--no-codesign` and verifies that Xcode produced
+`build/ios/iphoneos/Runner.app`. This catches broken Pods, plugins, native
+configuration, privacy resources, and Xcode project changes on every pull
+request without requiring distribution credentials in ordinary CI.
+
+The output is deliberately not uploaded or described as an IPA. It is unsigned
+compile evidence only. Gate 6 still requires a separately controlled,
+distribution-signed archive, exported IPA, store validation, and physical-device
+acceptance bound to the exact release SHA.
+
 ## Media and location disclosures
 
 Android declares camera access for user-initiated captures and no longer opts
