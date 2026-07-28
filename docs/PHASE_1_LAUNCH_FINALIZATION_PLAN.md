@@ -22,7 +22,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
 | 6 — Accessibility, performance, and QA | 91% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, fail-closed signed-artifact/store/device evidence controls, a green unsigned macOS `iphoneos` release compile gate, and a protected signed-candidate workflow awaiting real credentials and execution |
-| 7 — Release readiness | 14% — schema-version-2 release-SHA evidence contract covers product/recovery journeys, signed artifacts, store/privacy review, physical-device/browser scenarios, defects, and approvals; execution remains incomplete |
+| 7 — Release readiness | 15% — schema-version-2 release-SHA evidence contract covers product/recovery journeys, signed artifacts, store/privacy review, physical-device/browser scenarios, defects, and approvals; a fail-closed preparer now binds the working evidence bundle to the exact release without overwriting prior evidence; execution remains incomplete |
 
 Gate 0 implementation evidence:
 
@@ -537,6 +537,13 @@ escape the controlled bundle; retained files are streamed into hashed readiness
 records. The validator and its fail-closed tests are part of local and CI
 verification. This control does not credit the still-unperformed rehearsals,
 signed artifacts, store/device execution, or approvals.
+
+`tool/prepare_phase1_acceptance.mjs` creates the private evidence directory
+structure from the exact staging or production release manifest, binds mobile
+candidate and device records to its SHA and explicit store version, optionally
+prefills only an approved public HTTPS origin, leaves all 37 evidence records
+pending, and refuses to overwrite an existing bundle. This removes error-prone
+manual template setup without fabricating acceptance evidence.
 
 - Run the complete staging acceptance matrix with new test identities.
 - Run load, abuse, upload, notification, and moderation queue tests.

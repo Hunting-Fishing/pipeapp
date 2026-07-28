@@ -13,10 +13,27 @@ output, and restore output beneath that directory. Do not include passwords,
 authentication codes, private identity documents, raw access tokens, or
 customer data.
 
-Copy `docs/phase1_acceptance_template.json` to
-`build/acceptance/phase1-acceptance.json`, then replace every pending value.
+After generating the exact staging or production release manifest, prepare a
+release-bound evidence workspace instead of copying the template by hand:
+
+```powershell
+node tool/prepare_phase1_acceptance.mjs `
+  --release-manifest build/release-manifest.json `
+  --version-name 1.0.0 `
+  --build-number 1 `
+  --output-root build/acceptance
+```
+
+When the approved public HTTPS origin is known, add
+`--public-base-url https://YOUR_APPROVED_HOST` to prefill the support, privacy,
+terms, and account-deletion paths. The preparer rejects local, example, and
+non-HTTPS origins. It binds every candidate and device record to the manifest
+SHA, creates the journey, recovery, store, privacy, device, defect, and signoff
+evidence directories, and leaves every result pending. It refuses to overwrite
+an existing bundle so a later run cannot silently erase collected evidence.
+
 Every evidence path must be relative to `build/acceptance`; parent-directory
-paths are rejected.
+paths are rejected by the final validator.
 
 The acceptance JSON and `build/release-manifest.json` must name the same:
 
