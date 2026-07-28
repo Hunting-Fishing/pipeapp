@@ -53,13 +53,13 @@ local `.firebaserc`.
 ## Protected GitHub Environments
 
 GitHub Environments named `staging` and `production` now exist and both contain
-their seven verified public Firebase identifiers. The
-current private repository plan rejected required-reviewer and deployment
-branch protection rules. As a compensating control, the workflow verifies that
-every production SHA is contained in `origin/main`, in addition to exact-SHA
-checkout and full verification. Upgrade the GitHub plan or make the repository
-eligible for environment protection before launch, then require an authorized
-production reviewer.
+their seven verified public Firebase identifiers. A July 29 read-only check
+found no required-reviewer rules, allowed administrator bypass, and found no
+protection on `main`. Configure approved reviewers, bypass policy, and branch
+restrictions before launch. As repository-level compensating controls, the
+workflow verifies that every production SHA is contained in `origin/main`,
+checks out the exact SHA, runs full verification, and now requires a private
+Environment guard matching the selected target.
 
 Configure these Environment variables in each:
 
@@ -73,6 +73,15 @@ Configure these Environment variables in each:
 - `PIPE_APP_CHECK_WEB_RECAPTCHA_KEY`
 - `GOOGLE_WORKLOAD_IDENTITY_PROVIDER`
 - `GOOGLE_DEPLOY_SERVICE_ACCOUNT`
+
+Configure this Environment secret separately in each Environment:
+
+- `PIPE_DEPLOY_ENVIRONMENT_GUARD`, set exactly to `staging` in the staging
+  Environment and exactly to `production` in the production Environment.
+
+The guard prevents an automatically created, copied, or incorrectly selected
+Environment from proceeding with public Firebase values alone. It does not
+replace GitHub required reviewers or branch protection.
 
 The Google service account must have only the roles needed to deploy this
 Firebase application. GitHub authenticates with Workload Identity Federation;

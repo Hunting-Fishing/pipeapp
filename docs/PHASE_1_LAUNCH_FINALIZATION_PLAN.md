@@ -2,7 +2,7 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-commerce-feedback-safety`
+Baseline branch: `main` (`bd2ac7c3cef8a79c420c81b3a6dc95f45a79a30c`)
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
@@ -16,7 +16,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | Gate | Status |
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
-| 1 — Environments, builds, and diagnostics | 82% — in progress |
+| 1 — Environments, builds, and diagnostics | 83% — exact-SHA deployment and visual acceptance now require a matching private Environment guard; reviewer protection, keyless identity, App Check, full staging deployment, and recovery evidence remain external |
 | 2 — Backend parity and server commands | 92% — reviewed command boundary, zero-vulnerability runtime lock, emulator coverage, staged App Check release records, and parity controls locally verified |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
@@ -135,6 +135,10 @@ Gate 1 implementation evidence in progress:
 - Staging Storage/Functions, App Check, Workload Identity,
   environment reviewer protection, full-service deployed release IDs,
   monitoring ownership, and data backup/restore rehearsal remain required
+- Deployment and visual-acceptance jobs now fail closed unless the selected
+  GitHub Environment supplies a private guard whose value exactly matches
+  `staging` or `production`. This cannot prove reviewer configuration, which
+  remains an external owner-controlled requirement.
 - Staging Email/Password Authentication is provisioned from the reviewed
   `firebase.json` declaration and passed a disposable create/delete smoke test
 - The owner reports that staging billing is now enabled. A July 28 read-only
