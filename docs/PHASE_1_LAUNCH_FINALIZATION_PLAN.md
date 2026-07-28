@@ -499,8 +499,11 @@ deployment-target rollback.
 The subsequent link phase found duplicate Firestore symbols because the old
 Apple-sign-in and SQLite plugins forced a CocoaPods fallback alongside Firebase
 SPM products. Those plugins now use their SPM-capable production releases,
-removing the mixed native ownership instead of suppressing the linker error or
-turning Swift Package Manager off.
+and the obsolete Runner Podfile, Pods build phases, Pods framework, and Pods
+xcconfig includes are removed. CI explicitly enables Swift Package Manager and
+a source contract rejects renewed CocoaPods integration. This removes the mixed
+native ownership instead of suppressing the linker error or turning Swift
+Package Manager off.
 
 Exit evidence:
 

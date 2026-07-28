@@ -97,7 +97,10 @@ The iOS 15 build then exposed a hybrid CocoaPods/SPM link: legacy
 already supplied by Swift Package Manager, producing duplicate Firestore
 symbols. Both plugins are now on their SPM-capable production releases
 (`sign_in_with_apple` 8.1.0 and `sqflite` 2.4.3 with `sqflite_darwin` 2.4.3+1),
-so the native dependency graph has one owner for Firebase symbols.
+and the obsolete Runner CocoaPods integration has been removed. CI explicitly
+enables Flutter Swift Package Manager before restoring packages. A release
+contract rejects a restored Podfile, Pods build phases, Pods framework,
+`PODS_ROOT`, or Pods xcconfig includes so Firebase has one native owner.
 
 ## Media and location disclosures
 

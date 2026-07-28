@@ -53,6 +53,7 @@ void main() {
     expect(workflow, contains('ios-compile:'));
     expect(workflow, contains('name: Compile iOS release target'));
     expect(workflow, contains('runs-on: macos-15'));
+    expect(workflow, contains('flutter config --enable-swift-package-manager'));
     expect(workflow, contains('flutter build ios'));
     expect(workflow, contains('--release'));
     expect(workflow, contains('--no-codesign'));
@@ -82,12 +83,18 @@ void main() {
     expect(project, contains('6436409F27A31CDB00820AF8 /* tr */'));
   });
 
-  test('iOS deployment baseline matches current Firebase packages', () {
-    final podfile = source('ios/Podfile');
+  test('iOS uses one Swift package graph at the Firebase 15 baseline', () {
     final frameworkInfo = source('ios/Flutter/AppFrameworkInfo.plist');
     final project = source('ios/Runner.xcodeproj/project.pbxproj');
+    final debugConfig = source('ios/Flutter/Debug.xcconfig');
+    final releaseConfig = source('ios/Flutter/Release.xcconfig');
 
-    expect(podfile, contains("platform :ios, '15.0.0'"));
+    expect(File('ios/Podfile').existsSync(), isFalse);
+    expect(project, isNot(contains('Pods_Runner')));
+    expect(project, isNot(contains('[CP]')));
+    expect(project, isNot(contains(r'${PODS_ROOT}')));
+    expect(debugConfig, isNot(contains('Pods/Target Support Files')));
+    expect(releaseConfig, isNot(contains('Pods/Target Support Files')));
     expect(frameworkInfo, contains('<string>15.0.0</string>'));
     expect(
       RegExp(r'IPHONEOS_DEPLOYMENT_TARGET = 15\.0\.0;')
@@ -95,7 +102,6 @@ void main() {
           .length,
       3,
     );
-    expect(podfile, isNot(contains("platform :ios, '14.0.0'")));
     expect(project, isNot(contains('IPHONEOS_DEPLOYMENT_TARGET = 14.0.0;')));
   });
 
