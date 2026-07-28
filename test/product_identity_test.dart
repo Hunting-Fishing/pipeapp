@@ -79,6 +79,23 @@ void main() {
     expect(project, contains('6436409F27A31CDB00820AF8 /* tr */'));
   });
 
+  test('iOS deployment baseline matches current Firebase packages', () {
+    final podfile = source('ios/Podfile');
+    final frameworkInfo = source('ios/Flutter/AppFrameworkInfo.plist');
+    final project = source('ios/Runner.xcodeproj/project.pbxproj');
+
+    expect(podfile, contains("platform :ios, '15.0.0'"));
+    expect(frameworkInfo, contains('<string>15.0.0</string>'));
+    expect(
+      RegExp(r'IPHONEOS_DEPLOYMENT_TARGET = 15\.0\.0;')
+          .allMatches(project)
+          .length,
+      3,
+    );
+    expect(podfile, isNot(contains("platform :ios, '14.0.0'")));
+    expect(project, isNot(contains('IPHONEOS_DEPLOYMENT_TARGET = 14.0.0;')));
+  });
+
   test('launcher icons and splash screens are generated from pinned branding',
       () {
     const masterPath = 'tool/brand/pipe_buyer_app_icon_master_v1.png';

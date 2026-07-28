@@ -491,6 +491,11 @@ compatible JSONPath/Lottie dependency chain, gives every Xcode object a unique
 identifier, and preserves both behaviors with focused tests instead of
 disabling Swift Package Manager.
 
+The migrated Firebase Swift packages also require iOS 15. The Podfile, Flutter
+framework metadata, and every Runner build configuration now declare the same
+15.0 baseline, and a release contract test prevents a partial or incompatible
+deployment-target rollback.
+
 Exit evidence:
 
 - Signed Android and Apple release candidates install and complete the Phase 1
