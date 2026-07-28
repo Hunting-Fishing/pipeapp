@@ -65,6 +65,50 @@ Production completion still requires a real repository-excluded keystore,
 signed AAB, Play Console upload validation, and install/upgrade testing on
 supported physical devices.
 
+## Protected signed mobile candidates
+
+`.github/workflows/mobile-release-candidate.yml` is the only repository
+workflow authorized to assemble distribution-signed Phase 1 mobile candidates.
+It is manual, accepts an exact full commit SHA, and rejects commits that are not
+contained in `main`. It builds Android and Apple independently in protected
+GitHub Environments named `mobile-release-staging` and
+`mobile-release-production`; neither job can read its signing values until its
+environment is admitted.
+
+Create both environments before running the workflow. Mirror the approved
+`PIPE_FIREBASE_*` public variables into each, add `IOS_DEVELOPMENT_TEAM`, and
+configure these environment secrets:
+
+- `ANDROID_UPLOAD_KEYSTORE_BASE64`
+- `ANDROID_UPLOAD_STORE_PASSWORD`
+- `ANDROID_UPLOAD_KEY_ALIAS`
+- `ANDROID_UPLOAD_KEY_PASSWORD`
+- `IOS_DISTRIBUTION_CERTIFICATE_BASE64`
+- `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`
+- `IOS_PROVISIONING_PROFILE_BASE64`
+- `IOS_EXPORT_OPTIONS_PLIST_BASE64`
+- `MOBILE_RELEASE_ENVIRONMENT_GUARD`, set exactly to the environment name
+  (`mobile-release-staging` or `mobile-release-production`)
+
+The Apple export options must use manual signing, the configured Apple team,
+and the exact `Pipe.Buyerapp` provisioning-profile name. The workflow imports
+the certificate into an ephemeral keychain, verifies the profile team and
+application identifier, passes signing settings to Flutter through its
+`FLUTTER_XCODE_*` CI boundary, and removes the keychain/profile even after a
+failed build. Android writes its temporary `key.properties` only on the runner
+and removes it and the decoded upload keystore after the build.
+
+Successful runs retain the AAB or IPA, SHA-256 digest, public signature output,
+and SHA/version/build metadata for 14 days. Android verification uses strict
+`jarsigner` validation; Apple verification opens the exported IPA, checks the
+bundle identifier and requested version, and runs strict `codesign`
+verification. Candidate metadata deliberately records `storeValidated: false`:
+the workflow does not upload to either store and cannot be treated as Play or
+App Store validation evidence. Production still requires environment reviewer
+protection, store upload/validation, physical-device acceptance, approved key
+recovery ownership, and transfer of the exact retained artifacts into the
+private Phase 1 acceptance bundle.
+
 ## Apple compile gate
 
 The `Quality` workflow has a separate pinned `macos-15` job that compiles the
@@ -87,10 +131,10 @@ entries shared one Xcode object identifier. The repair upgrades
 and adds regression tests for Xcode object uniqueness and JSONPath extraction.
 Swift Package Manager remains enabled; the release gate is not bypassed.
 
-The migrated Firebase Swift packages require iOS 15.0. The Podfile, Flutter
-framework metadata, and all Runner build configurations now declare the same
-15.0 minimum, with a test that rejects drift back to the incompatible iOS 14
-baseline. Store metadata must advertise iOS 15 or later.
+The migrated Firebase Swift packages require iOS 15.0. Flutter framework
+metadata and all Runner build configurations declare the same 15.0 minimum,
+with a test that rejects drift back to the incompatible iOS 14 baseline. Store
+metadata must advertise iOS 15 or later.
 
 The iOS 15 build then exposed a hybrid CocoaPods/SPM link: legacy
 `sign_in_with_apple` and `sqflite` releases forced CocoaPods while Firebase was

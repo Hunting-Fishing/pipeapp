@@ -1,0 +1,549 @@
+name: Build signed mobile release candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: Controlled Firebase environment compiled into both candidates
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      release_sha:
+        description: Full 40-character commit SHA already contained in main
+        required: true
+        type: string
+      build_name:
+        description: Semantic application version, for example 1.0.0
+        required: true
+        type: string
+      build_number:
+        description: Positive store build number
+        required: true
+        type: string
+      enable_remote_diagnostics:
+        description: Enable reviewed native Crashlytics collection in this candidate
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-release-${{ inputs.target_environment }}-${{ inputs.release_sha }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate controlled release input
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      release_sha: ${{ steps.release.outputs.release_sha }}
+
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Verify release identity and main ancestry
+        id: release
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          BUILD_NAME: ${{ inputs.build_name }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "release_sha must be a lowercase full Git commit SHA." >&2
+            exit 1
+          }
+          [[ "$BUILD_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "build_name must be a semantic version such as 1.0.0." >&2
+            exit 1
+          }
+          [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || {
+            echo "build_number must be a positive integer." >&2
+            exit 1
+          }
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || {
+            echo "The checked-out commit does not match release_sha." >&2
+            exit 1
+          }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main || {
+            echo "Release candidates may only be built from commits contained in main." >&2
+            exit 1
+          }
+          [[ -z "$(git status --porcelain)" ]] || {
+            echo "Release source is not clean." >&2
+            exit 1
+          }
+          echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Mobile release candidate preflight"
+            echo ""
+            echo "- Environment: \`${{ inputs.target_environment }}\`"
+            echo "- Commit: \`$RELEASE_SHA\`"
+            echo "- Version: \`$BUILD_NAME+$BUILD_NUMBER\`"
+            echo "- Source: exact commit contained in \`main\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  android:
+    name: Build signed Android AAB
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: ${{ format('mobile-release-{0}', inputs.target_environment) }}
+    env:
+      PIPE_ENV: ${{ inputs.target_environment }}
+      PIPE_RELEASE_SHA: ${{ needs.preflight.outputs.release_sha }}
+      PIPE_FIREBASE_API_KEY: ${{ vars.PIPE_FIREBASE_API_KEY }}
+      PIPE_FIREBASE_AUTH_DOMAIN: ${{ vars.PIPE_FIREBASE_AUTH_DOMAIN }}
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+      PIPE_FIREBASE_STORAGE_BUCKET: ${{ vars.PIPE_FIREBASE_STORAGE_BUCKET }}
+      PIPE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PIPE_FIREBASE_MESSAGING_SENDER_ID }}
+      PIPE_FIREBASE_WEB_APP_ID: ${{ vars.PIPE_FIREBASE_WEB_APP_ID }}
+      PIPE_FIREBASE_MEASUREMENT_ID: ${{ vars.PIPE_FIREBASE_MEASUREMENT_ID }}
+      ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+      ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+      ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+      ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      MOBILE_RELEASE_ENVIRONMENT_GUARD: ${{ secrets.MOBILE_RELEASE_ENVIRONMENT_GUARD }}
+
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ needs.preflight.outputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Java toolchain
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Validate environment and Android signing inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_variables=(
+            PIPE_FIREBASE_API_KEY
+            PIPE_FIREBASE_AUTH_DOMAIN
+            PIPE_FIREBASE_PROJECT_ID
+            PIPE_FIREBASE_STORAGE_BUCKET
+            PIPE_FIREBASE_MESSAGING_SENDER_ID
+            PIPE_FIREBASE_WEB_APP_ID
+          )
+          required_secrets=(
+            ANDROID_UPLOAD_KEYSTORE_BASE64
+            ANDROID_UPLOAD_STORE_PASSWORD
+            ANDROID_UPLOAD_KEY_ALIAS
+            ANDROID_UPLOAD_KEY_PASSWORD
+            MOBILE_RELEASE_ENVIRONMENT_GUARD
+          )
+          for name in "${required_variables[@]}" "${required_secrets[@]}"; do
+            [[ -n "${!name:-}" ]] || {
+              echo "Required protected value $name is not configured." >&2
+              exit 1
+            }
+          done
+          [[ "$MOBILE_RELEASE_ENVIRONMENT_GUARD" == "mobile-release-$PIPE_ENV" ]] || {
+            echo "The protected mobile release environment guard does not match the selected environment." >&2
+            exit 1
+          }
+          if [[ "$PIPE_ENV" == "production" && "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
+            echo "Production candidates must target flutter-flow-pipe." >&2
+            exit 1
+          fi
+          if [[ "$PIPE_ENV" == "staging" && "$PIPE_FIREBASE_PROJECT_ID" == "flutter-flow-pipe" ]]; then
+            echo "Staging candidates cannot target the production Firebase project." >&2
+            exit 1
+          fi
+
+      - name: Restore dependencies and signing material
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload-keystore.jks"
+          chmod 600 "$RUNNER_TEMP/upload-keystore.jks"
+          {
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/upload-keystore.jks"
+            printf 'storePassword=%s\n' "$ANDROID_UPLOAD_STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_UPLOAD_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$ANDROID_UPLOAD_KEY_PASSWORD"
+          } > android/key.properties
+          chmod 600 android/key.properties
+          keytool -list \
+            -keystore "$RUNNER_TEMP/upload-keystore.jks" \
+            -storepass "$ANDROID_UPLOAD_STORE_PASSWORD" \
+            -alias "$ANDROID_UPLOAD_KEY_ALIAS" > /dev/null
+
+      - name: Build and verify signed Android candidate
+        shell: bash
+        env:
+          BUILD_NAME: ${{ inputs.build_name }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          REMOTE_DIAGNOSTICS: ${{ inputs.enable_remote_diagnostics }}
+        run: |
+          set -euo pipefail
+          flutter build appbundle \
+            --release \
+            --build-name "$BUILD_NAME" \
+            --build-number "$BUILD_NUMBER" \
+            --dart-define="PIPE_ENV=$PIPE_ENV" \
+            --dart-define="PIPE_RELEASE_SHA=$PIPE_RELEASE_SHA" \
+            --dart-define="PIPE_FIREBASE_API_KEY=$PIPE_FIREBASE_API_KEY" \
+            --dart-define="PIPE_FIREBASE_AUTH_DOMAIN=$PIPE_FIREBASE_AUTH_DOMAIN" \
+            --dart-define="PIPE_FIREBASE_PROJECT_ID=$PIPE_FIREBASE_PROJECT_ID" \
+            --dart-define="PIPE_FIREBASE_STORAGE_BUCKET=$PIPE_FIREBASE_STORAGE_BUCKET" \
+            --dart-define="PIPE_FIREBASE_MESSAGING_SENDER_ID=$PIPE_FIREBASE_MESSAGING_SENDER_ID" \
+            --dart-define="PIPE_FIREBASE_WEB_APP_ID=$PIPE_FIREBASE_WEB_APP_ID" \
+            --dart-define="PIPE_FIREBASE_MEASUREMENT_ID=$PIPE_FIREBASE_MEASUREMENT_ID" \
+            --dart-define=PIPE_APP_CHECK_REQUIRED=true \
+            --dart-define="PIPE_REMOTE_DIAGNOSTICS_ENABLED=$REMOTE_DIAGNOSTICS"
+
+          source_aab=build/app/outputs/bundle/release/app-release.aab
+          [[ -s "$source_aab" ]] || {
+            echo "The signed Android App Bundle was not produced." >&2
+            exit 1
+          }
+          artifact_dir=build/release-candidate/android
+          mkdir -p "$artifact_dir"
+          candidate="$artifact_dir/pipe-buyer-$PIPE_RELEASE_SHA-$BUILD_NUMBER.aab"
+          cp "$source_aab" "$candidate"
+          jarsigner -verify -strict -verbose -certs "$candidate" \
+            > "$artifact_dir/android-signature-verification.txt"
+          keytool -printcert -jarfile "$candidate" \
+            > "$artifact_dir/android-public-certificate.txt"
+          sha256sum "$candidate" > "$candidate.sha256"
+          CANDIDATE_PATH="$candidate" node <<'NODE'
+          const fs = require('node:fs');
+          const metadata = {
+            schemaVersion: 1,
+            candidateId: 'android-aab',
+            platform: 'android',
+            applicationId: 'Pipe.Buyerapp',
+            environment: process.env.PIPE_ENV,
+            builtFromSha: process.env.PIPE_RELEASE_SHA,
+            versionName: process.env.BUILD_NAME,
+            buildNumber: process.env.BUILD_NUMBER,
+            signatureVerified: true,
+            storeValidated: false,
+            artifactFile: process.env.CANDIDATE_PATH.split('/').pop(),
+            workflowRunUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+          };
+          fs.writeFileSync(
+            'build/release-candidate/android/candidate-metadata.json',
+            `${JSON.stringify(metadata, null, 2)}\n`,
+          );
+          NODE
+          {
+            echo "## Signed Android candidate"
+            echo ""
+            echo "- Commit: \`$PIPE_RELEASE_SHA\`"
+            echo "- Version: \`$BUILD_NAME+$BUILD_NUMBER\`"
+            echo "- Application ID: \`Pipe.Buyerapp\`"
+            echo "- Signature: verified with \`jarsigner -verify -strict\`"
+            echo "- Store validation: not performed by this workflow"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove Android signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f android/key.properties "$RUNNER_TEMP/upload-keystore.jks"
+
+      - name: Retain signed Android candidate evidence
+        if: success()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: signed-android-${{ needs.preflight.outputs.release_sha }}-${{ inputs.build_number }}
+          path: build/release-candidate/android
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  ios:
+    name: Build signed Apple IPA
+    needs: preflight
+    runs-on: macos-15
+    timeout-minutes: 45
+    environment:
+      name: ${{ format('mobile-release-{0}', inputs.target_environment) }}
+    env:
+      PIPE_ENV: ${{ inputs.target_environment }}
+      PIPE_RELEASE_SHA: ${{ needs.preflight.outputs.release_sha }}
+      PIPE_FIREBASE_API_KEY: ${{ vars.PIPE_FIREBASE_API_KEY }}
+      PIPE_FIREBASE_AUTH_DOMAIN: ${{ vars.PIPE_FIREBASE_AUTH_DOMAIN }}
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+      PIPE_FIREBASE_STORAGE_BUCKET: ${{ vars.PIPE_FIREBASE_STORAGE_BUCKET }}
+      PIPE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PIPE_FIREBASE_MESSAGING_SENDER_ID }}
+      PIPE_FIREBASE_WEB_APP_ID: ${{ vars.PIPE_FIREBASE_WEB_APP_ID }}
+      PIPE_FIREBASE_MEASUREMENT_ID: ${{ vars.PIPE_FIREBASE_MEASUREMENT_ID }}
+      IOS_DEVELOPMENT_TEAM: ${{ vars.IOS_DEVELOPMENT_TEAM }}
+      IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+      IOS_EXPORT_OPTIONS_PLIST_BASE64: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST_BASE64 }}
+      MOBILE_RELEASE_ENVIRONMENT_GUARD: ${{ secrets.MOBILE_RELEASE_ENVIRONMENT_GUARD }}
+
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ needs.preflight.outputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Validate environment and Apple signing inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_variables=(
+            PIPE_FIREBASE_API_KEY
+            PIPE_FIREBASE_AUTH_DOMAIN
+            PIPE_FIREBASE_PROJECT_ID
+            PIPE_FIREBASE_STORAGE_BUCKET
+            PIPE_FIREBASE_MESSAGING_SENDER_ID
+            PIPE_FIREBASE_WEB_APP_ID
+            IOS_DEVELOPMENT_TEAM
+          )
+          required_secrets=(
+            IOS_DISTRIBUTION_CERTIFICATE_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+            IOS_PROVISIONING_PROFILE_BASE64
+            IOS_EXPORT_OPTIONS_PLIST_BASE64
+            MOBILE_RELEASE_ENVIRONMENT_GUARD
+          )
+          for name in "${required_variables[@]}" "${required_secrets[@]}"; do
+            [[ -n "${!name:-}" ]] || {
+              echo "Required protected value $name is not configured." >&2
+              exit 1
+            }
+          done
+          [[ "$MOBILE_RELEASE_ENVIRONMENT_GUARD" == "mobile-release-$PIPE_ENV" ]] || {
+            echo "The protected mobile release environment guard does not match the selected environment." >&2
+            exit 1
+          }
+          [[ "$IOS_DEVELOPMENT_TEAM" =~ ^[A-Z0-9]{10}$ ]] || {
+            echo "IOS_DEVELOPMENT_TEAM must be a ten-character Apple team ID." >&2
+            exit 1
+          }
+          if [[ "$PIPE_ENV" == "production" && "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
+            echo "Production candidates must target flutter-flow-pipe." >&2
+            exit 1
+          fi
+          if [[ "$PIPE_ENV" == "staging" && "$PIPE_FIREBASE_PROJECT_ID" == "flutter-flow-pipe" ]]; then
+            echo "Staging candidates cannot target the production Firebase project." >&2
+            exit 1
+          fi
+
+      - name: Install signing material and build Apple candidate
+        shell: bash
+        env:
+          BUILD_NAME: ${{ inputs.build_name }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          REMOTE_DIAGNOSTICS: ${{ inputs.enable_remote_diagnostics }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/distribution.p12"
+          profile_path="$RUNNER_TEMP/distribution.mobileprovision"
+          profile_plist="$RUNNER_TEMP/distribution-profile.plist"
+          export_options_path="$RUNNER_TEMP/ExportOptions.plist"
+          keychain_path="$RUNNER_TEMP/pipe-buyer-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | /usr/bin/base64 -D > "$certificate_path"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | /usr/bin/base64 -D > "$profile_path"
+          printf '%s' "$IOS_EXPORT_OPTIONS_PLIST_BASE64" | /usr/bin/base64 -D > "$export_options_path"
+          chmod 600 "$certificate_path" "$profile_path" "$export_options_path"
+
+          security cms -D -i "$profile_path" > "$profile_plist"
+          profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$profile_plist")"
+          profile_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile_plist")"
+          profile_team="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile_plist")"
+          profile_app="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile_plist")"
+          [[ "$profile_team" == "$IOS_DEVELOPMENT_TEAM" ]] || {
+            echo "Provisioning profile team does not match IOS_DEVELOPMENT_TEAM." >&2
+            exit 1
+          }
+          [[ "$profile_app" == "$IOS_DEVELOPMENT_TEAM.Pipe.Buyerapp" ]] || {
+            echo "Provisioning profile does not authorize Pipe.Buyerapp." >&2
+            exit 1
+          }
+          export_team="$(/usr/libexec/PlistBuddy -c 'Print :teamID' "$export_options_path")"
+          export_style="$(/usr/libexec/PlistBuddy -c 'Print :signingStyle' "$export_options_path")"
+          export_profile="$(/usr/libexec/PlistBuddy -c 'Print :provisioningProfiles:Pipe.Buyerapp' "$export_options_path")"
+          [[ "$export_team" == "$IOS_DEVELOPMENT_TEAM" ]] || {
+            echo "ExportOptions team does not match IOS_DEVELOPMENT_TEAM." >&2
+            exit 1
+          }
+          [[ "$export_style" == "manual" ]] || {
+            echo "ExportOptions must use explicit manual signing." >&2
+            exit 1
+          }
+          [[ "$export_profile" == "$profile_name" ]] || {
+            echo "ExportOptions does not name the installed Pipe.Buyerapp profile." >&2
+            exit 1
+          }
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security find-identity -v -p codesigning "$keychain_path" | grep -Eq '1\) [0-9A-F]{40}' || {
+            echo "No valid Apple code-signing identity was imported." >&2
+            exit 1
+          }
+          profile_destination="$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          mkdir -p "$(dirname "$profile_destination")"
+          cp "$profile_path" "$profile_destination"
+          printf '%s' "$profile_destination" > "$RUNNER_TEMP/pipe-buyer-profile-path.txt"
+          printf '%s' "$keychain_path" > "$RUNNER_TEMP/pipe-buyer-keychain-path.txt"
+
+          flutter config --enable-swift-package-manager
+          flutter pub get
+          export FLUTTER_XCODE_CODE_SIGN_STYLE=Manual
+          export FLUTTER_XCODE_DEVELOPMENT_TEAM="$IOS_DEVELOPMENT_TEAM"
+          export FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER="$profile_name"
+          export FLUTTER_XCODE_CODE_SIGN_IDENTITY='Apple Distribution'
+          flutter build ipa \
+            --release \
+            --build-name "$BUILD_NAME" \
+            --build-number "$BUILD_NUMBER" \
+            --export-options-plist="$export_options_path" \
+            --dart-define="PIPE_ENV=$PIPE_ENV" \
+            --dart-define="PIPE_RELEASE_SHA=$PIPE_RELEASE_SHA" \
+            --dart-define="PIPE_FIREBASE_API_KEY=$PIPE_FIREBASE_API_KEY" \
+            --dart-define="PIPE_FIREBASE_AUTH_DOMAIN=$PIPE_FIREBASE_AUTH_DOMAIN" \
+            --dart-define="PIPE_FIREBASE_PROJECT_ID=$PIPE_FIREBASE_PROJECT_ID" \
+            --dart-define="PIPE_FIREBASE_STORAGE_BUCKET=$PIPE_FIREBASE_STORAGE_BUCKET" \
+            --dart-define="PIPE_FIREBASE_MESSAGING_SENDER_ID=$PIPE_FIREBASE_MESSAGING_SENDER_ID" \
+            --dart-define="PIPE_FIREBASE_WEB_APP_ID=$PIPE_FIREBASE_WEB_APP_ID" \
+            --dart-define="PIPE_FIREBASE_MEASUREMENT_ID=$PIPE_FIREBASE_MEASUREMENT_ID" \
+            --dart-define=PIPE_APP_CHECK_REQUIRED=true \
+            --dart-define="PIPE_REMOTE_DIAGNOSTICS_ENABLED=$REMOTE_DIAGNOSTICS"
+
+          ipa_count="$(find build/ios/ipa -maxdepth 1 -type f -name '*.ipa' | wc -l | tr -d ' ')"
+          [[ "$ipa_count" == "1" ]] || {
+            echo "Expected exactly one exported IPA; found $ipa_count." >&2
+            exit 1
+          }
+          source_ipa="$(find build/ios/ipa -maxdepth 1 -type f -name '*.ipa' | head -n 1)"
+          artifact_dir=build/release-candidate/ios
+          unpacked="$RUNNER_TEMP/pipe-buyer-ipa"
+          mkdir -p "$artifact_dir" "$unpacked"
+          candidate="$artifact_dir/pipe-buyer-$PIPE_RELEASE_SHA-$BUILD_NUMBER.ipa"
+          cp "$source_ipa" "$candidate"
+          unzip -q "$candidate" -d "$unpacked"
+          app_count="$(find "$unpacked/Payload" -maxdepth 1 -type d -name '*.app' | wc -l | tr -d ' ')"
+          [[ "$app_count" == "1" ]] || {
+            echo "Expected exactly one signed application in the IPA." >&2
+            exit 1
+          }
+          app_path="$(find "$unpacked/Payload" -maxdepth 1 -type d -name '*.app' | head -n 1)"
+          bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app_path/Info.plist")"
+          bundle_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Info.plist")"
+          bundle_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Info.plist")"
+          [[ "$bundle_id" == "Pipe.Buyerapp" ]] || {
+            echo "Exported IPA has the wrong application identifier." >&2
+            exit 1
+          }
+          [[ "$bundle_version" == "$BUILD_NAME" && "$bundle_build" == "$BUILD_NUMBER" ]] || {
+            echo "Exported IPA version does not match the requested release." >&2
+            exit 1
+          }
+          codesign --verify --deep --strict --verbose=2 "$app_path" \
+            2> "$artifact_dir/ios-signature-verification.txt"
+          echo 'codesign verification passed.' >> "$artifact_dir/ios-signature-verification.txt"
+          codesign -dv --verbose=4 "$app_path" \
+            2>> "$artifact_dir/ios-signature-verification.txt"
+          shasum -a 256 "$candidate" > "$candidate.sha256"
+          CANDIDATE_PATH="$candidate" node <<'NODE'
+          const fs = require('node:fs');
+          const metadata = {
+            schemaVersion: 1,
+            candidateId: 'ios-ipa',
+            platform: 'ios',
+            applicationId: 'Pipe.Buyerapp',
+            environment: process.env.PIPE_ENV,
+            builtFromSha: process.env.PIPE_RELEASE_SHA,
+            versionName: process.env.BUILD_NAME,
+            buildNumber: process.env.BUILD_NUMBER,
+            signatureVerified: true,
+            storeValidated: false,
+            artifactFile: process.env.CANDIDATE_PATH.split('/').pop(),
+            workflowRunUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+          };
+          fs.writeFileSync(
+            'build/release-candidate/ios/candidate-metadata.json',
+            `${JSON.stringify(metadata, null, 2)}\n`,
+          );
+          NODE
+          {
+            echo "## Signed Apple candidate"
+            echo ""
+            echo "- Commit: \`$PIPE_RELEASE_SHA\`"
+            echo "- Version: \`$BUILD_NAME+$BUILD_NUMBER\`"
+            echo "- Application ID: \`Pipe.Buyerapp\`"
+            echo "- Signature: verified with \`codesign --verify --deep --strict\`"
+            echo "- Store validation: not performed by this workflow"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove Apple signing material
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/pipe-buyer-profile-path.txt" ]]; then
+            rm -f "$(cat "$RUNNER_TEMP/pipe-buyer-profile-path.txt")"
+          fi
+          if [[ -f "$RUNNER_TEMP/pipe-buyer-keychain-path.txt" ]]; then
+            security delete-keychain "$(cat "$RUNNER_TEMP/pipe-buyer-keychain-path.txt")" || true
+          fi
+          rm -f \
+            "$RUNNER_TEMP/distribution.p12" \
+            "$RUNNER_TEMP/distribution.mobileprovision" \
+            "$RUNNER_TEMP/distribution-profile.plist" \
+            "$RUNNER_TEMP/ExportOptions.plist" \
+            "$RUNNER_TEMP/pipe-buyer-profile-path.txt" \
+            "$RUNNER_TEMP/pipe-buyer-keychain-path.txt"
+
+      - name: Retain signed Apple candidate evidence
+        if: success()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: signed-ios-${{ needs.preflight.outputs.release_sha }}-${{ inputs.build_number }}
+          path: build/release-candidate/ios
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

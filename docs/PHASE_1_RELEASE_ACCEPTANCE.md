@@ -34,6 +34,14 @@ deployment recovery all remain mandatory.
 
 ### Signed release candidates
 
+Run the protected `Build signed mobile release candidates` workflow only after
+the exact release SHA has passed Quality and is contained in `main`. The
+workflow fails closed without the environment-specific Firebase values,
+Android upload key, Apple distribution certificate, exact provisioning
+profile, and manual export options. Its retained signature metadata still says
+`storeValidated: false`; change the acceptance record to passed only after the
+exact artifact succeeds in the appropriate store console.
+
 Copy the exact Android AAB and exported Apple IPA into the private evidence
 directory. Each record must name the current `Pipe.Buyerapp` identifier, exact
 release SHA, semantic version, positive store build number, and retained
