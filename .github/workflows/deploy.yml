@@ -245,11 +245,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p build
           firebase deploy \
             --project "$PIPE_FIREBASE_PROJECT_ID" \
             --config firebase.json \
             --only auth,hosting,functions,firestore:rules,firestore:indexes,storage \
-            --non-interactive
+            --message "Pipe Buyer $PIPE_ENV $PIPE_RELEASE_SHA workflow ${{ github.run_id }}" \
+            --non-interactive 2>&1 | tee build/firebase-deploy.log
 
       - name: Prove deployed Function parity
         shell: bash
@@ -286,6 +288,19 @@ jobs:
             echo "- Workflow run: \`${{ github.run_id }}\`"
             echo "- Result: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain Firebase deployment evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: firebase-release-evidence-${{ inputs.environment }}-${{ inputs.commit_sha }}-${{ github.run_id }}
+          path: |
+            build/release-manifest.json
+            build/firebase-deploy.log
+            build/deployed-functions.json
+            build/function-parity.json
+          if-no-files-found: warn
+          retention-days: 30
 
   visual-acceptance:
     name: Visual acceptance ${{ inputs.environment }}
