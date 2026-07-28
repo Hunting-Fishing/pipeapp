@@ -5,10 +5,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_auction_repository.dart';
 import 'marketplace_auction_settlement.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_money.dart';
 import 'marketplace_freight_quote.dart';
@@ -859,13 +861,19 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
           .placeBid(listingId: widget.document.id, amount: amount);
       if (mounted) {
         _bid.clear();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green, content: Text('Bid placed.')));
+        PipeFeedback.show(
+          context,
+          message: 'Bid placed.',
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$error')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -894,14 +902,19 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
       await MarketplaceAuctionRepository()
           .buyNow(listingId: widget.document.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Purchase confirmed. The auction is closed.')));
+        PipeFeedback.show(
+          context,
+          message: 'Purchase confirmed. The auction is closed.',
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$error')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -930,14 +943,19 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
       await MarketplaceAuctionRepository()
           .acceptLeadingBidBelowReserve(listingId: widget.document.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Leading bid accepted. The bidder was notified.')));
+        PipeFeedback.show(
+          context,
+          message: 'Leading bid accepted. The bidder was notified.',
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$error')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -1234,6 +1252,8 @@ class _BidHistory extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('auction_bids')
           .where('listingId', isEqualTo: listingId)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
           .snapshots(),
       builder: (context, snapshot) {
         final bids = snapshot.data?.docs.toList() ?? []
@@ -1248,37 +1268,47 @@ class _BidHistory extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 20),
               child: Text('No bids yet. Be the first bidder.'));
         }
-        return Column(
-            children: bids.map((bid) {
-          final data = bid.data();
-          final uid = FirebaseAuth.instance.currentUser?.uid;
-          final start = (listing['auctionStartAt'] as Timestamp?)?.toDate();
-          final canWithdraw = listing['customAuction'] == true &&
-              start != null &&
-              !DateTime.now().isBefore(start.add(const Duration(days: 32))) &&
-              data['bidderUid'] == uid &&
-              data['status'] != 'withdrawn' &&
-              data['status'] != 'buy_now';
-          return ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-              title: Text(marketplaceMoney(data['amount'] as num? ?? 0)),
-              subtitle: Text(data['status'] == 'withdrawn'
-                  ? 'Withdrawn'
-                  : data['createdAt'] is Timestamp
-                      ? (data['createdAt'] as Timestamp)
-                          .toDate()
-                          .toLocal()
-                          .toString()
-                      : 'Submitting…'),
-              trailing: data['status'] == 'withdrawn'
-                  ? const Chip(label: Text('WITHDRAWN'))
-                  : canWithdraw
-                      ? TextButton.icon(
-                          onPressed: () => _confirmWithdrawal(context, bid.id),
-                          icon: const Icon(Icons.undo, size: 18),
-                          label: const Text('Withdraw'))
-                      : null);
-        }).toList());
+        return Column(children: [
+          if (bids.length == defaultActivityFeedLimit)
+            const ListTile(
+              dense: true,
+              leading: Icon(Icons.info_outline),
+              title: Text('Showing the latest 100 bids'),
+              subtitle: Text(
+                  'The complete authoritative history remains stored for review.'),
+            ),
+          ...bids.map((bid) {
+            final data = bid.data();
+            final uid = FirebaseAuth.instance.currentUser?.uid;
+            final start = (listing['auctionStartAt'] as Timestamp?)?.toDate();
+            final canWithdraw = listing['customAuction'] == true &&
+                start != null &&
+                !DateTime.now().isBefore(start.add(const Duration(days: 32))) &&
+                data['bidderUid'] == uid &&
+                data['status'] != 'withdrawn' &&
+                data['status'] != 'buy_now';
+            return ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                title: Text(marketplaceMoney(data['amount'] as num? ?? 0)),
+                subtitle: Text(data['status'] == 'withdrawn'
+                    ? 'Withdrawn'
+                    : data['createdAt'] is Timestamp
+                        ? (data['createdAt'] as Timestamp)
+                            .toDate()
+                            .toLocal()
+                            .toString()
+                        : 'Submitting…'),
+                trailing: data['status'] == 'withdrawn'
+                    ? const Chip(label: Text('WITHDRAWN'))
+                    : canWithdraw
+                        ? TextButton.icon(
+                            onPressed: () =>
+                                _confirmWithdrawal(context, bid.id),
+                            icon: const Icon(Icons.undo, size: 18),
+                            label: const Text('Withdraw'))
+                        : null);
+          }),
+        ]);
       });
 
   Future<void> _confirmWithdrawal(BuildContext context, String bidId) async {
@@ -1302,14 +1332,19 @@ class _BidHistory extends StatelessWidget {
       await MarketplaceAuctionRepository()
           .withdrawBid(listingId: listingId, bidId: bidId);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Bid withdrawn. Auction totals were updated.')));
+        PipeFeedback.show(
+          context,
+          message: 'Bid withdrawn. Auction totals were updated.',
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$error')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }

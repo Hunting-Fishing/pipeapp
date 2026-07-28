@@ -2,15 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_messages_page.dart';
+import 'marketplace_policy_center.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_account_device_repository.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_reporting.dart';
+import 'marketplace_support.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_money.dart';
@@ -207,6 +210,8 @@ Future<void> _showUserScore(
     FirebaseFirestore.instance
         .collection('user_score_events')
         .where('userUid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .limit(defaultActivityFeedLimit)
         .get(),
     FirebaseFirestore.instance
         .collection('public_business_profiles')
@@ -308,6 +313,7 @@ Future<void> _showUserScore(
                               style: TextStyle(
                                   fontSize: 22, fontWeight: FontWeight.w900))),
                       IconButton(
+                          tooltip: 'Close score history',
                           onPressed: () => Navigator.pop(dialogContext),
                           icon: const Icon(Icons.close))
                     ]),
@@ -738,11 +744,12 @@ Future<void> _markListingNotificationsRead(String listingId) async {
       .collection('users')
       .doc(uid)
       .collection('notifications')
+      .where('listingId', isEqualTo: listingId)
       .where('read', isEqualTo: false)
+      .limit(defaultBatchMutationLimit)
       .get();
   final batch = FirebaseFirestore.instance.batch();
   for (final document in snapshot.docs) {
-    if (document.data()['listingId'] != listingId) continue;
     batch.update(document.reference,
         {'read': true, 'readAt': FieldValue.serverTimestamp()});
   }
@@ -762,13 +769,12 @@ class _ListingNotificationBadge extends StatelessWidget {
             .collection('users')
             .doc(uid)
             .collection('notifications')
+            .where('listingId', isEqualTo: listingId)
             .where('read', isEqualTo: false)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (_, snapshot) {
-          final count = snapshot.data?.docs
-                  .where((doc) => doc.data()['listingId'] == listingId)
-                  .length ??
-              0;
+          final count = snapshot.data?.docs.length ?? 0;
           return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Badge(
@@ -1206,9 +1212,11 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         amount <= 0 ||
         count == null ||
         count < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Enter a title, valid price, and valid quantity.')));
+      PipeFeedback.show(
+        context,
+        message: 'Enter a title, valid price, and valid quantity.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
     await _runListingCommand(
@@ -1307,14 +1315,19 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         _listingRequestIds.remove('$key-listing');
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(backgroundColor: Colors.green, content: Text(success)));
+        PipeFeedback.show(
+          context,
+          message: success,
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('$error'.replaceFirst('Bad state: ', ''))));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _listingActionBusy = null);
@@ -1789,18 +1802,22 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
       });
       if (mounted) {
         _auctionConversionRequestId = null;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Listing moved to Auctions.')));
+        PipeFeedback.show(
+          context,
+          message: 'Listing moved to Auctions.',
+          tone: PipeStatusTone.success,
+        );
       }
     } catch (error) {
       if (mounted) {
-        final message = '$error'.replaceFirst('Bad state: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(message.isEmpty
-                ? 'The listing could not be moved to Auctions.'
-                : message)));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The listing could not be moved to Auctions.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _convertingToAuction = false);
@@ -1959,6 +1976,8 @@ class _OwnerBidHistory extends StatelessWidget {
           stream: FirebaseFirestore.instance
               .collection('auction_bids')
               .where('listingId', isEqualTo: listingId)
+              .orderBy('createdAt', descending: true)
+              .limit(defaultActivityFeedLimit)
               .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const LinearProgressIndicator();
@@ -1970,24 +1989,31 @@ class _OwnerBidHistory extends StatelessWidget {
                     .compareTo(at?.millisecondsSinceEpoch ?? 0);
               });
             if (bids.isEmpty) return const Text('No bids received yet.');
-            return Column(
-                children: bids
-                    .map((bid) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const CircleAvatar(
-                            child: Icon(Icons.gavel, size: 18)),
-                        title: Text(
-                            '\$${(bid.data()['amount'] as num? ?? 0).toStringAsFixed(2)}'),
-                        subtitle: Text(bid.data()['createdAt'] is Timestamp
-                            ? (bid.data()['createdAt'] as Timestamp)
-                                .toDate()
-                                .toLocal()
-                                .toString()
-                            : 'Submitting…'),
-                        trailing: bid.data()['status'] == 'buy_now'
-                            ? const Chip(label: Text('BUY NOW'))
-                            : null))
-                    .toList());
+            return Column(children: [
+              if (bids.length == defaultActivityFeedLimit)
+                const ListTile(
+                  dense: true,
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Showing the latest 100 bids'),
+                  subtitle:
+                      Text('Older bids remain stored in the auction record.'),
+                ),
+              ...bids.map((bid) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading:
+                      const CircleAvatar(child: Icon(Icons.gavel, size: 18)),
+                  title: Text(
+                      '\$${(bid.data()['amount'] as num? ?? 0).toStringAsFixed(2)}'),
+                  subtitle: Text(bid.data()['createdAt'] is Timestamp
+                      ? (bid.data()['createdAt'] as Timestamp)
+                          .toDate()
+                          .toLocal()
+                          .toString()
+                      : 'Submitting…'),
+                  trailing: bid.data()['status'] == 'buy_now'
+                      ? const Chip(label: Text('BUY NOW'))
+                      : null))
+            ]);
           });
 }
 
@@ -2019,6 +2045,8 @@ class _AccountNotifications extends StatelessWidget {
             .collection('users')
             .doc(uid)
             .collection('notifications')
+            .orderBy('createdAt', descending: true)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -2038,11 +2066,20 @@ class _AccountNotifications extends StatelessWidget {
           if (items.isEmpty) {
             return const Center(child: Text('No notifications yet.'));
           }
+          final atLimit = items.length == defaultActivityFeedLimit;
           return ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: items.length,
+              itemCount: items.length + (atLimit ? 1 : 0),
               itemBuilder: (context, index) {
-                final document = items[index];
+                if (atLimit && index == 0) {
+                  return const Card(
+                    child: ListTile(
+                      leading: Icon(Icons.info_outline),
+                      title: Text('Showing the 100 most recent notifications.'),
+                    ),
+                  );
+                }
+                final document = items[index - (atLimit ? 1 : 0)];
                 final data = document.data();
                 final unread = data['read'] != true;
                 return Card(
@@ -2106,6 +2143,7 @@ class _AccountTabBadge extends StatelessWidget {
             .doc(uid)
             .collection('notifications')
             .where('read', isEqualTo: false)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (_, snapshot) {
           final count = snapshot.data?.docs.where((doc) {
@@ -2135,10 +2173,11 @@ class _AccountSettingsState extends State<_AccountSettings> {
 
   void _notice(String message, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: error ? Colors.red.shade700 : null,
-        content: Text(message)));
+    PipeFeedback.show(
+      context,
+      message: message,
+      tone: error ? PipeStatusTone.error : PipeStatusTone.success,
+    );
   }
 
   Future<void> _exportData() async {
@@ -2299,8 +2338,26 @@ class _AccountSettingsState extends State<_AccountSettings> {
               ? null
               : () => FirebaseAuth.instance
                   .sendPasswordResetEmail(email: user.email!)),
+      ListTile(
+          leading: const Icon(Icons.support_agent_outlined),
+          title: const Text('Help & Support'),
+          subtitle:
+              const Text('Submit a private case and review response history.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MarketplaceSupportPage()))),
+      ListTile(
+          leading: const Icon(Icons.policy_outlined),
+          title: const Text('Policies and agreements'),
+          subtitle: const Text(
+              'Check current versions and review your account acceptance.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MarketplacePolicyCenterPage()))),
       const SizedBox(height: 12),
       const _WatchKeywords(),
+      const SizedBox(height: 12),
+      const _ModerationNoticesCard(),
       const SizedBox(height: 12),
       const _AccountDevicesCard(),
       const SizedBox(height: 12),
@@ -2389,6 +2446,199 @@ class _AccountSettingsState extends State<_AccountSettings> {
   }
 }
 
+class _ModerationNoticesCard extends StatelessWidget {
+  const _ModerationNoticesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('moderation_notices')
+          .where('reportedUid', isEqualTo: uid)
+          .orderBy('updatedAt', descending: true)
+          .limit(defaultActivityFeedLimit)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Card(
+            child: ListTile(
+              leading:
+                  Icon(Icons.gpp_maybe_outlined, color: Colors.red.shade700),
+              title: const Text('Trust & Safety notices'),
+              subtitle: const Text(
+                  'Safety notices are temporarily unavailable. Try again shortly.'),
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Card(
+            child: ListTile(
+              leading: SizedBox.square(
+                dimension: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              title: Text('Checking Trust & Safety notices'),
+            ),
+          );
+        }
+        final notices = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aTime = a.data()['updatedAt'] as Timestamp?;
+            final bTime = b.data()['updatedAt'] as Timestamp?;
+            return (bTime?.millisecondsSinceEpoch ?? 0)
+                .compareTo(aTime?.millisecondsSinceEpoch ?? 0);
+          });
+        if (notices.isEmpty) return const SizedBox.shrink();
+        return Card(
+          color: Colors.orange.shade50,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ListTile(
+                leading: Icon(Icons.gpp_maybe_outlined),
+                title: Text('Trust & Safety notices',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                subtitle:
+                    Text('Review decisions affecting your account or content.'),
+              ),
+              ...notices.map((notice) {
+                final data = notice.data();
+                final status = '${data['status'] ?? 'reviewed'}';
+                final appealAvailable = data['appealAvailable'] == true &&
+                    data['appealDeadline'] is Timestamp &&
+                    (data['appealDeadline'] as Timestamp)
+                        .toDate()
+                        .isAfter(DateTime.now());
+                return Column(
+                  children: [
+                    const Divider(height: 1),
+                    ListTile(
+                      title: Text('${data['reasonLabel'] ?? 'Safety decision'}',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(
+                        '${status.replaceAll('_', ' ')} • ${data['enforcementAction'] ?? 'none'}\n'
+                        '${data['reviewReason'] ?? ''}',
+                      ),
+                      isThreeLine: true,
+                      trailing: appealAvailable
+                          ? OutlinedButton(
+                              onPressed: () => _appeal(context, notice.id),
+                              child: const Text('Appeal'),
+                            )
+                          : null,
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static Future<void> _appeal(BuildContext context, String reportId) async {
+    final pageContext = context;
+    final reason = TextEditingController();
+    var submitting = false;
+    String? error;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          icon: const Icon(Icons.balance_outlined, size: 36),
+          title: const Text('Appeal this decision?'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                    'Explain what was misunderstood and identify any evidence an administrator should review.'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reason,
+                  enabled: !submitting,
+                  minLines: 4,
+                  maxLines: 7,
+                  maxLength: 2000,
+                  decoration: const InputDecoration(
+                    labelText: 'Appeal explanation *',
+                    hintText:
+                        'For example: I own the original photos and can provide the source files.',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (error != null)
+                  Text(error!,
+                      style: const TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (reason.text.trim().length < 20) {
+                        setState(() => error =
+                            'Provide at least 20 characters so the appeal can be reviewed fairly.');
+                        return;
+                      }
+                      setState(() {
+                        submitting = true;
+                        error = null;
+                      });
+                      try {
+                        final requestId = FirebaseFirestore.instance
+                            .collection('moderation_command_receipts')
+                            .doc()
+                            .id;
+                        await MarketplaceCommandClient()
+                            .execute('appealModerationDecision', {
+                          'requestId': requestId,
+                          'reportId': reportId,
+                          'reason': reason.text.trim(),
+                        });
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(pageContext).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Appeal submitted for administrator review.')),
+                          );
+                        }
+                      } catch (caught) {
+                        setState(() {
+                          submitting = false;
+                          error = '$caught'.replaceFirst('Bad state: ', '');
+                        });
+                      }
+                    },
+              icon: submitting
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.send_outlined),
+              label: const Text('Submit appeal'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reason.dispose();
+  }
+}
+
 class _AccountDevicesCard extends StatefulWidget {
   const _AccountDevicesCard();
 
@@ -2417,8 +2667,7 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
     }
     try {
       final registered = await _repository.registerCurrentDevice();
-      final current =
-          registered ?? await _repository.currentDeviceDocumentId();
+      final current = registered ?? await _repository.currentDeviceDocumentId();
       if (mounted) setState(() => _currentDeviceId = current);
     } catch (error) {
       if (mounted) setState(() => _registrationError = error);
@@ -2432,8 +2681,7 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox.shrink();
     return Card(
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       ListTile(
         leading: const Icon(Icons.devices_outlined),
         title: const Text('Remembered devices'),
@@ -2441,8 +2689,7 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
             'App installations seen in the last 180 days. No location, IP address, or hardware fingerprint is stored.'),
         trailing: _registering
             ? const SizedBox.square(
-                dimension: 22,
-                child: CircularProgressIndicator(strokeWidth: 2))
+                dimension: 22, child: CircularProgressIndicator(strokeWidth: 2))
             : IconButton(
                 tooltip: 'Refresh device history',
                 onPressed: _refresh,
@@ -2495,7 +2742,8 @@ class _AccountDevicesCardState extends State<_AccountDevicesCard> {
               leading: Icon(_deviceIcon('${data['platform'] ?? ''}'),
                   color: active ? Colors.blue.shade700 : Colors.grey),
               title: Row(children: [
-                Flexible(child: Text('${data['label'] ?? 'Pipe Buyer device'}')),
+                Flexible(
+                    child: Text('${data['label'] ?? 'Pipe Buyer device'}')),
                 if (current) ...[
                   const SizedBox(width: 8),
                   const Chip(
@@ -2557,22 +2805,18 @@ Future<void> _signOutFromSettings(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     MarketplaceNavigation.goHome(context);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Row(children: [
-          Icon(Icons.check_circle_outline, color: Colors.white),
-          SizedBox(width: 10),
-          Expanded(
-              child: Text(
-                  'Signed out successfully. You can sign in again from the menu.'))
-        ])));
+    PipeFeedback.show(
+      context,
+      message: 'Signed out successfully. You can sign in again from the menu.',
+      tone: PipeStatusTone.success,
+    );
   } catch (_) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
-        content: Text(
-            'Sign out failed. Please check your connection and try again.')));
+    PipeFeedback.show(
+      context,
+      message: 'Sign out failed. Please check your connection and try again.',
+      tone: PipeStatusTone.error,
+    );
   }
 }
 
@@ -2615,6 +2859,7 @@ class _WatchKeywordsState extends State<_WatchKeywords> {
                             hintText:
                                 'Example: 2 7/8 drill pipe Grande Prairie'))),
                 IconButton.filled(
+                    tooltip: 'Add listing alert',
                     onPressed: () async {
                       final words = controller.text
                           .toLowerCase()

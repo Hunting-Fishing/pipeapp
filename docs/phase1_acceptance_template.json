@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 2,
+  "environment": "staging",
+  "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA",
+  "executedAt": "REPLACE_WITH_UTC_ISO_TIMESTAMP",
+  "journeys": [
+    {"id": "account-ownership-profile-media", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "listing-lifecycle", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "saved-state-recovery", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "communications-moderation", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "offers-transactions", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "auctions-settlement", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "dispatch-delivery", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "failure-and-retry", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "administrator-security", "status": "pending", "tester": "", "evidenceFiles": []},
+    {"id": "deployment-and-recovery", "status": "pending", "tester": "", "evidenceFiles": []}
+  ],
+  "recovery": [
+    {"id": "hosting-rollback", "status": "pending", "actualMinutes": null, "evidenceFiles": []},
+    {"id": "functions-rules-rollback", "status": "pending", "actualMinutes": null, "evidenceFiles": []},
+    {"id": "firestore-backup-restore", "status": "pending", "actualMinutes": null, "evidenceFiles": []}
+  ],
+  "defects": {
+    "reviewedAt": "REPLACE_WITH_UTC_ISO_TIMESTAMP",
+    "reviewedBy": "",
+    "items": []
+  },
+  "signoffs": [
+    {"id": "product", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "engineering", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "security", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "trust-and-safety", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "support", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "privacy", "status": "pending", "approvedBy": "", "approvedAt": ""},
+    {"id": "legal", "status": "pending", "approvedBy": "", "approvedAt": ""}
+  ],
+  "mobileRelease": {
+    "releaseCandidates": [
+      {"id": "android-aab", "status": "pending", "platform": "android", "applicationId": "Pipe.Buyerapp", "builtFromSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "versionName": "1.0.0", "buildNumber": "1", "signatureVerified": false, "storeValidated": false, "artifactFile": "mobile/pipe-buyer.aab", "evidenceFiles": []},
+      {"id": "ios-ipa", "status": "pending", "platform": "ios", "applicationId": "Pipe.Buyerapp", "builtFromSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "versionName": "1.0.0", "buildNumber": "1", "signatureVerified": false, "storeValidated": false, "artifactFile": "mobile/pipe-buyer.ipa", "evidenceFiles": []}
+    ],
+    "storeListings": [
+      {"id": "google-play", "status": "pending", "reviewedBy": "", "reviewedAt": "", "supportUrl": "https://REPLACE_WITH_PUBLIC_SUPPORT_URL", "privacyUrl": "https://REPLACE_WITH_PUBLIC_PRIVACY_URL", "termsUrl": "https://REPLACE_WITH_PUBLIC_TERMS_URL", "accountDeletionUrl": "https://REPLACE_WITH_PUBLIC_ACCOUNT_DELETION_URL", "screenshotFiles": [], "evidenceFiles": []},
+      {"id": "apple-app-store", "status": "pending", "reviewedBy": "", "reviewedAt": "", "supportUrl": "https://REPLACE_WITH_PUBLIC_SUPPORT_URL", "privacyUrl": "https://REPLACE_WITH_PUBLIC_PRIVACY_URL", "termsUrl": "https://REPLACE_WITH_PUBLIC_TERMS_URL", "accountDeletionUrl": "https://REPLACE_WITH_PUBLIC_ACCOUNT_DELETION_URL", "screenshotFiles": [], "evidenceFiles": []}
+    ],
+    "privacyReviews": [
+      {"id": "google-play-data-safety", "status": "pending", "reviewedBy": "", "reviewedAt": "", "evidenceFiles": []},
+      {"id": "apple-app-privacy", "status": "pending", "reviewedBy": "", "reviewedAt": "", "evidenceFiles": []},
+      {"id": "linked-sdk-inventory", "status": "pending", "reviewedBy": "", "reviewedAt": "", "evidenceFiles": []}
+    ],
+    "deviceRuns": [
+      {"id": "android-compact-phone", "status": "pending", "platform": "android", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "releaseCandidateId": "android-aab", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "TalkBack", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "android-current-phone", "status": "pending", "platform": "android", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "releaseCandidateId": "android-aab", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "TalkBack", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "android-tablet", "status": "pending", "platform": "android", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "releaseCandidateId": "android-aab", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "TalkBack", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "ios-compact-phone", "status": "pending", "platform": "ios", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "releaseCandidateId": "ios-ipa", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "VoiceOver", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "ios-current-phone", "status": "pending", "platform": "ios", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "releaseCandidateId": "ios-ipa", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "VoiceOver", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "ios-tablet", "status": "pending", "platform": "ios", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "releaseCandidateId": "ios-ipa", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "VoiceOver", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "web-mobile-chromium", "status": "pending", "platform": "web", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "Keyboard and screen reader", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "web-desktop-chromium", "status": "pending", "platform": "web", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "Keyboard and screen reader", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "web-mobile-safari", "status": "pending", "platform": "web", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "VoiceOver", "executedAt": "", "scenarios": [], "evidenceFiles": []},
+      {"id": "web-desktop-safari", "status": "pending", "platform": "web", "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "tester": "", "deviceModel": "", "osVersion": "", "assistiveTechnology": "VoiceOver and keyboard", "executedAt": "", "scenarios": [], "evidenceFiles": []}
+    ]
+  }
+}

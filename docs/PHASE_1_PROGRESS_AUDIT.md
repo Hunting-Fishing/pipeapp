@@ -1,8 +1,8 @@
 # Phase 1 progress audit
 
-Audit date: July 27, 2026
+Audit date: July 28, 2026
 
-Branch: `agent/phase1-dispatch-links-search`
+Branch: `agent/phase1-commerce-feedback-safety`
 
 Audited commit baseline: Gate 1 environment and deployment checkpoint
 
@@ -26,14 +26,14 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. An isolated staging rehearsal proved the missing-configuration case denies Marketplace, Auction, regulated-property, paid-boost, and Dispatch direct writes and cleans up its disposable identity. |
 | 1 — Environments, builds, diagnostics | No | 82% | `flutter-flow-pipe` remains the single production backend. Isolated staging project `pipebuyer-5c77f` now has separate Web, Android, and iOS registrations, Standard Firestore in `nam5`, deployed rules/indexes, provisioned Email/Password Auth, runtime project locks, passing staging Web/Android builds, the seven public GitHub Environment values, a proven Hosting deployment/rollback, a default-off native Crashlytics adapter, and repeatable mobile/desktop web visual checks. Staging Storage/Functions, App Check, Workload Identity, environment reviewer protection, CI full-service deployment, data recovery proof, approved monitoring ownership/native-device evidence remain incomplete. |
-| 2 — Backend parity and commands | No | 88% | The 61 reviewed Function exports include idempotent ownership synchronization, account-review submission/decision, private account export, remembered-device registration/expiry, session revocation, staged deletion/cleanup, abuse cleanup, draft-first listing publication, saved/listing/offer/auction/Dispatch lifecycles, Dispatch provider submission/review, and protected conversation, upload, message, and report commands. Direct clients cannot author authoritative verification, privacy, device history, listing drafts, provider approval, rate-limit, saved, listing revision, reserve, offer, bid, settlement, delivery-proof, conversation, message, upload-grant, report, dispute, or Dispatch state. A real Auth, Firestore, Functions, and Storage emulator suite verifies marketplace, listing media, communication, account-review, provider review, privacy, remembered devices, and repeated-request idempotency. Unit-tested release automation rejects missing, unexpected, or inactive deployed handlers. GitHub billing is available; staging deployment and exact deployed parity remain pending. |
+| 2 — Backend parity and commands | No | 92% | The 70 reviewed Function exports cover the Phase 1 command boundary and direct clients cannot author authoritative verification, privacy, device, listing, provider, rate-limit, commerce, communication, moderation, support, policy, dispute, or Dispatch state. The Firebase runtime dependency lock now resolves the vulnerable UUID chain at 11.1.1 with 0 npm audit findings. One hundred five Function tests, 36 Firestore/Storage Rules tests, and the authenticated Auth/Firestore/Functions/Storage workflow pass. Exact release manifests record `disabled`, `observe`, or `enforce` App Check state, production requires enforcement, and parity automation rejects missing, unexpected, or inactive deployed handlers. The owner reports staging billing is now enabled, but a July 28 read-only inventory still contains zero deployed Functions; controlled staging deployment and exact deployed parity remain pending. |
 | 3 — Identity and abuse protection | No | 93% | Signup and sign-in enter a cross-platform ownership screen until Firebase Auth email and mobile-phone providers are verified. Protected Marketplace, Offer, Auction, Dispatch, messaging, reporting, media, and privacy commands require current Auth claims and bounded quotas; phone uniqueness is synchronized into a hashed server-owned registry. Account verification requires verified ownership, complete public-profile evidence, a server submission, and an MFA-authorized administrator decision with a required note, immutable history, and notifications. Administrator authorization requires an audited custom role plus a current-session MFA claim. Users can review privacy-limited remembered app installations, receive a new-device notification, generate a private expiring export, revoke all refresh sessions, schedule or cancel coordinated deletion, and start non-enumerating email/password recovery. Staging Phone Auth/App Check/MFA activation, assisted recovery for lost email/phone access, physical-device acceptance, live administrator acceptance, suspicious-device operations, and retention-policy approval remain incomplete. |
 | 4 — Product workflows | No | 89% | Saved listings, normal listing lifecycle, draft-first media publication, bounded Marketplace/Dispatch discovery, review-based Dispatch provider enrollment, recoverable entity routes, and indexed Marketplace filters are locally verified. Browse supports server-side listing type, exact condition, minimum/maximum price, newest, and price sorting across bounded pages, while clearly labelling keyword search as loaded-result scope. Browse, Auctions, seller profiles, owner listings, open Dispatch jobs, personal requests, carrier quotes, per-job bids, and revision histories use one indexed 24-record cursor pager with retry/load-more controls. Listings, Auctions, public profiles, participant conversations, and authenticated Dispatch jobs have encoded GoRouter paths with loading, not-found, access-denied, privacy, and return-to-Marketplace states; Firebase Hosting rewrites browser refreshes to Flutter. Dispatch job links expose only public route/load facts and participant-authorized transaction data, then open Dispatch management or quoting. Dispatch provider applications use verified Auth contact claims, begin in `pending_review`, require an MFA-authorized administrator decision, block quoting until approval, and retain notifications and immutable review history. Dispatch keeps only its newest page live, uses server-side owner/carrier/job filters, and obtains activity totals through aggregate counts instead of downloading records. The map is capped to the 200 newest active records, exposes refresh/error/result-scope states, and excludes private locations; the Dispatch listing picker is capped to 50 newest active records. Offers and winning auctions have participant-only confirmations, controlled disputes/default reports, notifications, and immutable history. Dispatch awards create participant-only transactions with carrier acceptance, scheduling, in-transit, structured delivery proof, customer closure, pre-transit cancellation, dispute, administrator resolution, notifications, and immutable history. Indexed full-text search, true truck-route/geospatial search, native universal-link association, payment release/refund, route calculation, and carrier billing remain incomplete. |
-| 5 — Trust, notifications, policies | No | 20% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, and administrator-readable cases are locally verified. Moderation operations, appeals, external delivery providers, policies, and support operations remain incomplete. |
-| 6 — Accessibility, performance, QA | No | 15% | Money/phone formatting and some mobile widget coverage exist. Accessibility, bounded data performance, device/network matrices, and abuse/load testing remain incomplete. |
-| 7 — Release readiness | No | 5% | A quality workflow exists. Staging rehearsal, operational ownership, backups, rollback proof, launch review, and monitoring are not complete. |
+| 5 — Trust, notifications, policies | No | 91% | User reporting, evidence attachment authorization, safe retry receipts, rate limits, MFA-authorized administrator decisions, required rationale, immutable case history, private affected-user notices, reversible content removal, a 30-day user appeal, administrator appeal review, private support operations, and exact-version policy publication/acceptance/enforcement are locally and emulator verified. Published listing media is now fingerprinted from the stored bytes by the server; exact same-seller reuse and conservative message-safety signals create private, idempotent, evidence-backed administrator cases without hiding content or penalizing an account before human review. External push/email delivery, an approved perceptual-image/text-classifier provider, approved policy text/retention ownership, support staffing, alerting, and staging acceptance remain incomplete. |
+| 6 — Accessibility, performance, QA | No | 91% | Pipe Buyer now has consistent public product naming; generated release artwork; a checked Apple privacy manifest; permission disclosures; no legacy Android storage opt-in; 48-pixel interactions; reading-order keyboard traversal; high-contrast light/dark focus indicators; focused form borders; semantic labels/tooltips; responsive compact offer controls; resilient listing media; a shared success/information/warning/error system with text, icon, and border cues across authentication, profile, saved listings, media, publishing, auction, offer, marketplace-transaction, Dispatch signup/jobs/quotes/transactions, policy, reporting, freight quotes, and chat actions; controlled command-error text; and bounded conversation, notification, bid, offer, message, saved-item, verification, moderation, and tag streams. Automated tests enforce WCAG AA status-text contrast in both themes, live screen-reader announcements, dismissible feedback, a raw-SnackBar prohibition in the primary marketplace shell, critical-commerce feedback contracts, raw-Firebase-error suppression, concurrent abuse quotas/retries, bounded activity/history/operations reads, participant-scoped offer queries, batch ceilings, 200% text, viewport, touch-target, branding, privacy, permission, signing, retry, authorization, and size contracts. The schema-version-2 acceptance contract fails closed without signed AAB/IPA artifacts, store/privacy evidence, and complete physical-device/browser scenarios bound to the release SHA. CI compiles the unsigned `iphoneos` release target on macOS, and a separate protected manual workflow can produce SHA-bound signed AAB/IPA candidates with strict signature checks, ephemeral credentials, and retained evidence without claiming store validation. The clean analyzer, 114 Flutter tests, 105 Function tests, validated indexes, ARM64 Android, production web, an actual WebAssembly build, and the fail-closed signing guard pass locally. Actual signed workflow execution, mobile installation, Apple linked-SDK privacy review, complete manual screen-reader/keyboard/contrast acceptance, physical-device matrices, store metadata/screenshots, and representative staging load testing remain incomplete. |
+| 7 — Release readiness | No | 15% | A quality workflow, release-SHA-bound acceptance validator, and fail-closed bundle preparer exist. The preparer binds all candidate and device records to the exact controlled release, creates the 37 pending evidence locations, permits only a real HTTPS public origin, and refuses to overwrite collected evidence. The validator requires all ten journeys, measured Hosting/Functions/Rules/data recovery controls, signed Android and Apple candidates, reviewed store/privacy evidence, ten exact device/browser targets, a reviewed defect inventory with no open P0/critical/high defects, and named product, engineering, security, Trust & Safety, support, privacy, and legal approvals. It rejects missing, stale, mismatched, unsafe/canonical-path, unsigned, insecure-URL, and incomplete evidence while streaming hashes for retained artifacts. Actual staging rehearsal, signed artifacts, device/store execution, operational ownership, backup restore, rollback proof, launch review, monitoring, approvals, and invitation-only pilot remain incomplete. |
 
-Overall Phase 1 launch readiness estimate: **73%**.
+Overall Phase 1 launch readiness estimate: **93%**.
 
 Completed gates: **1 of 8**.
 
@@ -102,7 +102,7 @@ Completed gates: **1 of 8**.
 ## Live Firebase parity finding
 
 The July 23 read-only inventory for project `flutter-flow-pipe` predates the
-current 61-export reviewed source. The automated parity control therefore
+current 70-export reviewed source. The automated parity control therefore
 continues to fail closed on missing current handlers and two unexpected legacy
 handlers (`onDispatchBidCreated` and `onDispatchJobAwarded`). Offer, Auction,
 and Dispatch workflows must remain disabled until a refreshed, reviewed
@@ -262,6 +262,246 @@ staging deployment matches exactly and passes end-to-end acceptance.
   details, link copying from the load board, and direct continuation into
   Dispatch management or quoting. Exact private locations remain undisclosed.
 
+## Gate 5 checkpoint evidence
+
+- Administrators no longer edit report status directly from Flutter. Three
+  retry-safe callable commands own report decisions, user appeals, and appeal
+  review; Firestore Rules deny every direct client create/update/delete of
+  decisions, sanitized notices, receipts, and immutable case events.
+- Administrator review requires the audited administrator role and a current
+  Firebase MFA session. Every dismissal, request for information, confirmed
+  violation, warning, or content-removal action requires a bounded rationale
+  and is recorded in permanent case history.
+- Confirmed violations create a private, sanitized notice for the affected
+  account without exposing the reporter or private evidence. Account Settings
+  displays those notices and offers one server-validated appeal during the
+  30-day appeal window.
+- Appeal review supports uphold or overturn with a required administrator
+  rationale. Overturning restores a listing's pre-moderation state or unhides
+  a moderated message when the report still owns that enforcement marker.
+- Reporter, affected-user, and appeal-result notifications are deterministic.
+  Message rendering suppresses both text and attachments while content is
+  hidden, and the original server record remains available for review and a
+  safe reversal.
+- The clean analyzer, 78 Flutter tests, 88 Functions/policy tests, 34
+  Firestore/Storage Rules tests, and the authenticated Auth/Firestore/
+  Functions/Storage workflow pass locally, including decision and appeal retry
+  idempotency. Staging deployment, reviewer acceptance, external notification
+  delivery, policy approval, and staffed support operations remain pending.
+- Listing media integrity no longer trusts a client-supplied hash. The publish
+  command streams each authorized stored photo, calculates SHA-256 on the
+  server, rejects a mismatch, and persists only the trusted fingerprints.
+- A bounded indexed trigger detects byte-identical photo reuse across the same
+  seller's listings. Its idempotent case includes the compared listing photos,
+  matched fingerprints, and related listing IDs in the private administrator
+  queue. It does not change listing visibility or the seller's account state.
+- Conservative fraud, threat, hate/racist, and vulgar/harassing message signals
+  create a private review case with a Unicode-safe 500-character evidence
+  excerpt. The source contract and authenticated emulator journey prove
+  `humanReviewRequired` is true, `automaticEnforcement` is false, and the
+  original message remains visible until an administrator decides the case.
+- Automated cases cannot be read by the sender, recipient, reported account,
+  or unrelated users. Active administrator roles receive one deterministic
+  notification; opening the review queue still requires the audited
+  administrator claims and a current MFA session. Trigger retries cannot reset
+  a previously reviewed case to pending.
+- This checkpoint passes the clean analyzer, 108 Flutter tests, 105 Functions
+  tests, 36 Firestore/Storage Rules tests, the authenticated four-service
+  emulator journey, dependency audits, ARM64 Android, production web, and an
+  actual WebAssembly build. Perceptual/similar-photo matching, a reviewed
+  external classifier, staging acceptance, and delivery operations remain
+  outside this locally verified increment.
+- Account Settings now provides real Help & Support instead of a dead menu
+  item. Users choose a category, see its server-controlled first-response
+  target before confirming, submit a private case, review permanent history,
+  and reply without exposing the case to other users.
+- Support administrators receive deterministic notifications and a bounded
+  newest-100 queue with urgent and overdue indicators. MFA-protected commands
+  own acknowledgement, response, escalation, resolution, and reopening; each
+  transition requires a customer-visible note and writes an immutable event.
+- Support intake and replies have an independent ten-per-hour quota and retry
+  receipts. Rules tests prove owner privacy and deny direct owner/admin writes.
+  The authenticated emulator verifies create/retry, response, customer reply,
+  resolution/retry, notifications, and four-event history.
+- `docs/SUPPORT_OPERATIONS_POLICY.md` records response targets, privacy limits,
+  escalation boundaries, and the exact staffing, retention, alerting, and
+  staging evidence still required before operational approval.
+- Account Settings now includes a Policy Center for the five required launch
+  documents. It fails closed on an incomplete catalog, requires every document
+  to be opened, confirms acceptance, and compares stored versions and hashes
+  with the live catalog instead of trusting a stale completion flag.
+- MFA-controlled publication requires an HTTPS URL, version, effective date,
+  reviewed SHA-256 hash, and decision note. Commercial command enforcement is
+  separately activated, cannot be enabled with missing policies, and leaves
+  security, reporting, appeals, privacy, and support available.
+- Ninety-five Functions/policy tests, 36 Rules tests, the clean analyzer, and
+  the authenticated four-emulator workflow now cover publication retries,
+  missing-acceptance blocking, exact acceptance, current-user access, and
+  controlled enforcement rollback. Legal approval and staging remain pending.
+- `docs/POLICY_PUBLICATION_AND_ACCEPTANCE.md` records the publication,
+  verification, enforcement, rollback, and ownership requirements.
+
+## Gate 6 checkpoint evidence
+
+- Android, iOS, web, Windows, Linux, and macOS public product surfaces use
+  `Pipe Buyer`; template and former display names are contract-tested out of
+  those surfaces.
+- Android no longer requests legacy external storage and declares camera
+  access. iOS includes plain-language camera, photo-library, and foreground
+  location disclosures.
+- Android release builds never fall back to the debug key. Gradle validates all
+  four repository-excluded signing values and the referenced keystore, then
+  rejects an unconfigured release graph with an actionable diagnostic.
+- A repaired Gradle transform cache produced a fresh ARM64 debug APK in 192.7
+  seconds. An unconfigured release dry run failed closed exactly as intended.
+- Shared Material theming enforces 48-logical-pixel padded interaction targets.
+  Key icon-only actions expose semantics and tooltips; widget tests cover touch
+  size, 200% text, and semantic labels.
+- `docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md` records signing custody,
+  identifier-migration controls, platform disclosures, completed automation,
+  and the physical-device/store evidence still required.
+- Create Listing now asks whether to use the camera or device gallery, reports
+  byte-level progress that never moves backward during a retry, and retries
+  only transient storage failures at the same deterministic object path.
+  Authorization, size, quota, cancellation, and exhausted-retry failures show
+  bounded user-facing messages while the unpublished listing stays a private,
+  retryable draft. Three repository tests inject transient and permanent
+  failures; the full clean analyzer, 86 Flutter tests, ARM64 Android debug
+  build, and production web/Wasm dry run pass locally.
+- A checked-in, SHA-256-pinned release-art master now generates branded
+  launcher icons and launch screens for Android, iOS, web, Windows, and macOS.
+  Representative Android, Apple, and web outputs were visually reviewed; tests
+  prevent placeholder or missing generated assets from silently returning.
+- The Apple privacy manifest now declares the current app-level data categories
+  as app-functionality use without tracking, advertising, or analytics
+  purposes. Its XML and required declarations are verified locally. The unused,
+  unreferenced notification-service sample is preserved under
+  `archive/phase1-disabled` rather than presented as an active capability.
+- The branding and privacy checkpoint passed 88 Flutter tests, a clean analyzer, a
+  confirmed ARM64 Android APK build, and a production web build with a
+  successful Wasm dry run. Signed artifacts, App Store/Play Console review, and
+  physical-device acceptance remain pending.
+- Reading-order keyboard traversal and a three-pixel high-contrast focus
+  treatment now apply from the application root in both light and dark modes.
+  Marketplace outline fields receive a visible focus border without losing
+  their normal unfocused border treatment.
+- A 200-percent-text acceptance matrix covers compact, portrait, landscape,
+  and tablet sign-in; compact account creation; keyboard field order; labelled
+  icon actions; offer schedules; and accept/counter-offer decisions. It exposed
+  clipped schedule chips and off-screen dialog actions, which now stack and
+  scroll responsively on a 320x568 viewport.
+- This accessibility checkpoint passes 99 Flutter tests, 0 analyzer findings,
+  a confirmed ARM64 Android APK build, and a production web build with a
+  successful Wasm dry run.
+- Release-wide semantic feedback now gives success, information, warning, and
+  failure states independent text, icon, and border cues with brightness-aware
+  colors. AA contrast is contract-tested in both themes; live-region status
+  surfaces remain usable at 200-percent text; snackbars are dismissible.
+  Startup/framework recovery, authentication, and profile-photo outcomes use
+  the shared path. This checkpoint passes 103 Flutter tests, 0 analyzer
+  findings, an ARM64 Android APK, production web, and an actual Wasm build.
+- Realtime conversations, account notifications, unread badges, and
+  listing-specific notification updates now use explicit 100-record activity
+  ceilings or a 450-write batch ceiling. Newest-first conversations use the
+  deployed composite index, and boundary notices accurately identify the
+  loaded scope. A source contract prevents unbounded listeners from returning.
+- Abuse tests issue 64 concurrent unique attempts against a 20-request policy
+  and verify exactly 20 commits, then issue 50 identical concurrent retries
+  and verify one quota unit. The expanded Function suite passes 98 tests.
+- Bid histories, offer revisions, conversation messages, saved listings,
+  account-verification reviews, moderation notices, and profile/tag streams now
+  have explicit live-query ceilings. Offer histories filter by listing and
+  participant on the server, and the buyer path has a checked composite index.
+  Visible history surfaces identify a reached latest-100 window so a bounded
+  operational view cannot be mistaken for deletion of authoritative data.
+- The expanded stream-safety checkpoint passes 103 Flutter tests, 99
+  Function/policy tests, a clean analyzer, validated Firestore indexes, an
+  ARM64 Android artifact, and a production web build with a successful Wasm
+  dry run.
+- Auction bidding, Buy It Now, bid withdrawal, auction settlement, offer
+  submission and acceptance, marketplace completion/cancellation/dispute,
+  Dispatch transaction actions, chat sending, and image attachments now use
+  shared accessible live-region feedback instead of raw color-coded SnackBars.
+  Command failures preserve safe actionable server text while raw Firebase
+  internals and unknown exception strings fall back to controlled guidance.
+- Source contracts cover the critical commerce surfaces. The checkpoint passes
+  107 Flutter tests, a clean analyzer, ARM64 Android, and production web with a
+  successful Wasm dry run.
+- Saved-listing actions, sign-in/sign-out, media selection, listing publishing,
+  Dispatch signup/jobs/quotes, carrier bidding, fleet setup, policy notices,
+  moderation review, and freight-quote publishing now use that same semantic
+  feedback boundary. The primary Marketplace shell contains no direct
+  SnackBars, and a source contract prevents their return. The expanded pass
+  clears a clean analyzer, 108 Flutter tests, 105 Function tests, release,
+  parity, and acceptance controls, zero production dependency vulnerabilities,
+  an ARM64 Android APK, production web, and an actual WebAssembly build.
+- Phase 1 acceptance schema 2 now requires the exact signed Android AAB and
+  exported Apple IPA, their application identifiers, semantic versions, build
+  numbers, release SHA, signature evidence, and store-validation evidence. A
+  debug APK, unsigned archive, missing artifact, or self-declared pass without
+  retained evidence cannot satisfy the release gate.
+- Google Play and Apple App Store evidence now requires named review, four or
+  more screenshots, console evidence, and non-placeholder public HTTPS support,
+  privacy, terms, and account-deletion URLs. Separate Google data-safety, Apple
+  App Privacy, and linked-SDK reviews are mandatory.
+- Ten exact target classes cover compact/current Android and iOS phones,
+  Android/iOS tablets, and mobile/desktop Chromium and Safari. Each run is
+  release-SHA bound and requires the applicable install, media, messaging,
+  commerce, permission, network/session recovery, assistive technology,
+  large-text/orientation or responsive layout, keyboard, deep-link, and
+  notification scenarios with retained evidence.
+- Retained AAB/IPA and evidence files are hashed in one-megabyte chunks rather
+  than loaded into memory. Canonical paths prevent a directory link from
+  escaping the private evidence root. Seven fail-closed validator tests cover
+  complete evidence, signatures, URLs, target/scenario completeness, SHA
+  binding, path traversal, linked-directory escape, and template drift.
+- The upgraded contract passes the complete local release gate with a clean
+  analyzer, 108 Flutter tests, 105 Functions tests, 36 Rules tests,
+  authenticated four-service emulation, dependency audits, an ARM64 Android
+  artifact, production web, and actual WebAssembly. This verifies the control,
+  not the still-unperformed signed-device and store acceptance work.
+- The required `Quality` workflow now has an independent macOS job that
+  compiles the `iphoneos` release target without code signing and fails unless
+  Xcode produces `build/ios/iphoneos/Runner.app`. A source contract test keeps
+  the runner, release mode, no-signing boundary, output proof, and explicit
+  unsigned-evidence disclaimer intact. This closes the previous Apple compile
+  blind spot while preserving signed IPA and physical-device acceptance as
+  separate external evidence.
+- Its first execution exposed an invalid Swift Package Manager public-header
+  declaration in `flutter_native_splash` 2.4.4 and a duplicate Xcode object ID
+  shared by German and Turkish localizations. The repository now uses the
+  SPM-fixed 2.4.8 release with compatible JSONPath/Lottie dependencies, assigns
+  the Turkish file a unique identifier, and tests both Xcode object uniqueness
+  and the upgraded JSONPath behavior.
+- The next native compile reached Xcode and proved the current Firebase Swift
+  packages require iOS 15 rather than the repository's previous iOS 14 target.
+  Flutter framework metadata and all Runner configurations now share an
+  enforced 15.0 minimum instead of downgrading Firebase.
+- That build then reached the linker and exposed duplicate Firestore symbols
+  from mixing Firebase SPM products with CocoaPods fallbacks required by old
+  Apple-sign-in and SQLite plugins. The app now uses the maintainers'
+  SPM-capable `sign_in_with_apple` 8.1.0 and `sqflite` 2.4.3 releases, removes
+  the obsolete Runner Podfile and all Pods project/configuration wiring, and
+  enforces one Swift Package Manager graph in the release contract instead of
+  suppressing linker integrity or disabling Swift Package Manager.
+- GitHub run `30370442899` independently proved the SPM-only Apple target: the
+  unsigned iOS release compile and bundle check passed in 9 minutes 6 seconds,
+  while the complete Windows Quality job passed in 38 minutes 43 seconds.
+- The protected signed-candidate workflow is manual, checks out one full SHA
+  contained in `main`, selects staging or production through a dedicated
+  GitHub Environment, and rejects missing or mismatched Firebase/signing
+  configuration. Android uses a temporary Play upload keystore and strict AAB
+  signature verification. Apple uses an ephemeral keychain, exact manual
+  provisioning profile/export options, Flutter's `FLUTTER_XCODE_*` CI signing
+  boundary, strict IPA signature/identifier/version checks, and unconditional
+  credential cleanup. Both retain a digest and candidate metadata for 14 days
+  while explicitly recording that store validation remains false.
+- Five workflow contract tests prevent automatic triggers, non-main or short
+  release references, unprotected release jobs, missing signing controls,
+  missing cleanup, store-validation overclaims, and Firebase project crossover.
+  Real workflow execution remains uncredited until the approved environment
+  variables, credentials, reviewers, and store accounts are configured.
+
 ## Gate 1 checkpoint evidence
 
 - `PIPE_ENV` and complete `PIPE_FIREBASE_*` web build values select the target
@@ -308,11 +548,29 @@ staging deployment matches exactly and passes end-to-end acceptance.
   deployed to staging. A disposable `example.invalid` account was created and
   deleted through Identity Toolkit successfully, leaving no smoke-test user.
 - Staging Storage stopped safely because its default bucket has not been
-  explicitly provisioned. Functions deployment enabled the Cloud Functions API
-  but stopped before creating any Function because Cloud Build and Artifact
-  Registry require the staging project to be upgraded to the Blaze plan.
+  explicitly provisioned. The earlier Functions deployment enabled the Cloud
+  Functions API but stopped before creating a Function when Cloud Build and
+  Artifact Registry reported that billing was unavailable.
 - App Check and Workload Identity configuration are intentionally absent, so
   staging and production deployments still fail closed.
+- The July 28 retry used the pinned Firebase CLI 15.24.0, authenticated as
+  `jordilwbailey@gmail.com`, confirmed zero staging Functions and 70 reviewed
+  exports, then stopped when Google again rejected Cloud Build and Artifact
+  Registry enablement because `pipebuyer-5c77f` was not on Blaze. No Function
+  was created and production was never selected.
+- After the owner reported that billing had been enabled, a new read-only
+  Firebase CLI inventory on July 28 confirmed that the project is active but
+  still has zero deployed Functions. Billing availability has not yet been
+  proven by a controlled deployment, and no production resource was changed.
+- The Function runtime now pins the affected transitive UUID dependency to
+  11.1.1. The audit changed from 7 moderate findings to 0; 105 Function tests,
+  36 Firestore/Storage Rules tests, and the authenticated four-service emulator
+  workflow pass with Firebase Admin 14.2.0 and Functions 7.3.0.
+- Deployments now select an explicit App Check rollout mode. `disabled` permits
+  isolated staging bootstrap, `observe` requires token-producing clients while
+  enforcement remains off, and `enforce` protects callables. Production
+  rejects both non-enforcing modes, and release-manifest schema 2 records the
+  exact client and callable state.
 - Android, iOS, and macOS now share a centralized Crashlytics adapter. Native
   manifest collection defaults to off; only explicit staging/production builds
   can enable it. Reports carry release context, safe operation fields, and a

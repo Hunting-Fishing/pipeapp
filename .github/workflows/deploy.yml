@@ -14,6 +14,15 @@ on:
         description: Full verified commit SHA to deploy
         required: true
         type: string
+      app_check_mode:
+        description: App Check rollout stage for this exact release
+        required: true
+        default: disabled
+        type: choice
+        options:
+          - disabled
+          - observe
+          - enforce
 
 permissions:
   contents: read
@@ -41,9 +50,10 @@ jobs:
       PIPE_FIREBASE_WEB_APP_ID: ${{ vars.PIPE_FIREBASE_WEB_APP_ID }}
       PIPE_FIREBASE_MEASUREMENT_ID: ${{ vars.PIPE_FIREBASE_MEASUREMENT_ID }}
       PIPE_APP_CHECK_WEB_RECAPTCHA_KEY: ${{ vars.PIPE_APP_CHECK_WEB_RECAPTCHA_KEY }}
-      PIPE_APP_CHECK_REQUIRED: "true"
+      PIPE_APP_CHECK_MODE: ${{ inputs.app_check_mode }}
+      PIPE_APP_CHECK_REQUIRED: ${{ inputs.app_check_mode == 'disabled' && 'false' || 'true' }}
       PIPE_REMOTE_DIAGNOSTICS_ENABLED: "true"
-      PIPE_ENFORCE_APP_CHECK: "true"
+      PIPE_ENFORCE_APP_CHECK: ${{ inputs.app_check_mode == 'enforce' && 'true' || 'false' }}
       FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
       GOOGLE_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
       GOOGLE_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GOOGLE_DEPLOY_SERVICE_ACCOUNT }}
@@ -64,7 +74,6 @@ jobs:
             PIPE_FIREBASE_STORAGE_BUCKET
             PIPE_FIREBASE_MESSAGING_SENDER_ID
             PIPE_FIREBASE_WEB_APP_ID
-            PIPE_APP_CHECK_WEB_RECAPTCHA_KEY
             GOOGLE_WORKLOAD_IDENTITY_PROVIDER
             GOOGLE_DEPLOY_SERVICE_ACCOUNT
           )
@@ -74,12 +83,27 @@ jobs:
               exit 1
             fi
           done
+          case "$PIPE_APP_CHECK_MODE" in
+            disabled|observe|enforce) ;;
+            *)
+              echo "::error::Unsupported App Check mode: $PIPE_APP_CHECK_MODE"
+              exit 1
+              ;;
+          esac
+          if [[ "$PIPE_APP_CHECK_MODE" != "disabled" && -z "$PIPE_APP_CHECK_WEB_RECAPTCHA_KEY" ]]; then
+            echo "::error::PIPE_APP_CHECK_WEB_RECAPTCHA_KEY is required in observe and enforce modes."
+            exit 1
+          fi
           if [[ "$PIPE_ENV" == "production" && "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
             echo "::error::Production releases are approved only for flutter-flow-pipe."
             exit 1
           fi
           if [[ "$PIPE_ENV" == "staging" && "$PIPE_FIREBASE_PROJECT_ID" == "flutter-flow-pipe" ]]; then
             echo "::error::Staging cannot deploy to the production Firebase project."
+            exit 1
+          fi
+          if [[ "$PIPE_ENV" == "production" && "$PIPE_APP_CHECK_MODE" != "enforce" ]]; then
+            echo "::error::Production releases require App Check enforce mode."
             exit 1
           fi
 
@@ -183,7 +207,7 @@ jobs:
           --dart-define=PIPE_FIREBASE_WEB_APP_ID=$PIPE_FIREBASE_WEB_APP_ID
           --dart-define=PIPE_FIREBASE_MEASUREMENT_ID=$PIPE_FIREBASE_MEASUREMENT_ID
           --dart-define=PIPE_APP_CHECK_WEB_RECAPTCHA_KEY=$PIPE_APP_CHECK_WEB_RECAPTCHA_KEY
-          --dart-define=PIPE_APP_CHECK_REQUIRED=true
+          --dart-define=PIPE_APP_CHECK_REQUIRED=$PIPE_APP_CHECK_REQUIRED
           --dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED=$PIPE_REMOTE_DIAGNOSTICS_ENABLED
 
       - name: Record exact release manifest
@@ -194,6 +218,7 @@ jobs:
             --environment "$PIPE_ENV" \
             --release-sha "$PIPE_RELEASE_SHA" \
             --firebase-project "$PIPE_FIREBASE_PROJECT_ID" \
+            --app-check-mode "$PIPE_APP_CHECK_MODE" \
             --output build/release-manifest.json \
             --require-web
           {
@@ -251,6 +276,7 @@ jobs:
             echo "- Environment: \`$PIPE_ENV\`"
             echo "- Commit: \`$PIPE_RELEASE_SHA\`"
             echo "- Firebase project: \`$PIPE_FIREBASE_PROJECT_ID\`"
+            echo "- App Check mode: \`$PIPE_APP_CHECK_MODE\`"
             echo "- Workflow run: \`${{ github.run_id }}\`"
             echo "- Result: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_command_client.dart';
 import 'regional_phone_field.dart';
@@ -136,6 +137,8 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
+                          tooltip:
+                              _hidePassword ? 'Show password' : 'Hide password',
                           onPressed: () =>
                               setState(() => _hidePassword = !_hidePassword),
                           icon: Icon(_hidePassword
@@ -162,30 +165,12 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                     ),
                   const SizedBox(height: 18),
                   if (_statusMessage != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _statusIsError
-                            ? Colors.red.shade50
-                            : Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: _statusIsError
-                                ? Colors.red.shade200
-                                : Colors.green.shade200),
-                      ),
-                      child: Row(children: [
-                        Icon(
-                            _statusIsError
-                                ? Icons.error_outline
-                                : Icons.check_circle_outline,
-                            color: _statusIsError
-                                ? Colors.red.shade700
-                                : Colors.green.shade700),
-                        const SizedBox(width: 9),
-                        Expanded(child: Text(_statusMessage!))
-                      ]),
+                    PipeStatusSurface(
+                      tone: _statusIsError
+                          ? PipeStatusTone.error
+                          : PipeStatusTone.success,
+                      message: _statusMessage!,
+                      liveRegion: true,
                     ),
                     const SizedBox(height: 12)
                   ],
@@ -449,17 +434,12 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       _statusMessage = text;
       _statusIsError = error;
     });
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: error ? Colors.red.shade800 : Colors.green.shade700,
-      content: Row(children: [
-        Icon(icon, color: Colors.white),
-        const SizedBox(width: 10),
-        Expanded(child: Text(text))
-      ]),
-    ));
+    PipeFeedback.show(
+      context,
+      message: text,
+      tone: error ? PipeStatusTone.error : PipeStatusTone.success,
+      icon: icon,
+    );
   }
 
   IconData _authErrorIcon(String code) => switch (code) {

@@ -10,11 +10,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/config/phase1_feature_flags.dart';
 import '../core/config/phase1_feature_policy.dart';
+import '../core/accessibility/pipe_accessibility_theme.dart';
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_catalog_repository.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_location.dart';
 import 'marketplace_location_picker.dart';
 import 'marketplace_media_repository.dart';
@@ -1054,12 +1057,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   }
 
   void _showFeatureUnavailable(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(
-        '$label is temporarily unavailable. No account or listing data was changed.',
-      ),
-    ));
+    PipeFeedback.show(
+      context,
+      message:
+          '$label is temporarily unavailable. No account or listing data was changed.',
+      tone: PipeStatusTone.warning,
+    );
   }
 
   void _handleFeatureFlags(Phase1FeatureFlags flags) {
@@ -1182,19 +1185,21 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     ];
 
     return Theme(
-      data: ThemeData.light(useMaterial3: true).copyWith(
-        scaffoldBackgroundColor: _navy,
-        colorScheme: const ColorScheme.light(
-          primary: _orange,
-          surface: _panel,
-          onSurface: Color(0xFF17202A),
+      data: PipeAccessibilityTheme.apply(
+        ThemeData.light(useMaterial3: true).copyWith(
+          scaffoldBackgroundColor: _navy,
+          colorScheme: const ColorScheme.light(
+            primary: _orange,
+            surface: _panel,
+            onSurface: Color(0xFF17202A),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: const Color(0xFFF0F5FA),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none)),
         ),
-        inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: const Color(0xFFF0F5FA),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none)),
       ),
       child: Scaffold(
         key: _scaffoldKey,
@@ -1202,8 +1207,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
           elevation: 0,
-          leading: IconButton(
-              tooltip: 'Open navigation',
+          leading: PipeAccessibleIconButton(
+              label: 'Open navigation',
+              onTapHint: 'Opens the main navigation menu',
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               icon: const Icon(Icons.menu_rounded)),
           title: Text(
@@ -1221,7 +1227,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                   const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           actions: [
             if (_features.marketplace)
-              IconButton(
+              PipeAccessibleIconButton(
+                  label: 'Search Marketplace',
+                  onTapHint: 'Opens Marketplace search',
                   onPressed: () => _selectTab(1),
                   icon: const Icon(Icons.search_rounded))
           ],
@@ -1394,11 +1402,14 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       if (!mounted) return;
       setState(
           () => saving ? _saved.remove(listing.id) : _saved.add(listing.id));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(error is StateError
-              ? error.message.toString()
-              : 'Could not update saved listings.')));
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Could not update saved listings. Try again.',
+        ),
+        tone: PipeStatusTone.error,
+      );
     } finally {
       _savingListingIds.remove(listing.id);
     }
@@ -1421,9 +1432,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _saved.add(listingId));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Could not remove the saved listing. Try again.')));
+      PipeFeedback.show(
+        context,
+        message: 'Could not remove the saved listing. Try again.',
+        tone: PipeStatusTone.error,
+      );
     } finally {
       _savingListingIds.remove(listingId);
     }
@@ -1501,15 +1514,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     if (mounted) {
       setState(() {});
       if (signedIn == true) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
-            content: Row(children: [
-              Icon(Icons.check_circle_outline, color: Colors.white),
-              SizedBox(width: 10),
-              Expanded(
-                  child: Text('Signed in successfully. Your account is ready.'))
-            ])));
+        PipeFeedback.show(
+          context,
+          message: 'Signed in successfully. Your account is ready.',
+          tone: PipeStatusTone.success,
+        );
       }
     }
   }
@@ -1539,22 +1548,21 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
       setState(() => _tab = 0);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Row(children: [
-            Icon(Icons.check_circle_outline, color: Colors.white),
-            SizedBox(width: 10),
-            Expanded(
-                child: Text(
-                    'Signed out successfully. Sign in again from the menu.'))
-          ])));
-    } catch (_) {
+      PipeFeedback.show(
+        context,
+        message: 'Signed out successfully. Sign in again from the menu.',
+        tone: PipeStatusTone.success,
+      );
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-          content:
-              Text('Sign out failed. Check your connection and try again.')));
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Sign out failed. Check your connection and try again.',
+        ),
+        tone: PipeStatusTone.error,
+      );
     }
   }
 }
@@ -2934,6 +2942,9 @@ class _ListingCard extends StatelessWidget {
                               listingId: listing.id,
                               sellerUid: listing.sellerUid),
                           IconButton(
+                              tooltip: saved
+                                  ? 'Remove from saved listings'
+                                  : 'Save listing',
                               visualDensity: VisualDensity.compact,
                               onPressed: onSaved,
                               icon: Icon(
@@ -3057,6 +3068,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                     const SizedBox(width: 8),
                     Expanded(child: Text(_statusMessage!)),
                     IconButton(
+                        tooltip: 'Dismiss status message',
                         visualDensity: VisualDensity.compact,
                         onPressed: () => setState(() => _statusMessage = null),
                         icon: const Icon(Icons.close, size: 18))
@@ -3269,14 +3281,13 @@ class _ListingDetailsState extends State<_ListingDetails> {
       _actions.recordListingEvent(listing.id, 'share').catchError((_) {});
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          target.startsWith('http')
-              ? 'Shareable listing link copied.'
-              : 'Listing route copied. Public mobile links activate after the app domain is approved.',
-        ),
-      ));
+      PipeFeedback.show(
+        context,
+        message: target.startsWith('http')
+            ? 'Shareable listing link copied.'
+            : 'Listing route copied. Public mobile links activate after the app domain is approved.',
+        tone: PipeStatusTone.success,
+      );
     }
   }
 
@@ -4066,6 +4077,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   bool _selectingVideo = false;
   int _mediaCompleted = 0;
   int _mediaTotal = 0;
+  double _mediaProgress = 0;
   String? _backgroundUploadMessage;
   String? _pendingDraftId;
   String? _pendingPublishRequestId;
@@ -5268,9 +5280,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                       LinearProgressIndicator(
                           value: _mediaTotal == 0
                               ? null
-                              : _mediaCompleted / _mediaTotal),
+                              : _mediaProgress.clamp(0, 1)),
                       const SizedBox(height: 5),
-                      Text('$_mediaCompleted of $_mediaTotal files uploaded',
+                      Text(
+                          '${(_mediaProgress * 100).round()}% • $_mediaCompleted of $_mediaTotal files complete',
                           style: const TextStyle(fontSize: 11, color: _muted)),
                     ],
                   ),
@@ -5740,10 +5753,61 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   }
 
   Future<void> _selectPhotos() async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Add listing photos',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            ),
+            const SizedBox(height: 6),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                  'Choose existing photos or use this device camera. You can select the thumbnail before publishing.'),
+            ),
+            const SizedBox(height: 14),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from device'),
+              subtitle: const Text('Select one or more JPEG or PNG photos'),
+              onTap: () => Navigator.pop(sheetContext, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              subtitle: const Text('Open the camera for one new photo'),
+              onTap: () => Navigator.pop(sheetContext, 'camera'),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
     setState(() => _selectingPhotos = true);
     List<XFile> selected = const [];
+    var pickerFailed = false;
     try {
-      selected = await _mediaRepository.pickPhotos(_photos.length);
+      if (source == 'camera') {
+        final photo = await _mediaRepository.capturePhoto(_photos.length);
+        if (photo != null) selected = [photo];
+      } else {
+        selected = await _mediaRepository.pickPhotos(_photos.length);
+      }
+    } on MissingPluginException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } on PlatformException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
     } finally {
       if (mounted) setState(() => _selectingPhotos = false);
     }
@@ -5752,9 +5816,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _photos.addAll(selected);
       if (_photos.isNotEmpty) _thumbnailPhotoIndex ??= 0;
     });
-    if (selected.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No eligible photos selected. Maximum is 5 MB each.')));
+    if (selected.isEmpty && !pickerFailed) {
+      PipeFeedback.show(
+        context,
+        message:
+            'No photo was added. Use JPEG or PNG files no larger than 5 MB each.',
+        tone: PipeStatusTone.warning,
+      );
     }
   }
 
@@ -5774,18 +5842,51 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   Future<void> _selectVideo() async {
     setState(() => _selectingVideo = true);
     XFile? selected;
+    var pickerFailed = false;
     try {
       selected = await _mediaRepository.pickVideo();
+    } on MissingPluginException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } on PlatformException catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
+    } catch (error) {
+      pickerFailed = true;
+      _showMediaPickerError(error);
     } finally {
       if (mounted) setState(() => _selectingVideo = false);
     }
     if (!mounted) return;
-    if (selected == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Video must be 45 seconds or less and under 25 MB.')));
+    if (selected == null && !pickerFailed) {
+      PipeFeedback.show(
+        context,
+        message: 'Video must be 45 seconds or less and under 25 MB.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
+    if (selected == null) return;
     setState(() => _video = selected);
+  }
+
+  void _showMediaPickerError(Object error) {
+    if (!mounted) return;
+    final message = switch (error) {
+      PlatformException(code: 'camera_access_denied') =>
+        'Camera access was denied. Allow camera access in device settings and try again.',
+      PlatformException(code: 'photo_access_denied') =>
+        'Photo access was denied. Allow photo access in device settings and try again.',
+      MissingPluginException() =>
+        'The photo chooser is unavailable. Refresh the app or restart it after installation.',
+      _ =>
+        'The selected media could not be opened. Try another file or restart the chooser.',
+    };
+    PipeFeedback.show(
+      context,
+      message: message,
+      tone: PipeStatusTone.error,
+    );
   }
 
   Future<void> _publish() async {
@@ -5808,10 +5909,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     }
     if (!_formKey.currentState!.validate()) return;
     if (_location == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_isWanted
-              ? 'Set the requested delivery or search area and privacy level.'
-              : 'Set a pickup location and privacy level.')));
+      PipeFeedback.show(
+        context,
+        message: _isWanted
+            ? 'Set the requested delivery or search area and privacy level.'
+            : 'Set a pickup location and privacy level.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
     if (_listingType == 'Auction') {
@@ -5830,17 +5934,23 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               completion != 100 ||
               data['accountVerified'] != true ||
               (data['accountVerificationReviewVersion'] as num? ?? 0) < 1)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Auction listings require a User Score above 80, 100% profile completion, and verified account status.')));
+        PipeFeedback.show(
+          context,
+          message:
+              'Auction listings require a User Score above 80, 100% profile completion, and verified account status.',
+          tone: PipeStatusTone.warning,
+        );
         return;
       }
       if (_auctionStartAt == null ||
           _auctionEndAt == null ||
           !_auctionEndAt!.isAfter(_auctionStartAt!)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Choose a valid auction start and end time. The end must be after the start.')));
+        PipeFeedback.show(
+          context,
+          message:
+              'Choose a valid auction start and end time. The end must be after the start.',
+          tone: PipeStatusTone.warning,
+        );
         return;
       }
     }
@@ -6093,33 +6203,34 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _pendingPublishRequestId = null;
       _mediaCompleted = 0;
       _mediaTotal = 0;
+      _mediaProgress = 0;
       _backgroundUploadMessage = null;
       try {
         await _showPublishedOptions(listingId);
       } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              backgroundColor: Colors.orange,
-              content: Text(
-                  'Listing published successfully, but the preview could not open. View it from My Listings or Auctions.')));
+          PipeFeedback.show(
+            context,
+            message:
+                'Listing published successfully, but the preview could not open. View it from My Listings or Auctions.',
+            tone: PipeStatusTone.warning,
+          );
         }
       }
     } catch (error) {
       debugPrint('Listing publication failed: $error');
       if (mounted) {
-        final message = error is StateError
-            ? error.message.toString()
-            : 'The listing could not be published. Your form is still here; '
-                'check your connection and try again.';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red.shade700,
-            duration: const Duration(seconds: 8),
-            content: Row(children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(child: Text(message)),
-            ])));
+        final message = switch (error) {
+          StateError() => error.message.toString(),
+          MarketplaceMediaUploadException() => error.userMessage,
+          _ => 'The listing could not be published. Your form is still here; '
+              'check your connection and try again.',
+        };
+        PipeFeedback.show(
+          context,
+          message: message,
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _publishing = false);
@@ -6133,6 +6244,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       setState(() {
         _mediaCompleted = 0;
         _mediaTotal = total;
+        _mediaProgress = 0;
         _backgroundUploadMessage =
             'Uploading selected media before the listing becomes public…';
       });
@@ -6144,8 +6256,15 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         listingId: listingId,
         photos: photos,
         video: video,
-        onProgress: (completed, _) {
-          if (mounted) setState(() => _mediaCompleted = completed);
+        onProgress: (progress) {
+          if (!mounted) return;
+          setState(() {
+            _mediaCompleted = progress.completedFiles;
+            _mediaProgress = progress.overallProgress;
+            _backgroundUploadMessage = progress.retrying
+                ? 'Connection interrupted — retrying ${progress.currentFile} (${progress.attempt} of ${progress.maxAttempts})'
+                : 'Uploading ${progress.currentFile}…';
+          });
         },
       );
       await _repository.updateListingDraftMedia(listingId,
@@ -6157,6 +6276,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (mounted) {
         setState(() {
           _mediaCompleted = total;
+          _mediaProgress = 1;
           _backgroundUploadMessage =
               'Media upload complete — finalizing publication…';
         });
@@ -6590,13 +6710,22 @@ class _AddListingPageState extends State<_AddListingPage> {
                       'imageUrls': const <String>[],
                     }, location: _location);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Listing published to Firebase.')));
-                  } catch (_) {
+                    PipeFeedback.show(
+                      context,
+                      message: 'Listing published successfully.',
+                      tone: PipeStatusTone.success,
+                    );
+                  } catch (error) {
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text(
-                            'Firebase save failed. Check Firestore rules and sign-in.')));
+                    PipeFeedback.show(
+                      context,
+                      message: marketplaceCommandErrorMessage(
+                        error,
+                        fallback:
+                            'The listing could not be published. Check your connection and sign-in, then try again.',
+                      ),
+                      tone: PipeStatusTone.error,
+                    );
                   }
                 },
                 style: FilledButton.styleFrom(

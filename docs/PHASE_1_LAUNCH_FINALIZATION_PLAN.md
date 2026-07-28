@@ -2,12 +2,12 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `agent/phase1-dispatch-links-search`
+Baseline branch: `agent/phase1-commerce-feedback-safety`
 Created: July 20, 2026
 
-Current gate: Gate 4 — Complete Phase 1 marketplace journeys
+Current gate: Gate 6 — Mobile, accessibility, and product identity
 
-Current overall launch-readiness estimate: 73%
+Current overall launch-readiness estimate: 93%
 
 Completed gates: 1 of 8
 
@@ -17,12 +17,12 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 82% — in progress |
-| 2 — Backend parity and server commands | 88% — privacy, commerce, and Dispatch provider-review commands locally integrated |
+| 2 — Backend parity and server commands | 92% — reviewed command boundary, zero-vulnerability runtime lock, emulator coverage, staged App Check release records, and parity controls locally verified |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
-| 5 — Trust, notifications, and policies | 20% — protected reporting locally verified |
-| 6 — Accessibility, performance, and QA | 15% — incomplete |
-| 7 — Release readiness | 5% — incomplete |
+| 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
+| 6 — Accessibility, performance, and QA | 91% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, fail-closed signed-artifact/store/device evidence controls, a green unsigned macOS `iphoneos` release compile gate, and a protected signed-candidate workflow awaiting real credentials and execution |
+| 7 — Release readiness | 15% — schema-version-2 release-SHA evidence contract covers product/recovery journeys, signed artifacts, store/privacy review, physical-device/browser scenarios, defects, and approvals; a fail-closed preparer now binds the working evidence bundle to the exact release without overwriting prior evidence; execution remains incomplete |
 
 Gate 0 implementation evidence:
 
@@ -40,7 +40,7 @@ Gate 0 implementation evidence:
 
 Gate 2 implementation evidence in progress:
 
-- Release manifests declare the exact 59 expected Function exports
+- Release manifests derive and declare the exact 70 expected Function exports
 - Unit-tested parity tooling compares that manifest with the deployed
   `marketplace` codebase and fails on missing, unexpected, or inactive handlers
 - Every controlled deploy now performs this comparison after deployment and
@@ -77,8 +77,19 @@ Gate 2 implementation evidence in progress:
 - Functions discovery and CI now use the declared Node 22 runtime, and App
   Check enforcement is a concrete deployment option rather than an unsupported
   parameter expression
-- Staging Function deployment and exact deployed parity remain blocked on the
-  staging billing-plan decision
+- The July 28 staging Function retry authenticated as the project owner and
+  selected `pipebuyer-5c77f`, but Google reported that billing was unavailable
+  and rejected both Cloud Build and Artifact Registry enablement; no Function
+  was created. The owner subsequently reported enabling billing, while a new
+  read-only inventory confirmed that the live staging inventory remains zero;
+  a controlled deployment and exact parity check are still required
+- The Functions dependency lock overrides the vulnerable transitive UUID below
+  11.1.1. The moderate audit count fell from 7 to 0 while 105 Function tests, 36
+  Firestore/Storage Rules tests, and the authenticated four-emulator workflow
+  continued to pass
+- Controlled deploys now record App Check as `disabled`, `observe`, or
+  `enforce`; production rejects every mode except `enforce`, while staging can
+  bootstrap safely before progressing through token observation
 - Verified-email and linked-phone claims now guard protected Marketplace,
   Offer, Auction, and Dispatch commands. Signup/sign-in route incomplete users
   through an ownership screen; Firebase Auth phone uniqueness is synchronized
@@ -126,8 +137,9 @@ Gate 1 implementation evidence in progress:
   monitoring ownership, and data backup/restore rehearsal remain required
 - Staging Email/Password Authentication is provisioned from the reviewed
   `firebase.json` declaration and passed a disposable create/delete smoke test
-- Staging Functions are blocked on the owner's Blaze billing-plan decision;
-  no Function was created by the failed deployment attempt
+- The owner reports that staging billing is now enabled. A July 28 read-only
+  Firebase CLI check still found zero deployed Functions, so a controlled
+  staging deployment and exact deployed-parity record remain required
 - Native staging/production diagnostics now use a centralized, release-tagged
   Crashlytics adapter with manifest-level default-off collection, an explicit
   build-time opt-in, safe correlation IDs, and a triage/validation runbook.
@@ -352,6 +364,17 @@ Goal: Operate the marketplace safely after users arrive.
 - Record user acceptance of applicable policy versions.
 - Add support contact, case intake, incident escalation, and response targets.
 
+Current engineering evidence: listing publication now calculates trusted
+SHA-256 fingerprints from the stored Firebase objects and rejects client hash
+mismatches. A bounded indexed trigger creates a private exact-photo comparison
+case for same-seller reuse. Conservative message signals create private,
+bounded evidence excerpts. Both paths are idempotent, notify active
+administrators, require human review, and never hide content or penalize an
+account automatically. The authenticated four-emulator suite proves these
+invariants. This is exact-file detection, not perceptual similarity or a claim
+that a reviewed external AI classifier has been selected; those items and the
+staging deployment remain open.
+
 Exit evidence:
 
 - A report moves from submission through evidence review, decision,
@@ -375,6 +398,124 @@ Goal: Produce installable, professional release artifacts.
 - Test supported phones, tablets, browsers, slow networks, and expired
   sessions.
 
+Current engineering evidence is recorded in
+`docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md`. Gate 5 remains at 91% while its
+policy approval, external delivery, staffing, alerting, and staging-acceptance
+evidence is completed by the responsible owners.
+
+The repository now owns one hash-pinned release-art master and generated
+launcher/splash assets for Android, iOS, web, Windows, and macOS. The Apple
+privacy manifest declares current app-level collection without tracking,
+advertising, or analytics purposes. An unreferenced notification-service sample
+is archived outside the active iOS project. Local verification passes 88
+Flutter tests, the analyzer, an ARM64 Android build, and the production web/Wasm
+build. Store-console review, signed mobile artifacts, linked-SDK privacy review,
+physical-device accessibility, and device/network matrices remain mandatory.
+
+The application root now applies reading-order keyboard traversal and visible,
+high-contrast focus treatments across light and dark themes. Automated 200
+percent text acceptance covers compact portrait, phone portrait/landscape, and
+tablet sign-in plus account creation and offer decisions. It caught and drove
+repairs for clipped offer milestones and inaccessible compact-dialog actions.
+The complete checkpoint passes 99 Flutter tests, the analyzer, ARM64 Android,
+and production web/Wasm builds. Full manual screen-reader, keyboard, contrast,
+orientation, and physical-device acceptance remains mandatory.
+
+Success, information, warning, and failure feedback now share a release-wide
+semantic palette with distinct text, icons, borders, and backgrounds in both
+light and dark themes. Automated tests enforce WCAG AA text contrast, live
+screen-reader announcements, dismissible feedback, and 200-percent-text
+rendering. Startup failures, framework recovery, sign-in/account creation, and
+profile-photo upload outcomes use this system. The checkpoint passes 103
+Flutter tests, a clean analyzer, an ARM64 Android APK, production web, and an
+actual WebAssembly build.
+
+The account notification, notification badge, and conversation surfaces now
+read only the 100 newest indexed records instead of opening unbounded realtime
+listeners. At the boundary, the UI states that only the newest activity is in
+view. Listing notification updates use an indexed listing/read query and stay
+below Firestore's 500-operation batch ceiling. Contract tests prevent these
+limits from being removed. Backend load tests also prove that 64 simultaneous
+unique requests cannot exceed a 20-request quota and 50 simultaneous retries
+consume one quota unit. The Function suite now passes 98 tests.
+
+Bid histories, negotiation revisions, message threads, saved listings,
+verification queues, moderation notices, and profile/tag data now have
+explicit live-query ceilings. Offer histories are scoped to the active listing
+and participant before download, with a checked buyer-side composite index.
+User-facing history surfaces disclose when the latest-100 window has been
+reached instead of implying that the visible set is complete. This expanded
+checkpoint passes a clean analyzer, 103 Flutter tests, 99 Function/policy
+tests, a validated Firestore index file, an ARM64 Android artifact, and a
+production web build with a successful Wasm dry run.
+
+Critical auction, offer, marketplace-transaction, Dispatch-transaction,
+message, and chat-image outcomes now use the same accessible live-region
+feedback system. Success and failure are conveyed through text, icon, border,
+and AA-checked colors. A shared command-error boundary preserves short
+actionable server messages while suppressing raw Firebase internals and unknown
+exception text. Source contracts prevent critical commerce surfaces from
+returning to raw SnackBars. The checkpoint passes a clean analyzer, 107 Flutter
+tests, an ARM64 Android artifact, and a production web build with a successful
+Wasm dry run.
+
+The feedback boundary now also covers saved listings, sign-in/sign-out,
+listing publishing and media validation, Dispatch signup/jobs/quotes/fleet,
+policy notices, reporting review, and freight-quote publication. The primary
+Marketplace shell contains no direct SnackBars. This expanded checkpoint
+passes a clean analyzer, 108 Flutter tests, 105 Function tests, all local
+release/parity/acceptance controls, a zero-vulnerability production dependency
+audit, ARM64 Android, production web, and actual WebAssembly.
+
+Phase 1 acceptance schema 2 now makes Gate 6 evidence mandatory rather than an
+unstructured external checklist. It requires the exact signed AAB and IPA,
+signature and store validation, public policy/support/deletion URLs, store
+screenshots and review output, Google/Apple/linked-SDK privacy reviews, and ten
+release-SHA-bound physical-device/browser targets with exact scenario coverage.
+Large artifacts are hashed in bounded chunks, canonical paths cannot escape the
+private evidence root through traversal or directory links, and a synchronized
+operator template is checked in. Seven validator tests and the complete local
+release gate pass. No signed artifact, store approval, privacy review, or
+device execution is credited until its real evidence is supplied.
+
+The required `Quality` workflow now also uses a separate macOS runner to compile
+the unsigned `iphoneos` release target and prove that Xcode produced the
+application bundle. A Flutter contract test prevents removal of the runner,
+release mode, no-signing boundary, output assertion, or unsigned-evidence
+disclaimer. The job detects Apple-native compilation regressions but cannot be
+used as evidence of distribution signing, IPA export, store validation, or a
+physical-device pass.
+
+The first macOS execution correctly failed on malformed Swift Package Manager
+metadata from `flutter_native_splash` 2.4.4 and a duplicated Xcode object ID for
+localized `InfoPlist.strings`. The repair updates the splash generator and its
+compatible JSONPath/Lottie dependency chain, gives every Xcode object a unique
+identifier, and preserves both behaviors with focused tests instead of
+disabling Swift Package Manager.
+
+The migrated Firebase Swift packages also require iOS 15. Flutter framework
+metadata and every Runner build configuration declare the same 15.0 baseline,
+and a release contract test prevents a partial or incompatible deployment-
+target rollback.
+
+The subsequent link phase found duplicate Firestore symbols because the old
+Apple-sign-in and SQLite plugins forced a CocoaPods fallback alongside Firebase
+SPM products. Those plugins now use their SPM-capable production releases,
+and the obsolete Runner Podfile, Pods build phases, Pods framework, and Pods
+xcconfig includes are removed. CI explicitly enables Swift Package Manager and
+a source contract rejects renewed CocoaPods integration. This removes the mixed
+native ownership instead of suppressing the linker error or turning Swift
+Package Manager off.
+
+A separate protected manual workflow now accepts only a full release SHA
+contained in `main`, builds a signed Android AAB and Apple IPA with
+environment-scoped credentials, verifies their identifiers, versions,
+signatures, and digests, removes decoded signing material on every outcome, and
+retains candidate evidence for 14 days. Its metadata remains explicitly not
+store-validated, so this repository control does not credit store submission,
+physical-device installation, or final acceptance before those external steps
+are performed.
+
 Exit evidence:
 
 - Signed Android and Apple release candidates install and complete the Phase 1
@@ -385,6 +526,24 @@ Exit evidence:
 ### Gate 7 — Launch rehearsal and approval
 
 Goal: Prove the service can launch and recover.
+
+`tool/phase1_acceptance.mjs` now binds final evidence to one controlled
+environment and full release SHA. It requires all ten acceptance journeys,
+measured Hosting/Functions/Rules/data recovery controls, signed Android/Apple
+release candidates, store and privacy review, ten physical-device/browser
+targets, a reviewed defect inventory with no open P0/critical/high defects, and
+named approvals from all seven required owner roles. Evidence paths cannot
+escape the controlled bundle; retained files are streamed into hashed readiness
+records. The validator and its fail-closed tests are part of local and CI
+verification. This control does not credit the still-unperformed rehearsals,
+signed artifacts, store/device execution, or approvals.
+
+`tool/prepare_phase1_acceptance.mjs` creates the private evidence directory
+structure from the exact staging or production release manifest, binds mobile
+candidate and device records to its SHA and explicit store version, optionally
+prefills only an approved public HTTPS origin, leaves all 37 evidence records
+pending, and refuses to overwrite an existing bundle. This removes error-prone
+manual template setup without fabricating acceptance evidence.
 
 - Run the complete staging acceptance matrix with new test identities.
 - Run load, abuse, upload, notification, and moderation queue tests.

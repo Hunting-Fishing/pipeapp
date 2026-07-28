@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "PipeApp" "\0"
-            VALUE "FileDescription", "A new Flutter project." "\0"
+            VALUE "CompanyName", "Pipe Buyer" "\0"
+            VALUE "FileDescription", "Pipe Buyer industrial marketplace and dispatch" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "PipeApp" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 PipeApp. All rights reserved." "\0"
+            VALUE "InternalName", "Pipe Buyer" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Pipe Buyer. All rights reserved." "\0"
             VALUE "OriginalFilename", "pipe_app.exe" "\0"
-            VALUE "ProductName", "PipeApp" "\0"
+            VALUE "ProductName", "Pipe Buyer" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

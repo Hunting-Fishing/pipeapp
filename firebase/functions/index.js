@@ -15,9 +15,24 @@ const {
 } = require("./communication_commands");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
+const { createModerationCommands } = require("./moderation_commands");
+const {
+  classifyMessageSafety,
+  duplicateListingMediaEvidence,
+  duplicateListingMediaItems,
+  messageContentEvidence,
+  validImageHashes,
+} = require("./moderation_signal_policy");
+const {
+  createPolicyAcceptanceCommands,
+} = require("./policy_acceptance_commands");
+const { createSupportCommands } = require("./support_commands");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
+  const notificationId = String(notification.notificationId || "").trim();
+  const payload = {...notification};
+  delete payload.notificationId;
   const roles = await admin.firestore().collection("administrator_roles")
     .where("active", "==", true)
     .get();
@@ -25,13 +40,34 @@ async function notifyActiveAdministrators(notification) {
     console.warn("Administrator notification skipped: no active roles");
     return;
   }
-  await Promise.all(roles.docs.map((role) =>
-    admin.firestore().collection("users").doc(role.id)
-      .collection("notifications").add({
-        ...notification,
-        recipientUid: role.id,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      })));
+  await Promise.all(roles.docs.map((role) => {
+    const collection = admin.firestore().collection("users").doc(role.id)
+      .collection("notifications");
+    const reference = notificationId ?
+      collection.doc(notificationId) : collection.doc();
+    return reference.set({
+      ...payload,
+      recipientUid: role.id,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  }));
+}
+
+async function createAutomatedReviewCase(reportId, report) {
+  const reference = admin.firestore().collection("trust_reports").doc(reportId);
+  return admin.firestore().runTransaction(async (transaction) => {
+    const existing = await transaction.get(reference);
+    if (existing.exists) return false;
+    transaction.create(reference, {
+      ...report,
+      source: "automated",
+      humanReviewRequired: true,
+      automaticEnforcement: false,
+      status: "pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
 }
 
 const accountCommands = createAccountCommands(admin);
@@ -40,6 +76,9 @@ const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
+const moderationCommands = createModerationCommands(admin);
+const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
+const supportCommands = createSupportCommands(admin);
 exports.syncAccountVerification = onCall(
   protectedCallableOptions,
   accountCommands.syncAccountVerification,
@@ -98,11 +137,15 @@ exports.cleanupExpiredMarketplaceListingDrafts = onSchedule(
 );
 exports.openMarketplaceConversation = onCall(
   protectedCallableOptions,
-  communicationCommands.openMarketplaceConversation,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.openMarketplaceConversation,
+  ),
 );
 exports.markMarketplaceConversationRead = onCall(
   protectedCallableOptions,
-  communicationCommands.markMarketplaceConversationRead,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.markMarketplaceConversationRead,
+  ),
 );
 exports.authorizeMarketplaceUpload = onCall(
   protectedCallableOptions,
@@ -114,19 +157,61 @@ exports.confirmMarketplaceUpload = onCall(
 );
 exports.sendMarketplaceMessage = onCall(
   protectedCallableOptions,
-  communicationCommands.sendMarketplaceMessage,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.sendMarketplaceMessage,
+  ),
 );
 exports.submitMarketplaceReport = onCall(
   protectedCallableOptions,
   communicationCommands.submitMarketplaceReport,
 );
+exports.reviewModerationReport = onCall(
+  protectedCallableOptions,
+  moderationCommands.reviewModerationReport,
+);
+exports.appealModerationDecision = onCall(
+  protectedCallableOptions,
+  moderationCommands.appealModerationDecision,
+);
+exports.reviewModerationAppeal = onCall(
+  protectedCallableOptions,
+  moderationCommands.reviewModerationAppeal,
+);
+exports.createSupportCase = onCall(
+  protectedCallableOptions,
+  supportCommands.createSupportCase,
+);
+exports.replySupportCase = onCall(
+  protectedCallableOptions,
+  supportCommands.replySupportCase,
+);
+exports.updateSupportCase = onCall(
+  protectedCallableOptions,
+  supportCommands.updateSupportCase,
+);
+exports.publishPolicyDocument = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.publishPolicyDocument,
+);
+exports.acceptRequiredPolicies = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.acceptRequiredPolicies,
+);
+exports.setPolicyEnforcement = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.setPolicyEnforcement,
+);
 exports.createDispatchJob = onCall(
   protectedCallableOptions,
-  dispatchCommands.createDispatchJob,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.createDispatchJob,
+  ),
 );
 exports.submitDispatchProviderApplication = onCall(
   protectedCallableOptions,
-  dispatchCommands.submitDispatchProviderApplication,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.submitDispatchProviderApplication,
+  ),
 );
 exports.reviewDispatchProvider = onCall(
   protectedCallableOptions,
@@ -134,99 +219,147 @@ exports.reviewDispatchProvider = onCall(
 );
 exports.updateDispatchJob = onCall(
   protectedCallableOptions,
-  dispatchCommands.updateDispatchJob,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.updateDispatchJob,
+  ),
 );
 exports.publishDispatchJob = onCall(
   protectedCallableOptions,
-  dispatchCommands.publishDispatchJob,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.publishDispatchJob,
+  ),
 );
 exports.submitDispatchQuote = onCall(
   protectedCallableOptions,
-  dispatchCommands.submitDispatchQuote,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.submitDispatchQuote,
+  ),
 );
 exports.awardDispatchQuote = onCall(
   protectedCallableOptions,
-  dispatchCommands.awardDispatchQuote,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.awardDispatchQuote,
+  ),
 );
 exports.updateDispatchTransaction = onCall(
   protectedCallableOptions,
-  dispatchCommands.updateDispatchTransaction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.updateDispatchTransaction,
+  ),
 );
 exports.placeAuctionBid = onCall(
   protectedCallableOptions,
-  marketplaceCommands.placeAuctionBid,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.placeAuctionBid,
+  ),
 );
 exports.buyAuctionNow = onCall(
   protectedCallableOptions,
-  marketplaceCommands.buyAuctionNow,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.buyAuctionNow,
+  ),
 );
 exports.acceptAuctionBidBelowReserve = onCall(
   protectedCallableOptions,
-  marketplaceCommands.acceptAuctionBidBelowReserve,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.acceptAuctionBidBelowReserve,
+  ),
 );
 exports.withdrawAuctionBid = onCall(
   protectedCallableOptions,
-  marketplaceCommands.withdrawAuctionBid,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.withdrawAuctionBid,
+  ),
 );
 exports.createMarketplaceOffer = onCall(
   protectedCallableOptions,
-  marketplaceCommands.createMarketplaceOffer,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.createMarketplaceOffer,
+  ),
 );
 exports.acceptMarketplaceOffer = onCall(
   protectedCallableOptions,
-  marketplaceCommands.acceptMarketplaceOffer,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.acceptMarketplaceOffer,
+  ),
 );
 exports.createMarketplaceListing = onCall(
   protectedCallableOptions,
-  marketplaceCommands.createMarketplaceListing,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.createMarketplaceListing,
+  ),
 );
 exports.createMarketplaceListingDraft = onCall(
   protectedCallableOptions,
-  marketplaceCommands.createMarketplaceListingDraft,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.createMarketplaceListingDraft,
+  ),
 );
 exports.publishMarketplaceListingDraft = onCall(
   protectedCallableOptions,
-  marketplaceCommands.publishMarketplaceListingDraft,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.publishMarketplaceListingDraft,
+  ),
 );
 exports.convertMarketplaceListingToAuction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.convertMarketplaceListingToAuction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.convertMarketplaceListingToAuction,
+  ),
 );
 exports.updateMarketplaceListingMedia = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceListingMedia,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceListingMedia,
+  ),
 );
 exports.updateMarketplaceListingDraftMedia = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceListingDraftMedia,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceListingDraftMedia,
+  ),
 );
 exports.updateMarketplaceListingDetails = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceListingDetails,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceListingDetails,
+  ),
 );
 exports.transitionMarketplaceListing = onCall(
   protectedCallableOptions,
-  marketplaceCommands.transitionMarketplaceListing,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.transitionMarketplaceListing,
+  ),
 );
 exports.relistMarketplaceListing = onCall(
   protectedCallableOptions,
-  marketplaceCommands.relistMarketplaceListing,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.relistMarketplaceListing,
+  ),
 );
 exports.setMarketplaceListingSaved = onCall(
   protectedCallableOptions,
-  marketplaceCommands.setMarketplaceListingSaved,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.setMarketplaceListingSaved,
+  ),
 );
 exports.updateMarketplaceTransaction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateMarketplaceTransaction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateMarketplaceTransaction,
+  ),
 );
 exports.finalizeAuction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.finalizeAuction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.finalizeAuction,
+  ),
 );
 exports.updateAuctionTransaction = onCall(
   protectedCallableOptions,
-  marketplaceCommands.updateAuctionTransaction,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.updateAuctionTransaction,
+  ),
 );
 
 exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
@@ -583,41 +716,64 @@ exports.onListingMediaModeration = onDocumentWritten(
     if (!event.data.after.exists) return null;
     const listing = event.data.after.data();
     const before = event.data.before.exists ? event.data.before.data() : {};
-    const hashes = [...new Set(listing.imageHashes || [])].slice(0, 12);
+    const hashes = validImageHashes(listing.imageHashes);
     if (!listing.sellerUid || !hashes.length ||
-        JSON.stringify(hashes) === JSON.stringify(before.imageHashes || [])) {
+        JSON.stringify(hashes) ===
+          JSON.stringify(validImageHashes(before.imageHashes))) {
       return null;
     }
     const matches = await admin.firestore().collection("public_listings")
       .where("sellerUid", "==", listing.sellerUid)
       .where("imageHashes", "array-contains-any", hashes)
+      .limit(100)
       .get();
-    const duplicateIds = matches.docs
-      .filter((doc) => doc.id !== event.params.listingId)
-      .map((doc) => doc.id);
-    if (!duplicateIds.length) return null;
+    const matchedListings = matches.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    const evidence = duplicateListingMediaEvidence({
+      listingId: event.params.listingId,
+      imageHashes: hashes,
+      matches: matchedListings,
+    });
+    if (!evidence.duplicateListingIds.length) return null;
     const caseId = `duplicate_media_${event.params.listingId}`;
-    await admin.firestore().collection("trust_reports").doc(caseId).set({
+    const created = await createAutomatedReviewCase(caseId, {
       reporterUid: "automated-moderation",
       reportedUid: listing.sellerUid,
       targetType: "listing",
       listingId: event.params.listingId,
-      relatedListingIds: duplicateIds,
-      matchedImageHashes: hashes.filter((hash) => matches.docs.some((doc) =>
-        doc.id !== event.params.listingId &&
-        (doc.data().imageHashes || []).includes(hash))),
+      relatedListingIds: evidence.duplicateListingIds,
+      matchedImageHashes: evidence.matchedImageHashes,
+      mediaEvidence: duplicateListingMediaItems({
+        listingId: event.params.listingId,
+        listing,
+        matches: matchedListings,
+        evidence,
+      }),
       reason: "duplicate_listing_media",
       reasonLabel: "Exact photo reused across this seller's listings",
-      details: `Exact file matches were found in ${duplicateIds.length} other listing(s).`,
+      details: `Exact file matches were found in ` +
+        `${evidence.duplicateListingIds.length} other listing(s).`,
       attachments: [],
       attachmentCount: 0,
-      source: "automated",
       detectionMethod: "sha256_exact_file_match",
+      detectionPolicyVersion: 1,
       confidence: 1,
       priority: "high",
-      status: "pending",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    });
+    if (created) {
+      await notifyActiveAdministrators({
+        notificationId: `moderation-${caseId}`,
+        type: "moderation_review_required",
+        title: "Duplicate listing photos require review",
+        body: "Exact photo reuse was detected across this seller's listings.",
+        reportId: caseId,
+        listingId: event.params.listingId,
+        priority: "high",
+        read: false,
+      });
+    }
     return null;
   },
 );
@@ -631,31 +787,15 @@ exports.onMessageModeration = onDocumentCreated(
 
     // This is a conservative pre-screen. Administrators see the signal and
     // context before taking action; ambiguous language is never auto-punished.
-    const signals = [];
-    const normalized = text.toLowerCase();
-    if (/\b(wire|transfer|send)\b.{0,35}\b(crypto|bitcoin|gift card|western union)\b/i.test(text) ||
-        /\bpay\b.{0,30}\boff[\s-]?platform\b/i.test(text)) {
-      signals.push("possible_payment_fraud");
-    }
-    if (/\b(kill|hurt|attack|find you)\b.{0,30}\b(you|your|them)\b/i.test(text)) {
-      signals.push("possible_threat");
-    }
-    if (/\b(race|racial|ethnic|ethnicity|religion|nationality)\b.{0,40}\b(inferior|filthy|vermin|hate|exclude|ban)\b/i.test(text) ||
-        /\b(inferior|filthy|vermin|hate)\b.{0,40}\b(race|racial|ethnic|religion|nationality)\b/i.test(text)) {
-      signals.push("possible_hate_or_racist_content");
-    }
-    const vulgarTerms = ["fuck", "cunt", "bitch", "piece of shit"];
-    if (vulgarTerms.some((term) => normalized.includes(term))) {
-      signals.push("vulgar_or_harassing_content");
-    }
+    const {signals, priority} = classifyMessageSafety(text);
     if (!signals.length) return null;
 
     const conversation = await admin.firestore().collection("conversations")
       .doc(event.params.conversationId).get();
     const members = conversation.data()?.memberUids || [];
     const reportedUid = message.senderUid;
-    await admin.firestore().collection("trust_reports")
-      .doc(`message_signal_${event.params.messageId}`).set({
+    const caseId = `message_signal_${event.params.messageId}`;
+    const created = await createAutomatedReviewCase(caseId, {
         reporterUid: "automated-moderation",
         reportedUid,
         targetType: "message",
@@ -666,14 +806,27 @@ exports.onMessageModeration = onDocumentCreated(
         reasonLabel: "Automated message safety signal",
         details: `The safety pre-screen detected: ${signals.join(", ")}.`,
         moderationSignals: signals,
+        contentEvidence: messageContentEvidence(text),
         attachments: [],
         attachmentCount: 0,
-        source: "automated",
         detectionMethod: "conservative_text_safety_prescreen",
-        priority: signals.includes("possible_threat") ? "high" : "normal",
-        status: "pending",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        detectionPolicyVersion: 1,
+        priority,
       });
+    if (created) {
+      await notifyActiveAdministrators({
+        notificationId: `moderation-${caseId}`,
+        type: "moderation_review_required",
+        title: "Message safety signal requires review",
+        body: priority === "high" ?
+          "A high-priority message safety signal requires review." :
+          "A message safety signal requires review.",
+        reportId: caseId,
+        conversationId: event.params.conversationId,
+        priority,
+        read: false,
+      });
+    }
     return null;
   },
 );

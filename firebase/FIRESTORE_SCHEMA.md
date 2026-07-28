@@ -136,6 +136,15 @@ idempotency receipt. The current callable commands are:
 - `confirmMarketplaceUpload`
 - `sendMarketplaceMessage`
 - `submitMarketplaceReport`
+- `reviewModerationReport`
+- `appealModerationDecision`
+- `reviewModerationAppeal`
+- `createSupportCase`
+- `replySupportCase`
+- `updateSupportCase`
+- `publishPolicyDocument`
+- `acceptRequiredPolicies`
+- `setPolicyEnforcement`
 - `placeAuctionBid`
 - `buyAuctionNow`
 - `withdrawAuctionBid`
@@ -148,6 +157,29 @@ idempotency receipt. The current callable commands are:
 - `submitDispatchQuote`
 - `awardDispatchQuote`
 - `updateDispatchTransaction`
+
+Trust & Safety records are split by audience:
+
+- `trust_reports/{reportId}` retains reporter evidence for administrators and
+  the submitting reporter. Intake and every status change are server-only.
+- `trust_report_events/{eventId}` is immutable administrator-only decision and
+  appeal history.
+- `moderation_notices/{reportId}` contains only the sanitized decision visible
+  to the affected account; it never includes reporter identity or attachments.
+- `moderation_command_receipts/{receiptId}` provides private retry safety for
+  review and appeal commands.
+- `support_cases/{caseId}` contains the owner-private current support state and
+  server-derived response target.
+- `support_case_events/{eventId}` is immutable customer-visible case history.
+- `support_command_receipts/{receiptId}` makes intake and replies retry-safe.
+- `platform_policies/{policyId}` exposes only current published policy metadata,
+  including the reviewed HTTPS URL, version, and SHA-256 content hash.
+- `policy_acceptances/{uid}` is the owner-private exact current acceptance set;
+  `policy_acceptance_events/{eventId}` is immutable history.
+- `policy_publication_events/{eventId}` and
+  `policy_enforcement_events/{eventId}` are administrator-only audit records.
+- `platform_configuration/policy_enforcement` activates commercial policy
+  gating only after every required document has been published.
 
 Firestore rules deny client writes to auction bid state, offer decisions,
 Dispatch jobs, Dispatch quote state, and their immutable revision histories.

@@ -244,24 +244,38 @@ function createMarketplaceCommands(admin) {
     const videoPaths = media.videoUrl ?
       [listingMediaObjectPath(media.videoUrl)] : [];
     try {
-      await Promise.all([
-        ...imagePaths.map(async (path) => {
-          const [metadata] = await bucket.file(path).getMetadata();
+      const trustedImageHashes = await Promise.all(
+          imagePaths.map(async (path) => {
+          const file = bucket.file(path);
+          const [metadata] = await file.getMetadata();
           if (!String(metadata.contentType || "").startsWith("image/") ||
               Number(metadata.size || 0) <= 0 ||
               Number(metadata.size || 0) > 5 * 1024 * 1024) {
             throw new Error("invalid-photo");
           }
-        }),
-        ...videoPaths.map(async (path) => {
+          const digest = crypto.createHash("sha256");
+          await new Promise((resolve, reject) => {
+            file.createReadStream()
+                .on("data", (chunk) => digest.update(chunk))
+                .on("error", reject)
+                .on("end", resolve);
+          });
+          return digest.digest("hex");
+          }),
+      );
+      await Promise.all(videoPaths.map(async (path) => {
           const [metadata] = await bucket.file(path).getMetadata();
           if (!String(metadata.contentType || "").startsWith("video/") ||
               Number(metadata.size || 0) <= 0 ||
               Number(metadata.size || 0) > 25 * 1024 * 1024) {
             throw new Error("invalid-video");
           }
-        }),
-      ]);
+      }));
+      if (trustedImageHashes.some(
+          (hash, index) => hash !== media.imageHashes[index])) {
+        throw new Error("photo-integrity-mismatch");
+      }
+      return {...media, imageHashes: trustedImageHashes};
     } catch (error) {
       console.warn("Listing draft media verification failed", error);
       throw new HttpsError(
@@ -552,14 +566,14 @@ function createMarketplaceCommands(admin) {
           "Only the draft owner can update its media.",
       );
     }
-    const submittedMedia = validateListingMediaManifest(request.data, {
+    let submittedMedia = validateListingMediaManifest(request.data, {
       ownerUid: uid,
       listingId,
       expectedPhotoCount: Number(initialDraft.expectedPhotoCount || 0),
       expectsVideo: initialDraft.expectsVideo === true,
     });
     if (submittedMedia.status === "complete") {
-      await verifyDraftMediaObjects(submittedMedia);
+      submittedMedia = await verifyDraftMediaObjects(submittedMedia);
     }
     return db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(draftRef);

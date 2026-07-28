@@ -6,12 +6,15 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/config/phase1_feature_flags.dart';
+import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_reporting.dart';
 
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_offer_schedule.dart';
@@ -28,6 +31,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
     return FirebaseFirestore.instance
         .collection('conversations')
         .where('memberUids', arrayContains: uid)
+        .orderBy('lastMessageAt', descending: true)
+        .limit(defaultActivityFeedLimit)
         .snapshots()
         .map((snapshot) => snapshot.docs.fold<int>(0, (total, doc) {
               final counts = doc.data()['unreadCounts'] as Map? ?? {};
@@ -43,6 +48,7 @@ class MarketplaceMessagesPage extends StatelessWidget {
         .doc(uid)
         .collection('notifications')
         .where('read', isEqualTo: false)
+        .limit(defaultActivityFeedLimit)
         .snapshots()
         .map((snapshot) => snapshot.docs.length);
   }
@@ -55,6 +61,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('conversations')
           .where('memberUids', arrayContains: uid)
+          .orderBy('lastMessageAt', descending: true)
+          .limit(defaultActivityFeedLimit)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -72,7 +80,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
                 .compareTo(aTime?.millisecondsSinceEpoch ?? 0);
           });
         if (conversations.isEmpty) return const _EmptyMessages();
-        return ListView.separated(
+        final atLimit = conversations.length == defaultActivityFeedLimit;
+        final list = ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: conversations.length,
           separatorBuilder: (_, __) => const SizedBox(height: 5),
@@ -110,9 +119,50 @@ class MarketplaceMessagesPage extends StatelessWidget {
             );
           },
         );
+        if (!atLimit) return list;
+        return Column(children: [
+          const _ActivityLimitNotice(
+            message: 'Showing the 100 most recent conversations.',
+          ),
+          Expanded(child: list),
+        ]);
       },
     );
   }
+}
+
+class _ActivityLimitNotice extends StatelessWidget {
+  const _ActivityLimitNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        container: true,
+        label: message,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(children: [
+            Icon(Icons.info_outline,
+                color: Theme.of(context).colorScheme.onPrimaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ]),
+        ),
+      );
 }
 
 class _LoadFailure extends StatelessWidget {
@@ -325,6 +375,7 @@ class _ConversationNegotiationPanelState
                                   Text('Price and quantity history')
                                 ])),
                             IconButton(
+                                tooltip: 'Close offer history',
                                 onPressed: () => Navigator.pop(dialogContext),
                                 icon: const Icon(Icons.close))
                           ]),
@@ -800,18 +851,26 @@ class _ConversationNegotiationPanelState
             dispatchDelivery: dispatchDeliveryLocation?.publicName.trim() ?? '',
             dispatchDeliveryLocation: dispatchDeliveryLocation);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(truckingPlan ==
-                      MarketplaceTruckingPlan.requestDispatch
-                  ? 'Offer submitted. Dispatch request is live for carrier bids.'
-                  : initialOffer == null
-                      ? 'Offer submitted and added to offer history.'
-                      : 'Counter offer sent and added to offer history.')));
+          PipeFeedback.show(
+            context,
+            message: truckingPlan == MarketplaceTruckingPlan.requestDispatch
+                ? 'Offer submitted. Dispatch request is live for carrier bids.'
+                : initialOffer == null
+                    ? 'Offer submitted and added to offer history.'
+                    : 'Counter offer sent and added to offer history.',
+            tone: PipeStatusTone.success,
+          );
         }
-      } catch (_) {
+      } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('The proposal could not be sent.')));
+          PipeFeedback.show(
+            context,
+            message: marketplaceCommandErrorMessage(
+              error,
+              fallback: 'The proposal could not be sent. Try again.',
+            ),
+            tone: PipeStatusTone.error,
+          );
         }
       }
     }
@@ -922,7 +981,10 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('offers')
+            .where('listingId', isEqualTo: listingId)
             .where(roleField, isEqualTo: uid)
+            .orderBy('createdAt', descending: true)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -931,7 +993,6 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
           }
           final events = snapshot.data!.docs
               .where((doc) =>
-                  doc.data()['listingId'] == listingId &&
                   (isSeller || doc.data()['buyerUid'] == buyerUid) &&
                   doc.data()['sellerUid'] == sellerUid &&
                   doc.data()['status'] != 'archived')
@@ -967,6 +1028,14 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                       ? event.data()['offeredTotal'] as num
                       : best);
           return Column(children: [
+            if (snapshot.data!.docs.length == defaultActivityFeedLimit)
+              const ListTile(
+                dense: true,
+                leading: Icon(Icons.info_outline),
+                title: Text('Showing the latest 100 offer updates'),
+                subtitle: Text(
+                    'Older revisions remain in the authoritative transaction history.'),
+              ),
             if (isSeller)
               Container(
                   width: double.infinity,
@@ -1366,10 +1435,16 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               title: listingTitle,
               openOfferComposer: openOfferComposer,
               initialOffer: openOfferComposer ? offer : null)));
-    } catch (_) {
+    } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('The buyer conversation could not be opened.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The buyer conversation could not be opened.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -1390,16 +1465,23 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     try {
       await MarketplaceActionsRepository().acceptOffer(offerId);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Offer accepted. Other offers were archived.')));
+        PipeFeedback.show(
+          context,
+          message: 'Offer accepted. Other offers were archived.',
+          tone: PipeStatusTone.success,
+        );
         await _openBuyerConversation(context, offer, offerId);
       }
-    } catch (_) {
+    } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('The offer could not be accepted.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The offer could not be accepted. Nothing was changed.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -1688,14 +1770,15 @@ class _MarketplaceTransactionPanelState
         reason: reason,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: Colors.green,
-        content: Text(action == 'confirm_completion'
+      PipeFeedback.show(
+        context,
+        message: action == 'confirm_completion'
             ? 'Your confirmation was recorded.'
             : action == 'cancel'
                 ? 'The transaction was cancelled.'
-                : 'The dispute was opened for review.'),
-      ));
+                : 'The dispute was opened for review.',
+        tone: PipeStatusTone.success,
+      );
     } catch (error, stackTrace) {
       AppDiagnostics.record(
         error,
@@ -1705,12 +1788,12 @@ class _MarketplaceTransactionPanelState
         fatal: false,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(
-            'The transaction could not be updated. Nothing was changed. Try again.',
-          ),
-        ));
+        PipeFeedback.show(
+          context,
+          message:
+              'The transaction could not be updated. Nothing was changed. Try again.',
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1768,11 +1851,16 @@ class _MarketplaceTransactionPanelState
           ],
         ),
       );
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Transaction history could not be loaded.'),
-        ));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Transaction history could not be loaded.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -2114,6 +2202,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 .doc(widget.conversationId)
                 .collection('messages')
                 .orderBy('createdAt', descending: true)
+                .limit(defaultActivityFeedLimit)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -2151,13 +2240,26 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                               textAlign: TextAlign.center)
                         ])));
               }
+              final reachedWindow =
+                  snapshot.data!.docs.length == defaultActivityFeedLimit;
               return ListView.builder(
                 reverse: true,
                 padding: const EdgeInsets.all(12),
-                itemCount: snapshot.data!.docs.length,
+                itemCount: snapshot.data!.docs.length + (reachedWindow ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (reachedWindow && index == snapshot.data!.docs.length) {
+                    return const ListTile(
+                      dense: true,
+                      leading: Icon(Icons.info_outline),
+                      title: Text('Showing the latest 100 messages'),
+                      subtitle: Text(
+                          'Older messages remain stored in the conversation record.'),
+                    );
+                  }
                   final message = snapshot.data!.docs[index].data();
                   final mine = message['senderUid'] == uid;
+                  final hiddenByModeration =
+                      message['moderationVisibility'] == 'hidden';
                   return Align(
                     alignment:
                         mine ? Alignment.centerRight : Alignment.centerLeft,
@@ -2175,7 +2277,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (message['attachment'] is Map &&
+                            if (!hiddenByModeration &&
+                                message['attachment'] is Map &&
                                 (message['attachment'] as Map)['type'] ==
                                     'image')
                               ClipRRect(
@@ -2187,7 +2290,32 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                                   fit: BoxFit.cover,
                                 ),
                               ),
-                            if ('${message['text'] ?? ''}'.isNotEmpty)
+                            if (hiddenByModeration)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.gpp_maybe_outlined,
+                                        size: 17,
+                                        color: mine
+                                            ? Colors.white70
+                                            : Colors.black54),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Removed by Trust & Safety',
+                                        style: TextStyle(
+                                            fontStyle: FontStyle.italic,
+                                            color: mine
+                                                ? Colors.white70
+                                                : Colors.black54),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else if ('${message['text'] ?? ''}'.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text('${message['text'] ?? ''}',
@@ -2239,6 +2367,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               ])),
               const SizedBox(width: 6),
               IconButton.filled(
+                  tooltip: 'Send message',
                   onPressed: _sending ? null : _send,
                   icon: const Icon(Icons.send_rounded))
             ]),
@@ -2261,8 +2390,11 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         members.where((member) => member != currentUid).firstOrNull;
     if (otherUid == null || !mounted) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('The other member’s profile is unavailable.')));
+        PipeFeedback.show(
+          context,
+          message: 'The other member’s profile is unavailable.',
+          tone: PipeStatusTone.warning,
+        );
       }
       return;
     }
@@ -2278,10 +2410,16 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
           attachment: _attachment);
       _controller.clear();
       setState(() => _attachment = null);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Message could not be sent.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Message could not be sent. Try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -2332,9 +2470,11 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
       final sizeBytes = await file.length();
       if (sizeBytes > 15 * 1024 * 1024) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              behavior: SnackBarBehavior.floating,
-              content: Text('Attachment must be under 15 MB.')));
+          PipeFeedback.show(
+            context,
+            message: 'Attachment must be under 15 MB.',
+            tone: PipeStatusTone.warning,
+          );
         }
         return;
       }
@@ -2368,26 +2508,32 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               'url': url,
               'name': file.name
             });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
-            content: Text('Image attached. Add a message or press Send.')));
+        PipeFeedback.show(
+          context,
+          message: 'Image attached. Add a message or press Send.',
+          tone: PipeStatusTone.success,
+        );
       }
     } on FirebaseException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-            content: Text(error.code == 'unauthorized'
-                ? 'Image upload is not authorized. Refresh your account and try again.'
-                : 'Image upload failed (${error.code}). Please try again.')));
+        PipeFeedback.show(
+          context,
+          message: error.code == 'unauthorized'
+              ? 'Image upload is not authorized. Refresh your account and try again.'
+              : 'Image upload failed. Please try again.',
+          tone: PipeStatusTone.error,
+        );
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-            content: Text('Could not attach this image. Try another file.')));
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Could not attach this image. Try another file.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _uploading = false);

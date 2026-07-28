@@ -9,6 +9,20 @@ on enforcement until registered clients have been distributed and the Firebase
 App Check request metrics show that legitimate traffic is producing valid
 tokens.
 
+The protected deployment workflow records one explicit rollout mode in the
+release manifest:
+
+- `disabled`: bootstrap staging before a provider key exists; the client may
+  start without App Check and callable enforcement remains off;
+- `observe`: require token-producing clients and a web provider key while
+  callable enforcement remains off so metrics can be reviewed;
+- `enforce`: require token-producing clients and enforce callable App Check.
+
+Production rejects every mode except `enforce`. Staging may use `disabled` only
+for initial infrastructure and must progress through `observe` acceptance
+before enforcement. The selected mode, client requirement, and callable
+enforcement state are retained in the exact release manifest.
+
 ## Current application registrations
 
 - Firebase project: `flutter-flow-pipe`

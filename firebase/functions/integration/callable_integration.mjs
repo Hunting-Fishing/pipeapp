@@ -19,6 +19,11 @@ const {
   createAccountVerificationCommands,
 } = require("../account_verification_commands");
 const {createDispatchCommands} = require("../dispatch_commands");
+const {createModerationCommands} = require("../moderation_commands");
+const {
+  createPolicyAcceptanceCommands,
+} = require("../policy_acceptance_commands");
+const {createSupportCommands} = require("../support_commands");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -64,6 +69,18 @@ const accountVerificationCommands = createAccountVerificationCommands({
   auth: () => auth,
 });
 const dispatchCommands = createDispatchCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
+const moderationCommands = createModerationCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
+const policyAcceptanceCommands = createPolicyAcceptanceCommands({
+  firestore: commandFirestore,
+  auth: () => auth,
+});
+const supportCommands = createSupportCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
@@ -212,6 +229,16 @@ async function assertCollectionSize(collection, expected, filters = []) {
   assert.equal(snapshot.size, expected, `${collection} count`);
 }
 
+async function waitForDocument(path, predicate, timeoutMillis = 15000) {
+  const deadline = Date.now() + timeoutMillis;
+  while (Date.now() < deadline) {
+    const snapshot = await db.doc(path).get();
+    if (snapshot.exists && predicate(snapshot.data())) return snapshot.data();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(`Timed out waiting for ${path}.`);
+}
+
 try {
   const rateRequest = (sequence) => ({
     auth: {uid: "rate-limit-integration"},
@@ -302,6 +329,10 @@ try {
       vehicleType: "Tractor",
       maximumPayloadKg: 10000,
       available: true,
+    }),
+    db.doc("administrator_roles/integration-admin").set({
+      active: true,
+      role: "administrator",
     }),
   ]);
   const unverified = await createUser("unverified", {verified: false});
@@ -544,6 +575,19 @@ try {
   const photoUrl =
     `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/` +
     `${encodeURIComponent(photoPath)}?alt=media&token=emulator`;
+  await expectCallableError(
+      "updateMarketplaceListingDraftMedia",
+      seller.token,
+      {
+        listingId: mediaDraftId,
+        status: "complete",
+        imageUrls: [photoUrl],
+        imageHashes: ["0".repeat(64)],
+        thumbnailUrl: photoUrl,
+        videoUrl: null,
+      },
+      "FAILED_PRECONDITION",
+  );
   await call("updateMarketplaceListingDraftMedia", seller.token, {
     listingId: mediaDraftId,
     status: "complete",
@@ -562,6 +606,70 @@ try {
   assert.equal(publishedMediaListing.mediaUploadStatus, "complete");
   assert.equal(publishedMediaListing.thumbnailUrl, photoUrl);
   assert.equal(publishedMediaListing.imageUrls.length, 1);
+
+  const duplicateMediaDraftId = `duplicate-media-${now}`;
+  await call("createMarketplaceListingDraft", seller.token, {
+    listingId: duplicateMediaDraftId,
+    listing: {
+      ...listingInput("Duplicate media review fixture"),
+      mediaPhotoCount: 1,
+      hasVideo: false,
+      imageUrls: [],
+      imageHashes: [],
+      thumbnailUrl: null,
+      videoUrl: null,
+      mediaUploadStatus: "queued",
+    },
+    location: locationInput(),
+  });
+  const duplicatePhotoPath =
+    `listing_media/${seller.uid}/${duplicateMediaDraftId}/photo_1.jpg`;
+  await storage.bucket().file(duplicatePhotoPath).save(photoBytes, {
+    contentType: "image/jpeg",
+  });
+  const duplicatePhotoUrl =
+    `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/` +
+    `${encodeURIComponent(duplicatePhotoPath)}?alt=media&token=emulator`;
+  const trustedPhotoHash = createHash("sha256")
+      .update(photoBytes)
+      .digest("hex");
+  await call("updateMarketplaceListingDraftMedia", seller.token, {
+    listingId: duplicateMediaDraftId,
+    status: "complete",
+    imageUrls: [duplicatePhotoUrl],
+    imageHashes: [trustedPhotoHash],
+    thumbnailUrl: duplicatePhotoUrl,
+    videoUrl: null,
+  });
+  await call("publishMarketplaceListingDraft", seller.token, {
+    requestId: `publish-duplicate-media-${now}`,
+    listingId: duplicateMediaDraftId,
+  });
+  const duplicateCaseId = `duplicate_media_${duplicateMediaDraftId}`;
+  const duplicateCase = await waitForDocument(
+      `trust_reports/${duplicateCaseId}`,
+      (data) => data.status === "pending",
+  );
+  assert.equal(duplicateCase.reason, "duplicate_listing_media");
+  assert.equal(duplicateCase.humanReviewRequired, true);
+  assert.equal(duplicateCase.automaticEnforcement, false);
+  assert.ok(duplicateCase.relatedListingIds.includes(mediaDraftId));
+  assert.deepEqual(duplicateCase.matchedImageHashes, [trustedPhotoHash]);
+  assert.equal(duplicateCase.mediaEvidence.length, 2);
+  assert.deepEqual(
+      duplicateCase.mediaEvidence.map((item) => item.listingId).sort(),
+      [duplicateMediaDraftId, mediaDraftId].sort(),
+  );
+  assert.ok(duplicateCase.mediaEvidence.every((item) => item.photoUrl));
+  const duplicateListing = (
+    await db.doc(`public_listings/${duplicateMediaDraftId}`).get()
+  ).data();
+  assert.equal(duplicateListing.status, "active");
+  assert.equal(duplicateListing.moderationStatus, undefined);
+  await waitForDocument(
+      `users/integration-admin/notifications/moderation-${duplicateCaseId}`,
+      (data) => data.reportId === duplicateCaseId,
+  );
 
   const offerListingId = `offer-listing-${now}`;
   const createListingData = {
@@ -672,6 +780,36 @@ try {
       `conversations/${conversationFirst.conversationId}/messages`,
       1,
   );
+  const flaggedMessageId = `message-safety-${now}`;
+  await call("sendMarketplaceMessage", buyer.token, {
+    requestId: flaggedMessageId,
+    conversationId: conversationFirst.conversationId,
+    text: "Send the payment by gift card off-platform.",
+  });
+  const messageCaseId = `message_signal_${flaggedMessageId}`;
+  const messageCase = await waitForDocument(
+      `trust_reports/${messageCaseId}`,
+      (data) => data.status === "pending",
+  );
+  assert.deepEqual(messageCase.moderationSignals, ["possible_payment_fraud"]);
+  assert.equal(messageCase.humanReviewRequired, true);
+  assert.equal(messageCase.automaticEnforcement, false);
+  assert.deepEqual(messageCase.contentEvidence, {
+    excerpt: "Send the payment by gift card off-platform.",
+    characterCount: 43,
+    truncated: false,
+  });
+  const flaggedMessage = (
+    await db.doc(
+        `conversations/${conversationFirst.conversationId}/messages/` +
+        flaggedMessageId,
+    ).get()
+  ).data();
+  assert.equal(flaggedMessage.moderationVisibility, undefined);
+  await waitForDocument(
+      `users/integration-admin/notifications/moderation-${messageCaseId}`,
+      (data) => data.reportId === messageCaseId,
+  );
   assert.equal((await call(
       "markMarketplaceConversationRead",
       seller.token,
@@ -699,6 +837,289 @@ try {
       (await db.doc(`trust_reports/${reportFirst.reportId}`).get())
           .data().status,
       "pending",
+  );
+  const moderationReviewRequest = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `moderation-review-${now}`,
+      reportId: reportFirst.reportId,
+      decision: "violation_confirmed",
+      reason: "The submitted listing evidence confirms misleading information.",
+      enforcementAction: "warning",
+    },
+  };
+  const moderationReviewFirst = await moderationCommands
+      .reviewModerationReport(moderationReviewRequest);
+  assert.deepEqual(
+      await moderationCommands.reviewModerationReport(moderationReviewRequest),
+      moderationReviewFirst,
+  );
+  assert.equal(
+      (await db.doc(`trust_reports/${reportFirst.reportId}`).get())
+          .data().status,
+      "violation_confirmed",
+  );
+  assert.equal(
+      (await db.doc(`moderation_notices/${reportFirst.reportId}`).get())
+          .data().reportedUid,
+      seller.uid,
+  );
+  const appealRequest = {
+    auth: {
+      uid: seller.uid,
+      token: {
+        email_verified: true,
+        phone_number: "+15555551001",
+        auth_time: Math.floor(Date.now() / 1000),
+      },
+    },
+    data: {
+      requestId: `moderation-appeal-${now}`,
+      reportId: reportFirst.reportId,
+      reason: "The listing facts can be verified with the original documents.",
+    },
+  };
+  const appealFirst = await moderationCommands
+      .appealModerationDecision(appealRequest);
+  assert.deepEqual(
+      await moderationCommands.appealModerationDecision(appealRequest),
+      appealFirst,
+  );
+  assert.equal(appealFirst.status, "appealed");
+  const appealReviewRequest = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `moderation-appeal-review-${now}`,
+      reportId: reportFirst.reportId,
+      decision: "overturned",
+      reason: "Original documentation resolves the reported discrepancy.",
+    },
+  };
+  const appealReviewFirst = await moderationCommands
+      .reviewModerationAppeal(appealReviewRequest);
+  assert.deepEqual(
+      await moderationCommands.reviewModerationAppeal(appealReviewRequest),
+      appealReviewFirst,
+  );
+  assert.equal(appealReviewFirst.status, "appeal_overturned");
+  const dismissedReportId = `dismissed-report-${now}`;
+  await db.doc(`trust_reports/${dismissedReportId}`).set({
+    reporterUid: buyer.uid,
+    reportedUid: seller.uid,
+    targetType: "user",
+    reason: "other",
+    reasonLabel: "Something else",
+    details: "A report that should be dismissed without notifying its target.",
+    source: "user",
+    status: "pending",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  await moderationCommands.reviewModerationReport({
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `moderation-dismiss-${now}`,
+      reportId: dismissedReportId,
+      decision: "dismissed",
+      reason: "The available evidence does not support a policy violation.",
+      enforcementAction: "none",
+    },
+  });
+  assert.equal(
+      (await db.doc(`moderation_notices/${dismissedReportId}`).get()).exists,
+      false,
+  );
+  const supportCaseData = {
+    requestId: `support-${now}`,
+    category: "technical",
+    subject: "Listing photo upload fails",
+    description: "The upload stops before completion when publishing a listing.",
+    relatedType: "listing",
+    relatedId: offerListingId,
+  };
+  const supportFirst = await call(
+      "createSupportCase",
+      buyer.token,
+      supportCaseData,
+  );
+  assert.deepEqual(
+      await call("createSupportCase", buyer.token, supportCaseData),
+      supportFirst,
+  );
+  const supportResponse = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `support-response-${now}`,
+      caseId: supportFirst.caseId,
+      action: "respond",
+      message: "Please retry once and provide the image format and file size.",
+    },
+  };
+  assert.equal(
+      (await supportCommands.updateSupportCase(supportResponse)).status,
+      "waiting_customer",
+  );
+  const supportReply = {
+    requestId: `support-reply-${now}`,
+    caseId: supportFirst.caseId,
+    message: "The image is a four megabyte JPEG and retrying has the same result.",
+  };
+  const supportReplyFirst = await call(
+      "replySupportCase",
+      buyer.token,
+      supportReply,
+  );
+  assert.deepEqual(
+      await call("replySupportCase", buyer.token, supportReply),
+      supportReplyFirst,
+  );
+  const resolveSupport = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `support-resolve-${now}`,
+      caseId: supportFirst.caseId,
+      action: "resolve",
+      message: "The upload authorization was refreshed and the issue is resolved.",
+    },
+  };
+  const resolvedSupport = await supportCommands.updateSupportCase(resolveSupport);
+  assert.deepEqual(
+      await supportCommands.updateSupportCase(resolveSupport),
+      resolvedSupport,
+  );
+  assert.equal(resolvedSupport.status, "resolved");
+  await assertCollectionSize(
+      "support_case_events",
+      4,
+      [["caseId", "==", supportFirst.caseId]],
+  );
+  const requiredPolicies = [
+    "terms_of_service",
+    "privacy_notice",
+    "prohibited_items",
+    "mapping_location",
+    "communications",
+  ];
+  const policyAcceptanceItems = [];
+  for (const policyId of requiredPolicies) {
+    const contentSha256 = createHash("sha256")
+        .update(`reviewed-${policyId}-2026.07`)
+        .digest("hex");
+    const publicationRequest = {
+      auth: reviewRequest.auth,
+      data: {
+        requestId: `publish-${policyId}-${now}`,
+        policyId,
+        version: "2026.07",
+        summary: `Reviewed integration summary for the ${policyId} policy.`,
+        documentUrl: `https://example.test/policies/${policyId}`,
+        contentSha256,
+        effectiveAtMillis: now + 24 * 60 * 60 * 1000,
+        approvalNote:
+          "Approved only for the isolated authenticated emulator acceptance exercise.",
+      },
+    };
+    const published = await policyAcceptanceCommands
+        .publishPolicyDocument(publicationRequest);
+    assert.deepEqual(
+        await policyAcceptanceCommands
+            .publishPolicyDocument(publicationRequest),
+        published,
+    );
+    policyAcceptanceItems.push({
+      policyId,
+      version: published.version,
+      contentSha256,
+    });
+  }
+  const enablePolicyEnforcement = {
+    auth: reviewRequest.auth,
+    data: {
+      requestId: `policy-enforcement-enable-${now}`,
+      enabled: true,
+      approvalNote:
+        "Enable policy enforcement for the isolated authenticated emulator exercise.",
+    },
+  };
+  const enforcementFirst = await policyAcceptanceCommands
+      .setPolicyEnforcement(enablePolicyEnforcement);
+  assert.deepEqual(
+      await policyAcceptanceCommands
+          .setPolicyEnforcement(enablePolicyEnforcement),
+      enforcementFirst,
+  );
+  assert.equal(enforcementFirst.enabled, true);
+  await expectCallableError(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      {
+        requestId: `policy-blocked-save-${now}`,
+        listingId: offerListingId,
+        saved: true,
+      },
+      "FAILED_PRECONDITION",
+  );
+  const policyAcceptanceData = {
+    requestId: `policy-acceptance-${now}`,
+    policies: policyAcceptanceItems,
+  };
+  const policyAcceptanceFirst = await call(
+      "acceptRequiredPolicies",
+      buyer.token,
+      policyAcceptanceData,
+  );
+  assert.deepEqual(
+      await call(
+          "acceptRequiredPolicies",
+          buyer.token,
+          policyAcceptanceData,
+      ),
+      policyAcceptanceFirst,
+  );
+  assert.equal(policyAcceptanceFirst.current, true);
+  assert.equal(
+      (await db.doc(`policy_acceptances/${buyer.uid}`).get())
+          .data().fingerprint.length,
+      64,
+  );
+  await assertCollectionSize(
+      "policy_acceptance_events",
+      1,
+      [["ownerUid", "==", buyer.uid]],
+  );
+  const policyVerifiedSave = {
+    requestId: `policy-verified-save-${now}`,
+    listingId: offerListingId,
+    saved: true,
+  };
+  const policySaveFirst = await call(
+      "setMarketplaceListingSaved",
+      buyer.token,
+      policyVerifiedSave,
+  );
+  assert.deepEqual(
+      await call(
+          "setMarketplaceListingSaved",
+          buyer.token,
+          policyVerifiedSave,
+      ),
+      policySaveFirst,
+  );
+  await call("setMarketplaceListingSaved", buyer.token, {
+    requestId: `policy-verified-unsave-${now}`,
+    listingId: offerListingId,
+    saved: false,
+  });
+  assert.equal(
+      (await policyAcceptanceCommands.setPolicyEnforcement({
+        auth: reviewRequest.auth,
+        data: {
+          requestId: `policy-enforcement-disable-${now}`,
+          enabled: false,
+          approvalNote:
+            "Disable policy enforcement after the isolated emulator gate test completes.",
+        },
+      })).enabled,
+      false,
   );
   const blockedMessage = await expectCallableError(
       "openMarketplaceConversation",
@@ -1306,15 +1727,17 @@ try {
   );
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 43);
+  assert.equal(receipts.size, 47);
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
-  assert.equal(communicationReceipts.size, 2);
+  assert.equal(communicationReceipts.size, 3);
   console.log(
-      "Callable integration passed: private listing drafts, saved listings, " +
+      "Callable integration passed: trusted media hashes, duplicate-photo " +
+      "and message-safety review signals, private listing drafts, saved listings, " +
       "listing lifecycle, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "provider review, quote, award, delivery closure, protected messages/reports/uploads, " +
+      "versioned policy publication and acceptance, " +
       "private export, staged deletion, remembered devices, session revocation, " +
       "and retry idempotency.",
   );

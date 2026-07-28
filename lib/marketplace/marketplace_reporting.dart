@@ -4,9 +4,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/data/bounded_firestore_query.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_support.dart';
 
 class MarketplaceReportReason {
   const MarketplaceReportReason(
@@ -257,6 +260,7 @@ class _ReportDialogState extends State<_ReportDialog> {
                           'Your report is private and reviewed by a trained administrator.')
                     ])),
                 IconButton(
+                    tooltip: 'Close report form',
                     onPressed:
                         _submitting ? null : () => Navigator.pop(context),
                     icon: const Icon(Icons.close))
@@ -365,7 +369,7 @@ class AdminModerationDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 3,
+        length: 4,
         child: Column(
           children: [
             const Material(
@@ -381,6 +385,9 @@ class AdminModerationDashboard extends StatelessWidget {
                     text: 'Dispatch providers',
                   ),
                   Tab(icon: Icon(Icons.gpp_bad_outlined), text: 'Reports'),
+                  Tab(
+                      icon: Icon(Icons.support_agent_outlined),
+                      text: 'Support'),
                 ],
               ),
             ),
@@ -390,6 +397,7 @@ class AdminModerationDashboard extends StatelessWidget {
                   _AccountVerificationQueue(),
                   _DispatchProviderReviewQueue(),
                   _ModerationCaseQueue(),
+                  AdminSupportQueue(),
                 ],
               ),
             ),
@@ -407,6 +415,8 @@ class _AccountVerificationQueue extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('verification_requests')
             .where('status', isEqualTo: 'pending')
+            .orderBy('requestedAt', descending: true)
+            .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -626,11 +636,10 @@ class _AccountVerificationQueue extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (controller.text.trim().length < 10) {
-                ScaffoldMessenger.of(noteContext).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Add a clear review note of at least 10 characters.'),
-                  ),
+                PipeFeedback.show(
+                  noteContext,
+                  message: 'Add a clear review note of at least 10 characters.',
+                  tone: PipeStatusTone.warning,
                 );
                 return;
               }
@@ -659,17 +668,21 @@ class _AccountVerificationQueue extends StatelessWidget {
         Navigator.pop(requestDialogContext);
       }
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(content: Text('Verification review saved: $decision.')),
+        PipeFeedback.show(
+          pageContext,
+          message: 'Verification review saved: $decision.',
+          tone: PipeStatusTone.success,
         );
       }
     } catch (error) {
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(
-            content: Text('$error'.replaceFirst('Bad state: ', '')),
-            backgroundColor: Colors.red.shade700,
+        PipeFeedback.show(
+          pageContext,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The verification review could not be saved.',
           ),
+          tone: PipeStatusTone.error,
         );
       }
     }
@@ -890,11 +903,10 @@ class _DispatchProviderReviewQueue extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (note.text.trim().length < 10) {
-                ScaffoldMessenger.of(noteContext).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Enter a clear note of at least 10 characters.'),
-                  ),
+                PipeFeedback.show(
+                  noteContext,
+                  message: 'Enter a clear note of at least 10 characters.',
+                  tone: PipeStatusTone.warning,
                 );
                 return;
               }
@@ -923,18 +935,21 @@ class _DispatchProviderReviewQueue extends StatelessWidget {
         Navigator.pop(providerDialogContext);
       }
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(
-              content: Text('Dispatch provider decision saved: $decision.')),
+        PipeFeedback.show(
+          pageContext,
+          message: 'Dispatch provider decision saved: $decision.',
+          tone: PipeStatusTone.success,
         );
       }
     } catch (error) {
       if (pageContext.mounted) {
-        ScaffoldMessenger.of(pageContext).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red.shade700,
-            content: Text('$error'.replaceFirst('Bad state: ', '')),
+        PipeFeedback.show(
+          pageContext,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The Dispatch provider decision could not be saved.',
           ),
+          tone: PipeStatusTone.error,
         );
       }
     }
@@ -947,8 +962,11 @@ class _ModerationCaseQueue extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream:
-            FirebaseFirestore.instance.collection('trust_reports').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('trust_reports')
+            .orderBy('createdAt', descending: true)
+            .limit(100)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const Center(
@@ -981,14 +999,20 @@ class _ModerationCaseQueue extends StatelessWidget {
             Wrap(spacing: 10, children: [
               _metric(
                   'Open',
-                  cases.where((e) => e.data()['status'] == 'pending').length,
+                  cases
+                      .where((e) => [
+                            'pending',
+                            'information_requested',
+                            'appealed'
+                          ].contains(e.data()['status']))
+                      .length,
                   Colors.orange),
               _metric(
                   'High priority',
                   cases.where((e) => e.data()['priority'] == 'high').length,
                   Colors.red),
               _metric(
-                  'AI detected',
+                  'Automated signals',
                   cases.where((e) => e.data()['source'] == 'automated').length,
                   Colors.blue),
             ]),
@@ -1036,6 +1060,13 @@ class _ModerationCaseQueue extends StatelessWidget {
     final attachments = List<Map<String, dynamic>>.from(
         (data['attachments'] as List? ?? const [])
             .map((e) => Map<String, dynamic>.from(e as Map)));
+    final mediaEvidence = List<Map<String, dynamic>>.from(
+        (data['mediaEvidence'] as List? ?? const [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e)));
+    final contentEvidence = data['contentEvidence'] is Map
+        ? Map<String, dynamic>.from(data['contentEvidence'] as Map)
+        : const <String, dynamic>{};
     await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -1053,6 +1084,85 @@ class _ModerationCaseQueue extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(
                           '${data['details'] ?? 'No additional explanation provided.'}'),
+                      if ('${contentEvidence['excerpt'] ?? ''}'
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text('Message evidence',
+                            style: TextStyle(fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: SelectableText(
+                            '${contentEvidence['excerpt']}'
+                            '${contentEvidence['truncated'] == true ? '…' : ''}',
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${contentEvidence['characterCount'] ?? 0} characters'
+                          '${contentEvidence['truncated'] == true ? ' • excerpt limited for review' : ''}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                      if (mediaEvidence.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text('Exact-photo comparison',
+                            style: TextStyle(fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: mediaEvidence.map((item) {
+                            final photoUrl = '${item['photoUrl'] ?? ''}';
+                            final title =
+                                '${item['listingTitle'] ?? ''}'.trim();
+                            return SizedBox(
+                              width: 170,
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 170,
+                                      height: 110,
+                                      child: photoUrl.isEmpty
+                                          ? const Icon(Icons
+                                              .image_not_supported_outlined)
+                                          : Image.network(
+                                              photoUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const Icon(Icons
+                                                      .broken_image_outlined),
+                                            ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Text(
+                                        title.isEmpty
+                                            ? '${item['listingId'] ?? 'Listing'}'
+                                            : title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                       if (attachments.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         const Text('Evidence',
@@ -1077,31 +1187,366 @@ class _ModerationCaseQueue extends StatelessWidget {
                                                   Icons.broken_image_outlined)),
                                     )))
                                 .toList())
-                      ]
+                      ],
+                      const SizedBox(height: 18),
+                      const Text('Case history',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 6),
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('trust_report_events')
+                            .where('reportId', isEqualTo: doc.id)
+                            .limit(100)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return const Text(
+                                'Case history is temporarily unavailable.');
+                          }
+                          if (!snapshot.hasData) {
+                            return const LinearProgressIndicator();
+                          }
+                          final events = snapshot.data!.docs.toList()
+                            ..sort((a, b) => _millis(b.data()['createdAt'])
+                                .compareTo(_millis(a.data()['createdAt'])));
+                          if (events.isEmpty) {
+                            return const Text(
+                                'No review actions recorded yet.');
+                          }
+                          return Column(
+                            children: events.map((event) {
+                              final value = event.data();
+                              return ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.history_outlined),
+                                title: Text('${value['event'] ?? 'case update'}'
+                                    .replaceAll('_', ' ')),
+                                subtitle: Text(
+                                  '${value['status'] ?? ''}'
+                                  '${'${value['reason'] ?? ''}'.trim().isEmpty ? '' : '\n${value['reason']}'}',
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
                     ],
                   ))),
               actions: [
                 TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Close')),
+                if (['pending', 'information_requested']
+                    .contains('${data['status'] ?? 'pending'}'))
+                  FilledButton.icon(
                     onPressed: () async {
-                      await doc.reference.update({
-                        'status': 'dismissed',
-                        'reviewedAt': FieldValue.serverTimestamp(),
-                        'reviewedByUid': FirebaseAuth.instance.currentUser?.uid
-                      });
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      final completed = await _reviewCase(
+                        dialogContext,
+                        reportId: doc.id,
+                        targetType: '${data['targetType'] ?? ''}',
+                      );
+                      if (completed && dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
                     },
-                    child: const Text('Dismiss')),
-                FilledButton(
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Review case'),
+                  ),
+                if ('${data['status']}' == 'appealed')
+                  FilledButton.icon(
                     onPressed: () async {
-                      await doc.reference.update({
-                        'status': 'actioned',
-                        'reviewedAt': FieldValue.serverTimestamp(),
-                        'reviewedByUid': FirebaseAuth.instance.currentUser?.uid
-                      });
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      final completed =
+                          await _reviewAppeal(dialogContext, doc.id);
+                      if (completed && dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
                     },
-                    child: const Text('Confirm violation')),
+                    icon: const Icon(Icons.balance_outlined),
+                    label: const Text('Review appeal'),
+                  ),
               ],
             ));
+  }
+
+  static Future<bool> _reviewCase(
+    BuildContext context, {
+    required String reportId,
+    required String targetType,
+  }) async {
+    var decision = 'dismissed';
+    var enforcementAction = 'none';
+    final reason = TextEditingController();
+    var submitting = false;
+    String? error;
+    final completed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (reviewContext) => StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              icon: const Icon(Icons.gpp_good_outlined, size: 36),
+              title: const Text('Record moderation decision'),
+              content: SizedBox(
+                width: 540,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        initialValue: decision,
+                        decoration: const InputDecoration(
+                          labelText: 'Decision',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'dismissed',
+                              child: Text('Dismiss — no violation found')),
+                          DropdownMenuItem(
+                              value: 'information_requested',
+                              child: Text('Request more information')),
+                          DropdownMenuItem(
+                              value: 'violation_confirmed',
+                              child: Text('Confirm policy violation')),
+                        ],
+                        onChanged: submitting
+                            ? null
+                            : (value) => setState(() {
+                                  decision = value ?? 'dismissed';
+                                  if (decision != 'violation_confirmed') {
+                                    enforcementAction = 'none';
+                                  }
+                                }),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: enforcementAction,
+                        decoration: const InputDecoration(
+                          labelText: 'Enforcement action',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                              value: 'none', child: Text('No enforcement')),
+                          if (decision == 'violation_confirmed')
+                            const DropdownMenuItem(
+                                value: 'warning',
+                                child: Text('Formal account warning')),
+                          if (decision == 'violation_confirmed' &&
+                              ['listing', 'message'].contains(targetType))
+                            const DropdownMenuItem(
+                                value: 'content_removed',
+                                child: Text('Remove reported content')),
+                        ],
+                        onChanged: submitting
+                            ? null
+                            : (value) => setState(
+                                () => enforcementAction = value ?? 'none'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: reason,
+                        enabled: !submitting,
+                        minLines: 3,
+                        maxLines: 6,
+                        maxLength: 1000,
+                        decoration: const InputDecoration(
+                          labelText: 'Decision rationale *',
+                          hintText:
+                              'Record the evidence reviewed and why this decision is appropriate.',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      if (decision == 'violation_confirmed')
+                        const Card(
+                          color: Color(0xFFFFF3E0),
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Text(
+                              'The affected user will receive this rationale and may appeal within 30 days.',
+                            ),
+                          ),
+                        ),
+                      if (error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(error!,
+                              style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.pop(reviewContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          if (reason.text.trim().length < 10) {
+                            setState(() => error =
+                                'Enter a clear rationale of at least 10 characters.');
+                            return;
+                          }
+                          setState(() {
+                            submitting = true;
+                            error = null;
+                          });
+                          try {
+                            final requestId = FirebaseFirestore.instance
+                                .collection('moderation_command_receipts')
+                                .doc()
+                                .id;
+                            await MarketplaceCommandClient()
+                                .execute('reviewModerationReport', {
+                              'requestId': requestId,
+                              'reportId': reportId,
+                              'decision': decision,
+                              'reason': reason.text.trim(),
+                              'enforcementAction': enforcementAction,
+                            });
+                            if (reviewContext.mounted) {
+                              Navigator.pop(reviewContext, true);
+                            }
+                          } catch (caught) {
+                            setState(() {
+                              submitting = false;
+                              error = '$caught'.replaceFirst('Bad state: ', '');
+                            });
+                          }
+                        },
+                  icon: submitting
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.verified_outlined),
+                  label: const Text('Confirm decision'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    reason.dispose();
+    return completed;
+  }
+
+  static Future<bool> _reviewAppeal(
+      BuildContext context, String reportId) async {
+    var decision = 'upheld';
+    final reason = TextEditingController();
+    var submitting = false;
+    String? error;
+    final completed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (reviewContext) => StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              icon: const Icon(Icons.balance_outlined, size: 36),
+              title: const Text('Review moderation appeal'),
+              content: SizedBox(
+                width: 520,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: decision,
+                      decoration: const InputDecoration(
+                        labelText: 'Appeal decision',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'upheld',
+                            child: Text('Uphold original decision')),
+                        DropdownMenuItem(
+                            value: 'overturned',
+                            child: Text('Overturn and restore content')),
+                      ],
+                      onChanged: submitting
+                          ? null
+                          : (value) =>
+                              setState(() => decision = value ?? 'upheld'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: reason,
+                      enabled: !submitting,
+                      minLines: 3,
+                      maxLines: 6,
+                      maxLength: 1000,
+                      decoration: const InputDecoration(
+                        labelText: 'Appeal rationale *',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    if (error != null)
+                      Text(error!, style: const TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.pop(reviewContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          if (reason.text.trim().length < 10) {
+                            setState(() => error =
+                                'Enter a clear rationale of at least 10 characters.');
+                            return;
+                          }
+                          setState(() {
+                            submitting = true;
+                            error = null;
+                          });
+                          try {
+                            final requestId = FirebaseFirestore.instance
+                                .collection('moderation_command_receipts')
+                                .doc()
+                                .id;
+                            await MarketplaceCommandClient()
+                                .execute('reviewModerationAppeal', {
+                              'requestId': requestId,
+                              'reportId': reportId,
+                              'decision': decision,
+                              'reason': reason.text.trim(),
+                            });
+                            if (reviewContext.mounted) {
+                              Navigator.pop(reviewContext, true);
+                            }
+                          } catch (caught) {
+                            setState(() {
+                              submitting = false;
+                              error = '$caught'.replaceFirst('Bad state: ', '');
+                            });
+                          }
+                        },
+                  child: submitting
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Confirm appeal decision'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    reason.dispose();
+    return completed;
   }
 }
