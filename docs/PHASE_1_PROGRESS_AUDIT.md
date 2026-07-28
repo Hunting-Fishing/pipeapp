@@ -477,6 +477,11 @@ staging deployment matches exactly and passes end-to-end acceptance.
   packages require iOS 15 rather than the repository's previous iOS 14 target.
   Pod installation, Flutter framework metadata, and all Runner configurations
   now share an enforced 15.0 minimum instead of downgrading Firebase.
+- That build then reached the linker and exposed duplicate Firestore symbols
+  from mixing Firebase SPM products with CocoaPods fallbacks required by old
+  Apple-sign-in and SQLite plugins. The app now uses the maintainers'
+  SPM-capable `sign_in_with_apple` 8.1.0 and `sqflite` 2.4.3 releases instead of
+  suppressing linker integrity or disabling Swift Package Manager.
 
 ## Gate 1 checkpoint evidence
 

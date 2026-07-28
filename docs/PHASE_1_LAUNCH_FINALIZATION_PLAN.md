@@ -496,6 +496,12 @@ framework metadata, and every Runner build configuration now declare the same
 15.0 baseline, and a release contract test prevents a partial or incompatible
 deployment-target rollback.
 
+The subsequent link phase found duplicate Firestore symbols because the old
+Apple-sign-in and SQLite plugins forced a CocoaPods fallback alongside Firebase
+SPM products. Those plugins now use their SPM-capable production releases,
+removing the mixed native ownership instead of suppressing the linker error or
+turning Swift Package Manager off.
+
 Exit evidence:
 
 - Signed Android and Apple release candidates install and complete the Phase 1
