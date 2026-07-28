@@ -70,4 +70,36 @@ void main() {
     expect(workflow, contains('desktop-1440x1000.png'));
     expect(workflow, contains('retention-days: 30'));
   });
+
+  test('deployment retains exact-release machine-readable evidence', () {
+    expect(
+      workflow,
+      contains(
+        '--message "Pipe Buyer \$PIPE_ENV \$PIPE_RELEASE_SHA workflow '
+        r'${{ github.run_id }}"',
+      ),
+    );
+    expect(
+      workflow,
+      contains(
+        '--non-interactive 2>&1 | tee build/firebase-deploy.log',
+      ),
+    );
+    expect(
+      workflow,
+      contains(
+        'name: firebase-release-evidence-'
+        r'${{ inputs.environment }}-${{ inputs.commit_sha }}-'
+        r'${{ github.run_id }}',
+      ),
+    );
+    for (final evidencePath in <String>[
+      'build/release-manifest.json',
+      'build/firebase-deploy.log',
+      'build/deployed-functions.json',
+      'build/function-parity.json',
+    ]) {
+      expect(workflow, contains(evidencePath));
+    }
+  });
 }

@@ -113,18 +113,20 @@ released and the retained baseline was restored; Firebase recorded live release
 `1784695881916000` as a `ROLLBACK` to `c5b6e2f11524c0eb`. Authentication
 is now initialized with Email/Password enabled from the reviewed root config;
 a disposable account create/delete smoke test passed. Functions remain
-undeployed because Cloud Build and Artifact Registry require the staging owner
-to upgrade the project to Blaze. App Check, keyless CI deployment, visual
-acceptance, and data/full-service rollback remain to be configured and
+undeployed. The owner reports that billing has since been enabled, but the
+current evidence is still the zero-Function read-only inventory; billing and
+Cloud Build availability are not considered proven until the controlled
+workflow successfully deploys to staging. App Check, keyless CI deployment,
+visual acceptance, and data/full-service rollback remain to be configured and
 verified.
 
-A second deployment preflight on July 28, 2026 authenticated as the project
-owner and again reached the explicit `pipebuyer-5c77f` target, but Google
-rejected Cloud Build enablement because that project still was not on Blaze.
-No Function was created. The attempt confirmed 70 expected exports, 0 deployed
-Functions, 95 passing Function tests, and that the billing change must be made
-on this exact Firebase project rather than on GitHub or another Firebase
-project.
+A second deployment preflight on July 28, 2026—before the owner reported
+enabling billing—authenticated as the project owner and again reached the
+explicit `pipebuyer-5c77f` target, but Google rejected Cloud Build enablement.
+No Function was created. The attempt confirmed 70 expected exports and zero
+deployed Functions. A later read-only inventory confirmed that the project and
+its Web, Android, and iOS registrations are active, but a controlled deployment
+is still required to prove the new billing state and deployed parity.
 
 ## Release procedure
 
@@ -155,6 +157,13 @@ Function names, Functions source hash, Firebase config/rules/index hashes, and
 the deterministic web artifact hash. Controlled manifests reject uncommitted
 tracked source and record the exact App Check rollout state. The manifest is
 included in the protected workflow summary as release evidence.
+
+The Firebase CLI deployment message records the selected environment, exact
+release SHA, and GitHub workflow run. Whether deployment succeeds or fails, the
+workflow retains every available machine-readable release artifact for 30
+days: the manifest, full Firebase deploy log, deployed Function inventory, and
+Function parity report. This retained artifact is necessary audit evidence; it
+does not by itself count as staging acceptance or operational approval.
 
 ## Rollback
 

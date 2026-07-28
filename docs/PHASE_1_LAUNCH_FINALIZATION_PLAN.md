@@ -2,7 +2,7 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `main` (`bd2ac7c3cef8a79c420c81b3a6dc95f45a79a30c`)
+Baseline branch: `main` (`3259e463f9df57d8064addb03f56d620dbe7d408`)
 Created: July 20, 2026
 
 Current gate: Gate 6 — Mobile, accessibility, and product identity
@@ -16,7 +16,7 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | Gate | Status |
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
-| 1 — Environments, builds, and diagnostics | 83% — exact-SHA deployment and visual acceptance now require a matching private Environment guard; reviewer protection, keyless identity, App Check, full staging deployment, and recovery evidence remain external |
+| 1 — Environments, builds, and diagnostics | 84% — exact-SHA deployment requires a matching private Environment guard and retains the release manifest, deploy log, deployed Function inventory, and parity result; reviewer protection, keyless identity, App Check, full staging deployment, and recovery evidence remain external |
 | 2 — Backend parity and server commands | 92% — reviewed command boundary, zero-vulnerability runtime lock, emulator coverage, staged App Check release records, and parity controls locally verified |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
@@ -127,6 +127,11 @@ Gate 1 implementation evidence in progress:
   contained in `main`
 - Deterministic release manifests record expected Functions, deployable source
   hashes, rules/index hashes, and the generated web artifact hash
+- Every controlled Firebase deployment identifies its release SHA in the
+  Firebase deployment message and retains the manifest, deployment log,
+  deployed Function inventory, and parity result together for 30 days. Failed
+  attempts retain every evidence file produced before failure rather than
+  disappearing behind a workflow summary.
 - Backup, isolated restore, validation, and rollback procedures are documented
 - The isolated staging project now has Web, Android, and iOS registrations,
   Standard Firestore in `nam5`, deployed rules/indexes, passing staging Web
