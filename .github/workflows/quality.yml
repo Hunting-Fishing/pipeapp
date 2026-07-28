@@ -170,7 +170,9 @@ jobs:
           cache: true
 
       - name: Restore Flutter dependencies
-        run: flutter pub get
+        run: |
+          flutter config --enable-swift-package-manager
+          flutter pub get
 
       - name: Compile unsigned iOS release target
         run: >

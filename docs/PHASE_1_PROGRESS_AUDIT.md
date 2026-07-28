@@ -480,7 +480,9 @@ staging deployment matches exactly and passes end-to-end acceptance.
 - That build then reached the linker and exposed duplicate Firestore symbols
   from mixing Firebase SPM products with CocoaPods fallbacks required by old
   Apple-sign-in and SQLite plugins. The app now uses the maintainers'
-  SPM-capable `sign_in_with_apple` 8.1.0 and `sqflite` 2.4.3 releases instead of
+  SPM-capable `sign_in_with_apple` 8.1.0 and `sqflite` 2.4.3 releases, removes
+  the obsolete Runner Podfile and all Pods project/configuration wiring, and
+  enforces one Swift Package Manager graph in the release contract instead of
   suppressing linker integrity or disabling Swift Package Manager.
 
 ## Gate 1 checkpoint evidence
