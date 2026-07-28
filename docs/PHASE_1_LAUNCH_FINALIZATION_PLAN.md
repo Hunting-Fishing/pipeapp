@@ -78,9 +78,11 @@ Gate 2 implementation evidence in progress:
   Check enforcement is a concrete deployment option rather than an unsupported
   parameter expression
 - The July 28 staging Function retry authenticated as the project owner and
-  selected `pipebuyer-5c77f`, but Google still reported that exact project was
-  not on Blaze and rejected both Cloud Build and Artifact Registry enablement;
-  no Function was created
+  selected `pipebuyer-5c77f`, but Google reported that billing was unavailable
+  and rejected both Cloud Build and Artifact Registry enablement; no Function
+  was created. The owner subsequently reported enabling billing, while a new
+  read-only inventory confirmed that the live staging inventory remains zero;
+  a controlled deployment and exact parity check are still required
 - The Functions dependency lock overrides the vulnerable transitive UUID below
   11.1.1. The moderate audit count fell from 7 to 0 while 105 Function tests, 36
   Firestore/Storage Rules tests, and the authenticated four-emulator workflow
@@ -135,9 +137,9 @@ Gate 1 implementation evidence in progress:
   monitoring ownership, and data backup/restore rehearsal remain required
 - Staging Email/Password Authentication is provisioned from the reviewed
   `firebase.json` declaration and passed a disposable create/delete smoke test
-- Staging Functions remain blocked because Google still reports
-  `pipebuyer-5c77f` is not on Blaze; the authenticated July 28 retry created no
-  Function and left the deployed inventory at zero
+- The owner reports that staging billing is now enabled. A July 28 read-only
+  Firebase CLI check still found zero deployed Functions, so a controlled
+  staging deployment and exact deployed-parity record remain required
 - Native staging/production diagnostics now use a centralized, release-tagged
   Crashlytics adapter with manifest-level default-off collection, an explicit
   build-time opt-in, safe correlation IDs, and a triage/validation runbook.
