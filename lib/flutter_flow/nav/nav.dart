@@ -12,6 +12,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/marketplace/oil_gas_marketplace.dart';
 import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
+import '/marketplace/marketplace_dispatch_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
 
@@ -120,6 +121,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
                   ParamType.string,
                 ) ??
                 '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.dispatchJobRouteName,
+          path: '/dispatch/jobs/:jobId',
+          requireAuth: true,
+          builder: (context, params) => MarketplaceDispatchJobRoutePage(
+            jobId: params.getParam<String>('jobId', ParamType.string) ?? '',
           ),
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),

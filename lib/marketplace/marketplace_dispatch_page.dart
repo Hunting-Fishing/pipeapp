@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/data/bounded_firestore_query.dart';
 
@@ -12,6 +14,7 @@ import 'marketplace_money.dart';
 import 'marketplace_service_area.dart';
 import 'marketplace_freight_quote.dart';
 import 'marketplace_dispatch_dashboard.dart';
+import 'marketplace_deep_links.dart';
 import 'marketplace_dispatch_transaction.dart';
 import 'industrial_icon_assets.dart';
 
@@ -88,6 +91,251 @@ String _dispatchEventLabel(String event) => switch (event) {
       'carrier_awarded' => 'Dispatch job awarded',
       _ => event.replaceAll('_', ' '),
     };
+
+class MarketplaceDispatchJobRoutePage extends StatefulWidget {
+  const MarketplaceDispatchJobRoutePage({super.key, required this.jobId});
+
+  final String jobId;
+
+  @override
+  State<MarketplaceDispatchJobRoutePage> createState() =>
+      _MarketplaceDispatchJobRoutePageState();
+}
+
+class _MarketplaceDispatchJobRoutePageState
+    extends State<MarketplaceDispatchJobRoutePage> {
+  final _repository = MarketplaceDispatchRepository();
+  late Future<DocumentSnapshot<Map<String, dynamic>>> _job;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _job = FirebaseFirestore.instance
+        .collection('dispatch_jobs')
+        .doc(widget.jobId)
+        .get();
+  }
+
+  void _retry() => setState(_load);
+
+  Future<void> _copyLink() async {
+    final target = MarketplaceDeepLinks.shareTarget(
+        MarketplaceDeepLinks.dispatchJob(widget.jobId));
+    await Clipboard.setData(ClipboardData(text: target));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(target.startsWith('http')
+            ? 'Dispatch job link copied.'
+            : 'Dispatch app route copied.')));
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: _job,
+          builder: (context, snapshot) {
+            final document = snapshot.data;
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Dispatch job'),
+                leading: IconButton(
+                    tooltip: 'Back',
+                    onPressed: () =>
+                        context.canPop() ? context.pop() : context.go('/'),
+                    icon: const Icon(Icons.arrow_back)),
+                actions: [
+                  IconButton(
+                      tooltip: 'Copy job link',
+                      onPressed: snapshot.hasData ? _copyLink : null,
+                      icon: const Icon(Icons.share_outlined)),
+                  IconButton(
+                      tooltip: 'Marketplace home',
+                      onPressed: () => context.go('/'),
+                      icon: const Icon(Icons.home_outlined)),
+                ],
+              ),
+              body: snapshot.connectionState == ConnectionState.waiting
+                  ? const Center(child: CircularProgressIndicator())
+                  : snapshot.hasError
+                      ? _DispatchRouteFailure(
+                          message: snapshot.error is FirebaseException &&
+                                  (snapshot.error as FirebaseException).code ==
+                                      'permission-denied'
+                              ? 'This Dispatch job is private or your account is not a participant.'
+                              : 'The Dispatch job could not be loaded. Check your connection and retry.',
+                          onRetry: _retry)
+                      : document == null || !document.exists
+                          ? _DispatchRouteFailure(
+                              message:
+                                  'This Dispatch job may have been removed, archived, or the link may be incorrect.',
+                              onRetry: _retry)
+                          : _DispatchJobRouteDetails(
+                              document: document, repository: _repository),
+            );
+          });
+}
+
+class _DispatchRouteFailure extends StatelessWidget {
+  const _DispatchRouteFailure({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.local_shipping_outlined,
+                size: 52, color: Color(0xFF66758A)),
+            const SizedBox(height: 14),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 14),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry')),
+              FilledButton.icon(
+                  onPressed: () => context.go('/'),
+                  icon: const Icon(Icons.home_outlined),
+                  label: const Text('Marketplace home')),
+            ])
+          ]),
+        ),
+      );
+}
+
+class _DispatchJobRouteDetails extends StatelessWidget {
+  const _DispatchJobRouteDetails(
+      {required this.document, required this.repository});
+
+  final DocumentSnapshot<Map<String, dynamic>> document;
+  final MarketplaceDispatchRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = document.data() ?? const <String, dynamic>{};
+    final status = '${data['status'] ?? 'open'}';
+    final truckingDate = data['truckingDate'] is Timestamp
+        ? (data['truckingDate'] as Timestamp).toDate().toLocal()
+        : null;
+    final owner =
+        data['createdByUid'] == FirebaseAuth.instance.currentUser?.uid;
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const IndustrialAssetIcon(
+            label: 'Dispatch load board',
+            assetPath: IndustrialIconAssets.dispatchLoadBoard,
+            size: 62,
+            fallback: Icon(Icons.local_shipping_outlined, size: 42)),
+        const SizedBox(width: 12),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${data['title'] ?? 'Dispatch load'}',
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Text(owner ? 'Your Dispatch request' : 'Carrier opportunity',
+              style: const TextStyle(color: Color(0xFF66758A))),
+        ])),
+        Chip(label: Text(status.toUpperCase()))
+      ]),
+      const SizedBox(height: 14),
+      Card(
+          color: const Color(0xFFEAF4FD),
+          child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(children: [
+                _DispatchRouteFact(
+                    icon: Icons.trip_origin,
+                    label: 'Pickup',
+                    value: '${data['pickupLabel'] ?? 'To be confirmed'}'),
+                _DispatchRouteFact(
+                    icon: Icons.flag_outlined,
+                    label: 'Delivery',
+                    value: '${data['deliveryLabel'] ?? 'To be confirmed'}'),
+                _DispatchRouteFact(
+                    icon: Icons.route_outlined,
+                    label: 'Distance',
+                    value: dispatchDistanceLabel(data)),
+                _DispatchRouteFact(
+                    icon: Icons.scale_outlined,
+                    label: 'Estimated weight',
+                    value: data['estimatedWeightKg'] == null
+                        ? 'Weight to confirm'
+                        : '${data['estimatedWeightKg']} kg'),
+                _DispatchRouteFact(
+                    icon: Icons.calendar_month_outlined,
+                    label: 'Requested trucking date',
+                    value: truckingDate == null
+                        ? 'Date to confirm'
+                        : '${truckingDate.year}-${truckingDate.month.toString().padLeft(2, '0')}-${truckingDate.day.toString().padLeft(2, '0')}'),
+                _DispatchRouteFact(
+                    icon: Icons.request_quote_outlined,
+                    label: 'Carrier bids',
+                    value: '${data['bidCount'] ?? 0} submitted'),
+              ]))),
+      if ('${data['loadDetails'] ?? ''}'.trim().isNotEmpty) ...[
+        const SizedBox(height: 12),
+        const Text('Load details',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 6),
+        Text('${data['loadDetails']}'),
+      ],
+      if (!const {'draft', 'open'}.contains(status)) ...[
+        const SizedBox(height: 14),
+        MarketplaceDispatchTransactionCard(
+            jobId: document.id, job: data, repository: repository),
+      ],
+      const SizedBox(height: 18),
+      FilledButton.icon(
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => Scaffold(
+                  appBar: AppBar(title: const Text('Dispatch')),
+                  body: const MarketplaceDispatchPage()))),
+          icon: const Icon(Icons.dashboard_outlined),
+          label: Text(
+              owner ? 'Open Dispatch management' : 'Open Dispatch to quote')),
+      const SizedBox(height: 8),
+      const Text(
+          'Exact private locations and participant-only transaction details remain protected by account access.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: Color(0xFF66758A))),
+    ]);
+  }
+}
+
+class _DispatchRouteFact extends StatelessWidget {
+  const _DispatchRouteFact(
+      {required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 20, color: const Color(0xFF0878E8)),
+          const SizedBox(width: 10),
+          SizedBox(
+              width: 116,
+              child: Text(label,
+                  style: const TextStyle(
+                      color: Color(0xFF66758A), fontWeight: FontWeight.w700))),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(fontWeight: FontWeight.w800))),
+        ]),
+      );
+}
 
 class MarketplaceDispatchPage extends StatefulWidget {
   const MarketplaceDispatchPage({super.key});
@@ -340,6 +588,17 @@ class _JobBoardState extends State<_JobBoard> {
     }
   }
 
+  Future<void> _copyJobLink(String jobId) async {
+    final target = MarketplaceDeepLinks.shareTarget(
+        MarketplaceDeepLinks.dispatchJob(jobId));
+    await Clipboard.setData(ClipboardData(text: target));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(target.startsWith('http')
+            ? 'Dispatch job link copied.'
+            : 'Dispatch app route copied.')));
+  }
+
   @override
   Widget build(BuildContext context) => Column(
         children: [
@@ -378,7 +637,13 @@ class _JobBoardState extends State<_JobBoard> {
                       '${data['pickupLabel'] ?? ''} → ${data['deliveryLabel'] ?? ''}\n${dispatchDistanceLabel(data)} • ${data['estimatedWeightKg'] == null ? 'Weight to confirm' : '${data['estimatedWeightKg']} kg estimated'}\n${data['bidCount'] ?? 0} carrier bids',
                     ),
                     isThreeLine: true,
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                          tooltip: 'Copy job link',
+                          onPressed: () => _copyJobLink(job.id),
+                          icon: const Icon(Icons.share_outlined)),
+                      const Icon(Icons.chevron_right),
+                    ]),
                     onTap: () => data['createdByUid'] ==
                             FirebaseAuth.instance.currentUser?.uid
                         ? _showJobManager(context, job)

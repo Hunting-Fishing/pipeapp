@@ -11,6 +11,7 @@ class MarketplaceDeepLinks {
   static const auctionRouteName = 'marketplace-auction';
   static const profileRouteName = 'marketplace-profile';
   static const conversationRouteName = 'marketplace-conversation';
+  static const dispatchJobRouteName = 'dispatch-job';
 
   static String listing(String listingId) =>
       '/listings/${Uri.encodeComponent(_requiredId(listingId))}';
@@ -23,6 +24,9 @@ class MarketplaceDeepLinks {
 
   static String conversation(String conversationId) =>
       '/conversations/${Uri.encodeComponent(_requiredId(conversationId))}';
+
+  static String dispatchJob(String jobId) =>
+      '/dispatch/jobs/${Uri.encodeComponent(_requiredId(jobId))}';
 
   /// Produces a complete browser URL on web and a stable app route on native.
   /// Native universal-link domains are intentionally not invented here; they
