@@ -21,8 +21,8 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
-| 6 — Accessibility, performance, and QA | 88% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback across the primary Marketplace and Dispatch workflows, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, responsive offer controls, and resilient listing media locally verified |
-| 7 — Release readiness | 10% — machine-validated release evidence contract locally verified; rehearsal and approvals incomplete |
+| 6 — Accessibility, performance, and QA | 89% — cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, bounded activity/history/operations streams, concurrent abuse tests, a high-text viewport matrix, resilient listing media, and fail-closed signed-artifact/store/device evidence controls locally verified |
+| 7 — Release readiness | 14% — schema-version-2 release-SHA evidence contract covers product/recovery journeys, signed artifacts, store/privacy review, physical-device/browser scenarios, defects, and approvals; execution remains incomplete |
 
 Gate 0 implementation evidence:
 
@@ -465,6 +465,17 @@ passes a clean analyzer, 108 Flutter tests, 105 Function tests, all local
 release/parity/acceptance controls, a zero-vulnerability production dependency
 audit, ARM64 Android, production web, and actual WebAssembly.
 
+Phase 1 acceptance schema 2 now makes Gate 6 evidence mandatory rather than an
+unstructured external checklist. It requires the exact signed AAB and IPA,
+signature and store validation, public policy/support/deletion URLs, store
+screenshots and review output, Google/Apple/linked-SDK privacy reviews, and ten
+release-SHA-bound physical-device/browser targets with exact scenario coverage.
+Large artifacts are hashed in bounded chunks, canonical paths cannot escape the
+private evidence root through traversal or directory links, and a synchronized
+operator template is checked in. Seven validator tests and the complete local
+release gate pass. No signed artifact, store approval, privacy review, or
+device execution is credited until its real evidence is supplied.
+
 Exit evidence:
 
 - Signed Android and Apple release candidates install and complete the Phase 1
@@ -478,12 +489,14 @@ Goal: Prove the service can launch and recover.
 
 `tool/phase1_acceptance.mjs` now binds final evidence to one controlled
 environment and full release SHA. It requires all ten acceptance journeys,
-measured Hosting/Functions/Rules/data recovery controls, a reviewed defect
-inventory with no open P0/critical/high defects, and named approvals from all
-seven required owner roles. Evidence paths cannot escape the controlled bundle;
-retained files are hashed into the readiness result. The validator and its
-fail-closed tests are part of local and CI verification. This control does not
-credit the still-unperformed rehearsals or approvals.
+measured Hosting/Functions/Rules/data recovery controls, signed Android/Apple
+release candidates, store and privacy review, ten physical-device/browser
+targets, a reviewed defect inventory with no open P0/critical/high defects, and
+named approvals from all seven required owner roles. Evidence paths cannot
+escape the controlled bundle; retained files are streamed into hashed readiness
+records. The validator and its fail-closed tests are part of local and CI
+verification. This control does not credit the still-unperformed rehearsals,
+signed artifacts, store/device execution, or approvals.
 
 - Run the complete staging acceptance matrix with new test identities.
 - Run load, abuse, upload, notification, and moderation queue tests.

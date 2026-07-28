@@ -26,10 +26,50 @@ The acceptance JSON and `build/release-manifest.json` must name the same:
 
 ## Required acceptance
 
-The ten journeys cover account ownership and profile media, listing lifecycle,
-saved-state recovery, communications and moderation, offers, auctions,
-Dispatch, failure/retry behavior, administrator security, and deployment
-recovery.
+The schema-version-2 bundle covers the ten product journeys plus explicit
+mobile release evidence. Account ownership and profile media, listing
+lifecycle, saved-state recovery, communications and moderation, offers,
+auctions, Dispatch, failure/retry behavior, administrator security, and
+deployment recovery all remain mandatory.
+
+### Signed release candidates
+
+Copy the exact Android AAB and exported Apple IPA into the private evidence
+directory. Each record must name the current `Pipe.Buyerapp` identifier, exact
+release SHA, semantic version, positive store build number, and retained
+signature/store-validation output. A debug APK, unsigned archive, simulator
+build, or declaration without the actual artifact cannot pass.
+
+### Store and privacy review
+
+Google Play and Apple App Store records each require a named reviewer,
+timestamp, at least four retained screenshots, console-review evidence, and
+public HTTPS support, privacy, terms, and account-deletion URLs. Placeholder,
+localhost, example, and HTTP URLs fail closed.
+
+Retain separate evidence for Google Play Data safety, Apple App Privacy, and a
+reviewed inventory of every linked SDK. Repository privacy declarations are a
+starting point; they do not substitute for these release-specific reviews.
+
+### Physical-device and browser matrix
+
+Every target below must be tied to the exact release SHA, a named tester,
+device/OS details, an assistive technology, an execution timestamp, and at
+least one retained evidence file:
+
+- compact/current Android phones and an Android tablet using the signed AAB;
+- compact/current iPhones and an iPad using the exported signed IPA;
+- mobile/desktop Chromium and mobile/desktop Safari release sessions.
+
+Every Android/iOS run must pass install/upgrade/launch, account/profile/avatar,
+listing camera/gallery, messaging attachments, Offer/Auction/Dispatch,
+permission denial, offline/slow retry, expired-session recovery, TalkBack or
+VoiceOver, 200-percent text/orientation, and deep-link/notification scenarios.
+Every web run must pass the corresponding account, media, messaging, commerce,
+network/session, assistive-technology, keyboard-only, responsive large-text,
+and deep-link/notification scenarios. The canonical identifiers are exported
+from `tool/phase1_acceptance.mjs`; copy them into each `scenarios` array with a
+`passed` status only after execution.
 
 Recovery evidence must include measured Hosting rollback, Functions/Rules
 rollback, and Firestore backup restore results. A release remains blocked while

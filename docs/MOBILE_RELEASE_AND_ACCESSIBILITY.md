@@ -162,3 +162,20 @@ The baseline does not replace human acceptance. Gate 6 still requires:
 
 No gate is complete until the corresponding signed artifact and physical-device
 acceptance evidence are retained with the release record.
+
+## Release evidence enforcement
+
+`tool/phase1_acceptance.mjs` and
+`docs/phase1_acceptance_template.json` now use schema version 2. The final
+release decision cannot pass without both signed mobile candidates, store and
+privacy review, and the complete physical-device/browser matrix described in
+`docs/PHASE_1_RELEASE_ACCEPTANCE.md`.
+
+The validator binds every candidate and test run to the full release SHA,
+requires the approved `Pipe.Buyerapp` application identifier, and rejects an
+unsigned candidate, missing AAB/IPA, insecure or placeholder public URL,
+incomplete target/scenario set, stale SHA, or missing evidence. Actual artifacts
+are hashed in one-megabyte chunks and canonical-path checks keep directory links
+inside the private evidence root. These controls are locally verified; they do
+not claim that signing credentials, Apple hardware, store validation, privacy
+review, or physical-device testing has already been supplied.
