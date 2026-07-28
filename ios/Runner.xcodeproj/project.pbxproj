@@ -62,7 +62,7 @@
 		6436409727A31CD100820AF7 /* da */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = da; path = da.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6436409927A31CD800820AF7 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6436409D27A31CDE00820AF7 /* sv */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = sv; path = sv.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		6436409F27A31CDB00820AF7 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		6436409F27A31CDB00820AF8 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6436409127A31CD300820AF7 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6436409627A31CD000820AF7 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -358,7 +358,7 @@
 				6436409727A31CD100820AF7 /* da */,
 				6436409927A31CD800820AF7 /* it */,
 				6436409D27A31CDE00820AF7 /* sv */,
-				6436409F27A31CDB00820AF7 /* tr */,
+				6436409F27A31CDB00820AF8 /* tr */,
 				6436409127A31CD300820AF7 /* nl */,
 				6436409627A31CD000820AF7 /* ja */,
 			);

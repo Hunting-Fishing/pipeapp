@@ -484,6 +484,13 @@ disclaimer. The job detects Apple-native compilation regressions but cannot be
 used as evidence of distribution signing, IPA export, store validation, or a
 physical-device pass.
 
+The first macOS execution correctly failed on malformed Swift Package Manager
+metadata from `flutter_native_splash` 2.4.4 and a duplicated Xcode object ID for
+localized `InfoPlist.strings`. The repair updates the splash generator and its
+compatible JSONPath/Lottie dependency chain, gives every Xcode object a unique
+identifier, and preserves both behaviors with focused tests instead of
+disabling Swift Package Manager.
+
 Exit evidence:
 
 - Signed Android and Apple release candidates install and complete the Phase 1

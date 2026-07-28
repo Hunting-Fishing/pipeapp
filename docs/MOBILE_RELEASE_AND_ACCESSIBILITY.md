@@ -78,6 +78,15 @@ compile evidence only. Gate 6 still requires a separately controlled,
 distribution-signed archive, exported IPA, store validation, and physical-device
 acceptance bound to the exact release SHA.
 
+The first macOS compile exposed two Apple-native defects that Windows could not
+detect: the old splash generator's Swift Package Manager metadata used an
+invalid public-header path, and the Turkish and German `InfoPlist.strings`
+entries shared one Xcode object identifier. The repair upgrades
+`flutter_native_splash` to 2.4.8 together with its compatible `json_path` and
+`lottie` dependency chain, assigns the Turkish localization its own identifier,
+and adds regression tests for Xcode object uniqueness and JSONPath extraction.
+Swift Package Manager remains enabled; the release gate is not bypassed.
+
 ## Media and location disclosures
 
 Android declares camera access for user-initiated captures and no longer opts
