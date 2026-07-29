@@ -508,7 +508,7 @@ jobs:
           security set-key-partition-list \
             -S apple-tool:,apple:,codesign: \
             -s -k "$keychain_password" "$keychain_path"
-          security list-keychains -d user -s "$keychain_path"
+          security list-keychains -d user -s "$keychain_path" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$keychain_path" | grep -Eq '1\) [0-9A-F]{40}' || {
             echo "No valid Apple code-signing identity was imported." >&2
             exit 1
@@ -627,8 +627,8 @@ jobs:
           candidate_ipa="$(find build/release-candidate/ios -name '*.ipa' | head -n 1)"
           echo "Uploading $candidate_ipa to App Store Connect..."
           xcrun altool --upload-app \
-            --type ios \
-            --file "$candidate_ipa" \
+            -t ios \
+            -f "$candidate_ipa" \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
