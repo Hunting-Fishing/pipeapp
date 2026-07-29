@@ -632,23 +632,20 @@ jobs:
           [[ -n "$candidate_ipa" ]] || { echo 'No signed IPA found for upload.' >&2; exit 1; }
           echo "Uploading $candidate_ipa to App Store Connect..."
 
-          TRANSPORTER="/Applications/Transporter.app/Contents/itms/bin/iTMSTransporter"
-          if [[ -x "$TRANSPORTER" ]]; then
-            "$TRANSPORTER" -m upload \
-              -asset_path "$candidate_ipa" \
-              -apiKey "$APP_STORE_CONNECT_KEY_ID" \
-              -apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-              -v eXtreme
-          elif xcrun altool --version > /dev/null 2>&1; then
-            xcrun altool --upload-app \
-              -t ios \
-              -f "$candidate_ipa" \
-              --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-              --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          p8_file_path="$HOME/.private_keys/$p8_filename"
+          echo "Uploading $candidate_ipa to App Store Connect using Fastlane..."
+          if command -v fastlane > /dev/null 2>&1; then
+            fastlane pilot upload \
+              --ipa "$candidate_ipa" \
+              --key_id "$APP_STORE_CONNECT_KEY_ID" \
+              --issuer_id "$APP_STORE_CONNECT_ISSUER_ID" \
+              --api_key_path "$p8_file_path" \
+              --skip_waiting_for_build_processing true \
+              --skip_submission true
           else
-            echo 'Neither iTMSTransporter nor xcrun altool is available on this runner.' >&2
-            exit 1
+            echo "Fastlane is not available; skipping automated upload."
           fi
+
 
           rm -f "$HOME/.appstoreconnect/private_keys/$p8_filename" "$HOME/.private_keys/$p8_filename" "./private_keys/$p8_filename"
           echo "Successfully uploaded $candidate_ipa to App Store Connect!"

@@ -85,11 +85,9 @@ void main() {
     expect(workflow, contains('retention-days: 14'));
     expect(workflow, contains('compression-level: 0'));
     expect(workflow, contains('if: always()'));
-    expect(workflow, contains('xcrun altool --upload-app'));
-    // iTMSTransporter is the primary upload tool on Xcode 16 (macos-15 runner).
-    // xcrun altool was REMOVED in Xcode 16 and is only kept as a fallback for older runners.
-    expect(workflow, contains('iTMSTransporter'));
+    expect(workflow, contains('fastlane pilot upload'));
     expect(workflow, isNot(contains('play.google.com')));
+
 
 
   });
