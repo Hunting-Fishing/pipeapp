@@ -635,16 +635,18 @@ jobs:
           p8_file_path="$HOME/.private_keys/$p8_filename"
           echo "Uploading $candidate_ipa to App Store Connect using Fastlane..."
           if command -v fastlane > /dev/null 2>&1; then
+            export APP_STORE_CONNECT_API_KEY_KEY_ID="$APP_STORE_CONNECT_KEY_ID"
+            export APP_STORE_CONNECT_API_KEY_ISSUER_ID="$APP_STORE_CONNECT_ISSUER_ID"
+            export APP_STORE_CONNECT_API_KEY_KEY_FILEPATH="$p8_file_path"
+            export APP_STORE_CONNECT_API_KEY_IS_KEY_CONTENT_BASE64=false
             fastlane pilot upload \
               --ipa "$candidate_ipa" \
-              --key_id "$APP_STORE_CONNECT_KEY_ID" \
-              --issuer_id "$APP_STORE_CONNECT_ISSUER_ID" \
-              --api_key_path "$p8_file_path" \
               --skip_waiting_for_build_processing true \
               --skip_submission true
           else
             echo "Fastlane is not available; skipping automated upload."
           fi
+
 
 
           rm -f "$HOME/.appstoreconnect/private_keys/$p8_filename" "$HOME/.private_keys/$p8_filename" "./private_keys/$p8_filename"
