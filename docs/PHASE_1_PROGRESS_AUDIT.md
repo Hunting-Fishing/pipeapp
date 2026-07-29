@@ -25,17 +25,18 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | Gate | Complete | Estimate | Current evidence |
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. |
-| 1 — Environments, builds, diagnostics | No | 90% | Production signed Android AAB (79.2MB) and Apple IPA (41.8MB) release candidates successfully generated, verified, and retained in GitHub CI. |
-| 2 — Backend parity and commands | No | 92% | The 70 reviewed Function exports cover the Phase 1 command boundary. |
+| 1 — Environments, builds, diagnostics | **Yes** | **100%** | Production signed Android AAB (79.2MB) and Apple IPA (41.8MB) release candidates generated, verified, and retained in GitHub CI. Production Firestore security rules, indexes, and Storage rules deployed to `flutter-flow-pipe`. |
+| 2 — Backend parity and commands | **Yes** | **100%** | All 70 reviewed Cloud Functions, security rules, indexes, zero-vulnerability runtime lock, and App Check enforcement deployed and live on `flutter-flow-pipe`. Obsolete legacy handlers safely deleted. |
 | 3 — Identity and abuse protection | No | 93% | Signup, sign-in, MFA admin controls, rate limits, data export, session revocation, and scheduled deletion implemented. |
 | 4 — Product workflows | No | 89% | Saved listings, normal listing lifecycle, media publication, Dispatch provider enrollment, entity routes, and cursor pagination verified. |
 | 5 — Trust, notifications, policies | No | 91% | User reporting, evidence authorization, administrator decisions, appeals, private support, and versioned policies verified. |
 | 6 — Accessibility, performance, QA | **Yes** | **100%** | Product identity, WCAG AA semantic feedback, Apple privacy manifest, public support/terms/deletion routes, signed Android AAB and Apple IPA candidates generated and verified. |
-| 7 — Release readiness | No | 45% | Signed Android & Apple binaries verified in CI. Pending final store submission & backend deployment. |
+| 7 — Release readiness | No | 75% | Signed Android & Apple binaries verified in CI. Backend fully deployed and live on production `flutter-flow-pipe`. Pending final store submission. |
 
-Overall Phase 1 launch readiness estimate: **94%**.
+Overall Phase 1 launch readiness estimate: **97%**.
 
-Completed gates: **2 of 8**.
+Completed gates: **4 of 8**.
+
 
 
 ## Mandatory workflow audit

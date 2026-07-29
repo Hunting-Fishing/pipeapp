@@ -16,13 +16,14 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | Gate | Status |
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
-| 1 — Environments, builds, and diagnostics | 90% — exact-SHA signed Android AAB (79.2MB) and Apple IPA (41.8MB) production release candidates successfully built, verified, and retained in GitHub Actions CI |
-| 2 — Backend parity and server commands | 92% — reviewed command boundary, zero-vulnerability runtime lock, emulator coverage, staged App Check release records, and parity controls locally verified |
+| 1 — Environments, builds, and diagnostics | 100% — complete: exact-SHA signed Android AAB (79.2MB) and Apple IPA (41.8MB) production release candidates generated & verified; production Firestore rules, indexes, and Storage rules deployed |
+| 2 — Backend parity and server commands | 100% — complete: all 70 reviewed Cloud Functions, security rules, indexes, zero-vulnerability runtime lock, and App Check enforcement deployed and live on production project `flutter-flow-pipe` |
 | 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
 | 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
 | 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
 | 6 — Accessibility, performance, and QA | 100% — complete: cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, public store-policy/support/deletion routes, signed Android AAB and Apple IPA candidates generated & verified |
-| 7 — Release readiness | 45% — signed production release candidates produced and verified; pending final store review submission & production Firebase backend deployment |
+| 7 — Release readiness | 75% — signed production release candidates produced & verified; production Firebase backend fully deployed & live; pending final store review submission |
+
 
 
 Gate 0 implementation evidence:
