@@ -367,6 +367,10 @@ jobs:
       IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
       IOS_EXPORT_OPTIONS_PLIST_BASE64: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST_BASE64 }}
       MOBILE_RELEASE_ENVIRONMENT_GUARD: ${{ secrets.MOBILE_RELEASE_ENVIRONMENT_GUARD }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+
 
     steps:
       - name: Check out exact release source
@@ -603,12 +607,42 @@ jobs:
             echo ""
             echo "- Commit: \`$PIPE_RELEASE_SHA\`"
             echo "- Version: \`$BUILD_NAME+$BUILD_NUMBER\`"
-            echo "- Application ID: \`Pipe.Buyerapp\`"
-            echo "- Signature: verified with \`codesign --verify --deep --strict\`"
             echo "- Store validation: not performed by this workflow"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Upload signed IPA to App Store Connect
+
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${APP_STORE_CONNECT_KEY_ID:-}" || -z "${APP_STORE_CONNECT_ISSUER_ID:-}" || -z "${APP_STORE_CONNECT_API_KEY_P8:-}" ]]; then
+            echo "App Store Connect API key secrets not fully configured; skipping automated upload."
+            exit 0
+          fi
+          mkdir -p ~/.private_keys
+          p8_file="$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$p8_file"
+          chmod 600 "$p8_file"
+
+          candidate_ipa="$(find build/release-candidate/ios -name '*.ipa' | head -n 1)"
+          echo "Uploading $candidate_ipa to App Store Connect..."
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$candidate_ipa" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+          rm -f "$p8_file"
+          echo "Successfully uploaded $candidate_ipa to App Store Connect!"
+          {
+            echo ""
+            echo "### 🚀 App Store Connect Upload"
+            echo "- Status: **Successfully uploaded to App Store Connect!**"
+            echo "- The build will appear in your [App Store Connect](https://appstoreconnect.apple.com) dashboard under **TestFlight / Builds** in a few minutes."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Remove Apple signing material
+
         if: always()
         shell: bash
         run: |
