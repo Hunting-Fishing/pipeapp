@@ -159,16 +159,34 @@ jobs:
             ANDROID_UPLOAD_KEY_PASSWORD
             MOBILE_RELEASE_ENVIRONMENT_GUARD
           )
+          missing=()
           for name in "${required_variables[@]}" "${required_secrets[@]}"; do
-            [[ -n "${!name:-}" ]] || {
-              echo "Required protected value $name is not configured." >&2
-              exit 1
-            }
+            val="$(eval echo "\"\$$name\"" | tr -d '[:space:]')"
+            if [[ -z "$val" ]]; then
+              missing+=("$name")
+            fi
           done
-          [[ "$MOBILE_RELEASE_ENVIRONMENT_GUARD" == "mobile-release-$PIPE_ENV" ]] || {
-            echo "The protected mobile release environment guard does not match the selected environment." >&2
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "Missing required Android configuration: ${missing[*]}" >&2
+            {
+              echo "### ❌ Missing Required Environment Values"
+              echo "The following values are missing in environment \`mobile-release-$PIPE_ENV\`:"
+              for item in "${missing[@]}"; do
+                echo "- \`$item\`"
+              done
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
-          }
+          fi
+          GUARD="$(echo -n "${MOBILE_RELEASE_ENVIRONMENT_GUARD:-}" | tr -d '[:space:]')"
+          if [[ "$GUARD" != "mobile-release-$PIPE_ENV" ]]; then
+            echo "The protected mobile release environment guard ('$GUARD') does not match 'mobile-release-$PIPE_ENV'." >&2
+            {
+              echo "### ❌ Environment Guard Mismatch"
+              echo "Expected: \`mobile-release-$PIPE_ENV\`"
+              echo "Got: \`$GUARD\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
           if [[ "$PIPE_ENV" == "production" && "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
             echo "Production candidates must target flutter-flow-pipe." >&2
             exit 1
@@ -183,19 +201,19 @@ jobs:
         run: |
           set -euo pipefail
           flutter pub get
-          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload-keystore.jks"
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/upload-keystore.jks"
           chmod 600 "$RUNNER_TEMP/upload-keystore.jks"
           {
             printf 'storeFile=%s\n' "$RUNNER_TEMP/upload-keystore.jks"
-            printf 'storePassword=%s\n' "$ANDROID_UPLOAD_STORE_PASSWORD"
-            printf 'keyAlias=%s\n' "$ANDROID_UPLOAD_KEY_ALIAS"
-            printf 'keyPassword=%s\n' "$ANDROID_UPLOAD_KEY_PASSWORD"
+            printf 'storePassword=%s\n' "$(echo -n "$ANDROID_UPLOAD_STORE_PASSWORD" | tr -d '\r\n')"
+            printf 'keyAlias=%s\n' "$(echo -n "$ANDROID_UPLOAD_KEY_ALIAS" | tr -d '\r\n')"
+            printf 'keyPassword=%s\n' "$(echo -n "$ANDROID_UPLOAD_KEY_PASSWORD" | tr -d '\r\n')"
           } > android/key.properties
           chmod 600 android/key.properties
           keytool -list \
             -keystore "$RUNNER_TEMP/upload-keystore.jks" \
-            -storepass "$ANDROID_UPLOAD_STORE_PASSWORD" \
-            -alias "$ANDROID_UPLOAD_KEY_ALIAS" > /dev/null
+            -storepass "$(echo -n "$ANDROID_UPLOAD_STORE_PASSWORD" | tr -d '\r\n')" \
+            -alias "$(echo -n "$ANDROID_UPLOAD_KEY_ALIAS" | tr -d '\r\n')" > /dev/null
 
       - name: Build and verify signed Android candidate
         shell: bash
@@ -343,20 +361,39 @@ jobs:
             IOS_EXPORT_OPTIONS_PLIST_BASE64
             MOBILE_RELEASE_ENVIRONMENT_GUARD
           )
+          missing=()
           for name in "${required_variables[@]}" "${required_secrets[@]}"; do
-            [[ -n "${!name:-}" ]] || {
-              echo "Required protected value $name is not configured." >&2
-              exit 1
-            }
+            val="$(eval echo "\"\$$name\"" | tr -d '[:space:]')"
+            if [[ -z "$val" ]]; then
+              missing+=("$name")
+            fi
           done
-          [[ "$MOBILE_RELEASE_ENVIRONMENT_GUARD" == "mobile-release-$PIPE_ENV" ]] || {
-            echo "The protected mobile release environment guard does not match the selected environment." >&2
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "Missing required Apple configuration: ${missing[*]}" >&2
+            {
+              echo "### ❌ Missing Required Environment Values for Apple Build"
+              echo "The following values are missing in environment \`mobile-release-$PIPE_ENV\`:"
+              for item in "${missing[@]}"; do
+                echo "- \`$item\`"
+              done
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
-          }
-          [[ "$IOS_DEVELOPMENT_TEAM" =~ ^[A-Z0-9]{10}$ ]] || {
-            echo "IOS_DEVELOPMENT_TEAM must be a ten-character Apple team ID." >&2
+          fi
+          GUARD="$(echo -n "${MOBILE_RELEASE_ENVIRONMENT_GUARD:-}" | tr -d '[:space:]')"
+          if [[ "$GUARD" != "mobile-release-$PIPE_ENV" ]]; then
+            echo "The protected mobile release environment guard ('$GUARD') does not match 'mobile-release-$PIPE_ENV'." >&2
+            {
+              echo "### ❌ Environment Guard Mismatch"
+              echo "Expected: \`mobile-release-$PIPE_ENV\`"
+              echo "Got: \`$GUARD\`"
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
-          }
+          fi
+          TEAM="$(echo -n "${IOS_DEVELOPMENT_TEAM:-}" | tr -d '[:space:]')"
+          if [[ ! "$TEAM" =~ ^[A-Z0-9]{10}$ ]]; then
+            echo "IOS_DEVELOPMENT_TEAM must be a ten-character Apple team ID (got: '$TEAM')." >&2
+            exit 1
+          fi
           if [[ "$PIPE_ENV" == "production" && "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
             echo "Production candidates must target flutter-flow-pipe." >&2
             exit 1
@@ -381,9 +418,9 @@ jobs:
           keychain_path="$RUNNER_TEMP/pipe-buyer-signing.keychain-db"
           keychain_password="$(openssl rand -hex 24)"
 
-          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | /usr/bin/base64 -D > "$certificate_path"
-          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | /usr/bin/base64 -D > "$profile_path"
-          printf '%s' "$IOS_EXPORT_OPTIONS_PLIST_BASE64" | /usr/bin/base64 -D > "$export_options_path"
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | tr -d '[:space:]' | /usr/bin/base64 -D > "$certificate_path"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | tr -d '[:space:]' | /usr/bin/base64 -D > "$profile_path"
+          printf '%s' "$IOS_EXPORT_OPTIONS_PLIST_BASE64" | tr -d '[:space:]' | /usr/bin/base64 -D > "$export_options_path"
           chmod 600 "$certificate_path" "$profile_path" "$export_options_path"
 
           security cms -D -i "$profile_path" > "$profile_plist"
