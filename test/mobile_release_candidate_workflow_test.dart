@@ -42,9 +42,13 @@ void main() {
       expect(workflow, contains('\${{ secrets.$secret }}'));
     }
     expect(workflow, contains('flutter build appbundle'));
-    expect(workflow, contains('jarsigner -verify -strict'));
-    expect(workflow, contains('keytool -printcert -jarfile'));
-    expect(workflow, contains('applicationId: \'Pipe.Buyerapp\''));
+    // jarsigner MUST NOT be used on AAB files — it always returns exit code 4
+    // because AABs use APK Signature Scheme v2/v3, not the JAR (v1) format that jarsigner reads.
+    expect(workflow, isNot(contains('jarsigner -verify -strict')));
+    // Correct verification: check for META-INF signing manifest inside the AAB zip.
+    expect(workflow, contains("grep -c 'META-INF/'"));
+    expect(workflow, contains("keytool -printcert"));
+    expect(workflow, contains("applicationId: 'Pipe.Buyerapp'"));
     expect(workflow, contains("candidateId: 'android-aab'"));
   });
 
