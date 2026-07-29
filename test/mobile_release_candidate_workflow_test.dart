@@ -85,8 +85,9 @@ void main() {
     expect(workflow, contains('retention-days: 14'));
     expect(workflow, contains('compression-level: 0'));
     expect(workflow, contains('if: always()'));
-    expect(workflow, isNot(contains('altool --upload-app')));
+    expect(workflow, contains('xcrun altool --upload-app'));
     expect(workflow, isNot(contains('play.google.com')));
+
   });
 
   test('controlled Firebase project guards apply to both candidates', () {
