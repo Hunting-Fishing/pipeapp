@@ -179,7 +179,7 @@ jobs:
           fi
           GUARD="$(echo -n "${MOBILE_RELEASE_ENVIRONMENT_GUARD:-}" | tr -d '[:space:]')"
           if [[ "$GUARD" != "mobile-release-$PIPE_ENV" ]]; then
-            echo "The protected mobile release environment guard ('$GUARD') does not match 'mobile-release-$PIPE_ENV'." >&2
+            echo "The protected mobile release environment guard does not match the selected environment." >&2
             {
               echo "### ❌ Environment Guard Mismatch"
               echo "Expected: \`mobile-release-$PIPE_ENV\`"
@@ -381,7 +381,7 @@ jobs:
           fi
           GUARD="$(echo -n "${MOBILE_RELEASE_ENVIRONMENT_GUARD:-}" | tr -d '[:space:]')"
           if [[ "$GUARD" != "mobile-release-$PIPE_ENV" ]]; then
-            echo "The protected mobile release environment guard ('$GUARD') does not match 'mobile-release-$PIPE_ENV'." >&2
+            echo "The protected mobile release environment guard does not match the selected environment." >&2
             {
               echo "### ❌ Environment Guard Mismatch"
               echo "Expected: \`mobile-release-$PIPE_ENV\`"
