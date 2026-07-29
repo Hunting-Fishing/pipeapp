@@ -611,7 +611,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload signed IPA to App Store Connect
-
         shell: bash
         run: |
           set -euo pipefail
@@ -619,18 +618,38 @@ jobs:
             echo "App Store Connect API key secrets not fully configured; skipping automated upload."
             exit 0
           fi
+          # Write the p8 private key to the directory that both altool and
+          # iTMSTransporter search: ~/.private_keys/AuthKey_<KEY_ID>.p8
           mkdir -p ~/.private_keys
           p8_file="$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$p8_file"
           chmod 600 "$p8_file"
 
           candidate_ipa="$(find build/release-candidate/ios -name '*.ipa' | head -n 1)"
+          [[ -n "$candidate_ipa" ]] || { echo 'No signed IPA found for upload.' >&2; exit 1; }
           echo "Uploading $candidate_ipa to App Store Connect..."
-          xcrun altool --upload-app \
-            -t ios \
-            -f "$candidate_ipa" \
-            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+          # xcrun altool was REMOVED in Xcode 16 (macOS 15 runner).
+          # The official Apple replacement is iTMSTransporter, which ships with
+          # /Applications/Transporter.app on all macOS GitHub runners.
+          TRANSPORTER="/Applications/Transporter.app/Contents/itms/bin/iTMSTransporter"
+          if [[ -x "$TRANSPORTER" ]]; then
+            "$TRANSPORTER" -m upload \
+              -f "$candidate_ipa" \
+              -apiKey "$APP_STORE_CONNECT_KEY_ID" \
+              -apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+              -v eXtreme
+          elif xcrun altool --version > /dev/null 2>&1; then
+            # Fallback: Xcode < 16 (altool still present but deprecated)
+            xcrun altool --upload-app \
+              -t ios \
+              -f "$candidate_ipa" \
+              --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+              --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          else
+            echo 'Neither iTMSTransporter nor xcrun altool is available on this runner.' >&2
+            exit 1
+          fi
 
           rm -f "$p8_file"
           echo "Successfully uploaded $candidate_ipa to App Store Connect!"
@@ -661,11 +680,14 @@ jobs:
             "$RUNNER_TEMP/pipe-buyer-keychain-path.txt"
 
       - name: Retain signed Apple candidate evidence
-        if: success()
+        # Run always so the IPA is preserved as a downloadable artifact even
+        # when the App Store Connect upload step fails — allowing manual upload
+        # via Transporter on a Mac without rerunning the entire build.
+        if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
           name: signed-ios-${{ needs.preflight.outputs.release_sha }}-${{ inputs.build_number }}
           path: build/release-candidate/ios
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
           compression-level: 0
