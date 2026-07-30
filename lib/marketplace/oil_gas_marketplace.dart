@@ -1779,9 +1779,14 @@ class _HomePage extends StatelessWidget {
   final ValueChanged<String> onCategory;
 
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+
           // Executive Hero Header Banner
           Container(
             padding: const EdgeInsets.all(20),
@@ -1912,14 +1917,13 @@ class _HomePage extends StatelessWidget {
               saved: saved,
               onSaved: onSaved,
             ),
-          ] else
-            const _HomeServiceNotice(
-              message:
-                  'Marketplace browsing and listing are temporarily paused.',
             ),
-        ],
-      );
+          ],
+        ),
+      ),
+    );
 }
+
 
 class _HomeQuickActions extends StatelessWidget {
   const _HomeQuickActions({
@@ -2006,37 +2010,60 @@ class _HomeCategoryStrip extends StatelessWidget {
       regulatedListingsEnabled: regulatedListingsEnabled,
     );
     return SizedBox(
-      height: 86,
+      height: 94,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 9),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final item = categories[index];
+          final assetPath = IndustrialIconAssets.forLabel(item.name);
           return InkWell(
             onTap: () => onCategory(item.name),
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 106,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+              width: 135,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: const Color(0xFFE1E8EF)),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0C0F172A),
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CatalogIcon(label: item.name, size: 31),
-                  const SizedBox(height: 5),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: IndustrialAssetIcon(
+                      label: item.name,
+                      assetPath: assetPath,
+                      size: 44,
+                      borderRadius: 10,
+                      fallback: Icon(item.icon, size: 24, color: _orange),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   Text(
                     item.name,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
                     ),
                   ),
                 ],
@@ -2049,65 +2076,73 @@ class _HomeCategoryStrip extends StatelessWidget {
   }
 }
 
-class _HomeServiceNotice extends StatelessWidget {
-  const _HomeServiceNotice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline, color: _muted),
-              const SizedBox(width: 10),
-              Expanded(child: Text(message)),
-            ],
-          ),
-        ),
-      );
-}
-
 class _QuickAction extends StatelessWidget {
-  const _QuickAction(
-      {required this.icon,
-      this.assetPath,
-      required this.label,
-      required this.color,
-      required this.onTap});
+  const _QuickAction({
+    required this.icon,
+    this.assetPath,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
   final IconData icon;
   final String? assetPath;
   final String label;
   final Color color;
   final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) => InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: const [
-                BoxShadow(
-                    color: Color(0x0D1B3A57),
-                    blurRadius: 8,
-                    offset: Offset(0, 3))
-              ]),
-          child: Column(children: [
-            IndustrialAssetIcon(
-                label: label,
-                assetPath: assetPath,
-                size: 30,
-                borderRadius: 7,
-                fallback: Icon(icon, color: color, size: 22)),
-            const SizedBox(height: 5),
-            Text(label,
-                style:
-                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))
-          ])));
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D0F172A),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: IndustrialAssetIcon(
+                    label: label,
+                    assetPath: assetPath,
+                    size: 34,
+                    borderRadius: 8,
+                    fallback: Icon(icon, color: color, size: 22),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
 }
 
 class _CompactHeading extends StatelessWidget {
@@ -2184,15 +2219,36 @@ class _FeaturedListings extends StatelessWidget {
               onAction: onBrowse,
             );
           }
-          return Column(
-            children: listings
-                .map((item) => _ListingCard(
-                      listing: item,
-                      saved: saved.contains(item.id),
-                      onSaved: () => onSaved(item),
-                    ))
-                .toList(growable: false),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 650) {
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: listings
+                      .map((item) => SizedBox(
+                            width: (constraints.maxWidth - 20) / 2,
+                            child: _ListingCard(
+                              listing: item,
+                              saved: saved.contains(item.id),
+                              onSaved: () => onSaved(item),
+                            ),
+                          ))
+                      .toList(growable: false),
+                );
+              }
+              return Column(
+                children: listings
+                    .map((item) => _ListingCard(
+                          listing: item,
+                          saved: saved.contains(item.id),
+                          onSaved: () => onSaved(item),
+                        ))
+                    .toList(growable: false),
+              );
+            },
           );
+
         },
       );
 }
