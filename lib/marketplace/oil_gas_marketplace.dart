@@ -1229,6 +1229,25 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               style:
                   const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           actions: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x3338BDF8), width: 1),
+                ),
+                child: Text(
+                  PublicReleaseConfiguration.formattedReleaseLabel,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
             if (_features.marketplace)
               PipeAccessibleIconButton(
                   label: 'Search Marketplace',

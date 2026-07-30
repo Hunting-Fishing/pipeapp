@@ -1999,22 +1999,14 @@ class ListingMessageBadge extends StatelessWidget {
 
 class _SignedOutMessages extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Center(
-      child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.forum_outlined, size: 54),
-            const SizedBox(height: 12),
-            const Text('Sign in to view your marketplace messages.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 14),
-            FilledButton(
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const MarketplaceAuthPage())),
-                child: const Text('Sign in or create account'))
-          ])));
+  Widget build(BuildContext context) => const MarketplaceAuthRequiredCard(
+        title: 'Marketplace Messages',
+        description:
+            'Sign in or create a free account to chat directly with equipment buyers & sellers, send quotes, and negotiate deals.',
+        icon: Icons.forum_outlined,
+      );
 }
+
 
 class _EmptyMessages extends StatelessWidget {
   const _EmptyMessages();

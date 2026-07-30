@@ -6,6 +6,7 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_messages_page.dart';
+import 'marketplace_auth_page.dart';
 import 'marketplace_policy_center.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_account_security_page.dart';
@@ -110,7 +111,11 @@ class _Overview extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const Center(child: Text('Sign in to view account.'));
+      return const MarketplaceAuthRequiredCard(
+        title: 'Account Required',
+        description:
+            'Sign in or create a free Pipe Buyer account to manage your profile, view order history, and access seller tools.',
+      );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -564,7 +569,11 @@ class _MyListingsState extends State<_MyListings> {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      return const Center(child: Text('Sign in to view listings.'));
+      return const MarketplaceAuthRequiredCard(
+        title: 'Listings Dashboard',
+        description:
+            'Sign in to post equipment listings, track active buyers, and manage your inventory.',
+      );
     }
     if (_error != null && _listings.isEmpty) {
       return Center(
@@ -2038,7 +2047,11 @@ class _AccountNotifications extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      return const Center(child: Text('Sign in to view notifications.'));
+      return const MarketplaceAuthRequiredCard(
+        title: 'Notifications & Alerts',
+        description:
+            'Sign in to receive instant price drop alerts, bid updates, and buyer messages.',
+      );
     }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -2891,3 +2904,109 @@ class _WatchKeywordsState extends State<_WatchKeywords> {
             ])));
   }
 }
+
+class MarketplaceAuthRequiredCard extends StatelessWidget {
+  const MarketplaceAuthRequiredCard({
+    super.key,
+    required this.title,
+    required this.description,
+    this.icon = Icons.lock_outline_rounded,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          maxWidth: 440,
+          constraints: const BoxConstraints(maxWidth: 440),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A0F172A),
+                blurRadius: 24,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0F172A), Color(0xFF0F52BA)],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 32, color: Colors.white),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: Color(0xFF64748B),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MarketplaceAuthPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.login_rounded, color: Colors.white),
+                  label: const Text(
+                    'Sign In or Create Account',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F52BA),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
