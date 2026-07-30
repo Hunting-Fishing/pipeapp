@@ -2923,7 +2923,6 @@ class MarketplaceAuthRequiredCard extends StatelessWidget {
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Container(
-          maxWidth: 440,
           constraints: const BoxConstraints(maxWidth: 440),
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(

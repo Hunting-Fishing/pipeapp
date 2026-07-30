@@ -1999,7 +1999,7 @@ class ListingMessageBadge extends StatelessWidget {
 
 class _SignedOutMessages extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => const MarketplaceAuthRequiredCard(
+  Widget build(BuildContext context) => MarketplaceAuthRequiredCard(
         title: 'Marketplace Messages',
         description:
             'Sign in or create a free account to chat directly with equipment buyers & sellers, send quotes, and negotiate deals.',
