@@ -5,11 +5,12 @@ Plan owner: Pipe Buyer product and engineering
 Baseline branch: `main` (`7db69f2e04887c697ef71385d54059699f1b2d92`)
 Created: July 20, 2026
 
-Current gate: Gate 6 — Mobile, accessibility, and product identity
+Current gate: Gate 7 — Release readiness
 
-Current overall launch-readiness estimate: 93%
+Current overall launch-readiness estimate: 97%
 
-Completed gates: 1 of 8
+Completed gates: 4 of 8
+
 
 Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 
