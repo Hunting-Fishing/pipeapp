@@ -152,31 +152,32 @@ class LightModeTheme extends FlutterFlowTheme {
   @Deprecated('Use tertiary instead')
   Color get tertiaryColor => tertiary;
 
-  late Color primary = const Color(0xFF2797FF);
-  late Color secondary = const Color(0xFF0B67BC);
-  late Color tertiary = const Color(0xFFACC420);
-  late Color alternate = const Color(0xFFE0E3E7);
-  late Color primaryText = const Color(0xFF161C24);
-  late Color secondaryText = const Color(0xFF636F81);
-  late Color primaryBackground = const Color(0xFFF0F5F9);
+  late Color primary = const Color(0xFF0F52BA);
+  late Color secondary = const Color(0xFF1E293B);
+  late Color tertiary = const Color(0xFFD97706);
+  late Color alternate = const Color(0xFFE2E8F0);
+  late Color primaryText = const Color(0xFF0F172A);
+  late Color secondaryText = const Color(0xFF475569);
+  late Color primaryBackground = const Color(0xFFF8FAFC);
   late Color secondaryBackground = const Color(0xFFFFFFFF);
-  late Color accent1 = const Color(0x4C2797FF);
-  late Color accent2 = const Color(0x4C0B67BC);
-  late Color accent3 = const Color(0x4DACC420);
-  late Color accent4 = const Color(0xFFEEEEEE);
-  late Color success = const Color(0xFF27AE52);
-  late Color warning = const Color(0xFFFC964D);
-  late Color error = const Color(0xFFEE4444);
-  late Color info = const Color(0xFFFFFFFF);
+  late Color accent1 = const Color(0x1F0F52BA);
+  late Color accent2 = const Color(0x1F1E293B);
+  late Color accent3 = const Color(0x26D97706);
+  late Color accent4 = const Color(0xFFF1F5F9);
+  late Color success = const Color(0xFF10B981);
+  late Color warning = const Color(0xFFF59E0B);
+  late Color error = const Color(0xFFEF4444);
+  late Color info = const Color(0xFF2563EB);
 
-  late Color customColor1 = const Color(0xFFE8EDED);
-  late Color customColor2 = const Color(0xFFFAFAFA);
-  late Color customColor3 = const Color(0xFFE9EBC4);
-  late Color customColor4 = const Color(0xFFF0F5F9);
-  late Color card = const Color(0xFF161C24);
-  late Color customColor5 = const Color(0xFFF6F8FC);
-  late Color customColor6 = const Color(0xFF636F81);
+  late Color customColor1 = const Color(0xFFE2E8F0);
+  late Color customColor2 = const Color(0xFFF8FAFC);
+  late Color customColor3 = const Color(0xFFFEF3C7);
+  late Color customColor4 = const Color(0xFFF1F5F9);
+  late Color card = const Color(0xFFFFFFFF);
+  late Color customColor5 = const Color(0xFFF8FAFC);
+  late Color customColor6 = const Color(0xFF64748B);
 }
+
 
 abstract class Typography {
   String get displayLargeFamily;
@@ -346,31 +347,33 @@ class DarkModeTheme extends FlutterFlowTheme {
   @Deprecated('Use tertiary instead')
   Color get tertiaryColor => tertiary;
 
-  late Color primary = const Color(0xFF2797FF);
-  late Color secondary = const Color(0xFF0B67BC);
-  late Color tertiary = const Color(0xFFACC420);
-  late Color alternate = const Color(0xFF2B3743);
-  late Color primaryText = const Color(0xFFFFFFFF);
-  late Color secondaryText = const Color(0xFF919BAB);
-  late Color primaryBackground = const Color(0xFF161C24);
-  late Color secondaryBackground = const Color(0xFF212B36);
-  late Color accent1 = const Color(0x4C2797FF);
-  late Color accent2 = const Color(0x4C0B67BC);
-  late Color accent3 = const Color(0x4DACC420);
-  late Color accent4 = const Color(0xB3161C24);
-  late Color success = const Color(0xFF27AE52);
-  late Color warning = const Color(0xFFFC964D);
-  late Color error = const Color(0xFFEE4444);
-  late Color info = const Color(0xFFFFFFFF);
+  late Color primary = const Color(0xFF38BDF8);
+  late Color secondary = const Color(0xFF0EA5E9);
+  late Color tertiary = const Color(0xFFF59E0B);
+  late Color alternate = const Color(0xFF1E293B);
+  late Color primaryText = const Color(0xFFF8FAFC);
+  late Color secondaryText = const Color(0xFF94A3B8);
+  late Color primaryBackground = const Color(0xFF0F172A);
+  late Color secondaryBackground = const Color(0xFF1E293B);
+  late Color accent1 = const Color(0x3338BDF8);
+  late Color accent2 = const Color(0x330EA5E9);
+  late Color accent3 = const Color(0x33F59E0B);
+  late Color accent4 = const Color(0x1A0F172A);
+  late Color success = const Color(0xFF10B981);
+  late Color warning = const Color(0xFFF59E0B);
+  late Color error = const Color(0xFFEF4444);
+  late Color info = const Color(0xFF38BDF8);
 
-  late Color customColor1 = const Color(0xFF2B3743);
-  late Color customColor2 = const Color(0xFF121212);
-  late Color customColor3 = const Color(0xFF1E1E1E);
-  late Color customColor4 = const Color(0xFF071F5F);
-  late Color card = const Color(0xFF1A2B6B);
-  late Color customColor5 = const Color(0xFF1E1E1E);
-  late Color customColor6 = const Color(0xFFF9A825);
+  late Color customColor1 = const Color(0xFF1E293B);
+  late Color customColor2 = const Color(0xFF090D16);
+  late Color customColor3 = const Color(0xFF1E293B);
+  late Color customColor4 = const Color(0xFF0C4A6E);
+  late Color card = const Color(0xFF1E293B);
+  late Color customColor5 = const Color(0xFF0F172A);
+  late Color customColor6 = const Color(0xFFF59E0B);
 }
+
+
 
 class FFDesignTokens {
   const FFDesignTokens(this.theme);

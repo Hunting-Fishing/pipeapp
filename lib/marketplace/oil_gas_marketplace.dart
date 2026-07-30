@@ -40,11 +40,12 @@ import 'marketplace_listing_media.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
-const _navy = Color(0xFFF7F9FC);
+const _navy = Color(0xFFF8FAFC);
 const _panel = Colors.white;
-const _orange = Color(0xFF0878E8);
-const _muted = Color(0xFF66758A);
+const _orange = Color(0xFF0F52BA);
+const _muted = Color(0xFF64748B);
 const _otherCatalogValue = 'Other / not listed';
+
 
 List<String> marketplaceConditionsFor(String? category, String? productType) {
   if (category == 'Pipe, Tubing & Materials' ||
