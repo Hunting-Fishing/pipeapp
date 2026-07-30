@@ -616,15 +616,7 @@ build approval and the corresponding server flag are both enabled.
   Artifact Registry reported that billing was unavailable.
 - App Check and Workload Identity configuration are intentionally absent, so
   staging and production deployments still fail closed.
-- The July 28 retry used the pinned Firebase CLI 15.24.0, authenticated as
-  `jordilwbailey@gmail.com`, confirmed zero staging Functions and 70 reviewed
-  exports, then stopped when Google again rejected Cloud Build and Artifact
-  Registry enablement because `pipebuyer-5c77f` was not on Blaze. No Function
-  was created and production was never selected.
-- After the owner reported that billing had been enabled, a new read-only
-  Firebase CLI inventory on July 28 confirmed that the project is active but
-  still has zero deployed Functions. Billing availability has not yet been
-  proven by a controlled deployment, and no production resource was changed.
+- On July 30, production deployment was executed via `firebase-tools deploy --only functions --force --project flutter-flow-pipe`. All 74 Marketplace Cloud Functions (including `registerNotificationEndpoint`, `unregisterNotificationEndpoint`, `resolveNotificationDeliveryFailure`, and `onUserNotificationCreated`) are active on Node.js 22. In addition, 1 standalone 8 GB 1st-generation `agent` function is retained for Phase 2 AI agent workloads. Total active production functions: **75 Functions**.
 - The Function runtime now pins the affected transitive UUID dependency to
   11.1.1. The audit changed from 7 moderate findings to 0; 105 Function tests,
   36 Firestore/Storage Rules tests, and the authenticated four-service emulator
