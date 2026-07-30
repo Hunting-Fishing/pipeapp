@@ -2079,10 +2079,32 @@ class _HomeCategoryStrip extends StatelessWidget {
         },
       ),
     );
-  }
+}
+}
+
+class _HomeServiceNotice extends StatelessWidget {
+  const _HomeServiceNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: _muted),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ],
+          ),
+        ),
+      );
 }
 
 class _QuickAction extends StatelessWidget {
+
   const _QuickAction({
     required this.icon,
     this.assetPath,
