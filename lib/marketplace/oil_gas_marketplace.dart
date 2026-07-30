@@ -1778,48 +1778,112 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          Row(children: [
-            Image.asset('assets/images/pipe_buyer_logo.png',
-                width: 118, height: 46, fit: BoxFit.contain),
-            const SizedBox(width: 10),
-            const Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text('PIPE BUYER',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-                  Text('Oilfield equipment marketplace',
-                      style: TextStyle(color: _muted, fontSize: 11))
-                ])),
-          ]),
-          const SizedBox(height: 14),
-          if (features.marketplace)
-            InkWell(
-                onTap: onBrowse,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                    height: 48,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
+          // Executive Hero Header Banner
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0F172A), // Slate Midnight
+                  Color(0xFF0F52BA), // Deep Cobalt Blue
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x220F52BA),
+                  blurRadius: 18,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Image.asset('assets/images/pipe_buyer_logo.png',
+                        width: 52, height: 40, fit: BoxFit.contain),
+                    const SizedBox(width: 10),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PIPE BUYER',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 19,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                        Text(
+                          'Industrial Oilfield Equipment Marketplace',
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Find, Buy & Dispatch Equipment',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (features.marketplace)
+                  InkWell(
+                    onTap: onBrowse,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 50,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE1E8EF)),
                         boxShadow: const [
                           BoxShadow(
-                              color: Color(0x0D1B3A57),
-                              blurRadius: 10,
-                              offset: Offset(0, 3))
-                        ]),
-                    child: const Row(children: [
-                      Icon(Icons.search, color: _orange, size: 21),
-                      SizedBox(width: 10),
-                      Text('Search equipment, pipe, tanks…',
-                          style: TextStyle(color: _muted, fontSize: 13)),
-                      Spacer(),
-                      Icon(Icons.tune, color: _muted, size: 19)
-                    ]))),
-          const SizedBox(height: 16),
+                            color: Color(0x1A000000),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.search, color: _orange, size: 22),
+                          SizedBox(width: 10),
+                          Text(
+                            'Search pipe, valves, tanks, tubing…',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Spacer(),
+                          Icon(Icons.tune_rounded,
+                              color: Color(0xFF64748B), size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
           _HomeQuickActions(
             features: features,
             onBrowse: onBrowse,
@@ -2871,135 +2935,271 @@ class _ListingCard extends StatelessWidget {
       'acceptedOfferId': listing.acceptedOfferId,
       'auctionEndAt': listing.auctionEndAt,
     }, currentUserUid: FirebaseAuth.instance.currentUser?.uid);
-    return Card(
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: presentation.emphasized
+              ? presentation.borderColor
+              : const Color(0xFFE2E8F0),
+          width: presentation.emphasized ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: presentation.emphasized
+                ? presentation.shadowColor.withValues(alpha: .25)
+                : const Color(0x0F0F172A),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
-        margin: const EdgeInsets.fromLTRB(12, 4, 12, 7),
-        color: _panel,
-        surfaceTintColor: Colors.white,
-        elevation: presentation.emphasized ? 3 : 1.5,
-        shadowColor: presentation.emphasized
-            ? presentation.shadowColor
-            : const Color(0x221B3A57),
-        shape: RoundedRectangleBorder(
-            side: BorderSide(
-                color: presentation.borderColor,
-                width: presentation.emphasized ? 2 : 1),
-            borderRadius: BorderRadius.circular(15)),
         child: InkWell(
-            borderRadius: BorderRadius.circular(15),
-            onTap: () => listing.documentId == null
-                ? showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: _panel,
-                    builder: (_) => _ListingDetails(listing))
-                : context.push(MarketplaceDeepLinks.listing(listing.id)),
-            child: Padding(
-                padding: const EdgeInsets.all(9),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (presentation.badges.isNotEmpty) ...[
-                        MarketplaceListingBadges(
-                            badges: presentation.badges, compact: true),
-                        const SizedBox(height: 7),
-                      ],
-                      Row(children: [
+          onTap: () => listing.documentId == null
+              ? showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: _panel,
+                  builder: (_) => _ListingDetails(listing))
+              : context.push(MarketplaceDeepLinks.listing(listing.id)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Hero Thumbnail Header
+              Stack(
+                children: [
+                  Container(
+                    height: 150,
+                    width: double.infinity,
+                    color: const Color(0xFFF1F5F9),
+                    child: listing.imageUrl == null
+                        ? Center(child: fallbackArtwork())
+                        : Image.network(
+                            listing.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                Center(child: fallbackArtwork()),
+                          ),
+                  ),
+                  // Gradient Overlay for readability
+                  Positioned.fill(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Color(0x33000000),
+                            Colors.transparent,
+                            Color(0x22000000),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Top Left Badges
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Wrap(
+                      spacing: 6,
+                      children: [
                         Container(
-                            width: 66,
-                            height: 66,
-                            decoration: BoxDecoration(
-                                color: const Color(0xFFEAF4FD),
-                                borderRadius: BorderRadius.circular(12)),
-                            child: listing.imageUrl == null
-                                ? fallbackArtwork()
-                                : ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(listing.imageUrl!,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            fallbackArtwork()))),
-                        const SizedBox(width: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xE60F172A),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            listing.condition.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                        if (presentation.badges.isNotEmpty)
+                          MarketplaceListingBadges(
+                              badges: presentation.badges, compact: true),
+                      ],
+                    ),
+                  ),
+                  // Top Right Save Heart Button
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xCCFFFFFF),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x1A000000),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        constraints: const BoxConstraints(
+                            minWidth: 36, minHeight: 36),
+                        padding: EdgeInsets.zero,
+                        tooltip: saved
+                            ? 'Remove from saved listings'
+                            : 'Save listing',
+                        onPressed: onSaved,
+                        icon: Icon(
+                          saved ? Icons.bookmark : Icons.bookmark_border,
+                          size: 20,
+                          color: saved ? _orange : const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // Card Details Content
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (listing.badge != null)
+                          Text(
+                            listing.badge!.toUpperCase(),
+                            style: const TextStyle(
+                              color: _orange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          )
+                        else
+                          Text(
+                            listing.category.toUpperCase(),
+                            style: const TextStyle(
+                              color: _orange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 13, color: _muted),
+                            const SizedBox(width: 2),
+                            Text(
+                              listing.location,
+                              style: const TextStyle(
+                                  color: _muted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      listing.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    if (listing.summaryFacts.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        listing.summaryFacts.take(3).join(' • '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF475569),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        // Seller Avatar & Info
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: const Color(0xFFEFF6FF),
+                          child: Text(
+                            listing.sellerName.isNotEmpty
+                                ? listing.sellerName[0].toUpperCase()
+                                : 'P',
+                            style: const TextStyle(
+                              color: _orange,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
                         Expanded(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                              if (listing.badge != null)
-                                Text(listing.badge!.toUpperCase(),
-                                    style: const TextStyle(
-                                        color: _orange,
-                                        fontSize: 8.5,
-                                        fontWeight: FontWeight.w800)),
-                              Text(listing.title,
-                                  maxLines: 2,
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  listing.sellerName,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800)),
-                              const SizedBox(height: 2),
-                              Text(listing.condition,
-                                  style: const TextStyle(
-                                      color: _muted, fontSize: 10)),
-                              if (listing.summaryFacts.isNotEmpty)
-                                Text(listing.summaryFacts.take(2).join(' • '),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        color: Color(0xFF334E68),
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w700)),
-                              Text(listing.location,
-                                  style: const TextStyle(
-                                      color: _muted, fontSize: 10)),
-                              if (listing.createdAt != null)
-                                Text(
-                                    'Listed ${listing.createdAt!.toLocal().toString().substring(0, 16)}',
-                                    style: const TextStyle(
-                                        color: _muted, fontSize: 9.5)),
-                              Row(children: [
-                                const Icon(Icons.storefront_outlined,
-                                    size: 11, color: _muted),
-                                const SizedBox(width: 3),
-                                Flexible(
-                                    child: Text(listing.sellerName,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            color: _muted, fontSize: 9.5))),
-                                if (listing.sellerVerified)
-                                  const Padding(
-                                      padding: EdgeInsets.only(left: 3),
-                                      child: Icon(Icons.verified,
-                                          size: 11, color: _orange))
-                              ]),
-                              const SizedBox(height: 3),
-                              Text(listing.price,
-                                  style: const TextStyle(
-                                      color: _orange,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900)),
-                              if (listing.documentId != null)
-                                Text(
-                                    '${listing.views} views • ${listing.saves} saves • ${listing.shares} shares',
-                                    style: const TextStyle(
-                                        color: _muted, fontSize: 9.5))
-                            ])),
-                        Column(mainAxisSize: MainAxisSize.min, children: [
-                          ListingMessageBadge(
-                              listingId: listing.id,
-                              sellerUid: listing.sellerUid),
-                          IconButton(
-                              tooltip: saved
-                                  ? 'Remove from saved listings'
-                                  : 'Save listing',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: onSaved,
-                              icon: Icon(
-                                  saved
-                                      ? Icons.bookmark
-                                      : Icons.bookmark_border,
-                                  color: saved ? _orange : _muted))
-                        ])
-                      ])
-                    ]))));
+                                    color: Color(0xFF334155),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (listing.sellerVerified)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 4),
+                                  child: Icon(Icons.verified,
+                                      size: 13, color: _orange),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // Large Bold Price Tag
+                        Text(
+                          listing.price,
+                          style: const TextStyle(
+                            color: _orange,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
   }
 }
 
