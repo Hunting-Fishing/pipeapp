@@ -9,7 +9,10 @@ class PublicReleaseConfiguration {
       'PIPE_ENV',
       defaultValue: 'development',
     ),
-    supportEmail: String.fromEnvironment('PIPE_PUBLIC_SUPPORT_EMAIL'),
+    supportEmail: String.fromEnvironment(
+      'PIPE_PUBLIC_SUPPORT_EMAIL',
+      defaultValue: 'support@pipebuyer.com',
+    ),
   );
 
   static const appVersion = '1.0.0+1';
