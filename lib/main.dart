@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:provider/provider.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
@@ -13,18 +15,36 @@ import 'core/accessibility/pipe_accessibility_theme.dart';
 import 'core/accessibility/pipe_status_feedback.dart';
 import 'core/config/public_release_config.dart';
 import 'core/diagnostics/app_diagnostics.dart';
+import 'core/startup/pipe_startup_monitor.dart';
+import 'marketplace/marketplace_notification_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/internationalization.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   AppDiagnostics.install();
-  AppDiagnostics.run(_bootstrapPipeBuyer);
+  final startupMonitor = PipeStartupMonitor();
+  runApp(PipeStartupMonitorApp(monitor: startupMonitor));
+  AppDiagnostics.run(() => _bootstrapPipeBuyer(startupMonitor));
 }
 
-Future<void> _bootstrapPipeBuyer() async {
+Future<void> _bootstrapPipeBuyer(PipeStartupMonitor startupMonitor) async {
   try {
-    await _initializePipeBuyer();
+    final appState = await _initializePipeBuyer(startupMonitor);
+    startupMonitor.startStage(
+      id: 'first_frame',
+      label: 'Preparing the marketplace',
+      progress: .99,
+    );
+    startupMonitor.complete();
+    // Allow the completed 100% milestone to render once before replacing the
+    // startup monitor with the marketplace application.
+    await WidgetsBinding.instance.endOfFrame;
+    runApp(ChangeNotifierProvider(
+      create: (context) => appState,
+      child: const MyApp(),
+    ));
   } catch (error, stackTrace) {
     AppDiagnostics.record(
       error,
@@ -33,13 +53,24 @@ Future<void> _bootstrapPipeBuyer() async {
       operation: 'initialize_application',
       fatal: true,
     );
-    runApp(const PipeStartupFailureApp());
+    startupMonitor.fail(error);
   }
 }
 
-Future<void> _initializePipeBuyer() async {
-  WidgetsFlutterBinding.ensureInitialized();
+Future<FFAppState> _initializePipeBuyer(
+  PipeStartupMonitor startupMonitor,
+) async {
+  startupMonitor.startStage(
+    id: 'release_configuration',
+    label: 'Validating release configuration',
+    progress: .36,
+  );
   PublicReleaseConfiguration.current.validate();
+  startupMonitor.startStage(
+    id: 'runtime_guards',
+    label: 'Installing navigation and safety controls',
+    progress: .40,
+  );
   ErrorWidget.builder = (details) => Builder(
         builder: (context) => Material(
           color: Theme.of(context).colorScheme.surface,
@@ -66,19 +97,35 @@ Future<void> _initializePipeBuyer() async {
 
   await initFirebase(
     onCoreInitialized: AppDiagnostics.initializeRemoteReporting,
+    onStartupProgress: (stageId, label, progress) => startupMonitor.startStage(
+      id: stageId,
+      label: label,
+      progress: progress,
+    ),
   );
 
+  startupMonitor.startStage(
+    id: 'theme',
+    label: 'Loading display preferences',
+    progress: .84,
+  );
   await FlutterFlowTheme.initialize();
 
+  startupMonitor.startStage(
+    id: 'localization',
+    label: 'Loading language resources',
+    progress: .90,
+  );
   await FFLocalizations.initialize();
 
+  startupMonitor.startStage(
+    id: 'persisted_state',
+    label: 'Restoring your saved preferences',
+    progress: .95,
+  );
   final appState = FFAppState(); // Initialize FFAppState
   await appState.initializePersistedState();
-
-  runApp(ChangeNotifierProvider(
-    create: (context) => appState,
-    child: const MyApp(),
-  ));
+  return appState;
 }
 
 class MyApp extends StatefulWidget {
@@ -131,6 +178,7 @@ class MyAppState extends State<MyApp> {
 
     _appStateNotifier = AppStateNotifier.instance;
     _router = createRouter(_appStateNotifier);
+    unawaited(MarketplaceNotificationService.instance.initializeNavigation());
     userStream = pipeAppFirebaseUserStream()
       ..listen((user) {
         _appStateNotifier.update(user);

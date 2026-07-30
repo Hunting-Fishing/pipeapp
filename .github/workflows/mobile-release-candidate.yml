@@ -474,12 +474,17 @@ jobs:
           profile_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile_plist")"
           profile_team="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile_plist")"
           profile_app="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile_plist")"
+          profile_push="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$profile_plist" 2>/dev/null || true)"
           [[ "$profile_team" == "$IOS_DEVELOPMENT_TEAM" ]] || {
             echo "Provisioning profile team does not match IOS_DEVELOPMENT_TEAM." >&2
             exit 1
           }
           [[ "$profile_app" == "$IOS_DEVELOPMENT_TEAM.Pipe.Buyerapp" ]] || {
             echo "Provisioning profile does not authorize Pipe.Buyerapp." >&2
+            exit 1
+          }
+          [[ "$profile_push" == "production" ]] || {
+            echo "Provisioning profile must include production Push Notifications." >&2
             exit 1
           }
           export_team="$(/usr/libexec/PlistBuddy -c 'Print :teamID' "$export_options_path")"

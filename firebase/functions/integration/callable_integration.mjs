@@ -1684,6 +1684,38 @@ try {
       ).get()).data().status,
       "active",
   );
+  const notificationToken = `integration-token-${"a".repeat(80)}`;
+  const notificationEndpoint = await call(
+      "registerNotificationEndpoint",
+      privacyUser.token,
+      {
+        token: notificationToken,
+        platform: "web",
+        installationId: "a1b2c3d4-1111-4222-8333-1234567890ab",
+      },
+  );
+  assert.equal(notificationEndpoint.active, true);
+  assert.equal(
+      (await db.doc(
+          `users/${privacyUser.uid}/notification_endpoints/${notificationEndpoint.endpointId}`,
+      ).get()).data().status,
+      "active",
+  );
+  assert.equal((await call(
+      "unregisterNotificationEndpoint",
+      privacyUser.token,
+      {
+        token: notificationToken,
+        platform: "web",
+        installationId: "a1b2c3d4-1111-4222-8333-1234567890ab",
+      },
+  )).active, false);
+  assert.equal(
+      (await db.doc(
+          `users/${privacyUser.uid}/notification_endpoints/${notificationEndpoint.endpointId}`,
+      ).get()).data().status,
+      "revoked",
+  );
   const accountExport = await call(
       "requestAccountDataExport",
       privacyUser.token,

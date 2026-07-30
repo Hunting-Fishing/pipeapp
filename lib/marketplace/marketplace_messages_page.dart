@@ -13,7 +13,6 @@ import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_reporting.dart';
 
 import 'marketplace_actions_repository.dart';
-import 'marketplace_auth_page.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_avatar_image.dart';

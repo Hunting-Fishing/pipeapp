@@ -2,12 +2,14 @@
 
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `main` (`7db69f2e04887c697ef71385d54059699f1b2d92`)
+Baseline branch: `main` (`b34387a`; current completion candidate contains reviewed working-tree changes)
 Created: July 20, 2026
 
 Current gate: Gate 7 — Release readiness
 
-Current overall launch-readiness estimate: 97%
+Current Phase 1 engineering-completion estimate: 99% provisional
+
+Current active-gate estimate: Gate 7 at 86% provisional
 
 Completed gates: 4 of 8
 
@@ -18,12 +20,12 @@ Detailed evidence: `docs/PHASE_1_PROGRESS_AUDIT.md`
 | --- | --- |
 | 0 — Scope lock and safe defaults | 100% — complete |
 | 1 — Environments, builds, and diagnostics | 100% — complete: exact-SHA signed Android AAB (79.2MB) and Apple IPA (41.8MB) production release candidates generated & verified; production Firestore rules, indexes, and Storage rules deployed |
-| 2 — Backend parity and server commands | 100% — complete: all 70 reviewed Cloud Functions, security rules, indexes, zero-vulnerability runtime lock, and App Check enforcement deployed and live on production project `flutter-flow-pipe` |
-| 3 — Identity, authorization, and abuse | 93% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, and staged deletion locally verified |
-| 4 — Product workflows | 89% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed structured filters, and recoverable Marketplace/Dispatch entity routes locally verified |
-| 5 — Trust, notifications, and policies | 91% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, and versioned policy acceptance/enforcement locally verified |
+| 2 — Backend parity and server commands | 100% — complete: a July 30 read-only inventory found all 70 previously reviewed Cloud Functions active on production project `flutter-flow-pipe`, with rules, indexes, command controls, and zero-vulnerability runtime lock verified; the current 74-handler candidate adds four Gate 5 notification handlers that remain subject to controlled deployment/parity evidence; App Check enforcement is tracked in Gate 3 and remains disabled |
+| 3 — Identity, authorization, and abuse | 95% — ownership, reviewed verification, MFA admin controls, password recovery, remembered-device history, export, session revocation, staged deletion, and abuse controls locally verified; production App Check and physical OTP/MFA acceptance remain |
+| 4 — Product workflows | 96% — listing/transaction lifecycles, review-based Dispatch provider approval, bounded discovery, indexed Marketplace keyword search, structured filters, and recoverable Marketplace/Dispatch entity routes locally verified; index deployment/backfill and staging acceptance remain |
+| 5 — Trust, notifications, and policies | 96% — protected reporting, exact stored-photo duplicate signals, private message-safety evidence, human-only review, appeals, private support, versioned policy acceptance/enforcement, and privacy-safe external notification delivery/retry controls locally verified; provider/device acceptance and operations remain |
 | 6 — Accessibility, performance, and QA | 100% — complete: cross-platform identity, release artwork, Apple privacy declarations, accessible focus/traversal, AA semantic feedback, public store-policy/support/deletion routes, signed Android AAB and Apple IPA candidates generated & verified |
-| 7 — Release readiness | 75% — signed production release candidates produced & verified; production Firebase backend fully deployed & live; pending final store review submission |
+| 7 — Release readiness | 86% — unified local release gate, production web package, 74-Function manifest, and emulator-backed mobile web visual acceptance pass; signed production release candidates were previously produced and verified; pending an exact committed candidate, protected staging rehearsal, physical-device/provider acceptance, App Check enforcement, and store submission |
 
 
 
@@ -43,14 +45,15 @@ Gate 0 implementation evidence:
 
 Gate 2 implementation evidence in progress:
 
-- Release manifests derive and declare the exact 70 expected Function exports
+- Release manifests derive and declare the exact 74 expected Function exports
 - Unit-tested parity tooling compares that manifest with the deployed
   `marketplace` codebase and fails on missing, unexpected, or inactive handlers
 - Every controlled deploy now performs this comparison after deployment and
   records the structured result in its release summary
-- The last read-only production inventory fails safely: 15 handlers were
-  deployed; with the new conversion command, 15 expected handlers are missing
-  and 2 obsolete handlers remain
+- A July 30 read-only production inventory found all 70 reviewed handlers
+  active on Node 22 with one consistent deployed source hash. That inventory
+  also confirmed callable App Check enforcement is currently `false`, so App
+  Check remains a Gate 3 launch action rather than being reported as complete.
 - Client listing creation and Marketplace-to-Auction conversion now use
   authenticated server commands; direct clients cannot author public listing,
   private reserve, bid, offer, or Dispatch transaction state
@@ -80,12 +83,10 @@ Gate 2 implementation evidence in progress:
 - Functions discovery and CI now use the declared Node 22 runtime, and App
   Check enforcement is a concrete deployment option rather than an unsupported
   parameter expression
-- The July 28 staging Function retry authenticated as the project owner and
-  selected `pipebuyer-5c77f`, but Google reported that billing was unavailable
-  and rejected both Cloud Build and Artifact Registry enablement; no Function
-  was created. The owner subsequently reported enabling billing, while a new
-  read-only inventory confirmed that the live staging inventory remains zero;
-  a controlled deployment and exact parity check are still required
+- The prior isolated-staging Function deployment was blocked before billing was
+  enabled. A controlled deployment to the protected staging environment and an
+  exact parity record for that environment are still required; no production
+  mutation was performed during the July 30 completion pass.
 - The Functions dependency lock overrides the vulnerable transitive UUID below
   11.1.1. The moderate audit count fell from 7 to 0 while 105 Function tests, 36
   Firestore/Storage Rules tests, and the authenticated four-emulator workflow
@@ -149,9 +150,8 @@ Gate 1 implementation evidence in progress:
   remains an external owner-controlled requirement.
 - Staging Email/Password Authentication is provisioned from the reviewed
   `firebase.json` declaration and passed a disposable create/delete smoke test
-- The owner reports that staging billing is now enabled. A July 28 read-only
-  Firebase CLI check still found zero deployed Functions, so a controlled
-  staging deployment and exact deployed-parity record remain required
+- The owner reports that staging billing is enabled. A controlled staging
+  deployment and exact deployed-parity record remain required before launch.
 - Native staging/production diagnostics now use a centralized, release-tagged
   Crashlytics adapter with manifest-level default-off collection, an explicit
   build-time opt-in, safe correlation IDs, and a triage/validation runbook.
@@ -160,6 +160,14 @@ Gate 1 implementation evidence in progress:
   run. Staging also passed deterministic 390x844 mobile-web and 1440x1000
   desktop rendering checks with no browser exceptions. The deployment workflow
   now reruns both checks and retains their screenshots after every release.
+- The July 30 completion pass added fail-closed production build approvals for
+  Auctions and Dispatch, server-owned Marketplace search tokens, a dry-run-first
+  search backfill utility, the required composite index, and first-frame startup
+  cleanup. The unified local release gate passed analyzer, Flutter tests,
+  112 Function tests, 37 Firestore/Storage Rules tests, authenticated callable
+  integration, dependency audit, and production web packaging. An emulator-backed
+  390x844 visual smoke then passed with no browser errors and no stale bootstrap
+  overlay.
 
 ## 1. Phase 1 launch decision
 
@@ -385,7 +393,15 @@ administrators, require human review, and never hide content or penalize an
 account automatically. The authenticated four-emulator suite proves these
 invariants. This is exact-file detection, not perceptual similarity or a claim
 that a reviewed external AI classifier has been selected; those items and the
-staging deployment remain open.
+staging deployment remain open. Durable in-app notifications now feed a
+retry-safe Firebase Cloud Messaging trigger. Users explicitly opt in; endpoint
+registration, token refresh/revocation, generic lock-screen copy, invalid-token
+cleanup, delivery evidence, critical-failure alerts, and administrator
+resolution are server-controlled and covered by unit, Rules, workflow-contract,
+and authenticated emulator tests. Environment-specific web-worker generation,
+Android permission, Apple push entitlement, and release-workflow VAPID/APNs
+guards are present. Provider activation, physical-device delivery, alert
+ownership, policy approval, and staffed operations remain open.
 
 Exit evidence:
 
@@ -411,8 +427,8 @@ Goal: Produce installable, professional release artifacts.
   sessions.
 
 Current engineering evidence is recorded in
-`docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md`. Gate 5 remains at 91% while its
-policy approval, external delivery, staffing, alerting, and staging-acceptance
+`docs/MOBILE_RELEASE_AND_ACCESSIBILITY.md`. Gate 5 remains at 96% while its
+policy approval, provider/device delivery, staffing, alerting, and staging-acceptance
 evidence is completed by the responsible owners.
 
 The repository now owns one hash-pinned release-art master and generated

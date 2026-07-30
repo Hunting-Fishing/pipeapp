@@ -233,6 +233,19 @@ beforeEach(async () => {
       firstSeenAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
       lastSeenAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
     });
+    await setDoc(doc(db, "users", "buyer", "notification_endpoints", "phone"), {
+      ownerUid: "buyer",
+      platform: "android",
+      status: "active",
+      token: "server-owned-registration-token",
+    });
+    await setDoc(doc(db, "users", "buyer", "notifications", "offer-update"), {
+      recipientUid: "buyer",
+      type: "offer",
+      title: "Offer update",
+      read: false,
+      externalDeliveryStatus: "delivered",
+    });
     await setDoc(doc(db, "offers", "offer"), {
       sellerUid: "seller",
       buyerUid: "buyer",
@@ -1419,4 +1432,42 @@ test("account privacy records are owner-readable and server-only", async () => {
       "browser",
   )));
   await assertFails(deleteDoc(doc(ownerDb, "users", "buyer")));
+});
+
+test("notification endpoints and delivery evidence are server-controlled", async () => {
+  const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const strangerDb = testEnvironment.authenticatedContext("stranger").firestore();
+  const endpoint = doc(
+      ownerDb, "users", "buyer", "notification_endpoints", "phone",
+  );
+  const notification = doc(
+      ownerDb, "users", "buyer", "notifications", "offer-update",
+  );
+
+  await assertSucceeds(getDoc(endpoint));
+  await assertFails(getDoc(doc(
+      strangerDb, "users", "buyer", "notification_endpoints", "phone",
+  )));
+  await assertFails(setDoc(doc(
+      ownerDb, "users", "buyer", "notification_endpoints", "forged",
+  ), {
+    ownerUid: "buyer",
+    platform: "web",
+    status: "active",
+    token: "forged-client-token",
+  }));
+  await assertFails(updateDoc(endpoint, {status: "active"}));
+  await assertSucceeds(updateDoc(notification, {
+    read: true,
+    readAt: Timestamp.fromDate(new Date("2026-07-19T13:00:00.000Z")),
+  }));
+  await assertFails(updateDoc(notification, {
+    externalDeliveryStatus: "failed",
+  }));
+  await assertFails(getDoc(doc(
+      ownerDb, "notification_delivery_events", "private-event",
+  )));
+  await assertFails(setDoc(doc(
+      ownerDb, "notification_delivery_failures", "forged-failure",
+  ), {status: "open"}));
 });

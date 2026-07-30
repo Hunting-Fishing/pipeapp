@@ -106,6 +106,58 @@ const longTextFields = new Set([
 
 const dateFields = new Set(["auctionStartAt", "auctionEndAt"]);
 
+const searchIndexVersion = 1;
+const maximumSearchTokens = 480;
+
+function normalizeMarketplaceSearchText(value, maximumWords = 3) {
+  return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gu, " ")
+      .trim()
+      .split(/\s+/u)
+      .filter(Boolean)
+      .slice(0, maximumWords)
+      .join(" ")
+      .slice(0, 64);
+}
+
+function buildMarketplaceSearchTokens(listing) {
+  const tokens = new Set();
+  const addPhrase = (value) => {
+    if (tokens.size >= maximumSearchTokens) return;
+    const words = normalizeMarketplaceSearchText(value, 80)
+        .split(" ")
+        .filter(Boolean);
+    for (let start = 0; start < words.length; start++) {
+      for (let length = 1; length <= 3 && start + length <= words.length;
+        length++) {
+        const phrase = words.slice(start, start + length).join(" ").slice(0, 64);
+        const minimum = phrase.length === 1 ? 1 : 2;
+        for (let size = minimum; size <= phrase.length; size++) {
+          tokens.add(phrase.slice(0, size));
+          if (tokens.size >= maximumSearchTokens) return;
+        }
+      }
+    }
+  };
+  for (const field of [
+    "title",
+    "category",
+    "productType",
+    "brand",
+    "model",
+    "condition",
+    "publicLocationName",
+    "nearestTown",
+    "region",
+    "country",
+    "description",
+  ]) {
+    addPhrase(listing && listing[field]);
+  }
+  return [...tokens].sort();
+}
+
 function invalid(message) {
   throw new ListingPolicyError("invalid-argument", message);
 }
@@ -394,7 +446,10 @@ function validateListingMediaManifest(data, options) {
 
 module.exports = {
   ListingPolicyError,
+  buildMarketplaceSearchTokens,
   listingMediaObjectPath,
+  normalizeMarketplaceSearchText,
+  searchIndexVersion,
   validateLocation,
   validateListingMediaManifest,
   validateMarketplaceListingInput,

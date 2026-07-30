@@ -48,9 +48,9 @@ class Phase1FeatureFlags {
       wantedAds: remoteValue('wantedAds', safeDefaults.wantedAds),
       offers: remoteValue('offers', safeDefaults.offers),
       auctions: remoteValue('auctions', safeDefaults.auctions) &&
-          !buildPolicy.isProduction,
+          buildPolicy.auctionsEnabledForBuild,
       dispatch: remoteValue('dispatch', safeDefaults.dispatch) &&
-          !buildPolicy.isProduction,
+          buildPolicy.dispatchEnabledForBuild,
       paidFeatures: remoteValue(
             'paidFeatures',
             safeDefaults.paidFeatures,

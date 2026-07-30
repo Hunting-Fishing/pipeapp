@@ -17,7 +17,7 @@ param(
   [ValidateRange(1, 15)]
   [int]$StabilizationSeconds = 5,
 
-  [string]$ExpectedTextPattern = 'Home|Browse'
+  [string]$ExpectedTextPattern = 'Pipe Buyer'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -243,6 +243,7 @@ try {
   Invoke-CdpCommand -Socket $socket -Method 'Runtime.enable' | Out-Null
   Invoke-CdpCommand -Socket $socket -Method 'Log.enable' | Out-Null
   Invoke-CdpCommand -Socket $socket -Method 'Page.enable' | Out-Null
+  Invoke-CdpCommand -Socket $socket -Method 'Accessibility.enable' | Out-Null
   Invoke-CdpCommand -Socket $socket -Method 'Emulation.setDeviceMetricsOverride' `
     -Parameters @{
       width = $ViewportWidth
@@ -292,6 +293,7 @@ try {
     viewWidth: Math.round(viewRect?.width || 0),
     viewHeight: Math.round(viewRect?.height || 0),
     bodyChildren: document.body?.children.length || 0,
+    bootstrapPresent: Boolean(document.getElementById('splash')),
     width: window.innerWidth,
     height: window.innerHeight
   });
@@ -323,14 +325,17 @@ try {
     -Parameters @{
       expression = @'
 (() => {
-  const roots = [
-    document,
-    document.querySelector('flutter-view')?.shadowRoot,
-    document.querySelector('flt-glass-pane')?.shadowRoot
-  ].filter(Boolean);
-  const placeholder = roots.map((root) =>
-    root.querySelector('flt-semantics-placeholder')
-  ).find(Boolean);
+  const queue = [document];
+  let placeholder = null;
+  while (queue.length && !placeholder) {
+    const root = queue.shift();
+    placeholder = root.querySelector?.(
+      'flt-semantics-placeholder,[aria-label="Enable accessibility"]'
+    ) || null;
+    for (const element of root.querySelectorAll?.('*') || []) {
+      if (element.shadowRoot) queue.push(element.shadowRoot);
+    }
+  }
   if (!placeholder) return false;
   placeholder.click();
   return true;
@@ -347,6 +352,13 @@ try {
   if ($finalEvaluation.result.value) {
     $pageState = $finalEvaluation.result.value | ConvertFrom-Json
   }
+  $accessibilityTree = Invoke-CdpCommand -Socket $socket `
+    -Method 'Accessibility.getFullAXTree'
+  $accessibilityTreeText = @(
+    $accessibilityTree.nodes |
+      Where-Object { -not $_.ignored -and $_.name.value } |
+      ForEach-Object { [string]$_.name.value }
+  ) -join ' '
 
   $capture = Invoke-CdpCommand -Socket $socket -Method 'Page.captureScreenshot' `
     -Parameters @{
@@ -399,7 +411,9 @@ try {
     [bool]$pageState.text
   $hasTrustworthyPixels = $selectedDiversity.opaqueSamples -gt 0 -and
     $selectedDiversity.distinctOpaqueColors -ge 3
-  $combinedText = "$($pageState.text) $($pageState.accessibilityText)".Trim()
+  $combinedText = (
+    "$($pageState.text) $($pageState.accessibilityText) $accessibilityTreeText"
+  ).Trim()
   $hasExpectedText = [string]::IsNullOrWhiteSpace($ExpectedTextPattern) -or
     $combinedText -match $ExpectedTextPattern
   $result = [ordered]@{
@@ -415,9 +429,11 @@ try {
     sceneHtmlLength = [int]$pageState.sceneHtmlLength
     viewSize = "$($pageState.viewWidth)x$($pageState.viewHeight)"
     bodyChildren = [int]$pageState.bodyChildren
+    bootstrapPresent = [bool]$pageState.bootstrapPresent
     viewport = "$($pageState.width)x$($pageState.height)"
     visibleText = [string]$pageState.text
     accessibilityText = [string]$pageState.accessibilityText
+    accessibilityTreeText = $accessibilityTreeText
     expectedTextPattern = $ExpectedTextPattern
     hasExpectedText = $hasExpectedText
     browserErrors = $uniqueErrors
@@ -427,6 +443,7 @@ try {
     screenshot = $absoluteScreenshot
     passed = $hasRenderedContent -and
       $hasTrustworthyPixels -and
+      -not [bool]$pageState.bootstrapPresent -and
       $hasExpectedText -and
       $uniqueErrors.Count -eq 0
   }

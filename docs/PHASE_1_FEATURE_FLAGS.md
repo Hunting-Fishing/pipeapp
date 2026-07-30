@@ -47,10 +47,14 @@ Marketplace, Wanted-ad, and Offer commands continue through their reviewed
 callable boundary. A missing control document does not authorize a stale
 client to write directly.
 
-Production Flutter builds also lock Auctions and Dispatch off until their
-launch gates pass. Paid and regulated workflows require both an explicit
-non-production build opt-in and the runtime flag. Remote configuration can
-always disable a feature; it cannot override a stricter build policy.
+Production Flutter builds also lock Auctions and Dispatch off unless the exact
+release artifact was compiled with `PIPE_ENABLE_AUCTIONS=true` and
+`PIPE_ENABLE_DISPATCH=true`. Those build approvals are added only after their
+acceptance gates pass. The runtime configuration remains the immediate kill
+switch, so both approvals are required. Paid and regulated workflows require
+an explicit non-production build opt-in and the runtime flag. Remote
+configuration can always disable a feature; it cannot override a stricter
+build policy.
 
 ## Initial controlled configuration
 
@@ -73,6 +77,13 @@ updatedByUid: administrator uid
 Do not deploy an enabling configuration until the corresponding plan gate has
 acceptance evidence. Never enable `paidFeatures` or `regulatedListings` for
 Phase 1.
+
+Before enabling Auctions or Dispatch in a production release:
+
+1. Complete the applicable staging journey and retain its evidence.
+2. Build the exact release SHA with only the approved build define enabled.
+3. Confirm the feature remains unavailable while its runtime flag is false.
+4. Enable the runtime flag by the revision-controlled procedure below.
 
 ## Change procedure
 

@@ -36,4 +36,28 @@ void main() {
     expect(optedIn.demoContentEnabled, isTrue);
     expect(optedIn.regulatedListingsEnabled, isTrue);
   });
+
+  test('production auctions and dispatch require explicit build approval', () {
+    const locked = Phase1FeaturePolicy(
+      environment: 'production',
+      demoContentRequested: false,
+      regulatedListingsRequested: false,
+      paidFeaturesRequested: false,
+    );
+    const approved = Phase1FeaturePolicy(
+      environment: 'production',
+      demoContentRequested: false,
+      regulatedListingsRequested: false,
+      paidFeaturesRequested: false,
+      auctionsRequested: true,
+      dispatchRequested: true,
+    );
+
+    expect(locked.auctionsEnabledForBuild, isFalse);
+    expect(locked.dispatchEnabledForBuild, isFalse);
+    expect(approved.auctionsEnabledForBuild, isTrue);
+    expect(approved.dispatchEnabledForBuild, isTrue);
+    expect(approved.paidFeaturesEnabled, isFalse);
+    expect(approved.regulatedListingsEnabled, isFalse);
+  });
 }

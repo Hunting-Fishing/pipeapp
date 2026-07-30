@@ -438,12 +438,12 @@ function createAccountPrivacyCommands(admin) {
     await admin.auth().revokeRefreshTokens(identity.uid);
     let historyUpdated = true;
     try {
-      const devices = await db
-          .collection("users")
-          .doc(identity.uid)
-          .collection("account_devices")
-          .limit(50)
-          .get();
+      const userRef = db.collection("users").doc(identity.uid);
+      const [devices, notificationEndpoints] = await Promise.all([
+        userRef.collection("account_devices").limit(50).get(),
+        userRef.collection("notification_endpoints")
+            .where("status", "==", "active").limit(20).get(),
+      ]);
       const batch = db.batch();
       for (const device of devices.docs) {
         batch.update(device.ref, {
@@ -451,10 +451,19 @@ function createAccountPrivacyCommands(admin) {
           revokedAt: FieldValue.serverTimestamp(),
         });
       }
+      for (const endpoint of notificationEndpoints.docs) {
+        batch.update(endpoint.ref, {
+          status: "revoked",
+          token: FieldValue.delete(),
+          revokedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
       batch.create(db.collection("account_privacy_events").doc(), {
         ownerUid: identity.uid,
         type: "sessions_revoked",
         deviceCount: devices.size,
+        notificationEndpointCount: notificationEndpoints.size,
         createdAt: FieldValue.serverTimestamp(),
       });
       await batch.commit();

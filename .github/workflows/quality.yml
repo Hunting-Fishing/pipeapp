@@ -97,6 +97,7 @@ jobs:
           node --test
           tool/phase1_acceptance_test.mjs
           tool/prepare_phase1_acceptance_test.mjs
+          tool/configure_firebase_messaging_worker_test.mjs
 
       - name: Build Android ARM64 debug artifact
         run: >

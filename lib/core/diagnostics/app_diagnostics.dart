@@ -156,6 +156,32 @@ class AppDiagnostics {
     }
   }
 
+  /// Emits a non-sensitive startup timing record for local and remote
+  /// troubleshooting. Stage identifiers and durations never include user data.
+  static void recordStartupEvent({
+    required String stage,
+    required String label,
+    required String status,
+    required int progressPercent,
+    required Duration elapsed,
+    Duration? stageElapsed,
+    Object? error,
+  }) {
+    final record = <String, Object?>{
+      'type': 'pipe_buyer_startup',
+      ...AppBuildContext.current.toMap(),
+      'timestamp': DateTime.now().toUtc().toIso8601String(),
+      'stage': stage,
+      'label': label,
+      'status': status,
+      'progressPercent': progressPercent.clamp(0, 100),
+      'elapsedMs': elapsed.inMilliseconds,
+      if (stageElapsed != null) 'stageElapsedMs': stageElapsed.inMilliseconds,
+      if (error != null) 'errorType': error.runtimeType.toString(),
+    };
+    debugPrint(jsonEncode(record));
+  }
+
   static String _newCorrelationId(DateTime timestamp) {
     _correlationSequence = (_correlationSequence + 1) % 1000000;
     return '${timestamp.microsecondsSinceEpoch.toRadixString(36)}-'

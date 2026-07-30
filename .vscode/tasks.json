@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter: Get Packages",
+      "type": "process",
+      "command": "${config:dart.flutterSdkPath}\\bin\\flutter.bat",
+      "args": [
+        "pub",
+        "get"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Analyze",
+      "type": "process",
+      "command": "${config:dart.flutterSdkPath}\\bin\\flutter.bat",
+      "args": [
+        "analyze"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Test",
+      "type": "process",
+      "command": "${config:dart.flutterSdkPath}\\bin\\flutter.bat",
+      "args": [
+        "test"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Run in Chrome (local emulators)",
+      "type": "process",
+      "command": "${config:dart.flutterSdkPath}\\bin\\flutter.bat",
+      "args": [
+        "run",
+        "-d",
+        "chrome",
+        "--web-port=7357",
+        "--dart-define=PIPE_ENV=local"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Run in Chrome (live production data)",
+      "type": "process",
+      "command": "${config:dart.flutterSdkPath}\\bin\\flutter.bat",
+      "args": [
+        "run",
+        "-d",
+        "chrome",
+        "--web-port=7357",
+        "--dart-define=PIPE_ENV=production",
+        "--dart-define=PIPE_PUBLIC_SUPPORT_EMAIL=support@pipebuyer.com",
+        "--dart-define=PIPE_FIREBASE_API_KEY=AIzaSyAMm0HnXVq6UOERnPNP9SKqGtyV_-H--u8",
+        "--dart-define=PIPE_FIREBASE_AUTH_DOMAIN=flutter-flow-pipe.firebaseapp.com",
+        "--dart-define=PIPE_FIREBASE_PROJECT_ID=flutter-flow-pipe",
+        "--dart-define=PIPE_FIREBASE_STORAGE_BUCKET=flutter-flow-pipe.firebasestorage.app",
+        "--dart-define=PIPE_FIREBASE_MESSAGING_SENDER_ID=426221783223",
+        "--dart-define=PIPE_FIREBASE_WEB_APP_ID=1:426221783223:web:179633eb8c8378e6e26532",
+        "--dart-define=PIPE_FIREBASE_MEASUREMENT_ID=G-YL926V0FD9"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

@@ -15,6 +15,7 @@ const {
 } = require("./communication_commands");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
+const { createNotificationDelivery } = require("./notification_delivery");
 const { createModerationCommands } = require("./moderation_commands");
 const {
   classifyMessageSafety,
@@ -77,8 +78,32 @@ const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 const moderationCommands = createModerationCommands(admin);
+const notificationDelivery = createNotificationDelivery(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const supportCommands = createSupportCommands(admin);
+exports.registerNotificationEndpoint = onCall(
+  protectedCallableOptions,
+  notificationDelivery.registerNotificationEndpoint,
+);
+exports.unregisterNotificationEndpoint = onCall(
+  protectedCallableOptions,
+  notificationDelivery.unregisterNotificationEndpoint,
+);
+exports.resolveNotificationDeliveryFailure = onCall(
+  protectedCallableOptions,
+  notificationDelivery.resolveNotificationDeliveryFailure,
+);
+exports.onUserNotificationCreated = onDocumentCreated(
+  {
+    document: "users/{uid}/notifications/{notificationId}",
+    retry: true,
+  },
+  async (event) => notificationDelivery.deliverNotification({
+    uid: event.params.uid,
+    notificationId: event.params.notificationId,
+    notification: event.data && event.data.data(),
+  }),
+);
 exports.syncAccountVerification = onCall(
   protectedCallableOptions,
   accountCommands.syncAccountVerification,

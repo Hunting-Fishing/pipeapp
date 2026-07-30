@@ -9,6 +9,8 @@ class Phase1FeaturePolicy {
     required this.demoContentRequested,
     required this.regulatedListingsRequested,
     required this.paidFeaturesRequested,
+    this.auctionsRequested = false,
+    this.dispatchRequested = false,
   });
 
   static const current = Phase1FeaturePolicy(
@@ -28,12 +30,22 @@ class Phase1FeaturePolicy {
       'PIPE_ENABLE_PAID_FEATURES',
       defaultValue: false,
     ),
+    auctionsRequested: bool.fromEnvironment(
+      'PIPE_ENABLE_AUCTIONS',
+      defaultValue: false,
+    ),
+    dispatchRequested: bool.fromEnvironment(
+      'PIPE_ENABLE_DISPATCH',
+      defaultValue: false,
+    ),
   );
 
   final String environment;
   final bool demoContentRequested;
   final bool regulatedListingsRequested;
   final bool paidFeaturesRequested;
+  final bool auctionsRequested;
+  final bool dispatchRequested;
 
   bool get isProduction => environment.trim().toLowerCase() == 'production';
 
@@ -43,6 +55,13 @@ class Phase1FeaturePolicy {
       !isProduction && regulatedListingsRequested;
 
   bool get paidFeaturesEnabled => !isProduction && paidFeaturesRequested;
+
+  /// Auctions and Dispatch remain available during development, but a
+  /// production artifact must explicitly opt in at build time. The remote
+  /// feature document remains the immediate operational kill switch.
+  bool get auctionsEnabledForBuild => !isProduction || auctionsRequested;
+
+  bool get dispatchEnabledForBuild => !isProduction || dispatchRequested;
 
   bool allowsMarketplaceCategory(String category) =>
       category != 'Site & Property' || regulatedListingsEnabled;

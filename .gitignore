@@ -13,6 +13,8 @@ coverage/
 *.iml
 .vscode/*
 !.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # Local runtime and diagnostic output
 *.log

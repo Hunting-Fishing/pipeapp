@@ -11,6 +11,10 @@
 		<string>Pipe Buyer uses the camera only when you choose to take a listing, message, report, or profile photo.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Pipe Buyer opens your photo library only when you choose an image for a listing, message, report, or profile.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>

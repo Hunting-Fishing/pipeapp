@@ -29,7 +29,9 @@ const {
 } = require("./marketplace_command_policy");
 const {
   ListingPolicyError,
+  buildMarketplaceSearchTokens,
   listingMediaObjectPath,
+  searchIndexVersion,
   validateLocation,
   validateListingMediaManifest,
   validateMarketplaceListingInput,
@@ -196,9 +198,18 @@ function createMarketplaceCommands(admin) {
             Math.round(location.point.latitude * 20) / 20,
             Math.round(location.point.longitude * 20) / 20,
         );
+    const searchableListing = {
+      ...listing,
+      publicLocationName: location.publicName,
+      nearestTown: location.nearestTown,
+      region: location.region,
+      country: location.country,
+    };
     return {
       publicListing: {
         ...listing,
+        searchTokens: buildMarketplaceSearchTokens(searchableListing),
+        searchIndexVersion,
         ...(listing.auctionStartAt ? {
           auctionStartAt: Timestamp.fromMillis(listing.auctionStartAt),
         } : {}),
@@ -1009,9 +1020,12 @@ function createMarketplaceCommands(admin) {
         actorUid: uid,
         data: request.data,
       });
+      const searchableListing = {...listing, ...update.changes};
       const result = {listingId, revision: update.nextRevision};
       transaction.update(listingRef, {
         ...update.changes,
+        searchTokens: buildMarketplaceSearchTokens(searchableListing),
+        searchIndexVersion,
         revision: update.nextRevision,
         updatedAt: FieldValue.serverTimestamp(),
       });

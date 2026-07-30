@@ -18,6 +18,7 @@ import 'marketplace_support.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_money.dart';
+import 'marketplace_notification_service.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_command_client.dart';
 import 'account_export_downloader.dart';
@@ -2037,11 +2038,78 @@ class _Metric extends StatelessWidget {
       Chip(avatar: Icon(icon, size: 17), label: Text('$value $label'));
 }
 
-class _AccountNotifications extends StatelessWidget {
+class _AccountNotifications extends StatefulWidget {
   const _AccountNotifications(
       {required this.onOpenTab, required this.onBrowse});
   final ValueChanged<int> onOpenTab;
   final VoidCallback onBrowse;
+
+  @override
+  State<_AccountNotifications> createState() => _AccountNotificationsState();
+}
+
+class _AccountNotificationsState extends State<_AccountNotifications> {
+  MarketplaceNotificationStatus? _deviceStatus;
+  bool _changing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshStatus();
+  }
+
+  Future<void> _refreshStatus() async {
+    final status = await MarketplaceNotificationService.instance.status();
+    if (mounted) setState(() => _deviceStatus = status);
+  }
+
+  Future<void> _changeDeviceNotifications() async {
+    if (_changing) return;
+    setState(() => _changing = true);
+    try {
+      final current = _deviceStatus ??
+          await MarketplaceNotificationService.instance.status();
+      final status = current == MarketplaceNotificationStatus.enabled
+          ? await MarketplaceNotificationService.instance.disable()
+          : await MarketplaceNotificationService.instance.enable();
+      if (!mounted) return;
+      setState(() => _deviceStatus = status);
+      final message = switch (status) {
+        MarketplaceNotificationStatus.enabled =>
+          'Device notifications are enabled.',
+        MarketplaceNotificationStatus.denied =>
+          'Notifications were blocked. Allow Pipe Buyer in your device or browser settings, then try again.',
+        MarketplaceNotificationStatus.missingWebConfiguration =>
+          'Web notifications are not configured for this release yet.',
+        MarketplaceNotificationStatus.unsupported =>
+          'Device notifications are not supported on this platform.',
+        _ => 'Device notifications are turned off.',
+      };
+      PipeFeedback.show(
+        context,
+        message: message,
+        tone: status == MarketplaceNotificationStatus.enabled
+            ? PipeStatusTone.success
+            : status == MarketplaceNotificationStatus.notEnabled
+                ? PipeStatusTone.info
+                : PipeStatusTone.warning,
+      );
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback:
+                'Device notifications could not be updated. Check your connection and try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _changing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2053,7 +2121,35 @@ class _AccountNotifications extends StatelessWidget {
             'Sign in to receive instant price drop alerts, bid updates, and buyer messages.',
       );
     }
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+        child: Card(
+          color: const Color(0xFFEAF4FD),
+          child: ListTile(
+            leading: Icon(_deviceStatus == MarketplaceNotificationStatus.enabled
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_outlined),
+            title: Text(_deviceStatus == MarketplaceNotificationStatus.enabled
+                ? 'Device notifications enabled'
+                : 'Get important activity on this device'),
+            subtitle: Text(_deviceStatus ==
+                    MarketplaceNotificationStatus.missingWebConfiguration
+                ? 'This web release needs its approved push key before notifications can be enabled.'
+                : 'Receive offer, message, auction, Dispatch, support, and account-security updates.'),
+            trailing: _changing
+                ? const SizedBox.square(
+                    dimension: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : FilledButton.tonal(
+                    onPressed: _changeDeviceNotifications,
+                    child: Text(_deviceStatus == MarketplaceNotificationStatus.enabled
+                        ? 'Turn off'
+                        : 'Enable'),
+                  ),
+          ),
+        ),
+      ),
+      Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
@@ -2121,23 +2217,24 @@ class _AccountNotifications extends StatelessWidget {
                         });
                         final type = '${data['type'] ?? ''}';
                         if (type == 'message') {
-                          onOpenTab(3);
+                          widget.onOpenTab(3);
                         } else if (type == 'offer') {
-                          onOpenTab(2);
+                          widget.onOpenTab(2);
                         } else if (type == 'new_listing_match' ||
                             type == 'seller_new_listing') {
-                          onBrowse();
+                          widget.onBrowse();
                         } else if (type == 'score_change') {
                           if (context.mounted) {
-                            _showUserScore(context, onOpenTab);
+                            _showUserScore(context, widget.onOpenTab);
                           }
                         } else {
-                          onOpenTab(1);
+                          widget.onOpenTab(1);
                         }
                       },
                     ));
               });
-        });
+        })),
+    ]);
   }
 }
 
@@ -3008,4 +3105,3 @@ class MarketplaceAuthRequiredCard extends StatelessWidget {
     );
   }
 }
-

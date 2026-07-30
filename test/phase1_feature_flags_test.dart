@@ -15,6 +15,14 @@ void main() {
     regulatedListingsRequested: true,
     paidFeaturesRequested: true,
   );
+  const productionLaunchCandidate = Phase1FeaturePolicy(
+    environment: 'production',
+    demoContentRequested: false,
+    regulatedListingsRequested: false,
+    paidFeaturesRequested: false,
+    auctionsRequested: true,
+    dispatchRequested: true,
+  );
 
   test('missing remote configuration uses safe defaults', () {
     final flags = Phase1FeatureFlags.fromMap(null, buildPolicy: development);
@@ -56,6 +64,22 @@ void main() {
     expect(flags.dispatch, isFalse);
     expect(flags.paidFeatures, isFalse);
     expect(flags.regulatedListings, isFalse);
+  });
+
+  test('approved production candidate still requires remote enablement', () {
+    final enabled = Phase1FeatureFlags.fromMap({
+      'auctions': true,
+      'dispatch': true,
+    }, buildPolicy: productionLaunchCandidate);
+    final remotelyDisabled = Phase1FeatureFlags.fromMap({
+      'auctions': false,
+      'dispatch': false,
+    }, buildPolicy: productionLaunchCandidate);
+
+    expect(enabled.auctions, isTrue);
+    expect(enabled.dispatch, isTrue);
+    expect(remotelyDisabled.auctions, isFalse);
+    expect(remotelyDisabled.dispatch, isFalse);
   });
 
   test('remote configuration can immediately disable core features', () {

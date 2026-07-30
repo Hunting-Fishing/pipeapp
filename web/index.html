@@ -53,77 +53,256 @@
 
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
   <style id="splash-screen-style">
-    html {
-      height: 100%
-    }
-
-    body {
+    html, body {
+      height: 100%;
       margin: 0;
-      min-height: 100%;
-      background-color: #061D49;
-          background-size: 100% 100%;
+      background: #061D49;
+      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
     }
-
-    .center {
-      margin: 0;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      -ms-transform: translate(-50%, -50%);
-      transform: translate(-50%, -50%);
+    #splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      box-sizing: border-box;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(8, 120, 232, .18), transparent 38%),
+        #061D49;
     }
-
-    .contain {
-      display:block;
-      width:100%; height:100%;
+    .splash-card {
+      width: min(460px, 100%);
+      text-align: center;
+    }
+    .splash-logo {
+      width: min(220px, 56vw);
+      height: min(180px, 46vw);
       object-fit: contain;
     }
-
-    .stretch {
-      display:block;
-      width:100%; height:100%;
+    .splash-title {
+      margin: 18px 0 8px;
+      font-size: clamp(22px, 5vw, 28px);
+      font-weight: 800;
     }
-
-    .cover {
-      display:block;
-      width:100%; height:100%;
-      object-fit: cover;
+    #splash-status {
+      min-height: 22px;
+      margin: 0 0 18px;
+      color: #cbd5e1;
+      font-size: 14px;
     }
-
-    .bottom {
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      -ms-transform: translate(-50%, 0);
-      transform: translate(-50%, 0);
+    .splash-progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      color: #dbeafe;
+      font-size: 13px;
+      font-weight: 700;
     }
-
-    .bottomLeft {
-      position: absolute;
-      bottom: 0;
-      left: 0;
+    .splash-track {
+      height: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(147, 197, 253, .28);
+      border-radius: 999px;
+      background: #243b64;
     }
-
-    .bottomRight {
-      position: absolute;
-      bottom: 0;
-      right: 0;
+    #splash-progress {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #0878e8, #21c7e8);
+      transition: width 280ms ease-out;
+    }
+    .splash-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 9px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    #splash-details {
+      margin-top: 18px;
+      color: #93c5fd;
+      font-size: 12px;
+    }
+    #splash-details summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+    #splash-debug-status {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid rgba(72, 168, 255, .25);
+      border-radius: 10px;
+      background: rgba(3, 20, 47, .72);
+      color: #cbd5e1;
+      text-align: left;
+      line-height: 1.45;
+    }
+    #splash-warning {
+      display: none;
+      margin-top: 14px;
+      padding: 10px;
+      border: 1px solid rgba(255, 176, 32, .55);
+      border-radius: 10px;
+      background: rgba(255, 176, 32, .12);
+      color: #ffe2a8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    #splash-repair,
+    #splash-reload {
+      display: none;
+      margin-top: 12px;
+      padding: 9px 16px;
+      border: 1px solid #60a5fa;
+      border-radius: 999px;
+      background: transparent;
+      color: #dbeafe;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    #splash-repair {
+      border-color: #22d3ee;
+      color: #cffafe;
+      margin-right: 8px;
+    }
+    #splash-version {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      padding: 6px 10px;
+      border: 1px solid rgba(72, 168, 255, .4);
+      border-radius: 999px;
+      background: rgba(3, 20, 47, .82);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
     }
   </style>
   <script id="splash-screen-script">
+    const pipeStartupStartedAt = performance.now();
+    let pipeStartupStage = "Preparing application shell";
+    let pipeStartupPercent = 0;
+
+    function updatePipeStartup(percent, status, technicalStatus) {
+      pipeStartupPercent = Math.max(pipeStartupPercent, Math.min(100, percent));
+      pipeStartupStage = status;
+      const progress = document.getElementById("splash-progress");
+      const progressTrack = document.querySelector(".splash-track");
+      const percentLabel = document.getElementById("splash-percent");
+      const statusLabel = document.getElementById("splash-status");
+      const debugStatus = document.getElementById("splash-debug-status");
+      if (progress) progress.style.width = `${pipeStartupPercent}%`;
+      if (progressTrack) {
+        progressTrack.setAttribute("aria-valuenow", `${pipeStartupPercent}`);
+      }
+      if (percentLabel) percentLabel.textContent = `${pipeStartupPercent}%`;
+      if (statusLabel) statusLabel.textContent = status;
+      if (debugStatus) {
+        debugStatus.textContent = technicalStatus || status;
+      }
+      console.info(JSON.stringify({
+        type: "pipe_buyer_web_startup",
+        status,
+        progressPercent: pipeStartupPercent,
+        elapsedMs: Math.round(performance.now() - pipeStartupStartedAt)
+      }));
+    }
+
     function removeSplashFromWeb() {
       document.getElementById("splash")?.remove();
       document.getElementById("splash-branding")?.remove();
       document.body.style.background = "transparent";
     }
+
+    // Flutter paints into its own scene. Remove the HTML bootstrap as soon as
+    // that first frame exists so assistive technology and smoke tests do not
+    // continue reading stale startup content behind the live application.
+    window.addEventListener("flutter-first-frame", () => {
+      updatePipeStartup(100, "Application frame ready", "Flutter first frame rendered");
+      removeSplashFromWeb();
+    }, { once: true });
+
+    async function repairPipeStartup() {
+      updatePipeStartup(
+        pipeStartupPercent,
+        "Repairing the cached application runtime",
+        "Removing the Flutter runtime cache before a clean reload"
+      );
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+        }
+        if ("caches" in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(
+            cacheNames
+              .filter(name => name.toLowerCase().includes("flutter"))
+              .map(name => caches.delete(name))
+          );
+        }
+      } finally {
+        const retryUrl = new URL(location.href);
+        retryUrl.searchParams.set("startup-repair", Date.now().toString());
+        location.replace(retryUrl.toString());
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      if (pipeStartupPercent < 5) {
+        updatePipeStartup(5, "Loading application shell", "HTML shell ready");
+      }
+      const elapsedLabel = document.getElementById("splash-elapsed");
+      const warning = document.getElementById("splash-warning");
+      const repair = document.getElementById("splash-repair");
+      const reload = document.getElementById("splash-reload");
+      window.setInterval(() => {
+        const seconds = Math.floor((performance.now() - pipeStartupStartedAt) / 1000);
+        if (elapsedLabel) elapsedLabel.textContent = `${seconds}s elapsed`;
+        if (seconds >= 12 && warning) {
+          warning.style.display = "block";
+          warning.textContent = `${pipeStartupStage} is taking longer than expected. Startup diagnostics are recording this delay.`;
+        }
+        if (seconds >= 20 && repair) repair.style.display = "inline-block";
+        if (seconds >= 30 && reload) reload.style.display = "inline-block";
+      }, 1000);
+    });
   </script>
 </head>
 <body>
-  <picture id="splash">
-      <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
-      <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
-      <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
-  </picture>
+  <div id="splash" role="status" aria-live="polite">
+    <div id="splash-version">v1.0.0+1 • web bootstrap</div>
+    <div class="splash-card">
+      <picture>
+        <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
+        <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
+        <img class="splash-logo" src="splash/img/light-1x.png" alt="Pipe Buyer">
+      </picture>
+      <div class="splash-title">Starting Pipe Buyer</div>
+      <div id="splash-status">Preparing application shell</div>
+      <div class="splash-progress-header">
+        <span>Application startup</span>
+        <span id="splash-percent">0%</span>
+      </div>
+      <div class="splash-track" role="progressbar" aria-label="Application startup progress" aria-valuemin="0" aria-valuemax="100">
+        <div id="splash-progress"></div>
+      </div>
+      <div class="splash-meta">
+        <span>Secure startup</span>
+        <span id="splash-elapsed">0s elapsed</span>
+      </div>
+      <div id="splash-warning"></div>
+      <details id="splash-details">
+        <summary>Startup details</summary>
+        <div id="splash-debug-status">Waiting for Flutter loader</div>
+      </details>
+      <button id="splash-repair" type="button" onclick="repairPipeStartup()">Repair cache and reload</button>
+      <button id="splash-reload" type="button" onclick="location.reload()">Reload application</button>
+    </div>
+  </div>
 
   <script>
     // Local App Check uses a per-browser debug token. Register the token printed
@@ -134,7 +313,24 @@
     }
   </script>
   <script>
-    {{flutter_bootstrap_js}}
+    {{flutter_js}}
+    {{flutter_build_config}}
+    updatePipeStartup(8, "Downloading application runtime", "Flutter loader started");
+    _flutter.loader.load({
+      onEntrypointLoaded: async function(engineInitializer) {
+        updatePipeStartup(18, "Preparing graphics and accessibility", "Dart entrypoint downloaded");
+        const appRunner = await engineInitializer.initializeEngine();
+        updatePipeStartup(28, "Starting application engine", "Flutter engine initialized");
+        await appRunner.runApp();
+        updatePipeStartup(32, "Starting secure services", "Flutter application requested first frame");
+      }
+    }).catch(function(error) {
+      updatePipeStartup(pipeStartupPercent, "Application engine could not start", `Loader failure: ${error?.name || "UnknownError"}`);
+      document.getElementById("splash-warning").style.display = "block";
+      document.getElementById("splash-warning").textContent = "The application engine could not start. Reload the app or copy the startup status for support.";
+      document.getElementById("splash-repair").style.display = "inline-block";
+      document.getElementById("splash-reload").style.display = "inline-block";
+    });
   </script>
 
 

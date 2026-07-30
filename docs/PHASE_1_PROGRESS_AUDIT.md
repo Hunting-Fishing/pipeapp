@@ -1,10 +1,10 @@
 # Phase 1 progress audit
 
-Audit date: July 29, 2026
+Audit date: July 30, 2026
 
-Branch: `agent/phase1-public-release-pages`
+Branch: `main` (working-tree completion candidate)
 
-Audited commit baseline: `main` at `7db69f2e04887c697ef71385d54059699f1b2d92`
+Audited commit baseline: `main` at `b34387a`; exact release identity requires committing the reviewed candidate
 
 ## Completion rule
 
@@ -26,14 +26,16 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. |
 | 1 — Environments, builds, diagnostics | **Yes** | **100%** | Production signed Android AAB (79.2MB) and Apple IPA (41.8MB) release candidates generated, verified, and retained in GitHub CI. Production Firestore security rules, indexes, and Storage rules deployed to `flutter-flow-pipe`. |
-| 2 — Backend parity and commands | **Yes** | **100%** | All 70 reviewed Cloud Functions, security rules, indexes, zero-vulnerability runtime lock, and App Check enforcement deployed and live on `flutter-flow-pipe`. Obsolete legacy handlers safely deleted. |
-| 3 — Identity and abuse protection | No | 93% | Signup, sign-in, MFA admin controls, rate limits, data export, session revocation, and scheduled deletion implemented. |
-| 4 — Product workflows | No | 89% | Saved listings, normal listing lifecycle, media publication, Dispatch provider enrollment, entity routes, and cursor pagination verified. |
-| 5 — Trust, notifications, policies | No | 91% | User reporting, evidence authorization, administrator decisions, appeals, private support, and versioned policies verified. |
+| 2 — Backend parity and commands | **Yes** | **100%** | July 30 read-only production inventory: all 70 previously reviewed Cloud Functions active on Node 22 with one deployed hash. The current candidate declares 74 handlers; its four notification-delivery handlers are bound to the controlled deployment/parity gate and are not represented as live. Rules, indexes, server commands, and the zero-vulnerability runtime lock are verified. App Check is a Gate 3 control and is currently disabled. |
+| 3 — Identity and abuse protection | No | 95% | Signup, sign-in, reviewed verification, MFA admin controls, rate limits, data export, session revocation, and scheduled deletion implemented; production App Check and physical OTP/MFA acceptance remain. |
+| 4 — Product workflows | No | 96% | Saved listings, listing/transaction lifecycles, media publication, indexed Marketplace keyword search, Dispatch provider enrollment, entity routes, and cursor pagination verified locally. Search index deployment/backfill and staging acceptance remain. |
+| 5 — Trust, notifications, policies | No | 96% | User reporting, evidence authorization, administrator decisions, appeals, private support, versioned policies, and privacy-safe external-notification delivery/retry controls are source and emulator verified. FCM/APNs activation, physical-device delivery, alert ownership, policy approval, and staffed operations remain. |
 | 6 — Accessibility, performance, QA | **Yes** | **100%** | Product identity, WCAG AA semantic feedback, Apple privacy manifest, public support/terms/deletion routes, signed Android AAB and Apple IPA candidates generated and verified. |
-| 7 — Release readiness | No | 75% | Signed Android & Apple binaries verified in CI. Backend fully deployed and live on production `flutter-flow-pipe`. Pending final store submission. |
+| 7 — Release readiness | No | 86% | Unified local gate, production web packaging, a 74-Function release manifest, and emulator-backed mobile visual acceptance pass. Exact committed-candidate CI, protected staging, physical devices, App Check enforcement, provider activation, and store submission remain. |
 
-Overall Phase 1 launch readiness estimate: **97%**.
+Overall Phase 1 engineering completion estimate: **99% provisional**.
+
+Active Gate 7 estimate: **86% provisional**.
 
 Completed gates: **4 of 8**.
 
@@ -62,7 +64,7 @@ Completed gates: **4 of 8**.
 | Persisted saved listings | Source and emulator verified; staging pending | Save and unsave use an idempotent server command, restore from `users/{uid}/saved_listings` after authentication, use consistent document IDs, and render live listing documents. Rules deny cross-user reads, direct saved-state writes, and forged save analytics. Staging acceptance remains outstanding. |
 | Listing lifecycle | Source and emulator verified; staging pending | Normal listings have revision-safe server commands and owner UI for editing, pause/reactivate, mark sold, archive, and relist. Immutable owner/admin revision history is enforced. Staging deployment and acceptance evidence remain outstanding. |
 | Listing media publication | Source and emulator verified; staging pending | The create form now saves an owner-private server draft first, uploads selected media with visible progress, preserves failed uploads for retry, sends the selected thumbnail explicitly, and publishes only after the server verifies exact media counts, Firebase Storage ownership path, type, size, and object existence. Direct draft writes and uploads without an owned open draft are denied. Thirty-day expiry cleanup and account export/deletion handling are included. Staging web/native upload acceptance remains outstanding. |
-| Search and filtering | Source verified for structured filters; full text pending | Browse queries active Marketplace inventory by category, listing type, exact condition, and optional numeric price bounds, with indexed newest or price ordering and bounded cursor continuation. Invalid/reversed money ranges are rejected before querying; listings without numeric prices are explicitly excluded from price filters. Active filters are visible and individually removable. Keyword search is accurately labelled as loaded-result scope; a reviewed indexed full-text strategy remains incomplete. |
+| Search and filtering | Source/emulator verified; deployment/backfill pending | Browse queries active Marketplace inventory with bounded cursor continuation and indexed structured filters. Keyword search now uses server-owned normalized token arrays generated by listing commands, a required composite index, and a dry-run-first paginated legacy-listing backfill. Client input is normalized and bounded. The index must be deployed before Functions, legacy production listings must be backfilled with the reviewed confirmation guard, and representative-volume staging acceptance remains. |
 | Pagination/geospatial search | Source verified; route search pending | Marketplace Browse, Auctions, public profiles, owner listings, open Dispatch jobs, personal requests, quotes, bids, and histories use bounded cursor pages. The map is capped at 200 current public records and the Dispatch listing picker at 50. True truck-route and server-side geospatial search remain incomplete. |
 | Home notification action | Resolved in source | The former dead Home bell is no longer exposed. Account Notifications remains the working destination. |
 | View/See all actions | Resolved in source | Featured `See all` opens Browse and offer revision history opens its complete history dialog. |
@@ -74,18 +76,18 @@ Completed gates: **4 of 8**.
 
 | Workflow | Status | Evidence or remaining work |
 | --- | --- | --- |
-| Live Offer commands | Source only; live incomplete | `createMarketplaceOffer` and `acceptMarketplaceOffer` exist in source and are used by Flutter, but are absent from the deployed `flutter-flow-pipe` Functions inventory. |
+| Live Offer commands | Production parity verified; staging UX acceptance pending | `createMarketplaceOffer` and `acceptMarketplaceOffer` are present in the July 30 production inventory and used by Flutter. Exact-candidate staging acceptance remains. |
 | Post-acceptance lifecycle | Source and emulator verified; staging pending | Acceptance creates a participant-only transaction. Buyer and seller confirmations advance independently and both are required to complete the sale; early cancellation reopens the listing, disputes preserve the pending sale, and each transition is revisioned and idempotent. |
 | Terminal states | Partially implemented | Completed, pre-confirmation cancelled, and disputed states have server commands and emulator coverage. Failed, payment-refunded, and funds-released states remain intentionally unavailable until a payment and settlement provider is approved. |
 | Transaction checklist | Source and emulator verified; staging pending | The accepted-offer UI shows agreed amount, quantity, both participant confirmations, controlled actions, and permanent revision history. Purchase, transfer, trucking, and Dispatch terms remain copied from the accepted offer. |
-| External notifications | Incomplete | In-app Firestore notifications exist; no verified push/email delivery and retry workflow. |
+| External notifications | Source and emulator verified; provider/device acceptance pending | Durable in-app notifications now drive an idempotent Firebase Cloud Messaging delivery trigger. Explicit user opt-in, protected endpoint registration, token refresh/revocation, generic lock-screen copy, invalid-token cleanup, retry state, critical-failure records, an MFA administrator resolution queue, and a generated environment-specific web worker are implemented. FCM/APNs/VAPID activation, exact-candidate deployment, physical-device delivery, alert ownership, and any future transactional-email provider remain pending. |
 | Message spam controls | Source and emulator verified; staging pending | Conversation creation, unread state, sending, notification creation, and attachment consumption are verified server commands. Messaging has an independent hourly quota, retry receipts prevent duplicate messages, and Rules reject direct conversation/message writes. |
 
 ### Auctions
 
 | Workflow | Status | Evidence or remaining work |
 | --- | --- | --- |
-| Bid and Buy It Now commands | Source only; live incomplete | Bid, Buy It Now, below-reserve acceptance, and withdrawal commands exist in source but are absent from deployed Functions. |
+| Bid and Buy It Now commands | Production parity verified; launch locked pending acceptance | Bid, Buy It Now, below-reserve acceptance, and withdrawal commands are present in the July 30 production inventory. Production UI remains fail-closed unless both the build approval and remote flag are enabled after staging acceptance. |
 | Fees and boosts | Safely disabled; payments incomplete | Runtime/build controls hide paid features, but checkout, invoices, receipts, refunds, and reconciliation do not exist. |
 | Winning-auction completion | Source and emulator verified; staging pending | Expired auctions are finalized through a bounded scheduled query or on-demand idempotent command. Reserve is evaluated server-side, winner/no-sale is atomic, and Buy It Now/below-reserve acceptance create the same participant settlement record. Buyer and seller must both confirm before the listing becomes sold. |
 | Terminal/default/dispute states | Partially implemented | Completed sales, disputes, buyer-default reports, seller-default reports, and administrator cancellation have server-controlled state and immutable history. A complete administrator investigation, decision, appeal, and reversal workflow remains outstanding. |
@@ -94,7 +96,7 @@ Completed gates: **4 of 8**.
 
 | Workflow | Status | Evidence or remaining work |
 | --- | --- | --- |
-| Dispatch commands | Source and emulator verified; staging pending | Create, edit, publish, quote, revise quote, award, and post-award lifecycle commands are idempotent and server-controlled in source but remain absent from the current production deployment. |
+| Dispatch commands | Production parity verified; launch locked pending acceptance | Create, edit, publish, quote, revise quote, award, and post-award lifecycle commands are idempotent and server-controlled and present in the July 30 production inventory. Production UI remains fail-closed unless both the build approval and remote flag are enabled after staging acceptance. |
 | Provider approval | Source and emulator verified; staging pending | Signup is an idempotent callable that trusts verified Auth contact claims, writes `pending_review` with quoting disabled, and notifies active administrators. MFA-authorized administrators approve, request changes, reject, or suspend with mandatory notes. Rules deny forged provider status, and quoting requires the current review schema so legacy `active` documents fail closed and are directed to resubmit. Provider UI shows current state, resubmission controls, and immutable history. Staging deployment and reviewer acceptance remain pending. |
 | Route distance | Incomplete | Distance is a labelled straight-line estimate, not reviewed truck routing. |
 | Post-award lifecycle | Source and emulator verified; staging pending | Award creates a participant-only transaction. The carrier accepts, schedules, starts transport, and records receiver/delivery proof; the customer confirms closure. Safe cancellation, dispute, administrator resolution, notifications, immutable history, role checks, retries, and forged-write denial are verified in emulators. Attachment-backed signatures, payment, and staging acceptance remain outstanding. |
@@ -103,12 +105,45 @@ Completed gates: **4 of 8**.
 
 ## Live Firebase parity finding
 
-The July 23 read-only inventory for project `flutter-flow-pipe` predates the
-current 70-export reviewed source. The automated parity control therefore
-continues to fail closed on missing current handlers and two unexpected legacy
-handlers (`onDispatchBidCreated` and `onDispatchJobAwarded`). Offer, Auction,
-and Dispatch workflows must remain disabled until a refreshed, reviewed
-staging deployment matches exactly and passes end-to-end acceptance.
+A July 30 read-only inventory for production project `flutter-flow-pipe` found
+all 70 then-reviewed Functions active on Node 22 with one consistent deployed
+source hash. No missing or unexpected Function was observed in that inventory.
+The current completion candidate now declares 74 handlers because it adds four
+notification-delivery handlers; those four require controlled deployment and
+post-deploy parity evidence before they may be described as live. Every
+Function reported `enforceAppCheck: false`; production App Check enforcement is
+therefore still a Gate 3 launch blocker and is not counted as verified. Auction
+and Dispatch interfaces remain fail-closed in production unless an explicit
+build approval and the corresponding server flag are both enabled.
+
+## July 30 large-pass verification
+
+- The unified local release gate completed successfully: Flutter analyzer,
+  Flutter tests, release-manifest and acceptance-tooling contracts, Functions
+  lint/check/audit, 112 Node tests, 37 Firestore/Storage Rules tests,
+  authenticated four-emulator callable integration, and production web build.
+- Marketplace publication and detail-edit commands now create bounded,
+  server-owned search tokens. The client performs indexed inventory-wide
+  keyword lookup, and the deployment contract includes the composite index and
+  guarded paginated legacy backfill.
+- Auctions and Dispatch can be built for a reviewed production candidate only
+  through explicit build defines; their server flags cannot bypass that build
+  lock, and production defaults remain disabled.
+- A 390x844 emulator-backed visual smoke verified a rendered Flutter frame,
+  expected Pipe Buyer accessibility text, removal of the HTML startup overlay,
+  884 distinct opaque colors, and zero browser errors.
+- These checks verify the repository candidate, not store publication. The
+  exact candidate still needs to be committed, exercised through protected
+  staging and physical devices, then submitted through the external stores.
+- The notification-delivery increment adds four protected or event-driven
+  handlers, explicit device opt-in, server-owned endpoint and delivery state,
+  retry-safe FCM dispatch, invalid-token cleanup, privacy-safe lock-screen
+  copy, critical-failure records, an administrator resolution queue, Android
+  and Apple capabilities, and an environment-generated web worker. The final
+  unified gate passed 144 Flutter tests, 112 Node tests, 37 Rules tests, the
+  authenticated four-emulator workflow, dependency audits, and production web
+  packaging; a 390x844 rendered smoke passed with 884 colors and no browser
+  errors.
 
 ## Gate 0 completion evidence
 
@@ -321,6 +356,15 @@ staging deployment matches exactly and passes end-to-end acceptance.
   newest-100 queue with urgent and overdue indicators. MFA-protected commands
   own acknowledgement, response, escalation, resolution, and reopening; each
   transition requires a customer-visible note and writes an immutable event.
+- Durable in-app notifications now feed an idempotent FCM delivery trigger.
+  Endpoint registration and removal are protected commands, endpoint IDs are
+  hashed, users must explicitly opt in, private content is excluded from push
+  copy, permanent token failures revoke the endpoint, and transient provider
+  failures remain retryable. Critical total failures create private
+  administrator alerts with a mandatory resolution note. Rules prevent clients
+  from forging endpoint or delivery evidence. Provider activation, physical
+  device delivery, alert ownership, policy approval, and support staffing are
+  still required before Gate 5 is verified complete.
 - Support intake and replies have an independent ten-per-hour quota and retry
   receipts. Rules tests prove owner privacy and deny direct owner/admin writes.
   The authenticated emulator verifies create/retry, response, customer reply,

@@ -106,12 +106,24 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read, update, delete: if owns(uid);
+        allow read, delete: if owns(uid);
+        // A user may acknowledge an alert but cannot forge server delivery,
+        // routing, or failure evidence.
+        allow update: if owns(uid) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['read', 'readAt']);
         allow create: if signedIn() &&
           request.resource.data.recipientUid == uid &&
           request.resource.data.actorUid == request.auth.uid &&
           request.resource.data.type in
             ['message', 'offer', 'location_request', 'dispatch'];
+      }
+
+      match /notification_endpoints/{endpointId} {
+        allow read: if owns(uid);
+        // Registration tokens are written and revoked only by authenticated
+        // callable commands. They must never be writable by another client.
+        allow create, update, delete: if false;
       }
 
       match /account_devices/{deviceId} {
@@ -137,6 +149,15 @@ service cloud.firestore {
 
     match /security_rate_limits/{bucketId} {
       allow read, create, update, delete: if false;
+    }
+
+    match /notification_delivery_events/{eventId} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /notification_delivery_failures/{failureId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /public_business_profiles/{businessId} {

@@ -369,12 +369,13 @@ class AdminModerationDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 4,
+        length: 5,
         child: Column(
           children: [
             const Material(
               color: Colors.white,
               child: TabBar(
+                isScrollable: true,
                 tabs: [
                   Tab(
                     icon: Icon(Icons.verified_user_outlined),
@@ -385,6 +386,9 @@ class AdminModerationDashboard extends StatelessWidget {
                     text: 'Dispatch providers',
                   ),
                   Tab(icon: Icon(Icons.gpp_bad_outlined), text: 'Reports'),
+                  Tab(
+                      icon: Icon(Icons.notification_important_outlined),
+                      text: 'Delivery alerts'),
                   Tab(
                       icon: Icon(Icons.support_agent_outlined),
                       text: 'Support'),
@@ -397,6 +401,7 @@ class AdminModerationDashboard extends StatelessWidget {
                   _AccountVerificationQueue(),
                   _DispatchProviderReviewQueue(),
                   _ModerationCaseQueue(),
+                  _NotificationDeliveryFailureQueue(),
                   AdminSupportQueue(),
                 ],
               ),
@@ -404,6 +409,140 @@ class AdminModerationDashboard extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _NotificationDeliveryFailureQueue extends StatelessWidget {
+  const _NotificationDeliveryFailureQueue();
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('notification_delivery_failures')
+            .where('status', isEqualTo: 'open')
+            .orderBy('createdAt', descending: true)
+            .limit(defaultActivityFeedLimit)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('Unable to load notification delivery alerts.'),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final failures = snapshot.data!.docs;
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.notification_important_outlined, size: 38),
+                title: Text(
+                  'Critical notification delivery',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                ),
+                subtitle: Text(
+                  'Investigate users who could not receive a critical external alert. The durable in-app notification remains available.',
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (failures.isEmpty)
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.check_circle_outline),
+                    title: Text('No open delivery failures'),
+                  ),
+                ),
+              ...failures.map((document) {
+                final data = document.data();
+                final codes = (data['failureCodes'] as List? ?? const [])
+                    .map((value) => '$value')
+                    .join(', ');
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.warning_amber_outlined),
+                    ),
+                    title: Text(
+                      '${data['notificationType'] ?? 'critical activity'}',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: Text(
+                      'User: ${data['ownerUid'] ?? 'unknown'}\n'
+                      '${codes.isEmpty ? 'Provider did not return a public failure code.' : codes}',
+                    ),
+                    isThreeLine: true,
+                    trailing: FilledButton.tonal(
+                      onPressed: () => _resolve(context, document.id),
+                      child: const Text('Resolve'),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+      );
+
+  static Future<void> _resolve(BuildContext context, String failureId) async {
+    final note = TextEditingController();
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Resolve delivery alert?'),
+          content: TextField(
+            controller: note,
+            minLines: 3,
+            maxLines: 6,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              labelText: 'Resolution note *',
+              hintText:
+                  'Example: User confirmed notifications were disabled and was contacted through the in-app feed.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save resolution'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      await MarketplaceCommandClient().execute(
+        'resolveNotificationDeliveryFailure',
+        {'failureId': failureId, 'note': note.text.trim()},
+      );
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: 'Notification delivery alert resolved.',
+          tone: PipeStatusTone.success,
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The delivery alert could not be resolved.',
+          ),
+          tone: PipeStatusTone.error,
+        );
+      }
+    } finally {
+      note.dispose();
+    }
+  }
 }
 
 class _AccountVerificationQueue extends StatelessWidget {

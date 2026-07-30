@@ -23,6 +23,7 @@ import 'marketplace_command_client.dart';
 import 'marketplace_location.dart';
 import 'marketplace_location_picker.dart';
 import 'marketplace_media_repository.dart';
+import 'marketplace_search.dart';
 import 'marketplace_money.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_reporting.dart';
@@ -47,7 +48,6 @@ const _panel = Colors.white;
 const _orange = Color(0xFF0F52BA);
 const _muted = Color(0xFF64748B);
 const _otherCatalogValue = 'Other / not listed';
-
 
 List<String> marketplaceConditionsFor(String? category, String? productType) {
   if (category == 'Pipe, Tubing & Materials' ||
@@ -1340,14 +1340,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                     label: 'Sign in / Create account',
                     selected: false,
                     onTap: _openAuth),
-
               const SizedBox(height: 8),
-
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   PublicReleaseConfiguration.formattedReleaseLabel,
-                  style: const TextStyle(fontSize: 11, color: _muted, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 11, color: _muted, fontWeight: FontWeight.w600),
                 ),
               ),
             ]),
@@ -1362,11 +1361,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                 right: 12,
                 child: IgnorePointer(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xE60F172A),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0x3338BDF8), width: 1),
+                      border:
+                          Border.all(color: const Color(0x3338BDF8), width: 1),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x33000000),
@@ -1390,7 +1391,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             ],
           ),
         ),
-
         bottomNavigationBar: SafeArea(
           top: false,
           child: NavigationBarTheme(
@@ -1801,208 +1801,266 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) => Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
+          constraints: const BoxConstraints(maxWidth: 1280),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-
-          // Executive Hero Header Banner
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0F172A), // Slate Midnight
-                  Color(0xFF0F52BA), // Deep Cobalt Blue
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x220F52BA),
-                  blurRadius: 18,
-                  offset: Offset(0, 6),
+              // Executive Hero Header Banner
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF0F172A), // Slate Midnight
+                      Color(0xFF0F52BA), // Deep Cobalt Blue
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x220F52BA),
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  runSpacing: 10,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runSpacing: 10,
                       children: [
-                        Image.asset('assets/images/pipe_buyer_logo.png',
-                            width: 44, height: 36, fit: BoxFit.contain),
-                        const SizedBox(width: 8),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              'PIPE BUYER',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 18,
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                            Text(
-                              'Oilfield Equipment Marketplace',
-                              style: TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Image.asset('assets/images/pipe_buyer_logo.png',
+                                width: 44, height: 36, fit: BoxFit.contain),
+                            const SizedBox(width: 8),
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'PIPE BUYER',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                                Text(
+                                  'Oilfield Equipment Marketplace',
+                                  style: TextStyle(
+                                    color: Color(0xFF94A3B8),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0x3338BDF8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0x6638BDF8)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified_outlined,
+                                  size: 14, color: Color(0xFF38BDF8)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Verified Escrow',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0x3338BDF8),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0x6638BDF8)),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Find, Buy & Dispatch Oilfield Equipment',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2,
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.verified_outlined, size: 14, color: Color(0xFF38BDF8)),
-                          SizedBox(width: 4),
-                          Text(
-                            'Verified Escrow',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (features.marketplace) ...[
+                      InkWell(
+                        onTap: onBrowse,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          height: 50,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x1A000000),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ],
+                          child: const Row(
+                            children: [
+                              Icon(Icons.search, color: _orange, size: 22),
+                              SizedBox(width: 10),
+                              Text(
+                                'Search pipe, valves, tanks, tubing…',
+                                style: TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Spacer(),
+                              Icon(Icons.tune_rounded,
+                                  color: Color(0xFF64748B), size: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: const [
+                            ('Drill Pipe', Icons.horizontal_rule_rounded),
+                            ('Frac Tanks', Icons.oil_barrel_outlined),
+                            ('Choke Valves', Icons.settings_input_component),
+                            ('Excavators', Icons.precision_manufacturing),
+                            ('Tubing & Casing', Icons.view_stream_outlined),
+                          ]
+                              .map((item) => Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: _HeroDiscoveryChip(
+                                      label: item.$1,
+                                      icon: item.$2,
+                                      onTap: () => onCategory(item.$1),
+                                    ),
+                                  ))
+                              .toList(growable: false),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              _HomeQuickActions(
+                features: features,
+                onBrowse: onBrowse,
+                onList: onList,
+                onAuctions: onAuctions,
+                onDispatch: onDispatch,
+              ),
+              if (features.marketplace) ...[
+                const _CompactHeading('Categories'),
+                _HomeCategoryStrip(
+                  regulatedListingsEnabled: features.regulatedListings,
+                  onCategory: onCategory,
+                ),
+                _CompactHeading(
+                  'Featured near you',
+                  action: 'See all',
+                  onAction: onBrowse,
+                ),
+                _FeaturedListings(
+                  regulatedListingsEnabled: features.regulatedListings,
+                  onBrowse: onBrowse,
+                  saved: saved,
+                  onSaved: onSaved,
+                ),
+              ] else
+                _HomeServiceNotice(
+                  message:
+                      'Marketplace browsing and listing are temporarily paused.',
+                ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _HeroDiscoveryChip extends StatelessWidget {
+  const _HeroDiscoveryChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: 'Browse $label listings',
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FBFF),
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: const Color(0xFFB8D7FA)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x24000000),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 16, color: const Color(0xFF075EB8)),
+                    const SizedBox(width: 7),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Color(0xFF102A43),
+                        fontSize: 11.5,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Find, Buy & Dispatch Oilfield Equipment',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (features.marketplace) ...[
-                  InkWell(
-                    onTap: onBrowse,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      height: 50,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x1A000000),
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.search, color: _orange, size: 22),
-                          SizedBox(width: 10),
-                          Text(
-                            'Search pipe, valves, tanks, tubing…',
-                            style: TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Spacer(),
-                          Icon(Icons.tune_rounded,
-                              color: Color(0xFF64748B), size: 20),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        'Drill Pipe',
-                        'Frac Tanks',
-                        'Choke Valves',
-                        'Excavators',
-                        'Tubing & Casing'
-                      ].map((tag) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ActionChip(
-                          visualDensity: VisualDensity.compact,
-                          backgroundColor: const Color(0x26FFFFFF),
-                          side: const BorderSide(color: Color(0x33FFFFFF)),
-                          labelStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                          label: Text(tag),
-                          onPressed: () => onCategory(tag),
-                        ),
-                      )).toList(),
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 20),
-
-          _HomeQuickActions(
-            features: features,
-            onBrowse: onBrowse,
-            onList: onList,
-            onAuctions: onAuctions,
-            onDispatch: onDispatch,
-          ),
-          if (features.marketplace) ...[
-            const _CompactHeading('Categories'),
-            _HomeCategoryStrip(
-              regulatedListingsEnabled: features.regulatedListings,
-              onCategory: onCategory,
-            ),
-            _CompactHeading(
-              'Featured near you',
-              action: 'See all',
-              onAction: onBrowse,
-            ),
-            _FeaturedListings(
-              regulatedListingsEnabled: features.regulatedListings,
-              onBrowse: onBrowse,
-              saved: saved,
-              onSaved: onSaved,
-            ),
-          ] else
-            _HomeServiceNotice(
-              message:
-                  'Marketplace browsing and listing are temporarily paused.',
-            ),
-        ],
-      ),
-    ),
-  );
-
+        ),
+      );
 }
-
 
 class _HomeQuickActions extends StatelessWidget {
   const _HomeQuickActions({
@@ -2026,7 +2084,7 @@ class _HomeQuickActions extends StatelessWidget {
         _QuickAction(
           icon: Icons.storefront_outlined,
           assetPath: IndustrialIconAssets.forLabel('Browse'),
-          label: 'Browse',
+          label: 'Browse marketplace',
           color: _orange,
           onTap: onBrowse,
         ),
@@ -2034,24 +2092,24 @@ class _HomeQuickActions extends StatelessWidget {
         _QuickAction(
           icon: Icons.add_circle_outline,
           assetPath: IndustrialIconAssets.forLabel('Sell'),
-          label: 'Sell',
-          color: const Color(0xFF00A77A),
+          label: 'Create listing',
+          color: const Color(0xFFF97316),
           onTap: onList,
         ),
       if (features.auctions)
         _QuickAction(
           icon: Icons.gavel_outlined,
           assetPath: IndustrialIconAssets.forLabel('Auctions'),
-          label: 'Auctions',
-          color: const Color(0xFFF08A24),
+          label: 'Timed auctions',
+          color: const Color(0xFF7557D3),
           onTap: onAuctions,
         ),
       if (features.dispatch)
         _QuickAction(
           icon: Icons.local_shipping_outlined,
           assetPath: IndustrialIconAssets.forLabel('Dispatch'),
-          label: 'Dispatch',
-          color: const Color(0xFF7557D3),
+          label: 'Dispatch services',
+          color: const Color(0xFF008B78),
           onTap: onDispatch,
         ),
     ];
@@ -2062,16 +2120,23 @@ class _HomeQuickActions extends StatelessWidget {
       );
     }
 
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var index = 0; index < actions.length; index++) ...[
-          if (index > 0) const SizedBox(width: 10),
-          Expanded(child: actions[index]),
-        ],
-      ],
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      const spacing = 12.0;
+      final columns = constraints.maxWidth >= 760
+          ? actions.length.clamp(1, 4)
+          : constraints.maxWidth >= 430
+              ? actions.length.clamp(1, 2)
+              : 1;
+      final width =
+          (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: actions
+            .map((action) => SizedBox(width: width, child: action))
+            .toList(growable: false),
+      );
+    });
   }
 }
 
@@ -2090,7 +2155,7 @@ class _HomeCategoryStrip extends StatelessWidget {
       regulatedListingsEnabled: regulatedListingsEnabled,
     );
     return SizedBox(
-      height: 94,
+      height: 156,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
@@ -2100,50 +2165,57 @@ class _HomeCategoryStrip extends StatelessWidget {
           final assetPath = IndustrialIconAssets.forLabel(item.name);
           return InkWell(
             onTap: () => onCategory(item.name),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             child: Container(
-              width: 135,
-              padding: const EdgeInsets.all(8),
+              width: 164,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x0C0F172A),
-                    blurRadius: 10,
-                    offset: Offset(0, 3),
+                    color: Color(0x160F172A),
+                    blurRadius: 14,
+                    offset: Offset(0, 5),
                   ),
                 ],
               ),
+              clipBehavior: Clip.antiAlias,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: IndustrialAssetIcon(
+                  Expanded(
+                    child: _MarketplaceArtworkPanel(
                       label: item.name,
                       assetPath: assetPath,
-                      size: 44,
-                      borderRadius: 10,
-                      fallback: Icon(item.icon, size: 24, color: _orange),
+                      fallbackIcon: item.icon,
+                      borderRadius: 0,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              height: 1.15,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF172033),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 16,
+                          color: _orange,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -2153,7 +2225,7 @@ class _HomeCategoryStrip extends StatelessWidget {
         },
       ),
     );
-}
+  }
 }
 
 class _HomeServiceNotice extends StatelessWidget {
@@ -2177,8 +2249,86 @@ class _HomeServiceNotice extends StatelessWidget {
       );
 }
 
-class _QuickAction extends StatelessWidget {
+class _MarketplaceArtworkPanel extends StatelessWidget {
+  const _MarketplaceArtworkPanel({
+    required this.label,
+    required this.assetPath,
+    required this.fallbackIcon,
+    this.borderRadius = 16,
+  });
 
+  final String label;
+  final String? assetPath;
+  final IconData fallbackIcon;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final artSize = (constraints.biggest.shortestSide - 10)
+              .clamp(44.0, 240.0)
+              .toDouble();
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(borderRadius),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF041F3D),
+                  Color(0xFF0B3A67),
+                  Color(0xFF07559A),
+                ],
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                const Positioned(
+                  right: -30,
+                  top: -42,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0x1738BDF8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: SizedBox.square(dimension: 130),
+                  ),
+                ),
+                const Positioned(
+                  left: -48,
+                  bottom: -62,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0x12FFFFFF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: SizedBox.square(dimension: 150),
+                  ),
+                ),
+                Center(
+                  child: IndustrialAssetIcon(
+                    label: label,
+                    assetPath: assetPath,
+                    size: artSize,
+                    borderRadius: borderRadius == 0 ? 12 : borderRadius - 2,
+                    fit: BoxFit.contain,
+                    fallback: Icon(
+                      fallbackIcon,
+                      size: artSize * .44,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+}
+
+class _QuickAction extends StatelessWidget {
   const _QuickAction({
     required this.icon,
     this.assetPath,
@@ -2194,57 +2344,142 @@ class _QuickAction extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) {
+    final (description, actionLabel) = switch (label) {
+      'Browse marketplace' => (
+          'Shop equipment, materials and property',
+          'Explore listings'
+        ),
+      'Create listing' => (
+          'Sell, auction or post a wanted ad',
+          'Start listing'
+        ),
+      'Timed auctions' => (
+          'Live bids, reserve pricing and history',
+          'View auctions'
+        ),
+      'Dispatch services' => (
+          'Carrier quotes, jobs and fleet tools',
+          'Open Dispatch'
+        ),
+      _ => ('Open Pipe Buyer services', 'Continue'),
+    };
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0D0F172A),
-                blurRadius: 12,
-                offset: Offset(0, 4),
+        borderRadius: BorderRadius.circular(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 116),
+          child: Ink(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: .16),
+                  Colors.white,
+                  Colors.white,
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: .30)),
+              boxShadow: [
+                BoxShadow(
                   color: color.withValues(alpha: .12),
-                  shape: BoxShape.circle,
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
                 ),
-                child: Center(
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 82,
+                  height: 82,
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF062A51),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x26041F3D),
+                        blurRadius: 12,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
                   child: IndustrialAssetIcon(
                     label: label,
                     assetPath: assetPath,
-                    size: 34,
-                    borderRadius: 8,
-                    fallback: Icon(icon, color: color, size: 22),
+                    size: 76,
+                    borderRadius: 15,
+                    fallback: Icon(icon, color: Colors.white, size: 34),
                   ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          height: 1.25,
+                          color: Color(0xFF526278),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              actionLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_rounded,
+                                color: Colors.white, size: 14),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      );
-
+      ),
+    );
+  }
 }
 
 class _CompactHeading extends StatelessWidget {
@@ -2330,12 +2565,13 @@ class _FeaturedListings extends StatelessWidget {
           }
           return LayoutBuilder(
             builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 900
-                  ? 4
-                  : (constraints.maxWidth > 550 ? 3 : 2);
-              const spacing = 12.0;
+              final crossAxisCount = constraints.maxWidth >= 860
+                  ? 3
+                  : (constraints.maxWidth >= 360 ? 2 : 1);
+              const spacing = 14.0;
               final totalSpacing = spacing * (crossAxisCount - 1);
-              final cardWidth = (constraints.maxWidth - totalSpacing) / crossAxisCount;
+              final cardWidth =
+                  (constraints.maxWidth - totalSpacing) / crossAxisCount;
 
               return Wrap(
                 spacing: spacing,
@@ -2354,8 +2590,6 @@ class _FeaturedListings extends StatelessWidget {
               );
             },
           );
-
-
         },
       );
 }
@@ -2418,6 +2652,7 @@ class _BrowsePageState extends State<_BrowsePage> {
   bool _hasMore = true;
   String? _loadError;
   int _queryGeneration = 0;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -2434,14 +2669,40 @@ class _BrowsePageState extends State<_BrowsePage> {
           !allowedConditions.contains(_filters.condition)) {
         _filters = _filters.copyWith(clearCondition: true);
       }
+      _searchDebounce?.cancel();
       _loadPage(reset: true);
+    } else if (marketplaceSearchNeedsServerReload(
+        oldWidget.search, widget.search)) {
+      _searchDebounce?.cancel();
+      _searchDebounce = Timer(
+        const Duration(milliseconds: 350),
+        () {
+          if (mounted) _loadPage(reset: true);
+        },
+      );
     }
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   Query<Map<String, dynamic>> _query() {
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('public_listings')
         .where('status', isEqualTo: 'active');
+    final searchToken = normalizeMarketplaceSearchQuery(widget.search);
+    if (searchToken.isNotEmpty) {
+      query = _filters.transactionType == null
+          ? query.where('transactionType',
+              whereIn: const ['For Sale', 'Wanted / Seeking'])
+          : query.where('transactionType', isEqualTo: _filters.transactionType);
+      return query
+          .where('searchTokens', arrayContains: searchToken)
+          .orderBy('createdAt', descending: true);
+    }
     if (widget.category != null) {
       query = query.where('category', isEqualTo: widget.category);
     }
@@ -2553,7 +2814,8 @@ class _BrowsePageState extends State<_BrowsePage> {
                     .toLowerCase()
                     .contains(widget.search.toLowerCase())))
         .toList();
-    if (usingDemo) {
+    if (usingDemo ||
+        normalizeMarketplaceSearchQuery(widget.search).isNotEmpty) {
       results.sort((a, b) => switch (_filters.effectiveSort) {
             MarketplaceBrowseSort.newest => (b.createdAt ?? DateTime(2000))
                 .compareTo(a.createdAt ?? DateTime(2000)),
@@ -2581,9 +2843,9 @@ class _BrowsePageState extends State<_BrowsePage> {
                 onChanged: widget.onSearch,
                 decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.search),
-                    hintText: 'Search the listings loaded below…',
+                    hintText: 'Search all live listings…',
                     helperText:
-                        'Keyword search checks loaded results. Filters query the full Marketplace.')),
+                        'Indexed keyword search covers live Marketplace inventory.')),
             const SizedBox(height: 10),
             Row(children: [
               Expanded(
@@ -2975,9 +3237,9 @@ class _BrowsePageState extends State<_BrowsePage> {
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisCount:
                         MediaQuery.sizeOf(context).width > 600 ? 4 : 2,
-                    childAspectRatio: 2.7,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                    childAspectRatio: 1.05,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                     children: [
                       _CategoryPickerTile(
                           label: 'All listings',
@@ -3047,29 +3309,41 @@ class _CategoryPickerTile extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-      color: selected ? const Color(0xFFEAF4FD) : Colors.white,
+      color: selected ? const Color(0xFFF0F7FF) : Colors.white,
       shape: RoundedRectangleBorder(
-          side: BorderSide(color: selected ? _orange : const Color(0xFFD8E0E9)),
-          borderRadius: BorderRadius.circular(12)),
+          side: BorderSide(
+              color: selected ? _orange : const Color(0xFFD8E0E9),
+              width: selected ? 2 : 1),
+          borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(children: [
-                IndustrialAssetIcon(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(
+                child: _MarketplaceArtworkPanel(
                     label: label,
-                    size: 34,
-                    borderRadius: 8,
-                    fallback: Icon(icon,
-                        size: 21, color: selected ? _orange : _muted)),
-                const SizedBox(width: 7),
-                Expanded(
-                    child: Text(label,
-                        maxLines: 2,
-                        style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w700)))
-              ]))));
+                    assetPath: IndustrialIconAssets.forLabel(label),
+                    fallbackIcon: icon,
+                    borderRadius: 0)),
+            Padding(
+                padding: const EdgeInsets.fromLTRB(10, 9, 8, 10),
+                child: Row(children: [
+                  Expanded(
+                      child: Text(label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              height: 1.15,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800))),
+                  if (selected)
+                    const Padding(
+                        padding: EdgeInsets.only(left: 4),
+                        child:
+                            Icon(Icons.check_circle, size: 18, color: _orange))
+                ]))
+          ])));
 }
 
 class _ListingCard extends StatelessWidget {
@@ -3091,12 +3365,12 @@ class _ListingCard extends StatelessWidget {
         ? IndustrialIconAssets.wantedEquipment
         : IndustrialIconAssets.forLabel(listing.title) ??
             IndustrialIconAssets.forLabel(listing.category);
-    Widget fallbackArtwork() => IndustrialAssetIcon(
-        label: listing.title,
-        assetPath: fallbackAssetPath,
-        size: isGrid ? 48 : 66,
-        borderRadius: 12,
-        fallback: Icon(listing.icon, size: isGrid ? 24 : 32, color: _orange));
+    Widget fallbackArtwork() => _MarketplaceArtworkPanel(
+          label: listing.title,
+          assetPath: fallbackAssetPath,
+          fallbackIcon: listing.icon,
+          borderRadius: 0,
+        );
     final presentation = MarketplaceListingPresentation.fromMap({
       'sellerUid': listing.sellerUid,
       'createdAt': listing.createdAt,
@@ -3109,9 +3383,8 @@ class _ListingCard extends StatelessWidget {
       'auctionEndAt': listing.auctionEndAt,
     }, currentUserUid: FirebaseAuth.instance.currentUser?.uid);
     return Container(
-      margin: isGrid
-          ? EdgeInsets.zero
-          : const EdgeInsets.fromLTRB(14, 6, 14, 10),
+      margin:
+          isGrid ? EdgeInsets.zero : const EdgeInsets.fromLTRB(14, 6, 14, 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -3149,17 +3422,17 @@ class _ListingCard extends StatelessWidget {
               // Top Hero Thumbnail Header
               Stack(
                 children: [
-                  Container(
-                    height: isGrid ? 140 : 150,
-                    width: double.infinity,
-                    color: const Color(0xFFF1F5F9),
+                  AspectRatio(
+                    aspectRatio: isGrid ? 1.34 : 2.1,
                     child: listing.imageUrl == null
-                        ? Center(child: fallbackArtwork())
+                        ? fallbackArtwork()
                         : Image.network(
                             listing.imageUrl!,
+                            width: double.infinity,
+                            height: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                Center(child: fallbackArtwork()),
+                            filterQuality: FilterQuality.medium,
+                            errorBuilder: (_, __, ___) => fallbackArtwork(),
                           ),
                   ),
                   // Gradient Overlay for readability
@@ -3224,8 +3497,8 @@ class _ListingCard extends StatelessWidget {
                         ],
                       ),
                       child: IconButton(
-                        constraints: const BoxConstraints(
-                            minWidth: 36, minHeight: 36),
+                        constraints:
+                            const BoxConstraints(minWidth: 36, minHeight: 36),
                         padding: EdgeInsets.zero,
                         tooltip: saved
                             ? 'Remove from saved listings'
@@ -3248,41 +3521,47 @@ class _ListingCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (listing.badge != null)
-                          Text(
-                            listing.badge!.toUpperCase(),
-                            style: const TextStyle(
+                        Expanded(
+                          child: Text(
+                            (listing.badge ?? listing.category).toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
                               color: _orange,
                               fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          )
-                        else
-                          Text(
-                            listing.category.toUpperCase(),
-                            style: const TextStyle(
-                              color: _orange,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.4,
+                              fontWeight: listing.badge != null
+                                  ? FontWeight.w900
+                                  : FontWeight.w800,
+                              letterSpacing: listing.badge != null ? 0.5 : 0.4,
                             ),
                           ),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_outlined,
-                                size: 13, color: _muted),
-                            const SizedBox(width: 2),
-                            Text(
-                              listing.location,
-                              style: const TextStyle(
-                                  color: _muted,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ],
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.location_on_outlined,
+                                size: 13,
+                                color: _muted,
+                              ),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  listing.location,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _muted,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -3312,8 +3591,33 @@ class _ListingCard extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 10),
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            listing.price,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF075EB8),
+                              fontSize: 18,
+                              height: 1.05,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Color(0xFF94A3B8),
+                          size: 22,
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 10),
+                    const Divider(height: 1, color: Color(0xFFE8EEF5)),
+                    const SizedBox(height: 9),
                     Row(
                       children: [
                         // Seller Avatar & Info
@@ -3355,15 +3659,8 @@ class _ListingCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        // Large Bold Price Tag
-                        Text(
-                          listing.price,
-                          style: const TextStyle(
-                            color: _orange,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                        const Icon(Icons.storefront_outlined,
+                            size: 15, color: Color(0xFF94A3B8)),
                       ],
                     ),
                   ],
@@ -3374,7 +3671,6 @@ class _ListingCard extends StatelessWidget {
         ),
       ),
     );
-
   }
 }
 
