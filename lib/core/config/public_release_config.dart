@@ -12,10 +12,22 @@ class PublicReleaseConfiguration {
     supportEmail: String.fromEnvironment('PIPE_PUBLIC_SUPPORT_EMAIL'),
   );
 
+  static const appVersion = '1.0.0+1';
+  static const releaseSha = String.fromEnvironment('PIPE_RELEASE_SHA', defaultValue: 'dev');
+
+  static String get formattedReleaseLabel {
+    final env = current.environment.isNotEmpty ? current.environment : 'development';
+    final shaLabel = releaseSha.isNotEmpty && releaseSha != 'dev'
+        ? ' (${releaseSha.length >= 7 ? releaseSha.substring(0, 7) : releaseSha})'
+        : '';
+    return 'v$appVersion • $env$shaLabel';
+  }
+
   final String environment;
   final String supportEmail;
 
   String get normalizedEnvironment => environment.trim().toLowerCase();
+
 
   String get normalizedSupportEmail => supportEmail.trim().toLowerCase();
 

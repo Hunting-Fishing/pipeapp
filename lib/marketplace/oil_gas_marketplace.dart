@@ -1313,17 +1313,61 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                     label: 'Sign out',
                     selected: false,
                     onTap: _signOut)
-              else
                 _DrawerDestination(
                     icon: Icons.login,
                     label: 'Sign in / Create account',
                     selected: false,
                     onTap: _openAuth),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  PublicReleaseConfiguration.formattedReleaseLabel,
+                  style: const TextStyle(fontSize: 11, color: _muted, fontWeight: FontWeight.w600),
+                ),
+              ),
             ]),
           ),
         ),
-        body: SafeArea(child: IndexedStack(index: _tab, children: pages)),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              IndexedStack(index: _tab, children: pages),
+              Positioned(
+                bottom: 8,
+                right: 12,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xE60F172A),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0x3338BDF8), width: 1),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      PublicReleaseConfiguration.formattedReleaseLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
         bottomNavigationBar: SafeArea(
           top: false,
           child: NavigationBarTheme(
