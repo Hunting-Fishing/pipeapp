@@ -1830,34 +1830,41 @@ class _HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 10,
                   children: [
-                    Image.asset('assets/images/pipe_buyer_logo.png',
-                        width: 52, height: 40, fit: BoxFit.contain),
-                    const SizedBox(width: 10),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'PIPE BUYER',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 19,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                        Text(
-                          'Industrial Oilfield Equipment Marketplace',
-                          style: TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Image.asset('assets/images/pipe_buyer_logo.png',
+                            width: 44, height: 36, fit: BoxFit.contain),
+                        const SizedBox(width: 8),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PIPE BUYER',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            Text(
+                              'Oilfield Equipment Marketplace',
+                              style: TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -2295,7 +2302,14 @@ class _FeaturedListings extends StatelessWidget {
             );
           }
           final live = snapshot.data!.docs
-              .map(MarketplaceListing.fromFirestore)
+              .map((doc) {
+                try {
+                  return MarketplaceListing.fromFirestore(doc);
+                } catch (_) {
+                  return null;
+                }
+              })
+              .whereType<MarketplaceListing>()
               .where((listing) =>
                   listing.transactionType != 'Auction' &&
                   (listing.category != 'Site & Property' ||
