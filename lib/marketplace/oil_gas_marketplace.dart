@@ -1918,7 +1918,7 @@ class _HomePage extends StatelessWidget {
               onSaved: onSaved,
             ),
           ] else
-            const _HomeServiceNotice(
+            _HomeServiceNotice(
               message:
                   'Marketplace browsing and listing are temporarily paused.',
             ),
@@ -1983,10 +1983,11 @@ class _HomeQuickActions extends StatelessWidget {
     ];
 
     if (actions.isEmpty) {
-      return const _HomeServiceNotice(
+      return _HomeServiceNotice(
         message: 'Marketplace services are temporarily paused.',
       );
     }
+
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
