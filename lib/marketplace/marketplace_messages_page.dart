@@ -18,6 +18,7 @@ import 'marketplace_command_client.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_offer_schedule.dart';
+import 'marketplace_account_hub.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
 import 'marketplace_deep_links.dart';
