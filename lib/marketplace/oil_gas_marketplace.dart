@@ -1857,11 +1857,35 @@ class _HomePage extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0x3338BDF8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0x6638BDF8)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified_outlined, size: 14, color: Color(0xFF38BDF8)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Verified Escrow',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Find, Buy & Dispatch Equipment',
+                  'Find, Buy & Dispatch Oilfield Equipment',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -1870,7 +1894,7 @@ class _HomePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                if (features.marketplace)
+                if (features.marketplace) ...[
                   InkWell(
                     onTap: onBrowse,
                     borderRadius: BorderRadius.circular(14),
@@ -1907,6 +1931,30 @@ class _HomePage extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        'Drill Pipe',
+                        'Frac Tanks',
+                        'Choke Valves',
+                        'Excavators',
+                        'Tubing & Casing'
+                      ].map((tag) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: const Color(0x26FFFFFF),
+                          side: const BorderSide(color: Color(0x33FFFFFF)),
+                          labelStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                          label: Text(tag),
+                          onPressed: () => onCategory(tag),
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -2268,33 +2316,31 @@ class _FeaturedListings extends StatelessWidget {
           }
           return LayoutBuilder(
             builder: (context, constraints) {
-              if (constraints.maxWidth > 650) {
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: listings
-                      .map((item) => SizedBox(
-                            width: (constraints.maxWidth - 20) / 2,
-                            child: _ListingCard(
-                              listing: item,
-                              saved: saved.contains(item.id),
-                              onSaved: () => onSaved(item),
-                            ),
-                          ))
-                      .toList(growable: false),
-                );
-              }
-              return Column(
+              final crossAxisCount = constraints.maxWidth > 900
+                  ? 4
+                  : (constraints.maxWidth > 550 ? 3 : 2);
+              const spacing = 12.0;
+              final totalSpacing = spacing * (crossAxisCount - 1);
+              final cardWidth = (constraints.maxWidth - totalSpacing) / crossAxisCount;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
                 children: listings
-                    .map((item) => _ListingCard(
-                          listing: item,
-                          saved: saved.contains(item.id),
-                          onSaved: () => onSaved(item),
+                    .map((item) => SizedBox(
+                          width: cardWidth,
+                          child: _ListingCard(
+                            listing: item,
+                            saved: saved.contains(item.id),
+                            onSaved: () => onSaved(item),
+                            isGrid: true,
+                          ),
                         ))
                     .toList(growable: false),
               );
             },
           );
+
 
         },
       );
@@ -3013,11 +3059,17 @@ class _CategoryPickerTile extends StatelessWidget {
 }
 
 class _ListingCard extends StatelessWidget {
-  const _ListingCard(
-      {required this.listing, required this.saved, required this.onSaved});
+  const _ListingCard({
+    required this.listing,
+    required this.saved,
+    required this.onSaved,
+    this.isGrid = false,
+  });
+
   final MarketplaceListing listing;
   final bool saved;
   final VoidCallback onSaved;
+  final bool isGrid;
 
   @override
   Widget build(BuildContext context) {
@@ -3028,9 +3080,9 @@ class _ListingCard extends StatelessWidget {
     Widget fallbackArtwork() => IndustrialAssetIcon(
         label: listing.title,
         assetPath: fallbackAssetPath,
-        size: 66,
+        size: isGrid ? 48 : 66,
         borderRadius: 12,
-        fallback: Icon(listing.icon, size: 32, color: _orange));
+        fallback: Icon(listing.icon, size: isGrid ? 24 : 32, color: _orange));
     final presentation = MarketplaceListingPresentation.fromMap({
       'sellerUid': listing.sellerUid,
       'createdAt': listing.createdAt,
@@ -3043,7 +3095,9 @@ class _ListingCard extends StatelessWidget {
       'auctionEndAt': listing.auctionEndAt,
     }, currentUserUid: FirebaseAuth.instance.currentUser?.uid);
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+      margin: isGrid
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(14, 6, 14, 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -3082,7 +3136,7 @@ class _ListingCard extends StatelessWidget {
               Stack(
                 children: [
                   Container(
-                    height: 150,
+                    height: isGrid ? 140 : 150,
                     width: double.infinity,
                     color: const Color(0xFFF1F5F9),
                     child: listing.imageUrl == null
