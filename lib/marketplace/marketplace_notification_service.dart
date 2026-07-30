@@ -12,8 +12,11 @@ import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_account_device_repository.dart';
 import 'marketplace_command_client.dart';
 
-const marketplaceWebPushVapidKey =
-    String.fromEnvironment('PIPE_FIREBASE_WEB_PUSH_VAPID_KEY');
+const marketplaceWebPushVapidKey = String.fromEnvironment(
+  'PIPE_FIREBASE_WEB_PUSH_VAPID_KEY',
+  defaultValue:
+      'BKKdn1DZ41Khv-I4ieN-m8ogYnnC6DZfGkoquo9GFjXPbPdvio_USrzzvDMXCCSIsVIjuvKkRswxdO-gUPDQab4',
+);
 
 enum MarketplaceNotificationStatus {
   enabled,
