@@ -10,7 +10,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/config/phase1_feature_flags.dart';
 import '../core/config/phase1_feature_policy.dart';
+import '../core/config/public_release_config.dart';
 import '../core/accessibility/pipe_accessibility_theme.dart';
+
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/diagnostics/app_diagnostics.dart';
@@ -1313,11 +1315,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                     label: 'Sign out',
                     selected: false,
                     onTap: _signOut)
+              else
                 _DrawerDestination(
                     icon: Icons.login,
                     label: 'Sign in / Create account',
                     selected: false,
                     onTap: _openAuth),
+
               const SizedBox(height: 8),
 
               Padding(
