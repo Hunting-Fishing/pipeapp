@@ -1917,11 +1917,16 @@ class _HomePage extends StatelessWidget {
               saved: saved,
               onSaved: onSaved,
             ),
+          ] else
+            const _HomeServiceNotice(
+              message:
+                  'Marketplace browsing and listing are temporarily paused.',
             ),
-          ],
-        ),
+        ],
       ),
-    );
+    ),
+  );
+
 }
 
 
