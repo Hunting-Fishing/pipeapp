@@ -129,8 +129,7 @@ class _Overview extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           final data = snapshot.data?.data() ?? {};
-          final completion =
-              ((data['profileCompletion'] as num?)?.toInt() ?? 0).clamp(0, 100);
+          final completion = _calculateProfileCompletion(user, data);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
           return ListView(padding: const EdgeInsets.all(18), children: [
@@ -267,7 +266,7 @@ Future<void> _showUserScore(
     ),
     (
       'Profile details',
-      (data['profileCompletion'] as num? ?? 0) >= 100,
+      _calculateProfileCompletion(FirebaseAuth.instance.currentUser, data) >= 100,
       'Complete every required field in Profile.'
     ),
     (
@@ -3562,3 +3561,34 @@ class MarketplaceAuthRequiredCard extends StatelessWidget {
     );
   }
 }
+
+int _calculateProfileCompletion(User? user, Map<String, dynamic> data) {
+  final explicit = (data['profileCompletion'] as num?)?.toInt();
+  if (explicit != null && explicit > 0) {
+    return explicit.clamp(0, 100);
+  }
+  if (data['accountVerified'] == true) {
+    return 100;
+  }
+  int score = 0;
+  final name = (data['displayName'] ?? data['fullName'] ?? data['name'] ?? user?.displayName)?.toString().trim() ?? '';
+  if (name.isNotEmpty) score += 35;
+
+  final email = (data['email'] ?? user?.email)?.toString().trim() ?? '';
+  if (email.isNotEmpty) score += 35;
+
+  final photo = (data['photoUrl'] ?? data['avatarUrl'] ?? user?.photoURL)?.toString().trim() ?? '';
+  if (photo.isNotEmpty) score += 15;
+
+  final phone = (data['phone'] ?? data['phoneNumber'] ?? user?.phoneNumber)?.toString().trim() ?? '';
+  if (phone.isNotEmpty) score += 15;
+
+  if (score >= 70 || (name.isNotEmpty && email.isNotEmpty && (user?.emailVerified == true || data['emailOwnershipVerified'] == true))) {
+    score = 100;
+  } else if (score == 0 && (user?.email != null || user?.displayName != null)) {
+    score = 100;
+  }
+
+  return score.clamp(0, 100);
+}
+
