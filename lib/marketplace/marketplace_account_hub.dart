@@ -129,7 +129,7 @@ class _Overview extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           final data = snapshot.data?.data() ?? {};
-          final completion = _calculateProfileCompletion(user, data);
+          final completion = calculateProfileCompletion(user, data);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
           return ListView(padding: const EdgeInsets.all(18), children: [
@@ -266,7 +266,7 @@ Future<void> _showUserScore(
     ),
     (
       'Profile details',
-      _calculateProfileCompletion(FirebaseAuth.instance.currentUser, data) >= 100,
+      calculateProfileCompletion(FirebaseAuth.instance.currentUser, data) >= 100,
       'Complete every required field in Profile.'
     ),
     (
@@ -539,14 +539,25 @@ class _MyListingsState extends State<_MyListings> {
           .collection('public_listings')
           .where('sellerUid', isEqualTo: uid)
           .orderBy('createdAt', descending: true);
-      final page =
-          await loadFirestoreDocumentPage(query, after: reset ? null : _cursor);
+      final draftsQuery = FirebaseFirestore.instance
+          .collection('marketplace_listing_drafts')
+          .where('sellerUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true);
+      final page = await loadFirestoreDocumentPage(query, after: reset ? null : _cursor);
+      QuerySnapshot<Map<String, dynamic>>? draftsSnap;
+      try {
+        draftsSnap = await draftsQuery.get();
+      } catch (_) {}
       if (!mounted || generation != _generation) return;
+      final docs = <QueryDocumentSnapshot<Map<String, dynamic>>>[
+        ...page.documents,
+        ...?draftsSnap?.docs,
+      ];
       final merged = appendUniqueById(
           reset
               ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
               : _listings,
-          page.documents,
+          docs,
           (document) => document.id);
       setState(() {
         _listings
@@ -3562,7 +3573,7 @@ class MarketplaceAuthRequiredCard extends StatelessWidget {
   }
 }
 
-int _calculateProfileCompletion(User? user, Map<String, dynamic> data) {
+int calculateProfileCompletion(User? user, Map<String, dynamic> data) {
   final explicit = (data['profileCompletion'] as num?)?.toInt();
   if (explicit != null && explicit > 0) {
     return explicit.clamp(0, 100);

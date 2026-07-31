@@ -1620,8 +1620,9 @@ class _ProfileCompletionStream extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return builder(100);
           }
-          final value = snapshot.data?.data()?['profileCompletion'];
-          return builder(((value as num?)?.toInt() ?? 0).clamp(0, 100));
+          final user = FirebaseAuth.instance.currentUser;
+          final data = snapshot.data?.data() ?? const <String, dynamic>{};
+          return builder(calculateProfileCompletion(user, data));
         });
   }
 }
@@ -2626,9 +2627,8 @@ class _BrowsePageState extends State<_BrowsePage> {
   }
 
   Query<Map<String, dynamic>> _query() {
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collection('public_listings')
-        .where('status', isEqualTo: 'active');
+    Query<Map<String, dynamic>> query =
+        FirebaseFirestore.instance.collection('public_listings');
     final searchToken = normalizeMarketplaceSearchQuery(widget.search);
     if (widget.category != null) {
       query = query.where('category', isEqualTo: widget.category);
