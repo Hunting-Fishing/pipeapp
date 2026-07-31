@@ -7,6 +7,10 @@ const manifest = {
   firebase: {
     projectId: "pipe-staging",
     expectedFunctions: ["createOffer", "acceptOffer"],
+    expectedFunctionsByCodebase: {
+      marketplace: ["createOffer", "acceptOffer"],
+      functions: ["agent"],
+    },
   },
 };
 
@@ -43,6 +47,23 @@ test("missing, unexpected, and inactive functions fail parity", () => {
   assert.deepEqual(result.missing, ["acceptOffer"]);
   assert.deepEqual(result.unexpected, ["legacyOffer"]);
   assert.deepEqual(result.inactive, ["createOffer"]);
+});
+
+test("standalone agent codebase is checked independently", () => {
+  const result = compareFunctionInventory({
+    manifest,
+    projectId: "pipe-staging",
+    codebase: "functions",
+    inventory: {
+      result: [
+        {id: "createOffer", codebase: "marketplace", state: "ACTIVE"},
+        {id: "agent", codebase: "functions", state: "ACTIVE"},
+      ],
+    },
+  });
+  assert.equal(result.passed, true);
+  assert.deepEqual(result.expected, ["agent"]);
+  assert.deepEqual(result.deployed, ["agent"]);
 });
 
 test("project mismatch and malformed inventories fail closed", () => {

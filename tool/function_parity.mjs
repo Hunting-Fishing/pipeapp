@@ -18,7 +18,10 @@ export function compareFunctionInventory({
   codebase = "marketplace",
 }) {
   const manifestProject = manifest?.firebase?.projectId;
-  const expected = manifest?.firebase?.expectedFunctions;
+  const expectedByCodebase = manifest?.firebase?.expectedFunctionsByCodebase;
+  const expected = expectedByCodebase &&
+    Array.isArray(expectedByCodebase[codebase]) ?
+    expectedByCodebase[codebase] : manifest?.firebase?.expectedFunctions;
   if (!Array.isArray(expected) || expected.length === 0) {
     throw new Error("Release manifest has no expected Firebase Functions.");
   }

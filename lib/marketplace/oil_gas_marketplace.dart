@@ -9,7 +9,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/config/phase1_feature_flags.dart';
-import '../core/config/phase1_feature_policy.dart';
 import '../core/config/public_release_config.dart';
 import '../core/accessibility/pipe_accessibility_theme.dart';
 
@@ -36,6 +35,7 @@ import 'marketplace_auctions_page.dart';
 import 'marketplace_browse_filters.dart';
 import 'marketplace_dispatch_page.dart';
 import 'marketplace_deep_links.dart';
+import 'marketplace_data_state.dart';
 import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
@@ -678,9 +678,9 @@ class MarketplaceListing {
     this.productType = '',
     this.description = '',
     this.details = const <String, dynamic>{},
-    this.sellerUid = 'pipe-buyer-demo-seller',
-    this.sellerName = 'Northline Oilfield Supply',
-    this.sellerVerified = true,
+    this.sellerUid = '',
+    this.sellerName = 'Marketplace seller',
+    this.sellerVerified = false,
     this.locationVisibility = LocationVisibility.approximate,
     this.latitude,
     this.longitude,
@@ -932,66 +932,6 @@ class _MarketplaceRouteLoadFailure extends StatelessWidget {
         ),
       );
 }
-
-const demoListings = <MarketplaceListing>[
-  MarketplaceListing(
-      title: 'CAT 320 Hydraulic Excavator',
-      category: 'Heavy Equipment',
-      location: 'Midland, TX',
-      price: '\$128,500',
-      condition: 'Used • 3,240 hrs',
-      icon: Icons.precision_manufacturing,
-      latitude: 31.9973,
-      longitude: -102.0779,
-      badge: 'Verified'),
-  MarketplaceListing(
-      title: '4 in. S-135 Drill Pipe — 2,000 ft',
-      category: 'Pipe, Tubing & Materials',
-      location: 'Odessa, TX',
-      price: '\$46,000',
-      condition: 'Surplus • Inspected',
-      icon: Icons.horizontal_rule),
-  MarketplaceListing(
-      title: '500 BBL Steel Frac Tank',
-      category: 'Tanks & Containers',
-      location: 'Lafayette, LA',
-      price: '\$18,900',
-      condition: 'Refurbished',
-      icon: Icons.propane_tank,
-      sellerName: 'Bayou Tank & Vessel',
-      latitude: 30.2241,
-      longitude: -92.0198,
-      badge: 'Ready to ship'),
-  MarketplaceListing(
-      title: '2021 Kenworth Vacuum Truck',
-      category: 'Transport & Hauling',
-      location: 'Calgary, AB',
-      price: '\$214,000',
-      condition: 'Used • 68,100 mi',
-      icon: Icons.local_shipping,
-      sellerName: 'Prairie Fleet Sales',
-      latitude: 51.0447,
-      longitude: -114.0719),
-  MarketplaceListing(
-      title: 'Three-Phase Horizontal Separator',
-      category: 'Oil & Gas Equipment',
-      location: 'Houston, TX',
-      price: 'Request quote',
-      condition: 'New • ASME certified',
-      icon: Icons.oil_barrel,
-      sellerName: 'Gulf Process Equipment',
-      locationVisibility: LocationVisibility.onRequest,
-      badge: 'Featured'),
-  MarketplaceListing(
-      title: '12 × 40 ft Crew Shack',
-      category: 'Portable Buildings',
-      location: 'Williston, ND',
-      price: '\$32,750',
-      condition: 'Used • Excellent',
-      icon: Icons.cabin,
-      sellerName: 'Northern Modular Solutions',
-      locationVisibility: LocationVisibility.hidden),
-];
 
 class OilGasMarketplaceApp extends StatefulWidget {
   const OilGasMarketplaceApp({super.key, this.initialTab = 0});
@@ -2551,11 +2491,7 @@ class _FeaturedListings extends StatelessWidget {
                       regulatedListingsEnabled))
               .take(3)
               .toList(growable: false);
-          final listings =
-              live.isEmpty && Phase1FeaturePolicy.current.demoContentEnabled
-                  ? demoListings.take(3).toList(growable: false)
-                  : live;
-          if (listings.isEmpty) {
+          if (live.isEmpty) {
             return _HomeFeedNotice(
               icon: Icons.inventory_2_outlined,
               message: 'No active listings yet.',
@@ -2576,7 +2512,7 @@ class _FeaturedListings extends StatelessWidget {
               return Wrap(
                 spacing: spacing,
                 runSpacing: spacing,
-                children: listings
+                children: live
                     .map((item) => SizedBox(
                           width: cardWidth,
                           child: _ListingCard(
@@ -2694,15 +2630,6 @@ class _BrowsePageState extends State<_BrowsePage> {
         .collection('public_listings')
         .where('status', isEqualTo: 'active');
     final searchToken = normalizeMarketplaceSearchQuery(widget.search);
-    if (searchToken.isNotEmpty) {
-      query = _filters.transactionType == null
-          ? query.where('transactionType',
-              whereIn: const ['For Sale', 'Wanted / Seeking'])
-          : query.where('transactionType', isEqualTo: _filters.transactionType);
-      return query
-          .where('searchTokens', arrayContains: searchToken)
-          .orderBy('createdAt', descending: true);
-    }
     if (widget.category != null) {
       query = query.where('category', isEqualTo: widget.category);
     }
@@ -2722,6 +2649,9 @@ class _BrowsePageState extends State<_BrowsePage> {
     }
     if (_filters.maximumPrice != null) {
       query = query.where('price', isLessThanOrEqualTo: _filters.maximumPrice);
+    }
+    if (searchToken.isNotEmpty) {
+      query = query.where('searchTokens', arrayContains: searchToken);
     }
     return switch (_filters.effectiveSort) {
       MarketplaceBrowseSort.newest =>
@@ -2787,13 +2717,7 @@ class _BrowsePageState extends State<_BrowsePage> {
   Widget build(BuildContext context) {
     final liveListings =
         _documents.map(MarketplaceListing.fromFirestore).toList();
-    final inventory =
-        liveListings.isEmpty && Phase1FeaturePolicy.current.demoContentEnabled
-            ? demoListings
-            : liveListings;
-    final usingDemo =
-        liveListings.isEmpty && Phase1FeaturePolicy.current.demoContentEnabled;
-    final results = inventory
+    final results = liveListings
         .where((item) =>
             item.transactionType != 'Auction' &&
             (item.category != 'Site & Property' ||
@@ -2808,14 +2732,9 @@ class _BrowsePageState extends State<_BrowsePage> {
                     item.numericPrice! >= _filters.minimumPrice!)) &&
             (_filters.maximumPrice == null ||
                 (item.numericPrice != null &&
-                    item.numericPrice! <= _filters.maximumPrice!)) &&
-            (widget.search.isEmpty ||
-                '${item.title} ${item.category} ${item.location} ${item.condition}'
-                    .toLowerCase()
-                    .contains(widget.search.toLowerCase())))
+                    item.numericPrice! <= _filters.maximumPrice!)))
         .toList();
-    if (usingDemo ||
-        normalizeMarketplaceSearchQuery(widget.search).isNotEmpty) {
+    if (normalizeMarketplaceSearchQuery(widget.search).isNotEmpty) {
       results.sort((a, b) => switch (_filters.effectiveSort) {
             MarketplaceBrowseSort.newest => (b.createdAt ?? DateTime(2000))
                 .compareTo(a.createdAt ?? DateTime(2000)),
@@ -2929,36 +2848,34 @@ class _BrowsePageState extends State<_BrowsePage> {
 
   Widget _buildResults(List<MarketplaceListing> results) {
     if (_loading && _documents.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const MarketplaceDataStateView.loading(
+        title: 'Loading Marketplace listings',
+        message: 'Retrieving current sale and wanted inventory…',
+      );
     }
     if (_loadError != null && _documents.isEmpty) {
-      return Center(
-          child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.cloud_off_outlined, size: 40, color: _muted),
-                const SizedBox(height: 10),
-                Text(_loadError!, textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                    onPressed: () => _loadPage(reset: true),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'))
-              ])));
+      return MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.error,
+        title: 'Marketplace listings could not be loaded',
+        message: _loadError!,
+        primaryLabel: 'Retry',
+        primaryIcon: Icons.refresh,
+        onPrimary: () => _loadPage(reset: true),
+      );
     }
     if (results.isEmpty) {
-      return Center(
-          child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text('No loaded listings match those filters.'),
-                if (_hasMore) ...[
-                  const SizedBox(height: 10),
-                  OutlinedButton(
-                      onPressed: _loading ? null : _loadPage,
-                      child: const Text('Search more listings'))
-                ]
-              ])));
+      final wanted = _filters.transactionType == 'Wanted / Seeking';
+      return MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.empty,
+        icon: wanted ? Icons.campaign_outlined : Icons.search_off_outlined,
+        title: wanted ? 'No wanted ads match' : 'No listings match',
+        message: wanted
+            ? 'Adjust the filters or check additional pages for buyer requests.'
+            : 'Adjust the search or filters to broaden the Marketplace results.',
+        primaryLabel: _hasMore ? 'Search more listings' : null,
+        primaryIcon: Icons.expand_more_rounded,
+        onPrimary: _hasMore && !_loading ? _loadPage : null,
+      );
     }
     return RefreshIndicator(
         onRefresh: () => _loadPage(reset: true),
@@ -7498,39 +7415,36 @@ class _SavedPage extends StatelessWidget {
 
   Widget _body(BuildContext context) {
     if (!signedIn) {
-      return _SavedEmptyState(
+      return MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.unavailable,
         icon: Icons.account_circle_outlined,
         title: 'Sign in to see your saved listings',
         message: 'Saved items are private and linked to your account.',
-        action: 'Open account',
-        onAction: onAccount,
+        primaryLabel: 'Open account',
+        onPrimary: onAccount,
       );
     }
     if (loading) {
-      return const Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-        CircularProgressIndicator(),
-        SizedBox(height: 12),
-        Text('Loading your saved listings…'),
-      ]));
+      return const MarketplaceDataStateView.loading(
+        title: 'Loading saved listings',
+        message: 'Restoring the items saved to your account…',
+      );
     }
     if (error != null) {
-      return _SavedEmptyState(
-        icon: Icons.sync_problem_outlined,
-        title: 'Saved listings could not be loaded',
-        message:
-            'Your saved items were not changed. Check your connection and retry.',
-        action: 'Retry',
-        onAction: onRetry,
+      return MarketplaceDataStateView.failure(
+        error: error,
+        resource: 'Saved listings',
+        onRetry: onRetry,
       );
     }
     if (saved.isEmpty) {
-      return _SavedEmptyState(
+      return MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.empty,
         icon: Icons.bookmark_border,
         title: 'No saved listings yet',
         message: 'Use the bookmark on a listing to keep it here.',
-        action: 'Browse marketplace',
-        onAction: onBrowse,
+        primaryLabel: 'Browse marketplace',
+        onPrimary: onBrowse,
       );
     }
     return ListView(
@@ -7602,38 +7516,5 @@ class _SavedListingCard extends StatelessWidget {
             icon: const Icon(Icons.bookmark_remove_outlined),
           ),
         ),
-      );
-}
-
-class _SavedEmptyState extends StatelessWidget {
-  const _SavedEmptyState({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.action,
-    required this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String action;
-  final VoidCallback onAction;
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 54, color: _muted),
-          const SizedBox(height: 12),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 5),
-          Text(message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: _muted)),
-          const SizedBox(height: 8),
-          TextButton(onPressed: onAction, child: Text(action)),
-        ]),
       );
 }

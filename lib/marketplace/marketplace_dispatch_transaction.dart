@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_data_state.dart';
 import 'marketplace_dispatch_repository.dart';
 import 'marketplace_money.dart';
 
@@ -34,29 +35,29 @@ class _MarketplaceDispatchTransactionCardState
         stream: widget.repository.dispatchTransaction(widget.jobId),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Card(
-              child: ListTile(
-                leading: Icon(Icons.sync_problem_outlined),
-                title: Text('Dispatch progress could not be loaded.'),
-                subtitle: Text('Refresh and try again.'),
-              ),
+            return MarketplaceDataStateView.failure(
+              error: snapshot.error,
+              resource: 'Dispatch progress',
+              onRetry: () => setState(() {}),
+              compact: true,
             );
           }
           if (!snapshot.hasData) {
-            return const Card(
-              child: Padding(
-                padding: EdgeInsets.all(18),
-                child: Center(child: CircularProgressIndicator()),
-              ),
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading Dispatch progress',
+              message: 'Checking the latest job milestone…',
+              compact: true,
             );
           }
           final transaction = snapshot.data!.data();
           if (transaction == null) {
-            return const Card(
-              child: ListTile(
-                leading: Icon(Icons.hourglass_top_outlined),
-                title: Text('Preparing awarded Dispatch job'),
-              ),
+            return const MarketplaceDataStateView(
+              kind: MarketplaceDataStateKind.empty,
+              title: 'Preparing awarded Dispatch job',
+              message:
+                  'The permanent job progress record will appear here when preparation finishes.',
+              icon: Icons.hourglass_top_outlined,
+              compact: true,
             );
           }
           return _card(transaction);
@@ -100,6 +101,11 @@ class _MarketplaceDispatchTransactionCardState
             Text(
               '${marketplaceMoney(transaction['amount'] as num? ?? 0)} all-in',
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            _PrivateDispatchRoute(
+              jobId: widget.jobId,
+              repository: widget.repository,
             ),
             if (scheduledDate != null)
               Padding(
@@ -521,4 +527,81 @@ class _MarketplaceDispatchTransactionCardState
 
   String _dateLabel(DateTime value) =>
       '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+}
+
+class _PrivateDispatchRoute extends StatelessWidget {
+  const _PrivateDispatchRoute({
+    required this.jobId,
+    required this.repository,
+  });
+
+  final String jobId;
+  final MarketplaceDispatchRepository repository;
+
+  String _pointLabel(dynamic value) {
+    if (value is! GeoPoint) return 'Mapped location unavailable';
+    return '${value.latitude.toStringAsFixed(5)}, '
+        '${value.longitude.toStringAsFixed(5)}';
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: repository.privateDispatchJob(jobId),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Text(
+              'Exact route details are temporarily unavailable.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF66758A)),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const LinearProgressIndicator(minHeight: 2);
+          }
+          final route = snapshot.data?.data();
+          if (route == null) {
+            return const Text(
+              'Exact route details have not been mapped yet.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF66758A)),
+            );
+          }
+          final address = '${route['deliveryAddress'] ?? ''}'.trim();
+          final accessNotes = '${route['deliveryAccessNotes'] ?? ''}'.trim();
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFB8D5EF)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.lock_open_outlined, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      'Awarded route details',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text('Pickup: ${_pointLabel(route['pickupPoint'])}'),
+                Text(
+                  'Delivery: ${address.isEmpty ? _pointLabel(route['deliveryPoint']) : address}',
+                ),
+                if (accessNotes.isNotEmpty) Text('Site access: $accessNotes'),
+                const SizedBox(height: 4),
+                const Text(
+                  'Private details are shared only with the requester, administrators, and awarded carrier.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF66758A)),
+                ),
+              ],
+            ),
+          );
+        },
+      );
 }

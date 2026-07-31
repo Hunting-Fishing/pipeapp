@@ -59,6 +59,37 @@ test("filtered marketplace browse queries have required indexes", () => {
   }
 });
 
+test("search keeps structured filters and deterministic sorting server-side", () => {
+  const equalityShapes = [
+    [],
+    [{fieldPath: "category", order: "ASCENDING"}],
+    [{fieldPath: "condition", order: "ASCENDING"}],
+    [
+      {fieldPath: "category", order: "ASCENDING"},
+      {fieldPath: "condition", order: "ASCENDING"},
+    ],
+  ];
+  for (const equalityFields of equalityShapes) {
+    assert.equal(hasListingIndex([
+      {fieldPath: "status", order: "ASCENDING"},
+      {fieldPath: "transactionType", order: "ASCENDING"},
+      ...equalityFields,
+      {fieldPath: "searchTokens", arrayConfig: "CONTAINS"},
+      {fieldPath: "createdAt", order: "DESCENDING"},
+    ]), true);
+    for (const priceOrder of ["ASCENDING", "DESCENDING"]) {
+      assert.equal(hasListingIndex([
+        {fieldPath: "status", order: "ASCENDING"},
+        {fieldPath: "transactionType", order: "ASCENDING"},
+        ...equalityFields,
+        {fieldPath: "searchTokens", arrayConfig: "CONTAINS"},
+        {fieldPath: "price", order: priceOrder},
+        {fieldPath: "createdAt", order: "DESCENDING"},
+      ]), true);
+    }
+  }
+});
+
 test("bounded auction queries have required indexes", () => {
   for (const fields of [
     [

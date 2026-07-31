@@ -17,7 +17,10 @@ import 'marketplace_service_area.dart';
 import 'marketplace_freight_quote.dart';
 import 'marketplace_dispatch_dashboard.dart';
 import 'marketplace_deep_links.dart';
+import 'marketplace_data_state.dart';
 import 'marketplace_dispatch_transaction.dart';
+import 'marketplace_location.dart';
+import 'marketplace_location_picker.dart';
 import 'industrial_icon_assets.dart';
 
 const _dispatchServices = <({String name, IconData icon})>[
@@ -968,9 +971,6 @@ class _JobBoardState extends State<_JobBoard> {
           ? ''
           : '${data['estimatedWeightKg']}',
     );
-    final distance = TextEditingController(
-      text: data['distanceKm'] == null ? '' : '${data['distanceKm']}',
-    );
     var date = (data['truckingDate'] as Timestamp?)?.toDate() ??
         DateTime.now().add(const Duration(days: 1));
     final saved = await showDialog<bool>(
@@ -1008,14 +1008,12 @@ class _JobBoardState extends State<_JobBoard> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
-                              controller: distance,
-                              keyboardType: TextInputType.number,
+                            child: InputDecorator(
                               decoration: const InputDecoration(
-                                labelText: 'Route distance',
-                                suffixText: 'km',
+                                labelText: 'Route calculation',
                                 prefixIcon: Icon(Icons.route_outlined),
                               ),
+                              child: Text(dispatchDistanceLabel(data)),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1108,7 +1106,6 @@ class _JobBoardState extends State<_JobBoard> {
         truckingDate: date,
         loadDetails: details.text,
         estimatedWeightKg: num.tryParse(weight.text),
-        distanceKm: num.tryParse(distance.text),
       );
       if (context.mounted) {
         PipeFeedback.show(
@@ -1861,23 +1858,13 @@ class _DispatchQueryError extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: EdgeInsets.all(compact ? 12 : 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.sync_problem_outlined, color: Colors.deepOrange),
-              const SizedBox(height: 6),
-              Text(error, textAlign: TextAlign.center),
-              TextButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Try again'),
-              ),
-            ],
-          ),
-        ),
+  Widget build(BuildContext context) => MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.error,
+        title: 'Dispatch records could not be loaded',
+        message: error,
+        primaryLabel: 'Try again',
+        onPrimary: onRetry,
+        compact: compact,
       );
 }
 
@@ -1893,18 +1880,12 @@ class _DispatchEmptyState extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: const Color(0xFF0878E8)),
-            const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 4),
-            Text(message, textAlign: TextAlign.center),
-          ],
-        ),
+  Widget build(BuildContext context) => MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.empty,
+        icon: icon,
+        title: title,
+        message: message,
+        compact: true,
       );
 }
 
@@ -1921,7 +1902,8 @@ class _PostJobState extends State<_PostJob> {
   final pickup = TextEditingController();
   final delivery = TextEditingController();
   final details = TextEditingController();
-  final distance = TextEditingController();
+  MarketplaceLocation? pickupLocation;
+  MarketplaceLocation? deliveryLocation;
   DateTime date = DateTime.now().add(const Duration(days: 1));
   @override
   Widget build(BuildContext context) => ListView(
@@ -1971,37 +1953,44 @@ class _PostJobState extends State<_PostJob> {
             key: form,
             child: Column(
               children: [
-                for (final field in [
-                  (title, 'Load title', Icons.inventory_2_outlined),
-                  (pickup, 'Pickup location', Icons.trip_origin),
-                  (delivery, 'Delivery location', Icons.flag_outlined),
-                ]) ...[
-                  TextFormField(
-                    controller: field.$1,
-                    decoration: InputDecoration(
-                      labelText: '${field.$2} *',
-                      prefixIcon: Icon(field.$3),
-                    ),
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 10),
-                ],
                 TextFormField(
-                  controller: distance,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                  controller: title,
                   decoration: const InputDecoration(
-                    labelText: 'Estimated route distance *',
-                    helperText:
-                        'Enter the practical truck-route distance, not straight-line distance.',
-                    suffixText: 'km',
-                    prefixIcon: Icon(Icons.route_outlined),
+                    labelText: 'Load title *',
+                    prefixIcon: Icon(Icons.inventory_2_outlined),
                   ),
-                  validator: (value) => (num.tryParse(value ?? '') ?? 0) <= 0
-                      ? 'Enter the estimated route distance'
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a load title'
                       : null,
+                ),
+                const SizedBox(height: 10),
+                _MappedJobLocationField(
+                  title: 'Pickup location',
+                  helper:
+                      'Pin the exact loading point. Carriers see the broad area until awarded.',
+                  icon: Icons.trip_origin,
+                  value: pickupLocation,
+                  onTap: _choosePickup,
+                ),
+                const SizedBox(height: 10),
+                _MappedJobLocationField(
+                  title: 'Delivery location',
+                  helper:
+                      'Pin the delivery entrance and add access notes for the awarded carrier.',
+                  icon: Icons.flag_outlined,
+                  value: deliveryLocation,
+                  onTap: _chooseDelivery,
+                ),
+                const SizedBox(height: 10),
+                const Card(
+                  color: Color(0xFFEAF4FD),
+                  child: ListTile(
+                    leading: Icon(Icons.route_outlined),
+                    title: Text('Truck-route distance is calculated for you'),
+                    subtitle: Text(
+                      'Pipe Buyer records a server estimate now and will replace it with a reviewed truck route when routing is available.',
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -2031,6 +2020,14 @@ class _PostJobState extends State<_PostJob> {
                 FilledButton.icon(
                   onPressed: () async {
                     if (!form.currentState!.validate()) return;
+                    if (pickupLocation == null || deliveryLocation == null) {
+                      PipeFeedback.show(
+                        context,
+                        message: 'Select mapped pickup and delivery locations.',
+                        tone: PipeStatusTone.warning,
+                      );
+                      return;
+                    }
                     try {
                       await widget.repo.createJob(
                         title: title.text.trim(),
@@ -2038,8 +2035,8 @@ class _PostJobState extends State<_PostJob> {
                         delivery: delivery.text.trim(),
                         truckingDate: date,
                         loadDetails: details.text.trim(),
-                        distanceKm: num.parse(distance.text),
-                        distanceSource: 'user_entered_route',
+                        pickupGeoPoint: pickupLocation!.exactGeoPoint,
+                        deliveryLocation: deliveryLocation,
                       );
                       if (context.mounted) {
                         PipeFeedback.show(
@@ -2070,6 +2067,35 @@ class _PostJobState extends State<_PostJob> {
           ),
         ],
       );
+
+  Future<void> _choosePickup() async {
+    final selected = await MarketplaceLocationPicker.show(
+      context,
+      pickupLocation,
+      title: 'Pickup location',
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      pickupLocation = selected;
+      pickup.text = selected.publicName.trim().isNotEmpty
+          ? selected.publicName.trim()
+          : selected.nearestTown.trim();
+    });
+  }
+
+  Future<void> _chooseDelivery() async {
+    final selected = await MarketplaceLocationPicker.showDelivery(
+      context,
+      deliveryLocation,
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      deliveryLocation = selected;
+      delivery.text = selected.publicName.trim().isNotEmpty
+          ? selected.publicName.trim()
+          : selected.nearestTown.trim();
+    });
+  }
 
   Future<void> _selectListing() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -2164,6 +2190,49 @@ class _PostJobState extends State<_PostJob> {
         auction: selected.data()['listingChannel'] == 'auction',
       );
     }
+  }
+}
+
+class _MappedJobLocationField extends StatelessWidget {
+  const _MappedJobLocationField({
+    required this.title,
+    required this.helper,
+    required this.icon,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String title;
+  final String helper;
+  final IconData icon;
+  final MarketplaceLocation? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = value;
+    final label = location == null
+        ? 'Select on map'
+        : (location.publicName.trim().isNotEmpty
+            ? location.publicName.trim()
+            : location.nearestTown.trim());
+    return Card(
+      margin: EdgeInsets.zero,
+      color:
+          location == null ? const Color(0xFFF1F5F9) : const Color(0xFFE8F7F1),
+      child: ListTile(
+        minVerticalPadding: 14,
+        leading: CircleAvatar(child: Icon(icon)),
+        title: Text(
+          '$title *',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text('$label\n$helper'),
+        isThreeLine: true,
+        trailing: const Icon(Icons.map_outlined),
+        onTap: onTap,
+      ),
+    );
   }
 }
 

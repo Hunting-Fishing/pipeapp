@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
@@ -22,6 +23,9 @@ import 'marketplace_notification_service.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_command_client.dart';
 import 'account_export_downloader.dart';
+import 'marketplace_data_state.dart';
+import 'marketplace_deep_links.dart';
+import 'marketplace_actions_repository.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -577,29 +581,20 @@ class _MyListingsState extends State<_MyListings> {
       );
     }
     if (_error != null && _listings.isEmpty) {
-      return Center(
-          child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.sync_problem_outlined,
-                    size: 48, color: Colors.deepOrange),
-                const SizedBox(height: 10),
-                const Text('Could not load your listings.',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(_error!,
-                    textAlign: TextAlign.center,
-                    style:
-                        const TextStyle(fontSize: 11, color: Colors.black54)),
-                const SizedBox(height: 12),
-                FilledButton.tonalIcon(
-                    onPressed: () => _load(reset: true),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Try again')),
-              ])));
+      return MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.error,
+        title: 'Your listings could not be loaded',
+        message: _error!,
+        primaryLabel: 'Try again',
+        primaryIcon: Icons.refresh,
+        onPrimary: () => _load(reset: true),
+      );
     }
     if (_loading && _listings.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const MarketplaceDataStateView.loading(
+        title: 'Loading your listings',
+        message: 'Retrieving listing status, activity, and offers…',
+      );
     }
     return Column(children: [
       Padding(
@@ -616,18 +611,15 @@ class _MyListingsState extends State<_MyListings> {
       ),
       Expanded(
         child: _listings.isEmpty
-            ? Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.inventory_2_outlined,
-                      size: 44, color: Colors.black38),
-                  const SizedBox(height: 10),
-                  const Text('You have not published a listing yet.'),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                      onPressed: widget.onAddListing,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add your first listing')),
-                ]),
+            ? MarketplaceDataStateView(
+                kind: MarketplaceDataStateKind.empty,
+                icon: Icons.inventory_2_outlined,
+                title: 'You have not published a listing yet',
+                message:
+                    'Create a Marketplace, Wanted, or approved Auction listing to begin.',
+                primaryLabel: 'Add your first listing',
+                primaryIcon: Icons.add,
+                onPrimary: widget.onAddListing,
               )
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
@@ -931,6 +923,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     final thumbnail = marketplaceListingThumbnailUrl(data);
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
     final isAuction = data['transactionType'] == 'Auction';
+    final isWanted = data['transactionType'] == 'Wanted / Seeking';
     final currentBid = data['currentBid'] as num? ?? 0;
     final reserve = data['reservePrice'] as num?;
     final reserveProgress = reserve == null || reserve <= 0
@@ -956,9 +949,15 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                 avatar: Icon(
                     isAuction
                         ? Icons.gavel_outlined
-                        : Icons.storefront_outlined,
+                        : isWanted
+                            ? Icons.campaign_outlined
+                            : Icons.storefront_outlined,
                     size: 17),
-                label: Text(isAuction ? 'TIMED AUCTION' : 'MARKETPLACE')),
+                label: Text(isAuction
+                    ? 'TIMED AUCTION'
+                    : isWanted
+                        ? 'WANTED AD'
+                        : 'MARKETPLACE')),
             const SizedBox(width: 7),
             Expanded(
                 child: Text('${data['title'] ?? 'Untitled listing'}',
@@ -981,7 +980,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             const SizedBox(height: 12),
             _listingLifecycleCard(data),
           ],
-          if (!isAuction && widget.auctionsEnabled) ...[
+          if (!isAuction && !isWanted && widget.auctionsEnabled) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
                 onPressed:
@@ -996,7 +995,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                     : 'Move listing to timed auction'),
                 style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(50)))
-          ] else ...[
+          ],
+          if (isAuction) ...[
             const SizedBox(height: 12),
             Card(
                 color: const Color(0xFFFFF4E5),
@@ -1072,24 +1072,45 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                 label: 'Offers'),
           ]),
           const SizedBox(height: 18),
-          Text(isAuction ? 'Bidding history' : 'Offer history',
+          if (!isAuction && !isWanted) ...[
+            const Text('Potential Wanted buyers',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            _WantedMatchesPanel(
+              listingId: widget.listingId,
+              viewer: _WantedMatchViewer.seller,
+            ),
+            const SizedBox(height: 18),
+          ],
+          Text(
+              isAuction
+                  ? 'Bidding history'
+                  : isWanted
+                      ? 'Suggested Marketplace matches'
+                      : 'Offer history',
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
           isAuction
               ? _OwnerBidHistory(listingId: widget.listingId)
-              : SizedBox(
-                  height: 620,
-                  child: MarketplaceNegotiationHistory(
-                    listingId: widget.listingId,
-                    listingTitle: '${data['title'] ?? 'Marketplace listing'}',
-                    buyerUid: '',
-                    sellerUid:
-                        '${data['sellerUid'] ?? FirebaseAuth.instance.currentUser?.uid ?? ''}',
-                    askingPrice: data['price'] as num?,
-                    availableQuantity: (data['quantity'] as num?)?.toInt(),
-                  ),
-                ),
+              : isWanted
+                  ? _WantedMatchesPanel(
+                      listingId: widget.listingId,
+                      viewer: _WantedMatchViewer.wantedOwner,
+                    )
+                  : SizedBox(
+                      height: 620,
+                      child: MarketplaceNegotiationHistory(
+                        listingId: widget.listingId,
+                        listingTitle:
+                            '${data['title'] ?? 'Marketplace listing'}',
+                        buyerUid: '',
+                        sellerUid:
+                            '${data['sellerUid'] ?? FirebaseAuth.instance.currentUser?.uid ?? ''}',
+                        askingPrice: data['price'] as num?,
+                        availableQuantity: (data['quantity'] as num?)?.toInt(),
+                      ),
+                    ),
           const SizedBox(height: 18),
           Text('${data['description'] ?? 'No description supplied.'}'),
           const SizedBox(height: 18),
@@ -1102,6 +1123,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
 
   Widget _listingLifecycleCard(Map<String, dynamic> data) {
     final status = '${data['status'] ?? 'active'}';
+    final isWanted = data['transactionType'] == 'Wanted / Seeking';
     final busy = _listingActionBusy != null;
     final actions = <Widget>[
       if (status == 'active' || status == 'paused')
@@ -1119,17 +1141,25 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             onPressed: busy ? null : () => _transitionListing('activate'),
             icon: const Icon(Icons.play_circle_outline),
             label: const Text('Reactivate')),
-      if (status == 'active' || status == 'pending_sale')
+      if (isWanted && (status == 'active' || status == 'paused'))
+        FilledButton.tonalIcon(
+            onPressed: busy ? null : () => _transitionListing('mark_fulfilled'),
+            icon: const Icon(Icons.task_alt),
+            label: const Text('Mark request fulfilled')),
+      if (!isWanted && (status == 'active' || status == 'pending_sale'))
         FilledButton.tonalIcon(
             onPressed: busy ? null : () => _transitionListing('mark_sold'),
             icon: const Icon(Icons.task_alt),
             label: const Text('Mark sold')),
-      if (status == 'active' || status == 'paused' || status == 'sold')
+      if (status == 'active' ||
+          status == 'paused' ||
+          status == 'sold' ||
+          status == 'fulfilled')
         OutlinedButton.icon(
             onPressed: busy ? null : () => _transitionListing('archive'),
             icon: const Icon(Icons.archive_outlined),
             label: const Text('Archive')),
-      if (status == 'sold' || status == 'archived')
+      if (status == 'sold' || status == 'fulfilled' || status == 'archived')
         FilledButton.icon(
             onPressed: busy ? null : _relistListing,
             icon: const Icon(Icons.refresh),
@@ -1145,9 +1175,12 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                 const Icon(Icons.inventory_2_outlined,
                     color: Color(0xFF0878E8)),
                 const SizedBox(width: 8),
-                const Expanded(
-                    child: Text('Listing controls',
-                        style: TextStyle(fontWeight: FontWeight.w900))),
+                Expanded(
+                    child: Text(
+                        isWanted
+                            ? 'Wanted request controls'
+                            : 'Listing controls',
+                        style: const TextStyle(fontWeight: FontWeight.w900))),
                 Chip(label: Text(status.replaceAll('_', ' ').toUpperCase())),
               ]),
               const SizedBox(height: 6),
@@ -1251,6 +1284,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
       'pause': 'Pause this listing?',
       'activate': 'Reactivate this listing?',
       'mark_sold': 'Mark this listing as sold?',
+      'mark_fulfilled': 'Mark this wanted request as fulfilled?',
       'archive': 'Archive this listing?',
     };
     final confirmed = await showDialog<bool>(
@@ -1976,6 +2010,396 @@ class _AuctionNotificationSettings extends StatelessWidget {
           .update({field: enabled, 'updatedAt': FieldValue.serverTimestamp()}));
 }
 
+enum _WantedMatchViewer { wantedOwner, seller }
+
+class _WantedMatchesPanel extends StatelessWidget {
+  const _WantedMatchesPanel({required this.listingId, required this.viewer});
+
+  final String listingId;
+  final _WantedMatchViewer viewer;
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('wanted_matches')
+            .where(
+              viewer == _WantedMatchViewer.wantedOwner
+                  ? 'wantedListingId'
+                  : 'supplyListingId',
+              isEqualTo: listingId,
+            )
+            .orderBy('score', descending: true)
+            .limit(30)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return MarketplaceDataStateView.failure(
+              error: snapshot.error,
+              resource: 'Wanted matches',
+              onRetry: () {},
+              compact: true,
+            );
+          }
+          if (!snapshot.hasData) {
+            return const MarketplaceDataStateView.loading(
+              title: 'Checking Marketplace listings',
+              message: 'Comparing product details, quantity, and location…',
+              compact: true,
+            );
+          }
+          final matches = snapshot.data!.docs;
+          if (matches.isEmpty) {
+            return MarketplaceDataStateView(
+              kind: MarketplaceDataStateKind.empty,
+              icon: Icons.manage_search_outlined,
+              title: viewer == _WantedMatchViewer.wantedOwner
+                  ? 'No strong matches yet'
+                  : 'No matching Wanted buyers yet',
+              message: viewer == _WantedMatchViewer.wantedOwner
+                  ? 'Your wanted ad remains active. You will be notified when a suitable listing is published.'
+                  : 'This listing remains discoverable. You will be notified when a suitable Wanted Ad is published.',
+              compact: true,
+            );
+          }
+          final stateField = viewer == _WantedMatchViewer.wantedOwner
+              ? 'wantedOwnerState'
+              : 'sellerState';
+          final active = matches
+              .where((document) =>
+                  '${document.data()[stateField] ?? 'suggested'}' !=
+                  'dismissed')
+              .toList(growable: false);
+          final dismissed = matches
+              .where((document) =>
+                  '${document.data()[stateField] ?? 'suggested'}' ==
+                  'dismissed')
+              .toList(growable: false);
+          return Column(children: [
+            ...active.map((document) =>
+                _WantedMatchCard(document: document, viewer: viewer)),
+            if (dismissed.isNotEmpty)
+              Card(
+                child: ExpansionTile(
+                  leading: const Icon(Icons.visibility_off_outlined),
+                  title: Text('Dismissed matches (${dismissed.length})'),
+                  subtitle: const Text('Restore a match at any time'),
+                  children: dismissed
+                      .map((document) => _WantedMatchCard(
+                            document: document,
+                            viewer: viewer,
+                          ))
+                      .toList(growable: false),
+                ),
+              ),
+          ]);
+        },
+      );
+}
+
+class _WantedMatchCard extends StatefulWidget {
+  const _WantedMatchCard({required this.document, required this.viewer});
+
+  final QueryDocumentSnapshot<Map<String, dynamic>> document;
+  final _WantedMatchViewer viewer;
+
+  @override
+  State<_WantedMatchCard> createState() => _WantedMatchCardState();
+}
+
+class _WantedMatchCardState extends State<_WantedMatchCard> {
+  bool _busy = false;
+  final Map<String, String> _requestIds = {};
+
+  bool get _isWantedOwner => widget.viewer == _WantedMatchViewer.wantedOwner;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = widget.document.data();
+    final detailsKey = _isWantedOwner ? 'supply' : 'wanted';
+    final details = data[detailsKey] is Map
+        ? Map<String, dynamic>.from(data[detailsKey] as Map)
+        : const <String, dynamic>{};
+    final state =
+        '${data[_isWantedOwner ? 'wantedOwnerState' : 'sellerState'] ?? 'suggested'}';
+    final reasons = data['reasons'] is List
+        ? List<String>.from(
+            (data['reasons'] as List).map((reason) => '$reason'),
+          )
+        : const <String>[];
+    final score = (data['score'] as num?)?.round() ?? 0;
+    final targetListingId =
+        '${data[_isWantedOwner ? 'supplyListingId' : 'wantedListingId'] ?? ''}';
+    final targetOwnerUid =
+        '${data[_isWantedOwner ? 'sellerUid' : 'wantedOwnerUid'] ?? ''}';
+    final thumbnail = '${details['thumbnailUrl'] ?? ''}'.trim();
+    return Card(
+      margin: const EdgeInsets.fromLTRB(6, 0, 6, 10),
+      color: state == 'dismissed'
+          ? const Color(0xFFF2F2F2)
+          : score >= 75
+              ? const Color(0xFFE8F7F1)
+              : const Color(0xFFF3F8FD),
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              CircleAvatar(
+                backgroundImage:
+                    thumbnail.isEmpty ? null : NetworkImage(thumbnail),
+                child: thumbnail.isEmpty
+                    ? const Icon(Icons.auto_awesome_outlined)
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${details['title'] ?? (_isWantedOwner ? 'Marketplace listing' : 'Wanted Ad')}',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    Text(
+                      '${details['productType'] ?? details['category'] ?? ''}',
+                      style: const TextStyle(color: Color(0xFF66758A)),
+                    ),
+                  ],
+                ),
+              ),
+              Chip(
+                avatar: const Icon(Icons.analytics_outlined, size: 16),
+                label: Text('$score% match'),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              if (details['price'] is num)
+                Chip(
+                  avatar: const Icon(Icons.payments_outlined, size: 16),
+                  label: Text(marketplaceMoney(details['price'] as num)),
+                ),
+              if ('${details['quantity'] ?? ''}'.isNotEmpty)
+                Chip(
+                  avatar: const Icon(Icons.numbers_outlined, size: 16),
+                  label: Text('${details['quantity']} units'),
+                ),
+              if ('${details['publicLocationName'] ?? ''}'.isNotEmpty)
+                Chip(
+                  avatar: const Icon(Icons.location_on_outlined, size: 16),
+                  label: Text('${details['publicLocationName']}'),
+                ),
+              Chip(
+                avatar: Icon(
+                  state == 'contacted'
+                      ? Icons.forum_outlined
+                      : state == 'dismissed'
+                          ? Icons.visibility_off_outlined
+                          : Icons.auto_awesome_outlined,
+                  size: 16,
+                ),
+                label: Text(state.replaceAll('_', ' ')),
+              ),
+            ]),
+            if (reasons.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              Text(
+                reasons.take(3).join(' • '),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF52657A)),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              if (state != 'dismissed')
+                FilledButton.icon(
+                  onPressed:
+                      _busy || targetListingId.isEmpty || targetOwnerUid.isEmpty
+                          ? null
+                          : () => _contact(
+                                targetListingId,
+                                targetOwnerUid,
+                                '${details['title'] ?? 'Marketplace listing'}',
+                                alreadyContacted: state == 'contacted',
+                              ),
+                  icon: const Icon(Icons.forum_outlined),
+                  label: Text(state == 'contacted'
+                      ? 'Open conversation'
+                      : _isWantedOwner
+                          ? 'Contact seller'
+                          : 'Contact buyer'),
+                ),
+              if (state == 'dismissed')
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _manage('restore'),
+                  icon: const Icon(Icons.restore),
+                  label: const Text('Restore'),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _manage('dismiss'),
+                  icon: const Icon(Icons.visibility_off_outlined),
+                  label: const Text('Dismiss'),
+                ),
+              TextButton.icon(
+                onPressed: _busy ? null : _showHistory,
+                icon: const Icon(Icons.history),
+                label: const Text('Activity'),
+              ),
+              TextButton.icon(
+                onPressed: targetListingId.isEmpty
+                    ? null
+                    : () => context.push(
+                          MarketplaceDeepLinks.listing(targetListingId),
+                        ),
+                icon: const Icon(Icons.open_in_new_outlined),
+                label: Text(_isWantedOwner ? 'View listing' : 'View request'),
+              ),
+            ]),
+            if (_busy) ...[
+              const SizedBox(height: 8),
+              const LinearProgressIndicator(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _requestId(String action) => _requestIds.putIfAbsent(
+      action,
+      () => FirebaseFirestore.instance.collection('command_ids').doc().id);
+
+  Future<void> _manage(String action) async {
+    setState(() => _busy = true);
+    try {
+      await MarketplaceCommandClient().execute('manageWantedMatch', {
+        'requestId': _requestId(action),
+        'matchId': widget.document.id,
+        'action': action,
+      });
+      _requestIds.remove(action);
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: action == 'dismiss'
+              ? 'Match moved to Dismissed.'
+              : 'Match restored.',
+          tone: PipeStatusTone.success,
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _contact(
+    String listingId,
+    String ownerUid,
+    String title, {
+    required bool alreadyContacted,
+  }) async {
+    setState(() => _busy = true);
+    try {
+      final conversationId =
+          await MarketplaceActionsRepository().ensureConversation(
+        listingId: listingId,
+        listingTitle: title,
+        sellerUid: ownerUid,
+        sellerName: 'Marketplace member',
+      );
+      if (!alreadyContacted) {
+        await MarketplaceCommandClient().execute('manageWantedMatch', {
+          'requestId': _requestId('mark_contacted'),
+          'matchId': widget.document.id,
+          'action': 'mark_contacted',
+        });
+        _requestIds.remove('mark_contacted');
+      }
+      if (mounted) {
+        await context.push(MarketplaceDeepLinks.conversation(conversationId));
+      }
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The conversation could not be opened. Try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _showHistory() async {
+    try {
+      final events = await widget.document.reference
+          .collection('events')
+          .orderBy('revision', descending: true)
+          .limit(50)
+          .get();
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const Text('Match activity',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              if (events.docs.isEmpty)
+                const ListTile(
+                  leading: Icon(Icons.auto_awesome_outlined),
+                  title: Text('Match suggested'),
+                  subtitle: Text('No participant actions yet.'),
+                )
+              else
+                ...events.docs.map((event) {
+                  final data = event.data();
+                  return ListTile(
+                    leading: const Icon(Icons.history),
+                    title: Text('${data['action'] ?? 'Match updated'}'
+                        .replaceAll('_', ' ')),
+                    subtitle: Text(
+                      '${data['actorRole'] ?? 'participant'} • ${data['state'] ?? ''}',
+                    ),
+                    trailing: Text('#${data['revision'] ?? ''}'),
+                  );
+                }),
+            ],
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'Match activity could not be loaded. Try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
+      }
+    }
+  }
+}
+
 class _OwnerBidHistory extends StatelessWidget {
   const _OwnerBidHistory({required this.listingId});
   final String listingId;
@@ -1990,7 +2414,22 @@ class _OwnerBidHistory extends StatelessWidget {
               .limit(defaultActivityFeedLimit)
               .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const LinearProgressIndicator();
+            if (snapshot.hasError) {
+              return const MarketplaceDataStateView(
+                kind: MarketplaceDataStateKind.error,
+                title: 'Bid history could not be loaded',
+                message:
+                    'The auction was not changed. Bid history will reconnect automatically.',
+                compact: true,
+              );
+            }
+            if (!snapshot.hasData) {
+              return const MarketplaceDataStateView.loading(
+                title: 'Loading bid history',
+                message: 'Retrieving the latest auction bids…',
+                compact: true,
+              );
+            }
             final bids = snapshot.data!.docs.toList()
               ..sort((a, b) {
                 final at = a.data()['createdAt'] as Timestamp?;
@@ -2139,101 +2578,119 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                 : 'Receive offer, message, auction, Dispatch, support, and account-security updates.'),
             trailing: _changing
                 ? const SizedBox.square(
-                    dimension: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                    dimension: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : FilledButton.tonal(
                     onPressed: _changeDeviceNotifications,
-                    child: Text(_deviceStatus == MarketplaceNotificationStatus.enabled
-                        ? 'Turn off'
-                        : 'Enable'),
+                    child: Text(
+                        _deviceStatus == MarketplaceNotificationStatus.enabled
+                            ? 'Turn off'
+                            : 'Enable'),
                   ),
           ),
         ),
       ),
-      Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('notifications')
-            .orderBy('createdAt', descending: true)
-            .limit(defaultActivityFeedLimit)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-                child: Text('Could not load notifications: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final items = snapshot.data!.docs.toList()
-            ..sort((a, b) {
-              final at = a.data()['createdAt'] as Timestamp?;
-              final bt = b.data()['createdAt'] as Timestamp?;
-              return (bt?.millisecondsSinceEpoch ?? 0)
-                  .compareTo(at?.millisecondsSinceEpoch ?? 0);
-            });
-          if (items.isEmpty) {
-            return const Center(child: Text('No notifications yet.'));
-          }
-          final atLimit = items.length == defaultActivityFeedLimit;
-          return ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: items.length + (atLimit ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (atLimit && index == 0) {
-                  return const Card(
-                    child: ListTile(
-                      leading: Icon(Icons.info_outline),
-                      title: Text('Showing the 100 most recent notifications.'),
-                    ),
+      Expanded(
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .collection('notifications')
+                  .orderBy('createdAt', descending: true)
+                  .limit(defaultActivityFeedLimit)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return MarketplaceDataStateView.failure(
+                    error: snapshot.error,
+                    resource: 'Notifications',
+                    onRetry: () => setState(() {}),
                   );
                 }
-                final document = items[index - (atLimit ? 1 : 0)];
-                final data = document.data();
-                final unread = data['read'] != true;
-                return Card(
-                    color: unread ? const Color(0xFFEAF4FD) : null,
-                    child: ListTile(
-                      leading: Icon(data['type'] == 'offer'
-                          ? Icons.handshake_outlined
-                          : Icons.chat_bubble_outline),
-                      title: Text('${data['title'] ?? 'Marketplace activity'}',
-                          style: TextStyle(
-                              fontWeight:
-                                  unread ? FontWeight.w900 : FontWeight.w600)),
-                      subtitle: Text(data['createdAt'] is Timestamp
-                          ? (data['createdAt'] as Timestamp)
-                              .toDate()
-                              .toLocal()
-                              .toString()
-                          : ''),
-                      trailing: unread
-                          ? const Badge()
-                          : const Icon(Icons.chevron_right),
-                      onTap: () async {
-                        await document.reference.update({
-                          'read': true,
-                          'readAt': FieldValue.serverTimestamp(),
-                        });
-                        final type = '${data['type'] ?? ''}';
-                        if (type == 'message') {
-                          widget.onOpenTab(3);
-                        } else if (type == 'offer') {
-                          widget.onOpenTab(2);
-                        } else if (type == 'new_listing_match' ||
-                            type == 'seller_new_listing') {
-                          widget.onBrowse();
-                        } else if (type == 'score_change') {
-                          if (context.mounted) {
-                            _showUserScore(context, widget.onOpenTab);
-                          }
-                        } else {
-                          widget.onOpenTab(1);
-                        }
-                      },
-                    ));
-              });
-        })),
+                if (!snapshot.hasData) {
+                  return const MarketplaceDataStateView.loading(
+                    title: 'Loading notifications',
+                    message: 'Retrieving your latest account activity…',
+                  );
+                }
+                final items = snapshot.data!.docs.toList()
+                  ..sort((a, b) {
+                    final at = a.data()['createdAt'] as Timestamp?;
+                    final bt = b.data()['createdAt'] as Timestamp?;
+                    return (bt?.millisecondsSinceEpoch ?? 0)
+                        .compareTo(at?.millisecondsSinceEpoch ?? 0);
+                  });
+                if (items.isEmpty) {
+                  return const MarketplaceDataStateView(
+                    kind: MarketplaceDataStateKind.empty,
+                    title: 'No notifications yet',
+                    message:
+                        'Offer, message, auction, Dispatch, support, and account-security updates will appear here.',
+                    icon: Icons.notifications_none_outlined,
+                  );
+                }
+                final atLimit = items.length == defaultActivityFeedLimit;
+                return ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: items.length + (atLimit ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (atLimit && index == 0) {
+                        return const Card(
+                          child: ListTile(
+                            leading: Icon(Icons.info_outline),
+                            title: Text(
+                                'Showing the 100 most recent notifications.'),
+                          ),
+                        );
+                      }
+                      final document = items[index - (atLimit ? 1 : 0)];
+                      final data = document.data();
+                      final unread = data['read'] != true;
+                      return Card(
+                          color: unread ? const Color(0xFFEAF4FD) : null,
+                          child: ListTile(
+                            leading: Icon(data['type'] == 'offer'
+                                ? Icons.handshake_outlined
+                                : Icons.chat_bubble_outline),
+                            title: Text(
+                                '${data['title'] ?? 'Marketplace activity'}',
+                                style: TextStyle(
+                                    fontWeight: unread
+                                        ? FontWeight.w900
+                                        : FontWeight.w600)),
+                            subtitle: Text(data['createdAt'] is Timestamp
+                                ? (data['createdAt'] as Timestamp)
+                                    .toDate()
+                                    .toLocal()
+                                    .toString()
+                                : ''),
+                            trailing: unread
+                                ? const Badge()
+                                : const Icon(Icons.chevron_right),
+                            onTap: () async {
+                              await document.reference.update({
+                                'read': true,
+                                'readAt': FieldValue.serverTimestamp(),
+                              });
+                              final type = '${data['type'] ?? ''}';
+                              if (type == 'message') {
+                                widget.onOpenTab(3);
+                              } else if (type == 'offer') {
+                                widget.onOpenTab(2);
+                              } else if (type == 'new_listing_match' ||
+                                  type == 'seller_new_listing') {
+                                widget.onBrowse();
+                              } else if (type == 'score_change') {
+                                if (context.mounted) {
+                                  _showUserScore(context, widget.onOpenTab);
+                                }
+                              } else {
+                                widget.onOpenTab(1);
+                              }
+                            },
+                          ));
+                    });
+              })),
     ]);
   }
 }

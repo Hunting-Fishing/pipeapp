@@ -26,7 +26,7 @@ checklist in `PHASE_1_LAUNCH_FINALIZATION_PLAN.md`:
 | --- | --- | ---: | --- |
 | 0 — Scope lock and safe defaults | **Yes** | **100%** | Runtime flags, build locks, callable/rules enforcement, unit/emulator coverage, and clean CI pass. |
 | 1 — Environments, builds, diagnostics | **Yes** | **100%** | Production signed Android AAB (79.2MB) and Apple IPA (41.8MB) release candidates generated, verified, and retained in GitHub CI. Production Firestore security rules, indexes, and Storage rules deployed to `flutter-flow-pipe`. |
-| 2 — Backend parity and commands | **Yes** | **100%** | July 30 production inventory: all 74 Marketplace Cloud Functions active on Node 22 plus 1 approved standalone 8 GB 1st-gen `adminAgent` Cloud Function retained for future AI agent workflows (75 total functions). Rules, indexes, server commands, and zero-vulnerability runtime locks are verified. |
+| 2 — Backend parity and commands | **Yes** | **100%** | July 30 production inventory: all 74 Marketplace Cloud Functions are active on Node 22 plus 1 approved standalone 8 GB 1st-gen `agent` Cloud Function on Node 20 (75 total functions). Rules, indexes, server commands, and zero-vulnerability Marketplace runtime locks are verified. The tracked Node 22 `agent` replacement remains disabled pending controlled deployment. |
 | 3 — Identity and abuse protection | No | 95% | Signup, sign-in, reviewed verification, MFA admin controls, rate limits, data export, session revocation, and scheduled deletion implemented; production App Check and physical OTP/MFA acceptance remain. |
 | 4 — Product workflows | No | 96% | Saved listings, listing/transaction lifecycles, media publication, indexed Marketplace keyword search, Dispatch provider enrollment, entity routes, and cursor pagination verified locally. Search index deployment/backfill and staging acceptance remain. |
 | 5 — Trust, notifications, policies | No | 96% | User reporting, evidence authorization, administrator decisions, appeals, private support, versioned policies, and privacy-safe external-notification delivery/retry controls are source and emulator verified. FCM/APNs activation, physical-device delivery, alert ownership, policy approval, and staffed operations remain. |
@@ -491,7 +491,7 @@ build approval and the corresponding server flag are both enabled.
   moderation review, and freight-quote publishing now use that same semantic
   feedback boundary. The primary Marketplace shell contains no direct
   SnackBars, and a source contract prevents their return. The expanded pass
-  clears a clean analyzer, 108 Flutter tests, 105 Function tests, release,
+  clears a clean analyzer, 149 Flutter tests, 118 Marketplace Function tests, release,
   parity, and acceptance controls, zero production dependency vulnerabilities,
   an ARM64 Android APK, production web, and an actual WebAssembly build.
 - Phase 1 acceptance schema 2 now requires the exact signed Android AAB and
@@ -617,10 +617,16 @@ build approval and the corresponding server flag are both enabled.
 - App Check and Workload Identity configuration are intentionally absent, so
   staging and production deployments still fail closed.
 - On July 30, production deployment was executed via `firebase-tools deploy --only functions --force --project flutter-flow-pipe`. All 74 Marketplace Cloud Functions (including `registerNotificationEndpoint`, `unregisterNotificationEndpoint`, `resolveNotificationDeliveryFailure`, and `onUserNotificationCreated`) are active on Node.js 22. In addition, 1 standalone 8 GB 1st-generation `agent` function is retained for Phase 2 AI agent workloads. Total active production functions: **75 Functions**.
+- Phase 2 now tracks a fail-closed Node.js 22 replacement under
+  `firebase/agent-functions`. It requires administrator claims, MFA, App Check,
+  zero warm instances while disabled, bounded operations, and audit records.
+  Release manifests and parity checks cover both Function codebases. This is
+  source evidence only until a controlled deployment replaces the current
+  Node.js 20 resource.
 - The Function runtime now pins the affected transitive UUID dependency to
-  11.1.1. The audit changed from 7 moderate findings to 0; 105 Function tests,
+  11.1.1. The audit changed from 7 moderate findings to 0; 112 Marketplace Function tests,
   36 Firestore/Storage Rules tests, and the authenticated four-service emulator
-  workflow pass with Firebase Admin 14.2.0 and Functions 7.3.0.
+  workflow pass with Firebase Admin 14.2.0 and Functions 7.3.2.
 - Deployments now select an explicit App Check rollout mode. `disabled` permits
   isolated staging bootstrap, `observe` requires token-producing clients while
   enforcement remains off, and `enforce` protects callables. Production

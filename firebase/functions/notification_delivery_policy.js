@@ -104,6 +104,9 @@ function deliveryCopy(data = {}) {
     support_response: ["Support response", "Pipe Buyer Support replied to your case."],
     new_device: ["New device remembered", "Review your account device history if this was not you."],
     new_listing_match: ["New matching listing", "A new listing matches one of your saved watches."],
+    wanted_match: ["Possible wanted-ad match", "A Marketplace listing may match your wanted request."],
+    wanted_interest: ["Possible buyer interest", "A wanted ad may match one of your listings."],
+    wanted_contact: ["Wanted match contact", "A match participant wants to continue the conversation."],
     seller_new_listing: ["Saved seller posted", "A seller you follow added a new listing."],
   }[type] || ["Pipe Buyer update", "Open Pipe Buyer to review your latest activity."];
   const title = String(data.pushTitle || copy[0]).trim().slice(0, 80) || copy[0];

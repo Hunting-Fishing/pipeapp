@@ -9,6 +9,7 @@ import {
   hashDirectory,
   hashRelativeFiles,
   isValidPublicSupportEmail,
+  readFunctionSources,
   validateReleaseInputs,
 } from "./release_manifest.mjs";
 
@@ -19,6 +20,20 @@ test("function exports are unique and sorted", () => {
     exports.zeta = replacement();
   `);
   assert.deepEqual(exports, ["alpha", "zeta"]);
+});
+
+test("all configured Function codebases are release inputs", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pipe-function-sources-"));
+  writeFileSync(path.join(root, "firebase.json"), JSON.stringify({
+    functions: [
+      {source: "firebase/functions", codebase: "marketplace"},
+      {source: "firebase/agent-functions", codebase: "functions"},
+    ],
+  }));
+  assert.deepEqual(readFunctionSources(root), [
+    {source: "firebase/functions", codebase: "marketplace"},
+    {source: "firebase/agent-functions", codebase: "functions"},
+  ]);
 });
 
 test("file and directory hashes are deterministic and content-sensitive", () => {

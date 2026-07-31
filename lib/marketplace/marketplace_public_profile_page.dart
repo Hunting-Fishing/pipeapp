@@ -12,6 +12,7 @@ import 'regional_phone_field.dart';
 import 'marketplace_profile_page.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_deep_links.dart';
+import 'marketplace_data_state.dart';
 
 class MarketplacePublicProfilePage extends StatefulWidget {
   const MarketplacePublicProfilePage({
@@ -132,18 +133,17 @@ class _MarketplacePublicProfilePageState
           future: _profile,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const MarketplaceDataStateView.loading(
+                title: 'Loading member profile',
+                message: 'Retrieving public details, tags, and listings…',
+              );
             }
             if (snapshot.hasError) {
-              return Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text('This profile could not be loaded.'),
-                const SizedBox(height: 10),
-                FilledButton.tonalIcon(
-                    onPressed: _retryProfile,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Try again'))
-              ]));
+              return MarketplaceDataStateView.failure(
+                error: snapshot.error,
+                resource: 'Member profile',
+                onRetry: _retryProfile,
+              );
             }
             final data = snapshot.data!;
             final profile =
@@ -291,22 +291,28 @@ class _MarketplacePublicProfilePageState
                         '${data.listings.length}${_hasMoreListings ? '+' : ''} loaded'))
               ]),
               if (_listings.isEmpty)
-                const Card(
-                    child: Padding(
-                        padding: EdgeInsets.all(18),
-                        child: Text('This member has no active listings.')))
+                const MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  icon: Icons.inventory_2_outlined,
+                  title: 'No active listings',
+                  message:
+                      'This member does not currently have a published listing.',
+                  compact: true,
+                )
               else
                 ..._listings.map(
                     (doc) => _ListingCard(document: doc, sellerName: name)),
               if (_listingLoadError != null)
-                Card(
-                    color: Colors.orange.shade50,
-                    child: ListTile(
-                        leading: const Icon(Icons.sync_problem_outlined),
-                        title: const Text('More listings could not be loaded.'),
-                        trailing: TextButton(
-                            onPressed: _loadMoreListings,
-                            child: const Text('Retry')))),
+                MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.error,
+                  title: 'More listings could not be loaded',
+                  message:
+                      'The profile remains available. Try loading the next page again.',
+                  primaryLabel: 'Retry',
+                  primaryIcon: Icons.refresh,
+                  onPrimary: _loadMoreListings,
+                  compact: true,
+                ),
               if (_hasMoreListings)
                 Padding(
                     padding: const EdgeInsets.only(top: 8),

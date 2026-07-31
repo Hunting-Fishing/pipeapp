@@ -93,6 +93,11 @@ const serverOwnedFields = new Set([
   "initialPrice",
   "reservePrice",
   "reserveTotal",
+  "wantedStatus",
+  "responseCount",
+  "requestType",
+  "matchCount",
+  "lastMatchedAt",
 ]);
 
 const longTextFields = new Set([
@@ -106,12 +111,21 @@ const longTextFields = new Set([
 
 const dateFields = new Set(["auctionStartAt", "auctionEndAt"]);
 
-const searchIndexVersion = 1;
+const searchIndexVersion = 2;
 const maximumSearchTokens = 480;
 
 function normalizeMarketplaceSearchText(value, maximumWords = 3) {
   return String(value || "")
+      .normalize("NFKD")
+      .replace(/\p{M}+/gu, "")
       .toLowerCase()
+      .replace(/æ/gu, "ae")
+      .replace(/œ/gu, "oe")
+      .replace(/ß/gu, "ss")
+      .replace(/ø/gu, "o")
+      .replace(/ł/gu, "l")
+      .replace(/ð/gu, "d")
+      .replace(/þ/gu, "th")
       .replace(/[^a-z0-9]+/gu, " ")
       .trim()
       .split(/\s+/u)
@@ -277,6 +291,17 @@ function validateMarketplaceListingInput(
     invalid("Listing destination is invalid.");
   }
   listing.transactionType = transactionType;
+  if (transactionType === "Wanted / Seeking") {
+    listing.wantedStatus = "open";
+    listing.responseCount = 0;
+    listing.requestType = "wanted_ad";
+    listing.matchCount = 0;
+  } else {
+    delete listing.wantedStatus;
+    delete listing.responseCount;
+    delete listing.requestType;
+    delete listing.matchCount;
+  }
 
   if (listing.category === "Site & Property") {
     const enabled = options.regulatedListingsEnabled === true ||

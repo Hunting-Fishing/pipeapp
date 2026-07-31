@@ -2,11 +2,11 @@
 ///
 /// Server-controlled feature configuration will be added before Gate 0 closes.
 /// These defaults fail closed so a production build cannot accidentally expose
-/// demo inventory, regulated listings, or unimplemented paid workflows.
+/// regulated listings or unimplemented paid workflows. Marketplace inventory
+/// always comes from the configured backend; demo listings are not compiled in.
 class Phase1FeaturePolicy {
   const Phase1FeaturePolicy({
     required this.environment,
-    required this.demoContentRequested,
     required this.regulatedListingsRequested,
     required this.paidFeaturesRequested,
     this.auctionsRequested = false,
@@ -17,10 +17,6 @@ class Phase1FeaturePolicy {
     environment: String.fromEnvironment(
       'PIPE_ENV',
       defaultValue: 'development',
-    ),
-    demoContentRequested: bool.fromEnvironment(
-      'PIPE_ENABLE_DEMO_CONTENT',
-      defaultValue: false,
     ),
     regulatedListingsRequested: bool.fromEnvironment(
       'PIPE_ENABLE_REGULATED_LISTINGS',
@@ -41,15 +37,12 @@ class Phase1FeaturePolicy {
   );
 
   final String environment;
-  final bool demoContentRequested;
   final bool regulatedListingsRequested;
   final bool paidFeaturesRequested;
   final bool auctionsRequested;
   final bool dispatchRequested;
 
   bool get isProduction => environment.trim().toLowerCase() == 'production';
-
-  bool get demoContentEnabled => !isProduction && demoContentRequested;
 
   bool get regulatedListingsEnabled =>
       !isProduction && regulatedListingsRequested;

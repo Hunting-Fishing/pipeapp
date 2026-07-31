@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'marketplace_location.dart';
 import 'marketplace_service_area.dart';
-import 'marketplace_dispatch_distance.dart';
 import 'marketplace_command_client.dart';
 
 class MarketplaceDispatchRepository {
@@ -24,6 +23,11 @@ class MarketplaceDispatchRepository {
           .orderBy('createdAt', descending: true)
           .limit(50)
           .snapshots();
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> privateDispatchJob(
+    String jobId,
+  ) =>
+      _firestore.collection('dispatch_job_private').doc(jobId).snapshots();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> fleet() => _firestore
       .collection('dispatch_carriers')
@@ -277,12 +281,7 @@ class MarketplaceDispatchRepository {
     String? weightSource,
     MarketplaceLocation? deliveryLocation,
     GeoPoint? pickupGeoPoint,
-    num? distanceKm,
-    String? distanceSource,
   }) async {
-    final destination = deliveryLocation?.exactGeoPoint;
-    final mappedDistance =
-        distanceKm ?? dispatchDistanceKm(pickupGeoPoint, destination);
     final jobId = _firestore.collection('dispatch_jobs').doc().id;
     final result = await _commands.execute('createDispatchJob', {
       'requestId': jobId,
@@ -302,10 +301,6 @@ class MarketplaceDispatchRepository {
           'latitude': pickupGeoPoint.latitude,
           'longitude': pickupGeoPoint.longitude,
         },
-      if (mappedDistance != null) 'distanceKm': mappedDistance,
-      if (mappedDistance != null)
-        'distanceSource': distanceSource ??
-            (distanceKm == null ? 'coordinate_estimate' : 'user_entered_route'),
       if (deliveryLocation != null) ...{
         'deliveryPoint': {
           'latitude': deliveryLocation.exactGeoPoint.latitude,
@@ -330,7 +325,6 @@ class MarketplaceDispatchRepository {
     required DateTime truckingDate,
     required String loadDetails,
     num? estimatedWeightKg,
-    num? distanceKm,
   }) async {
     await _commands.execute('updateDispatchJob', {
       'requestId': _firestore.collection('dispatch_jobs').doc().id,
@@ -341,10 +335,6 @@ class MarketplaceDispatchRepository {
       'truckingDate': truckingDate.millisecondsSinceEpoch,
       'loadDetails': loadDetails.trim(),
       'estimatedWeightKg': estimatedWeightKg,
-      if (distanceKm != null) ...{
-        'distanceKm': distanceKm,
-        'distanceSource': 'user_entered_route',
-      },
     });
   }
 

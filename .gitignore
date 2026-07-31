@@ -26,6 +26,7 @@ coverage/
 .firebaserc
 firebase/public/
 firebase/functions/node_modules/
+firebase/agent-functions/node_modules/
 firebase/rules-tests/node_modules/
 firebase/functions/.runtimeconfig.json
 gha-creds-*.json

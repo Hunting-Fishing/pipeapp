@@ -178,12 +178,15 @@ jobs:
           npm ci --prefix firebase/functions
           npm run lint --prefix firebase/functions
           npm run check --prefix firebase/functions
+          npm ci --prefix firebase/agent-functions
+          npm run lint --prefix firebase/agent-functions
+          npm run check --prefix firebase/agent-functions
 
       - name: Restore Firestore rules tests
         run: npm ci --prefix firebase/rules-tests
 
       - name: Install pinned Firebase CLI
-        run: npm install --global firebase-tools@15.24.0
+        run: npm install --global firebase-tools@15.25.0
 
       - name: Test Firestore security rules
         run: >
@@ -312,12 +315,24 @@ jobs:
             --inventory build/deployed-functions.json \
             --project "$PIPE_FIREBASE_PROJECT_ID" \
             --codebase marketplace \
-            --output build/function-parity.json
+            --output build/function-parity-marketplace.json
+          node tool/function_parity.mjs \
+            --manifest build/release-manifest.json \
+            --inventory build/deployed-functions.json \
+            --project "$PIPE_FIREBASE_PROJECT_ID" \
+            --codebase functions \
+            --output build/function-parity-agent.json
           {
             echo "## Firebase Function parity"
             echo ""
+            echo "### Marketplace"
             echo '```json'
-            cat build/function-parity.json
+            cat build/function-parity-marketplace.json
+            echo '```'
+            echo ""
+            echo "### Administrative agent"
+            echo '```json'
+            cat build/function-parity-agent.json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -345,7 +360,8 @@ jobs:
             build/release-manifest.json
             build/firebase-deploy.log
             build/deployed-functions.json
-            build/function-parity.json
+            build/function-parity-marketplace.json
+            build/function-parity-agent.json
           if-no-files-found: warn
           retention-days: 30
 

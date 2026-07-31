@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/config/public_release_config.dart';
+import 'marketplace_data_state.dart';
 
 enum MarketplacePublicInformationKind {
   privacy,
@@ -165,21 +166,15 @@ class _PublishedPolicy extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const PipeStatusSurface(
-            tone: PipeStatusTone.error,
-            icon: Icons.cloud_off_outlined,
-            title: 'The current document could not be loaded',
-            message:
-                'Check your connection and try again. Pipe Buyer does not show an unapproved or cached replacement.',
-            liveRegion: true,
+          return MarketplaceDataStateView.failure(
+            error: snapshot.error,
+            resource: 'The current approved document',
           );
         }
         if (!snapshot.hasData) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
-            ),
+          return const MarketplaceDataStateView.loading(
+            title: 'Loading approved document',
+            message: 'Checking the current published version…',
           );
         }
         final document = snapshot.data!;

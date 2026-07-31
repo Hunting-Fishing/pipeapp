@@ -102,10 +102,10 @@ function git(root, args) {
   }).trim();
 }
 
-function trackedFunctionFiles(root) {
+function releaseFunctionFiles(root, source) {
   const output = execFileSync(
       "git",
-      ["ls-files", "-z", "--", "firebase/functions"],
+      ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", source],
       {
         cwd: root,
         encoding: "buffer",
@@ -116,6 +116,24 @@ function trackedFunctionFiles(root) {
       .split("\0")
       .filter(Boolean)
       .filter((file) => !normalizePath(file).includes("/node_modules/"));
+}
+
+export function readFunctionSources(root) {
+  const config = JSON.parse(readFileSync(path.join(root, "firebase.json"), "utf8"));
+  const configured = Array.isArray(config.functions) ?
+    config.functions : [config.functions];
+  const sources = configured.map((entry) => ({
+    source: normalizePath(String(entry?.source || "").trim()),
+    codebase: String(entry?.codebase || "default").trim(),
+  }));
+  if (sources.length === 0 || sources.some((entry) =>
+    entry.source.length === 0 || entry.codebase.length === 0)) {
+    throw new Error("Every Firebase Functions source requires a source and codebase.");
+  }
+  if (new Set(sources.map((entry) => entry.codebase)).size !== sources.length) {
+    throw new Error("Firebase Functions codebase names must be unique.");
+  }
+  return sources;
 }
 
 export function validateReleaseInputs({
@@ -188,7 +206,7 @@ export function createReleaseManifest({
 }) {
   const workingTreeClean = git(
       root,
-      ["status", "--porcelain", "--untracked-files=no"],
+      ["status", "--porcelain"],
   ).length === 0;
   validateReleaseInputs({
     environment,
@@ -206,18 +224,27 @@ export function createReleaseManifest({
     );
   }
 
-  const functionFiles = trackedFunctionFiles(root);
+  const functionSources = readFunctionSources(root);
+  const functionFiles = functionSources.flatMap((entry) =>
+    releaseFunctionFiles(root, entry.source));
   if (functionFiles.length === 0) {
     throw new Error("No tracked Firebase Functions source files were found.");
   }
-  const functionIndex = readFileSync(
-      path.join(root, "firebase", "functions", "index.js"),
-      "utf8",
-  );
-  const expectedFunctions = extractFunctionExports(functionIndex);
-  if (expectedFunctions.length === 0) {
-    throw new Error("No Firebase Function exports were found.");
+  const expectedFunctionsByCodebase = {};
+  for (const entry of functionSources) {
+    const functionIndex = readFileSync(
+        path.join(root, ...entry.source.split("/"), "index.js"),
+        "utf8",
+    );
+    const exports = extractFunctionExports(functionIndex);
+    if (exports.length === 0) {
+      throw new Error(`No Firebase Function exports found for ${entry.codebase}.`);
+    }
+    expectedFunctionsByCodebase[entry.codebase] = exports;
   }
+  const expectedFunctions = expectedFunctionsByCodebase.marketplace || [];
+  const expectedFunctionCount = Object.values(expectedFunctionsByCodebase)
+      .reduce((total, exports) => total + exports.length, 0);
 
   const webDirectory = path.join(root, "build", "web");
   const webArtifact = existsSync(webDirectory) ?
@@ -260,7 +287,8 @@ export function createReleaseManifest({
       ),
       functionsSourceSha256: hashRelativeFiles(root, functionFiles),
       expectedFunctions,
-      expectedFunctionCount: expectedFunctions.length,
+      expectedFunctionsByCodebase,
+      expectedFunctionCount,
     },
     security: {
       appCheck: {

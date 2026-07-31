@@ -38,6 +38,20 @@ test("normalizes a marketplace listing and ignores server-owned fields", () => {
   assert.equal(result.createdAt, undefined);
 });
 
+test("wanted ads receive server-owned lifecycle and match counters", () => {
+  const result = validateMarketplaceListingInput(validListing({
+    transactionType: "Wanted / Seeking",
+    wantedStatus: "fulfilled",
+    responseCount: 900,
+    requestType: "forged",
+    matchCount: 900,
+  }), now);
+  assert.equal(result.wantedStatus, "open");
+  assert.equal(result.responseCount, 0);
+  assert.equal(result.requestType, "wanted_ad");
+  assert.equal(result.matchCount, 0);
+});
+
 test("rejects unsupported fields and nested client data", () => {
   assert.throws(
       () => validateMarketplaceListingInput(validListing({

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_data_state.dart';
 import 'marketplace_money.dart';
 
 class MarketplaceAuctionSettlement extends StatefulWidget {
@@ -35,15 +36,18 @@ class _MarketplaceAuctionSettlementState
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return _message(
-              Icons.sync_problem_outlined,
-              'Settlement details could not be loaded. Retry after refreshing.',
+            return MarketplaceDataStateView.failure(
+              error: snapshot.error,
+              resource: 'Settlement details',
+              onRetry: () => setState(() {}),
+              compact: true,
             );
           }
           if (!snapshot.hasData) {
-            return const Padding(
-              padding: EdgeInsets.all(18),
-              child: Center(child: CircularProgressIndicator()),
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading settlement',
+              message: 'Checking the latest auction completion status…',
+              compact: true,
             );
           }
           final sale = snapshot.data!.data();
@@ -179,10 +183,6 @@ class _MarketplaceAuctionSettlementState
         ),
         title: Text(label),
         trailing: Text(confirmed ? 'Confirmed' : 'Waiting'),
-      );
-
-  Widget _message(IconData icon, String text) => Card(
-        child: ListTile(leading: Icon(icon), title: Text(text)),
       );
 
   Future<void> _finalize() => _run(

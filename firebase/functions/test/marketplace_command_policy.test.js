@@ -330,6 +330,34 @@ test("normal listing transitions enforce a finite lifecycle", () => {
   );
 });
 
+test("wanted requests use fulfilled rather than sold lifecycle state", () => {
+  const wanted = marketplaceListing({
+    transactionType: "Wanted / Seeking",
+    wantedStatus: "open",
+  });
+  assert.equal(validateListingTransition({
+    listing: wanted,
+    actorUid: "seller",
+    action: "mark_fulfilled",
+  }).status, "fulfilled");
+  assert.throws(
+      () => validateListingTransition({
+        listing: wanted,
+        actorUid: "seller",
+        action: "mark_sold",
+      }),
+      (error) => error.code === "failed-precondition",
+  );
+  assert.throws(
+      () => validateListingTransition({
+        listing: marketplaceListing(),
+        actorUid: "seller",
+        action: "mark_fulfilled",
+      }),
+      (error) => error.code === "failed-precondition",
+  );
+});
+
 test("relisting preserves history by requiring a new listing identifier", () => {
   assert.deepEqual(validateListingRelist({
     listing: {...marketplaceListing({status: "archived"}), id: "old"},

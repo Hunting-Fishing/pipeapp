@@ -9,6 +9,7 @@ import '../core/data/bounded_firestore_query.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_data_state.dart';
 import 'marketplace_support.dart';
 
 class MarketplaceReportReason {
@@ -425,12 +426,16 @@ class _NotificationDeliveryFailureQueue extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Text('Unable to load notification delivery alerts.'),
+            return MarketplaceDataStateView.failure(
+              error: snapshot.error,
+              resource: 'Notification delivery alerts',
             );
           }
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading delivery alerts',
+              message: 'Checking unresolved notification failures…',
+            );
           }
           final failures = snapshot.data!.docs;
           return ListView(
@@ -449,11 +454,13 @@ class _NotificationDeliveryFailureQueue extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               if (failures.isEmpty)
-                const Card(
-                  child: ListTile(
-                    leading: Icon(Icons.check_circle_outline),
-                    title: Text('No open delivery failures'),
-                  ),
+                const MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  title: 'No open delivery failures',
+                  message:
+                      'Critical notification delivery exceptions will appear here for review.',
+                  icon: Icons.check_circle_outline,
+                  compact: true,
                 ),
               ...failures.map((document) {
                 final data = document.data();
@@ -559,12 +566,16 @@ class _AccountVerificationQueue extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Text('Unable to load account verification requests.'),
+            return MarketplaceDataStateView.failure(
+              error: snapshot.error,
+              resource: 'Account verification requests',
             );
           }
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading account reviews',
+              message: 'Checking pending verification evidence…',
+            );
           }
           final requests = snapshot.data!.docs.toList()
             ..sort(
@@ -594,11 +605,13 @@ class _AccountVerificationQueue extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               if (requests.isEmpty)
-                const Card(
-                  child: ListTile(
-                    leading: Icon(Icons.verified_outlined),
-                    title: Text('No account reviews are waiting'),
-                  ),
+                const MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  title: 'No account reviews are waiting',
+                  message:
+                      'New verification submissions will appear here for administrator review.',
+                  icon: Icons.verified_outlined,
+                  compact: true,
                 ),
               ...requests.map((request) {
                 final data = request.data();
@@ -846,12 +859,16 @@ class _DispatchProviderReviewQueue extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Text('Unable to load Dispatch provider applications.'),
+            return MarketplaceDataStateView.failure(
+              error: snapshot.error,
+              resource: 'Dispatch provider applications',
             );
           }
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading Dispatch reviews',
+              message: 'Checking provider applications and review states…',
+            );
           }
           final providers = snapshot.data!.docs.toList()
             ..sort(
@@ -882,11 +899,13 @@ class _DispatchProviderReviewQueue extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               if (providers.isEmpty)
-                const Card(
-                  child: ListTile(
-                    leading: Icon(Icons.task_alt_outlined),
-                    title: Text('No Dispatch providers are available'),
-                  ),
+                const MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  title: 'No Dispatch providers are available',
+                  message:
+                      'Provider applications will appear here when submitted.',
+                  icon: Icons.task_alt_outlined,
+                  compact: true,
                 ),
               ...providers.map((provider) {
                 final data = provider.data();
@@ -1108,11 +1127,16 @@ class _ModerationCaseQueue extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-                child: Text('Unable to load moderation cases.'));
+            return MarketplaceDataStateView.failure(
+              error: snapshot.error,
+              resource: 'Moderation cases',
+            );
           }
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading moderation cases',
+              message: 'Checking reports and automated review signals…',
+            );
           }
           final cases = snapshot.data!.docs.toList()
             ..sort((a, b) => _millis(b.data()['createdAt'])
@@ -1157,7 +1181,14 @@ class _ModerationCaseQueue extends StatelessWidget {
             ]),
             const SizedBox(height: 12),
             if (cases.isEmpty)
-              const Card(child: ListTile(title: Text('No moderation cases'))),
+              const MarketplaceDataStateView(
+                kind: MarketplaceDataStateKind.empty,
+                title: 'No moderation cases',
+                message:
+                    'User reports and automated review signals will appear here.',
+                icon: Icons.gpp_good_outlined,
+                compact: true,
+              ),
             ...cases.map((doc) {
               final data = doc.data();
               return Card(

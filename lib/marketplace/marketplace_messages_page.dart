@@ -21,6 +21,7 @@ import 'marketplace_account_hub.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
 import 'marketplace_deep_links.dart';
+import 'marketplace_data_state.dart';
 
 class MarketplaceMessagesPage extends StatelessWidget {
   const MarketplaceMessagesPage({super.key});
@@ -66,11 +67,13 @@ class MarketplaceMessagesPage extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _LoadFailure(
-              message: 'Could not load conversations.', error: snapshot.error);
+          return _LoadFailure(error: snapshot.error);
         }
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const MarketplaceDataStateView.loading(
+            title: 'Loading conversations',
+            message: 'Retrieving your latest marketplace messages…',
+          );
         }
         final conversations = snapshot.data!.docs.toList()
           ..sort((a, b) {
@@ -166,43 +169,24 @@ class _ActivityLimitNotice extends StatelessWidget {
 }
 
 class _LoadFailure extends StatelessWidget {
-  const _LoadFailure({required this.message, this.error});
-  final String message;
+  const _LoadFailure({this.error});
   final Object? error;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.sync_problem_outlined,
-                size: 48, color: Colors.deepOrange),
-            const SizedBox(height: 10),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w800)),
-            if (error != null) ...[
-              const SizedBox(height: 6),
-              Text('$error',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11, color: Colors.black54)),
-            ],
-            const SizedBox(height: 14),
-            FilledButton.icon(
-                onPressed: () async {
-                  await FirebaseAuth.instance.currentUser?.reload();
-                  await FirebaseAuth.instance.currentUser?.getIdToken(true);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        content: Text(
-                            'Account refreshed. Reopen Messages to retry.')));
-                  }
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh account'))
-          ]),
-        ),
+  Widget build(BuildContext context) => MarketplaceDataStateView.failure(
+        error: error,
+        resource: 'Conversations',
+        retryLabel: 'Refresh account',
+        onRetry: () async {
+          await FirebaseAuth.instance.currentUser?.reload();
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text('Account refreshed. Messages will reconnect.'),
+            ));
+          }
+        },
       );
 }
 
@@ -987,9 +971,21 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             .limit(defaultActivityFeedLimit)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const MarketplaceDataStateView(
+              kind: MarketplaceDataStateKind.error,
+              title: 'Offers could not be loaded',
+              message:
+                  'The offer history was not changed. This panel will reconnect automatically.',
+              compact: true,
+            );
+          }
           if (!snapshot.hasData) {
-            return const Padding(
-                padding: EdgeInsets.all(12), child: LinearProgressIndicator());
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading offers',
+              message: 'Retrieving current offers and revision history…',
+              compact: true,
+            );
           }
           final events = snapshot.data!.docs
               .where((doc) =>
@@ -2007,18 +2003,15 @@ class _SignedOutMessages extends StatelessWidget {
       );
 }
 
-
 class _EmptyMessages extends StatelessWidget {
   const _EmptyMessages();
   @override
-  Widget build(BuildContext context) => const Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.chat_bubble_outline, size: 52, color: Color(0xFF66758A)),
-        SizedBox(height: 10),
-        Text('No marketplace conversations yet.'),
-        Text('Open a listing and message the seller.',
-            style: TextStyle(color: Color(0xFF66758A), fontSize: 12))
-      ]));
+  Widget build(BuildContext context) => const MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.empty,
+        icon: Icons.chat_bubble_outline,
+        title: 'No marketplace conversations yet',
+        message: 'Open a listing and message the seller to begin.',
+      );
 }
 
 /// Participant-only full-page conversation destination for restored links.
@@ -2058,7 +2051,11 @@ class MarketplaceConversationRoutePage extends StatelessWidget {
         }
         if (!snapshot.hasData) {
           return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+            body: MarketplaceDataStateView.loading(
+              title: 'Opening conversation',
+              message: 'Confirming your access and loading messages…',
+            ),
+          );
         }
         final document = snapshot.data;
         final data = document?.data();
@@ -2091,22 +2088,13 @@ class _ConversationRouteFailure extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Marketplace conversation')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.forum_outlined,
-                  size: 48, color: Colors.deepOrange),
-              const SizedBox(height: 12),
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: () => context.go('/'),
-                icon: const Icon(Icons.home_outlined),
-                label: const Text('Return to Marketplace'),
-              ),
-            ]),
-          ),
+        body: MarketplaceDataStateView(
+          kind: MarketplaceDataStateKind.unavailable,
+          icon: Icons.forum_outlined,
+          title: 'Conversation unavailable',
+          message: message,
+          primaryLabel: 'Return to Marketplace',
+          onPrimary: () => context.go('/'),
         ),
       );
 }
@@ -2198,39 +2186,28 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
-                final error = snapshot.error;
-                return Center(
-                    child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child:
-                            Column(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.error_outline,
-                              size: 42, color: Colors.red),
-                          const SizedBox(height: 10),
-                          const Text('Conversation could not be loaded.',
-                              style: TextStyle(fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 6),
-                          Text('$error', textAlign: TextAlign.center)
-                        ])));
+                return MarketplaceDataStateView.failure(
+                  error: snapshot.error,
+                  resource: 'Conversation messages',
+                  onRetry: () => setState(() {}),
+                  compact: true,
+                );
               }
               if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return const MarketplaceDataStateView.loading(
+                  title: 'Loading messages',
+                  message: 'Retrieving the conversation history…',
+                  compact: true,
+                );
               }
               if (snapshot.data!.docs.isEmpty) {
-                return const Center(
-                    child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child:
-                            Column(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.waving_hand_outlined,
-                              size: 42, color: Color(0xFF0878E8)),
-                          SizedBox(height: 10),
-                          Text('Start the conversation',
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w800)),
-                          Text('Write a message below to contact the seller.',
-                              textAlign: TextAlign.center)
-                        ])));
+                return const MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  icon: Icons.waving_hand_outlined,
+                  title: 'Start the conversation',
+                  message: 'Write a message below to contact the seller.',
+                  compact: true,
+                );
               }
               final reachedWindow =
                   snapshot.data!.docs.length == defaultActivityFeedLimit;

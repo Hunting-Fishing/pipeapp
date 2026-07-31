@@ -5,19 +5,16 @@ import 'package:pipe_app/core/config/phase1_feature_policy.dart';
 void main() {
   const development = Phase1FeaturePolicy(
     environment: 'development',
-    demoContentRequested: false,
     regulatedListingsRequested: true,
     paidFeaturesRequested: true,
   );
   const production = Phase1FeaturePolicy(
     environment: 'production',
-    demoContentRequested: true,
     regulatedListingsRequested: true,
     paidFeaturesRequested: true,
   );
   const productionLaunchCandidate = Phase1FeaturePolicy(
     environment: 'production',
-    demoContentRequested: false,
     regulatedListingsRequested: false,
     paidFeaturesRequested: false,
     auctionsRequested: true,

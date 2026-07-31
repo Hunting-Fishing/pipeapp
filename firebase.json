@@ -15,6 +15,10 @@
     {
       "source": "firebase/functions",
       "codebase": "marketplace"
+    },
+    {
+      "source": "firebase/agent-functions",
+      "codebase": "functions"
     }
   ],
   "hosting": {

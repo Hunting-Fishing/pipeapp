@@ -88,7 +88,7 @@ Gate 2 implementation evidence in progress:
   exact parity record for that environment are still required; no production
   mutation was performed during the July 30 completion pass.
 - The Functions dependency lock overrides the vulnerable transitive UUID below
-  11.1.1. The moderate audit count fell from 7 to 0 while 105 Function tests, 36
+  11.1.1. The moderate audit count fell from 7 to 0 while 112 Function tests, 36
   Firestore/Storage Rules tests, and the authenticated four-emulator workflow
   continued to pass
 - Controlled deploys now record App Check as `disabled`, `observe`, or
@@ -491,7 +491,7 @@ The feedback boundary now also covers saved listings, sign-in/sign-out,
 listing publishing and media validation, Dispatch signup/jobs/quotes/fleet,
 policy notices, reporting review, and freight-quote publication. The primary
 Marketplace shell contains no direct SnackBars. This expanded checkpoint
-passes a clean analyzer, 108 Flutter tests, 105 Function tests, all local
+passes a clean analyzer, 149 Flutter tests, 118 Function tests, all local
 release/parity/acceptance controls, a zero-vulnerability production dependency
 audit, ARM64 Android, production web, and actual WebAssembly.
 

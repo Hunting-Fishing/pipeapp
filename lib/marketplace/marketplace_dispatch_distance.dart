@@ -23,11 +23,29 @@ double? dispatchDistanceKm(GeoPoint? origin, GeoPoint? destination) {
 }
 
 String dispatchDistanceLabel(Map<String, dynamic> data) {
+  final routed = data['routeDistanceKm'] as num?;
+  final status = '${data['routeStatus'] ?? ''}';
+  if (routed != null && routed > 0) {
+    final qualifier = status == 'review_required' ? ' • review required' : '';
+    return '${routed.round()} km truck route$qualifier';
+  }
+  final direct = data['straightLineDistanceKm'] as num?;
+  if (direct != null && direct > 0) {
+    final pending = status == 'pending_provider'
+        ? ' • truck route pending'
+        : ' • truck route not configured';
+    return '~${direct.round()} km straight-line$pending';
+  }
   final distance = data['distanceKm'] as num?;
-  if (distance == null || distance <= 0) return 'Distance needs mapped points';
+  if (distance == null || distance <= 0) {
+    return 'Truck route needs mapped pickup and delivery';
+  }
   final source = '${data['distanceSource'] ?? ''}';
-  final prefix = source == 'user_entered_route' ? '' : '~';
-  final suffix =
-      source == 'user_entered_route' ? 'route distance' : 'map estimate';
+  final trustedRoute = const {
+    'here_truck_route',
+    'verified_truck_route',
+  }.contains(source);
+  final prefix = trustedRoute ? '' : '~';
+  final suffix = trustedRoute ? 'truck route' : 'legacy distance estimate';
   return '$prefix${distance.round()} km $suffix';
 }

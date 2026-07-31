@@ -14,7 +14,12 @@ test("marketplace search normalization is bounded and deterministic", () => {
       "cat 320 hydraulic",
   );
   assert.equal(normalizeMarketplaceSearchText("A"), "a");
-  assert.equal(searchIndexVersion, 1);
+  assert.equal(searchIndexVersion, 2);
+  assert.equal(
+      normalizeMarketplaceSearchText("Montréal, Québec"),
+      "montreal quebec",
+  );
+  assert.equal(normalizeMarketplaceSearchText("México"), "mexico");
 });
 
 test("listing index supports prefixes and adjacent industrial terms", () => {

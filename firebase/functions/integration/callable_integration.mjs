@@ -24,6 +24,7 @@ const {
   createPolicyAcceptanceCommands,
 } = require("../policy_acceptance_commands");
 const {createSupportCommands} = require("../support_commands");
+const {wantedMatchId} = require("../wanted_matching_policy");
 
 const projectId = process.env.GCLOUD_PROJECT ||
   process.env.GOOGLE_CLOUD_PROJECT ||
@@ -215,8 +216,6 @@ function dispatchInput(jobId, requestId) {
     estimatedWeightKg: 5000,
     pickupPoint: {latitude: 55.1707, longitude: -118.7947},
     deliveryPoint: {latitude: 55.7596, longitude: -120.2377},
-    distanceKm: 132.4,
-    distanceSource: "integration_route_fixture",
   };
 }
 
@@ -1504,6 +1503,16 @@ try {
   const jobFirst = await call("createDispatchJob", buyer.token, jobCreateData);
   const jobRetry = await call("createDispatchJob", buyer.token, jobCreateData);
   assert.deepEqual(jobRetry, jobFirst);
+  const publicDispatchJob =
+    (await db.doc(`dispatch_jobs/${jobId}`).get()).data();
+  const privateDispatchJob =
+    (await db.doc(`dispatch_job_private/${jobId}`).get()).data();
+  assert.equal(publicDispatchJob.pickupPoint, undefined);
+  assert.equal(publicDispatchJob.deliveryPoint, undefined);
+  assert.equal(publicDispatchJob.distanceSource, "server_straight_line_estimate");
+  assert.equal(publicDispatchJob.routeProfile, "truck");
+  assert.ok(privateDispatchJob.pickupPoint);
+  assert.ok(privateDispatchJob.deliveryPoint);
   await db.doc(`dispatch_jobs/${jobId}`).update({
     updatedAt: Timestamp.fromMillis(now - 10000),
   });
@@ -1758,8 +1767,93 @@ try {
       "revoked",
   );
 
+  const wantedListingId = `wanted-request-${now}`;
+  const wantedSupplyId = `wanted-supply-${now}`;
+  const wantedMatchDocumentId = wantedMatchId(
+      wantedListingId,
+      wantedSupplyId,
+  );
+  await Promise.all([
+    db.doc(`public_listings/${wantedListingId}`).set({
+      sellerUid: buyer.uid,
+      transactionType: "Wanted / Seeking",
+      status: "active",
+      wantedStatus: "open",
+      responseCount: 0,
+    }),
+    db.doc(`public_listings/${wantedSupplyId}`).set({
+      sellerUid: seller.uid,
+      transactionType: "For Sale",
+      status: "active",
+    }),
+    db.doc(`wanted_matches/${wantedMatchDocumentId}`).set({
+      wantedListingId,
+      supplyListingId: wantedSupplyId,
+      wantedOwnerUid: buyer.uid,
+      sellerUid: seller.uid,
+      wantedOwnerState: "suggested",
+      sellerState: "suggested",
+      contactRecorded: false,
+      status: "suggested",
+      revision: 1,
+    }),
+    db.doc(`wanted_matches/${wantedMatchDocumentId}/events/1`).set({
+      actorRole: "system",
+      action: "matched",
+      state: "suggested",
+      status: "suggested",
+      revision: 1,
+    }),
+  ]);
+  const dismissMatch = {
+    requestId: `wanted-dismiss-${now}`,
+    matchId: wantedMatchDocumentId,
+    action: "dismiss",
+  };
+  const dismissFirst = await call(
+      "manageWantedMatch", buyer.token, dismissMatch);
+  const dismissRetry = await call(
+      "manageWantedMatch", buyer.token, dismissMatch);
+  assert.deepEqual(dismissRetry, dismissFirst);
+  assert.equal(dismissFirst.state, "dismissed");
+  assert.equal((await call("manageWantedMatch", buyer.token, {
+    requestId: `wanted-restore-${now}`,
+    matchId: wantedMatchDocumentId,
+    action: "restore",
+  })).state, "suggested");
+  const contactMatch = {
+    requestId: `wanted-contact-${now}`,
+    matchId: wantedMatchDocumentId,
+    action: "mark_contacted",
+  };
+  const contactFirst = await call(
+      "manageWantedMatch", seller.token, contactMatch);
+  const contactRetry = await call(
+      "manageWantedMatch", seller.token, contactMatch);
+  assert.deepEqual(contactRetry, contactFirst);
+  const managedMatch =
+    (await db.doc(`wanted_matches/${wantedMatchDocumentId}`).get()).data();
+  assert.equal(managedMatch.wantedOwnerState, "suggested");
+  assert.equal(managedMatch.sellerState, "contacted");
+  assert.equal(managedMatch.revision, 4);
+  assert.equal(
+      (await db.doc(`public_listings/${wantedListingId}`).get())
+          .data().responseCount,
+      1,
+  );
+  assert.equal(
+      (await db.collection(
+          `wanted_matches/${wantedMatchDocumentId}/events`).get()).size,
+      4,
+  );
+  await assertCollectionSize(
+      `users/${buyer.uid}/notifications`,
+      1,
+      [["type", "==", "wanted_contact"]],
+  );
+
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 47);
+  assert.equal(receipts.size, 50);
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
   assert.equal(communicationReceipts.size, 3);
@@ -1767,6 +1861,7 @@ try {
       "Callable integration passed: trusted media hashes, duplicate-photo " +
       "and message-safety review signals, private listing drafts, saved listings, " +
       "listing lifecycle, " +
+      "Wanted match dismissal, restore, contact history, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
       "provider review, quote, award, delivery closure, protected messages/reports/uploads, " +
       "versioned policy publication and acceptance, " +

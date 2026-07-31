@@ -308,8 +308,22 @@ function validateListingTransition({listing, actorUid, action}) {
     pause: {from: ["active"], to: "paused"},
     activate: {from: ["paused"], to: "active"},
     mark_sold: {from: ["active", "pending_sale"], to: "sold"},
-    archive: {from: ["active", "paused", "sold"], to: "archived"},
+    mark_fulfilled: {from: ["active", "paused"], to: "fulfilled"},
+    archive: {
+      from: ["active", "paused", "sold", "fulfilled"],
+      to: "archived",
+    },
   };
+  const wanted = listing.transactionType === "Wanted / Seeking";
+  if ((action === "mark_fulfilled" && !wanted) ||
+      (action === "mark_sold" && wanted)) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        wanted ?
+          "Wanted ads are fulfilled rather than sold." :
+          "Only wanted ads can be marked fulfilled.",
+    );
+  }
   const transition = transitions[action];
   if (!transition || !transition.from.includes(listing.status)) {
     throw new CommandPolicyError(
@@ -333,10 +347,10 @@ function validateListingRelist({listing, actorUid, newListingId}) {
     );
   }
   if (listing.transactionType === "Auction" ||
-      !["sold", "archived"].includes(listing.status)) {
+      !["sold", "fulfilled", "archived"].includes(listing.status)) {
     throw new CommandPolicyError(
         "failed-precondition",
-        "Only sold or archived Marketplace listings can be relisted.",
+        "Only sold, fulfilled, or archived Marketplace listings can be relisted.",
     );
   }
   if (!newListingId || newListingId === listing.id) {

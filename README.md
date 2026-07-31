@@ -15,6 +15,7 @@ the complete quality gate from PowerShell:
 ## Architecture and delivery controls
 
 - [North America Property and Rights Roadmap](docs/NORTH_AMERICA_PROPERTY_RIGHTS_ROADMAP.md)
+- [Phase 2 Progress Audit](docs/PHASE_2_PROGRESS_AUDIT.md)
 - [Firebase App Check rollout](docs/APP_CHECK_ROLLOUT.md)
 - [Local Firebase emulator workflow](docs/LOCAL_FIREBASE_EMULATORS.md)
 - [Engineering Control Baseline](docs/ENGINEERING_CONTROL_BASELINE.md)

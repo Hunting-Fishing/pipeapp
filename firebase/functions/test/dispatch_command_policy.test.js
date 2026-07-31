@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
+  rejectClientRouteFields,
   validateDispatchAward,
   validateDispatchJobChange,
   validateDispatchJobInput,
@@ -83,12 +84,11 @@ test("Dispatch jobs require complete mapped and dated load details", () => {
     sourceType: "marketplace",
     listingId: "listing",
     estimatedWeightKg: 22000,
-    distanceKm: 132.4,
     pickupPoint: {latitude: 55.17, longitude: -118.79},
     deliveryPoint: {latitude: 55.76, longitude: -120.24},
   }, now);
   assert.equal(job.sourceType, "marketplace");
-  assert.equal(job.distanceKm, 132.4);
+  assert.equal(job.pickupPoint.latitude, 55.17);
   assert.throws(
       () => validateDispatchJobInput({
         title: "Pipe",
@@ -98,6 +98,19 @@ test("Dispatch jobs require complete mapped and dated load details", () => {
         loadDetails: "Pipe",
         sourceType: "auction",
       }, now),
+      (error) => error.code === "invalid-argument",
+  );
+});
+
+test("Dispatch route analytics cannot be supplied by clients", () => {
+  assert.doesNotThrow(() => rejectClientRouteFields({title: "Pipe"}));
+  assert.throws(
+      () => rejectClientRouteFields({distanceKm: 132.4}),
+      (error) => error.code === "invalid-argument" &&
+        /calculated by Pipe Buyer/.test(error.message),
+  );
+  assert.throws(
+      () => rejectClientRouteFields({routeStatus: "ready"}),
       (error) => error.code === "invalid-argument",
   );
 });

@@ -20,6 +20,7 @@ import 'marketplace_listing_media.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_deep_links.dart';
+import 'marketplace_data_state.dart';
 
 /// Full-page auction destination used by browser refreshes and shared links.
 class MarketplaceAuctionRoutePage extends StatefulWidget {
@@ -60,7 +61,12 @@ class _MarketplaceAuctionRoutePageState
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Scaffold(
-                body: Center(child: CircularProgressIndicator()));
+              body: MarketplaceDataStateView.loading(
+                title: 'Loading timed auction',
+                message:
+                    'Retrieving current bids, timing, and listing details…',
+              ),
+            );
           }
           if (snapshot.hasError) {
             return Scaffold(
@@ -263,7 +269,10 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
           ])),
       Expanded(
           child: _loading && _documents.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const MarketplaceDataStateView.loading(
+                  title: 'Loading auctions',
+                  message: 'Retrieving current bidding and closing times…',
+                )
               : _loadError != null && _documents.isEmpty
                   ? _AuctionLoadError(
                       details: _loadError!,
@@ -326,27 +335,14 @@ class _AuctionLoadError extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => Center(
-      child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off_outlined,
-                size: 46, color: Colors.deepOrange),
-            const SizedBox(height: 10),
-            const Text('Auctions could not be loaded.',
-                style: TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 6),
-            Text(details,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: Colors.black54)),
-            const SizedBox(height: 12),
-            FilledButton.tonalIcon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Try again')),
-          ])));
+  Widget build(BuildContext context) => MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.error,
+        title: 'Auctions could not be loaded',
+        message: details,
+        primaryLabel: 'Try again',
+        primaryIcon: Icons.refresh,
+        onPrimary: onRetry,
+      );
 }
 
 class _AuctionPageError extends StatelessWidget {
@@ -355,19 +351,15 @@ class _AuctionPageError extends StatelessWidget {
   final String details;
 
   @override
-  Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(children: [
-        const Text('More auctions could not be loaded.'),
-        Text(details,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10, color: Colors.black54)),
-        TextButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry')),
-      ]));
+  Widget build(BuildContext context) => MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.error,
+        title: 'More auctions could not be loaded',
+        message: details,
+        primaryLabel: 'Retry',
+        primaryIcon: Icons.refresh,
+        onPrimary: onRetry,
+        compact: true,
+      );
 }
 
 class _AuctionCard extends StatelessWidget {
@@ -1358,33 +1350,18 @@ class _AuctionEmpty extends StatelessWidget {
   final VoidCallback? onLoadMore;
 
   @override
-  Widget build(BuildContext context) => Center(
-      child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.gavel_outlined,
-                size: 58, color: Color(0xFF66758A)),
-            const SizedBox(height: 12),
-            Text('No ${filter.toLowerCase()} auctions',
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 6),
-            const Text(
-                'Timed auction listings will appear here, separately from marketplace inventory.',
-                textAlign: TextAlign.center),
-            if (onLoadMore != null) ...[
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                  onPressed: onLoadMore,
-                  icon: const Icon(Icons.expand_more_rounded),
-                  label: const Text('Check more auctions')),
-            ],
-            const SizedBox(height: 15),
-            FilledButton.icon(
-                onPressed: onCreate,
-                icon: const Icon(Icons.add),
-                label: const Text('Create an auction'))
-          ])));
+  Widget build(BuildContext context) => MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.empty,
+        icon: Icons.gavel_outlined,
+        title: 'No ${filter.toLowerCase()} auctions',
+        message:
+            'Timed auction listings will appear here separately from Marketplace inventory.',
+        primaryLabel: 'Create an auction',
+        primaryIcon: Icons.add,
+        onPrimary: onCreate,
+        secondaryLabel: onLoadMore == null ? null : 'Check more auctions',
+        onSecondary: onLoadMore,
+      );
 }
 
 String _auctionTimeLabel(DateTime? start, DateTime? end) {

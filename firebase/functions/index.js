@@ -28,6 +28,7 @@ const {
   createPolicyAcceptanceCommands,
 } = require("./policy_acceptance_commands");
 const { createSupportCommands } = require("./support_commands");
+const {createWantedMatching} = require("./wanted_matching");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
@@ -81,6 +82,7 @@ const moderationCommands = createModerationCommands(admin);
 const notificationDelivery = createNotificationDelivery(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const supportCommands = createSupportCommands(admin);
+const wantedMatching = createWantedMatching(admin);
 exports.registerNotificationEndpoint = onCall(
   protectedCallableOptions,
   notificationDelivery.registerNotificationEndpoint,
@@ -356,6 +358,12 @@ exports.transitionMarketplaceListing = onCall(
     marketplaceCommands.transitionMarketplaceListing,
   ),
 );
+exports.manageWantedMatch = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.manageWantedMatch,
+  ),
+);
 exports.relistMarketplaceListing = onCall(
   protectedCallableOptions,
   policyAcceptanceCommands.requireCurrentPolicies(
@@ -450,13 +458,15 @@ exports.onPublicListingCreated = onDocumentCreated(
       .collectionGroup("followed_sellers")
       .where("sellerUid", "==", sellerUid)
       .where("notifyNewListings", "==", true)
+      .limit(500)
       .get();
 
     const writer = admin.firestore().bulkWriter();
     followers.docs.forEach((follow) => {
       const userRef = follow.ref.parent.parent;
       if (!userRef) return;
-      const notification = userRef.collection("notifications").doc();
+      const notification = userRef.collection("notifications")
+        .doc(`seller-${event.params.listingId}`);
       writer.set(notification, {
         type: "seller_new_listing",
         title: listing.title || "New marketplace listing",
@@ -484,6 +494,7 @@ exports.onPublicListingCreated = onDocumentCreated(
       const watches = await admin.firestore()
         .collectionGroup("watch_keywords")
         .where("keywords", "array-contains-any", tokens)
+        .limit(500)
         .get();
       const notifiedUsers = new Set();
       watches.docs.forEach((watch) => {
@@ -491,7 +502,8 @@ exports.onPublicListingCreated = onDocumentCreated(
         const userRef = watch.ref.parent.parent;
         if (!userRef || userRef.id === sellerUid || notifiedUsers.has(userRef.id)) return;
         notifiedUsers.add(userRef.id);
-        writer.set(userRef.collection("notifications").doc(), {
+        writer.set(userRef.collection("notifications")
+          .doc(`watch-${event.params.listingId}`), {
           type: "new_listing_match",
           title: listing.title || "New matching listing",
           body: `Matches your watch: ${watch.data().label || tokens.join(" ")}`,
@@ -503,6 +515,14 @@ exports.onPublicListingCreated = onDocumentCreated(
       });
     }
     await writer.close();
+    const wantedResult = await wantedMatching.processListingCreated(
+        event.params.listingId,
+        listing,
+    );
+    console.info("Wanted matching completed", {
+      listingId: event.params.listingId,
+      ...wantedResult,
+    });
     return null;
   },
 );

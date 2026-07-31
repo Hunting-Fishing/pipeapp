@@ -19,6 +19,7 @@ const {
   requirePhase1Feature,
 } = require("./phase1_feature_flags");
 const {
+  rejectClientRouteFields,
   validateDispatchAward,
   validateDispatchJobChange,
   validateDispatchJobInput,
@@ -28,6 +29,9 @@ const {
   validateDispatchProviderDecision,
   validateDispatchTransactionAction,
 } = require("./dispatch_command_policy");
+const {
+  buildDispatchRouteState,
+} = require("./dispatch_routing_policy");
 
 function requiredId(data, fieldName) {
   const value = String(data && data[fieldName] || "").trim();
@@ -85,6 +89,11 @@ function pointValue(admin, point) {
 function createJobValues(admin, input, uid) {
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+  const routeState = buildDispatchRouteState(
+      input.pickupPoint,
+      input.deliveryPoint,
+      {providerConfigured: false},
+  );
   return {
     createdByUid: uid,
     title: input.title,
@@ -98,40 +107,47 @@ function createJobValues(admin, input, uid) {
     estimatedWeightKg: input.estimatedWeightKg,
     catalogWeightKg: input.catalogWeightKg,
     weightSource: input.weightSource,
-    ...(input.pickupPoint ? {
-      pickupPoint: pointValue(admin, input.pickupPoint),
-    } : {}),
-    ...(input.deliveryPoint ? {
-      deliveryPoint: pointValue(admin, input.deliveryPoint),
-    } : {}),
-    ...(input.distanceKm ? {
-      distanceKm: input.distanceKm,
-      distanceSource: input.distanceSource || "coordinate_estimate",
-    } : {}),
-    ...(input.deliveryAddress ? {
-      deliveryAddress: input.deliveryAddress,
-    } : {}),
+    ...routeState,
     ...(input.deliveryNearestTown ? {
       deliveryNearestTown: input.deliveryNearestTown,
     } : {}),
     ...(input.deliveryRegion ? {
       deliveryRegion: input.deliveryRegion,
     } : {}),
-    ...(input.deliveryPostalCode ? {
-      deliveryPostalCode: input.deliveryPostalCode,
-    } : {}),
     ...(input.deliveryCountry ? {
       deliveryCountry: input.deliveryCountry,
     } : {}),
-    ...(input.deliveryAccessNotes ? {
-      deliveryAccessNotes: input.deliveryAccessNotes,
-    } : {}),
+    locationPrivacyVersion: 1,
     status: "open",
     dispatchRequestStatus: "accepting_carrier_bids",
     bidCount: 0,
     revision: 1,
     publishedAt: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
+function createJobPrivateValues(admin, input, uid) {
+  const FieldValue = admin.firestore.FieldValue;
+  return {
+    createdByUid: uid,
+    ...(input.pickupPoint ? {
+      pickupPoint: pointValue(admin, input.pickupPoint),
+    } : {}),
+    ...(input.deliveryPoint ? {
+      deliveryPoint: pointValue(admin, input.deliveryPoint),
+    } : {}),
+    ...(input.deliveryAddress ? {
+      deliveryAddress: input.deliveryAddress,
+    } : {}),
+    ...(input.deliveryPostalCode ? {
+      deliveryPostalCode: input.deliveryPostalCode,
+    } : {}),
+    ...(input.deliveryAccessNotes ? {
+      deliveryAccessNotes: input.deliveryAccessNotes,
+    } : {}),
+    locationPrivacyVersion: 1,
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
@@ -375,6 +391,7 @@ function createDispatchCommands(admin) {
 
   const createDispatchJob = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
+    rejectClientRouteFields(request.data);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
     const receiptRef = receiptReference(
@@ -384,10 +401,14 @@ function createDispatchCommands(admin) {
         requestId,
     );
     const jobRef = db.collection("dispatch_jobs").doc(jobId);
+    const privateJobRef = db.collection("dispatch_job_private").doc(jobId);
     const now = Timestamp.now();
-    const input = validateDispatchJobInput(request.data, now);
+    let input = validateDispatchJobInput(request.data, now);
     const listingRef = input.listingId ?
       db.collection("public_listings").doc(input.listingId) :
+      null;
+    const listingLocationRef = input.listingId ?
+      db.collection("listing_private_locations").doc(input.listingId) :
       null;
 
     return db.runTransaction(async (transaction) => {
@@ -395,6 +416,9 @@ function createDispatchCommands(admin) {
       if (receipt.exists) return receipt.data().result;
       const listingSnapshot = listingRef ?
         await transaction.get(listingRef) :
+        null;
+      const listingLocationSnapshot = listingLocationRef ?
+        await transaction.get(listingLocationRef) :
         null;
       if (listingRef && !listingSnapshot.exists) {
         throw new CommandPolicyError(
@@ -421,11 +445,25 @@ function createDispatchCommands(admin) {
           );
         }
       }
+      if (listingLocationSnapshot && listingLocationSnapshot.exists) {
+        const exactPickup = listingLocationSnapshot.data().exactGeoPoint;
+        if (exactPickup) input = {...input, pickupPoint: exactPickup};
+      }
       const values = createJobValues(admin, input, uid);
+      const privateValues = {
+        ...createJobPrivateValues(admin, input, uid),
+        createdAt: FieldValue.serverTimestamp(),
+      };
       const result = {jobId, revision: 1, status: "open"};
       transaction.create(jobRef, values);
+      transaction.create(privateJobRef, privateValues);
       transaction.create(jobRef.collection("revisions").doc("1"), {
         ...values,
+        event: "request_created",
+        actorUid: uid,
+      });
+      transaction.create(privateJobRef.collection("revisions").doc("1"), {
+        ...privateValues,
         event: "request_created",
         actorUid: uid,
       });
@@ -441,6 +479,7 @@ function createDispatchCommands(admin) {
 
   const updateDispatchJob = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
+    rejectClientRouteFields(request.data);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
     const receiptRef = receiptReference(
@@ -450,16 +489,21 @@ function createDispatchCommands(admin) {
         requestId,
     );
     const jobRef = db.collection("dispatch_jobs").doc(jobId);
+    const privateJobRef = db.collection("dispatch_job_private").doc(jobId);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
       if (receipt.exists) return receipt.data().result;
       const jobSnapshot = await transaction.get(jobRef);
       const job = jobSnapshot.exists ? jobSnapshot.data() : null;
+      const privateJobSnapshot = await transaction.get(privateJobRef);
+      const privateJob = privateJobSnapshot.exists ?
+        privateJobSnapshot.data() : {};
       const now = Timestamp.now();
       validateDispatchJobChange(job, uid, now);
       const input = validateDispatchJobInput({
         ...job,
+        ...privateJob,
         ...request.data,
         truckingDate: request.data.truckingDate,
       }, now);
@@ -475,6 +519,11 @@ function createDispatchCommands(admin) {
         );
       }
       const revision = Number(job.revision || 1) + 1;
+      const routeState = buildDispatchRouteState(
+          input.pickupPoint,
+          input.deliveryPoint,
+          {providerConfigured: false},
+      );
       const changes = {
         title: input.title,
         pickupLabel: input.pickupLabel,
@@ -482,20 +531,31 @@ function createDispatchCommands(admin) {
         truckingDate: Timestamp.fromMillis(input.truckingDate),
         loadDetails: input.loadDetails,
         estimatedWeightKg: input.estimatedWeightKg,
-        ...(input.distanceKm ? {
-          distanceKm: input.distanceKm,
-          distanceSource: input.distanceSource || "user_entered_route",
-        } : {}),
+        ...routeState,
         revision,
         updatedAt: FieldValue.serverTimestamp(),
       };
+      const privateChanges = {
+        ...createJobPrivateValues(admin, input, uid),
+        revision,
+      };
       const result = {jobId, revision, status: job.status};
       transaction.update(jobRef, changes);
+      transaction.set(privateJobRef, privateChanges, {merge: true});
       transaction.create(
           jobRef.collection("revisions").doc(String(revision)),
           {
             ...job,
             ...changes,
+            event: "request_updated",
+            actorUid: uid,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.set(
+          privateJobRef.collection("revisions").doc(String(revision)),
+          {
+            ...privateChanges,
             event: "request_updated",
             actorUid: uid,
             createdAt: FieldValue.serverTimestamp(),

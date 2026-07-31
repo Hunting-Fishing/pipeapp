@@ -97,7 +97,8 @@ void main() {
       'build/release-manifest.json',
       'build/firebase-deploy.log',
       'build/deployed-functions.json',
-      'build/function-parity.json',
+      'build/function-parity-marketplace.json',
+      'build/function-parity-agent.json',
     ]) {
       expect(workflow, contains(evidencePath));
     }

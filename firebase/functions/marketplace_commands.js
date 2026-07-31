@@ -45,6 +45,11 @@ const {
   loadPhase1FeatureFlags,
   requirePhase1Feature,
 } = require("./phase1_feature_flags");
+const {buildDispatchRouteState} = require("./dispatch_routing_policy");
+const {
+  WantedMatchingPolicyError,
+  validateWantedMatchAction,
+} = require("./wanted_matching_policy");
 
 function requiredId(data, fieldName) {
   const value = String(data && data[fieldName] || "").trim();
@@ -74,6 +79,7 @@ function policyError(error) {
     error instanceof AccountSecurityError ||
     error instanceof CommandPolicyError ||
     error instanceof ListingPolicyError ||
+    error instanceof WantedMatchingPolicyError ||
     error instanceof FeatureFlagError
   ) {
     return new HttpsError(error.code, error.message);
@@ -102,35 +108,6 @@ function receiptData(uid, commandName, result, FieldValue) {
     result,
     createdAt: FieldValue.serverTimestamp(),
   };
-}
-
-function routeDistanceKm(origin, destination) {
-  if (
-    !origin ||
-    !Number.isFinite(Number(origin.latitude)) ||
-    !Number.isFinite(Number(origin.longitude))
-  ) {
-    return null;
-  }
-  const radians = (degrees) => degrees * Math.PI / 180;
-  const latitudeDelta = radians(
-      Number(destination.latitude) - Number(origin.latitude),
-  );
-  const longitudeDelta = radians(
-      Number(destination.longitude) - Number(origin.longitude),
-  );
-  const startLatitude = radians(Number(origin.latitude));
-  const endLatitude = radians(Number(destination.latitude));
-  const haversine =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(startLatitude) *
-      Math.cos(endLatitude) *
-      Math.sin(longitudeDelta / 2) ** 2;
-  const bounded = Math.min(1, Math.max(0, haversine));
-  return Math.round(
-      6371 * 2 * Math.atan2(Math.sqrt(bounded), Math.sqrt(1 - bounded)) *
-      10,
-  ) / 10;
 }
 
 function createMarketplaceCommands(admin) {
@@ -1069,6 +1046,13 @@ function createMarketplaceCommands(admin) {
       const snapshot = await transaction.get(listingRef);
       const listing = snapshot.exists ? snapshot.data() : null;
       const transition = validateListingTransition({listing, actorUid: uid, action});
+      const wantedStatus = listing &&
+        listing.transactionType === "Wanted / Seeking" ? {
+          pause: "paused",
+          activate: "open",
+          mark_fulfilled: "fulfilled",
+          archive: "archived",
+        }[action] : null;
       const result = {
         listingId,
         status: transition.status,
@@ -1079,11 +1063,15 @@ function createMarketplaceCommands(admin) {
         revision: transition.nextRevision,
         statusChangedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
+        ...(wantedStatus ? {wantedStatus} : {}),
         ...(action === "mark_sold" ? {
           soldAt: FieldValue.serverTimestamp(),
         } : {}),
         ...(action === "archive" ? {
           archivedAt: FieldValue.serverTimestamp(),
+        } : {}),
+        ...(action === "mark_fulfilled" ? {
+          fulfilledAt: FieldValue.serverTimestamp(),
         } : {}),
       });
       transaction.create(
@@ -1093,6 +1081,7 @@ function createMarketplaceCommands(admin) {
             event: action,
             previousStatus: transition.previousStatus,
             status: transition.status,
+            ...(wantedStatus ? {wantedStatus} : {}),
             revision: transition.nextRevision,
             createdAt: FieldValue.serverTimestamp(),
           },
@@ -1105,6 +1094,99 @@ function createMarketplaceCommands(admin) {
     });
       },
   );
+
+  const manageWantedMatch = command(async (request) => {
+    const flags = await loadPhase1FeatureFlags(db);
+    requirePhase1Feature(flags, "wantedAds");
+    await enforceUserRateLimit({db, admin, request, scope: "marketplace"});
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const matchId = requiredId(request.data, "matchId");
+    const action = String(request.data && request.data.action || "").trim();
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "manageWantedMatch",
+        {requestId},
+    );
+    const matchRef = db.collection("wanted_matches").doc(matchId);
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const snapshot = await transaction.get(matchRef);
+      const match = snapshot.exists ? snapshot.data() : null;
+      const transition = validateWantedMatchAction({
+        match,
+        actorUid: uid,
+        action,
+      });
+      const contactRecorded = match.contactRecorded === true ||
+        action === "mark_contacted";
+      const result = {
+        matchId,
+        action,
+        role: transition.role,
+        state: transition.nextState,
+        status: transition.status,
+        revision: transition.revision,
+      };
+      transaction.update(matchRef, {
+        [transition.field]: transition.nextState,
+        status: transition.status,
+        revision: transition.revision,
+        contactRecorded,
+        [`${transition.role}UpdatedAt`]: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(
+          matchRef.collection("events").doc(String(transition.revision)),
+          {
+            actorUid: uid,
+            actorRole: transition.role,
+            action,
+            previousState: transition.previousState,
+            state: transition.nextState,
+            status: transition.status,
+            revision: transition.revision,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      if (action === "mark_contacted") {
+        const recipientUid = transition.role === "wantedOwner" ?
+          match.sellerUid : match.wantedOwnerUid;
+        const listingId = transition.role === "wantedOwner" ?
+          match.wantedListingId : match.supplyListingId;
+        transaction.set(
+            db.collection("users").doc(recipientUid)
+                .collection("notifications").doc(receiptRef.id),
+            {
+              recipientUid,
+              actorUid: uid,
+              type: "wanted_contact",
+              title: "A Wanted match participant opened a conversation",
+              listingId,
+              wantedMatchId: matchId,
+              read: false,
+              createdAt: FieldValue.serverTimestamp(),
+            },
+        );
+        if (match.contactRecorded !== true) {
+          transaction.update(
+              db.collection("public_listings").doc(match.wantedListingId),
+              {
+                responseCount: FieldValue.increment(1),
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+          );
+        }
+      }
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "manageWantedMatch", result, FieldValue),
+      );
+      return result;
+    });
+  });
 
   const relistMarketplaceListing = featureCommand(
       "marketplace",
@@ -1148,7 +1230,8 @@ function createMarketplaceCommands(admin) {
         "acceptedBidAmount", "winningBidId", "winningBidderUid", "wonAt",
         "auctionStatus", "auctionStartAt", "auctionEndAt", "startingBid",
         "minimumBidIncrement", "currentBid", "bidCount", "reserveMet",
-        "buyNowPrice", "convertedAt", "conversionSource",
+        "buyNowPrice", "convertedAt", "conversionSource", "fulfilledAt",
+        "lastMatchedAt",
       ]) delete clone[field];
       Object.assign(clone, {
         status: "active",
@@ -1165,6 +1248,11 @@ function createMarketplaceCommands(admin) {
         offerCount: 0,
         pendingOfferCount: 0,
         withdrawnBidCount: 0,
+        ...(clone.transactionType === "Wanted / Seeking" ? {
+          wantedStatus: "open",
+          responseCount: 0,
+          matchCount: 0,
+        } : {}),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
@@ -1907,6 +1995,8 @@ function createMarketplaceCommands(admin) {
         {requestId},
     );
     const listingRef = db.collection("public_listings").doc(listingId);
+    const privateListingLocationRef = db
+        .collection("listing_private_locations").doc(listingId);
     const offerRef = db.collection("offers").doc(requestId);
     const conversationRef = conversationId ?
       db.collection("conversations").doc(conversationId) :
@@ -1917,6 +2007,14 @@ function createMarketplaceCommands(admin) {
       if (receipt.exists) return receipt.data().result;
       const listingSnapshot = await transaction.get(listingRef);
       const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
+      const privateListingLocationSnapshot =
+        request.data.truckingPlan === "request_dispatch" ?
+          await transaction.get(privateListingLocationRef) :
+          null;
+      const privateListingLocation =
+        privateListingLocationSnapshot &&
+        privateListingLocationSnapshot.exists ?
+          privateListingLocationSnapshot.data() : {};
       const conversationSnapshot = conversationRef ?
         await transaction.get(conversationRef) :
         null;
@@ -2074,11 +2172,16 @@ function createMarketplaceCommands(admin) {
             delivery.latitude,
             delivery.longitude,
         );
-        const distance = routeDistanceKm(
-            listing.publicGeoPoint,
-            delivery,
+        const pickupPoint = privateListingLocation.exactGeoPoint ||
+          listing.publicGeoPoint || null;
+        const routeState = buildDispatchRouteState(
+            pickupPoint,
+            deliveryPoint,
+            {providerConfigured: false},
         );
         const dispatchRef = db.collection("dispatch_jobs").doc(offerRef.id);
+        const privateDispatchRef = db
+            .collection("dispatch_job_private").doc(offerRef.id);
         const jobValues = {
           createdByUid: uid,
           title: String(listing.title || "Offer trucking request").slice(0, 180),
@@ -2090,20 +2193,11 @@ function createMarketplaceCommands(admin) {
               "Pickup location to confirm",
           ).slice(0, 250),
           deliveryLabel: delivery.label,
-          ...(listing.publicGeoPoint ? {
-            pickupPoint: listing.publicGeoPoint,
-          } : {}),
-          deliveryPoint,
-          deliveryAddress: delivery.address,
           deliveryTown: delivery.nearestTown,
           deliveryRegion: delivery.region,
-          deliveryPostalCode: delivery.postalCode,
           deliveryCountry: delivery.country,
-          deliveryAccessNotes: delivery.accessNotes,
-          ...(distance == null ? {} : {
-            distanceKm: distance,
-            distanceSource: "coordinate_estimate",
-          }),
+          ...routeState,
+          locationPrivacyVersion: 1,
           loadDetails:
             `${String(listing.title || "Marketplace load").slice(0, 180)} • ` +
             `${proposal.requestedQuantity} units`,
@@ -2119,12 +2213,32 @@ function createMarketplaceCommands(admin) {
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         };
+        const privateJobValues = {
+          createdByUid: uid,
+          ...(pickupPoint ? {pickupPoint} : {}),
+          deliveryPoint,
+          deliveryAddress: delivery.address,
+          deliveryPostalCode: delivery.postalCode,
+          deliveryAccessNotes: delivery.accessNotes,
+          locationPrivacyVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
         transaction.create(dispatchRef, jobValues);
+        transaction.create(privateDispatchRef, privateJobValues);
         transaction.create(dispatchRef.collection("revisions").doc("1"), {
           ...jobValues,
           event: "request_created",
           actorUid: uid,
         });
+        transaction.create(
+            privateDispatchRef.collection("revisions").doc("1"),
+            {
+              ...privateJobValues,
+              event: "request_created",
+              actorUid: uid,
+            },
+        );
       }
       transaction.set(
           receiptRef,
@@ -2589,6 +2703,7 @@ function createMarketplaceCommands(admin) {
     createMarketplaceListing,
     createMarketplaceOffer,
     finalizeAuction,
+    manageWantedMatch,
     placeAuctionBid,
     relistMarketplaceListing,
     setMarketplaceListingSaved,

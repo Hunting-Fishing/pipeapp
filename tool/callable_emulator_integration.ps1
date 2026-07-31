@@ -44,6 +44,6 @@ if ($nodeMajor -eq 22 -and (Get-Command firebase -ErrorAction SilentlyContinue))
   firebase @arguments
 } else {
   Write-Host "Using isolated Node 22 for Functions integration (host is $nodeVersion)."
-  npx --yes -p node@22 -p firebase-tools@15.24.0 firebase @arguments
+  npx --yes -p node@22 -p firebase-tools@15.25.0 firebase @arguments
 }
 Assert-NativeSuccess 'Authenticated callable emulator integration'

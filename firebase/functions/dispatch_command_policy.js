@@ -242,16 +242,6 @@ function validateDispatchJobInput(data, now) {
     weightSource: optionalText(data.weightSource, "Weight source", 80),
     pickupPoint,
     deliveryPoint,
-    distanceKm: optionalPositiveNumber(
-        data.distanceKm,
-        "Route distance",
-        100_000,
-    ),
-    distanceSource: optionalText(
-        data.distanceSource,
-        "Distance source",
-        80,
-    ),
     deliveryAddress: optionalText(
         data.deliveryAddress,
         "Delivery address",
@@ -283,6 +273,28 @@ function validateDispatchJobInput(data, now) {
         2000,
     ),
   };
+}
+
+function rejectClientRouteFields(data) {
+  const routeFields = [
+    "distanceKm",
+    "distanceSource",
+    "straightLineDistanceKm",
+    "routeDistanceKm",
+    "routeDurationSeconds",
+    "routeInputHash",
+    "routeProfile",
+    "routeProvider",
+    "routeStatus",
+    "routeVersion",
+  ];
+  if (routeFields.some((field) =>
+    Object.prototype.hasOwnProperty.call(data || {}, field))) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Route distance is calculated by Pipe Buyer from mapped locations.",
+    );
+  }
 }
 
 function validateDispatchJobChange(job, actorUid, now) {
@@ -686,6 +698,7 @@ function validateDispatchTransactionAction({
 module.exports = {
   DISPATCH_ACTIVE_TRANSACTION_STATES,
   DISPATCH_TERMINAL_TRANSACTION_STATES,
+  rejectClientRouteFields,
   validateDispatchAward,
   validateDispatchJobChange,
   validateDispatchJobInput,

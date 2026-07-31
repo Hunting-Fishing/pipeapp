@@ -59,6 +59,32 @@ test("notification routes fail closed to recognized deep links", () => {
   assert.match(deliveryEventId("user", "notification"), /^[a-f0-9]{64}$/);
 });
 
+test("wanted match notifications use safe copy and listing deep links", () => {
+  const wantedOwnerCopy = deliveryCopy({
+    type: "wanted_match",
+    listingId: "supply_42",
+    body: "Seller private data must not appear here.",
+  });
+  assert.equal(wantedOwnerCopy.title, "Possible wanted-ad match");
+  assert.equal(wantedOwnerCopy.route, "/listings/supply_42");
+  assert.equal(wantedOwnerCopy.body,
+      "A Marketplace listing may match your wanted request.");
+
+  const sellerCopy = deliveryCopy({
+    type: "wanted_interest",
+    listingId: "wanted_42",
+  });
+  assert.equal(sellerCopy.title, "Possible buyer interest");
+  assert.equal(sellerCopy.route, "/listings/wanted_42");
+
+  const contactCopy = deliveryCopy({
+    type: "wanted_contact",
+    listingId: "supply_42",
+  });
+  assert.equal(contactCopy.title, "Wanted match contact");
+  assert.equal(contactCopy.route, "/listings/supply_42");
+});
+
 test("only permanent messaging errors revoke an endpoint", () => {
   assert.equal(invalidEndpointErrorCode(
       "messaging/registration-token-not-registered"), true);

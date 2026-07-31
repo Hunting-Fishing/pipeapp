@@ -14,7 +14,7 @@ configuration.
 From the repository root:
 
 ```powershell
-npx --yes firebase-tools@15.24.0 emulators:start `
+npx --yes firebase-tools@15.25.0 emulators:start `
   --project flutter-flow-pipe `
   --config firebase.json `
   --only auth,firestore,functions,storage

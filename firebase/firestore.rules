@@ -135,7 +135,18 @@ service cloud.firestore {
       }
 
       match /watch_keywords/{watchId} {
-        allow read, create, update, delete: if owns(uid);
+        allow read, delete: if owns(uid);
+        allow create, update: if owns(uid) &&
+          request.resource.data.keys().hasOnly([
+            'keywords', 'label', 'enabled', 'createdAt', 'updatedAt'
+          ]) &&
+          request.resource.data.keywords is list &&
+          request.resource.data.keywords.size() > 0 &&
+          request.resource.data.keywords.size() <= 10 &&
+          request.resource.data.label is string &&
+          request.resource.data.label.size() > 0 &&
+          request.resource.data.label.size() <= 200 &&
+          request.resource.data.enabled is bool;
       }
     }
 
@@ -253,6 +264,27 @@ service cloud.firestore {
 
       match /revisions/{revisionId} {
         allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+        allow create, update, delete: if false;
+      }
+    }
+
+    // Exact route points, postal details, and access instructions are never
+    // part of the public Dispatch job board. They become visible to the job
+    // owner, administrators, and the awarded carrier only.
+    match /dispatch_job_private/{jobId} {
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        signedIn() &&
+        (isAdmin() ||
+         resource.data.createdByUid == request.auth.uid ||
+         get(/databases/$(database)/documents/dispatch_jobs/$(jobId)).data.awardedCarrierUid == request.auth.uid);
+      allow create, update, delete: if false;
+
+      match /revisions/{revisionId} {
+        allow read: if phase1FeatureEnabled('dispatch') &&
+          signedIn() &&
+          (isAdmin() ||
+           get(/databases/$(database)/documents/dispatch_job_private/$(jobId)).data.createdByUid == request.auth.uid ||
+           get(/databases/$(database)/documents/dispatch_jobs/$(jobId)).data.awardedCarrierUid == request.auth.uid);
         allow create, update, delete: if false;
       }
     }
@@ -448,6 +480,25 @@ service cloud.firestore {
         allow read: if signedIn() &&
           (isAdmin() ||
            get(/databases/$(database)/documents/public_listings/$(listingId)).data.sellerUid == request.auth.uid);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /wanted_matches/{matchId} {
+      allow read: if phase1FeatureEnabled('wantedAds') &&
+        signedIn() &&
+        (isAdmin() ||
+         resource.data.wantedOwnerUid == request.auth.uid ||
+         resource.data.sellerUid == request.auth.uid);
+      // Match score, snapshots, participants, and lifecycle are server-owned.
+      allow create, update, delete: if false;
+
+      match /events/{eventId} {
+        allow read: if phase1FeatureEnabled('wantedAds') &&
+          signedIn() &&
+          (isAdmin() ||
+           get(/databases/$(database)/documents/wanted_matches/$(matchId)).data.wantedOwnerUid == request.auth.uid ||
+           get(/databases/$(database)/documents/wanted_matches/$(matchId)).data.sellerUid == request.auth.uid);
         allow create, update, delete: if false;
       }
     }

@@ -13,15 +13,22 @@ void main() {
     expect(distance, lessThan(130));
   });
 
-  test('distance label distinguishes mapped and entered route estimates', () {
+  test('distance label distinguishes server estimates and truck routes', () {
     expect(
-        dispatchDistanceLabel(
-            {'distanceKm': 118.4, 'distanceSource': 'coordinate_estimate'}),
-        '~118 km map estimate');
+        dispatchDistanceLabel({
+          'straightLineDistanceKm': 118.4,
+          'routeStatus': 'pending_provider',
+        }),
+        '~118 km straight-line • truck route pending');
     expect(
-        dispatchDistanceLabel(
-            {'distanceKm': 143, 'distanceSource': 'user_entered_route'}),
-        '143 km route distance');
-    expect(dispatchDistanceLabel(const {}), 'Distance needs mapped points');
+        dispatchDistanceLabel({
+          'routeDistanceKm': 143,
+          'routeStatus': 'ready',
+        }),
+        '143 km truck route');
+    expect(
+      dispatchDistanceLabel(const {}),
+      'Truck route needs mapped pickup and delivery',
+    );
   });
 }

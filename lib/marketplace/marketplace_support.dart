@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'marketplace_command_client.dart';
+import 'marketplace_data_state.dart';
 
 class _SupportCategory {
   const _SupportCategory(
@@ -306,19 +307,24 @@ class _MySupportCases extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const _SupportLoadState(
+            kind: MarketplaceDataStateKind.error,
             icon: Icons.cloud_off_outlined,
             title: 'Support cases could not load',
             message: 'Check your connection and try again.',
           );
         }
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const MarketplaceDataStateView.loading(
+            title: 'Loading support cases',
+            message: 'Retrieving your private support history…',
+          );
         }
         final cases = snapshot.data!.docs.toList()
           ..sort((a, b) => _timestamp(b.data()['updatedAt'])
               .compareTo(_timestamp(a.data()['updatedAt'])));
         if (cases.isEmpty) {
           return const _SupportLoadState(
+            kind: MarketplaceDataStateKind.empty,
             icon: Icons.support_agent_outlined,
             title: 'No support cases',
             message: 'Cases you submit will appear here with their history.',
@@ -355,13 +361,17 @@ class AdminSupportQueue extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const _SupportLoadState(
+              kind: MarketplaceDataStateKind.error,
               icon: Icons.cloud_off_outlined,
               title: 'Support queue could not load',
               message: 'Check administrator access and try again.',
             );
           }
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const MarketplaceDataStateView.loading(
+              title: 'Loading support queue',
+              message: 'Retrieving the latest support cases…',
+            );
           }
           final cases = snapshot.data!.docs;
           final open =
@@ -781,29 +791,23 @@ Future<bool> _supportMessageDialog(
 
 class _SupportLoadState extends StatelessWidget {
   const _SupportLoadState({
+    required this.kind,
     required this.icon,
     required this.title,
     required this.message,
   });
 
+  final MarketplaceDataStateKind kind;
   final IconData icon;
   final String title;
   final String message;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 48, color: Colors.blueGrey),
-            const SizedBox(height: 10),
-            Text(title,
-                style:
-                    const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(message, textAlign: TextAlign.center),
-          ]),
-        ),
+  Widget build(BuildContext context) => MarketplaceDataStateView(
+        kind: kind,
+        icon: icon,
+        title: title,
+        message: message,
       );
 }
 

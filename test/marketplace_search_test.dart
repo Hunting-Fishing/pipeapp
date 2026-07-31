@@ -9,6 +9,9 @@ void main() {
     );
     expect(normalizeMarketplaceSearchQuery('x'), isEmpty);
     expect(normalizeMarketplaceSearchQuery('Drill Pipe'), 'drill pipe');
+    expect(
+        normalizeMarketplaceSearchQuery('Montréal, Québec'), 'montreal quebec');
+    expect(normalizeMarketplaceSearchQuery('México'), 'mexico');
   });
 
   test('server search reloads only when the normalized token changes', () {
