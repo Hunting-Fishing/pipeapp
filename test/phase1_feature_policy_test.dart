@@ -36,6 +36,8 @@ void main() {
       environment: 'production',
       regulatedListingsRequested: false,
       paidFeaturesRequested: false,
+      auctionsRequested: false,
+      dispatchRequested: false,
     );
     const approved = Phase1FeaturePolicy(
       environment: 'production',

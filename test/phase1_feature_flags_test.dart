@@ -12,6 +12,8 @@ void main() {
     environment: 'production',
     regulatedListingsRequested: true,
     paidFeaturesRequested: true,
+    auctionsRequested: false,
+    dispatchRequested: false,
   );
   const productionLaunchCandidate = Phase1FeaturePolicy(
     environment: 'production',
@@ -27,8 +29,8 @@ void main() {
     expect(flags.marketplace, isTrue);
     expect(flags.wantedAds, isTrue);
     expect(flags.offers, isTrue);
-    expect(flags.auctions, isFalse);
-    expect(flags.dispatch, isFalse);
+    expect(flags.auctions, isTrue);
+    expect(flags.dispatch, isTrue);
     expect(flags.paidFeatures, isFalse);
     expect(flags.regulatedListings, isFalse);
   });

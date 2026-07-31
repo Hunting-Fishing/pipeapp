@@ -9,8 +9,8 @@ class Phase1FeaturePolicy {
     required this.environment,
     required this.regulatedListingsRequested,
     required this.paidFeaturesRequested,
-    this.auctionsRequested = false,
-    this.dispatchRequested = false,
+    this.auctionsRequested = true,
+    this.dispatchRequested = true,
   });
 
   static const current = Phase1FeaturePolicy(
@@ -28,11 +28,11 @@ class Phase1FeaturePolicy {
     ),
     auctionsRequested: bool.fromEnvironment(
       'PIPE_ENABLE_AUCTIONS',
-      defaultValue: false,
+      defaultValue: true,
     ),
     dispatchRequested: bool.fromEnvironment(
       'PIPE_ENABLE_DISPATCH',
-      defaultValue: false,
+      defaultValue: true,
     ),
   );
 
