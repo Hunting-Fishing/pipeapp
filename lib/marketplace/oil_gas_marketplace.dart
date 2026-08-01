@@ -2627,9 +2627,13 @@ class _BrowsePageState extends State<_BrowsePage> {
   }
 
   Query<Map<String, dynamic>> _query() {
-    return FirebaseFirestore.instance
-        .collection('public_listings')
-        .orderBy('createdAt', descending: true);
+    Query<Map<String, dynamic>> query =
+        FirebaseFirestore.instance.collection('public_listings');
+    final searchToken = normalizeMarketplaceSearchQuery(widget.search);
+    if (searchToken.isNotEmpty) {
+      query = query.where('searchTokens', arrayContains: searchToken);
+    }
+    return query.orderBy('createdAt', descending: true);
   }
 
   Future<void> _loadPage({bool reset = false}) async {
