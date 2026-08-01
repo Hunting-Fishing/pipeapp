@@ -186,8 +186,8 @@ function createPolicyAcceptanceCommands(admin) {
 
   const acceptRequiredPolicies = command(async (request) => {
     const identity = requireAuthenticatedIdentity(request, {
-      requireEmail: true,
-      requirePhone: true,
+      requireEmail: false,
+      requirePhone: false,
     });
     await enforceUserRateLimit({db, admin, request, scope: "privacy"});
     const requestId = requiredRequestId(request.data);
