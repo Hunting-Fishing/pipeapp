@@ -459,8 +459,22 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('marketplace_transactions').limit(100).snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _explanationBanner(
+                title: 'Transactions & Escrow Control Board',
+                explanation:
+                    'Escrow holds money safely from a buyer until the buyer inspects and approves the pipe or equipment. As master admin (jordilwbailey@gmail.com), you can force release funds to the seller\'s bank account or force refund the buyer at any time.',
+              ),
+              const SizedBox(height: 16),
+              const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No active escrow transactions recorded yet.'))),
+            ],
+          );
+        }
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
+        final docs = snapshot.data?.docs ?? [];
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -672,8 +686,30 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('users').limit(200).snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          final masterEmail = currentUser?.email ?? 'jordilwbailey@gmail.com';
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: _explanationBanner(
+                  title: 'Users Directory & Member Controls',
+                  explanation:
+                      'Search all Pipe Buyer members, view email/phone verification status, change user roles (Personal, Business, Hotshot Carrier, Admin), or suspend accounts.',
+                ),
+              ),
+              ListTile(
+                leading: CircleAvatar(backgroundColor: Colors.purple.shade100, child: const Icon(Icons.person, color: Colors.purple)),
+                title: Text(masterEmail, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text('UID: ${currentUser?.uid ?? 'master-admin-uid'} • Role: ADMINISTRATOR'),
+                trailing: const Chip(label: Text('ADMINISTRATOR'), backgroundColor: Colors.purpleAccent),
+              ),
+            ],
+          );
+        }
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
+        final docs = snapshot.data?.docs ?? [];
 
         final filtered = docs.where((doc) {
           if (_userSearchQuery.isEmpty) return true;
