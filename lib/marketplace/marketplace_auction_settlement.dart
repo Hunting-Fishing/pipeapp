@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_escrow_repository.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_money.dart';
 
@@ -123,6 +124,38 @@ class _MarketplaceAuctionSettlementState
               '${marketplaceMoney(sale['agreedTotal'] as num? ?? 0)} total • '
               '${sale['agreedQuantity'] ?? 1} units',
               style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFD8E0E9)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    const Icon(Icons.shield_outlined, color: Color(0xFF0878E8), size: 20),
+                    const SizedBox(width: 6),
+                    const Text('Pipe Buyer Escrow', style: TextStyle(fontWeight: FontWeight.w800)),
+                    const Spacer(),
+                    Chip(
+                      backgroundColor: const Color(0xFFE5F2FF),
+                      label: Text(
+                        formatEscrowStatus(parseEscrowStatus('${sale['escrowStatus'] ?? sale['status']}')),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Funds are held securely until buyer inspection is approved.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF66758A)),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 10),
             _confirmation('Winning bidder', buyerConfirmed),
