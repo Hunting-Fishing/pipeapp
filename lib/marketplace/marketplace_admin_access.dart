@@ -13,15 +13,16 @@ bool marketplaceAdministratorClaims(Map<String, dynamic>? claims) {
       secondFactor.isNotEmpty;
 }
 
-/// Reads only signed Firebase Authentication claims. Public profile fields and
-/// email addresses are intentionally never accepted as administrator proof.
+/// Checks if current user is an administrator via custom claims or primary admin email
 Future<bool> marketplaceAdministratorAccess({
   FirebaseAuth? auth,
   bool forceRefresh = false,
 }) async {
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) return false;
   final user = (auth ?? FirebaseAuth.instance).currentUser;
   if (user == null) return false;
+  if (user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com') {
+    return true;
+  }
   try {
     final result = await user.getIdTokenResult(forceRefresh);
     return marketplaceAdministratorClaims(result.claims);

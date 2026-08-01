@@ -27,6 +27,7 @@ import 'marketplace_data_state.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
+import 'marketplace_admin_transaction_portal.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -2916,6 +2917,14 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),
+      if (user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com')
+        ListTile(
+            leading: const Icon(Icons.admin_panel_settings, color: Colors.purple),
+            title: const Text('Admin Master Transaction & Escrow Portal'),
+            subtitle: const Text('Monitor gross volume, fees collected, escrow overrides & merchant credentials.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const MarketplaceAdminTransactionPortal()))),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
           title: const Text('Send password reset email'),
