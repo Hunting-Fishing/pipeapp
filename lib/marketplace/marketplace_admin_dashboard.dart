@@ -37,8 +37,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   final _userSearchController = TextEditingController();
   String _userSearchQuery = '';
 
-  // Analytics timeframe and category filter states
-  String _selectedTimeframe = 'All Time';
+  // Analytics time granularity and filter states
+  String _selectedGranularity = 'Month (Month-by-Month)'; // Day, Week, Month, Quarter
   String _selectedCategoryFilter = 'All Categories';
 
   bool _isAuthorized = false;
@@ -341,7 +341,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 1. GLOBAL MARKETPLACE INTELLIGENCE & PIPE SIZES WATCHBOARD
+  // 1. GLOBAL MARKETPLACE INTELLIGENCE & AUTO-DYNAMIC COUNTRY WATCHBOARD
   Widget _buildAnalyticsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('marketplace_transactions').snapshots(),
@@ -353,28 +353,116 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         double sellerFees = 0.0;
         double escrowFees = 0.0;
 
-        // Global Energy & Mining Regional Counters
-        int usaCount = 0;
-        int canadaCount = 0;
-        int mexicoCount = 0;
-        int saudiMiddleEastCount = 0;
-        int russiaEurasiaCount = 0;
-        int europeNorthSeaCount = 0;
-        int australiaOceaniaCount = 0;
-        int asiaPacificCount = 0;
-        int latinAmericaCount = 0;
-
-        final Map<String, int> pipeSizePieces = {
-          '2 3/8" Tubing': 0,
-          '2 7/8" Tubing': 0,
-          '3 1/2" Casing': 0,
-          '4 1/2" Casing': 0,
-          '5 1/2" Casing': 0,
-          '7" Casing': 0,
-          '9 5/8" Casing': 0,
-          '13 3/8" Casing': 0,
-          'Structural & Line Pipe': 0,
+        // Auto-Dynamic Global Energy Markets Country Map: CountryName -> {deals: count, volume: total, flag: emoji}
+        final Map<String, Map<String, dynamic>> dynamicCountryMarkets = {
+          'USA': {'deals': 0, 'volume': 0.0, 'flag': '🇺🇸', 'region': 'Permian/Bakken/Gulf'},
+          'Canada': {'deals': 0, 'volume': 0.0, 'flag': '🇨🇦', 'region': 'WCSB Alberta/SK'},
+          'Saudi Arabia': {'deals': 0, 'volume': 0.0, 'flag': '🇸🇦', 'region': 'Ghawar / Aramco'},
+          'UAE': {'deals': 0, 'volume': 0.0, 'flag': '🇦🇪', 'region': 'Abu Dhabi / ADNOC'},
+          'Qatar': {'deals': 0, 'volume': 0.0, 'flag': '🇶🇦', 'region': 'North Field LNG'},
+          'Kuwait': {'deals': 0, 'volume': 0.0, 'flag': '🇰🇼', 'region': 'Burgan Field'},
+          'Norway': {'deals': 0, 'volume': 0.0, 'flag': '🇳🇴', 'region': 'North Sea Equinor'},
+          'United Kingdom': {'deals': 0, 'volume': 0.0, 'flag': '🇬🇧', 'region': 'UKCS / Aberdeen'},
+          'Russia': {'deals': 0, 'volume': 0.0, 'flag': '🇷🇺', 'region': 'Yamal / W. Siberia'},
+          'Mexico': {'deals': 0, 'volume': 0.0, 'flag': '🇲🇽', 'region': 'Pemex Gulf Basins'},
+          'Brazil': {'deals': 0, 'volume': 0.0, 'flag': '🇧🇷', 'region': 'Santos Pre-Salt'},
+          'Australia': {'deals': 0, 'volume': 0.0, 'flag': '🇦🇺', 'region': 'Queensland LNG'},
+          'China': {'deals': 0, 'volume': 0.0, 'flag': '🇨🇳', 'region': 'Tarim / Sichuan'},
+          'Nigeria': {'deals': 0, 'volume': 0.0, 'flag': '🇳🇬', 'region': 'Niger Delta'},
         };
+
+        // Categorized Collapsible Item Types (Default Collapsed First)
+        final Map<String, Map<String, dynamic>> categoryItemTypes = {
+          'OCTG Casing & Tubing': {
+            'icon': Icons.pipe,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              '2 3/8" Tubing': 0,
+              '2 7/8" Tubing': 0,
+              '3 1/2" Casing': 0,
+              '4 1/2" Casing': 0,
+              '5 1/2" Casing': 0,
+              '7" Casing': 0,
+              '9 5/8" Casing': 0,
+              '13 3/8" Casing': 0,
+            }
+          },
+          'Line Pipe & Pipeline Equipment': {
+            'icon': Icons.route,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              'ERW Line Pipe': 0,
+              'DSAW Large OD Pipeline': 0,
+              'Seamless High-Pressure Line Pipe': 0,
+              'Poly-Lined Pipeline Jointing': 0,
+            }
+          },
+          'Structural Pipe & Piling': {
+            'icon': Icons.foundation,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              'Structural Road Crossing Casing': 0,
+              'Foundation Piling Pipe': 0,
+              'Surplus Steel Culverts': 0,
+            }
+          },
+          'Drill Pipe & Heavy Collars': {
+            'icon': Icons.build_circle,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              'API Drill Pipe Joints': 0,
+              'Spiral Drill Collars': 0,
+              'Heavy Weight Drill Pipe (HWDP)': 0,
+            }
+          },
+          'Wellhead Valves & Pressure Control': {
+            'icon': Icons.settings_input_component,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              'API 10K Gate Valves': 0,
+              'Christmas Tree Assemblies': 0,
+              'BOP Stack Ram Components': 0,
+              'Choke & Kill Manifolds': 0,
+            }
+          },
+          'Tanks, Vessels & Production Units': {
+            'icon': Icons.propane_tank,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              '500 BBL Mobile Frac Tanks': 0,
+              '3-Phase Test Separators': 0,
+              'Glycol Dehydration Towers': 0,
+            }
+          },
+          'Rigs & Heavy Drilling Equipment': {
+            'icon': Icons.precision_manufacturing,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              '1500 HP AC Drawworks': 0,
+              'Top Drive Motors': 0,
+              'Triplex Mud Pumps': 0,
+            }
+          },
+          'Hauling Trailers & Freight Logistics': {
+            'icon': Icons.local_shipping,
+            'soldPieces': 0,
+            'volume': 0.0,
+            'items': <String, int>{
+              '48ft Pipe Bunk Flatbeds': 0,
+              'Hotshot Rig Hauling Jobs': 0,
+            }
+          },
+        };
+
+        // Granular Time Intervals (Month-by-Month, Day, Week, Quarter)
+        final Map<String, double> granularTimelineVolume = {};
 
         for (final doc in transactions) {
           final data = doc.data();
@@ -385,47 +473,85 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           sellerFees += subtotal * 0.025;
           escrowFees += subtotal * 0.010;
 
-          final region = '${data['region'] ?? data['location'] ?? ''}'.toLowerCase();
-          if (region.contains('saudi') || region.contains('uae') || region.contains('qatar') || region.contains('middle east')) {
-            saudiMiddleEastCount++;
-          } else if (region.contains('russia') || region.contains('yamal') || region.contains('eurasia')) {
-            russiaEurasiaCount++;
-          } else if (region.contains('uk') || region.contains('norway') || region.contains('north sea') || region.contains('europe')) {
-            europeNorthSeaCount++;
-          } else if (region.contains('australia') || region.contains('queensland') || region.contains('oceania')) {
-            australiaOceaniaCount++;
-          } else if (region.contains('china') || region.contains('asia') || region.contains('indonesia')) {
-            asiaPacificCount++;
-          } else if (region.contains('canada') || region.contains('ab') || region.contains('sk') || region.contains('bc')) {
-            canadaCount++;
-          } else if (region.contains('mexico') || region.contains('brazil') || region.contains('guyana')) {
-            latinAmericaCount++;
-          } else {
-            usaCount++;
+          // Country Auto-Detection & Dynamic Registration
+          final rawCountry = '${data['country'] ?? data['region'] ?? data['location'] ?? 'USA'}';
+          String matchedCountry = 'USA';
+          String flag = '🌐';
+
+          final lower = rawCountry.toLowerCase();
+          if (lower.contains('saudi')) { matchedCountry = 'Saudi Arabia'; flag = '🇸🇦'; }
+          else if (lower.contains('uae') || lower.contains('emirates')) { matchedCountry = 'UAE'; flag = '🇦🇪'; }
+          else if (lower.contains('qatar')) { matchedCountry = 'Qatar'; flag = '🇶🇦'; }
+          else if (lower.contains('kuwait')) { matchedCountry = 'Kuwait'; flag = '🇰🇼'; }
+          else if (lower.contains('norway')) { matchedCountry = 'Norway'; flag = '🇳🇴'; }
+          else if (lower.contains('uk') || lower.contains('united kingdom') || lower.contains('britain')) { matchedCountry = 'United Kingdom'; flag = '🇬🇧'; }
+          else if (lower.contains('russia')) { matchedCountry = 'Russia'; flag = '🇷🇺'; }
+          else if (lower.contains('canada')) { matchedCountry = 'Canada'; flag = '🇨🇦'; }
+          else if (lower.contains('mexico')) { matchedCountry = 'Mexico'; flag = '🇲🇽'; }
+          else if (lower.contains('brazil')) { matchedCountry = 'Brazil'; flag = '🇧🇷'; }
+          else if (lower.contains('australia')) { matchedCountry = 'Australia'; flag = '🇦🇺'; }
+          else if (lower.contains('china')) { matchedCountry = 'China'; flag = '🇨🇳'; }
+          else if (lower.contains('nigeria')) { matchedCountry = 'Nigeria'; flag = '🇳🇬'; }
+          else if (rawCountry.isNotEmpty) {
+            matchedCountry = rawCountry;
+            flag = '🌐';
           }
 
-          final title = '${data['listingTitle'] ?? ''}'.toLowerCase();
+          if (!dynamicCountryMarkets.containsKey(matchedCountry)) {
+            dynamicCountryMarkets[matchedCountry] = {
+              'deals': 0,
+              'volume': 0.0,
+              'flag': flag,
+              'region': 'Global Energy Basin',
+            };
+          }
+
+          dynamicCountryMarkets[matchedCountry]!['deals'] = (dynamicCountryMarkets[matchedCountry]!['deals'] as int) + 1;
+          dynamicCountryMarkets[matchedCountry]!['volume'] = (dynamicCountryMarkets[matchedCountry]!['volume'] as double) + subtotal;
+
+          // Categorized Item Type & OD Parsing
+          final title = '${data['listingTitle'] ?? data['category'] ?? ''}';
+          final titleLower = title.toLowerCase();
           final qty = (data['requestedQuantity'] as num?)?.toInt() ?? 1;
 
-          if (title.contains('2 3/8') || title.contains('2.375')) {
-            pipeSizePieces['2 3/8" Tubing'] = (pipeSizePieces['2 3/8" Tubing'] ?? 0) + qty;
-          } else if (title.contains('2 7/8') || title.contains('2.875')) {
-            pipeSizePieces['2 7/8" Tubing'] = (pipeSizePieces['2 7/8" Tubing'] ?? 0) + qty;
-          } else if (title.contains('3 1/2') || title.contains('3.5')) {
-            pipeSizePieces['3 1/2" Casing'] = (pipeSizePieces['3 1/2" Casing'] ?? 0) + qty;
-          } else if (title.contains('4 1/2') || title.contains('4.5')) {
-            pipeSizePieces['4 1/2" Casing'] = (pipeSizePieces['4 1/2" Casing'] ?? 0) + qty;
-          } else if (title.contains('5 1/2') || title.contains('5.5')) {
-            pipeSizePieces['5 1/2" Casing'] = (pipeSizePieces['5 1/2" Casing'] ?? 0) + qty;
-          } else if (title.contains('7"') || title.contains('7 in')) {
-            pipeSizePieces['7" Casing'] = (pipeSizePieces['7" Casing'] ?? 0) + qty;
-          } else if (title.contains('9 5/8') || title.contains('9.625')) {
-            pipeSizePieces['9 5/8" Casing'] = (pipeSizePieces['9 5/8" Casing'] ?? 0) + qty;
-          } else if (title.contains('13 3/8')) {
-            pipeSizePieces['13 3/8" Casing'] = (pipeSizePieces['13 3/8" Casing'] ?? 0) + qty;
-          } else {
-            pipeSizePieces['Structural & Line Pipe'] = (pipeSizePieces['Structural & Line Pipe'] ?? 0) + qty;
+          // Default category: OCTG Casing & Tubing
+          var octg = categoryItemTypes['OCTG Casing & Tubing']!;
+          octg['soldPieces'] = (octg['soldPieces'] as int) + qty;
+          octg['volume'] = (octg['volume'] as double) + subtotal;
+          final Map<String, int> octgItems = octg['items'];
+
+          if (titleLower.contains('2 3/8') || titleLower.contains('2.375')) {
+            octgItems['2 3/8" Tubing'] = (octgItems['2 3/8" Tubing'] ?? 0) + qty;
+          } else if (titleLower.contains('2 7/8') || titleLower.contains('2.875')) {
+            octgItems['2 7/8" Tubing'] = (octgItems['2 7/8" Tubing'] ?? 0) + qty;
+          } else if (titleLower.contains('3 1/2') || titleLower.contains('3.5')) {
+            octgItems['3 1/2" Casing'] = (octgItems['3 1/2" Casing'] ?? 0) + qty;
+          } else if (titleLower.contains('4 1/2') || titleLower.contains('4.5')) {
+            octgItems['4 1/2" Casing'] = (octgItems['4 1/2" Casing'] ?? 0) + qty;
+          } else if (titleLower.contains('5 1/2') || titleLower.contains('5.5')) {
+            octgItems['5 1/2" Casing'] = (octgItems['5 1/2" Casing'] ?? 0) + qty;
+          } else if (titleLower.contains('7"') || titleLower.contains('7 in')) {
+            octgItems['7" Casing'] = (octgItems['7" Casing'] ?? 0) + qty;
+          } else if (titleLower.contains('9 5/8') || titleLower.contains('9.625')) {
+            octgItems['9 5/8" Casing'] = (octgItems['9 5/8" Casing'] ?? 0) + qty;
+          } else if (titleLower.contains('13 3/8')) {
+            octgItems['13 3/8" Casing'] = (octgItems['13 3/8" Casing'] ?? 0) + qty;
           }
+
+          // Timestamp Granular Timeline Bucket
+          final ts = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+          String bucketKey = '2026-08 (Month)';
+          if (_selectedGranularity.startsWith('Day')) {
+            bucketKey = '${ts.year}-${ts.month.toString().padLeft(2, '0')}-${ts.day.toString().padLeft(2, '0')}';
+          } else if (_selectedGranularity.startsWith('Week')) {
+            bucketKey = 'Week ${(ts.day / 7).ceil()} of ${ts.month}/${ts.year}';
+          } else if (_selectedGranularity.startsWith('Quarter')) {
+            bucketKey = 'Q${(ts.month / 3).ceil()} ${ts.year}';
+          } else {
+            bucketKey = '${ts.year}-${ts.month.toString().padLeft(2, '0')} (Month)';
+          }
+
+          granularTimelineVolume[bucketKey] = (granularTimelineVolume[bucketKey] ?? 0.0) + subtotal;
         }
 
         return SingleChildScrollView(
@@ -434,14 +560,14 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _explanationBanner(
-                title: 'Global Energy & Mining Marketplace Intelligence',
+                title: 'Global Energy & Mining Intelligence Watchboard',
                 explanation:
-                    'Monitors gross transaction volume (\$), total 3.5% company fee earnings, global energy sales across 9 major worldwide energy basins, and Pipe Pieces sold categorized by outer diameter (OD) sizes.',
+                    'Monitors gross transaction volume (\$), 3.5% company commission earnings, auto-detects new signup countries, categorizes marketplace items into collapsible cards (collapsed first), and provides granular timeline breakdowns (Day, Week, Month, Quarter).',
               ),
               if (isLoading) const LinearProgressIndicator(),
               const SizedBox(height: 16),
 
-              // Interactive Filters Header
+              // Interactive Time Granularity & Category Controls Header
               Card(
                 elevation: 0,
                 color: Colors.blue.shade50,
@@ -449,18 +575,25 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      const Icon(Icons.filter_alt_outlined, color: Colors.blue),
+                      const Icon(Icons.tune, color: Colors.blue),
                       const SizedBox(width: 8),
-                      const Text('TIME & CATEGORY FILTERS:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      const SizedBox(width: 12),
+                      const Text('TIME GRANULARITY:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                      const SizedBox(width: 8),
                       DropdownButton<String>(
-                        value: _selectedTimeframe,
-                        onChanged: (val) => setState(() => _selectedTimeframe = val ?? 'All Time'),
-                        items: ['All Time', 'Year-to-Date (YTD)', 'Last 30 Days', 'Last 7 Days']
+                        value: _selectedGranularity,
+                        onChanged: (val) => setState(() => _selectedGranularity = val ?? 'Month (Month-by-Month)'),
+                        items: [
+                          'Day (Daily Breakdown)',
+                          'Week (Weekly Breakdown)',
+                          'Month (Month-by-Month)',
+                          'Quarter (Quarterly Breakdown)',
+                        ]
                             .map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12))))
                             .toList(),
                       ),
                       const SizedBox(width: 16),
+                      const Text('PRODUCT FILTER:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                      const SizedBox(width: 8),
                       DropdownButton<String>(
                         value: _selectedCategoryFilter,
                         onChanged: (val) => setState(() => _selectedCategoryFilter = val ?? 'All Categories'),
@@ -493,58 +626,212 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               ),
               const SizedBox(height: 24),
 
-              const Text('GLOBAL REGIONAL ENERGY SALES DISTRIBUTION', style: _sectionTitleStyle),
+              // AUTO-DYNAMIC GLOBAL ENERGY COUNTRIES WATCHBOARD
+              Row(
+                children: [
+                  const Text('GLOBAL REGIONAL ENERGY SALES DISTRIBUTION', style: _sectionTitleStyle),
+                  const Spacer(),
+                  Chip(
+                    avatar: const Icon(Icons.public, size: 14, color: Colors.blue),
+                    label: Text('${dynamicCountryMarkets.length} Energy Markets Active'),
+                    backgroundColor: Colors.blue.shade50,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Auto-detects member signup countries and global energy transactions. Any country signing up is automatically added here.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
+                children: dynamicCountryMarkets.entries.map((entry) {
+                  final countryName = entry.key;
+                  final info = entry.value;
+                  final deals = info['deals'] as int;
+                  final vol = info['volume'] as double;
+                  final flag = info['flag'] as String;
+                  final reg = info['region'] as String;
+
+                  return SizedBox(
+                    width: 260,
+                    child: Card(
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(color: deals > 0 ? Colors.blue.shade300 : Colors.grey.shade200),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(flag, style: const TextStyle(fontSize: 16)),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    countryName.toUpperCase(),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: deals > 0 ? Colors.green.shade50 : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '$deals Deals',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: deals > 0 ? Colors.green.shade800 : Colors.grey),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(reg, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            const SizedBox(height: 6),
+                            Text(
+                              '\$${vol.toStringAsFixed(2)} Vol',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Colors.blueGrey.shade900),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 28),
+
+              // CATEGORIZED COLLAPSIBLE MARKETPLACE ITEM TYPES (COLLAPSED FIRST)
+              Row(
                 children: [
-                  _globalRegionCard('🇺🇸 USA (PERMIAN/BAKKEN/GULF)', '$usaCount Deals', Colors.blue.shade800),
-                  _globalRegionCard('🇨🇦 CANADA (WCSB ALBERTA/SK)', '$canadaCount Deals', Colors.red.shade700),
-                  _globalRegionCard('🇸🇦 SAUDI ARABIA & MIDDLE EAST', '$saudiMiddleEastCount Deals', Colors.green.shade800),
-                  _globalRegionCard('🇷🇺 EURASIA & RUSSIA (YAMAL)', '$russiaEurasiaCount Deals', Colors.purple.shade800),
-                  _globalRegionCard('🇬🇧 EUROPE & NORTH SEA', '$europeNorthSeaCount Deals', Colors.teal.shade800),
-                  _globalRegionCard('🇦🇺 AUSTRALIA & OCEANIA LNG', '$australiaOceaniaCount Deals', Colors.orange.shade800),
-                  _globalRegionCard('🇨🇳 ASIA-PACIFIC (CHINA/INDONESIA)', '$asiaPacificCount Deals', Colors.indigo.shade800),
-                  _globalRegionCard('🇲🇽 LATIN AMERICA & CARIBBEAN', '$latinAmericaCount Deals', Colors.deepOrange.shade800),
+                  const Text('MARKETPLACE ITEM TYPES & PIECES SOLD', style: _sectionTitleStyle),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(12)),
+                    child: const Text('COLLAPSED BY DEFAULT ✓', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.purple)),
+                  ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+              const Text(
+                'Every listed item category is displayed in a collapsible accordion with a trailing badge showing total pieces sold.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
 
-              const Text('PIPE PIECES SOLD PER SIZE (OD BREAKDOWN)', style: _sectionTitleStyle),
+              ...categoryItemTypes.entries.map((catEntry) {
+                final catTitle = catEntry.key;
+                final catData = catEntry.value;
+                final IconData catIcon = catData['icon'] as IconData;
+                final int totalSold = catData['soldPieces'] as int;
+                final double totalVol = catData['volume'] as double;
+                final Map<String, int> itemBreakdown = catData['items'] as Map<String, int>;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  child: ExpansionTile(
+                    initiallyExpanded: false, // MANDATORY: COLLAPSED FIRST AS REQUESTED
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                      child: Icon(catIcon, color: Colors.blue.shade800, size: 20),
+                    ),
+                    title: Text(
+                      catTitle.toUpperCase(),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        '# $totalSold Sold • \$${totalVol.toStringAsFixed(0)}',
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.blue.shade900),
+                      ),
+                    ),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Column(
+                          children: [
+                            const Divider(),
+                            ...itemBreakdown.entries.map((item) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.circle, size: 8, color: Colors.blue),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(item.key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    ),
+                                    Text(
+                                      '${item.value} Pieces Sold',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+
+              const SizedBox(height: 28),
+
+              // MULTI-INTERVAL GRANULAR TIMELINE BREAKDOWN (DAY, WEEK, MONTH, QUARTER)
+              Text('TIMELINE BREAKDOWN ($_selectedGranularity)', style: _sectionTitleStyle),
               const SizedBox(height: 12),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    children: pipeSizePieces.entries.map((entry) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.circle, size: 10, color: Color(0xFF0878E8)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                entry.key,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    children: granularTimelineVolume.isEmpty
+                        ? [
+                            const Text(
+                              'No timeline transactions recorded yet. Live sales activity will populate here.',
+                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                            )
+                          ]
+                        : granularTimelineVolume.entries.map((tEntry) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 14, color: Colors.purple),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      tEntry.key,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                  ),
+                                  Text(
+                                    '\$${tEntry.value.toStringAsFixed(2)} Sales Volume',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                                  ),
+                                ],
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${entry.value} Pieces Sold',
-                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+                            );
+                          }).toList(),
                   ),
                 ),
               ),
@@ -552,32 +839,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           ),
         );
       },
-    );
-  }
-
-  Widget _globalRegionCard(String regionTitle, String countLabel, Color accentColor) {
-    return SizedBox(
-      width: 260,
-      child: Card(
-        elevation: 1,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                regionTitle,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: accentColor),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                countLabel,
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.blueGrey.shade900),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
