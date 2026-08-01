@@ -2590,6 +2590,7 @@ class _BrowsePageState extends State<_BrowsePage> {
   String? _loadError;
   int _queryGeneration = 0;
   Timer? _searchDebounce;
+  int _gridColumns = 1;
 
   @override
   void initState() {
@@ -2774,12 +2775,49 @@ class _BrowsePageState extends State<_BrowsePage> {
                   style: const TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700)),
               const Spacer(),
-              if (widget.category != null)
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment<int>(
+                    value: 1,
+                    icon: Icon(Icons.view_agenda_outlined, size: 16),
+                    tooltip: 'List view (1 per row)',
+                  ),
+                  ButtonSegment<int>(
+                    value: 2,
+                    label: Text('2', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    tooltip: 'Grid view (2 per row)',
+                  ),
+                  ButtonSegment<int>(
+                    value: 3,
+                    label: Text('3', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    tooltip: 'Grid view (3 per row)',
+                  ),
+                  ButtonSegment<int>(
+                    value: 4,
+                    label: Text('4', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    tooltip: 'Grid view (4 per row)',
+                  ),
+                ],
+                selected: {_gridColumns},
+                onSelectionChanged: (selected) {
+                  if (selected.isNotEmpty) {
+                    setState(() => _gridColumns = selected.first);
+                  }
+                },
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              if (widget.category != null) ...[
+                const SizedBox(width: 6),
                 ActionChip(
                     avatar: const Icon(Icons.close, size: 15),
                     label: Text(widget.category!,
                         style: const TextStyle(fontSize: 11)),
                     onPressed: () => widget.onCategory(null))
+              ],
             ]),
             if (_filters.activeCount > 0) ...[
               const SizedBox(height: 8),
@@ -2847,6 +2885,49 @@ class _BrowsePageState extends State<_BrowsePage> {
         primaryLabel: _hasMore ? 'Search more listings' : null,
         primaryIcon: Icons.expand_more_rounded,
         onPrimary: _hasMore && !_loading ? _loadPage : null,
+      );
+    }
+    if (_gridColumns > 1) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      final maxPossibleCols = (screenWidth / 180).floor().clamp(1, 4);
+      final effectiveCols = math.min(_gridColumns, maxPossibleCols);
+      final aspectRatio = effectiveCols == 2
+          ? 0.84
+          : effectiveCols == 3
+              ? 0.76
+              : 0.68;
+      return RefreshIndicator(
+        onRefresh: () => _loadPage(reset: true),
+        child: GridView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: effectiveCols,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 12,
+            childAspectRatio: aspectRatio,
+          ),
+          itemCount: results.length + 1,
+          itemBuilder: (context, index) {
+            if (index == results.length) {
+              return Center(
+                child: _hasMore
+                    ? OutlinedButton(
+                        onPressed: _loading ? null : _loadPage,
+                        child: Text(_loading ? 'Loading…' : 'Load more'),
+                      )
+                    : const SizedBox.shrink(),
+              );
+            }
+            final item = results[index];
+            return _ListingCard(
+              listing: item,
+              saved: widget.saved.contains(item.id),
+              onSaved: () => widget.onSaved(item),
+              isGrid: true,
+            );
+          },
+        ),
       );
     }
     return RefreshIndicator(
