@@ -26,9 +26,18 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   final _paypalClientId = TextEditingController();
   final _paypalSecretKey = TextEditingController();
 
+  final _userSearchController = TextEditingController();
+  String _userSearchQuery = '';
+
   bool _isAuthorized = false;
   bool _isLoadingAuth = true;
   bool _isSavingGateways = false;
+
+  // System feature flags state
+  bool _auctionsEnabled = true;
+  bool _escrowEnabled = true;
+  bool _wantedMatchingEnabled = true;
+  bool _maintenanceMode = false;
 
   @override
   void initState() {
@@ -36,6 +45,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     _tabController = TabController(length: 7, vsync: this);
     _checkAdminAuth();
     _loadGatewayCredentials();
+    _loadFeatureFlags();
   }
 
   @override
@@ -48,6 +58,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     _stripeSecretKey.dispose();
     _paypalClientId.dispose();
     _paypalSecretKey.dispose();
+    _userSearchController.dispose();
     super.dispose();
   }
 
@@ -80,6 +91,24 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     } catch (_) {}
   }
 
+  Future<void> _loadFeatureFlags() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('admin_settings')
+          .doc('feature_flags')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        setState(() {
+          _auctionsEnabled = data['auctionsEnabled'] ?? true;
+          _escrowEnabled = data['escrowEnabled'] ?? true;
+          _wantedMatchingEnabled = data['wantedMatchingEnabled'] ?? true;
+          _maintenanceMode = data['maintenanceMode'] ?? false;
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _saveGatewayCredentials() async {
     setState(() => _isSavingGateways = true);
     try {
@@ -101,7 +130,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: 'Company Bank & Merchant Credentials saved successfully!',
+          message: 'Company Bank Account & Merchant Credentials saved successfully!',
           tone: PipeStatusTone.success,
         );
       }
@@ -115,6 +144,34 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       }
     } finally {
       if (mounted) setState(() => _isSavingGateways = false);
+    }
+  }
+
+  Future<void> _saveFeatureFlags() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('admin_settings')
+          .doc('feature_flags')
+          .set({
+        'auctionsEnabled': _auctionsEnabled,
+        'escrowEnabled': _escrowEnabled,
+        'wantedMatchingEnabled': _wantedMatchingEnabled,
+        'maintenanceMode': _maintenanceMode,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: 'System Feature Flags updated!',
+          tone: PipeStatusTone.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        PipeFeedback.show(context, message: 'Save flags failed: $e', tone: PipeStatusTone.error);
+      }
     }
   }
 
@@ -181,12 +238,12 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           tabs: const [
-            Tab(icon: Icon(Icons.analytics_outlined), text: 'Analytics'),
+            Tab(icon: Icon(Icons.analytics_outlined), text: 'Marketplace Intelligence'),
             Tab(icon: Icon(Icons.gavel_outlined), text: 'Transactions & Escrow'),
-            Tab(icon: Icon(Icons.account_balance_outlined), text: 'Banking & Gateways'),
-            Tab(icon: Icon(Icons.people_outline), text: 'Users & Roles'),
-            Tab(icon: Icon(Icons.fact_check_outlined), text: 'Moderation'),
-            Tab(icon: Icon(Icons.local_shipping_outlined), text: 'Dispatch Logistics'),
+            Tab(icon: Icon(Icons.account_balance_outlined), text: 'Banking & Merchant Setup'),
+            Tab(icon: Icon(Icons.people_outline), text: 'Users Directory & Leaderboards'),
+            Tab(icon: Icon(Icons.fact_check_outlined), text: 'Moderation & Safety'),
+            Tab(icon: Icon(Icons.local_shipping_outlined), text: 'Freight & Dispatch'),
             Tab(icon: Icon(Icons.settings_outlined), text: 'System Config'),
           ],
         ),
@@ -206,17 +263,35 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 1. Analytics & Revenue Tab
+  // 1. Marketplace Intelligence & Pipe Sizes Watchboard
   Widget _buildAnalyticsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('marketplace_transactions').snapshots(),
       builder: (context, snapshot) {
-        final docs = snapshot.data?.docs ?? [];
+        final transactions = snapshot.data?.docs ?? [];
         double totalVolume = 0.0;
         double sellerFees = 0.0;
         double escrowFees = 0.0;
 
-        for (final doc in docs) {
+        // Regional Breakdown counters
+        int usaCount = 0;
+        int canadaCount = 0;
+        int mexicoCount = 0;
+
+        // Pipe Size piece counters
+        final Map<String, int> pipeSizePieces = {
+          '2 3/8" Tubing': 0,
+          '2 7/8" Tubing': 0,
+          '3 1/2" Casing': 0,
+          '4 1/2" Casing': 0,
+          '5 1/2" Casing': 0,
+          '7" Casing': 0,
+          '9 5/8" Casing': 0,
+          '13 3/8" Casing': 0,
+          'Structural & Line Pipe': 0,
+        };
+
+        for (final doc in transactions) {
           final data = doc.data();
           final subtotal = (data['offeredTotal'] as num?)?.toDouble() ??
               ((data['offeredUnitPrice'] as num?)?.toDouble() ?? 0.0) *
@@ -224,6 +299,38 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           totalVolume += subtotal;
           sellerFees += subtotal * 0.025;
           escrowFees += subtotal * 0.010;
+
+          final region = '${data['region'] ?? data['location'] ?? ''}'.toLowerCase();
+          if (region.contains('canada') || region.contains('ab') || region.contains('sk') || region.contains('bc')) {
+            canadaCount++;
+          } else if (region.contains('mexico') || region.contains('mx')) {
+            mexicoCount++;
+          } else {
+            usaCount++;
+          }
+
+          final title = '${data['listingTitle'] ?? ''}'.toLowerCase();
+          final qty = (data['requestedQuantity'] as num?)?.toInt() ?? 1;
+
+          if (title.contains('2 3/8') || title.contains('2.375')) {
+            pipeSizePieces['2 3/8" Tubing'] = (pipeSizePieces['2 3/8" Tubing'] ?? 0) + qty;
+          } else if (title.contains('2 7/8') || title.contains('2.875')) {
+            pipeSizePieces['2 7/8" Tubing'] = (pipeSizePieces['2 7/8" Tubing'] ?? 0) + qty;
+          } else if (title.contains('3 1/2') || title.contains('3.5')) {
+            pipeSizePieces['3 1/2" Casing'] = (pipeSizePieces['3 1/2" Casing'] ?? 0) + qty;
+          } else if (title.contains('4 1/2') || title.contains('4.5')) {
+            pipeSizePieces['4 1/2" Casing'] = (pipeSizePieces['4 1/2" Casing'] ?? 0) + qty;
+          } else if (title.contains('5 1/2') || title.contains('5.5')) {
+            pipeSizePieces['5 1/2" Casing'] = (pipeSizePieces['5 1/2" Casing'] ?? 0) + qty;
+          } else if (title.contains('7"') || title.contains('7 in')) {
+            pipeSizePieces['7" Casing'] = (pipeSizePieces['7" Casing'] ?? 0) + qty;
+          } else if (title.contains('9 5/8') || title.contains('9.625')) {
+            pipeSizePieces['9 5/8" Casing'] = (pipeSizePieces['9 5/8" Casing'] ?? 0) + qty;
+          } else if (title.contains('13 3/8')) {
+            pipeSizePieces['13 3/8" Casing'] = (pipeSizePieces['13 3/8" Casing'] ?? 0) + qty;
+          } else {
+            pipeSizePieces['Structural & Line Pipe'] = (pipeSizePieces['Structural & Line Pipe'] ?? 0) + qty;
+          }
         }
 
         return SingleChildScrollView(
@@ -231,13 +338,20 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _explanationBanner(
+                title: 'Marketplace Intelligence & Watchboard',
+                explanation:
+                    'Monitors gross transaction volume (\$), total 3.5% company fee earnings, regional sales (USA, Canada, Mexico), and total Pipe Pieces sold categorized by outer diameter (OD) sizes.',
+              ),
+              const SizedBox(height: 16),
+
               const Text('PLATFORM FINANCIAL PERFORMANCE', style: _sectionTitleStyle),
               const SizedBox(height: 12),
               Row(
                 children: [
                   _metricCard('GROSS MARKETPLACE VOLUME', '\$${totalVolume.toStringAsFixed(2)}', Icons.trending_up, Colors.blue),
                   const SizedBox(width: 12),
-                  _metricCard('TOTAL EARNINGS (3.5%)', '\$${(sellerFees + escrowFees).toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.green),
+                  _metricCard('TOTAL COMPANY EARNINGS (3.5%)', '\$${(sellerFees + escrowFees).toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.green),
                 ],
               ),
               const SizedBox(height: 12),
@@ -245,35 +359,65 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 children: [
                   _metricCard('2.5% SELLER COMMISSIONS', '\$${sellerFees.toStringAsFixed(2)}', Icons.sell_outlined, Colors.purple),
                   const SizedBox(width: 12),
-                  _metricCard('1.0% ESCROW FEES', '\$${escrowFees.toStringAsFixed(2)}', Icons.shield_outlined, Colors.teal),
+                  _metricCard('1.0% ESCROW PROTECTION', '\$${escrowFees.toStringAsFixed(2)}', Icons.shield_outlined, Colors.teal),
                 ],
               ),
               const SizedBox(height: 24),
-              const Text('PLATFORM ACTIVITY OVERVIEW', style: _sectionTitleStyle),
+
+              const Text('REGIONAL SALES DISTRIBUTION', style: _sectionTitleStyle),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _countStreamCard('listings', 'ACTIVE LISTINGS', Icons.inventory_2_outlined, Colors.indigo),
+                  _metricCard('USA (US OIL & GAS BASINS)', '$usaCount Deals', Icons.flag, Colors.blue.shade800),
                   const SizedBox(width: 12),
-                  _countStreamCard('users', 'REGISTERED USERS', Icons.people_outline, Colors.orange),
+                  _metricCard('CANADA (ALBERTA / SK)', '$canadaCount Deals', Icons.nature, Colors.red.shade700),
+                  const SizedBox(width: 12),
+                  _metricCard('MEXICO REGIONS', '$mexicoCount Deals', Icons.public, Colors.green.shade800),
                 ],
+              ),
+              const SizedBox(height: 24),
+
+              const Text('PIPE PIECES SOLD PER SIZE (OD BREAKDOWN)', style: _sectionTitleStyle),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: pipeSizePieces.entries.map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.circle, size: 10, color: Color(0xFF0878E8)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                entry.key,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${entry.value} Pieces Sold',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ],
           ),
         );
       },
-    );
-  }
-
-  Widget _countStreamCard(String collection, String label, IconData icon, Color color) {
-    return Expanded(
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection(collection).limit(500).snapshots(),
-        builder: (context, snapshot) {
-          final count = snapshot.data?.docs.length ?? 0;
-          return _metricCard(label, '$count', icon, color);
-        },
-      ),
     );
   }
 
@@ -317,59 +461,79 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) {
-          return const Center(child: Text('No marketplace transactions recorded yet.'));
-        }
 
-        return ListView.separated(
+        return ListView(
           padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final data = docs[index].data();
-            final offerId = docs[index].id;
-            final title = '${data['listingTitle'] ?? 'Listing'}';
-            final status = '${data['escrowStatus'] ?? data['status'] ?? 'pending'}';
-            final total = (data['offeredTotal'] as num?)?.toDouble() ?? 0.0;
+          children: [
+            _explanationBanner(
+              title: 'Transactions & Escrow Control Board',
+              explanation:
+                  'Escrow holds money safely from a buyer until the buyer inspects and approves the pipe or equipment. As master admin (jordilwbailey@gmail.com), you can force release funds to the seller\'s bank account or force refund the buyer at any time.',
+            ),
+            const SizedBox(height: 12),
+            if (docs.isEmpty)
+              const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No transactions recorded yet.')))
+            else
+              ...docs.map((doc) {
+                final data = doc.data();
+                final offerId = doc.id;
+                final title = '${data['listingTitle'] ?? 'Listing'}';
+                final status = '${data['escrowStatus'] ?? data['status'] ?? 'pending'}';
+                final total = (data['offeredTotal'] as num?)?.toDouble() ?? 0.0;
+                final sellerFee = total * 0.025;
+                final escrowFee = total * 0.010;
 
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            ),
+                            Chip(
+                              avatar: const Icon(Icons.shield_outlined, size: 14),
+                              label: Text(status.toUpperCase()),
+                            ),
+                          ],
                         ),
-                        Chip(label: Text(status.toUpperCase())),
+                        const Divider(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: Text('Total Value: \$${total.toStringAsFixed(2)}')),
+                            Text(
+                              'Company Fee (3.5%): \$${(sellerFee + escrowFee).toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => _adminEscrowAction(offerId, 'force_release'),
+                              icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                              label: const Text('Admin Force Release Funds'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => _adminEscrowAction(offerId, 'force_refund'),
+                              icon: const Icon(Icons.undo, color: Colors.red),
+                              label: const Text('Admin Force Refund Buyer'),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text('Total Transaction: \$${total.toStringAsFixed(2)} • Company Fee (3.5%): \$${(total * 0.035).toStringAsFixed(2)}'),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () => _adminEscrowAction(offerId, 'force_release'),
-                          icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                          label: const Text('Force Release Funds'),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: () => _adminEscrowAction(offerId, 'force_refund'),
-                          icon: const Icon(Icons.undo, color: Colors.red),
-                          label: const Text('Force Refund Buyer'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+                  ),
+                );
+              }),
+          ],
         );
       },
     );
@@ -404,12 +568,20 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('COMPANY BANK ACCOUNT (FOR COMMISSION FEES)', style: _sectionTitleStyle),
+              _explanationBanner(
+                title: 'Company Banking & Merchant Processing Setup',
+                explanation:
+                    'Configure your company\'s bank account (Routing # & Account #) so that all 3.5% platform commission and escrow protection fees deposit directly into your bank account. Enter live Stripe & PayPal API keys to accept credit card payments.',
+              ),
+              const SizedBox(height: 16),
+
+              const Text('COMPANY BANK ACCOUNT (FOR COMMISSION & ESCROW FEES)', style: _sectionTitleStyle),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _companyBankName,
                 decoration: const InputDecoration(
                   labelText: 'Company Bank Name',
+                  hintText: 'e.g. JPMorgan Chase / Royal Bank of Canada',
                   prefixIcon: Icon(Icons.account_balance),
                 ),
               ),
@@ -420,7 +592,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     child: TextFormField(
                       controller: _companyRoutingNumber,
                       decoration: const InputDecoration(
-                        labelText: 'Routing / ABA #',
+                        labelText: 'Routing / ABA # (9 Digits)',
                         prefixIcon: Icon(Icons.numbers),
                       ),
                     ),
@@ -485,7 +657,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 child: FilledButton.icon(
                   onPressed: _isSavingGateways ? null : _saveGatewayCredentials,
                   icon: const Icon(Icons.save),
-                  label: Text(_isSavingGateways ? 'Saving Setup…' : 'Save Company Bank & Merchant Keys'),
+                  label: Text(_isSavingGateways ? 'Saving Credentials…' : 'Save Company Bank & Merchant Keys'),
                 ),
               ),
             ],
@@ -495,36 +667,100 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 4. Users & Roles Management Tab
+  // 4. Users Directory & Leaderboards Tab
   Widget _buildUsersTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').limit(100).snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').limit(200).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final users = snapshot.data!.docs;
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: users.length,
-          separatorBuilder: (_, __) => const Divider(),
-          itemBuilder: (context, index) {
-            final u = users[index].data();
-            final uid = users[index].id;
-            final email = '${u['email'] ?? u['display_name'] ?? uid}';
-            final role = '${u['accountType'] ?? u['role'] ?? 'personal'}';
+        final docs = snapshot.data!.docs;
 
-            return ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text(email, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('UID: $uid • Role: $role'),
-              trailing: Chip(
-                label: Text(role.toUpperCase()),
-                backgroundColor: role == 'business' ? Colors.blue.shade50 : Colors.grey.shade100,
+        final filtered = docs.where((doc) {
+          if (_userSearchQuery.isEmpty) return true;
+          final data = doc.data();
+          final search = _userSearchQuery.toLowerCase();
+          return '${data['email'] ?? ''}'.toLowerCase().contains(search) ||
+              '${data['display_name'] ?? data['displayName'] ?? ''}'.toLowerCase().contains(search) ||
+              doc.id.toLowerCase().contains(search);
+        }).toList();
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  _explanationBanner(
+                    title: 'Users Directory & Member Controls',
+                    explanation:
+                        'Search all Pipe Buyer members, view email/phone verification status, change user roles (Personal, Business, Hotshot Carrier, Admin), or suspend accounts.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _userSearchController,
+                    onChanged: (val) => setState(() => _userSearchQuery = val.trim()),
+                    decoration: const InputDecoration(
+                      hintText: 'Search users by email, name, or UID…',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, index) {
+                  final u = filtered[index].data();
+                  final uid = filtered[index].id;
+                  final email = '${u['email'] ?? u['displayName'] ?? u['display_name'] ?? uid}';
+                  final role = '${u['accountType'] ?? u['role'] ?? 'personal'}';
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: role == 'business' ? Colors.blue.shade100 : Colors.grey.shade200,
+                      child: Icon(role == 'business' ? Icons.business : Icons.person),
+                    ),
+                    title: Text(email, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('UID: $uid • Role: ${role.toUpperCase()}'),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (val) => _updateUserRole(uid, val),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'personal', child: Text('Set Role: Personal')),
+                        PopupMenuItem(value: 'business', child: Text('Set Role: Business')),
+                        PopupMenuItem(value: 'carrier', child: Text('Set Role: Hotshot Carrier')),
+                        PopupMenuItem(value: 'administrator', child: Text('Set Role: Administrator')),
+                      ],
+                      child: Chip(
+                        label: Text(role.toUpperCase()),
+                        backgroundColor: role == 'administrator' ? Colors.purple.shade100 : Colors.blue.shade50,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
+  }
+
+  Future<void> _updateUserRole(String uid, String role) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'accountType': role,
+      'role': role,
+    }, SetOptions(merge: true));
+
+    if (mounted) {
+      PipeFeedback.show(
+        context,
+        message: 'User role updated to ${role.toUpperCase()}',
+        tone: PipeStatusTone.success,
+      );
+    }
   }
 
   // 5. Moderation & Trust Safety Tab
@@ -533,19 +769,29 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       stream: FirebaseFirestore.instance.collection('reports').limit(50).snapshots(),
       builder: (context, snapshot) {
         final reports = snapshot.data?.docs ?? [];
-        if (reports.isEmpty) {
-          return const Center(child: Text('No active moderation reports queued. System healthy ✓'));
-        }
-        return ListView.builder(
-          itemCount: reports.length,
-          itemBuilder: (context, index) {
-            final r = reports[index].data();
-            return ListTile(
-              leading: const Icon(Icons.flag, color: Colors.orange),
-              title: Text('${r['reason'] ?? 'Reported content'}'),
-              subtitle: Text('Target: ${r['targetId'] ?? r['targetType']}'),
-            );
-          },
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _explanationBanner(
+              title: 'Trust & Safety Moderation Intake',
+              explanation:
+                  'Review user reports, flagged listing photos, duplicate listings, or vulgar messages. Maintain marketplace trust and compliance.',
+            ),
+            const SizedBox(height: 12),
+            if (reports.isEmpty)
+              const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No active moderation reports queued. System clean ✓')))
+            else
+              ...reports.map((r) {
+                final data = r.data();
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.flag, color: Colors.orange),
+                    title: Text('${data['reason'] ?? 'Reported Content'}'),
+                    subtitle: Text('Target: ${data['targetId'] ?? data['targetType']}'),
+                  ),
+                );
+              }),
+          ],
         );
       },
     );
@@ -557,50 +803,112 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       stream: FirebaseFirestore.instance.collection('dispatch_jobs').limit(50).snapshots(),
       builder: (context, snapshot) {
         final jobs = snapshot.data?.docs ?? [];
-        if (jobs.isEmpty) {
-          return const Center(child: Text('No dispatch jobs currently active.'));
-        }
-        return ListView.builder(
-          itemCount: jobs.length,
-          itemBuilder: (context, index) {
-            final j = jobs[index].data();
-            return ListTile(
-              leading: const Icon(Icons.local_shipping),
-              title: Text('${j['cargoDescription'] ?? 'Freight Job'}'),
-              subtitle: Text('Status: ${j['status'] ?? 'open'}'),
-            );
-          },
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _explanationBanner(
+              title: 'Freight Dispatch & Logistics Board',
+              explanation:
+                  'Monitor all active hotshot trucking jobs, carrier per-mile freight quotes, and digital Bill of Lading (BOL) driver signatures.',
+            ),
+            const SizedBox(height: 12),
+            if (jobs.isEmpty)
+              const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No freight dispatch jobs active currently.')))
+            else
+              ...jobs.map((j) {
+                final data = j.data();
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.local_shipping, color: Color(0xFF0878E8)),
+                    title: Text('${data['cargoDescription'] ?? 'Pipe Haul Job'}'),
+                    subtitle: Text('Status: ${data['status'] ?? 'open'}'),
+                  ),
+                );
+              }),
+          ],
         );
       },
     );
   }
 
-  // 7. System Config & Feature Flags Tab
+  // 7. System Feature Flags & Maintenance Mode Tab
   Widget _buildSystemConfigTab() {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text('SYSTEM FEATURE FLAGS & CONFIGURATION', style: _sectionTitleStyle),
-        const SizedBox(height: 12),
+        _explanationBanner(
+          title: 'System Feature Flags & Controls',
+          explanation:
+              'Control live platform capabilities in real time. Enable or disable the Auctions Engine, Escrow Protection, or Wanted Radar matching.',
+        ),
+        const SizedBox(height: 16),
         SwitchListTile(
-          value: true,
-          onChanged: (_) {},
-          title: const Text('Auctions Engine Active'),
-          subtitle: const Text('Allow sellers to create and run timed auctions'),
+          value: _auctionsEnabled,
+          onChanged: (val) => setState(() => _auctionsEnabled = val),
+          title: const Text('Timed Auctions Engine Active', style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: const Text('Allow sellers to launch timed auctions with reserve prices'),
         ),
         SwitchListTile(
-          value: true,
-          onChanged: (_) {},
-          title: const Text('Industrial Escrow Protection Active'),
+          value: _escrowEnabled,
+          onChanged: (val) => setState(() => _escrowEnabled = val),
+          title: const Text('Industrial Escrow Protection Active', style: TextStyle(fontWeight: FontWeight.bold)),
           subtitle: const Text('Enforce escrow holds on high-value equipment sales'),
         ),
         SwitchListTile(
-          value: true,
-          onChanged: (_) {},
-          title: const Text('Wanted Request Radar Matching'),
-          subtitle: const Text('Automatically pair buyer request ads with new inventory'),
+          value: _wantedMatchingEnabled,
+          onChanged: (val) => setState(() => _wantedMatchingEnabled = val),
+          title: const Text('Wanted Request Radar Matching Active', style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: const Text('Pair buyer request ads with newly posted seller inventory'),
+        ),
+        SwitchListTile(
+          value: _maintenanceMode,
+          onChanged: (val) => setState(() => _maintenanceMode = val),
+          title: const Text('Platform Maintenance Mode', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          subtitle: const Text('Temporarily pause new listing creation for maintenance'),
+        ),
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          onPressed: _saveFeatureFlags,
+          icon: const Icon(Icons.save),
+          label: const Text('Save System Feature Flags'),
         ),
       ],
+    );
+  }
+
+  Widget _explanationBanner({required String title, required String explanation}) {
+    return Card(
+      elevation: 0,
+      color: Colors.purple.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.purple.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.purple.shade800, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title.toUpperCase(),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.purple.shade900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    explanation,
+                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
