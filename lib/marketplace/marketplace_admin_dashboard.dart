@@ -42,7 +42,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _checkAdminAuth();
     _loadGatewayCredentials();
     _loadFeatureFlags();
@@ -239,7 +239,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(icon: Icon(Icons.analytics_outlined), text: 'Marketplace Intelligence'),
-            Tab(icon: Icon(Icons.gavel_outlined), text: 'Transactions & Escrow'),
+            Tab(icon: Icon(Icons.gavel_outlined), text: '🔨 Auctions Engine & Control Board'),
+            Tab(icon: Icon(Icons.payments_outlined), text: '💰 Sales Payments & Escrow Transfers'),
             Tab(icon: Icon(Icons.account_balance_outlined), text: 'Banking & Merchant Setup'),
             Tab(icon: Icon(Icons.people_outline), text: 'Users Directory & Leaderboards'),
             Tab(icon: Icon(Icons.fact_check_outlined), text: 'Moderation & Safety'),
@@ -252,6 +253,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         controller: _tabController,
         children: [
           _buildAnalyticsTab(),
+          _buildAuctionsTab(),
           _buildTransactionsTab(),
           _buildBankingGatewaysTab(),
           _buildUsersTab(),
@@ -268,17 +270,17 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('marketplace_transactions').snapshots(),
       builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final transactions = snapshot.data?.docs ?? [];
+
         double totalVolume = 0.0;
         double sellerFees = 0.0;
         double escrowFees = 0.0;
 
-        // Regional Breakdown counters
         int usaCount = 0;
         int canadaCount = 0;
         int mexicoCount = 0;
 
-        // Pipe Size piece counters
         final Map<String, int> pipeSizePieces = {
           '2 3/8" Tubing': 0,
           '2 7/8" Tubing': 0,
@@ -343,6 +345,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 explanation:
                     'Monitors gross transaction volume (\$), total 3.5% company fee earnings, regional sales (USA, Canada, Mexico), and total Pipe Pieces sold categorized by outer diameter (OD) sizes.',
               ),
+              if (isLoading) const LinearProgressIndicator(),
               const SizedBox(height: 16),
 
               const Text('PLATFORM FINANCIAL PERFORMANCE', style: _sectionTitleStyle),
@@ -421,77 +424,214 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  Widget _metricCard(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Card(
-        elevation: 1,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: color, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 2. Transactions & Escrow Management Tab
-  Widget _buildTransactionsTab() {
+  // 2. NEW DEDICATED AUCTIONS MONITOR & CONTROL TAB
+  Widget _buildAuctionsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('marketplace_transactions').limit(100).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('public_listings')
+          .where('transactionType', isEqualTo: 'Auction')
+          .limit(100)
+          .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _explanationBanner(
-                title: 'Transactions & Escrow Control Board',
-                explanation:
-                    'Escrow holds money safely from a buyer until the buyer inspects and approves the pipe or equipment. As master admin (jordilwbailey@gmail.com), you can force release funds to the seller\'s bank account or force refund the buyer at any time.',
-              ),
-              const SizedBox(height: 16),
-              const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No active escrow transactions recorded yet.'))),
-            ],
-          );
-        }
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final docs = snapshot.data?.docs ?? [];
 
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
             _explanationBanner(
-              title: 'Transactions & Escrow Control Board',
+              title: '🔨 Timed Auctions Monitor & Master Admin Controls',
               explanation:
-                  'Escrow holds money safely from a buyer until the buyer inspects and approves the pipe or equipment. As master admin (jordilwbailey@gmail.com), you can force release funds to the seller\'s bank account or force refund the buyer at any time.',
+                  'Monitor all live timed auctions across Pipe Buyer. View active highest bids, reserve price status (Met / Not Met), and use master admin controls to force end auctions, extend time (+24h), or cancel auctions.',
             ),
+            if (isLoading) const LinearProgressIndicator(),
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                _metricCard('TOTAL TIMED AUCTIONS', '${docs.length}', Icons.gavel, Colors.deepOrange),
+                const SizedBox(width: 12),
+                _metricCard('AUCTIONS ENGINE STATUS', _auctionsEnabled ? 'ACTIVE ✓' : 'PAUSED ✕', Icons.power_settings_new, _auctionsEnabled ? Colors.green : Colors.red),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            if (docs.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(Icons.gavel_outlined, size: 48, color: Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No Timed Auctions Currently Active',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Sellers can launch timed pipe auctions anytime. Active auctions will appear here with live bidding controls.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...docs.map((doc) {
+                final data = doc.data();
+                final listingId = doc.id;
+                final title = '${data['title'] ?? 'Pipe Auction'}';
+                final currentBid = (data['highestBid'] as num?)?.toDouble() ??
+                    ((data['unitPrice'] as num?)?.toDouble() ?? 0.0);
+                final reserveMet = data['reserveMet'] == true;
+                final sellerEmail = '${data['sellerEmail'] ?? data['sellerUid'] ?? 'Seller'}';
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                            Chip(
+                              avatar: Icon(
+                                reserveMet ? Icons.check_circle : Icons.error_outline,
+                                size: 14,
+                                color: reserveMet ? Colors.green : Colors.orange,
+                              ),
+                              label: Text(reserveMet ? 'RESERVE MET' : 'RESERVE NOT MET'),
+                              backgroundColor: reserveMet ? Colors.green.shade50 : Colors.orange.shade50,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Current Highest Bid: \$${currentBid.toStringAsFixed(2)} • Seller: $sellerEmail',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        const Divider(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => _adminAuctionAction(listingId, 'force_end'),
+                              icon: const Icon(Icons.gavel, color: Colors.purple),
+                              label: const Text('Force End & Settle'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => _adminAuctionAction(listingId, 'extend_24h'),
+                              icon: const Icon(Icons.more_time, color: Colors.blue),
+                              label: const Text('Extend +24 Hours'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => _adminAuctionAction(listingId, 'cancel'),
+                              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                              label: const Text('Cancel Auction'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _adminAuctionAction(String listingId, String action) async {
+    try {
+      if (action == 'force_end') {
+        await FirebaseFirestore.instance.collection('public_listings').doc(listingId).set({
+          'status': 'Ended',
+          'auctionEndedAt': FieldValue.serverTimestamp(),
+          'endedByAdmin': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+        }, SetOptions(merge: true));
+      } else if (action == 'extend_24h') {
+        await FirebaseFirestore.instance.collection('public_listings').doc(listingId).set({
+          'auctionExtendedCount': FieldValue.increment(1),
+          'extendedByAdminAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } else if (action == 'cancel') {
+        await FirebaseFirestore.instance.collection('public_listings').doc(listingId).set({
+          'status': 'Cancelled',
+          'cancelledByAdminAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: 'Auction action executed: ${action.replaceAll('_', ' ')}',
+          tone: PipeStatusTone.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        PipeFeedback.show(context, message: 'Auction action failed: $e', tone: PipeStatusTone.error);
+      }
+    }
+  }
+
+  // 3. Sales Payments & Escrow Transfers Tab
+  Widget _buildTransactionsTab() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('marketplace_transactions').limit(100).snapshots(),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
+        final docs = snapshot.data?.docs ?? [];
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _explanationBanner(
+              title: '💰 Sales Payments & Escrow Fund Transfers',
+              explanation:
+                  'This page monitors all marketplace funds (Buy-It-Now sales, accepted offers, and auction payouts). Funds are held safely in Escrow until the buyer inspects and approves the pipe. As Master Admin (jordilwbailey@gmail.com), you can click "Force Release Funds" to payout the seller or "Force Refund" to return money to the buyer.',
+            ),
+            if (isLoading) const LinearProgressIndicator(),
             const SizedBox(height: 12),
             if (docs.isEmpty)
-              const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No transactions recorded yet.')))
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(Icons.payments_outlined, size: 48, color: Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No Active Escrow Transactions',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'When buyers purchase pipe or equipment through Escrow Protection, transaction records and payout controls will appear here live.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             else
               ...docs.map((doc) {
                 final data = doc.data();
                 final offerId = doc.id;
-                final title = '${data['listingTitle'] ?? 'Listing'}';
+                final title = '${data['listingTitle'] ?? 'Pipe Listing'}';
                 final status = '${data['escrowStatus'] ?? data['status'] ?? 'pending'}';
                 final total = (data['offeredTotal'] as num?)?.toDouble() ?? 0.0;
                 final sellerFee = total * 0.025;
@@ -572,7 +712,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     }
   }
 
-  // 3. Banking & Merchant Gateways Setup Tab
+  // 4. Banking & Merchant Gateways Setup Tab
   Widget _buildBankingGatewaysTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -681,35 +821,15 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 4. Users Directory & Leaderboards Tab
+  // 5. Users Directory & Leaderboards Tab
   Widget _buildUsersTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('users').limit(200).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          final currentUser = FirebaseAuth.instance.currentUser;
-          final masterEmail = currentUser?.email ?? 'jordilwbailey@gmail.com';
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: _explanationBanner(
-                  title: 'Users Directory & Member Controls',
-                  explanation:
-                      'Search all Pipe Buyer members, view email/phone verification status, change user roles (Personal, Business, Hotshot Carrier, Admin), or suspend accounts.',
-                ),
-              ),
-              ListTile(
-                leading: CircleAvatar(backgroundColor: Colors.purple.shade100, child: const Icon(Icons.person, color: Colors.purple)),
-                title: Text(masterEmail, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('UID: ${currentUser?.uid ?? 'master-admin-uid'} • Role: ADMINISTRATOR'),
-                trailing: const Chip(label: Text('ADMINISTRATOR'), backgroundColor: Colors.purpleAccent),
-              ),
-            ],
-          );
-        }
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final docs = snapshot.data?.docs ?? [];
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final masterEmail = currentUser?.email ?? 'jordilwbailey@gmail.com';
 
         final filtered = docs.where((doc) {
           if (_userSearchQuery.isEmpty) return true;
@@ -731,6 +851,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     explanation:
                         'Search all Pipe Buyer members, view email/phone verification status, change user roles (Personal, Business, Hotshot Carrier, Admin), or suspend accounts.',
                   ),
+                  if (isLoading) const LinearProgressIndicator(),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _userSearchController,
@@ -744,39 +865,50 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const Divider(),
-                itemBuilder: (context, index) {
-                  final u = filtered[index].data();
-                  final uid = filtered[index].id;
-                  final email = '${u['email'] ?? u['displayName'] ?? u['display_name'] ?? uid}';
-                  final role = '${u['accountType'] ?? u['role'] ?? 'personal'}';
-
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: role == 'business' ? Colors.blue.shade100 : Colors.grey.shade200,
-                      child: Icon(role == 'business' ? Icons.business : Icons.person),
-                    ),
-                    title: Text(email, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('UID: $uid • Role: ${role.toUpperCase()}'),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (val) => _updateUserRole(uid, val),
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'personal', child: Text('Set Role: Personal')),
-                        PopupMenuItem(value: 'business', child: Text('Set Role: Business')),
-                        PopupMenuItem(value: 'carrier', child: Text('Set Role: Hotshot Carrier')),
-                        PopupMenuItem(value: 'administrator', child: Text('Set Role: Administrator')),
+              child: filtered.isEmpty
+                  ? ListView(
+                      children: [
+                        ListTile(
+                          leading: CircleAvatar(backgroundColor: Colors.purple.shade100, child: const Icon(Icons.person, color: Colors.purple)),
+                          title: Text(masterEmail, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text('UID: ${currentUser?.uid ?? 'master-admin-uid'} • Role: ADMINISTRATOR'),
+                          trailing: const Chip(label: Text('ADMINISTRATOR'), backgroundColor: Colors.purpleAccent),
+                        ),
                       ],
-                      child: Chip(
-                        label: Text(role.toUpperCase()),
-                        backgroundColor: role == 'administrator' ? Colors.purple.shade100 : Colors.blue.shade50,
-                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final u = filtered[index].data();
+                        final uid = filtered[index].id;
+                        final email = '${u['email'] ?? u['displayName'] ?? u['display_name'] ?? uid}';
+                        final role = '${u['accountType'] ?? u['role'] ?? 'personal'}';
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: role == 'business' ? Colors.blue.shade100 : Colors.grey.shade200,
+                            child: Icon(role == 'business' ? Icons.business : Icons.person),
+                          ),
+                          title: Text(email, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text('UID: $uid • Role: ${role.toUpperCase()}'),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (val) => _updateUserRole(uid, val),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'personal', child: Text('Set Role: Personal')),
+                              PopupMenuItem(value: 'business', child: Text('Set Role: Business')),
+                              PopupMenuItem(value: 'carrier', child: Text('Set Role: Hotshot Carrier')),
+                              PopupMenuItem(value: 'administrator', child: Text('Set Role: Administrator')),
+                            ],
+                            child: Chip(
+                              label: Text(role.toUpperCase()),
+                              backgroundColor: role == 'administrator' ? Colors.purple.shade100 : Colors.blue.shade50,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         );
@@ -799,11 +931,12 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     }
   }
 
-  // 5. Moderation & Trust Safety Tab
+  // 6. Moderation & Trust Safety Tab
   Widget _buildModerationTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('reports').limit(50).snapshots(),
       builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final reports = snapshot.data?.docs ?? [];
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -813,6 +946,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               explanation:
                   'Review user reports, flagged listing photos, duplicate listings, or vulgar messages. Maintain marketplace trust and compliance.',
             ),
+            if (isLoading) const LinearProgressIndicator(),
             const SizedBox(height: 12),
             if (reports.isEmpty)
               const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No active moderation reports queued. System clean ✓')))
@@ -833,11 +967,12 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 6. Carrier Dispatch Logistics Tab
+  // 7. Carrier Dispatch Logistics Tab
   Widget _buildDispatchTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('dispatch_jobs').limit(50).snapshots(),
       builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final jobs = snapshot.data?.docs ?? [];
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -847,6 +982,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               explanation:
                   'Monitor all active hotshot trucking jobs, carrier per-mile freight quotes, and digital Bill of Lading (BOL) driver signatures.',
             ),
+            if (isLoading) const LinearProgressIndicator(),
             const SizedBox(height: 12),
             if (jobs.isEmpty)
               const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No freight dispatch jobs active currently.')))
@@ -867,7 +1003,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 7. System Feature Flags & Maintenance Mode Tab
+  // 8. System Feature Flags & Maintenance Mode Tab
   Widget _buildSystemConfigTab() {
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -909,6 +1045,39 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           label: const Text('Save System Feature Flags'),
         ),
       ],
+    );
+  }
+
+  Widget _metricCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Card(
+        elevation: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
