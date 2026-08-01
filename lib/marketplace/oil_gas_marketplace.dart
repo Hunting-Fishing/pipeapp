@@ -2592,7 +2592,7 @@ class _BrowsePageState extends State<_BrowsePage> {
   String? _loadError;
   int _queryGeneration = 0;
   Timer? _searchDebounce;
-  int _gridColumns = 0;
+  int _gridColumns = 4;
 
   @override
   void initState() {

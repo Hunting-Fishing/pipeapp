@@ -166,7 +166,7 @@ class MarketplaceAuctionsPage extends StatefulWidget {
 
 class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
   String _filter = 'Live';
-  int _gridColumns = 0;
+  int _gridColumns = 4;
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
   QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
   bool _loading = false;

@@ -3,9 +3,9 @@ import 'package:pipe_app/marketplace/marketplace_grid_density.dart';
 
 void main() {
   group('MarketplaceGridDensityBar Unit Tests', () {
-    test('resolves auto columns based on screen width', () {
+    test('resolves standard grid columns based on screen width', () {
       expect(MarketplaceGridDensityBar.resolveColumns(1400, 0), 4);
-      expect(MarketplaceGridDensityBar.resolveColumns(900, 0), 3);
+      expect(MarketplaceGridDensityBar.resolveColumns(900, 0), 4);
       expect(MarketplaceGridDensityBar.resolveColumns(600, 0), 2);
       expect(MarketplaceGridDensityBar.resolveColumns(400, 0), 1);
     });

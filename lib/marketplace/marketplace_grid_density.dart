@@ -87,10 +87,9 @@ class MarketplaceGridDensityBar extends StatelessWidget {
       final maxPossible = (screenWidth / 180).floor().clamp(1, 4);
       return preference.clamp(1, maxPossible);
     }
-    // Auto resolution based on screen width:
-    if (screenWidth >= 1200) return 4;
-    if (screenWidth >= 800) return 3;
-    if (screenWidth >= 500) return 2;
+    // Standard default resolution (4 columns on standard screens):
+    if (screenWidth >= 750) return 4;
+    if (screenWidth >= 480) return 2;
     return 1;
   }
 }
