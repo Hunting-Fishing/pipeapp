@@ -26,6 +26,7 @@ import 'account_export_downloader.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_actions_repository.dart';
+import 'marketplace_payout_settings.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -2908,6 +2909,13 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplaceAccountSecurityPage()))),
+      ListTile(
+          leading: const Icon(Icons.account_balance_outlined, color: Color(0xFF0878E8)),
+          title: const Text('Banking & Direct Payout Settings'),
+          subtitle: const Text('Connect bank routing & account numbers for ACH / Wire escrow releases.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MarketplacePayoutSettingsPage()))),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
           title: const Text('Send password reset email'),

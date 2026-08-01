@@ -8,6 +8,7 @@ import 'marketplace_command_client.dart';
 import 'marketplace_escrow_repository.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_money.dart';
+import 'marketplace_invoice_generator.dart';
 
 class MarketplaceAuctionSettlement extends StatefulWidget {
   const MarketplaceAuctionSettlement({
@@ -153,6 +154,34 @@ class _MarketplaceAuctionSettlementState
                   const Text(
                     'Funds are held securely until buyer inspection is approved.',
                     style: TextStyle(fontSize: 11, color: Color(0xFF66758A)),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final price = (sale['winningBidAmount'] as num?)?.toDouble() ?? 0.0;
+                        final title = '${widget.listing['title'] ?? 'Auction Item'}';
+                        final invoice = MarketplaceInvoice(
+                          invoiceId: 'INV-${widget.listingId.substring(0, 8).toUpperCase()}',
+                          listingTitle: title,
+                          sellerName: '${widget.listing['sellerName'] ?? 'Seller'}',
+                          buyerName: '${sale['winningBidderName'] ?? 'Winning Bidder'}',
+                          unitPrice: price,
+                          quantity: 1,
+                          unitLabel: 'lot',
+                          issueDate: DateTime.now(),
+                          dueDate: DateTime.now().add(const Duration(days: 7)),
+                          status: sale['escrowStatus'] == 'released' ? 'Paid' : 'Unpaid',
+                        );
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) => MarketplaceInvoiceDialog(invoice: invoice),
+                        );
+                      },
+                      icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                      label: const Text('View & Pay Itemized Invoice'),
+                    ),
                   ),
                 ],
               ),
