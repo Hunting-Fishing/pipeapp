@@ -221,7 +221,10 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
 
 String resolveFirebaseEnvironment(String environment) {
   final candidate = environment.trim();
-  return normalizeFirebaseEnvironment(candidate.isEmpty ? 'local' : candidate);
+  if (candidate.isNotEmpty) {
+    return normalizeFirebaseEnvironment(candidate);
+  }
+  return kReleaseMode ? 'production' : 'local';
 }
 
 String currentFirebaseEnvironment() => resolveFirebaseEnvironment(
