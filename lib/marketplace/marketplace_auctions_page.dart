@@ -21,6 +21,7 @@ import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
+import 'marketplace_grid_density.dart';
 
 DateTime? parseAuctionDate(Map<String, dynamic> data, List<String> keys) {
   for (final key in keys) {
@@ -165,6 +166,7 @@ class MarketplaceAuctionsPage extends StatefulWidget {
 
 class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
   String _filter = 'Live';
+  int _gridColumns = 0;
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> _documents = [];
   QueryDocumentSnapshot<Map<String, dynamic>>? _cursor;
   bool _loading = false;
@@ -288,36 +290,49 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                   label: const Text('Sell'))
             ]),
             const SizedBox(height: 12),
-            SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                          value: 'Live',
-                          icon: Icon(Icons.fiber_manual_record),
-                          label: Text('Live')),
-                      ButtonSegment(
-                          value: 'Upcoming',
-                          icon: Icon(Icons.schedule_outlined),
-                          label: Text('Upcoming')),
-                      ButtonSegment(
-                          value: 'Ended',
-                          icon: Icon(Icons.history_outlined),
-                          label: Text('Ended')),
-                      ButtonSegment(
-                          value: 'My auctions',
-                          icon: Icon(Icons.person_outline),
-                          label: Text('My auctions'))
-                    ],
-                    selected: {
-                      _filter
-                    },
-                    onSelectionChanged: (value) {
-                      final next = value.first;
-                      if (next == _filter) return;
-                      setState(() => _filter = next);
-                      _loadPage(reset: true);
-                    }))
+            Row(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                            value: 'Live',
+                            icon: Icon(Icons.fiber_manual_record),
+                            label: Text('Live')),
+                        ButtonSegment(
+                            value: 'Upcoming',
+                            icon: Icon(Icons.schedule_outlined),
+                            label: Text('Upcoming')),
+                        ButtonSegment(
+                            value: 'Ended',
+                            icon: Icon(Icons.history_outlined),
+                            label: Text('Ended')),
+                        ButtonSegment(
+                            value: 'My auctions',
+                            icon: Icon(Icons.person_outline),
+                            label: Text('My auctions'))
+                      ],
+                      selected: {
+                        _filter
+                      },
+                      onSelectionChanged: (value) {
+                        final next = value.first;
+                        if (next == _filter) return;
+                        setState(() => _filter = next);
+                        _loadPage(reset: true);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                MarketplaceGridDensityBar(
+                  selectedColumns: _gridColumns,
+                  onChanged: (cols) => setState(() => _gridColumns = cols),
+                ),
+              ],
+            ),
           ])),
       Expanded(
           child: _loading && _documents.isEmpty
@@ -336,15 +351,58 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                           onCreate: widget.onCreateAuction,
                           onLoadMore:
                               _hasMore && !_loading ? () => _loadPage() : null)
-                      : RefreshIndicator(
-                          onRefresh: () => _loadPage(reset: true),
-                          child: ListView.builder(
+                      : Builder(builder: (context) {
+                          final screenWidth = MediaQuery.of(context).size.width;
+                          final effectiveCols = MarketplaceGridDensityBar.resolveColumns(
+                              screenWidth, _gridColumns);
+                          if (effectiveCols > 1) {
+                            final aspectRatio = effectiveCols == 2
+                                ? 0.82
+                                : effectiveCols == 3
+                                    ? 0.74
+                                    : 0.68;
+                            return RefreshIndicator(
+                              onRefresh: () => _loadPage(reset: true),
+                              child: GridView.builder(
+                                padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: effectiveCols,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: aspectRatio,
+                                ),
+                                itemCount: auctions.length + 1,
+                                itemBuilder: (context, index) {
+                                  if (index < auctions.length) {
+                                    return _AuctionCard(document: auctions[index]);
+                                  }
+                                  if (_loadError != null) {
+                                    return _AuctionPageError(
+                                        onRetry: () => _loadPage(),
+                                        details: _loadError!);
+                                  }
+                                  if (_hasMore) {
+                                    return Center(
+                                      child: FilledButton.tonalIcon(
+                                        onPressed: _loading ? null : () => _loadPage(),
+                                        icon: const Icon(Icons.expand_more),
+                                        label: const Text('Load more auctions'),
+                                      ),
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
+                            );
+                          }
+                          return RefreshIndicator(
+                            onRefresh: () => _loadPage(reset: true),
+                            child: ListView.builder(
                               padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
                               itemCount: auctions.length + 1,
                               itemBuilder: (context, index) {
                                 if (index < auctions.length) {
-                                  return _AuctionCard(
-                                      document: auctions[index]);
+                                  return _AuctionCard(document: auctions[index]);
                                 }
                                 if (_loadError != null) {
                                   return _AuctionPageError(
@@ -353,30 +411,33 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                                 }
                                 if (_hasMore) {
                                   return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
-                                      child: Center(
-                                          child: FilledButton.tonalIcon(
-                                              onPressed:
-                                                  _loading ? null : _loadPage,
-                                              icon: _loading
-                                                  ? const SizedBox.square(
-                                                      dimension: 18,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                              strokeWidth: 2))
-                                                  : const Icon(Icons
-                                                      .expand_more_rounded),
-                                              label: const Text(
-                                                  'Load more auctions'))));
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    child: Center(
+                                      child: FilledButton.tonalIcon(
+                                        onPressed: _loading ? null : () => _loadPage(),
+                                        icon: _loading
+                                            ? const SizedBox.square(
+                                                dimension: 18,
+                                                child: CircularProgressIndicator(strokeWidth: 2))
+                                            : const Icon(Icons.expand_more),
+                                        label: Text(_loading ? 'Loading more…' : 'Load more auctions'),
+                                      ),
+                                    ),
+                                  );
                                 }
                                 return const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 14),
-                                    child: Center(
-                                        child: Text('All auctions loaded.',
-                                            style: TextStyle(
-                                                color: Color(0xFF66758A)))));
-                              })))
+                                  padding: EdgeInsets.symmetric(vertical: 14),
+                                  child: Center(
+                                    child: Text(
+                                      'All auctions loaded.',
+                                      style: TextStyle(color: Color(0xFF66758A)),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        })),
     ]);
   }
 }

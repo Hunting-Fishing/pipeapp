@@ -29,6 +29,7 @@ import 'marketplace_navigation.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_account_hub.dart';
+import 'marketplace_grid_density.dart';
 import 'marketplace_account_device_repository.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_avatar_image.dart';
@@ -2591,7 +2592,7 @@ class _BrowsePageState extends State<_BrowsePage> {
   String? _loadError;
   int _queryGeneration = 0;
   Timer? _searchDebounce;
-  int _gridColumns = 1;
+  int _gridColumns = 0;
 
   @override
   void initState() {
@@ -2776,40 +2777,9 @@ class _BrowsePageState extends State<_BrowsePage> {
                   style: const TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700)),
               const Spacer(),
-              SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment<int>(
-                    value: 1,
-                    icon: Icon(Icons.view_agenda_outlined, size: 16),
-                    tooltip: 'List view (1 per row)',
-                  ),
-                  ButtonSegment<int>(
-                    value: 2,
-                    label: Text('2', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    tooltip: 'Grid view (2 per row)',
-                  ),
-                  ButtonSegment<int>(
-                    value: 3,
-                    label: Text('3', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    tooltip: 'Grid view (3 per row)',
-                  ),
-                  ButtonSegment<int>(
-                    value: 4,
-                    label: Text('4', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    tooltip: 'Grid view (4 per row)',
-                  ),
-                ],
-                selected: {_gridColumns},
-                onSelectionChanged: (selected) {
-                  if (selected.isNotEmpty) {
-                    setState(() => _gridColumns = selected.first);
-                  }
-                },
-                showSelectedIcon: false,
-                style: const ButtonStyle(
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
+              MarketplaceGridDensityBar(
+                selectedColumns: _gridColumns,
+                onChanged: (cols) => setState(() => _gridColumns = cols),
               ),
               if (widget.category != null) ...[
                 const SizedBox(width: 6),
@@ -2888,10 +2858,9 @@ class _BrowsePageState extends State<_BrowsePage> {
         onPrimary: _hasMore && !_loading ? _loadPage : null,
       );
     }
-    if (_gridColumns > 1) {
-      final screenWidth = MediaQuery.of(context).size.width;
-      final maxPossibleCols = (screenWidth / 180).floor().clamp(1, 4);
-      final effectiveCols = math.min(_gridColumns, maxPossibleCols);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final effectiveCols = MarketplaceGridDensityBar.resolveColumns(screenWidth, _gridColumns);
+    if (effectiveCols > 1) {
       final aspectRatio = effectiveCols == 2
           ? 0.84
           : effectiveCols == 3
