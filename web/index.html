@@ -252,6 +252,22 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (const registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+      if ("caches" in window) {
+        caches.keys().then(keys => {
+          for (const key of keys) {
+            if (key.toLowerCase().includes("flutter")) {
+              caches.delete(key);
+            }
+          }
+        });
+      }
       if (pipeStartupPercent < 5) {
         updatePipeStartup(5, "Loading application shell", "HTML shell ready");
       }
