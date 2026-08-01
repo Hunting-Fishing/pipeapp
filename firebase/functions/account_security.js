@@ -23,13 +23,20 @@ function verificationState(token = {}) {
 
 function requireAuthenticatedIdentity(
     request,
-    {requireEmail = true, requirePhone = true} = {},
+    {requireEmail = false, requirePhone = false} = {},
 ) {
   const uid = request && request.auth && request.auth.uid;
   if (!uid) {
     throw new AccountSecurityError("unauthenticated", "Sign in to continue.");
   }
   const state = verificationState(request.auth.token || {});
+  const hasEitherVerified = state.emailVerified === true || state.phoneVerified === true;
+  if (!hasEitherVerified) {
+    throw new AccountSecurityError(
+        "failed-precondition",
+        "Verify your email address before completing this action.",
+    );
+  }
   if (requireEmail && !state.emailVerified) {
     throw new AccountSecurityError(
         "failed-precondition",

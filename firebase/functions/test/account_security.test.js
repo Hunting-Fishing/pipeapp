@@ -24,7 +24,7 @@ test("verification state trusts Firebase ownership claims only", () => {
       false);
 });
 
-test("protected commands require verified email and phone ownership", () => {
+test("protected commands require verified email or phone ownership", () => {
   assert.throws(
       () => requireAuthenticatedIdentity({auth: null}),
       (error) => error instanceof AccountSecurityError &&
@@ -35,13 +35,12 @@ test("protected commands require verified email and phone ownership", () => {
       (error) => error.code === "failed-precondition" &&
         error.message.includes("email"),
   );
-  assert.throws(
-      () => requireAuthenticatedIdentity({
-        auth: {uid: "u1", token: {email_verified: true}},
-      }),
-      (error) => error.code === "failed-precondition" &&
-        error.message.includes("phone"),
-  );
+  assert.equal(requireAuthenticatedIdentity({
+    auth: {
+      uid: "u1",
+      token: {email_verified: true},
+    },
+  }).uid, "u1");
   assert.equal(requireAuthenticatedIdentity({
     auth: {
       uid: "u1",
