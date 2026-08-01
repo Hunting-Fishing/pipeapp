@@ -120,11 +120,21 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
   bool _hasMore = true;
   String? _loadError;
   int _queryGeneration = 0;
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
     _loadPage(reset: true);
+    _ticker = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   Query<Map<String, dynamic>> _query(DateTime now) {
@@ -185,13 +195,33 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
     final auctions = _documents.where((doc) {
       final data = doc.data();
       if (data['transactionType'] != 'Auction') return false;
+
+      final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
+      final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
+      final status =
+          '${data['status'] ?? data['auctionStatus'] ?? ''}'.toLowerCase();
+      final isEnded = (end != null && !now.isBefore(end)) ||
+          const {
+            'ended',
+            'closed',
+            'settled',
+            'sold',
+            'bought_now',
+            'won',
+            'completed',
+            'cancelled'
+          }.contains(status);
+      final isUpcoming = start != null && now.isBefore(start);
+      final isLive = !isUpcoming && !isEnded;
+
       if (_filter == 'My auctions') {
         final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid == null || data['sellerUid'] != uid) return false;
+        return uid != null && data['sellerUid'] == uid;
       }
-      if (_filter != 'Live') return true;
-      final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
-      return start == null || !now.isBefore(start);
+      if (_filter == 'Live') return isLive;
+      if (_filter == 'Upcoming') return isUpcoming;
+      if (_filter == 'Ended') return isEnded;
+      return true;
     }).toList(growable: false);
     return Column(children: [
       Padding(
@@ -360,11 +390,21 @@ class _AuctionCard extends StatelessWidget {
     final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
     final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
     final now = DateTime.now();
-    final live = start != null &&
-        end != null &&
-        !now.isBefore(start) &&
-        now.isBefore(end);
-    final ended = end != null && !now.isBefore(end);
+    final status =
+        '${data['status'] ?? data['auctionStatus'] ?? ''}'.toLowerCase();
+    final ended = (end != null && !now.isBefore(end)) ||
+        const {
+          'ended',
+          'closed',
+          'settled',
+          'sold',
+          'bought_now',
+          'won',
+          'completed',
+          'cancelled'
+        }.contains(status);
+    final upcoming = start != null && now.isBefore(start);
+    final live = !upcoming && !ended;
     final fallbackAssetPath = IndustrialIconAssets.forLabel(
             '${data['productType'] ?? data['title'] ?? ''}') ??
         IndustrialIconAssets.forLabel('${data['category'] ?? ''}') ??
@@ -510,10 +550,21 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
         final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
         final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
         final now = DateTime.now();
-        final live = start != null &&
-            end != null &&
-            !now.isBefore(start) &&
-            now.isBefore(end);
+        final status =
+            '${data['status'] ?? data['auctionStatus'] ?? ''}'.toLowerCase();
+        final ended = (end != null && !now.isBefore(end)) ||
+            const {
+              'ended',
+              'closed',
+              'settled',
+              'sold',
+              'bought_now',
+              'won',
+              'completed',
+              'cancelled'
+            }.contains(status);
+        final upcoming = start != null && now.isBefore(start);
+        final live = !upcoming && !ended;
         final mine =
             data['sellerUid'] == FirebaseAuth.instance.currentUser?.uid;
         final auctionParticipant = mine ||
