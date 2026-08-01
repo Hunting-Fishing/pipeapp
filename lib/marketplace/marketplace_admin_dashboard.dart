@@ -17,21 +17,38 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
+  // Banking & Gateway controllers
   final _companyBankName = TextEditingController();
   final _companyRoutingNumber = TextEditingController();
   final _companyAccountNumber = TextEditingController();
+  final _companySwiftIban = TextEditingController();
 
   final _stripePublishableKey = TextEditingController();
   final _stripeSecretKey = TextEditingController();
+  final _stripeWebhookSecret = TextEditingController();
+
   final _paypalClientId = TextEditingController();
   final _paypalSecretKey = TextEditingController();
+  final _paypalMerchantId = TextEditingController();
+
+  final _authorizeApiLoginId = TextEditingController();
+  final _authorizeTransactionKey = TextEditingController();
 
   final _userSearchController = TextEditingController();
   String _userSearchQuery = '';
 
+  // Analytics timeframe and category filter states
+  String _selectedTimeframe = 'All Time';
+  String _selectedCategoryFilter = 'All Categories';
+
   bool _isAuthorized = false;
   bool _isLoadingAuth = true;
-  bool _isSavingGateways = false;
+
+  // Modular saving states
+  bool _isSavingBank = false;
+  bool _isSavingStripe = false;
+  bool _isSavingPaypal = false;
+  bool _isSavingAuthorize = false;
 
   // System feature flags state
   bool _auctionsEnabled = true;
@@ -54,10 +71,15 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     _companyBankName.dispose();
     _companyRoutingNumber.dispose();
     _companyAccountNumber.dispose();
+    _companySwiftIban.dispose();
     _stripePublishableKey.dispose();
     _stripeSecretKey.dispose();
+    _stripeWebhookSecret.dispose();
     _paypalClientId.dispose();
     _paypalSecretKey.dispose();
+    _paypalMerchantId.dispose();
+    _authorizeApiLoginId.dispose();
+    _authorizeTransactionKey.dispose();
     _userSearchController.dispose();
     super.dispose();
   }
@@ -83,10 +105,18 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         _companyBankName.text = data['companyBankName'] ?? '';
         _companyRoutingNumber.text = data['companyRoutingNumber'] ?? '';
         _companyAccountNumber.text = data['companyAccountNumber'] ?? '';
+        _companySwiftIban.text = data['companySwiftIban'] ?? '';
+
         _stripePublishableKey.text = data['stripePublishableKey'] ?? '';
         _stripeSecretKey.text = data['stripeSecretKey'] ?? '';
+        _stripeWebhookSecret.text = data['stripeWebhookSecret'] ?? '';
+
         _paypalClientId.text = data['paypalClientId'] ?? '';
         _paypalSecretKey.text = data['paypalSecretKey'] ?? '';
+        _paypalMerchantId.text = data['paypalMerchantId'] ?? '';
+
+        _authorizeApiLoginId.text = data['authorizeApiLoginId'] ?? '';
+        _authorizeTransactionKey.text = data['authorizeTransactionKey'] ?? '';
       }
     } catch (_) {}
   }
@@ -109,41 +139,87 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     } catch (_) {}
   }
 
-  Future<void> _saveGatewayCredentials() async {
-    setState(() => _isSavingGateways = true);
+  Future<void> _saveBankCredentials() async {
+    setState(() => _isSavingBank = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('admin_settings')
-          .doc('payment_gateways')
-          .set({
+      await FirebaseFirestore.instance.collection('admin_settings').doc('payment_gateways').set({
         'companyBankName': _companyBankName.text.trim(),
         'companyRoutingNumber': _companyRoutingNumber.text.trim(),
         'companyAccountNumber': _companyAccountNumber.text.trim(),
-        'stripePublishableKey': _stripePublishableKey.text.trim(),
-        'stripeSecretKey': _stripeSecretKey.text.trim(),
-        'paypalClientId': _paypalClientId.text.trim(),
-        'paypalSecretKey': _paypalSecretKey.text.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'updatedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+        'companySwiftIban': _companySwiftIban.text.trim(),
+        'bankUpdatedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+        'bankUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       if (mounted) {
-        PipeFeedback.show(
-          context,
-          message: 'Company Bank Account & Merchant Credentials saved successfully!',
-          tone: PipeStatusTone.success,
-        );
+        PipeFeedback.show(context, message: 'Company Bank Vault updated!', tone: PipeStatusTone.success);
       }
-    } catch (err) {
-      if (mounted) {
-        PipeFeedback.show(
-          context,
-          message: 'Failed to save credentials: $err',
-          tone: PipeStatusTone.error,
-        );
-      }
+    } catch (e) {
+      if (mounted) PipeFeedback.show(context, message: 'Failed: $e', tone: PipeStatusTone.error);
     } finally {
-      if (mounted) setState(() => _isSavingGateways = false);
+      if (mounted) setState(() => _isSavingBank = false);
+    }
+  }
+
+  Future<void> _saveStripeCredentials() async {
+    setState(() => _isSavingStripe = true);
+    try {
+      await FirebaseFirestore.instance.collection('admin_settings').doc('payment_gateways').set({
+        'stripePublishableKey': _stripePublishableKey.text.trim(),
+        'stripeSecretKey': _stripeSecretKey.text.trim(),
+        'stripeWebhookSecret': _stripeWebhookSecret.text.trim(),
+        'stripeUpdatedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+        'stripeUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        PipeFeedback.show(context, message: 'Stripe Gateway credentials saved!', tone: PipeStatusTone.success);
+      }
+    } catch (e) {
+      if (mounted) PipeFeedback.show(context, message: 'Failed: $e', tone: PipeStatusTone.error);
+    } finally {
+      if (mounted) setState(() => _isSavingStripe = false);
+    }
+  }
+
+  Future<void> _savePaypalCredentials() async {
+    setState(() => _isSavingPaypal = true);
+    try {
+      await FirebaseFirestore.instance.collection('admin_settings').doc('payment_gateways').set({
+        'paypalClientId': _paypalClientId.text.trim(),
+        'paypalSecretKey': _paypalSecretKey.text.trim(),
+        'paypalMerchantId': _paypalMerchantId.text.trim(),
+        'paypalUpdatedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+        'paypalUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        PipeFeedback.show(context, message: 'PayPal Commerce setup saved!', tone: PipeStatusTone.success);
+      }
+    } catch (e) {
+      if (mounted) PipeFeedback.show(context, message: 'Failed: $e', tone: PipeStatusTone.error);
+    } finally {
+      if (mounted) setState(() => _isSavingPaypal = false);
+    }
+  }
+
+  Future<void> _saveAuthorizeCredentials() async {
+    setState(() => _isSavingAuthorize = true);
+    try {
+      await FirebaseFirestore.instance.collection('admin_settings').doc('payment_gateways').set({
+        'authorizeApiLoginId': _authorizeApiLoginId.text.trim(),
+        'authorizeTransactionKey': _authorizeTransactionKey.text.trim(),
+        'authorizeUpdatedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+        'authorizeUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        PipeFeedback.show(context, message: 'Authorize.Net Escrow gateway saved!', tone: PipeStatusTone.success);
+      }
+    } catch (e) {
+      if (mounted) PipeFeedback.show(context, message: 'Failed: $e', tone: PipeStatusTone.error);
+    } finally {
+      if (mounted) setState(() => _isSavingAuthorize = false);
     }
   }
 
@@ -265,7 +341,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 1. Marketplace Intelligence & Pipe Sizes Watchboard
+  // 1. GLOBAL MARKETPLACE INTELLIGENCE & PIPE SIZES WATCHBOARD
   Widget _buildAnalyticsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('marketplace_transactions').snapshots(),
@@ -277,9 +353,16 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         double sellerFees = 0.0;
         double escrowFees = 0.0;
 
+        // Global Energy & Mining Regional Counters
         int usaCount = 0;
         int canadaCount = 0;
         int mexicoCount = 0;
+        int saudiMiddleEastCount = 0;
+        int russiaEurasiaCount = 0;
+        int europeNorthSeaCount = 0;
+        int australiaOceaniaCount = 0;
+        int asiaPacificCount = 0;
+        int latinAmericaCount = 0;
 
         final Map<String, int> pipeSizePieces = {
           '2 3/8" Tubing': 0,
@@ -303,10 +386,20 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           escrowFees += subtotal * 0.010;
 
           final region = '${data['region'] ?? data['location'] ?? ''}'.toLowerCase();
-          if (region.contains('canada') || region.contains('ab') || region.contains('sk') || region.contains('bc')) {
+          if (region.contains('saudi') || region.contains('uae') || region.contains('qatar') || region.contains('middle east')) {
+            saudiMiddleEastCount++;
+          } else if (region.contains('russia') || region.contains('yamal') || region.contains('eurasia')) {
+            russiaEurasiaCount++;
+          } else if (region.contains('uk') || region.contains('norway') || region.contains('north sea') || region.contains('europe')) {
+            europeNorthSeaCount++;
+          } else if (region.contains('australia') || region.contains('queensland') || region.contains('oceania')) {
+            australiaOceaniaCount++;
+          } else if (region.contains('china') || region.contains('asia') || region.contains('indonesia')) {
+            asiaPacificCount++;
+          } else if (region.contains('canada') || region.contains('ab') || region.contains('sk') || region.contains('bc')) {
             canadaCount++;
-          } else if (region.contains('mexico') || region.contains('mx')) {
-            mexicoCount++;
+          } else if (region.contains('mexico') || region.contains('brazil') || region.contains('guyana')) {
+            latinAmericaCount++;
           } else {
             usaCount++;
           }
@@ -341,11 +434,44 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _explanationBanner(
-                title: 'Marketplace Intelligence & Watchboard',
+                title: 'Global Energy & Mining Marketplace Intelligence',
                 explanation:
-                    'Monitors gross transaction volume (\$), total 3.5% company fee earnings, regional sales (USA, Canada, Mexico), and total Pipe Pieces sold categorized by outer diameter (OD) sizes.',
+                    'Monitors gross transaction volume (\$), total 3.5% company fee earnings, global energy sales across 9 major worldwide energy basins, and Pipe Pieces sold categorized by outer diameter (OD) sizes.',
               ),
               if (isLoading) const LinearProgressIndicator(),
+              const SizedBox(height: 16),
+
+              // Interactive Filters Header
+              Card(
+                elevation: 0,
+                color: Colors.blue.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.filter_alt_outlined, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      const Text('TIME & CATEGORY FILTERS:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      const SizedBox(width: 12),
+                      DropdownButton<String>(
+                        value: _selectedTimeframe,
+                        onChanged: (val) => setState(() => _selectedTimeframe = val ?? 'All Time'),
+                        items: ['All Time', 'Year-to-Date (YTD)', 'Last 30 Days', 'Last 7 Days']
+                            .map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12))))
+                            .toList(),
+                      ),
+                      const SizedBox(width: 16),
+                      DropdownButton<String>(
+                        value: _selectedCategoryFilter,
+                        onChanged: (val) => setState(() => _selectedCategoryFilter = val ?? 'All Categories'),
+                        items: ['All Categories', 'OCTG Casing & Tubing', 'Line Pipe', 'Structural Pipe', 'Valves & Wellheads', 'Rig & Drilling Equipment']
+                            .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12))))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
 
               const Text('PLATFORM FINANCIAL PERFORMANCE', style: _sectionTitleStyle),
@@ -367,15 +493,20 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               ),
               const SizedBox(height: 24),
 
-              const Text('REGIONAL SALES DISTRIBUTION', style: _sectionTitleStyle),
+              const Text('GLOBAL REGIONAL ENERGY SALES DISTRIBUTION', style: _sectionTitleStyle),
               const SizedBox(height: 12),
-              Row(
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
                 children: [
-                  _metricCard('USA (US OIL & GAS BASINS)', '$usaCount Deals', Icons.flag, Colors.blue.shade800),
-                  const SizedBox(width: 12),
-                  _metricCard('CANADA (ALBERTA / SK)', '$canadaCount Deals', Icons.nature, Colors.red.shade700),
-                  const SizedBox(width: 12),
-                  _metricCard('MEXICO REGIONS', '$mexicoCount Deals', Icons.public, Colors.green.shade800),
+                  _globalRegionCard('🇺🇸 USA (PERMIAN/BAKKEN/GULF)', '$usaCount Deals', Colors.blue.shade800),
+                  _globalRegionCard('🇨🇦 CANADA (WCSB ALBERTA/SK)', '$canadaCount Deals', Colors.red.shade700),
+                  _globalRegionCard('🇸🇦 SAUDI ARABIA & MIDDLE EAST', '$saudiMiddleEastCount Deals', Colors.green.shade800),
+                  _globalRegionCard('🇷🇺 EURASIA & RUSSIA (YAMAL)', '$russiaEurasiaCount Deals', Colors.purple.shade800),
+                  _globalRegionCard('🇬🇧 EUROPE & NORTH SEA', '$europeNorthSeaCount Deals', Colors.teal.shade800),
+                  _globalRegionCard('🇦🇺 AUSTRALIA & OCEANIA LNG', '$australiaOceaniaCount Deals', Colors.orange.shade800),
+                  _globalRegionCard('🇨🇳 ASIA-PACIFIC (CHINA/INDONESIA)', '$asiaPacificCount Deals', Colors.indigo.shade800),
+                  _globalRegionCard('🇲🇽 LATIN AMERICA & CARIBBEAN', '$latinAmericaCount Deals', Colors.deepOrange.shade800),
                 ],
               ),
               const SizedBox(height: 24),
@@ -424,7 +555,33 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 2. NEW DEDICATED AUCTIONS MONITOR & CONTROL TAB
+  Widget _globalRegionCard(String regionTitle, String countLabel, Color accentColor) {
+    return SizedBox(
+      width: 260,
+      child: Card(
+        elevation: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                regionTitle,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: accentColor),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                countLabel,
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.blueGrey.shade900),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 2. DEDICATED AUCTIONS MONITOR & CONTROL TAB
   Widget _buildAuctionsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -712,111 +869,249 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     }
   }
 
-  // 4. Banking & Merchant Gateways Setup Tab
+  // 4. MODULAR BANKING & MERCHANT PROCESSING GATEWAYS TAB
   Widget _buildBankingGatewaysTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 720),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _explanationBanner(
                 title: 'Company Banking & Merchant Processing Setup',
                 explanation:
-                    'Configure your company\'s bank account (Routing # & Account #) so that all 3.5% platform commission and escrow protection fees deposit directly into your bank account. Enter live Stripe & PayPal API keys to accept credit card payments.',
+                    'Configure your company\'s bank account and payment gateway processors. Each provider has its own dedicated setup card with live status badges so you can configure banking, credit card processing, and escrow direct wires independently.',
               ),
               const SizedBox(height: 16),
 
-              const Text('COMPANY BANK ACCOUNT (FOR COMMISSION & ESCROW FEES)', style: _sectionTitleStyle),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _companyBankName,
-                decoration: const InputDecoration(
-                  labelText: 'Company Bank Name',
-                  hintText: 'e.g. JPMorgan Chase / Royal Bank of Canada',
-                  prefixIcon: Icon(Icons.account_balance),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
+              // Tile 1: Company Direct ACH / Wire Bank Vault
+              _gatewayCard(
+                brandIcon: Icons.account_balance,
+                brandColor: Colors.blue.shade800,
+                title: 'COMPANY DIRECT ACH / WIRE PAYOUT VAULT',
+                subtitle: 'Direct deposit vault for all 3.5% seller commissions & escrow releases.',
+                isConfigured: _companyBankName.text.isNotEmpty && _companyAccountNumber.text.isNotEmpty,
+                onSave: _isSavingBank ? null : _saveBankCredentials,
+                isSaving: _isSavingBank,
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _companyRoutingNumber,
-                      decoration: const InputDecoration(
-                        labelText: 'Routing / ABA # (9 Digits)',
-                        prefixIcon: Icon(Icons.numbers),
-                      ),
+                  TextFormField(
+                    controller: _companyBankName,
+                    decoration: const InputDecoration(
+                      labelText: 'Company Bank Name',
+                      hintText: 'e.g. JPMorgan Chase / Royal Bank of Canada',
+                      prefixIcon: Icon(Icons.account_balance),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _companyAccountNumber,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Account Number',
-                        prefixIcon: Icon(Icons.lock_outline),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _companyRoutingNumber,
+                          decoration: const InputDecoration(
+                            labelText: 'Routing / ABA # (9 Digits)',
+                            prefixIcon: Icon(Icons.numbers),
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _companyAccountNumber,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Account Number',
+                            prefixIcon: Icon(Icons.lock_outline),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _companySwiftIban,
+                    decoration: const InputDecoration(
+                      labelText: 'SWIFT / BIC / IBAN Code (Global Payouts)',
+                      hintText: 'e.g. CHASUS33 / BOFAUS3N',
+                      prefixIcon: Icon(Icons.public),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              const Text('STRIPE LIVE / TEST CREDENTIALS', style: _sectionTitleStyle),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _stripePublishableKey,
-                decoration: const InputDecoration(
-                  labelText: 'Stripe Publishable Key (pk_live_...)',
-                  prefixIcon: Icon(Icons.key),
-                ),
+              // Tile 2: Stripe Commerce Payment Gateway
+              _gatewayCard(
+                brandIcon: Icons.credit_card,
+                brandColor: Colors.deepPurple,
+                title: 'STRIPE COMMERCE PAYMENT GATEWAY',
+                subtitle: 'Accept Visa, Mastercard, AMEX, and instant ACH bank transfers.',
+                isConfigured: _stripePublishableKey.text.isNotEmpty && _stripeSecretKey.text.isNotEmpty,
+                onSave: _isSavingStripe ? null : _saveStripeCredentials,
+                isSaving: _isSavingStripe,
+                children: [
+                  TextFormField(
+                    controller: _stripePublishableKey,
+                    decoration: const InputDecoration(
+                      labelText: 'Stripe Publishable Key (pk_live_...)',
+                      prefixIcon: Icon(Icons.key),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _stripeSecretKey,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Stripe Secret Key (sk_live_...)',
+                      prefixIcon: Icon(Icons.vpn_key),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _stripeWebhookSecret,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Stripe Webhook Signing Secret (whsec_...)',
+                      prefixIcon: Icon(Icons.webhook),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _stripeSecretKey,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Stripe Secret Key (sk_live_...)',
-                  prefixIcon: Icon(Icons.vpn_key),
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              const Text('PAYPAL COMMERCE CREDENTIALS', style: _sectionTitleStyle),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _paypalClientId,
-                decoration: const InputDecoration(
-                  labelText: 'PayPal Client ID',
-                  prefixIcon: Icon(Icons.payment),
-                ),
+              // Tile 3: PayPal Commerce & Venmo Gateway
+              _gatewayCard(
+                brandIcon: Icons.payment,
+                brandColor: Colors.blue.shade900,
+                title: 'PAYPAL COMMERCE & VENMO GATEWAY',
+                subtitle: 'Accept PayPal Express Checkout, Venmo, and Pay in 4 installment financing.',
+                isConfigured: _paypalClientId.text.isNotEmpty && _paypalSecretKey.text.isNotEmpty,
+                onSave: _isSavingPaypal ? null : _savePaypalCredentials,
+                isSaving: _isSavingPaypal,
+                children: [
+                  TextFormField(
+                    controller: _paypalClientId,
+                    decoration: const InputDecoration(
+                      labelText: 'PayPal Client ID',
+                      prefixIcon: Icon(Icons.payment),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _paypalSecretKey,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'PayPal Secret Key',
+                      prefixIcon: Icon(Icons.lock),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _paypalMerchantId,
+                    decoration: const InputDecoration(
+                      labelText: 'PayPal Merchant Account ID',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _paypalSecretKey,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'PayPal Secret Key',
-                  prefixIcon: Icon(Icons.lock),
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _isSavingGateways ? null : _saveGatewayCredentials,
-                  icon: const Icon(Icons.save),
-                  label: Text(_isSavingGateways ? 'Saving Credentials…' : 'Save Company Bank & Merchant Keys'),
-                ),
+              // Tile 4: Authorize.Net Enterprise Escrow Gateway
+              _gatewayCard(
+                brandIcon: Icons.shield_outlined,
+                brandColor: Colors.teal.shade800,
+                title: 'AUTHORIZE.NET / ENTERPRISE ESCROW PROCESSING',
+                subtitle: 'Enterprise escrow integration for multi-million dollar equipment purchases.',
+                isConfigured: _authorizeApiLoginId.text.isNotEmpty && _authorizeTransactionKey.text.isNotEmpty,
+                onSave: _isSavingAuthorize ? null : _saveAuthorizeCredentials,
+                isSaving: _isSavingAuthorize,
+                children: [
+                  TextFormField(
+                    controller: _authorizeApiLoginId,
+                    decoration: const InputDecoration(
+                      labelText: 'Authorize.Net API Login ID',
+                      prefixIcon: Icon(Icons.fingerprint),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _authorizeTransactionKey,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Transaction Key',
+                      prefixIcon: Icon(Icons.key_outlined),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _gatewayCard({
+    required IconData brandIcon,
+    required Color brandColor,
+    required String title,
+    required String subtitle,
+    required bool isConfigured,
+    required VoidCallback? onSave,
+    required bool isSaving,
+    required List<Widget> children,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: isConfigured ? Colors.green.shade300 : Colors.grey.shade300),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: brandColor.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+          child: Icon(brandIcon, color: brandColor, size: 24),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            ),
+            Chip(
+              avatar: Icon(isConfigured ? Icons.check_circle : Icons.pending, size: 14, color: isConfigured ? Colors.green : Colors.orange),
+              label: Text(isConfigured ? 'CONFIGURED ✓' : 'PENDING SETUP ⚙️', style: TextStyle(fontSize: 10, color: isConfigured ? Colors.green.shade900 : Colors.orange.shade900)),
+              backgroundColor: isConfigured ? Colors.green.shade50 : Colors.orange.shade50,
+            ),
+          ],
+        ),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(),
+                const SizedBox(height: 8),
+                ...children,
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: onSave,
+                    icon: const Icon(Icons.save, size: 16),
+                    label: Text(isSaving ? 'Saving…' : 'Save $title Credentials'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
