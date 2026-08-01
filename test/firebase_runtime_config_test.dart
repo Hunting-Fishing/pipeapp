@@ -17,19 +17,22 @@ void main() {
     expect(resolveFirebaseEnvironment(''), 'local');
   });
 
-  test('staging and production fail closed without an explicit project', () {
-    for (final environment in ['staging', 'production']) {
-      expect(
-        () => resolveFirebaseWebConfiguration(environment: environment),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('PIPE_FIREBASE_PROJECT_ID'),
-          ),
+  test('staging fails closed without an explicit project', () {
+    expect(
+      () => resolveFirebaseWebConfiguration(environment: 'staging'),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('PIPE_FIREBASE_PROJECT_ID'),
         ),
-      );
-    }
+      ),
+    );
+  });
+
+  test('unoverridden web production uses approved production project', () {
+    final configuration = resolveFirebaseWebConfiguration(environment: 'production');
+    expect(configuration.projectId, productionFirebaseProjectId);
   });
 
   test('a partial override is rejected instead of mixing projects', () {

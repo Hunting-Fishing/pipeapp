@@ -174,10 +174,7 @@ FirebaseWebConfiguration resolveFirebaseWebConfiguration({
     'PIPE_FIREBASE_WEB_APP_ID': appId.trim(),
   };
   final hasAnyOverride = supplied.values.any((value) => value.isNotEmpty);
-  final controlledEnvironment =
-      _controlledEnvironments.contains(normalizedEnvironment);
-
-  if (!hasAnyOverride && !controlledEnvironment) {
+  if (!hasAnyOverride && normalizedEnvironment != 'staging') {
     return _developmentWebConfiguration;
   }
 
