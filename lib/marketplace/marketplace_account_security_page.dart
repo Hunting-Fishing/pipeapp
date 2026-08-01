@@ -141,17 +141,16 @@ class _MarketplaceAccountSecurityPageState
                     const SizedBox(height: 10),
                     RegionalPhoneField(
                       key: ValueKey(_phone),
-                      label: 'Mobile phone number',
+                      label: 'Mobile phone number (optional)',
                       initialValue: _phone,
-                      required: true,
+                      required: false,
                       onChanged: (value) =>
                           _phone = normalizePhoneNumber(value),
                     ),
                     const SizedBox(height: 9),
                     if (!_codeSent)
                       FilledButton.icon(
-                        onPressed:
-                            !_emailVerified || _busy ? null : _sendPhoneCode,
+                        onPressed: _busy ? null : _sendPhoneCode,
                         icon: const Icon(Icons.sms_outlined),
                         label:
                             Text(_busy ? 'Sending…' : 'Send verification code'),
@@ -183,12 +182,12 @@ class _MarketplaceAccountSecurityPageState
                         ),
                       ]),
                     ],
-                    if (!_emailVerified)
+                    if (!_emailVerified && !_phoneVerified)
                       const Padding(
                         padding: EdgeInsets.only(top: 8),
                         child: Text(
-                            'Verify the email first, then request the SMS code.',
-                            style: TextStyle(color: Color(0xFF8A5A00))),
+                            'Verify either email ownership or mobile phone ownership to continue to your profile.',
+                            style: TextStyle(color: Color(0xFF66758A))),
                       ),
                   ],
                   if (_message != null) ...[
@@ -215,7 +214,7 @@ class _MarketplaceAccountSecurityPageState
                   const SizedBox(height: 16),
                   if (widget.onboarding)
                     FilledButton.icon(
-                      onPressed: _emailVerified && _phoneVerified && !_busy
+                      onPressed: (_emailVerified || _phoneVerified) && !_busy
                           ? _continueToProfile
                           : null,
                       icon: const Icon(Icons.arrow_forward),

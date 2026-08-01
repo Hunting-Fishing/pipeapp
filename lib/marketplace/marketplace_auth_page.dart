@@ -108,9 +108,9 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                     ],
                     const SizedBox(height: 12),
                     RegionalPhoneField(
-                        label: 'Mobile phone number',
+                        label: 'Mobile phone number (optional)',
                         initialValue: _phone.text,
-                        required: true,
+                        required: false,
                         onChanged: (value) => _phone.text = value),
                     const SizedBox(height: 12),
                   ],

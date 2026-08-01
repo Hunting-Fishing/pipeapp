@@ -12,12 +12,116 @@ class PhoneRegion {
 }
 
 const phoneRegions = <PhoneRegion>[
-  PhoneRegion('CA', 'Canada', '+1', '🇨🇦', nationalDigits: 10),
+  // Primary markets pinned at top
   PhoneRegion('US', 'United States', '+1', '🇺🇸', nationalDigits: 10),
-  PhoneRegion('PH', 'Philippines', '+63', '🇵🇭', nationalDigits: 10),
-  PhoneRegion('MX', 'Mexico', '+52', '🇲🇽', nationalDigits: 10),
-  PhoneRegion('GB', 'United Kingdom', '+44', '🇬🇧'),
+  PhoneRegion('CA', 'Canada', '+1', '🇨🇦', nationalDigits: 10),
+
+  // World countries alphabetically
+  PhoneRegion('AF', 'Afghanistan', '+93', '🇦🇫'),
+  PhoneRegion('AL', 'Albania', '+355', '🇦🇱'),
+  PhoneRegion('DZ', 'Algeria', '+213', '🇩🇿'),
+  PhoneRegion('AD', 'Andorra', '+376', '🇦🇩'),
+  PhoneRegion('AO', 'Angola', '+244', '🇦🇴'),
+  PhoneRegion('AR', 'Argentina', '+54', '🇦🇷'),
+  PhoneRegion('AM', 'Armenia', '+374', '🇦🇲'),
   PhoneRegion('AU', 'Australia', '+61', '🇦🇺', nationalDigits: 9),
+  PhoneRegion('AT', 'Austria', '+43', '🇦🇹'),
+  PhoneRegion('AZ', 'Azerbaijan', '+994', '🇦🇿'),
+  PhoneRegion('BS', 'Bahamas', '+1', '🇧🇸'),
+  PhoneRegion('BH', 'Bahrain', '+973', '🇧🇭'),
+  PhoneRegion('BD', 'Bangladesh', '+880', '🇧🇩'),
+  PhoneRegion('BB', 'Barbados', '+1', '🇧🇧'),
+  PhoneRegion('BY', 'Belarus', '+375', '🇧🇾'),
+  PhoneRegion('BE', 'Belgium', '+32', '🇧🇪'),
+  PhoneRegion('BZ', 'Belize', '+501', '🇧🇿'),
+  PhoneRegion('BJ', 'Benin', '+229', '🇧🇯'),
+  PhoneRegion('BO', 'Bolivia', '+591', '🇧🇴'),
+  PhoneRegion('BA', 'Bosnia & Herzegovina', '+387', '🇧🇦'),
+  PhoneRegion('BW', 'Botswana', '+267', '🇧🇼'),
+  PhoneRegion('BR', 'Brazil', '+55', '🇧🇷'),
+  PhoneRegion('BN', 'Brunei', '+673', '🇧🇳'),
+  PhoneRegion('BG', 'Bulgaria', '+359', '🇧🇬'),
+  PhoneRegion('BF', 'Burkina Faso', '+226', '🇧🇫'),
+  PhoneRegion('KH', 'Cambodia', '+855', '🇰🇭'),
+  PhoneRegion('CM', 'Cameroon', '+237', '🇨🇲'),
+  PhoneRegion('CL', 'Chile', '+56', '🇨🇱'),
+  PhoneRegion('CN', 'China', '+86', '🇨🇳'),
+  PhoneRegion('CO', 'Colombia', '+57', '🇨🇴'),
+  PhoneRegion('CR', 'Costa Rica', '+506', '🇨🇷'),
+  PhoneRegion('HR', 'Croatia', '+385', '🇭🇷'),
+  PhoneRegion('CU', 'Cuba', '+53', '🇨🇺'),
+  PhoneRegion('CY', 'Cyprus', '+357', '🇨🇾'),
+  PhoneRegion('CZ', 'Czech Republic', '+420', '🇨🇿'),
+  PhoneRegion('DK', 'Denmark', '+45', '🇩🇰'),
+  PhoneRegion('DO', 'Dominican Republic', '+1', '🇩🇴'),
+  PhoneRegion('EC', 'Ecuador', '+593', '🇪🇨'),
+  PhoneRegion('EG', 'Egypt', '+20', '🇪🇬'),
+  PhoneRegion('SV', 'El Salvador', '+503', '🇸🇻'),
+  PhoneRegion('EE', 'Estonia', '+372', '🇪🇪'),
+  PhoneRegion('ET', 'Ethiopia', '+251', '🇪🇹'),
+  PhoneRegion('FJ', 'Fiji', '+679', '🇫🇯'),
+  PhoneRegion('FI', 'Finland', '+358', '🇫🇮'),
+  PhoneRegion('FR', 'France', '+33', '🇫🇷'),
+  PhoneRegion('GE', 'Georgia', '+995', '🇬🇪'),
+  PhoneRegion('DE', 'Germany', '+49', '🇩🇪'),
+  PhoneRegion('GH', 'Ghana', '+233', '🇬🇭'),
+  PhoneRegion('GR', 'Greece', '+30', '🇬🇷'),
+  PhoneRegion('GT', 'Guatemala', '+502', '🇬🇹'),
+  PhoneRegion('HN', 'Honduras', '+504', '🇭🇳'),
+  PhoneRegion('HK', 'Hong Kong', '+852', '🇭🇰'),
+  PhoneRegion('HU', 'Hungary', '+36', '🇭🇺'),
+  PhoneRegion('IS', 'Iceland', '+354', '🇮🇸'),
+  PhoneRegion('IN', 'India', '+91', '🇮🇳'),
+  PhoneRegion('ID', 'Indonesia', '+62', '🇮🇩'),
+  PhoneRegion('IQ', 'Iraq', '+964', '🇮🇶'),
+  PhoneRegion('IE', 'Ireland', '+353', '🇮🇪'),
+  PhoneRegion('IL', 'Israel', '+972', '🇮🇱'),
+  PhoneRegion('IT', 'Italy', '+39', '🇮🇹'),
+  PhoneRegion('JM', 'Jamaica', '+1', '🇯🇲'),
+  PhoneRegion('JP', 'Japan', '+81', '🇯🇵'),
+  PhoneRegion('JO', 'Jordan', '+962', '🇯🇴'),
+  PhoneRegion('KZ', 'Kazakhstan', '+7', '🇰🇿'),
+  PhoneRegion('KE', 'Kenya', '+254', '🇰🇪'),
+  PhoneRegion('KW', 'Kuwait', '+965', '🇰🇼'),
+  PhoneRegion('LV', 'Latvia', '+371', '🇱🇻'),
+  PhoneRegion('LB', 'Lebanon', '+961', '🇱🇧'),
+  PhoneRegion('LT', 'Lithuania', '+370', '🇱🇹'),
+  PhoneRegion('LU', 'Luxembourg', '+352', '🇱🇺'),
+  PhoneRegion('MY', 'Malaysia', '+60', '🇲🇾'),
+  PhoneRegion('MX', 'Mexico', '+52', '🇲🇽', nationalDigits: 10),
+  PhoneRegion('MA', 'Morocco', '+212', '🇲🇦'),
+  PhoneRegion('NL', 'Netherlands', '+31', '🇳🇱'),
+  PhoneRegion('NZ', 'New Zealand', '+64', '🇳🇿'),
+  PhoneRegion('NG', 'Nigeria', '+234', '🇳🇬'),
+  PhoneRegion('NO', 'Norway', '+47', '🇳🇴'),
+  PhoneRegion('OM', 'Oman', '+968', '🇴🇲'),
+  PhoneRegion('PK', 'Pakistan', '+92', '🇵🇰'),
+  PhoneRegion('PA', 'Panama', '+507', '🇵🇦'),
+  PhoneRegion('PY', 'Paraguay', '+595', '🇵🇾'),
+  PhoneRegion('PE', 'Peru', '+51', '🇵🇪'),
+  PhoneRegion('PH', 'Philippines', '+63', '🇵🇭', nationalDigits: 10),
+  PhoneRegion('PL', 'Poland', '+48', '🇵🇱'),
+  PhoneRegion('PT', 'Portugal', '+351', '🇵🇹'),
+  PhoneRegion('QA', 'Qatar', '+974', '🇶🇦'),
+  PhoneRegion('RO', 'Romania', '+40', '🇷🇴'),
+  PhoneRegion('SA', 'Saudi Arabia', '+966', '🇸🇦'),
+  PhoneRegion('SG', 'Singapore', '+65', '🇸🇬'),
+  PhoneRegion('ZA', 'South Africa', '+27', '🇿🇦'),
+  PhoneRegion('KR', 'South Korea', '+82', '🇰🇷'),
+  PhoneRegion('ES', 'Spain', '+34', '🇪🇸'),
+  PhoneRegion('LK', 'Sri Lanka', '+94', '🇱🇰'),
+  PhoneRegion('SE', 'Sweden', '+46', '🇸🇪'),
+  PhoneRegion('CH', 'Switzerland', '+41', '🇨🇭'),
+  PhoneRegion('TW', 'Taiwan', '+886', '🇹🇼'),
+  PhoneRegion('TH', 'Thailand', '+66', '🇹🇭'),
+  PhoneRegion('TT', 'Trinidad & Tobago', '+1', '🇹🇹'),
+  PhoneRegion('TR', 'Turkey', '+90', '🇹🇷'),
+  PhoneRegion('UA', 'Ukraine', '+380', '🇺🇦'),
+  PhoneRegion('AE', 'United Arab Emirates', '+971', '🇦🇪'),
+  PhoneRegion('GB', 'United Kingdom', '+44', '🇬🇧'),
+  PhoneRegion('UY', 'Uruguay', '+598', '🇺🇾'),
+  PhoneRegion('VE', 'Venezuela', '+58', '🇻🇪'),
+  PhoneRegion('VN', 'Vietnam', '+84', '🇻🇳'),
 ];
 
 String normalizePhoneNumber(String value) {
@@ -87,15 +191,22 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
         decoration: InputDecoration(
           labelText: widget.label,
           hintText: _region.code == 'PH' ? '917 123 4567' : '(780) 555-1234',
-          prefixIconConstraints: const BoxConstraints(minWidth: 126),
+          prefixIconConstraints: const BoxConstraints(minWidth: 110),
           prefixIcon: DropdownButtonHideUnderline(
             child: DropdownButton<PhoneRegion>(
               value: _region,
               padding: const EdgeInsets.only(left: 12),
+              selectedItemBuilder: (context) => phoneRegions
+                  .map((region) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('${region.flag} ${region.dialCode}'),
+                      ))
+                  .toList(),
               items: phoneRegions
                   .map((region) => DropdownMenuItem(
                       value: region,
-                      child: Text('${region.flag} ${region.dialCode}')))
+                      child: Text(
+                          '${region.flag} ${region.dialCode}  ${region.name}')))
                   .toList(),
               onChanged: (region) {
                 if (region == null) return;
@@ -140,10 +251,11 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
       : '${_region.dialCode}${_digits(_controller.text)}');
 
   static PhoneRegion _regionFor(String value) {
-    if (value.startsWith('+63')) return phoneRegions[2];
-    if (value.startsWith('+52')) return phoneRegions[3];
-    if (value.startsWith('+44')) return phoneRegions[4];
-    if (value.startsWith('+61')) return phoneRegions[5];
+    final clean = value.trim();
+    if (clean.isEmpty) return phoneRegions[0];
+    for (final region in phoneRegions) {
+      if (clean.startsWith(region.dialCode)) return region;
+    }
     return phoneRegions[0];
   }
 
