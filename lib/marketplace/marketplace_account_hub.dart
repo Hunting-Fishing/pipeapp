@@ -28,6 +28,7 @@ import 'marketplace_deep_links.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_transaction_portal.dart';
+import 'marketplace_admin_dashboard.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -49,11 +50,14 @@ class MarketplaceAccountHub extends StatefulWidget {
 class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+  bool _isAdminUser = false;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 6, vsync: this);
+    final user = FirebaseAuth.instance.currentUser;
+    _isAdminUser = user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
+    _tabs = TabController(length: _isAdminUser ? 7 : 6, vsync: this);
   }
 
   @override
@@ -63,7 +67,11 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   }
 
   @override
-  Widget build(BuildContext context) => Column(children: [
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isAdmin = _isAdminUser || user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
+
+    return Column(children: [
         Material(
           color: Colors.white,
           child: TabBar(
@@ -71,26 +79,30 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-            tabs: const [
-              Tab(
+            tabs: [
+              const Tab(
                   icon: Icon(Icons.dashboard_outlined, size: 20),
                   text: 'Overview'),
-              Tab(icon: Icon(Icons.badge_outlined, size: 20), text: 'Profile'),
-              Tab(
+              const Tab(icon: Icon(Icons.badge_outlined, size: 20), text: 'Profile'),
+              const Tab(
                   icon: _AccountTabBadge(
                       types: {'offer'}, icon: Icons.inventory_2_outlined),
                   text: 'Listings'),
-              Tab(
+              const Tab(
                   icon: _AccountTabBadge(
                       types: {'message'}, icon: Icons.forum_outlined),
                   text: 'Messages'),
-              Tab(
+              const Tab(
                   icon: _AccountTabBadge(
                       types: {}, icon: Icons.notifications_outlined),
                   text: 'Notifications'),
-              Tab(
+              const Tab(
                   icon: Icon(Icons.settings_outlined, size: 20),
                   text: 'Settings'),
+              if (isAdmin)
+                Tab(
+                    icon: Icon(Icons.admin_panel_settings, color: Colors.purple.shade700, size: 20),
+                    text: 'ADMIN PORTAL'),
             ],
           ),
         ),
@@ -106,8 +118,11 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
           _AccountNotifications(
               onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
           const _AccountSettings(),
+          if (isAdmin)
+            const MarketplaceAdminDashboard(),
         ]))
       ]);
+  }
 }
 
 class _Overview extends StatelessWidget {
@@ -134,7 +149,55 @@ class _Overview extends StatelessWidget {
           final completion = calculateProfileCompletion(user, data);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
+          final isMasterAdmin = user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
+
           return ListView(padding: const EdgeInsets.all(18), children: [
+            if (isMasterAdmin) ...[
+              Card(
+                color: Colors.purple.shade900,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.stars, color: Colors.amber, size: 36),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              '👑 MASTER ADMIN PORTAL ACTIVE',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Colors.white,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Access revenue analytics, escrow overrides, bank accounts, merchant gateways & user controls.',
+                              style: TextStyle(fontSize: 12, color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(backgroundColor: Colors.amber.shade700),
+                        onPressed: () => onOpen(6), // Switch to 7th Admin Portal Tab
+                        icon: const Icon(Icons.launch, color: Colors.black, size: 16),
+                        label: const Text(
+                          'Open Admin Portal',
+                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
                 style:
                     const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
@@ -2918,13 +2981,23 @@ class _AccountSettingsState extends State<_AccountSettings> {
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),
       if (user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com')
-        ListTile(
-            leading: const Icon(Icons.admin_panel_settings, color: Colors.purple),
-            title: const Text('Admin Master Transaction & Escrow Portal'),
-            subtitle: const Text('Monitor gross volume, fees collected, escrow overrides & merchant credentials.'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const MarketplaceAdminTransactionPortal()))),
+        Card(
+          color: Colors.purple.shade50,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.purple.shade200),
+          ),
+          child: ListTile(
+              leading: Icon(Icons.admin_panel_settings, color: Colors.purple.shade800, size: 28),
+              title: Text(
+                'MASTER ADMIN PORTAL DASHBOARD',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade900),
+              ),
+              subtitle: const Text('Analytics, Escrow Overrides, Banking Setup, User Roles, Moderation & System Config.'),
+              trailing: const Icon(Icons.chevron_right, color: Colors.purple),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const MarketplaceAdminDashboard()))),
+        ),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
           title: const Text('Send password reset email'),
