@@ -22,6 +22,57 @@ import 'marketplace_trucking_plan.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
 
+DateTime? parseAuctionDate(Map<String, dynamic> data, List<String> keys) {
+  for (final key in keys) {
+    final value = data[key];
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String && value.trim().isNotEmpty) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+    if (value is num && value > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+    }
+  }
+  return null;
+}
+
+DateTime? parseAuctionStart(Map<String, dynamic> data) => parseAuctionDate(
+    data, const ['auctionStartAt', 'auctionStart', 'startsAt', 'startAt', 'createdAt']);
+
+DateTime? parseAuctionEnd(Map<String, dynamic> data) => parseAuctionDate(
+    data, const ['auctionEndAt', 'auctionEnd', 'endsAt', 'endAt', 'closingAt', 'endTime']);
+
+bool isAuctionEnded(Map<String, dynamic> data, DateTime now) {
+  final end = parseAuctionEnd(data);
+  final status =
+      '${data['status'] ?? data['auctionStatus'] ?? data['saleStatus'] ?? ''}'
+          .toLowerCase();
+  final isStatusEnded = const {
+    'ended',
+    'closed',
+    'settled',
+    'sold',
+    'bought_now',
+    'won',
+    'completed',
+    'cancelled',
+    'expired',
+  }.contains(status);
+  final isTimeEnded = end != null && !now.isBefore(end);
+  return isStatusEnded || isTimeEnded;
+}
+
+bool isAuctionUpcoming(Map<String, dynamic> data, DateTime now) {
+  final start = parseAuctionStart(data);
+  return start != null && now.isBefore(start) && !isAuctionEnded(data, now);
+}
+
+bool isAuctionLive(Map<String, dynamic> data, DateTime now) {
+  return !isAuctionUpcoming(data, now) && !isAuctionEnded(data, now);
+}
+
 /// Full-page auction destination used by browser refreshes and shared links.
 class MarketplaceAuctionRoutePage extends StatefulWidget {
   const MarketplaceAuctionRoutePage({super.key, required this.listingId});
@@ -196,31 +247,17 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
       final data = doc.data();
       if (data['transactionType'] != 'Auction') return false;
 
-      final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
-      final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
-      final status =
-          '${data['status'] ?? data['auctionStatus'] ?? ''}'.toLowerCase();
-      final isEnded = (end != null && !now.isBefore(end)) ||
-          const {
-            'ended',
-            'closed',
-            'settled',
-            'sold',
-            'bought_now',
-            'won',
-            'completed',
-            'cancelled'
-          }.contains(status);
-      final isUpcoming = start != null && now.isBefore(start);
-      final isLive = !isUpcoming && !isEnded;
+      final ended = isAuctionEnded(data, now);
+      final upcoming = isAuctionUpcoming(data, now);
+      final live = isAuctionLive(data, now);
 
       if (_filter == 'My auctions') {
         final uid = FirebaseAuth.instance.currentUser?.uid;
         return uid != null && data['sellerUid'] == uid;
       }
-      if (_filter == 'Live') return isLive;
-      if (_filter == 'Upcoming') return isUpcoming;
-      if (_filter == 'Ended') return isEnded;
+      if (_filter == 'Live') return live;
+      if (_filter == 'Upcoming') return upcoming;
+      if (_filter == 'Ended') return ended;
       return true;
     }).toList(growable: false);
     return Column(children: [
@@ -387,24 +424,12 @@ class _AuctionCard extends StatelessWidget {
     final thumbnail = marketplaceListingThumbnailUrl(data);
     final current = data['currentBid'] as num? ?? 0;
     final starting = data['startingBid'] as num? ?? data['price'] as num? ?? 0;
-    final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
-    final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
+    final start = parseAuctionStart(data);
+    final end = parseAuctionEnd(data);
     final now = DateTime.now();
-    final status =
-        '${data['status'] ?? data['auctionStatus'] ?? ''}'.toLowerCase();
-    final ended = (end != null && !now.isBefore(end)) ||
-        const {
-          'ended',
-          'closed',
-          'settled',
-          'sold',
-          'bought_now',
-          'won',
-          'completed',
-          'cancelled'
-        }.contains(status);
-    final upcoming = start != null && now.isBefore(start);
-    final live = !upcoming && !ended;
+    final ended = isAuctionEnded(data, now);
+    final upcoming = isAuctionUpcoming(data, now);
+    final live = isAuctionLive(data, now);
     final fallbackAssetPath = IndustrialIconAssets.forLabel(
             '${data['productType'] ?? data['title'] ?? ''}') ??
         IndustrialIconAssets.forLabel('${data['category'] ?? ''}') ??
@@ -547,24 +572,12 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
         final increment = data['minimumBidIncrement'] as num? ?? 1;
         final buyNow = data['buyItNowPrice'] as num?;
         final next = current > 0 ? current + increment : starting;
-        final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
-        final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
+        final start = parseAuctionStart(data);
+        final end = parseAuctionEnd(data);
         final now = DateTime.now();
-        final status =
-            '${data['status'] ?? data['auctionStatus'] ?? ''}'.toLowerCase();
-        final ended = (end != null && !now.isBefore(end)) ||
-            const {
-              'ended',
-              'closed',
-              'settled',
-              'sold',
-              'bought_now',
-              'won',
-              'completed',
-              'cancelled'
-            }.contains(status);
-        final upcoming = start != null && now.isBefore(start);
-        final live = !upcoming && !ended;
+        final ended = isAuctionEnded(data, now);
+        final upcoming = isAuctionUpcoming(data, now);
+        final live = isAuctionLive(data, now);
         final mine =
             data['sellerUid'] == FirebaseAuth.instance.currentUser?.uid;
         final auctionParticipant = mine ||
