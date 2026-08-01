@@ -128,15 +128,9 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
   }
 
   Query<Map<String, dynamic>> _query(DateTime now) {
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+    return FirebaseFirestore.instance
         .collection('public_listings')
-        .where('transactionType', isEqualTo: 'Auction');
-    if (_filter == 'My auctions') {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return query.where('sellerUid', isEqualTo: '__none__');
-      return query.where('sellerUid', isEqualTo: uid).orderBy('createdAt', descending: true);
-    }
-    return query.orderBy('createdAt', descending: true);
+        .orderBy('createdAt', descending: true);
   }
 
   Future<void> _loadPage({bool reset = false}) async {
@@ -189,9 +183,15 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final auctions = _documents.where((doc) {
+      final data = doc.data();
+      if (data['transactionType'] != 'Auction') return false;
+      if (_filter == 'My auctions') {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid == null || data['sellerUid'] != uid) return false;
+      }
       if (_filter != 'Live') return true;
-      final start = (doc.data()['auctionStartAt'] as Timestamp?)?.toDate();
-      return start != null && !now.isBefore(start);
+      final start = (data['auctionStartAt'] as Timestamp?)?.toDate();
+      return start == null || !now.isBefore(start);
     }).toList(growable: false);
     return Column(children: [
       Padding(
