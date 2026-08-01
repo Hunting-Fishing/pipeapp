@@ -2633,35 +2633,10 @@ class _BrowsePageState extends State<_BrowsePage> {
     if (widget.category != null) {
       query = query.where('category', isEqualTo: widget.category);
     }
-    if (_filters.transactionType == null) {
-      query = query.where('transactionType',
-          whereIn: const ['For Sale', 'Wanted / Seeking']);
-    } else {
-      query =
-          query.where('transactionType', isEqualTo: _filters.transactionType);
-    }
-    if (_filters.condition != null) {
-      query = query.where('condition', isEqualTo: _filters.condition);
-    }
-    if (_filters.minimumPrice != null) {
-      query =
-          query.where('price', isGreaterThanOrEqualTo: _filters.minimumPrice);
-    }
-    if (_filters.maximumPrice != null) {
-      query = query.where('price', isLessThanOrEqualTo: _filters.maximumPrice);
-    }
     if (searchToken.isNotEmpty) {
       query = query.where('searchTokens', arrayContains: searchToken);
     }
-    return switch (_filters.effectiveSort) {
-      MarketplaceBrowseSort.newest =>
-        query.orderBy('createdAt', descending: true),
-      MarketplaceBrowseSort.priceLowToHigh =>
-        query.orderBy('price').orderBy('createdAt', descending: true),
-      MarketplaceBrowseSort.priceHighToLow => query
-          .orderBy('price', descending: true)
-          .orderBy('createdAt', descending: true),
-    };
+    return query.orderBy('createdAt', descending: true);
   }
 
   Future<void> _loadPage({bool reset = false}) async {

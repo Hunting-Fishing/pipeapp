@@ -131,24 +131,12 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('public_listings')
         .where('transactionType', isEqualTo: 'Auction');
-    switch (_filter) {
-      case 'Upcoming':
-        return query
-            .where('auctionStartAt', isGreaterThan: Timestamp.fromDate(now))
-            .orderBy('auctionStartAt');
-      case 'Ended':
-        return query
-            .where('auctionEndAt', isLessThanOrEqualTo: Timestamp.fromDate(now))
-            .orderBy('auctionEndAt', descending: true);
-      case 'My auctions':
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid == null) return query.where('sellerUid', isEqualTo: '__none__');
-        return query
-            .where('sellerUid', isEqualTo: uid)
-            .orderBy('createdAt', descending: true);
-      default:
-        return query.orderBy('createdAt', descending: true);
+    if (_filter == 'My auctions') {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return query.where('sellerUid', isEqualTo: '__none__');
+      return query.where('sellerUid', isEqualTo: uid).orderBy('createdAt', descending: true);
     }
+    return query.orderBy('createdAt', descending: true);
   }
 
   Future<void> _loadPage({bool reset = false}) async {
