@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class PublicReleaseConfiguration {
   const PublicReleaseConfiguration({
     required this.environment,
@@ -7,7 +9,7 @@ class PublicReleaseConfiguration {
   static const current = PublicReleaseConfiguration(
     environment: String.fromEnvironment(
       'PIPE_ENV',
-      defaultValue: 'development',
+      defaultValue: kReleaseMode ? 'production' : 'development',
     ),
     supportEmail: String.fromEnvironment(
       'PIPE_PUBLIC_SUPPORT_EMAIL',
