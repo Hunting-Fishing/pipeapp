@@ -41,6 +41,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   String _selectedGranularity = 'Month (Month-by-Month)'; // Day, Week, Month, Quarter
   String _selectedCategoryFilter = 'All Categories';
 
+  // Auctions Tab filter states
+  String _auctionGranularity = 'Month (Month-by-Month)';
+  String _auctionCategoryFilter = 'All Categories';
+
   bool _isAuthorized = false;
   bool _isLoadingAuth = true;
 
@@ -353,7 +357,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         double sellerFees = 0.0;
         double escrowFees = 0.0;
 
-        // Auto-Dynamic Global Energy Markets Country Map: CountryName -> {deals: count, volume: total, flag: emoji}
+        // Auto-Dynamic Global Energy Markets Country Map
         final Map<String, Map<String, dynamic>> dynamicCountryMarkets = {
           'USA': {'deals': 0, 'volume': 0.0, 'flag': '🇺🇸', 'region': 'Permian/Bakken/Gulf'},
           'Canada': {'deals': 0, 'volume': 0.0, 'flag': '🇨🇦', 'region': 'WCSB Alberta/SK'},
@@ -374,7 +378,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         // Categorized Collapsible Item Types (Default Collapsed First)
         final Map<String, Map<String, dynamic>> categoryItemTypes = {
           'OCTG Casing & Tubing': {
-            'icon': Icons.pipe,
+            'icon': Icons.line_weight,
             'soldPieces': 0,
             'volume': 0.0,
             'items': <String, int>{
@@ -461,7 +465,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           },
         };
 
-        // Granular Time Intervals (Month-by-Month, Day, Week, Quarter)
         final Map<String, double> granularTimelineVolume = {};
 
         for (final doc in transactions) {
@@ -473,7 +476,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           sellerFees += subtotal * 0.025;
           escrowFees += subtotal * 0.010;
 
-          // Country Auto-Detection & Dynamic Registration
           final rawCountry = '${data['country'] ?? data['region'] ?? data['location'] ?? 'USA'}';
           String matchedCountry = 'USA';
           String flag = '🌐';
@@ -509,12 +511,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           dynamicCountryMarkets[matchedCountry]!['deals'] = (dynamicCountryMarkets[matchedCountry]!['deals'] as int) + 1;
           dynamicCountryMarkets[matchedCountry]!['volume'] = (dynamicCountryMarkets[matchedCountry]!['volume'] as double) + subtotal;
 
-          // Categorized Item Type & OD Parsing
           final title = '${data['listingTitle'] ?? data['category'] ?? ''}';
           final titleLower = title.toLowerCase();
           final qty = (data['requestedQuantity'] as num?)?.toInt() ?? 1;
 
-          // Default category: OCTG Casing & Tubing
           var octg = categoryItemTypes['OCTG Casing & Tubing']!;
           octg['soldPieces'] = (octg['soldPieces'] as int) + qty;
           octg['volume'] = (octg['volume'] as double) + subtotal;
@@ -538,7 +538,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             octgItems['13 3/8" Casing'] = (octgItems['13 3/8" Casing'] ?? 0) + qty;
           }
 
-          // Timestamp Granular Timeline Bucket
           final ts = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
           String bucketKey = '2026-08 (Month)';
           if (_selectedGranularity.startsWith('Day')) {
@@ -567,7 +566,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               if (isLoading) const LinearProgressIndicator(),
               const SizedBox(height: 16),
 
-              // Interactive Time Granularity & Category Controls Header
               Card(
                 elevation: 0,
                 color: Colors.blue.shade50,
@@ -626,7 +624,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               ),
               const SizedBox(height: 24),
 
-              // AUTO-DYNAMIC GLOBAL ENERGY COUNTRIES WATCHBOARD
               Row(
                 children: [
                   const Text('GLOBAL REGIONAL ENERGY SALES DISTRIBUTION', style: _sectionTitleStyle),
@@ -707,7 +704,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               ),
               const SizedBox(height: 28),
 
-              // CATEGORIZED COLLAPSIBLE MARKETPLACE ITEM TYPES (COLLAPSED FIRST)
               Row(
                 children: [
                   const Text('MARKETPLACE ITEM TYPES & PIECES SOLD', style: _sectionTitleStyle),
@@ -742,7 +738,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     side: BorderSide(color: Colors.grey.shade300),
                   ),
                   child: ExpansionTile(
-                    initiallyExpanded: false, // MANDATORY: COLLAPSED FIRST AS REQUESTED
+                    initiallyExpanded: false, // COLLAPSED FIRST BY DEFAULT
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
@@ -797,7 +793,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
 
               const SizedBox(height: 28),
 
-              // MULTI-INTERVAL GRANULAR TIMELINE BREAKDOWN (DAY, WEEK, MONTH, QUARTER)
               Text('TIMELINE BREAKDOWN ($_selectedGranularity)', style: _sectionTitleStyle),
               const SizedBox(height: 12),
               Card(
@@ -842,7 +837,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 2. DEDICATED AUCTIONS MONITOR & CONTROL TAB
+  // 2. DEDICATED AUCTIONS MONITOR & MIRRORED ANALYTICS CONTROL TAB
   Widget _buildAuctionsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -854,25 +849,269 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final docs = snapshot.data?.docs ?? [];
 
+        double grossAuctionVolume = 0.0;
+        int reserveMetCount = 0;
+
+        final Map<String, Map<String, dynamic>> auctionCountryMarkets = {
+          'USA': {'bids': 0, 'volume': 0.0, 'flag': '🇺🇸', 'region': 'Permian/Bakken/Gulf'},
+          'Canada': {'bids': 0, 'volume': 0.0, 'flag': '🇨🇦', 'region': 'WCSB Alberta/SK'},
+          'Saudi Arabia': {'bids': 0, 'volume': 0.0, 'flag': '🇸🇦', 'region': 'Ghawar / Aramco'},
+          'UAE': {'bids': 0, 'volume': 0.0, 'flag': '🇦🇪', 'region': 'Abu Dhabi / ADNOC'},
+          'Norway': {'bids': 0, 'volume': 0.0, 'flag': '🇳🇴', 'region': 'North Sea Equinor'},
+          'United Kingdom': {'bids': 0, 'volume': 0.0, 'flag': '🇬🇧', 'region': 'UKCS / Aberdeen'},
+          'Mexico': {'bids': 0, 'volume': 0.0, 'flag': '🇲🇽', 'region': 'Pemex Gulf Basins'},
+          'Australia': {'bids': 0, 'volume': 0.0, 'flag': '🇦🇺', 'region': 'Queensland LNG'},
+        };
+
+        final Map<String, Map<String, dynamic>> auctionCategories = {
+          'OCTG Casing & Tubing Auctions': {
+            'icon': Icons.gavel,
+            'lots': 0,
+            'volume': 0.0,
+          },
+          'Line Pipe & Pipeline Auctions': {
+            'icon': Icons.route,
+            'lots': 0,
+            'volume': 0.0,
+          },
+          'Drill Pipe & Collar Auctions': {
+            'icon': Icons.build_circle,
+            'lots': 0,
+            'volume': 0.0,
+          },
+          'Wellhead & Valve Equipment Auctions': {
+            'icon': Icons.settings_input_component,
+            'lots': 0,
+            'volume': 0.0,
+          },
+          'Rigs & Heavy Machinery Auctions': {
+            'icon': Icons.precision_manufacturing,
+            'lots': 0,
+            'volume': 0.0,
+          },
+        };
+
+        for (final doc in docs) {
+          final data = doc.data();
+          final bid = (data['highestBid'] as num?)?.toDouble() ??
+              ((data['unitPrice'] as num?)?.toDouble() ?? 0.0);
+          grossAuctionVolume += bid;
+          if (data['reserveMet'] == true) reserveMetCount++;
+
+          final rawCountry = '${data['country'] ?? data['location'] ?? 'USA'}';
+          String matchedCountry = 'USA';
+          String flag = '🌐';
+
+          final lower = rawCountry.toLowerCase();
+          if (lower.contains('saudi')) { matchedCountry = 'Saudi Arabia'; flag = '🇸🇦'; }
+          else if (lower.contains('uae')) { matchedCountry = 'UAE'; flag = '🇦🇪'; }
+          else if (lower.contains('norway')) { matchedCountry = 'Norway'; flag = '🇳🇴'; }
+          else if (lower.contains('uk') || lower.contains('britain')) { matchedCountry = 'United Kingdom'; flag = '🇬🇧'; }
+          else if (lower.contains('canada')) { matchedCountry = 'Canada'; flag = '🇨🇦'; }
+          else if (lower.contains('mexico')) { matchedCountry = 'Mexico'; flag = '🇲🇽'; }
+          else if (lower.contains('australia')) { matchedCountry = 'Australia'; flag = '🇦🇺'; }
+
+          if (!auctionCountryMarkets.containsKey(matchedCountry)) {
+            auctionCountryMarkets[matchedCountry] = {
+              'bids': 0,
+              'volume': 0.0,
+              'flag': flag,
+              'region': 'Global Energy Basin',
+            };
+          }
+          auctionCountryMarkets[matchedCountry]!['bids'] = (auctionCountryMarkets[matchedCountry]!['bids'] as int) + 1;
+          auctionCountryMarkets[matchedCountry]!['volume'] = (auctionCountryMarkets[matchedCountry]!['volume'] as double) + bid;
+        }
+
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
             _explanationBanner(
-              title: '🔨 Timed Auctions Monitor & Master Admin Controls',
+              title: '🔨 Timed Auctions Intelligence & Master Control Board',
               explanation:
-                  'Monitor all live timed auctions across Pipe Buyer. View active highest bids, reserve price status (Met / Not Met), and use master admin controls to force end auctions, extend time (+24h), or cancel auctions.',
+                  'Monitors live timed auctions, highest bid volume (\$), estimated 3.5% fees, global auction distribution across energy basins, and provides live master admin override controls (Force End, Extend, Cancel).',
             ),
             if (isLoading) const LinearProgressIndicator(),
             const SizedBox(height: 16),
 
-            Row(
-              children: [
-                _metricCard('TOTAL TIMED AUCTIONS', '${docs.length}', Icons.gavel, Colors.deepOrange),
-                const SizedBox(width: 12),
-                _metricCard('AUCTIONS ENGINE STATUS', _auctionsEnabled ? 'ACTIVE ✓' : 'PAUSED ✕', Icons.power_settings_new, _auctionsEnabled ? Colors.green : Colors.red),
-              ],
+            // Auctions Granularity & Filter Bar
+            Card(
+              elevation: 0,
+              color: Colors.deepOrange.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tune, color: Colors.deepOrange),
+                    const SizedBox(width: 8),
+                    const Text('AUCTION GRANULARITY:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _auctionGranularity,
+                      onChanged: (val) => setState(() => _auctionGranularity = val ?? 'Month (Month-by-Month)'),
+                      items: [
+                        'Day (Daily Breakdown)',
+                        'Week (Weekly Breakdown)',
+                        'Month (Month-by-Month)',
+                        'Quarter (Quarterly Breakdown)',
+                      ]
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12))))
+                          .toList(),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('AUCTION CATEGORY:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _auctionCategoryFilter,
+                      onChanged: (val) => setState(() => _auctionCategoryFilter = val ?? 'All Categories'),
+                      items: ['All Categories', 'OCTG Casing & Tubing', 'Line Pipe', 'Structural Pipe', 'Valves & Wellheads', 'Rig Equipment']
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12))))
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
+
+            // Mirrored Analytics Metrics Cards for Auctions
+            const Text('AUCTIONS FINANCIAL PERFORMANCE', style: _sectionTitleStyle),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _metricCard('GROSS AUCTION BID VOLUME', '\$${grossAuctionVolume.toStringAsFixed(2)}', Icons.gavel, Colors.deepOrange),
+                const SizedBox(width: 12),
+                _metricCard('EST. 3.5% AUCTION FEES', '\$${(grossAuctionVolume * 0.035).toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.green),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _metricCard('TOTAL TIMED AUCTIONS', '${docs.length} Lots', Icons.inventory_2, Colors.blue),
+                const SizedBox(width: 12),
+                _metricCard('RESERVE MET RATE', '${docs.isEmpty ? 0 : ((reserveMetCount / docs.length) * 100).toStringAsFixed(0)}%', Icons.check_circle_outline, Colors.purple),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Mirrored Global Energy Auction Distribution
+            Row(
+              children: [
+                const Text('GLOBAL AUCTION REGIONAL DISTRIBUTION', style: _sectionTitleStyle),
+                const Spacer(),
+                Chip(
+                  avatar: const Icon(Icons.public, size: 14, color: Colors.deepOrange),
+                  label: Text('${auctionCountryMarkets.length} Auction Markets'),
+                  backgroundColor: Colors.deepOrange.shade50,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: auctionCountryMarkets.entries.map((entry) {
+                final country = entry.key;
+                final info = entry.value;
+                final bids = info['bids'] as int;
+                final vol = info['volume'] as double;
+                final flag = info['flag'] as String;
+
+                return SizedBox(
+                  width: 260,
+                  child: Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: bids > 0 ? Colors.deepOrange.shade300 : Colors.grey.shade200),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(flag, style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(country.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: bids > 0 ? Colors.deepOrange.shade50 : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text('$bids Auctions', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: bids > 0 ? Colors.deepOrange.shade900 : Colors.grey)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text('\$${vol.toStringAsFixed(2)} Bid Vol', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Colors.blueGrey.shade900)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 28),
+
+            // Mirrored Collapsible Auction Categories (Collapsed First)
+            Row(
+              children: [
+                const Text('AUCTION ITEM CATEGORIES', style: _sectionTitleStyle),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.deepOrange.shade50, borderRadius: BorderRadius.circular(12)),
+                  child: const Text('COLLAPSED BY DEFAULT ✓', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...auctionCategories.entries.map((catEntry) {
+              final title = catEntry.key;
+              final info = catEntry.value;
+              final IconData icon = info['icon'] as IconData;
+              final int lots = info['lots'] as int;
+              final double vol = info['volume'] as double;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+                child: ExpansionTile(
+                  initiallyExpanded: false, // COLLAPSED FIRST BY DEFAULT
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.deepOrange.shade50, borderRadius: BorderRadius.circular(8)),
+                    child: Icon(icon, color: Colors.deepOrange.shade800, size: 20),
+                  ),
+                  title: Text(title.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.deepOrange.shade100, borderRadius: BorderRadius.circular(16)),
+                    child: Text('# $lots Lots • \$${vol.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.deepOrange.shade900)),
+                  ),
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Live lot bidding details expand here during active timed auctions.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+
+            const SizedBox(height: 28),
+
+            // LIVE TIMED AUCTIONS MONITOR & MASTER ADMIN OVERRIDES
+            const Text('LIVE TIMED AUCTIONS CONTROL BOARD', style: _sectionTitleStyle),
+            const SizedBox(height: 12),
 
             if (docs.isEmpty)
               Card(
