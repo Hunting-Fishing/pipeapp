@@ -158,7 +158,6 @@ class PipeStartupMonitor extends ChangeNotifier {
     }
     if (_failure != null) {
       buffer.writeln('Failure type: ${_failure.runtimeType}');
-      buffer.writeln('Failure detail: $_failure');
     }
     return buffer.toString().trimRight();
   }
@@ -557,12 +556,13 @@ class _StartupDetails extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0x88FF5449)),
                 ),
-                child: SelectableText(
-                  'Error: ${monitor.failure}',
+                child: Text(
+                  'Diagnostic type: ${monitor.failure.runtimeType}',
                   style: const TextStyle(
                     color: Color(0xFFFFB4AB),
                     fontSize: 12,
                     fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
