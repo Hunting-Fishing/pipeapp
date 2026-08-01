@@ -48,8 +48,8 @@ class MarketplaceAccountHub extends StatefulWidget {
 }
 
 class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
+    with TickerProviderStateMixin {
+  late TabController _tabs;
   bool _isAdminUser = false;
 
   @override
@@ -58,6 +58,21 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     final user = FirebaseAuth.instance.currentUser;
     _isAdminUser = user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
     _tabs = TabController(length: _isAdminUser ? 7 : 6, vsync: this);
+    _checkAdmin();
+  }
+
+  Future<void> _checkAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final isMaster = user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
+    final isAdminClaim = await marketplaceAdministratorAccess();
+    final isAuthorized = isMaster || isAdminClaim;
+    if (isAuthorized && mounted && !_isAdminUser) {
+      setState(() {
+        _isAdminUser = true;
+        _tabs.dispose();
+        _tabs = TabController(length: 7, vsync: this);
+      });
+    }
   }
 
   @override
@@ -68,9 +83,6 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final isAdmin = _isAdminUser || user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
-
     return Column(children: [
         Material(
           color: Colors.white,
@@ -99,10 +111,10 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
               const Tab(
                   icon: Icon(Icons.settings_outlined, size: 20),
                   text: 'Settings'),
-              if (isAdmin)
+              if (_isAdminUser)
                 Tab(
                     icon: Icon(Icons.admin_panel_settings, color: Colors.purple.shade700, size: 20),
-                    text: 'ADMIN PORTAL'),
+                    text: '👑 ADMIN PORTAL'),
             ],
           ),
         ),
@@ -118,7 +130,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
           _AccountNotifications(
               onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
           const _AccountSettings(),
-          if (isAdmin)
+          if (_isAdminUser)
             const MarketplaceAdminDashboard(),
         ]))
       ]);
@@ -256,18 +268,27 @@ class _Overview extends StatelessWidget {
                 onTap: () => onOpen(5)),
             FutureBuilder<bool>(
                 future: marketplaceAdministratorAccess(),
-                builder: (context, access) => access.data == true
-                    ? _AccountShortcut(
-                        icon: Icons.admin_panel_settings_outlined,
-                        title: 'Trust & Safety admin dashboard',
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => Scaffold(
-                                      appBar: AppBar(
-                                          title:
-                                              const Text('Admin moderation')),
-                                      body: const AdminModerationDashboard(),
-                                    ))))
+                builder: (context, access) => access.data == true || user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com'
+                    ? Card(
+                        color: Colors.purple.shade50,
+                        margin: const EdgeInsets.only(top: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.purple.shade200),
+                        ),
+                        child: ListTile(
+                          leading: Icon(Icons.admin_panel_settings, color: Colors.purple.shade800, size: 26),
+                          title: Text(
+                            '👑 MASTER ADMIN PORTAL DASHBOARD',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade900),
+                          ),
+                          subtitle: const Text('Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.purple),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const MarketplaceAdminDashboard()),
+                          ),
+                        ),
+                      )
                     : const SizedBox.shrink()),
           ]);
         });
