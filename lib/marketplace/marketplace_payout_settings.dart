@@ -245,12 +245,11 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
-                            BoxConstraints.tightFor() != null
-                                ? BoxShadow(
-                                    color: Colors.black.withAlpha(40),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4))
-                                : const BoxShadow(),
+                            BoxShadow(
+                              color: Colors.black.withAlpha(40),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
                           ],
                         ),
                         child: Row(
