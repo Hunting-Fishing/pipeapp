@@ -110,9 +110,10 @@ function deliveryCopy(data = {}) {
     seller_new_listing: ["Saved seller posted", "A seller you follow added a new listing."],
   }[type] || ["Pipe Buyer update", "Open Pipe Buyer to review your latest activity."];
   const title = String(data.pushTitle || copy[0]).trim().slice(0, 80) || copy[0];
+  const body = String(data.pushBody || copy[1]).trim().slice(0, 160) || copy[1];
   return {
     title,
-    body: copy[1],
+    body,
     route: routeForNotification(data),
     type,
     critical: criticalTypes.has(type),
