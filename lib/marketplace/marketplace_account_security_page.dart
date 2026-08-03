@@ -407,7 +407,7 @@ class _MarketplaceAccountSecurityPageState
         'too-many-requests' =>
           'SMS verification is temporarily limited. Wait before trying again.',
         'operation-not-allowed' =>
-          'Phone verification is not enabled for this environment yet.',
+          'Phone SMS authentication is not enabled in Firebase Console yet. Please enable "Phone" under Firebase Console > Authentication > Sign-in method.',
         'requires-recent-login' =>
           'For security, sign out and sign back in before changing verification.',
         _ => error.message ?? 'Phone verification failed (${error.code}).',
