@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
@@ -266,6 +267,14 @@ class _Overview extends StatelessWidget {
                 icon: Icons.settings_outlined,
                 title: 'Account settings',
                 onTap: () => onOpen(5)),
+            _AccountShortcut(
+                icon: Icons.privacy_tip_outlined,
+                title: 'Privacy Policy',
+                onTap: () => launchUrl(Uri.parse('https://www.pipebuyer.com/privacy'), mode: LaunchMode.externalApplication)),
+            _AccountShortcut(
+                icon: Icons.description_outlined,
+                title: 'Terms of Service',
+                onTap: () => launchUrl(Uri.parse('https://www.pipebuyer.com/terms'), mode: LaunchMode.externalApplication)),
             FutureBuilder<bool>(
                 future: marketplaceAdministratorAccess(),
                 builder: (context, access) => access.data == true || user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com'
