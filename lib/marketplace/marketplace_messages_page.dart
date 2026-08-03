@@ -2432,9 +2432,44 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   }
 
   Future<void> _pickAttachment() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Attach Image or Spec Document',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF0878E8)),
+              title: const Text('Choose Photo from Gallery'),
+              subtitle: const Text('Select photos of pipe, valves, or equipment'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF10B981)),
+              title: const Text('Take Photo with Camera'),
+              subtitle: const Text('Capture live photos at yard or jobsite'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
     try {
       final file = await ImagePicker().pickImage(
-          source: ImageSource.gallery, imageQuality: 82, maxWidth: 1800);
+          source: source, imageQuality: 82, maxWidth: 1800);
       if (file == null) return;
       final sizeBytes = await file.length();
       if (sizeBytes > 15 * 1024 * 1024) {

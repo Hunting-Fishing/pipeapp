@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'marketplace_command_client.dart';
+import 'marketplace_payout_settings.dart';
 import 'marketplace_profile_page.dart';
 import 'regional_phone_field.dart';
 
@@ -212,6 +213,17 @@ class _MarketplaceAccountSecurityPageState
                     ),
                   ],
                   const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MarketplacePayoutSettingsPage(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.account_balance_outlined, color: Color(0xFF0878E8)),
+                    label: const Text('Configure Banking & Payout Vault'),
+                  ),
+                  const SizedBox(height: 12),
                   if (widget.onboarding)
                     FilledButton.icon(
                       onPressed: (_emailVerified || _phoneVerified) && !_busy
