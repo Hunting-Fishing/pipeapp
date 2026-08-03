@@ -1796,7 +1796,7 @@ class _HomePage extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  'Oilfield Equipment Marketplace',
+                                  'Buy & Sell Marketplace for Oil & Gas Products Globally',
                                   style: TextStyle(
                                     color: Color(0xFF94A3B8),
                                     fontSize: 10.5,
@@ -1818,11 +1818,11 @@ class _HomePage extends StatelessWidget {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.verified_outlined,
+                              Icon(Icons.monetization_on_outlined,
                                   size: 14, color: Color(0xFF38BDF8)),
                               SizedBox(width: 4),
                               Text(
-                                'Verified Escrow',
+                                'Low-Fee Marketplace',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
@@ -1836,7 +1836,7 @@ class _HomePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Find, Buy & Dispatch Oilfield Equipment',
+                      'Buy & Sell Marketplace for Oil & Gas Products Globally',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,
