@@ -38,14 +38,15 @@ gha-creds-*.json
 *.pem
 *.p12
 *.pfx
+*.jks
+key.properties
+android/key.properties
+android/app/*.jks
 
-# Codex recovery archives are intentionally outside the app source tree
+# Codex recovery archives
 .codex-backups/
 
 # OS-generated files
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-# Local editor extension package
-*.vsix
