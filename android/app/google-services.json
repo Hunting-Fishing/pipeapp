@@ -12,7 +12,20 @@
           "package_name": "Pipe.Buyerapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "426221783223-71g5gm7a8mqaesuhjhenc9g1jfsttdr5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "Pipe.Buyerapp",
+            "certificate_hash": "9bbb3186b2189ef16d8f272bdab59362c395cbb4"
+          }
+        },
+        {
+          "client_id": "426221783223-07jigk5gpa3qb7i9d0dcr1rp8uuc75ee.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBzIdSdGiErux7t5BXWe0os4Ptd03vxEs0"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "426221783223-07jigk5gpa3qb7i9d0dcr1rp8uuc75ee.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "426221783223-cv2koj3am8p2ftcn99je4i6k53ofu1e9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "Pipe.Buyerapp"
+              }
+            }
+          ]
         }
       }
     }
