@@ -87,6 +87,9 @@ jobs:
           --dart-define=PIPE_ENV=continuous-integration
           --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
 
+      - name: Test OAuth branding contract
+        run: node --test tool/oauth_branding_test.mjs
+
       - name: Test release manifest controls
         run: node --test tool/release_manifest_test.mjs
 
