@@ -123,7 +123,7 @@ Future<PhoneMultiFactorInfo?> _selectPhoneFactor(
                       ? factor.displayName!
                       : 'SMS verification',
                 ),
-                subtitle: Text(factor.phoneNumber ?? 'Enrolled phone'),
+                subtitle: Text(factor.phoneNumber),
                 onTap: () => Navigator.pop(dialogContext, factor),
               ),
             ),
@@ -159,7 +159,7 @@ Future<String?> _requestSmsCode(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Firebase sent a six-digit code to ${factor.phoneNumber ?? 'your enrolled phone'}.',
+                'Firebase sent a six-digit code to ${factor.phoneNumber}.',
               ),
               const SizedBox(height: 14),
               TextField(
