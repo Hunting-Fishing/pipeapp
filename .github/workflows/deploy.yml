@@ -188,7 +188,7 @@ jobs:
           firebase emulators:exec
           --project demo-pipe-buyer-rules
           --config firebase.json
-          --only firestore
+          --only firestore,storage
           "npm test --prefix firebase/rules-tests"
 
       - name: Test authenticated callable workflows and retries
