@@ -26,7 +26,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: firebase-${{ inputs.environment }}
@@ -58,8 +57,7 @@ jobs:
       PIPE_REMOTE_DIAGNOSTICS_ENABLED: "true"
       PIPE_ENFORCE_APP_CHECK: ${{ inputs.app_check_mode == 'enforce' && 'true' || 'false' }}
       FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
-      GOOGLE_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
-      GOOGLE_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GOOGLE_DEPLOY_SERVICE_ACCOUNT }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
     steps:
       - name: Validate release input
@@ -79,8 +77,7 @@ jobs:
             PIPE_FIREBASE_WEB_APP_ID
             PIPE_PUBLIC_SUPPORT_EMAIL
             PIPE_DEPLOY_ENVIRONMENT_GUARD
-            GOOGLE_WORKLOAD_IDENTITY_PROVIDER
-            GOOGLE_DEPLOY_SERVICE_ACCOUNT
+            FIREBASE_TOKEN
           )
           for name in "${required[@]}"; do
             if [[ -z "${!name:-}" ]]; then
@@ -256,38 +253,16 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Authenticate to Google Cloud without a stored key
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GOOGLE_DEPLOY_SERVICE_ACCOUNT }}
-
-      - name: Verify billing and required service APIs
+      - name: Confirm Firebase CI token is available
         shell: bash
         run: |
           set -euo pipefail
-          billing_enabled="$(gcloud billing projects describe "$PIPE_FIREBASE_PROJECT_ID" --format='value(billingEnabled)')"
-          if [[ "$billing_enabled" != "True" && "$billing_enabled" != "true" ]]; then
-            echo "::error::Cloud Billing is not active for $PIPE_FIREBASE_PROJECT_ID."
+          if [[ -z "${FIREBASE_TOKEN:-}" ]]; then
+            echo "::error::FIREBASE_TOKEN secret is not configured. Run 'npx firebase-tools login:ci' locally and add the token as a GitHub secret named FIREBASE_TOKEN."
             exit 1
           fi
-          required_services=(
-            artifactregistry.googleapis.com
-            cloudbuild.googleapis.com
-            cloudfunctions.googleapis.com
-            fcm.googleapis.com
-            firestore.googleapis.com
-            run.googleapis.com
-            storage.googleapis.com
-          )
-          enabled_services="$(gcloud services list --enabled --project "$PIPE_FIREBASE_PROJECT_ID" --format='value(config.name)')"
-          for service in "${required_services[@]}"; do
-            if ! grep -Fxq "$service" <<<"$enabled_services"; then
-              echo "::error::Required service API is not enabled: $service"
-              exit 1
-            fi
-          done
-          echo "Cloud Billing and required release APIs are enabled."
+          echo "Firebase CI token is present."
+
 
       - name: Deploy explicitly selected Firebase project
         shell: bash
