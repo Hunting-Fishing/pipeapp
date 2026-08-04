@@ -22,7 +22,6 @@ import 'marketplace_dispatch_transaction.dart';
 import 'marketplace_location.dart';
 import 'marketplace_location_picker.dart';
 import 'industrial_icon_assets.dart';
-import 'marketplace_digital_bol_modal.dart';
 
 const _dispatchServices = <({String name, IconData icon})>[
   (name: 'Flat deck', icon: Icons.view_stream_outlined),

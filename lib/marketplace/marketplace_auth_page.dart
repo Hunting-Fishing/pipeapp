@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../auth/firebase_auth/google_auth.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_command_client.dart';
@@ -184,6 +185,26 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                             ? 'Create ${_accountType == 'business' ? 'business' : 'personal'} account'
                             : 'Sign in'),
                   ),
+                  const SizedBox(height: 14),
+                  Row(children: const [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('OR',
+                          style: TextStyle(
+                              color: Color(0xFF66758A),
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    Expanded(child: Divider()),
+                  ]),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _signInWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52)),
+                    icon: const Icon(Icons.g_mobiledata, size: 30),
+                    label: const Text('Continue with Google'),
+                  ),
                   const SizedBox(height: 8),
                   TextButton(
                       onPressed: _busy
@@ -203,6 +224,64 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
           ),
         ),
       );
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _busy = true;
+      _statusMessage = null;
+    });
+    try {
+      if (kIsWeb) {
+        await FirebaseAuth.instance.setPersistence(
+            _rememberMe ? Persistence.LOCAL : Persistence.SESSION);
+      }
+      final credential = await googleSignInFunc();
+      final user = credential?.user;
+      if (user == null) return;
+
+      final profileRef =
+          FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final profile = await profileRef.get();
+      if (!profile.exists) {
+        await profileRef.set({
+          'uid': user.uid,
+          'email': user.email ?? '',
+          'display_name': user.displayName ?? '',
+          'photo_url': user.photoURL ?? '',
+          'accountType': 'personal',
+          'roleVersion': 0,
+          'signupRegion': 'unknown',
+          'profileComplete': false,
+          'profileCompletion': 0,
+          'accountVerified': false,
+          'userScore': 70,
+          'userScoreStanding': 'new',
+          'created_time': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (!mounted) return;
+      if (normalizePhoneNumber(user.phoneNumber ?? '').isEmpty) {
+        await Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (_) => const MarketplaceAccountSecurityPage(
+                  onboarding: true,
+                  initialAccountType: 'personal',
+                )));
+        return;
+      }
+      await MarketplaceCommandClient()
+          .execute('syncAccountVerification', const {});
+      if (mounted) Navigator.pop(context, true);
+    } on FirebaseAuthException catch (error) {
+      _notice(_friendlyGoogleAuthError(error),
+          error: true, icon: _authErrorIcon(error.code));
+    } catch (_) {
+      _notice('Google sign-in could not finish. Please try again.',
+          error: true, icon: Icons.login_outlined);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
@@ -475,6 +554,25 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       'network-request-failed' =>
         'Could not reach Firebase. Check your internet connection.',
       _ => error.message ?? 'Authentication failed (${error.code}).',
+    };
+  }
+
+  String _friendlyGoogleAuthError(FirebaseAuthException error) {
+    return switch (error.code) {
+      'operation-not-allowed' =>
+        'Google sign-in is not enabled for this Firebase project yet.',
+      'unauthorized-domain' =>
+        'This Pipe Buyer domain is not authorized for Google sign-in.',
+      'popup-blocked' =>
+        'Your browser blocked the Google sign-in window. Allow pop-ups for Pipe Buyer and try again.',
+      'popup-closed-by-user' ||
+      'cancelled-popup-request' =>
+        'Google sign-in was cancelled.',
+      'account-exists-with-different-credential' =>
+        'An account already uses this email with another sign-in method. Sign in that way first, then connect Google.',
+      'network-request-failed' =>
+        'Could not reach Google or Firebase. Check your internet connection.',
+      _ => error.message ?? 'Google authentication failed (${error.code}).',
     };
   }
 }

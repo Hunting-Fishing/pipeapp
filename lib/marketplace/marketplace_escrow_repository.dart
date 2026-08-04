@@ -14,7 +14,7 @@ enum EscrowStatus {
 }
 
 EscrowStatus parseEscrowStatus(String? value) {
-  final status = '${value ?? ''}'.toLowerCase().trim();
+  final status = (value ?? '').toLowerCase().trim();
   switch (status) {
     case 'secured':
     case 'escrow_secured':

@@ -1,0 +1,119 @@
+mutation CreateUser($companyName: String!, $email: String!, $userRole: String!, $phoneNumber: String, $rating: Float) @auth(level: USER) {
+  user_insert(data: {id_expr: "auth.uid", companyName: $companyName, email: $email, userRole: $userRole, phoneNumber: $phoneNumber, rating: $rating})
+}
+
+mutation UpdateUser($companyName: String, $phoneNumber: String) @auth(level: USER) {
+  user_update(key: {id_expr: "auth.uid"}, data: {companyName: $companyName, phoneNumber: $phoneNumber})
+}
+
+mutation DeleteUser @auth(level: USER) {
+  user_delete(key: {id_expr: "auth.uid"})
+}
+
+query GetUser @auth(level: USER) {
+  user(key: {id_expr: "auth.uid"}) {
+    companyName
+    email
+  }
+}
+
+query ListUsers @auth(level: PUBLIC, insecureReason: "Listing user profiles for public directory search") {
+  users {
+    companyName
+    userRole
+  }
+}
+
+mutation CreateEquipment($title: String!, $category: String!, $price: Float!, $status: String!, $description: String, $location: String) @auth(level: USER) {
+  equipment_insert(data: {title: $title, category: $category, price: $price, status: $status, description: $description, location: $location, sellerId_expr: "auth.uid"})
+}
+
+mutation UpdateEquipment($id: UUID!, $price: Float) @auth(level: USER) {
+  equipment_update(id: $id, data: {price: $price})
+}
+
+mutation DeleteEquipment($id: UUID!) @auth(level: USER) {
+  equipment_delete(id: $id)
+}
+
+query GetEquipment($id: UUID!) @auth(level: PUBLIC, insecureReason: "Publicly viewable equipment listing") {
+  equipment(id: $id) {
+    title
+    price
+    seller { companyName }
+  }
+}
+
+query ListEquipments @auth(level: PUBLIC, insecureReason: "Publicly viewable equipment directory") {
+  equipments {
+    title
+    category
+  }
+}
+
+mutation CreateSpecification($outerDiameter: Float!, $wallThickness: Float!, $grade: String!, $threadType: String!, $equipmentId: UUID!) @auth(level: USER) {
+  specification_insert(data: {outerDiameter: $outerDiameter, wallThickness: $wallThickness, grade: $grade, threadType: $threadType, equipment: {id: $equipmentId}})
+}
+
+mutation UpdateSpecification($id: UUID!, $wallThickness: Float) @auth(level: USER) {
+  specification_update(id: $id, data: {wallThickness: $wallThickness})
+}
+
+mutation DeleteSpecification($id: UUID!) @auth(level: USER) {
+  specification_delete(id: $id)
+}
+
+query GetSpecification($id: UUID!) @auth(level: PUBLIC, insecureReason: "Public specifications for equipment") {
+  specification(id: $id) {
+    grade
+    outerDiameter
+  }
+}
+
+query ListSpecifications @auth(level: PUBLIC, insecureReason: "Public directory of specifications") {
+  specifications {
+    grade
+    threadType
+  }
+}
+
+mutation CreateOrder($totalPrice: Float!, $status: String!, $equipmentId: UUID!) @auth(level: USER) {
+  order_insert(data: {totalPrice: $totalPrice, status: $status, equipment: {id: $equipmentId}, buyer: {id_expr: "auth.uid"}})
+}
+
+mutation UpdateOrder($id: UUID!, $status: String!) @auth(level: USER) {
+  order_update(id: $id, data: {status: $status})
+}
+
+mutation DeleteOrder($id: UUID!) @auth(level: USER) {
+  order_delete(id: $id)
+}
+
+query GetOrder($id: UUID!) @auth(level: USER) {
+  order(id: $id) {
+    totalPrice
+    status
+  }
+}
+
+query ListMyOrders @auth(level: USER) {
+  orders(where: {buyer: {id: {eq_expr: "auth.uid"}}}) {
+    totalPrice
+    status
+  }
+}
+
+mutation SendMessage($content: String!, $equipmentId: UUID!) @auth(level: USER) {
+  message_insert(data: {content: $content, timestamp_expr: "request.time", sender: {id_expr: "auth.uid"}, equipment: {id: $equipmentId}})
+}
+
+mutation DeleteMessage($id: UUID!) @auth(level: USER) {
+  message_delete(id: $id)
+}
+
+query GetEquipmentMessages($equipmentId: UUID!) @auth(level: USER) {
+  messages(where: {equipmentId: {eq: $equipmentId}}) {
+    content
+    sender { companyName }
+  }
+}

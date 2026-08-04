@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_admin_access.dart';
-import 'marketplace_escrow_repository.dart';
-import 'marketplace_money.dart';
 
 class MarketplaceAdminTransactionPortal extends StatefulWidget {
   const MarketplaceAdminTransactionPortal({super.key});
@@ -162,9 +160,15 @@ class _MarketplaceAdminTransactionPortalState
           title: const Text('Master Admin Transaction & Escrow Portal'),
           bottom: const TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.analytics_outlined), text: 'Revenue & Volume'),
-              Tab(icon: Icon(Icons.gavel_outlined), text: 'Escrow Transactions'),
-              Tab(icon: Icon(Icons.account_balance_outlined), text: 'Bank & Gateways Setup'),
+              Tab(
+                  icon: Icon(Icons.analytics_outlined),
+                  text: 'Revenue & Volume'),
+              Tab(
+                  icon: Icon(Icons.gavel_outlined),
+                  text: 'Escrow Transactions'),
+              Tab(
+                  icon: Icon(Icons.account_balance_outlined),
+                  text: 'Bank & Gateways Setup'),
             ],
           ),
         ),
@@ -245,7 +249,8 @@ class _MarketplaceAdminTransactionPortalState
               const SizedBox(height: 24),
               Card(
                 child: ListTile(
-                  leading: const Icon(Icons.info_outline, color: Color(0xFF0878E8)),
+                  leading:
+                      const Icon(Icons.info_outline, color: Color(0xFF0878E8)),
                   title: const Text('Automatic Company Revenue Allocation'),
                   subtitle: const Text(
                     'All platform seller commissions (2.5%) and escrow fees (1.0%) are automatically calculated upon offer acceptance or winning auction bid and routed to the company bank account configured in Gateways Setup.',
@@ -326,7 +331,8 @@ class _MarketplaceAdminTransactionPortalState
             final data = doc.data();
             final offerId = doc.id;
             final title = '${data['listingTitle'] ?? 'Listing'}';
-            final status = '${data['escrowStatus'] ?? data['status'] ?? 'pending'}';
+            final status =
+                '${data['escrowStatus'] ?? data['status'] ?? 'pending'}';
             final total = (data['offeredTotal'] as num?)?.toDouble() ?? 0.0;
             final sellerFee = total * 0.025;
             final escrowFee = total * 0.010;
@@ -358,7 +364,8 @@ class _MarketplaceAdminTransactionPortalState
                     Row(
                       children: [
                         Expanded(
-                          child: Text('Total Value: \$${total.toStringAsFixed(2)}'),
+                          child: Text(
+                              'Total Value: \$${total.toStringAsFixed(2)}'),
                         ),
                         Text(
                           'Company Fee (3.5%): \$${(sellerFee + escrowFee).toStringAsFixed(2)}',
@@ -374,13 +381,16 @@ class _MarketplaceAdminTransactionPortalState
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () => _adminOverrideAction(offerId, 'force_release'),
-                          icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                          onPressed: () =>
+                              _adminOverrideAction(offerId, 'force_release'),
+                          icon: const Icon(Icons.check_circle_outline,
+                              color: Colors.green),
                           label: const Text('Admin Force Release Funds'),
                         ),
                         const SizedBox(width: 8),
                         OutlinedButton.icon(
-                          onPressed: () => _adminOverrideAction(offerId, 'force_refund'),
+                          onPressed: () =>
+                              _adminOverrideAction(offerId, 'force_refund'),
                           icon: const Icon(Icons.undo, color: Colors.red),
                           label: const Text('Admin Force Refund Buyer'),
                         ),
@@ -402,7 +412,8 @@ class _MarketplaceAdminTransactionPortalState
           .collection('marketplace_transactions')
           .doc(offerId)
           .set({
-        'escrowStatus': action == 'force_release' ? 'funds_released' : 'refunded',
+        'escrowStatus':
+            action == 'force_release' ? 'funds_released' : 'refunded',
         'adminOverrideAt': FieldValue.serverTimestamp(),
         'adminOverrideBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
       }, SetOptions(merge: true));
@@ -410,13 +421,15 @@ class _MarketplaceAdminTransactionPortalState
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: 'Admin transaction override executed: ${action.replaceAll('_', ' ')}',
+          message:
+              'Admin transaction override executed: ${action.replaceAll('_', ' ')}',
           tone: PipeStatusTone.success,
         );
       }
     } catch (e) {
       if (mounted) {
-        PipeFeedback.show(context, message: 'Override failed: $e', tone: PipeStatusTone.error);
+        PipeFeedback.show(context,
+            message: 'Override failed: $e', tone: PipeStatusTone.error);
       }
     }
   }
@@ -430,7 +443,8 @@ class _MarketplaceAdminTransactionPortalState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('COMPANY BANK ACCOUNT (FOR COMMISSIONS & FEES)', style: _headerStyle),
+              Text('COMPANY BANK ACCOUNT (FOR COMMISSIONS & FEES)',
+                  style: _headerStyle),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _companyBankName,
@@ -466,13 +480,14 @@ class _MarketplaceAdminTransactionPortalState
                 ],
               ),
               const SizedBox(height: 24),
-
-              Text('STRIPE MERCHANT PROCESSING CREDENTIALS', style: _headerStyle),
+              Text('STRIPE MERCHANT PROCESSING CREDENTIALS',
+                  style: _headerStyle),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _stripePublishableKey,
                 decoration: const InputDecoration(
-                  labelText: 'Stripe Publishable Key (pk_live_... or pk_test_...)',
+                  labelText:
+                      'Stripe Publishable Key (pk_live_... or pk_test_...)',
                   prefixIcon: Icon(Icons.key),
                 ),
               ),
@@ -486,7 +501,6 @@ class _MarketplaceAdminTransactionPortalState
                 ),
               ),
               const SizedBox(height: 24),
-
               Text('PAYPAL COMMERCE CREDENTIALS', style: _headerStyle),
               const SizedBox(height: 12),
               TextFormField(
@@ -506,13 +520,14 @@ class _MarketplaceAdminTransactionPortalState
                 ),
               ),
               const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: _isSavingGateways ? null : _saveGatewayCredentials,
                   icon: const Icon(Icons.save),
-                  label: Text(_isSavingGateways ? 'Saving Credentials…' : 'Save Merchant & Bank Credentials'),
+                  label: Text(_isSavingGateways
+                      ? 'Saving Credentials…'
+                      : 'Save Merchant & Bank Credentials'),
                 ),
               ),
             ],

@@ -1,0 +1,1777 @@
+"""
+✨ `Equipment_KeyOutput` returns the primary key fields of table type `Equipment`.
+
+It has the same format as `Equipment_Key`, but is only used as mutation return value.
+"""
+scalar Equipment_KeyOutput
+"""
+✨ `Message_KeyOutput` returns the primary key fields of table type `Message`.
+
+It has the same format as `Message_Key`, but is only used as mutation return value.
+"""
+scalar Message_KeyOutput
+"""
+✨ `Order_KeyOutput` returns the primary key fields of table type `Order`.
+
+It has the same format as `Order_Key`, but is only used as mutation return value.
+"""
+scalar Order_KeyOutput
+"""
+✨ `Specification_KeyOutput` returns the primary key fields of table type `Specification`.
+
+It has the same format as `Specification_Key`, but is only used as mutation return value.
+"""
+scalar Specification_KeyOutput
+"""
+✨ `User_KeyOutput` returns the primary key fields of table type `User`.
+
+It has the same format as `User_Key`, but is only used as mutation return value.
+"""
+scalar User_KeyOutput
+"""
+✨ Generated data input type for table 'Equipment'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Equipment_Data {
+  """
+  ✨ Generated from Field `Equipment`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Equipment`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`sellerId` of type `UUID!`
+  """
+  sellerId: UUID
+  """
+  ✨ `_expr` server value variant of `sellerId` (✨ Generated from Field `Equipment`.`sellerId` of type `UUID!`)
+  """
+  sellerId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`seller` of type `User!`
+  """
+  seller: User_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`category` of type `String!`
+  """
+  category: String
+  """
+  ✨ `_expr` server value variant of `category` (✨ Generated from Field `Equipment`.`category` of type `String!`)
+  """
+  category_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`conditionReportUrl` of type `String`
+  """
+  conditionReportUrl: String
+  """
+  ✨ `_expr` server value variant of `conditionReportUrl` (✨ Generated from Field `Equipment`.`conditionReportUrl` of type `String`)
+  """
+  conditionReportUrl_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`description` of type `String`
+  """
+  description: String
+  """
+  ✨ `_expr` server value variant of `description` (✨ Generated from Field `Equipment`.`description` of type `String`)
+  """
+  description_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`location` of type `String`
+  """
+  location: String
+  """
+  ✨ `_expr` server value variant of `location` (✨ Generated from Field `Equipment`.`location` of type `String`)
+  """
+  location_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`price` of type `Float!`
+  """
+  price: Float
+  """
+  ✨ `_expr` server value variant of `price` (✨ Generated from Field `Equipment`.`price` of type `Float!`)
+  """
+  price_expr: Float_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `price` (✨ Generated from Field `Equipment`.`price` of type `Float!`)
+  """
+  price_update: [Float_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`status` of type `String!`
+  """
+  status: String
+  """
+  ✨ `_expr` server value variant of `status` (✨ Generated from Field `Equipment`.`status` of type `String!`)
+  """
+  status_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`title` of type `String!`
+  """
+  title: String
+  """
+  ✨ `_expr` server value variant of `title` (✨ Generated from Field `Equipment`.`title` of type `String!`)
+  """
+  title_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`verificationStatus` of type `String`
+  """
+  verificationStatus: String
+  """
+  ✨ `_expr` server value variant of `verificationStatus` (✨ Generated from Field `Equipment`.`verificationStatus` of type `String`)
+  """
+  verificationStatus_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Equipment`.`messages_on_equipment` of type `[Message!]!`
+  """
+  messages_on_equipment: [Message_Data!]
+  """
+  ✨ Generated from Field `Equipment`.`orders_on_equipment` of type `[Order!]!`
+  """
+  orders_on_equipment: [Order_Data!]
+  """
+  ✨ Generated from Field `Equipment`.`specifications_on_equipment` of type `[Specification!]!`
+  """
+  specifications_on_equipment: [Specification_Data!]
+}
+"""
+✨ Generated filter input type for table 'Equipment'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Equipment_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Equipment_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Equipment_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Equipment_Filter!]
+  """
+  ✨ Generated from Field `Equipment`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Equipment`.`sellerId` of type `UUID!`
+  """
+  sellerId: UUID_Filter
+  """
+  ✨ Generated from Field `Equipment`.`seller` of type `User!`
+  """
+  seller: User_Filter
+  """
+  ✨ Generated from Field `Equipment`.`category` of type `String!`
+  """
+  category: String_Filter
+  """
+  ✨ Generated from Field `Equipment`.`conditionReportUrl` of type `String`
+  """
+  conditionReportUrl: String_Filter
+  """
+  ✨ Generated from Field `Equipment`.`description` of type `String`
+  """
+  description: String_Filter
+  """
+  ✨ Generated from Field `Equipment`.`location` of type `String`
+  """
+  location: String_Filter
+  """
+  ✨ Generated from Field `Equipment`.`price` of type `Float!`
+  """
+  price: Float_Filter
+  """
+  ✨ Generated from Field `Equipment`.`status` of type `String!`
+  """
+  status: String_Filter
+  """
+  ✨ Generated from Field `Equipment`.`title` of type `String!`
+  """
+  title: String_Filter
+  """
+  ✨ Generated from Field `Equipment`.`verificationStatus` of type `String`
+  """
+  verificationStatus: String_Filter
+  """
+  ✨ Generated from Field `Equipment`.`messages_on_equipment` of type `[Message!]!`
+  """
+  messages_on_equipment: Message_ListFilter
+  """
+  ✨ Generated from Field `Equipment`.`orders_on_equipment` of type `[Order!]!`
+  """
+  orders_on_equipment: Order_ListFilter
+  """
+  ✨ Generated from Field `Equipment`.`specifications_on_equipment` of type `[Specification!]!`
+  """
+  specifications_on_equipment: Specification_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Equipment'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Equipment_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Equipment_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Equipment_Filter
+}
+"""
+✨ Generated having input type for table 'Equipment'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Equipment_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Equipment_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Equipment_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Equipment_Having!]
+  """
+  ✨ Generated from Field `Equipment`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`category_count` of type `Int!`
+  """
+  category_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`conditionReportUrl_count` of type `Int!`
+  """
+  conditionReportUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`description_count` of type `Int!`
+  """
+  description_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`location_count` of type `Int!`
+  """
+  location_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`price_count` of type `Int!`
+  """
+  price_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`sellerId_count` of type `Int!`
+  """
+  sellerId_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`status_count` of type `Int!`
+  """
+  status_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`title_count` of type `Int!`
+  """
+  title_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`verificationStatus_count` of type `Int!`
+  """
+  verificationStatus_count: Int_Filter
+  """
+  ✨ Generated from Field `Equipment`.`price_sum` of type `Float`
+  """
+  price_sum: Float_Filter
+  """
+  ✨ Generated from Field `Equipment`.`price_avg` of type `Float`
+  """
+  price_avg: Float_Filter
+  """
+  ✨ Generated from Field `Equipment`.`price_min` of type `Float`
+  """
+  price_min: Float_Filter
+  """
+  ✨ Generated from Field `Equipment`.`price_max` of type `Float`
+  """
+  price_max: Float_Filter
+}
+"""
+✨ Generated key input type for table 'Equipment'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Equipment_Key {
+  """
+  ✨ Generated from Field `Equipment`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Equipment`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'Equipment'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Equipment_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Equipment_Filter
+}
+"""
+✨ Generated order input type for table 'Equipment'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Equipment_Order {
+  """
+  ✨ Generated from Field `Equipment`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`sellerId` of type `UUID!`
+  """
+  sellerId: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`seller` of type `User!`
+  """
+  seller: User_Order
+  """
+  ✨ Generated from Field `Equipment`.`category` of type `String!`
+  """
+  category: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`conditionReportUrl` of type `String`
+  """
+  conditionReportUrl: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`description` of type `String`
+  """
+  description: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`location` of type `String`
+  """
+  location: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`price` of type `Float!`
+  """
+  price: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`status` of type `String!`
+  """
+  status: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`title` of type `String!`
+  """
+  title: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`verificationStatus` of type `String`
+  """
+  verificationStatus: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`category_count` of type `Int!`
+  """
+  category_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`conditionReportUrl_count` of type `Int!`
+  """
+  conditionReportUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`description_count` of type `Int!`
+  """
+  description_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`location_count` of type `Int!`
+  """
+  location_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`price_count` of type `Int!`
+  """
+  price_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`sellerId_count` of type `Int!`
+  """
+  sellerId_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`status_count` of type `Int!`
+  """
+  status_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`title_count` of type `Int!`
+  """
+  title_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`verificationStatus_count` of type `Int!`
+  """
+  verificationStatus_count: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`price_sum` of type `Float`
+  """
+  price_sum: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`price_avg` of type `Float`
+  """
+  price_avg: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`price_min` of type `Float`
+  """
+  price_min: OrderDirection
+  """
+  ✨ Generated from Field `Equipment`.`price_max` of type `Float`
+  """
+  price_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Message'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Message_Data {
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Message`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Message`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: UUID
+  """
+  ✨ `_expr` server value variant of `equipmentId` (✨ Generated from Field `Message`.`equipmentId` of type `UUID!`)
+  """
+  equipmentId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Message`.`senderId` of type `UUID!`
+  """
+  senderId: UUID
+  """
+  ✨ `_expr` server value variant of `senderId` (✨ Generated from Field `Message`.`senderId` of type `UUID!`)
+  """
+  senderId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Message`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Message`.`sender` of type `User!`
+  """
+  sender: User_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Message`.`attachmentUrl` of type `String`
+  """
+  attachmentUrl: String
+  """
+  ✨ `_expr` server value variant of `attachmentUrl` (✨ Generated from Field `Message`.`attachmentUrl` of type `String`)
+  """
+  attachmentUrl_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Message`.`content` of type `String!`
+  """
+  content: String
+  """
+  ✨ `_expr` server value variant of `content` (✨ Generated from Field `Message`.`content` of type `String!`)
+  """
+  content_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Message`.`timestamp` of type `Timestamp!`
+  """
+  timestamp: Timestamp
+  """
+  ✨ `_expr` server value variant of `timestamp` (✨ Generated from Field `Message`.`timestamp` of type `Timestamp!`)
+  """
+  timestamp_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `timestamp` (✨ Generated from Field `Message`.`timestamp` of type `Timestamp!`)
+  """
+  timestamp_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `timestamp` (✨ Generated from Field `Message`.`timestamp` of type `Timestamp!`)
+  """
+  timestamp_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'Message'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Message_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Message_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Message_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Message_Filter!]
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Message`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: UUID_Filter
+  """
+  ✨ Generated from Field `Message`.`senderId` of type `UUID!`
+  """
+  senderId: UUID_Filter
+  """
+  ✨ Generated from Field `Message`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Filter
+  """
+  ✨ Generated from Field `Message`.`sender` of type `User!`
+  """
+  sender: User_Filter
+  """
+  ✨ Generated from Field `Message`.`attachmentUrl` of type `String`
+  """
+  attachmentUrl: String_Filter
+  """
+  ✨ Generated from Field `Message`.`content` of type `String!`
+  """
+  content: String_Filter
+  """
+  ✨ Generated from Field `Message`.`timestamp` of type `Timestamp!`
+  """
+  timestamp: Timestamp_Filter
+}
+"""
+✨ Generated first-row input type for table 'Message'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Message_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Message_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Message_Filter
+}
+"""
+✨ Generated having input type for table 'Message'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Message_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Message_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Message_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Message_Having!]
+  """
+  ✨ Generated from Field `Message`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`attachmentUrl_count` of type `Int!`
+  """
+  attachmentUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`content_count` of type `Int!`
+  """
+  content_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`equipmentId_count` of type `Int!`
+  """
+  equipmentId_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`senderId_count` of type `Int!`
+  """
+  senderId_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`timestamp_count` of type `Int!`
+  """
+  timestamp_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`timestamp_min` of type `Timestamp`
+  """
+  timestamp_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Message`.`timestamp_max` of type `Timestamp`
+  """
+  timestamp_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'Message'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Message_Key {
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Message`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'Message'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Message_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Message_Filter
+}
+"""
+✨ Generated order input type for table 'Message'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Message_Order {
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`senderId` of type `UUID!`
+  """
+  senderId: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Order
+  """
+  ✨ Generated from Field `Message`.`sender` of type `User!`
+  """
+  sender: User_Order
+  """
+  ✨ Generated from Field `Message`.`attachmentUrl` of type `String`
+  """
+  attachmentUrl: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`content` of type `String!`
+  """
+  content: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`timestamp` of type `Timestamp!`
+  """
+  timestamp: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`attachmentUrl_count` of type `Int!`
+  """
+  attachmentUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`content_count` of type `Int!`
+  """
+  content_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`equipmentId_count` of type `Int!`
+  """
+  equipmentId_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`senderId_count` of type `Int!`
+  """
+  senderId_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`timestamp_count` of type `Int!`
+  """
+  timestamp_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`timestamp_min` of type `Timestamp`
+  """
+  timestamp_min: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`timestamp_max` of type `Timestamp`
+  """
+  timestamp_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Order'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Order_Data {
+  """
+  ✨ Generated from Field `Order`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Order`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`buyerId` of type `UUID!`
+  """
+  buyerId: UUID
+  """
+  ✨ `_expr` server value variant of `buyerId` (✨ Generated from Field `Order`.`buyerId` of type `UUID!`)
+  """
+  buyerId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: UUID
+  """
+  ✨ `_expr` server value variant of `equipmentId` (✨ Generated from Field `Order`.`equipmentId` of type `UUID!`)
+  """
+  equipmentId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`buyer` of type `User!`
+  """
+  buyer: User_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`deliveryDate` of type `Timestamp`
+  """
+  deliveryDate: Timestamp
+  """
+  ✨ `_expr` server value variant of `deliveryDate` (✨ Generated from Field `Order`.`deliveryDate` of type `Timestamp`)
+  """
+  deliveryDate_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `deliveryDate` (✨ Generated from Field `Order`.`deliveryDate` of type `Timestamp`)
+  """
+  deliveryDate_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `deliveryDate` (✨ Generated from Field `Order`.`deliveryDate` of type `Timestamp`)
+  """
+  deliveryDate_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`status` of type `String!`
+  """
+  status: String
+  """
+  ✨ `_expr` server value variant of `status` (✨ Generated from Field `Order`.`status` of type `String!`)
+  """
+  status_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`totalPrice` of type `Float!`
+  """
+  totalPrice: Float
+  """
+  ✨ `_expr` server value variant of `totalPrice` (✨ Generated from Field `Order`.`totalPrice` of type `Float!`)
+  """
+  totalPrice_expr: Float_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `totalPrice` (✨ Generated from Field `Order`.`totalPrice` of type `Float!`)
+  """
+  totalPrice_update: [Float_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Order`.`trackingNumber` of type `String`
+  """
+  trackingNumber: String
+  """
+  ✨ `_expr` server value variant of `trackingNumber` (✨ Generated from Field `Order`.`trackingNumber` of type `String`)
+  """
+  trackingNumber_expr: String_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'Order'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Order_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Order_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Order_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Order_Filter!]
+  """
+  ✨ Generated from Field `Order`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Order`.`buyerId` of type `UUID!`
+  """
+  buyerId: UUID_Filter
+  """
+  ✨ Generated from Field `Order`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: UUID_Filter
+  """
+  ✨ Generated from Field `Order`.`buyer` of type `User!`
+  """
+  buyer: User_Filter
+  """
+  ✨ Generated from Field `Order`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Filter
+  """
+  ✨ Generated from Field `Order`.`deliveryDate` of type `Timestamp`
+  """
+  deliveryDate: Timestamp_Filter
+  """
+  ✨ Generated from Field `Order`.`status` of type `String!`
+  """
+  status: String_Filter
+  """
+  ✨ Generated from Field `Order`.`totalPrice` of type `Float!`
+  """
+  totalPrice: Float_Filter
+  """
+  ✨ Generated from Field `Order`.`trackingNumber` of type `String`
+  """
+  trackingNumber: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'Order'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Order_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Order_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Order_Filter
+}
+"""
+✨ Generated having input type for table 'Order'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Order_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Order_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Order_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Order_Having!]
+  """
+  ✨ Generated from Field `Order`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`buyerId_count` of type `Int!`
+  """
+  buyerId_count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`deliveryDate_count` of type `Int!`
+  """
+  deliveryDate_count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`equipmentId_count` of type `Int!`
+  """
+  equipmentId_count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`status_count` of type `Int!`
+  """
+  status_count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`totalPrice_count` of type `Int!`
+  """
+  totalPrice_count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`trackingNumber_count` of type `Int!`
+  """
+  trackingNumber_count: Int_Filter
+  """
+  ✨ Generated from Field `Order`.`totalPrice_sum` of type `Float`
+  """
+  totalPrice_sum: Float_Filter
+  """
+  ✨ Generated from Field `Order`.`totalPrice_avg` of type `Float`
+  """
+  totalPrice_avg: Float_Filter
+  """
+  ✨ Generated from Field `Order`.`deliveryDate_min` of type `Timestamp`
+  """
+  deliveryDate_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Order`.`totalPrice_min` of type `Float`
+  """
+  totalPrice_min: Float_Filter
+  """
+  ✨ Generated from Field `Order`.`deliveryDate_max` of type `Timestamp`
+  """
+  deliveryDate_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Order`.`totalPrice_max` of type `Float`
+  """
+  totalPrice_max: Float_Filter
+}
+"""
+✨ Generated key input type for table 'Order'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Order_Key {
+  """
+  ✨ Generated from Field `Order`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Order`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'Order'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Order_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Order_Filter
+}
+"""
+✨ Generated order input type for table 'Order'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Order_Order {
+  """
+  ✨ Generated from Field `Order`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`buyerId` of type `UUID!`
+  """
+  buyerId: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`buyer` of type `User!`
+  """
+  buyer: User_Order
+  """
+  ✨ Generated from Field `Order`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Order
+  """
+  ✨ Generated from Field `Order`.`deliveryDate` of type `Timestamp`
+  """
+  deliveryDate: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`status` of type `String!`
+  """
+  status: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`totalPrice` of type `Float!`
+  """
+  totalPrice: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`trackingNumber` of type `String`
+  """
+  trackingNumber: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`buyerId_count` of type `Int!`
+  """
+  buyerId_count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`deliveryDate_count` of type `Int!`
+  """
+  deliveryDate_count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`equipmentId_count` of type `Int!`
+  """
+  equipmentId_count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`status_count` of type `Int!`
+  """
+  status_count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`totalPrice_count` of type `Int!`
+  """
+  totalPrice_count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`trackingNumber_count` of type `Int!`
+  """
+  trackingNumber_count: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`totalPrice_sum` of type `Float`
+  """
+  totalPrice_sum: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`totalPrice_avg` of type `Float`
+  """
+  totalPrice_avg: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`deliveryDate_min` of type `Timestamp`
+  """
+  deliveryDate_min: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`totalPrice_min` of type `Float`
+  """
+  totalPrice_min: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`deliveryDate_max` of type `Timestamp`
+  """
+  deliveryDate_max: OrderDirection
+  """
+  ✨ Generated from Field `Order`.`totalPrice_max` of type `Float`
+  """
+  totalPrice_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Specification'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Specification_Data {
+  """
+  ✨ Generated from Field `Specification`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Specification`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: UUID
+  """
+  ✨ `_expr` server value variant of `equipmentId` (✨ Generated from Field `Specification`.`equipmentId` of type `UUID!`)
+  """
+  equipmentId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`grade` of type `String!`
+  """
+  grade: String
+  """
+  ✨ `_expr` server value variant of `grade` (✨ Generated from Field `Specification`.`grade` of type `String!`)
+  """
+  grade_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`millCertUrl` of type `String`
+  """
+  millCertUrl: String
+  """
+  ✨ `_expr` server value variant of `millCertUrl` (✨ Generated from Field `Specification`.`millCertUrl` of type `String`)
+  """
+  millCertUrl_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter` of type `Float!`
+  """
+  outerDiameter: Float
+  """
+  ✨ `_expr` server value variant of `outerDiameter` (✨ Generated from Field `Specification`.`outerDiameter` of type `Float!`)
+  """
+  outerDiameter_expr: Float_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `outerDiameter` (✨ Generated from Field `Specification`.`outerDiameter` of type `Float!`)
+  """
+  outerDiameter_update: [Float_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`threadType` of type `String!`
+  """
+  threadType: String
+  """
+  ✨ `_expr` server value variant of `threadType` (✨ Generated from Field `Specification`.`threadType` of type `String!`)
+  """
+  threadType_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`wallThickness` of type `Float!`
+  """
+  wallThickness: Float
+  """
+  ✨ `_expr` server value variant of `wallThickness` (✨ Generated from Field `Specification`.`wallThickness` of type `Float!`)
+  """
+  wallThickness_expr: Float_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `wallThickness` (✨ Generated from Field `Specification`.`wallThickness` of type `Float!`)
+  """
+  wallThickness_update: [Float_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot` of type `Float`
+  """
+  weightPerFoot: Float
+  """
+  ✨ `_expr` server value variant of `weightPerFoot` (✨ Generated from Field `Specification`.`weightPerFoot` of type `Float`)
+  """
+  weightPerFoot_expr: Float_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `weightPerFoot` (✨ Generated from Field `Specification`.`weightPerFoot` of type `Float`)
+  """
+  weightPerFoot_update: [Float_Update!] @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'Specification'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Specification_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Specification_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Specification_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Specification_Filter!]
+  """
+  ✨ Generated from Field `Specification`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Specification`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: UUID_Filter
+  """
+  ✨ Generated from Field `Specification`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Filter
+  """
+  ✨ Generated from Field `Specification`.`grade` of type `String!`
+  """
+  grade: String_Filter
+  """
+  ✨ Generated from Field `Specification`.`millCertUrl` of type `String`
+  """
+  millCertUrl: String_Filter
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter` of type `Float!`
+  """
+  outerDiameter: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`threadType` of type `String!`
+  """
+  threadType: String_Filter
+  """
+  ✨ Generated from Field `Specification`.`wallThickness` of type `Float!`
+  """
+  wallThickness: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot` of type `Float`
+  """
+  weightPerFoot: Float_Filter
+}
+"""
+✨ Generated first-row input type for table 'Specification'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Specification_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Specification_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Specification_Filter
+}
+"""
+✨ Generated having input type for table 'Specification'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Specification_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Specification_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Specification_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Specification_Having!]
+  """
+  ✨ Generated from Field `Specification`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`equipmentId_count` of type `Int!`
+  """
+  equipmentId_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`grade_count` of type `Int!`
+  """
+  grade_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`millCertUrl_count` of type `Int!`
+  """
+  millCertUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_count` of type `Int!`
+  """
+  outerDiameter_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`threadType_count` of type `Int!`
+  """
+  threadType_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_count` of type `Int!`
+  """
+  wallThickness_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_count` of type `Int!`
+  """
+  weightPerFoot_count: Int_Filter
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_sum` of type `Float`
+  """
+  outerDiameter_sum: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_sum` of type `Float`
+  """
+  wallThickness_sum: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_sum` of type `Float`
+  """
+  weightPerFoot_sum: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_avg` of type `Float`
+  """
+  outerDiameter_avg: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_avg` of type `Float`
+  """
+  wallThickness_avg: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_avg` of type `Float`
+  """
+  weightPerFoot_avg: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_min` of type `Float`
+  """
+  outerDiameter_min: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_min` of type `Float`
+  """
+  wallThickness_min: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_min` of type `Float`
+  """
+  weightPerFoot_min: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_max` of type `Float`
+  """
+  outerDiameter_max: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_max` of type `Float`
+  """
+  wallThickness_max: Float_Filter
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_max` of type `Float`
+  """
+  weightPerFoot_max: Float_Filter
+}
+"""
+✨ Generated key input type for table 'Specification'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Specification_Key {
+  """
+  ✨ Generated from Field `Specification`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Specification`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'Specification'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Specification_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Specification_Filter
+}
+"""
+✨ Generated order input type for table 'Specification'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Specification_Order {
+  """
+  ✨ Generated from Field `Specification`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`equipmentId` of type `UUID!`
+  """
+  equipmentId: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`equipment` of type `Equipment!`
+  """
+  equipment: Equipment_Order
+  """
+  ✨ Generated from Field `Specification`.`grade` of type `String!`
+  """
+  grade: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`millCertUrl` of type `String`
+  """
+  millCertUrl: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter` of type `Float!`
+  """
+  outerDiameter: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`threadType` of type `String!`
+  """
+  threadType: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`wallThickness` of type `Float!`
+  """
+  wallThickness: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot` of type `Float`
+  """
+  weightPerFoot: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`equipmentId_count` of type `Int!`
+  """
+  equipmentId_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`grade_count` of type `Int!`
+  """
+  grade_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`millCertUrl_count` of type `Int!`
+  """
+  millCertUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_count` of type `Int!`
+  """
+  outerDiameter_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`threadType_count` of type `Int!`
+  """
+  threadType_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_count` of type `Int!`
+  """
+  wallThickness_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_count` of type `Int!`
+  """
+  weightPerFoot_count: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_sum` of type `Float`
+  """
+  outerDiameter_sum: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_sum` of type `Float`
+  """
+  wallThickness_sum: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_sum` of type `Float`
+  """
+  weightPerFoot_sum: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_avg` of type `Float`
+  """
+  outerDiameter_avg: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_avg` of type `Float`
+  """
+  wallThickness_avg: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_avg` of type `Float`
+  """
+  weightPerFoot_avg: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_min` of type `Float`
+  """
+  outerDiameter_min: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_min` of type `Float`
+  """
+  wallThickness_min: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_min` of type `Float`
+  """
+  weightPerFoot_min: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`outerDiameter_max` of type `Float`
+  """
+  outerDiameter_max: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`wallThickness_max` of type `Float`
+  """
+  wallThickness_max: OrderDirection
+  """
+  ✨ Generated from Field `Specification`.`weightPerFoot_max` of type `Float`
+  """
+  weightPerFoot_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'User'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input User_Data {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`companyName` of type `String!`
+  """
+  companyName: String
+  """
+  ✨ `_expr` server value variant of `companyName` (✨ Generated from Field `User`.`companyName` of type `String!`)
+  """
+  companyName_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String
+  """
+  ✨ `_expr` server value variant of `email` (✨ Generated from Field `User`.`email` of type `String!`)
+  """
+  email_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`phoneNumber` of type `String`
+  """
+  phoneNumber: String
+  """
+  ✨ `_expr` server value variant of `phoneNumber` (✨ Generated from Field `User`.`phoneNumber` of type `String`)
+  """
+  phoneNumber_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`rating` of type `Float`
+  """
+  rating: Float
+  """
+  ✨ `_expr` server value variant of `rating` (✨ Generated from Field `User`.`rating` of type `Float`)
+  """
+  rating_expr: Float_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `rating` (✨ Generated from Field `User`.`rating` of type `Float`)
+  """
+  rating_update: [Float_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`userRole` of type `String!`
+  """
+  userRole: String
+  """
+  ✨ `_expr` server value variant of `userRole` (✨ Generated from Field `User`.`userRole` of type `String!`)
+  """
+  userRole_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`equipments_on_seller` of type `[Equipment!]!`
+  """
+  equipments_on_seller: [Equipment_Data!]
+  """
+  ✨ Generated from Field `User`.`messages_on_sender` of type `[Message!]!`
+  """
+  messages_on_sender: [Message_Data!]
+  """
+  ✨ Generated from Field `User`.`orders_on_buyer` of type `[Order!]!`
+  """
+  orders_on_buyer: [Order_Data!]
+}
+"""
+✨ Generated filter input type for table 'User'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [User_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: User_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [User_Filter!]
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `User`.`companyName` of type `String!`
+  """
+  companyName: String_Filter
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String_Filter
+  """
+  ✨ Generated from Field `User`.`phoneNumber` of type `String`
+  """
+  phoneNumber: String_Filter
+  """
+  ✨ Generated from Field `User`.`rating` of type `Float`
+  """
+  rating: Float_Filter
+  """
+  ✨ Generated from Field `User`.`userRole` of type `String!`
+  """
+  userRole: String_Filter
+  """
+  ✨ Generated from Field `User`.`equipments_on_seller` of type `[Equipment!]!`
+  """
+  equipments_on_seller: Equipment_ListFilter
+  """
+  ✨ Generated from Field `User`.`messages_on_sender` of type `[Message!]!`
+  """
+  messages_on_sender: Message_ListFilter
+  """
+  ✨ Generated from Field `User`.`orders_on_buyer` of type `[Order!]!`
+  """
+  orders_on_buyer: Order_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'User'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input User_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [User_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: User_Filter
+}
+"""
+✨ Generated having input type for table 'User'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [User_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: User_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [User_Having!]
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`companyName_count` of type `Int!`
+  """
+  companyName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`phoneNumber_count` of type `Int!`
+  """
+  phoneNumber_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`rating_count` of type `Int!`
+  """
+  rating_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`userRole_count` of type `Int!`
+  """
+  userRole_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`rating_sum` of type `Float`
+  """
+  rating_sum: Float_Filter
+  """
+  ✨ Generated from Field `User`.`rating_avg` of type `Float`
+  """
+  rating_avg: Float_Filter
+  """
+  ✨ Generated from Field `User`.`rating_min` of type `Float`
+  """
+  rating_min: Float_Filter
+  """
+  ✨ Generated from Field `User`.`rating_max` of type `Float`
+  """
+  rating_max: Float_Filter
+}
+"""
+✨ Generated key input type for table 'User'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input User_Key {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'User'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input User_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: User_Filter
+}
+"""
+✨ Generated order input type for table 'User'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input User_Order {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `User`.`companyName` of type `String!`
+  """
+  companyName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: OrderDirection
+  """
+  ✨ Generated from Field `User`.`phoneNumber` of type `String`
+  """
+  phoneNumber: OrderDirection
+  """
+  ✨ Generated from Field `User`.`rating` of type `Float`
+  """
+  rating: OrderDirection
+  """
+  ✨ Generated from Field `User`.`userRole` of type `String!`
+  """
+  userRole: OrderDirection
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`companyName_count` of type `Int!`
+  """
+  companyName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`phoneNumber_count` of type `Int!`
+  """
+  phoneNumber_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`rating_count` of type `Int!`
+  """
+  rating_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`userRole_count` of type `Int!`
+  """
+  userRole_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`rating_sum` of type `Float`
+  """
+  rating_sum: OrderDirection
+  """
+  ✨ Generated from Field `User`.`rating_avg` of type `Float`
+  """
+  rating_avg: OrderDirection
+  """
+  ✨ Generated from Field `User`.`rating_min` of type `Float`
+  """
+  rating_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`rating_max` of type `Float`
+  """
+  rating_max: OrderDirection
+}

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2859,7 +2858,8 @@ class _BrowsePageState extends State<_BrowsePage> {
       );
     }
     final screenWidth = MediaQuery.of(context).size.width;
-    final effectiveCols = MarketplaceGridDensityBar.resolveColumns(screenWidth, _gridColumns);
+    final effectiveCols =
+        MarketplaceGridDensityBar.resolveColumns(screenWidth, _gridColumns);
     if (effectiveCols > 1) {
       final aspectRatio = effectiveCols == 2
           ? 0.84

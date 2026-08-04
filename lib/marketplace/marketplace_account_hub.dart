@@ -15,7 +15,6 @@ import 'marketplace_account_security_page.dart';
 import 'marketplace_account_device_repository.dart';
 import 'marketplace_auction_repository.dart';
 import 'marketplace_profile_page.dart';
-import 'marketplace_reporting.dart';
 import 'marketplace_support.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
@@ -28,7 +27,6 @@ import 'marketplace_data_state.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
-import 'marketplace_admin_transaction_portal.dart';
 import 'marketplace_admin_dashboard.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
@@ -57,14 +55,16 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   void initState() {
     super.initState();
     final user = FirebaseAuth.instance.currentUser;
-    _isAdminUser = user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
+    _isAdminUser =
+        user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
     _tabs = TabController(length: _isAdminUser ? 7 : 6, vsync: this);
     _checkAdmin();
   }
 
   Future<void> _checkAdmin() async {
     final user = FirebaseAuth.instance.currentUser;
-    final isMaster = user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
+    final isMaster =
+        user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
     final isAdminClaim = await marketplaceAdministratorAccess();
     final isAuthorized = isMaster || isAdminClaim;
     if (isAuthorized && mounted && !_isAdminUser) {
@@ -85,56 +85,57 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-        Material(
-          color: Colors.white,
-          child: TabBar(
-            controller: _tabs,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-            tabs: [
-              const Tab(
-                  icon: Icon(Icons.dashboard_outlined, size: 20),
-                  text: 'Overview'),
-              const Tab(icon: Icon(Icons.badge_outlined, size: 20), text: 'Profile'),
-              const Tab(
-                  icon: _AccountTabBadge(
-                      types: {'offer'}, icon: Icons.inventory_2_outlined),
-                  text: 'Listings'),
-              const Tab(
-                  icon: _AccountTabBadge(
-                      types: {'message'}, icon: Icons.forum_outlined),
-                  text: 'Messages'),
-              const Tab(
-                  icon: _AccountTabBadge(
-                      types: {}, icon: Icons.notifications_outlined),
-                  text: 'Notifications'),
-              const Tab(
-                  icon: Icon(Icons.settings_outlined, size: 20),
-                  text: 'Settings'),
-              if (_isAdminUser)
-                Tab(
-                    icon: Icon(Icons.admin_panel_settings, color: Colors.purple.shade700, size: 20),
-                    text: '👑 ADMIN PORTAL'),
-            ],
-          ),
+      Material(
+        color: Colors.white,
+        child: TabBar(
+          controller: _tabs,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+          tabs: [
+            const Tab(
+                icon: Icon(Icons.dashboard_outlined, size: 20),
+                text: 'Overview'),
+            const Tab(
+                icon: Icon(Icons.badge_outlined, size: 20), text: 'Profile'),
+            const Tab(
+                icon: _AccountTabBadge(
+                    types: {'offer'}, icon: Icons.inventory_2_outlined),
+                text: 'Listings'),
+            const Tab(
+                icon: _AccountTabBadge(
+                    types: {'message'}, icon: Icons.forum_outlined),
+                text: 'Messages'),
+            const Tab(
+                icon: _AccountTabBadge(
+                    types: {}, icon: Icons.notifications_outlined),
+                text: 'Notifications'),
+            const Tab(
+                icon: Icon(Icons.settings_outlined, size: 20),
+                text: 'Settings'),
+            if (_isAdminUser)
+              Tab(
+                  icon: Icon(Icons.admin_panel_settings,
+                      color: Colors.purple.shade700, size: 20),
+                  text: '👑 ADMIN PORTAL'),
+          ],
         ),
-        Expanded(
-            child: TabBarView(controller: _tabs, children: [
-          _Overview(onOpen: _tabs.animateTo),
-          const MarketplaceProfilePage(),
-          _MyListings(
-              onAddListing: widget.onAddListing,
-              auctionsEnabled: widget.auctionsEnabled,
-              paidFeaturesEnabled: widget.paidFeaturesEnabled),
-          const MarketplaceMessagesPage(),
-          _AccountNotifications(
-              onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
-          const _AccountSettings(),
-          if (_isAdminUser)
-            const MarketplaceAdminDashboard(),
-        ]))
-      ]);
+      ),
+      Expanded(
+          child: TabBarView(controller: _tabs, children: [
+        _Overview(onOpen: _tabs.animateTo),
+        const MarketplaceProfilePage(),
+        _MyListings(
+            onAddListing: widget.onAddListing,
+            auctionsEnabled: widget.auctionsEnabled,
+            paidFeaturesEnabled: widget.paidFeaturesEnabled),
+        const MarketplaceMessagesPage(),
+        _AccountNotifications(
+            onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
+        const _AccountSettings(),
+        if (_isAdminUser) const MarketplaceAdminDashboard(),
+      ]))
+    ]);
   }
 }
 
@@ -162,7 +163,8 @@ class _Overview extends StatelessWidget {
           final completion = calculateProfileCompletion(user, data);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
-          final isMasterAdmin = user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
+          final isMasterAdmin =
+              user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
 
           return ListView(padding: const EdgeInsets.all(18), children: [
             if (isMasterAdmin) ...[
@@ -190,19 +192,24 @@ class _Overview extends StatelessWidget {
                             SizedBox(height: 4),
                             Text(
                               'Access revenue analytics, escrow overrides, bank accounts, merchant gateways & user controls.',
-                              style: TextStyle(fontSize: 12, color: Colors.white70),
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.white70),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 12),
                       FilledButton.icon(
-                        style: FilledButton.styleFrom(backgroundColor: Colors.amber.shade700),
-                        onPressed: () => onOpen(6), // Switch to 7th Admin Portal Tab
-                        icon: const Icon(Icons.launch, color: Colors.black, size: 16),
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.amber.shade700),
+                        onPressed: () =>
+                            onOpen(6), // Switch to 7th Admin Portal Tab
+                        icon: const Icon(Icons.launch,
+                            color: Colors.black, size: 16),
                         label: const Text(
                           'Open Admin Portal',
-                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              color: Colors.black, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -270,14 +277,20 @@ class _Overview extends StatelessWidget {
             _AccountShortcut(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy Policy',
-                onTap: () => launchUrl(Uri.parse('https://www.pipebuyer.com/privacy'), mode: LaunchMode.externalApplication)),
+                onTap: () => launchUrl(
+                    Uri.parse('https://www.pipebuyer.com/privacy'),
+                    mode: LaunchMode.externalApplication)),
             _AccountShortcut(
                 icon: Icons.description_outlined,
                 title: 'Terms of Service',
-                onTap: () => launchUrl(Uri.parse('https://www.pipebuyer.com/terms'), mode: LaunchMode.externalApplication)),
+                onTap: () => launchUrl(
+                    Uri.parse('https://www.pipebuyer.com/terms'),
+                    mode: LaunchMode.externalApplication)),
             FutureBuilder<bool>(
                 future: marketplaceAdministratorAccess(),
-                builder: (context, access) => access.data == true || user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com'
+                builder: (context, access) => access.data == true ||
+                        user.email?.toLowerCase().trim() ==
+                            'jordilwbailey@gmail.com'
                     ? Card(
                         color: Colors.purple.shade50,
                         margin: const EdgeInsets.only(top: 8),
@@ -286,15 +299,22 @@ class _Overview extends StatelessWidget {
                           side: BorderSide(color: Colors.purple.shade200),
                         ),
                         child: ListTile(
-                          leading: Icon(Icons.admin_panel_settings, color: Colors.purple.shade800, size: 26),
+                          leading: Icon(Icons.admin_panel_settings,
+                              color: Colors.purple.shade800, size: 26),
                           title: Text(
                             '👑 MASTER ADMIN PORTAL DASHBOARD',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade900),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple.shade900),
                           ),
-                          subtitle: const Text('Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.purple),
+                          subtitle: const Text(
+                              'Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: Colors.purple),
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const MarketplaceAdminDashboard()),
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const MarketplaceAdminDashboard()),
                           ),
                         ),
                       )
@@ -361,7 +381,8 @@ Future<void> _showUserScore(
     ),
     (
       'Profile details',
-      calculateProfileCompletion(FirebaseAuth.instance.currentUser, data) >= 100,
+      calculateProfileCompletion(FirebaseAuth.instance.currentUser, data) >=
+          100,
       'Complete every required field in Profile.'
     ),
     (
@@ -638,7 +659,8 @@ class _MyListingsState extends State<_MyListings> {
           .collection('marketplace_listing_drafts')
           .where('sellerUid', isEqualTo: uid)
           .orderBy('createdAt', descending: true);
-      final page = await loadFirestoreDocumentPage(query, after: reset ? null : _cursor);
+      final page =
+          await loadFirestoreDocumentPage(query, after: reset ? null : _cursor);
       QuerySnapshot<Map<String, dynamic>>? draftsSnap;
       try {
         draftsSnap = await draftsQuery.get();
@@ -2372,8 +2394,7 @@ class _WantedMatchCardState extends State<_WantedMatchCard> {
     );
   }
 
-  String _requestId(String action) => _requestIds.putIfAbsent(
-      action,
+  String _requestId(String action) => _requestIds.putIfAbsent(action,
       () => FirebaseFirestore.instance.collection('command_ids').doc().id);
 
   Future<void> _manage(String action) async {
@@ -3004,9 +3025,11 @@ class _AccountSettingsState extends State<_AccountSettings> {
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplaceAccountSecurityPage()))),
       ListTile(
-          leading: const Icon(Icons.account_balance_outlined, color: Color(0xFF0878E8)),
+          leading: const Icon(Icons.account_balance_outlined,
+              color: Color(0xFF0878E8)),
           title: const Text('Banking & Direct Payout Settings'),
-          subtitle: const Text('Connect bank routing & account numbers for ACH / Wire escrow releases.'),
+          subtitle: const Text(
+              'Connect bank routing & account numbers for ACH / Wire escrow releases.'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),
@@ -3018,12 +3041,15 @@ class _AccountSettingsState extends State<_AccountSettings> {
             side: BorderSide(color: Colors.purple.shade200),
           ),
           child: ListTile(
-              leading: Icon(Icons.admin_panel_settings, color: Colors.purple.shade800, size: 28),
+              leading: Icon(Icons.admin_panel_settings,
+                  color: Colors.purple.shade800, size: 28),
               title: Text(
                 'MASTER ADMIN PORTAL DASHBOARD',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade900),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.purple.shade900),
               ),
-              subtitle: const Text('Analytics, Escrow Overrides, Banking Setup, User Roles, Moderation & System Config.'),
+              subtitle: const Text(
+                  'Analytics, Escrow Overrides, Banking Setup, User Roles, Moderation & System Config.'),
               trailing: const Icon(Icons.chevron_right, color: Colors.purple),
               onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const MarketplaceAdminDashboard()))),
@@ -3702,19 +3728,35 @@ int calculateProfileCompletion(User? user, Map<String, dynamic> data) {
     return 100;
   }
   int score = 0;
-  final name = (data['displayName'] ?? data['fullName'] ?? data['name'] ?? user?.displayName)?.toString().trim() ?? '';
+  final name = (data['displayName'] ??
+              data['fullName'] ??
+              data['name'] ??
+              user?.displayName)
+          ?.toString()
+          .trim() ??
+      '';
   if (name.isNotEmpty) score += 35;
 
   final email = (data['email'] ?? user?.email)?.toString().trim() ?? '';
   if (email.isNotEmpty) score += 35;
 
-  final photo = (data['photoUrl'] ?? data['avatarUrl'] ?? user?.photoURL)?.toString().trim() ?? '';
+  final photo = (data['photoUrl'] ?? data['avatarUrl'] ?? user?.photoURL)
+          ?.toString()
+          .trim() ??
+      '';
   if (photo.isNotEmpty) score += 15;
 
-  final phone = (data['phone'] ?? data['phoneNumber'] ?? user?.phoneNumber)?.toString().trim() ?? '';
+  final phone = (data['phone'] ?? data['phoneNumber'] ?? user?.phoneNumber)
+          ?.toString()
+          .trim() ??
+      '';
   if (phone.isNotEmpty) score += 15;
 
-  if (score >= 70 || (name.isNotEmpty && email.isNotEmpty && (user?.emailVerified == true || data['emailOwnershipVerified'] == true))) {
+  if (score >= 70 ||
+      (name.isNotEmpty &&
+          email.isNotEmpty &&
+          (user?.emailVerified == true ||
+              data['emailOwnershipVerified'] == true))) {
     score = 100;
   } else if (score == 0 && (user?.email != null || user?.displayName != null)) {
     score = 100;
@@ -3722,4 +3764,3 @@ int calculateProfileCompletion(User? user, Map<String, dynamic> data) {
 
   return score.clamp(0, 100);
 }
-

@@ -7,10 +7,12 @@ class MarketplacePayoutSettingsPage extends StatefulWidget {
   const MarketplacePayoutSettingsPage({super.key});
 
   @override
-  State<MarketplacePayoutSettingsPage> createState() => _MarketplacePayoutSettingsPageState();
+  State<MarketplacePayoutSettingsPage> createState() =>
+      _MarketplacePayoutSettingsPageState();
 }
 
-class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSettingsPage> {
+class _MarketplacePayoutSettingsPageState
+    extends State<MarketplacePayoutSettingsPage> {
   final _achFormKey = GlobalKey<FormState>();
   final _gccFormKey = GlobalKey<FormState>();
   final _swiftFormKey = GlobalKey<FormState>();
@@ -87,7 +89,8 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
     }
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (doc.exists) {
         final data = doc.data() ?? {};
         final payout = data['payoutSettings'] as Map<String, dynamic>? ?? {};
@@ -129,10 +132,13 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
     }
   }
 
-  Future<void> _saveCategory(String categoryKey, Map<String, dynamic> data, String successMsg) async {
+  Future<void> _saveCategory(
+      String categoryKey, Map<String, dynamic> data, String successMsg) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      PipeFeedback.show(context, message: 'Please sign in to save banking details.', tone: PipeStatusTone.error);
+      PipeFeedback.show(context,
+          message: 'Please sign in to save banking details.',
+          tone: PipeStatusTone.error);
       return;
     }
 
@@ -145,11 +151,14 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
       }, SetOptions(merge: true));
 
       if (mounted) {
-        PipeFeedback.show(context, message: successMsg, tone: PipeStatusTone.success);
+        PipeFeedback.show(context,
+            message: successMsg, tone: PipeStatusTone.success);
       }
     } catch (e) {
       if (mounted) {
-        PipeFeedback.show(context, message: 'Could not save payout settings. Please try again.', tone: PipeStatusTone.error);
+        PipeFeedback.show(context,
+            message: 'Could not save payout settings. Please try again.',
+            tone: PipeStatusTone.error);
       }
     }
   }
@@ -157,13 +166,16 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
   void _saveAch() async {
     if (_achFormKey.currentState?.validate() ?? false) {
       setState(() => _savingAch = true);
-      await _saveCategory('ach', {
-        'achBankName': _achBankNameController.text.trim(),
-        'achHolder': _achHolderController.text.trim(),
-        'achRouting': _achRoutingController.text.trim(),
-        'achAccount': _achAccountController.text.trim(),
-        'achType': _achAccountType,
-      }, 'US & Canada Direct Deposit ACH updated!');
+      await _saveCategory(
+          'ach',
+          {
+            'achBankName': _achBankNameController.text.trim(),
+            'achHolder': _achHolderController.text.trim(),
+            'achRouting': _achRoutingController.text.trim(),
+            'achAccount': _achAccountController.text.trim(),
+            'achType': _achAccountType,
+          },
+          'US & Canada Direct Deposit ACH updated!');
       setState(() {
         _savingAch = false;
         _achSaved = true;
@@ -174,13 +186,16 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
   void _saveGcc() async {
     if (_gccFormKey.currentState?.validate() ?? false) {
       setState(() => _savingGcc = true);
-      await _saveCategory('gcc', {
-        'gccBankName': _gccBankNameController.text.trim(),
-        'gccHolder': _gccHolderController.text.trim(),
-        'gccIban': _gccIbanController.text.trim(),
-        'gccSwift': _gccSwiftController.text.trim(),
-        'gccCurrency': _gccCurrency,
-      }, 'Saudi & GCC IBAN Payout Vault updated!');
+      await _saveCategory(
+          'gcc',
+          {
+            'gccBankName': _gccBankNameController.text.trim(),
+            'gccHolder': _gccHolderController.text.trim(),
+            'gccIban': _gccIbanController.text.trim(),
+            'gccSwift': _gccSwiftController.text.trim(),
+            'gccCurrency': _gccCurrency,
+          },
+          'Saudi & GCC IBAN Payout Vault updated!');
       setState(() {
         _savingGcc = false;
         _gccSaved = true;
@@ -191,13 +206,16 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
   void _saveSwift() async {
     if (_swiftFormKey.currentState?.validate() ?? false) {
       setState(() => _savingSwift = true);
-      await _saveCategory('swift', {
-        'swiftBankName': _swiftBankNameController.text.trim(),
-        'swiftHolder': _swiftHolderController.text.trim(),
-        'swiftCode': _swiftCodeController.text.trim(),
-        'swiftIban': _swiftIbanController.text.trim(),
-        'swiftCountry': _swiftCountryController.text.trim(),
-      }, 'Global SWIFT International Wire updated!');
+      await _saveCategory(
+          'swift',
+          {
+            'swiftBankName': _swiftBankNameController.text.trim(),
+            'swiftHolder': _swiftHolderController.text.trim(),
+            'swiftCode': _swiftCodeController.text.trim(),
+            'swiftIban': _swiftIbanController.text.trim(),
+            'swiftCountry': _swiftCountryController.text.trim(),
+          },
+          'Global SWIFT International Wire updated!');
       setState(() {
         _savingSwift = false;
         _swiftSaved = true;
@@ -208,11 +226,14 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
   void _saveTax() async {
     if (_taxFormKey.currentState?.validate() ?? false) {
       setState(() => _savingTax = true);
-      await _saveCategory('tax', {
-        'taxId': _taxIdController.text.trim(),
-        'legalEntity': _legalEntityController.text.trim(),
-        'taxFormType': _taxFormType,
-      }, 'Tax & 1099-K Compliance settings saved!');
+      await _saveCategory(
+          'tax',
+          {
+            'taxId': _taxIdController.text.trim(),
+            'legalEntity': _legalEntityController.text.trim(),
+            'taxFormType': _taxFormType,
+          },
+          'Tax & 1099-K Compliance settings saved!');
       setState(() {
         _savingTax = false;
         _taxSaved = true;
@@ -260,7 +281,8 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                 color: const Color(0xFF0878E8).withAlpha(40),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.account_balance_outlined, color: Colors.white, size: 30),
+                              child: const Icon(Icons.account_balance_outlined,
+                                  color: Colors.white, size: 30),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -269,12 +291,18 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                 children: const [
                                   Text(
                                     'Merchant Payout Vault & Escrow Setup',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
                                     'Connect your company banking accounts and international payout methods. Escrow payouts post directly to your selected active account upon buyer inspection approval.',
-                                    style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                        height: 1.4),
                                   ),
                                 ],
                               ),
@@ -289,7 +317,8 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                         icon: Icons.account_balance,
                         iconColor: const Color(0xFF0878E8),
                         title: 'DIRECT ACH & WIRE (US & CANADA)',
-                        subtitle: 'Direct deposit for US Dollars (USD) & Canadian Dollars (CAD)',
+                        subtitle:
+                            'Direct deposit for US Dollars (USD) & Canadian Dollars (CAD)',
                         isConfigured: _achSaved,
                         child: Form(
                           key: _achFormKey,
@@ -299,21 +328,30 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                               TextFormField(
                                 controller: _achHolderController,
                                 decoration: const InputDecoration(
-                                  labelText: 'Legal Account Holder / Entity Name',
+                                  labelText:
+                                      'Legal Account Holder / Entity Name',
                                   hintText: 'e.g. Apex Oilfield Supplies LLC',
                                   prefixIcon: Icon(Icons.business),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter account holder name' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter account holder name'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
                                 controller: _achBankNameController,
                                 decoration: const InputDecoration(
                                   labelText: 'Bank Name',
-                                  hintText: 'e.g. JPMorgan Chase / Wells Fargo / RBC',
-                                  prefixIcon: Icon(Icons.account_balance_outlined),
+                                  hintText:
+                                      'e.g. JPMorgan Chase / Wells Fargo / RBC',
+                                  prefixIcon:
+                                      Icon(Icons.account_balance_outlined),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter bank name' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter bank name'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               Row(
@@ -326,7 +364,10 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                         labelText: 'Routing / ABA (9 Digits)',
                                         prefixIcon: Icon(Icons.numbers),
                                       ),
-                                      validator: (val) => val == null || val.trim().length < 8 ? 'Invalid routing #' : null,
+                                      validator: (val) =>
+                                          val == null || val.trim().length < 8
+                                              ? 'Invalid routing #'
+                                              : null,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -339,24 +380,35 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                         labelText: 'Account Number',
                                         prefixIcon: Icon(Icons.lock_outline),
                                       ),
-                                      validator: (val) => val == null || val.trim().length < 5 ? 'Invalid account #' : null,
+                                      validator: (val) =>
+                                          val == null || val.trim().length < 5
+                                              ? 'Invalid account #'
+                                              : null,
                                     ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
-                                value: _achAccountType,
+                                initialValue: _achAccountType,
                                 decoration: const InputDecoration(
                                   labelText: 'Account Category',
                                   prefixIcon: Icon(Icons.credit_card),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'Business Checking', child: Text('Business Checking')),
-                                  DropdownMenuItem(value: 'Checking', child: Text('Personal Checking')),
-                                  DropdownMenuItem(value: 'Savings', child: Text('Savings Account')),
+                                  DropdownMenuItem(
+                                      value: 'Business Checking',
+                                      child: Text('Business Checking')),
+                                  DropdownMenuItem(
+                                      value: 'Checking',
+                                      child: Text('Personal Checking')),
+                                  DropdownMenuItem(
+                                      value: 'Savings',
+                                      child: Text('Savings Account')),
                                 ],
-                                onChanged: (val) => setState(() => _achAccountType = val ?? 'Business Checking'),
+                                onChanged: (val) => setState(() =>
+                                    _achAccountType =
+                                        val ?? 'Business Checking'),
                               ),
                               const SizedBox(height: 16),
                               Align(
@@ -364,7 +416,9 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                 child: FilledButton.icon(
                                   onPressed: _savingAch ? null : _saveAch,
                                   icon: const Icon(Icons.save),
-                                  label: Text(_savingAch ? 'Saving…' : 'Save US/CA ACH Vault'),
+                                  label: Text(_savingAch
+                                      ? 'Saving…'
+                                      : 'Save US/CA ACH Vault'),
                                 ),
                               ),
                             ],
@@ -378,7 +432,8 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                         icon: Icons.public,
                         iconColor: const Color(0xFF10B981),
                         title: 'SAUDI ARABIA & GCC IBAN PAYOUT VAULT',
-                        subtitle: 'Direct payouts for Saudi Arabia (SAR), UAE (AED), Qatar, & Kuwait',
+                        subtitle:
+                            'Direct payouts for Saudi Arabia (SAR), UAE (AED), Qatar, & Kuwait',
                         isConfigured: _gccSaved,
                         child: Form(
                           key: _gccFormKey,
@@ -386,28 +441,47 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               DropdownButtonFormField<String>(
-                                value: _gccCurrency,
+                                initialValue: _gccCurrency,
                                 decoration: const InputDecoration(
                                   labelText: 'Settlement Currency',
-                                  prefixIcon: Icon(Icons.monetization_on_outlined),
+                                  prefixIcon:
+                                      Icon(Icons.monetization_on_outlined),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'SAR (Saudi Riyal)', child: Text('SAR — Saudi Riyal (🇸🇦 Saudi Arabia)')),
-                                  DropdownMenuItem(value: 'AED (UAE Dirham)', child: Text('AED — UAE Dirham (🇦🇪 United Arab Emirates)')),
-                                  DropdownMenuItem(value: 'QAR (Qatari Riyal)', child: Text('QAR — Qatari Riyal (🇶🇦 Qatar)')),
-                                  DropdownMenuItem(value: 'KWD (Kuwaiti Dinar)', child: Text('KWD — Kuwaiti Dinar (🇰🇼 Kuwait)')),
+                                  DropdownMenuItem(
+                                      value: 'SAR (Saudi Riyal)',
+                                      child: Text(
+                                          'SAR — Saudi Riyal (🇸🇦 Saudi Arabia)')),
+                                  DropdownMenuItem(
+                                      value: 'AED (UAE Dirham)',
+                                      child: Text(
+                                          'AED — UAE Dirham (🇦🇪 United Arab Emirates)')),
+                                  DropdownMenuItem(
+                                      value: 'QAR (Qatari Riyal)',
+                                      child: Text(
+                                          'QAR — Qatari Riyal (🇶🇦 Qatar)')),
+                                  DropdownMenuItem(
+                                      value: 'KWD (Kuwaiti Dinar)',
+                                      child: Text(
+                                          'KWD — Kuwaiti Dinar (🇰🇼 Kuwait)')),
                                 ],
-                                onChanged: (val) => setState(() => _gccCurrency = val ?? 'SAR (Saudi Riyal)'),
+                                onChanged: (val) => setState(() =>
+                                    _gccCurrency = val ?? 'SAR (Saudi Riyal)'),
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
                                 controller: _gccHolderController,
                                 decoration: const InputDecoration(
-                                  labelText: 'Company Commercial Registration (CR) Holder Name',
-                                  hintText: 'e.g. Al-Riyadh Petroleum Equipment Co.',
+                                  labelText:
+                                      'Company Commercial Registration (CR) Holder Name',
+                                  hintText:
+                                      'e.g. Al-Riyadh Petroleum Equipment Co.',
                                   prefixIcon: Icon(Icons.apartment),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter holder name' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter holder name'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
@@ -417,17 +491,24 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                   hintText: 'e.g. Al Rajhi Bank / SNB / FAB',
                                   prefixIcon: Icon(Icons.account_balance),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter bank name' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter bank name'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
                                 controller: _gccIbanController,
                                 decoration: const InputDecoration(
-                                  labelText: 'Full IBAN (24 Characters starting with SA/AE/QA)',
+                                  labelText:
+                                      'Full IBAN (24 Characters starting with SA/AE/QA)',
                                   hintText: 'SA0380000000608010167519',
                                   prefixIcon: Icon(Icons.numbers),
                                 ),
-                                validator: (val) => val == null || val.trim().length < 15 ? 'Enter valid IBAN' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().length < 15
+                                        ? 'Enter valid IBAN'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
@@ -444,7 +525,9 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                 child: FilledButton.icon(
                                   onPressed: _savingGcc ? null : _saveGcc,
                                   icon: const Icon(Icons.save),
-                                  label: Text(_savingGcc ? 'Saving…' : 'Save GCC IBAN Vault'),
+                                  label: Text(_savingGcc
+                                      ? 'Saving…'
+                                      : 'Save GCC IBAN Vault'),
                                 ),
                               ),
                             ],
@@ -458,7 +541,8 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                         icon: Icons.language,
                         iconColor: const Color(0xFF8B5CF6),
                         title: 'GLOBAL SWIFT WIRE (EUROPE, ASIA & LATAM)',
-                        subtitle: 'Direct international wire transfers for Europe (EUR), UK (GBP), China (CNY), & Brazil (BRL)',
+                        subtitle:
+                            'Direct international wire transfers for Europe (EUR), UK (GBP), China (CNY), & Brazil (BRL)',
                         isConfigured: _swiftSaved,
                         child: Form(
                           key: _swiftFormKey,
@@ -469,10 +553,14 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                 controller: _swiftCountryController,
                                 decoration: const InputDecoration(
                                   labelText: 'Bank Country',
-                                  hintText: 'e.g. United Kingdom / Germany / China / Australia',
+                                  hintText:
+                                      'e.g. United Kingdom / Germany / China / Australia',
                                   prefixIcon: Icon(Icons.flag_outlined),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter bank country' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter bank country'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
@@ -481,17 +569,24 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                   labelText: 'Beneficiary Entity Name',
                                   prefixIcon: Icon(Icons.person_outline),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter beneficiary name' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter beneficiary name'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
                                 controller: _swiftBankNameController,
                                 decoration: const InputDecoration(
                                   labelText: 'International Bank Name',
-                                  hintText: 'e.g. Deutsche Bank / HSBC / Industrial & Commercial Bank of China',
+                                  hintText:
+                                      'e.g. Deutsche Bank / HSBC / Industrial & Commercial Bank of China',
                                   prefixIcon: Icon(Icons.account_balance),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter bank name' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter bank name'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               Row(
@@ -500,10 +595,14 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                     child: TextFormField(
                                       controller: _swiftCodeController,
                                       decoration: const InputDecoration(
-                                        labelText: 'SWIFT / BIC Code (8-11 Chars)',
+                                        labelText:
+                                            'SWIFT / BIC Code (8-11 Chars)',
                                         prefixIcon: Icon(Icons.code),
                                       ),
-                                      validator: (val) => val == null || val.trim().length < 8 ? 'Invalid SWIFT' : null,
+                                      validator: (val) =>
+                                          val == null || val.trim().length < 8
+                                              ? 'Invalid SWIFT'
+                                              : null,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -514,7 +613,10 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                         labelText: 'IBAN / Account Number',
                                         prefixIcon: Icon(Icons.numbers),
                                       ),
-                                      validator: (val) => val == null || val.trim().isEmpty ? 'Enter IBAN/Account' : null,
+                                      validator: (val) =>
+                                          val == null || val.trim().isEmpty
+                                              ? 'Enter IBAN/Account'
+                                              : null,
                                     ),
                                   ),
                                 ],
@@ -525,7 +627,9 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                 child: FilledButton.icon(
                                   onPressed: _savingSwift ? null : _saveSwift,
                                   icon: const Icon(Icons.save),
-                                  label: Text(_savingSwift ? 'Saving…' : 'Save SWIFT Wire Vault'),
+                                  label: Text(_savingSwift
+                                      ? 'Saving…'
+                                      : 'Save SWIFT Wire Vault'),
                                 ),
                               ),
                             ],
@@ -539,7 +643,8 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                         icon: Icons.badge_outlined,
                         iconColor: const Color(0xFFF59E0B),
                         title: 'TAX IDENTIFICATION & 1099-K COMPLIANCE',
-                        subtitle: 'IRS 1099-K tax reporting & commercial VAT compliance',
+                        subtitle:
+                            'IRS 1099-K tax reporting & commercial VAT compliance',
                         isConfigured: _taxSaved,
                         child: Form(
                           key: _taxFormKey,
@@ -547,17 +652,28 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               DropdownButtonFormField<String>(
-                                value: _taxFormType,
+                                initialValue: _taxFormType,
                                 decoration: const InputDecoration(
                                   labelText: 'Tax Classification',
                                   prefixIcon: Icon(Icons.assignment_outlined),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'W-9 (US Person / Entity)', child: Text('W-9 — US Person or Business (EIN/SSN)')),
-                                  DropdownMenuItem(value: 'W-8BEN-E (Foreign Entity)', child: Text('W-8BEN-E — Foreign Commercial Company')),
-                                  DropdownMenuItem(value: 'VAT / Tax Exempt', child: Text('International Commercial VAT / Exempt Entity')),
+                                  DropdownMenuItem(
+                                      value: 'W-9 (US Person / Entity)',
+                                      child: Text(
+                                          'W-9 — US Person or Business (EIN/SSN)')),
+                                  DropdownMenuItem(
+                                      value: 'W-8BEN-E (Foreign Entity)',
+                                      child: Text(
+                                          'W-8BEN-E — Foreign Commercial Company')),
+                                  DropdownMenuItem(
+                                      value: 'VAT / Tax Exempt',
+                                      child: Text(
+                                          'International Commercial VAT / Exempt Entity')),
                                 ],
-                                onChanged: (val) => setState(() => _taxFormType = val ?? 'W-9 (US Person / Entity)'),
+                                onChanged: (val) => setState(() =>
+                                    _taxFormType =
+                                        val ?? 'W-9 (US Person / Entity)'),
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
@@ -566,7 +682,10 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                   labelText: 'Legal Taxpayer Entity Name',
                                   prefixIcon: Icon(Icons.business),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter legal entity name' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter legal entity name'
+                                        : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
@@ -576,7 +695,10 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                   hintText: 'XX-XXXXXXX',
                                   prefixIcon: Icon(Icons.shield_outlined),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Enter Tax ID / EIN' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Enter Tax ID / EIN'
+                                        : null,
                               ),
                               const SizedBox(height: 16),
                               Align(
@@ -584,7 +706,9 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                                 child: FilledButton.icon(
                                   onPressed: _savingTax ? null : _saveTax,
                                   icon: const Icon(Icons.save),
-                                  label: Text(_savingTax ? 'Saving…' : 'Save Tax Compliance Info'),
+                                  label: Text(_savingTax
+                                      ? 'Saving…'
+                                      : 'Save Tax Compliance Info'),
                                 ),
                               ),
                             ],
@@ -612,7 +736,9 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: isConfigured ? iconColor.withAlpha(100) : Colors.grey.shade300),
+        side: BorderSide(
+            color:
+                isConfigured ? iconColor.withAlpha(100) : Colors.grey.shade300),
       ),
       child: ExpansionTile(
         initiallyExpanded: isConfigured,
@@ -629,14 +755,17 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: isConfigured ? Colors.green.shade100 : Colors.amber.shade100,
+                color: isConfigured
+                    ? Colors.green.shade100
+                    : Colors.amber.shade100,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -645,7 +774,9 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                   Icon(
                     isConfigured ? Icons.check_circle : Icons.error_outline,
                     size: 12,
-                    color: isConfigured ? Colors.green.shade800 : Colors.amber.shade900,
+                    color: isConfigured
+                        ? Colors.green.shade800
+                        : Colors.amber.shade900,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -653,7 +784,9 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: isConfigured ? Colors.green.shade800 : Colors.amber.shade900,
+                      color: isConfigured
+                          ? Colors.green.shade800
+                          : Colors.amber.shade900,
                     ),
                   ),
                 ],
@@ -663,7 +796,8 @@ class _MarketplacePayoutSettingsPageState extends State<MarketplacePayoutSetting
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+          child: Text(subtitle,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         children: [child],

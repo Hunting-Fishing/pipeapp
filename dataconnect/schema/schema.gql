@@ -1,0 +1,46 @@
+type User @table {
+  companyName: String!
+  email: String!
+  userRole: String!
+  phoneNumber: String
+  rating: Float
+}
+
+type Equipment @table {
+  title: String!
+  category: String!
+  price: Float!
+  status: String!
+  description: String
+  location: String
+  conditionReportUrl: String
+  verificationStatus: String
+  seller: User!
+}
+
+type Specification @table {
+  outerDiameter: Float!
+  wallThickness: Float!
+  grade: String!
+  threadType: String!
+  weightPerFoot: Float
+  millCertUrl: String
+  equipment: Equipment!
+}
+
+type Order @table {
+  totalPrice: Float!
+  status: String!
+  trackingNumber: String
+  deliveryDate: Timestamp
+  buyer: User!
+  equipment: Equipment!
+}
+
+type Message @table {
+  content: String!
+  timestamp: Timestamp!
+  attachmentUrl: String
+  sender: User!
+  equipment: Equipment!
+}

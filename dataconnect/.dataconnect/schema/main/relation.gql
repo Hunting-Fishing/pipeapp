@@ -1,0 +1,779 @@
+extend type Equipment {
+  """
+  ✨ List `Message` objects in a one-to-many relationship (where `Message`.`equipment` is this object).
+  """
+  messages_on_equipment(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Message_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Message_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Message_Having
+  ): [Message!]! @fdc_generated(from: "Message.equipment", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Order` objects in a one-to-many relationship (where `Order`.`equipment` is this object).
+  """
+  orders_on_equipment(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Order_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Order_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Order_Having
+  ): [Order!]! @fdc_generated(from: "Order.equipment", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Specification` objects in a one-to-many relationship (where `Specification`.`equipment` is this object).
+  """
+  specifications_on_equipment(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Specification_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Specification_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Specification_Having
+  ): [Specification!]! @fdc_generated(from: "Specification.equipment", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Equipment", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Equipment` table.
+  """
+  _count: Int! @fdc_generated(from: "Equipment.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `category` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  category_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.category", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `conditionReportUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  conditionReportUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.conditionReportUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `description` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  description_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.description", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `location` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  location_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.location", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `price` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  price_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.price", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `sellerId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  sellerId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.sellerId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `status` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  status_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.status", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `title` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  title_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.title", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Equipment` table where the `verificationStatus` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  verificationStatus_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Equipment.verificationStatus", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `price` field in the `Equipment` table.
+  """
+  price_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Equipment.price", purpose: QUERY_SUM)
+  """
+  ✨ Average the `price` field in the `Equipment` table.
+  """
+  price_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Equipment.price", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `price` field in the `Equipment` table.
+  """
+  price_min: Float @fdc_generated(from: "Equipment.price", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `price` field in the `Equipment` table.
+  """
+  price_max: Float @fdc_generated(from: "Equipment.price", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Equipment.id", purpose: ENTITY_ID)
+}
+extend type Message {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Message", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Message` table.
+  """
+  _count: Int! @fdc_generated(from: "Message.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Message` table where the `attachmentUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  attachmentUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Message.attachmentUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Message` table where the `content` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  content_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Message.content", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Message` table where the `equipmentId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  equipmentId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Message.equipmentId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Message` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Message.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Message` table where the `senderId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  senderId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Message.senderId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Message` table where the `timestamp` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  timestamp_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Message.timestamp", purpose: QUERY_COUNT)
+  """
+  ✨ Minimum of the `timestamp` field in the `Message` table.
+  """
+  timestamp_min: Timestamp @fdc_generated(from: "Message.timestamp", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `timestamp` field in the `Message` table.
+  """
+  timestamp_max: Timestamp @fdc_generated(from: "Message.timestamp", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Message.id", purpose: ENTITY_ID)
+}
+extend type Order {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Order", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Order` table.
+  """
+  _count: Int! @fdc_generated(from: "Order.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Order` table where the `buyerId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  buyerId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Order.buyerId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Order` table where the `deliveryDate` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  deliveryDate_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Order.deliveryDate", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Order` table where the `equipmentId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  equipmentId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Order.equipmentId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Order` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Order.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Order` table where the `status` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  status_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Order.status", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Order` table where the `totalPrice` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  totalPrice_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Order.totalPrice", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Order` table where the `trackingNumber` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  trackingNumber_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Order.trackingNumber", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `totalPrice` field in the `Order` table.
+  """
+  totalPrice_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Order.totalPrice", purpose: QUERY_SUM)
+  """
+  ✨ Average the `totalPrice` field in the `Order` table.
+  """
+  totalPrice_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Order.totalPrice", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `deliveryDate` field in the `Order` table.
+  """
+  deliveryDate_min: Timestamp @fdc_generated(from: "Order.deliveryDate", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `totalPrice` field in the `Order` table.
+  """
+  totalPrice_min: Float @fdc_generated(from: "Order.totalPrice", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `deliveryDate` field in the `Order` table.
+  """
+  deliveryDate_max: Timestamp @fdc_generated(from: "Order.deliveryDate", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `totalPrice` field in the `Order` table.
+  """
+  totalPrice_max: Float @fdc_generated(from: "Order.totalPrice", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Order.id", purpose: ENTITY_ID)
+}
+extend type Specification {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Specification", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Specification` table.
+  """
+  _count: Int! @fdc_generated(from: "Specification.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `equipmentId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  equipmentId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.equipmentId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `grade` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  grade_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.grade", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `millCertUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  millCertUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.millCertUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `outerDiameter` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  outerDiameter_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.outerDiameter", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `threadType` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  threadType_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.threadType", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `wallThickness` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  wallThickness_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.wallThickness", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Specification` table where the `weightPerFoot` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  weightPerFoot_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Specification.weightPerFoot", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `outerDiameter` field in the `Specification` table.
+  """
+  outerDiameter_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Specification.outerDiameter", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `wallThickness` field in the `Specification` table.
+  """
+  wallThickness_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Specification.wallThickness", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `weightPerFoot` field in the `Specification` table.
+  """
+  weightPerFoot_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Specification.weightPerFoot", purpose: QUERY_SUM)
+  """
+  ✨ Average the `outerDiameter` field in the `Specification` table.
+  """
+  outerDiameter_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Specification.outerDiameter", purpose: QUERY_AVG)
+  """
+  ✨ Average the `wallThickness` field in the `Specification` table.
+  """
+  wallThickness_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Specification.wallThickness", purpose: QUERY_AVG)
+  """
+  ✨ Average the `weightPerFoot` field in the `Specification` table.
+  """
+  weightPerFoot_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Specification.weightPerFoot", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `outerDiameter` field in the `Specification` table.
+  """
+  outerDiameter_min: Float @fdc_generated(from: "Specification.outerDiameter", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `wallThickness` field in the `Specification` table.
+  """
+  wallThickness_min: Float @fdc_generated(from: "Specification.wallThickness", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `weightPerFoot` field in the `Specification` table.
+  """
+  weightPerFoot_min: Float @fdc_generated(from: "Specification.weightPerFoot", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `outerDiameter` field in the `Specification` table.
+  """
+  outerDiameter_max: Float @fdc_generated(from: "Specification.outerDiameter", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `wallThickness` field in the `Specification` table.
+  """
+  wallThickness_max: Float @fdc_generated(from: "Specification.wallThickness", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `weightPerFoot` field in the `Specification` table.
+  """
+  weightPerFoot_max: Float @fdc_generated(from: "Specification.weightPerFoot", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Specification.id", purpose: ENTITY_ID)
+}
+extend type User {
+  """
+  ✨ List `Equipment` objects in a one-to-many relationship (where `Equipment`.`seller` is this object).
+  """
+  equipments_on_seller(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Equipment_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Equipment_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Equipment_Having
+  ): [Equipment!]! @fdc_generated(from: "Equipment.seller", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Message` objects in a one-to-many relationship (where `Message`.`sender` is this object).
+  """
+  messages_on_sender(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Message_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Message_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Message_Having
+  ): [Message!]! @fdc_generated(from: "Message.sender", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Order` objects in a one-to-many relationship (where `Order`.`buyer` is this object).
+  """
+  orders_on_buyer(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Order_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Order_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Order_Having
+  ): [Order!]! @fdc_generated(from: "Order.buyer", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "User", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `User` table.
+  """
+  _count: Int! @fdc_generated(from: "User.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `companyName` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  companyName_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.companyName", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `email` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  email_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.email", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `phoneNumber` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  phoneNumber_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.phoneNumber", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `rating` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  rating_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.rating", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `userRole` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userRole_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.userRole", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `rating` field in the `User` table.
+  """
+  rating_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "User.rating", purpose: QUERY_SUM)
+  """
+  ✨ Average the `rating` field in the `User` table.
+  """
+  rating_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "User.rating", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `rating` field in the `User` table.
+  """
+  rating_min: Float @fdc_generated(from: "User.rating", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `rating` field in the `User` table.
+  """
+  rating_max: Float @fdc_generated(from: "User.rating", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "User.id", purpose: ENTITY_ID)
+}

@@ -56,6 +56,25 @@ test('application metadata uses the exact Pipe Buyer name', () => {
   assert.equal(firebase.hosting.trailingSlash, false);
 });
 
+test('native Google Sign-In callback and active marketplace entry point are configured', () => {
+  const googleServiceInfo = read('ios/Runner/GoogleService-Info.plist');
+  const reversedClientId = googleServiceInfo.match(
+    /<key>REVERSED_CLIENT_ID<\/key>\s*<string>([^<]+)<\/string>/u,
+  )?.[1];
+  assert.ok(reversedClientId, 'GoogleService-Info.plist must declare REVERSED_CLIENT_ID');
+
+  const iosInfo = read('ios/Runner/Info.plist');
+  assert.match(
+    iosInfo,
+    new RegExp(`<string>${reversedClientId.replaceAll('.', '\\.')}</string>`, 'u'),
+    'Info.plist must register the Google callback URL scheme',
+  );
+
+  const authPage = read('lib/marketplace/marketplace_auth_page.dart');
+  assert.match(authPage, /Continue with Google/u);
+  assert.match(authPage, /googleSignInFunc\(\)/u);
+});
+
 test('sitemap publishes the exact non-redirecting branding and legal URLs', () => {
   const sitemap = read('web/sitemap.xml');
   for (const url of [
