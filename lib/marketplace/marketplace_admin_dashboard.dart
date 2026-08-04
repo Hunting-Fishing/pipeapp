@@ -165,9 +165,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             tone: PipeStatusTone.success);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         PipeFeedback.show(context,
             message: 'Failed: $e', tone: PipeStatusTone.error);
+      }
     } finally {
       if (mounted) setState(() => _isSavingBank = false);
     }
@@ -193,9 +194,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             tone: PipeStatusTone.success);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         PipeFeedback.show(context,
             message: 'Failed: $e', tone: PipeStatusTone.error);
+      }
     } finally {
       if (mounted) setState(() => _isSavingStripe = false);
     }
@@ -221,9 +223,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             tone: PipeStatusTone.success);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         PipeFeedback.show(context,
             message: 'Failed: $e', tone: PipeStatusTone.error);
+      }
     } finally {
       if (mounted) setState(() => _isSavingPaypal = false);
     }
@@ -249,9 +252,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             tone: PipeStatusTone.success);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         PipeFeedback.show(context,
             message: 'Failed: $e', tone: PipeStatusTone.error);
+      }
     } finally {
       if (mounted) setState(() => _isSavingAuthorize = false);
     }
