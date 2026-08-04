@@ -12,16 +12,18 @@ bool marketplaceAdministratorClaims(Map<String, dynamic>? claims) {
       secondFactor.isNotEmpty;
 }
 
-/// Checks if current user is an administrator via custom claims or primary admin email
+/// Checks whether the current user has the complete administrator claim set.
+///
+/// Administrator access is never inferred from an email address or public
+/// profile data. The token must contain the approved administrator role and
+/// evidence that the current sign-in used a second factor.
 Future<bool> marketplaceAdministratorAccess({
   FirebaseAuth? auth,
   bool forceRefresh = false,
 }) async {
   final user = (auth ?? FirebaseAuth.instance).currentUser;
   if (user == null) return false;
-  if (user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com') {
-    return true;
-  }
+
   try {
     final result = await user.getIdTokenResult(forceRefresh);
     return marketplaceAdministratorClaims(result.claims);
