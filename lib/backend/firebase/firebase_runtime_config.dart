@@ -38,7 +38,7 @@ const _stagingIosConfiguration = FirebaseOptions(
 
 const _developmentWebConfiguration = FirebaseWebConfiguration(
   apiKey: 'AIzaSyAMm0HnXVq6UOERnPNP9SKqGtyV_-H--u8',
-  authDomain: 'flutter-flow-pipe.firebaseapp.com',
+  authDomain: 'pipebuyer.com',
   projectId: 'flutter-flow-pipe',
   storageBucket: 'flutter-flow-pipe.firebasestorage.app',
   messagingSenderId: '426221783223',
