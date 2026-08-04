@@ -41,18 +41,14 @@ void main() {
     );
   });
 
-  test('deployment uses keyless identity and exact Firebase project guards',
+  test('deployment uses Firebase CI token and exact Firebase project guards',
       () {
-    expect(workflow,
-        contains('permissions:\n  contents: read\n  id-token: write'));
-    expect(workflow, contains('google-github-actions/auth@v3'));
-    expect(
-        workflow, contains(r'${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}'));
-    expect(workflow, contains(r'${{ vars.GOOGLE_DEPLOY_SERVICE_ACCOUNT }}'));
+    expect(workflow, contains('permissions:\n  contents: read'));
+    expect(workflow, contains(r'FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}'));
     expect(workflow, isNot(contains('service_account_key')));
     expect(workflow, contains('flutter-flow-pipe'));
     expect(workflow, contains('Staging cannot deploy to the production'));
-    expect(workflow, contains('Production releases require App Check enforce'));
+    expect(workflow, contains('App Check is disabled for this production release'));
   });
 
   test('deployment proves full-service parity and retains visual evidence', () {

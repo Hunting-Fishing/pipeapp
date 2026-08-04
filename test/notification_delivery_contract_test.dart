@@ -25,7 +25,7 @@ void main() {
 
     expect(workflow, contains('PIPE_FIREBASE_WEB_PUSH_VAPID_KEY'));
     expect(workflow, contains('configure_firebase_messaging_worker.mjs'));
-    expect(workflow, contains('gcloud billing projects describe'));
+    expect(workflow, contains('FIREBASE_TOKEN'));
     expect(worker, contains('firebase.messaging()'));
     expect(worker, contains('firebasejs/12.15.0'));
   });
