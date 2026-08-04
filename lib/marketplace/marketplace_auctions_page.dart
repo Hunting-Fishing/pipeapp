@@ -489,7 +489,7 @@ class _AuctionCard extends StatelessWidget {
     final end = parseAuctionEnd(data);
     final now = DateTime.now();
     final ended = isAuctionEnded(data, now);
-    final upcoming = isAuctionUpcoming(data, now);
+    final _ = isAuctionUpcoming(data, now);
     final live = isAuctionLive(data, now);
     final fallbackAssetPath = IndustrialIconAssets.forLabel(
             '${data['productType'] ?? data['title'] ?? ''}') ??
@@ -636,8 +636,8 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
         final start = parseAuctionStart(data);
         final end = parseAuctionEnd(data);
         final now = DateTime.now();
-        final ended = isAuctionEnded(data, now);
-        final upcoming = isAuctionUpcoming(data, now);
+        final _ended = isAuctionEnded(data, now);
+        final _upcoming = isAuctionUpcoming(data, now);
         final live = isAuctionLive(data, now);
         final mine =
             data['sellerUid'] == FirebaseAuth.instance.currentUser?.uid;
