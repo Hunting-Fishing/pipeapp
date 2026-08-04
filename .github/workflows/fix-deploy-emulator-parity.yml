@@ -1,0 +1,45 @@
+name: Fix deployment emulator parity
+
+on:
+  push:
+    branches:
+      - fix/admin-claims-security-gate
+    paths:
+      - .github/workflows/fix-deploy-emulator-parity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: fix/admin-claims-security-gate
+
+      - name: Add Storage emulator to deployment integration gate
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('.github/workflows/deploy.yml')
+          source = path.read_text(encoding='utf-8')
+          old = '''          --only auth,firestore,functions
+          "node firebase/functions/integration/callable_integration.mjs"'''
+          new = '''          --only auth,firestore,functions,storage
+          "node firebase/functions/integration/callable_integration.mjs"'''
+          if source.count(old) != 1:
+              raise SystemExit('Expected exactly one deployment integration emulator block.')
+          path.write_text(source.replace(old, new), encoding='utf-8')
+
+      - name: Commit deployment workflow repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/deploy.yml
+          git commit -m "ci: align deployment integration emulators"
+          git push origin HEAD:fix/admin-claims-security-gate
