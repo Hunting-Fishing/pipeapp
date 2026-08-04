@@ -7,6 +7,7 @@ import '../auth/firebase_auth/google_auth.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_mfa.dart';
 import 'regional_phone_field.dart';
 
 class MarketplaceAuthPage extends StatefulWidget {
@@ -235,7 +236,16 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
         await FirebaseAuth.instance.setPersistence(
             _rememberMe ? Persistence.LOCAL : Persistence.SESSION);
       }
-      final credential = await googleSignInFunc();
+      UserCredential? credential;
+      try {
+        credential = await googleSignInFunc();
+      } on FirebaseAuthMultiFactorException catch (error) {
+        if (!mounted) return;
+        credential = await resolveFirebaseMultiFactorSignIn(
+          context: context,
+          exception: error,
+        );
+      }
       final user = credential?.user;
       if (user == null) return;
 
@@ -361,9 +371,17 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
           await FirebaseAuth.instance.setPersistence(
               _rememberMe ? Persistence.LOCAL : Persistence.SESSION);
         }
-        final credential = await FirebaseAuth.instance
-            .signInWithEmailAndPassword(
-                email: _email.text.trim(), password: _password.text);
+        UserCredential credential;
+        try {
+          credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: _email.text.trim(), password: _password.text);
+        } on FirebaseAuthMultiFactorException catch (error) {
+          if (!mounted) return;
+          credential = await resolveFirebaseMultiFactorSignIn(
+            context: context,
+            exception: error,
+          );
+        }
         await credential.user?.reload();
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
@@ -422,7 +440,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
               .collection('public_seller_profiles')
               .doc(user.uid)
               .set({
-            'ownerUid': user.uid,
+            'ownerUid': uid,
             'displayName':
                 profile.data()?['display_name'] ?? user.displayName ?? '',
             'description': profile.data()?['sellerBio'],
@@ -491,8 +509,6 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
           icon: Icons.mark_email_read_outlined);
     } on FirebaseAuthException catch (error) {
       if (error.code == 'user-not-found') {
-        // Do not reveal whether an email is registered; this prevents account
-        // discovery while preserving the same helpful recovery response.
         _notice(
             'If that email belongs to a Pipe Buyer account, recovery instructions have been sent. Check your inbox and spam folder.',
             error: false,
@@ -526,6 +542,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
         'wrong-password' || 'invalid-credential' => Icons.lock_outline,
         'invalid-email' => Icons.alternate_email,
         'network-request-failed' => Icons.wifi_off_outlined,
+        'invalid-verification-code' || 'mfa-timeout' => Icons.sms_failed_outlined,
         'user-disabled' => Icons.block_outlined,
         _ => Icons.error_outline,
       };
@@ -547,8 +564,16 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       'invalid-email' => 'Enter a valid email address.',
       'user-disabled' =>
         'This account has been disabled. Please contact marketplace support.',
+      'mfa-cancelled' => 'Second-factor verification was cancelled.',
+      'mfa-timeout' =>
+        'The security-code session timed out. Sign in again and request a new code.',
+      'invalid-verification-code' =>
+        'That security code is incorrect or expired. Sign in again and request a new code.',
+      'unsupported-second-factor' =>
+        'This account has no supported SMS second factor. Contact support to recover access.',
+      'quota-exceeded' ||
       'too-many-requests' =>
-        'Too many sign-in attempts. Wait a few minutes or reset your password.',
+        'Authentication is temporarily limited. Wait a few minutes before trying again.',
       'weak-password' =>
         'Choose a stronger password with at least 6 characters.',
       'network-request-failed' =>
@@ -570,6 +595,16 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
         'Google sign-in was cancelled.',
       'account-exists-with-different-credential' =>
         'An account already uses this email with another sign-in method. Sign in that way first, then connect Google.',
+      'mfa-cancelled' => 'Second-factor verification was cancelled.',
+      'mfa-timeout' =>
+        'The security-code session timed out. Start Google sign-in again.',
+      'invalid-verification-code' =>
+        'That security code is incorrect or expired. Start Google sign-in again.',
+      'unsupported-second-factor' =>
+        'This account has no supported SMS second factor. Contact support to recover access.',
+      'quota-exceeded' ||
+      'too-many-requests' =>
+        'Authentication is temporarily limited. Wait a few minutes before trying again.',
       'network-request-failed' =>
         'Could not reach Google or Firebase. Check your internet connection.',
       _ => error.message ?? 'Google authentication failed (${error.code}).',
