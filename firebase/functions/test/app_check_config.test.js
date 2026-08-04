@@ -8,8 +8,11 @@ const {
   protectedCallableOptions,
 } = require("../app_check_config");
 
-test("App Check enforcement is a deploy-time boolean with a safe default", () => {
-  assert.equal(enforceAppCheck, false);
+test("App Check enforcement follows the deploy-time boolean with a safe parser default", () => {
+  assert.equal(
+    enforceAppCheck,
+    environmentBoolean("PIPE_ENFORCE_APP_CHECK", false),
+  );
   assert.equal(environmentBoolean("PIPE_TEST_MISSING_FLAG"), false);
   process.env.PIPE_TEST_BOOLEAN = "true";
   assert.equal(environmentBoolean("PIPE_TEST_BOOLEAN"), true);
