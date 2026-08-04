@@ -30,6 +30,7 @@ function createAccountCommands(admin) {
       const identity = requireAuthenticatedIdentity(request, {
         requireEmail: false,
         requirePhone: false,
+        allowUnverified: true,
       });
       const userRef = db.collection("users").doc(identity.uid);
       const registryKey = identity.phoneVerified ?

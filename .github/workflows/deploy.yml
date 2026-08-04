@@ -198,7 +198,7 @@ jobs:
           firebase emulators:exec
           --project demo-pipe-buyer-integration
           --config firebase.json
-          --only auth,firestore,functions
+          --only auth,firestore,functions,storage
           "node firebase/functions/integration/callable_integration.mjs"
 
       - name: Build exact web release
@@ -262,7 +262,6 @@ jobs:
             exit 1
           fi
           echo "Firebase CI token is present."
-
 
       - name: Deploy explicitly selected Firebase project
         shell: bash

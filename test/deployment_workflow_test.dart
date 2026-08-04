@@ -59,6 +59,10 @@ void main() {
         'firestore:indexes,storage',
       ),
     );
+    expect(
+      workflow,
+      contains('--only auth,firestore,functions,storage'),
+    );
     expect(workflow, contains('firebase functions:list'));
     expect(workflow, contains('node tool/function_parity.mjs'));
     expect(workflow, contains('visual-acceptance:'));

@@ -49,6 +49,28 @@ test("protected commands require verified email or phone ownership", () => {
   }).uid, "u1");
 });
 
+test("verification synchronization may record an authenticated false state", () => {
+  const identity = requireAuthenticatedIdentity({
+    auth: {
+      uid: "unverified-user",
+      token: {email: "Pending@Pipe.Test"},
+    },
+  }, {allowUnverified: true});
+  assert.deepEqual(identity, {
+    uid: "unverified-user",
+    email: "pending@pipe.test",
+    emailVerified: false,
+    phoneNumber: "",
+    phoneVerified: false,
+  });
+  assert.throws(
+      () => requireAuthenticatedIdentity({
+        auth: {uid: "unverified-user", token: {}},
+      }, {allowUnverified: true, requireEmail: true}),
+      (error) => error.code === "failed-precondition",
+  );
+});
+
 test("phone registry keys are deterministic and do not expose phone numbers", () => {
   const first = phoneRegistryKey("+12505550123");
   const second = phoneRegistryKey("+12505550123");
