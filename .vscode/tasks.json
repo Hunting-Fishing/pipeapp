@@ -61,7 +61,7 @@
         "--dart-define=PIPE_ENV=production",
         "--dart-define=PIPE_PUBLIC_SUPPORT_EMAIL=support@pipebuyer.com",
         "--dart-define=PIPE_FIREBASE_API_KEY=AIzaSyAMm0HnXVq6UOERnPNP9SKqGtyV_-H--u8",
-        "--dart-define=PIPE_FIREBASE_AUTH_DOMAIN=flutter-flow-pipe.firebaseapp.com",
+        "--dart-define=PIPE_FIREBASE_AUTH_DOMAIN=pipebuyer.com",
         "--dart-define=PIPE_FIREBASE_PROJECT_ID=flutter-flow-pipe",
         "--dart-define=PIPE_FIREBASE_STORAGE_BUCKET=flutter-flow-pipe.firebasestorage.app",
         "--dart-define=PIPE_FIREBASE_MESSAGING_SENDER_ID=426221783223",

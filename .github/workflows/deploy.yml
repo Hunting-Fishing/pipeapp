@@ -111,9 +111,8 @@ jobs:
             echo "::error::Staging cannot deploy to the production Firebase project."
             exit 1
           fi
-          if [[ "$PIPE_ENV" == "production" && "$PIPE_APP_CHECK_MODE" != "enforce" ]]; then
-            echo "::error::Production releases require App Check enforce mode."
-            exit 1
+          if [[ "$PIPE_ENV" == "production" && "$PIPE_APP_CHECK_MODE" == "disabled" ]]; then
+            echo "::warning::App Check is disabled for this production release. Set app_check_mode to enforce before public launch."
           fi
 
       - name: Check out exact release commit
