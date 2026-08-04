@@ -440,7 +440,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
               .collection('public_seller_profiles')
               .doc(user.uid)
               .set({
-            'ownerUid': uid,
+            'ownerUid': user.uid,
             'displayName':
                 profile.data()?['display_name'] ?? user.displayName ?? '',
             'description': profile.data()?['sellerBio'],
