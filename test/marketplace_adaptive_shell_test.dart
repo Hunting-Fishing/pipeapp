@@ -1,0 +1,143 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/marketplace/marketplace_adaptive_shell.dart';
+
+void main() {
+  const compactDestinations = <MarketplaceShellDestination>[
+    MarketplaceShellDestination(
+      pageIndex: 0,
+      label: 'Home',
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home),
+    ),
+    MarketplaceShellDestination(
+      pageIndex: 1,
+      label: 'Browse',
+      icon: Icon(Icons.search),
+    ),
+    MarketplaceShellDestination(
+      pageIndex: 2,
+      label: 'List',
+      icon: Icon(Icons.add_box_outlined),
+    ),
+    MarketplaceShellDestination(
+      pageIndex: 4,
+      label: 'Messages',
+      icon: Icon(Icons.forum_outlined),
+    ),
+    MarketplaceShellDestination(
+      pageIndex: 5,
+      label: 'Account',
+      icon: Icon(Icons.person_outline),
+    ),
+  ];
+
+  const railDestinations = <MarketplaceShellDestination>[
+    ...compactDestinations,
+    MarketplaceShellDestination(
+      pageIndex: 6,
+      label: 'Auctions',
+      icon: Icon(Icons.gavel_outlined),
+    ),
+    MarketplaceShellDestination(
+      pageIndex: 7,
+      label: 'Dispatch',
+      icon: Icon(Icons.local_shipping_outlined),
+    ),
+  ];
+
+  Future<void> pumpShell(
+    WidgetTester tester, {
+    required double width,
+    int selectedPageIndex = 0,
+    ValueChanged<int>? onDestinationSelected,
+  }) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = Size(width, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MarketplaceAdaptiveShell(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+          selectedPageIndex: selectedPageIndex,
+          title: 'Pipe Buyer',
+          body: const ColoredBox(
+            key: Key('marketplace-body'),
+            color: Colors.white,
+          ),
+          drawer: const Drawer(child: Text('Marketplace navigation')),
+          compactDestinations: compactDestinations,
+          railDestinations: railDestinations,
+          onDestinationSelected: onDestinationSelected ?? (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('preserves drawer and bottom navigation on phone widths',
+      (tester) async {
+    await pumpShell(tester, width: 390);
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.byTooltip('Open navigation'), findsOneWidget);
+  });
+
+  testWidgets('uses a collapsed rail at expanded widths', (tester) async {
+    await pumpShell(tester, width: 1000, selectedPageIndex: 5);
+
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byTooltip('Open navigation'), findsNothing);
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.extended, isFalse);
+    expect(rail.selectedIndex, 4);
+  });
+
+  testWidgets('extends the rail only at wide widths', (tester) async {
+    await pumpShell(tester, width: 1300);
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.extended, isTrue);
+  });
+
+  testWidgets('maps compact destinations back to marketplace page indexes',
+      (tester) async {
+    int? selectedPage;
+    await pumpShell(
+      tester,
+      width: 390,
+      onDestinationSelected: (value) => selectedPage = value,
+    );
+
+    await tester.tap(find.text('Messages'));
+    await tester.pump();
+
+    expect(selectedPage, 4);
+  });
+
+  testWidgets('maps rail destinations back to marketplace page indexes',
+      (tester) async {
+    int? selectedPage;
+    await pumpShell(
+      tester,
+      width: 1000,
+      onDestinationSelected: (value) => selectedPage = value,
+    );
+
+    await tester.tap(find.text('Dispatch'));
+    await tester.pump();
+
+    expect(selectedPage, 7);
+  });
+
+  testWidgets('caps wide marketplace content at the shared maximum',
+      (tester) async {
+    await pumpShell(tester, width: 1800);
+
+    final bodySize = tester.getSize(find.byKey(const Key('marketplace-body')));
+    expect(bodySize.width, 1440);
+  });
+}
