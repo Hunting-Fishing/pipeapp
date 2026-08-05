@@ -153,8 +153,7 @@ class MarketplaceProfileRepository {
         FirebaseAuth.instance.currentUser?.phoneNumber ?? '');
     final normalizedCommunity =
         normalizePrimaryCommunityLocation(primaryCommunity);
-    final publicCommunity =
-        primaryCommunityPublicData(normalizedCommunity);
+    final publicCommunity = primaryCommunityPublicData(normalizedCommunity);
     values = {...values}
       ..remove('phone_number')
       ..remove('phoneE164');
@@ -166,6 +165,7 @@ class MarketplaceProfileRepository {
       final userValues = <String, dynamic>{
         ...values,
         'uid': uid,
+        'accountType': 'personal',
         'baseCommunity': primaryCommunityLabel(normalizedCommunity),
         'primaryCommunityLocation':
             primaryCommunityPrivateData(normalizedCommunity, uid),
@@ -173,7 +173,6 @@ class MarketplaceProfileRepository {
       };
       if (!userSnapshot.exists) {
         userValues.addAll({
-          'accountType': 'personal',
           'userScore': 70,
           'accountVerified': false,
         });
@@ -192,8 +191,7 @@ class MarketplaceProfileRepository {
             'description': values['sellerBio'],
             'baseCommunity': primaryCommunityLabel(normalizedCommunity),
             'primaryCommunity': publicCommunity,
-            'primaryCommunityGeoPoint':
-                publicCommunity['publicGeoPoint'],
+            'primaryCommunityGeoPoint': publicCommunity['publicGeoPoint'],
             'primaryCommunityTown': publicCommunity['nearestTown'],
             'primaryCommunityRegion': publicCommunity['region'],
             'primaryCommunityCountry': publicCommunity['country'],
@@ -252,6 +250,8 @@ class MarketplaceProfileRepository {
         SetOptions(merge: true),
       );
       final userValues = <String, dynamic>{
+        'uid': uid,
+        'accountType': 'business',
         'businessProfileComplete': true,
         'profileComplete': true,
         'profileCompletion': values['profileCompletion'],
@@ -259,8 +259,6 @@ class MarketplaceProfileRepository {
       };
       if (!userSnapshot.exists) {
         userValues.addAll({
-          'uid': uid,
-          'accountType': 'business',
           'userScore': 70,
           'accountVerified': false,
         });
