@@ -1,20 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet" data-icon-size="256x256">
-<title>Browse Marketplace</title>
-<desc>Editable 256 by 256 vector icon for Browse Marketplace. Industrial navy, steel and orange application artwork.</desc>
-<defs>
-<linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.45" stop-color="#DDE4E9"/><stop offset="1" stop-color="#78848E"/></linearGradient>
-<linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55636E"/><stop offset="0.55" stop-color="#26333E"/><stop offset="1" stop-color="#10171E"/></linearGradient>
-<linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9B35"/><stop offset="0.52" stop-color="#FF6B00"/><stop offset="1" stop-color="#D94F00"/></linearGradient>
-<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2F6FE"/><stop offset="0.48" stop-color="#A9D9EB"/><stop offset="1" stop-color="#3B6D85"/></linearGradient>
-<linearGradient id="tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38444D"/><stop offset="1" stop-color="#070A0D"/></linearGradient>
-</defs>
-<rect x="8" y="8" width="240" height="240" rx="31" fill="#041F3D" stroke="#173A5B" stroke-width="2" opacity="1"/>
-<path d="M39 17 H217 Q239 17 239 39" fill="none" stroke="#31516E" stroke-width="1.6" opacity="0.72" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="52" y="63" width="69" height="58" rx="8" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
-<rect x="135" y="63" width="69" height="58" rx="8" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
-<rect x="52" y="138" width="69" height="58" rx="8" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
-<rect x="135" y="138" width="69" height="58" rx="8" fill="url(#silver)" stroke="#7D8992" stroke-width="2" opacity="1"/>
-<circle cx="173" cy="170" r="28" fill="#0B3156" stroke="#FF6B00" stroke-width="6" opacity="1"/>
-<line x1="192.04" y1="189.04" x2="216.4" y2="213.4" stroke="#FF6B00" stroke-width="8" opacity="1" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" preserveAspectRatio="xMidYMid meet">
+  <title>Browse Marketplace</title>
+  <desc>Transparent high-contrast marketplace browse illustration for Pipe Buyer action cards.</desc>
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.52" stop-color="#DCE7EF"/>
+      <stop offset="1" stop-color="#8FA4B3"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#0F52BA"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#020617" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="30" y="38" width="78" height="68" rx="12" fill="url(#steel)" stroke="#E8F3FA" stroke-width="3"/>
+    <rect x="126" y="38" width="78" height="68" rx="12" fill="url(#steel)" stroke="#E8F3FA" stroke-width="3"/>
+    <rect x="30" y="126" width="78" height="68" rx="12" fill="url(#steel)" stroke="#E8F3FA" stroke-width="3"/>
+    <rect x="126" y="126" width="78" height="68" rx="12" fill="url(#steel)" stroke="#E8F3FA" stroke-width="3"/>
+    <path d="M52 59h34M52 73h24M148 59h34M148 73h24M52 147h34M52 161h24M148 147h34M148 161h24" stroke="#365466" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="172" cy="166" r="35" fill="#062A51" stroke="#FF8A1F" stroke-width="9"/>
+    <circle cx="172" cy="166" r="22" fill="url(#blue)" opacity="0.95"/>
+    <path d="M198 192l28 28" stroke="#FF8A1F" stroke-width="13" stroke-linecap="round"/>
+  </g>
 </svg>
