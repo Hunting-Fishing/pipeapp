@@ -22,16 +22,14 @@ jobs:
         with:
           node-version: 22
 
-      - name: Inspect live Pipe Buyer endpoints
+      - name: Capture App Check denial response
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path build/diagnostic | Out-Null
-          node tool/web_network_diagnostic.mjs `
-            'https://www.pipebuyer.com' `
-            'https://flutter-flow-pipe.web.app' `
-            'https://www.pipebuyer.com/about' |
-            Tee-Object -FilePath build/diagnostic/network-results.json
+          node tool/app_check_response_diagnostic.mjs `
+            'https://www.pipebuyer.com' |
+            Tee-Object -FilePath build/diagnostic/app-check-response.json
 
       - name: Retain diagnostic evidence
         if: ${{ always() }}
