@@ -7,6 +7,7 @@ import 'package:flutter_map_dragmarker/flutter_map_dragmarker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_location.dart';
 import 'open_address_autocomplete.dart';
 
@@ -28,11 +29,14 @@ class MarketplaceLocationPicker extends StatefulWidget {
       {super.key,
       this.initial,
       this.title = 'Listing location',
-      this.delivery = false});
+      this.delivery = false,
+      this.community = false})
+      : assert(!(delivery && community));
 
   final MarketplaceLocation? initial;
   final String title;
   final bool delivery;
+  final bool community;
 
   static Future<MarketplaceLocation?> show(
           BuildContext context, MarketplaceLocation? initial,
@@ -50,6 +54,15 @@ class MarketplaceLocationPicker extends StatefulWidget {
               initial: initial,
               title: 'Delivery destination',
               delivery: true)));
+
+  static Future<MarketplaceLocation?> showCommunity(
+          BuildContext context, MarketplaceLocation? initial) =>
+      Navigator.of(context).push<MarketplaceLocation>(MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => MarketplaceLocationPicker(
+              initial: initial,
+              title: 'Primary community',
+              community: true)));
 
   @override
   State<MarketplaceLocationPicker> createState() =>
@@ -80,12 +93,16 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
     _point = initial?.point ?? const LatLng(55.1707, -118.7947);
     _visibility = widget.delivery
         ? LocationVisibility.exact
-        : initial?.visibility ?? LocationVisibility.approximate;
+        : widget.community
+            ? LocationVisibility.approximate
+            : initial?.visibility ?? LocationVisibility.approximate;
     _address = TextEditingController(text: initial?.address);
     _town = TextEditingController(text: initial?.nearestTown);
     _publicName = TextEditingController(
         text: initial?.publicName ??
-            (widget.delivery ? '' : 'Grande Prairie area, AB'));
+            (widget.delivery || widget.community
+                ? ''
+                : 'Grande Prairie area, AB'));
     _notes = TextEditingController(text: initial?.accessNotes);
     _region = TextEditingController(text: initial?.region ?? 'Alberta');
     _postalCode = TextEditingController(text: initial?.postalCode);
@@ -122,15 +139,19 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
         ),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           Text(
-              widget.delivery
-                  ? 'Drop the pin at the delivery destination'
-                  : 'Drop the pin at the real pickup location',
+              widget.community
+                  ? 'Choose your primary community or operating area'
+                  : widget.delivery
+                      ? 'Drop the pin at the delivery destination'
+                      : 'Drop the pin at the real pickup location',
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 5),
-          Text(widget.delivery
-              ? 'The exact destination is stored privately with your offer and trucking request.'
-              : 'The exact pin is stored privately unless you choose to publish it.'),
+          Text(widget.community
+              ? 'The exact pin is stored privately. Only a broad area is used for local search and nearby results.'
+              : widget.delivery
+                  ? 'The exact destination is stored privately with your offer and trucking request.'
+                  : 'The exact pin is stored privately unless you choose to publish it.'),
           const SizedBox(height: 14),
           if (widget.delivery) ...[
             const Card(
@@ -218,12 +239,16 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
           const SizedBox(height: 10),
           OpenAddressAutocomplete(
               initialValue: _address.text,
-              label: widget.delivery
-                  ? 'Search destination, landmark or nearest town'
-                  : 'Find an address or place',
-              hint: widget.delivery
-                  ? 'Try Tomslake, Dawson Creek, a yard, farm, landmark or postal code'
-                  : 'Start typing a street, town, lease or postal code',
+              label: widget.community
+                  ? 'Search city, town, municipality or operating area'
+                  : widget.delivery
+                      ? 'Search destination, landmark or nearest town'
+                      : 'Find an address or place',
+              hint: widget.community
+                  ? 'Try Grande Prairie, Alberta or a nearby municipality'
+                  : widget.delivery
+                      ? 'Try Tomslake, Dawson Creek, a yard, farm, landmark or postal code'
+                      : 'Start typing a street, town, lease or postal code',
               onSelected: (address) {
                 setState(() {
                   _point = address.point;
@@ -237,29 +262,41 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
           TextField(
               controller: _address,
               decoration: InputDecoration(
-                  labelText: widget.delivery
-                      ? 'Delivery address, yard, farm or site name'
-                      : 'Street, rural route, LSD or site name',
-                  hintText: widget.delivery
-                      ? 'e.g. Tomslake property, CJSM Yard or Lease 12-34'
-                      : 'e.g. 25 km west on Highway 43',
-                  helperText: widget.delivery
-                      ? 'Describe the actual site—not only the nearest town.'
-                      : null,
+                  labelText: widget.community
+                      ? 'Selected place or address (private)'
+                      : widget.delivery
+                          ? 'Delivery address, yard, farm or site name'
+                          : 'Street, rural route, LSD or site name',
+                  hintText: widget.community
+                      ? 'Optional street, rural area, or landmark'
+                      : widget.delivery
+                          ? 'e.g. Tomslake property, CJSM Yard or Lease 12-34'
+                          : 'e.g. 25 km west on Highway 43',
+                  helperText: widget.community
+                      ? 'This detail and the exact pin stay private.'
+                      : widget.delivery
+                          ? 'Describe the actual site—not only the nearest town.'
+                          : null,
                   prefixIcon: const Icon(Icons.edit_location_alt_outlined))),
           const SizedBox(height: 10),
           TextField(
               controller: _town,
               decoration: InputDecoration(
-                  labelText: widget.delivery
-                      ? 'Nearest recognized town *'
-                      : 'Nearest recognized town',
-                  hintText: widget.delivery
-                      ? 'e.g. Dawson Creek, British Columbia'
-                      : 'e.g. Grande Prairie, Alberta',
-                  helperText: widget.delivery
-                      ? 'For a rural Tomslake destination, Dawson Creek may be the nearest well-known service town.'
-                      : null)),
+                  labelText: widget.community
+                      ? 'City, town or municipality *'
+                      : widget.delivery
+                          ? 'Nearest recognized town *'
+                          : 'Nearest recognized town',
+                  hintText: widget.community
+                      ? 'e.g. Grande Prairie'
+                      : widget.delivery
+                          ? 'e.g. Dawson Creek, British Columbia'
+                          : 'e.g. Grande Prairie, Alberta',
+                  helperText: widget.community
+                      ? 'Used to organize local marketplace and nearby search results.'
+                      : widget.delivery
+                          ? 'For a rural Tomslake destination, Dawson Creek may be the nearest well-known service town.'
+                          : null)),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(
@@ -286,15 +323,21 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
           TextField(
               controller: _publicName,
               decoration: InputDecoration(
-                  labelText: widget.delivery
-                      ? 'Destination label *'
-                      : 'Public location label',
-                  hintText: widget.delivery
-                      ? 'e.g. Tomslake Farm — south gate'
-                      : 'e.g. 25 km west of Grande Prairie',
-                  helperText: widget.delivery
-                      ? 'Use a short name the buyer, seller and driver will recognize.'
-                      : null)),
+                  labelText: widget.community
+                      ? 'Public community label *'
+                      : widget.delivery
+                          ? 'Destination label *'
+                          : 'Public location label',
+                  hintText: widget.community
+                      ? 'e.g. Grande Prairie, Alberta'
+                      : widget.delivery
+                          ? 'e.g. Tomslake Farm — south gate'
+                          : 'e.g. 25 km west of Grande Prairie',
+                  helperText: widget.community
+                      ? 'Shown on your seller profile; the exact pin remains private.'
+                      : widget.delivery
+                          ? 'Use a short name the buyer, seller and driver will recognize.'
+                          : null)),
           const SizedBox(height: 14),
           if (widget.delivery)
             const Card(
@@ -304,6 +347,15 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
                     title: Text('Private Dispatch destination'),
                     subtitle: Text(
                         'The exact pin is shared only with offer participants and the selected trucking provider.')))
+          else if (widget.community)
+            const Card(
+                color: Color(0xFFEAF4FD),
+                child: ListTile(
+                    leading:
+                        Icon(Icons.radar, color: Color(0xFF0878E8)),
+                    title: Text('Broad-area profile location'),
+                    subtitle: Text(
+                        'Pipe Buyer stores the exact pin privately and publishes only an approximate area for discovery.')))
           else ...[
             const Text('Who can see this location?',
                 style: TextStyle(fontWeight: FontWeight.w800)),
@@ -335,41 +387,61 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
               controller: _notes,
               maxLines: 3,
               decoration: InputDecoration(
-                  labelText: widget.delivery
-                      ? 'Private delivery instructions'
-                      : 'Private access instructions',
-                  hintText: widget.delivery
-                      ? 'Gate, yard contact, unloading or appointment details'
-                      : 'Gate, lease road, appointment or loading details')),
+                  labelText: widget.community
+                      ? 'Private community notes'
+                      : widget.delivery
+                          ? 'Private delivery instructions'
+                          : 'Private access instructions',
+                  hintText: widget.community
+                      ? 'Optional notes for your own records'
+                      : widget.delivery
+                          ? 'Gate, yard contact, unloading or appointment details'
+                          : 'Gate, lease road, appointment or loading details')),
           const SizedBox(height: 18),
           FilledButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.check),
-              label: Text(widget.delivery
-                  ? 'Use this destination'
-                  : 'Use this location')),
+              label: Text(widget.community
+                  ? 'Use this primary community'
+                  : widget.delivery
+                      ? 'Use this destination'
+                      : 'Use this location')),
         ]),
       );
 
   void _save() {
-    if (widget.delivery && _town.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Enter the nearest recognized town so drivers can orient the route.')));
+    if ((widget.delivery || widget.community) &&
+        _town.text.trim().isEmpty) {
+      PipeFeedback.show(
+        context,
+        message: widget.community
+            ? 'Select or enter the city, town, or municipality for this profile.'
+            : 'Enter the nearest recognized town so drivers can orient the route.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
     if (_publicName.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(widget.delivery
-              ? 'Enter a destination label drivers can recognize.'
-              : 'Enter a public location label.')));
+      PipeFeedback.show(
+        context,
+        message: widget.community
+            ? 'Enter a public community label, such as Grande Prairie, Alberta.'
+            : widget.delivery
+                ? 'Enter a destination label drivers can recognize.'
+                : 'Enter a public location label.',
+        tone: PipeStatusTone.warning,
+      );
       return;
     }
     Navigator.pop(
         context,
         MarketplaceLocation(
           point: _point,
-          visibility: widget.delivery ? LocationVisibility.exact : _visibility,
+          visibility: widget.delivery
+              ? LocationVisibility.exact
+              : widget.community
+                  ? LocationVisibility.approximate
+                  : _visibility,
           publicName: _publicName.text,
           address: _address.text,
           nearestTown: _town.text,
@@ -465,8 +537,14 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
       _mapController.move(point, 15);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not use device location: $error')));
+        final denied = error is StateError;
+        PipeFeedback.show(
+          context,
+          message: denied
+              ? 'Location access was not granted. Search for the community or place instead.'
+              : 'Your device location could not be loaded. Search for the community or place instead.',
+          tone: PipeStatusTone.warning,
+        );
       }
     }
   }

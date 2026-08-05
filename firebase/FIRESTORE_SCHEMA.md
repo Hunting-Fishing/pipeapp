@@ -4,7 +4,9 @@ Firestore uses collections and documents rather than SQL tables.
 
 - `users/{uid}`: private personal account and contact preferences. Firebase
   Auth email/phone claims are synchronized into protected ownership fields by
-  `syncAccountVerification`; clients cannot mark themselves verified.
+  `syncAccountVerification`; clients cannot mark themselves verified. The
+  private `primaryCommunityLocation` map stores the exact profile pin, full
+  address, and private notes for the owner only.
   - `saved_locations/{locationId}`: private reusable yards, remote sites, storage/pipe locations, personal sale areas, and observed-interest pins. Each record stores purpose, exact point, privacy, nearby-notification opt-in, and radius.
   - `account_devices/{deviceHash}`: server-owned remembered app-installation
     history with a bounded platform label, first/last seen timestamps, last
@@ -49,7 +51,11 @@ Firestore uses collections and documents rather than SQL tables.
   factor claim.
 - `tag_requests/{requestId}`: user suggestions with pending, approved, or rejected moderation status.
 - `users/{uid}/profile_tags/{tagId}`: approved selections and visibly pending user suggestions.
-- `public_seller_profiles/{uid}`: public discovery index containing approved tag IDs and account type.
+- `public_seller_profiles/{uid}`: public discovery index containing approved
+  tag IDs, account type, the legacy `baseCommunity` label, and a structured
+  `primaryCommunity` broad-area map. `primaryCommunityGeoPoint`, town, region,
+  and country fields support nearby discovery without exposing the private
+  exact profile pin or address.
 - `conversations/{conversationId}/messages/{messageId}`: listing-scoped
   buyer/seller chats created only by verified, throttled communication commands.
 - `media_upload_authorizations/{authorizationId}`: server-created 15-minute

@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_profile_repository.dart';
+import 'marketplace_profile_community.dart';
+import 'marketplace_profile_feedback.dart';
 import 'marketplace_profile_tags.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_service_area.dart';
@@ -84,6 +86,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
   String _accountType = 'personal';
   String _accountEmail = '';
   MarketplaceServiceArea? _serviceAreaSelection;
+  MarketplaceLocation? _primaryCommunityLocation;
   MarketplaceLocation? _businessYardLocation;
   Timer? _completionDebounce;
   List<Map<String, dynamic>> _savedLocations = const [];
@@ -166,9 +169,23 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       _accountEmail = '${personal['email'] ?? user.email ?? ''}';
       _displayName.text =
           '${personal['display_name'] ?? publicSeller?['displayName'] ?? ''}';
-      _phone.text = '${personal['phone_number'] ?? ''}';
+      _phone.text = '${personal['pendingPhoneE164'] ?? personal['verifiedPhoneE164'] ?? personal['phone_number'] ?? user.phoneNumber ?? ''}';
       _community.text =
           '${personal['baseCommunity'] ?? publicSeller?['baseCommunity'] ?? ''}';
+      final primaryCommunity = personal['primaryCommunityLocation'];
+      if (primaryCommunity is Map) {
+        try {
+          _primaryCommunityLocation = normalizePrimaryCommunityLocation(
+            MarketplaceLocation.fromPrivateData(
+              Map<String, dynamic>.from(primaryCommunity),
+            ),
+          );
+          _community.text =
+              primaryCommunityLabel(_primaryCommunityLocation!);
+        } catch (_) {
+          _loadIssues.add('Primary community map');
+        }
+      }
       _personalBio.text =
           '${personal['sellerBio'] ?? publicSeller?['description'] ?? ''}';
       _preferredContact = '${personal['preferredContact'] ?? 'In-app message'}';
@@ -359,7 +376,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
         : [
             _displayName.text,
             _phone.text,
-            _community.text,
+            _primaryCommunityLocation == null ? '' : 'selected',
             _personalBio.text,
           ];
     return ((fields.where((value) => value.trim().isNotEmpty).length /
@@ -912,7 +929,8 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     return [
       if (_displayName.text.trim().isEmpty) ('Display name', _displayNameKey),
       if (_phone.text.trim().isEmpty) ('Phone', _phoneKey),
-      if (_community.text.trim().isEmpty) ('Community', _communityKey),
+      if (_primaryCommunityLocation == null)
+        ('Primary community', _communityKey),
       if (_personalBio.text.trim().isEmpty) ('About you', _personalBioKey),
     ];
   }
@@ -985,13 +1003,23 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       await _repo.changeAccountType(requested);
       if (!mounted) return;
       setState(() => _accountType = requested);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'Account changed to ${requested == 'business' ? 'Business' : 'Personal'}. Complete the active profile.')));
-    } catch (_) {
+      PipeFeedback.show(
+        context,
+        message:
+            'Account changed to ${requested == 'business' ? 'Business' : 'Personal'}. Complete the active profile.',
+        tone: PipeStatusTone.success,
+      );
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Could not change the account type.')));
+        PipeFeedback.show(
+          context,
+          message: profileOperationErrorMessage(
+            error,
+            fallback:
+                'The account type could not be changed right now. Please try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1027,10 +1055,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                           _phone.text = value;
                           _profileFieldChanged();
                         }))),
-            _field(_community, 'Base community',
-                hint: 'Grande Prairie, Alberta',
-                completionRequired: true,
-                fieldKey: _communityKey),
+            _primaryCommunityField(),
             DropdownButtonFormField<String>(
               initialValue: _preferredContact,
               isExpanded: true,
@@ -1053,6 +1078,45 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
           ]),
         ),
       );
+
+  Widget _primaryCommunityField() {
+    final selected = _primaryCommunityLocation;
+    final legacyLabel = _community.text.trim();
+    final missing = selected == null;
+    final subtitle = selected != null
+        ? '${primaryCommunityLabel(selected)}\nExact pin private • broad area used for nearby results'
+        : legacyLabel.isNotEmpty
+            ? '$legacyLabel • Confirm this community on the map'
+            : 'Select a city, town, municipality, or operating area';
+    return Container(
+      key: _communityKey,
+      margin: const EdgeInsets.only(bottom: 11),
+      decoration: _missingDecoration(missing),
+      child: ListTile(
+        leading: const Icon(Icons.map_outlined, color: Color(0xFF0878E8)),
+        title: const Text('Primary community',
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: Text(subtitle),
+        isThreeLine: selected != null,
+        trailing: const Icon(Icons.chevron_right),
+        onTap: _saving ? null : _selectPrimaryCommunity,
+      ),
+    );
+  }
+
+  Future<void> _selectPrimaryCommunity() async {
+    final selected = await MarketplaceLocationPicker.showCommunity(
+      context,
+      _primaryCommunityLocation,
+    );
+    if (selected == null || !mounted) return;
+    final normalized = normalizePrimaryCommunityLocation(selected);
+    setState(() {
+      _primaryCommunityLocation = normalized;
+      _community.text = primaryCommunityLabel(normalized);
+    });
+    _scheduleCompletionSync();
+  }
 
   Widget _businessForm() => Padding(
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
@@ -1287,10 +1351,28 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     final location = await MarketplaceLocationPicker.show(context, null,
         title: 'Add ${_purposeLabel(purpose)}');
     if (location == null || !mounted) return;
-    await _repo.saveLocation(
-        location: location.privateData(FirebaseAuth.instance.currentUser!.uid),
-        purpose: purpose);
-    await _reloadSavedLocations();
+    try {
+      await _repo.saveLocation(
+          location:
+              location.privateData(FirebaseAuth.instance.currentUser!.uid),
+          purpose: purpose);
+      await _reloadSavedLocations();
+      if (mounted) {
+        PipeFeedback.show(context,
+            message: 'Saved location added.',
+            tone: PipeStatusTone.success);
+      }
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: profileOperationErrorMessage(error,
+              fallback:
+                  'This location could not be saved. Check your connection and try again.'),
+          tone: PipeStatusTone.error,
+        );
+      }
+    }
   }
 
   Widget _purposeOption(BuildContext context, String value, String label) =>
@@ -1302,16 +1384,51 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     final updated = await MarketplaceLocationPicker.show(context, location,
         title: 'Move or edit saved location');
     if (updated == null || !mounted) return;
-    await _repo.saveLocation(
-        id: '${data['id']}',
-        location: updated.privateData(FirebaseAuth.instance.currentUser!.uid),
-        purpose: '${data['purpose'] ?? 'saved_location'}');
-    await _reloadSavedLocations();
+    try {
+      await _repo.saveLocation(
+          id: '${data['id']}',
+          location:
+              updated.privateData(FirebaseAuth.instance.currentUser!.uid),
+          purpose: '${data['purpose'] ?? 'saved_location'}');
+      await _reloadSavedLocations();
+      if (mounted) {
+        PipeFeedback.show(context,
+            message: 'Saved location updated.',
+            tone: PipeStatusTone.success);
+      }
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: profileOperationErrorMessage(error,
+              fallback:
+                  'This location could not be updated. Check your connection and try again.'),
+          tone: PipeStatusTone.error,
+        );
+      }
+    }
   }
 
   Future<void> _removeSavedLocation(String id) async {
-    await _repo.deleteLocation(id);
-    await _reloadSavedLocations();
+    try {
+      await _repo.deleteLocation(id);
+      await _reloadSavedLocations();
+      if (mounted) {
+        PipeFeedback.show(context,
+            message: 'Saved location removed.',
+            tone: PipeStatusTone.success);
+      }
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: profileOperationErrorMessage(error,
+              fallback:
+                  'This location could not be removed. Please try again.'),
+          tone: PipeStatusTone.error,
+        );
+      }
+    }
   }
 
   Future<void> _reloadSavedLocations() async {
@@ -1337,22 +1454,37 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
         _ => Icons.location_on_outlined,
       };
 
+  Future<bool> _validateProfile(GlobalKey<FormState> formKey) async {
+    final formValid = formKey.currentState?.validate() ?? false;
+    final missing = _missingProfileItems;
+    if (formValid && missing.isEmpty) return true;
+    if (mounted) setState(() {});
+    PipeFeedback.show(
+      context,
+      message: incompleteProfileMessage(missing.map((item) => item.$1)),
+      tone: PipeStatusTone.warning,
+    );
+    if (missing.isNotEmpty) await _goToMissing(missing.first.$2);
+    return false;
+  }
+
   Future<void> _savePersonal() async {
-    if (!_personalKey.currentState!.validate()) return;
+    if (!await _validateProfile(_personalKey)) return;
+    final primaryCommunity = _primaryCommunityLocation!;
     await _save(() => _repo.savePersonal({
           'display_name': _displayName.text.trim(),
           'phone_number': _phone.text.trim(),
-          'baseCommunity': _community.text.trim(),
+          'baseCommunity': primaryCommunityLabel(primaryCommunity),
           'sellerBio': _personalBio.text.trim(),
           'preferredContact': _preferredContact,
           'personalProfileComplete': true,
           'profileComplete': _accountType == 'personal',
           'profileCompletion': _profileCompletion,
-        }));
+        }, primaryCommunity: primaryCommunity));
   }
 
   Future<void> _saveBusiness() async {
-    if (!_businessKey.currentState!.validate()) return;
+    if (!await _validateProfile(_businessKey)) return;
     await _save(() => _repo.saveBusiness({
           'publicName': _businessName.text.trim(),
           'legalName': _legalBusinessName.text.trim(),
@@ -1381,18 +1513,27 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     try {
       await action();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Profile saved.')));
+        PipeFeedback.show(
+          context,
+          message: 'Profile saved.',
+          tone: PipeStatusTone.success,
+        );
         if (widget.onboarding) {
           await Future<void>.delayed(const Duration(milliseconds: 450));
           if (mounted) Navigator.of(context).pop(true);
         }
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('Could not save. Check Firebase rules and sign-in.')));
+        PipeFeedback.show(
+          context,
+          message: profileOperationErrorMessage(
+            error,
+            fallback:
+                'Your profile could not be saved right now. Please try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
