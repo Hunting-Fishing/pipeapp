@@ -1,0 +1,39 @@
+name: Apply release identity About relocation
+
+on:
+  push:
+    branches:
+      - phase-1-1-account-about-release
+    paths:
+      - .github/workflows/apply_release_identity_about.yml
+      - tool/apply_release_identity_about.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release identity branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: phase-1-1-account-about-release
+          fetch-depth: 0
+
+      - name: Relocate release identity
+        run: python tool/apply_release_identity_about.py
+
+      - name: Commit release identity relocation
+        shell: bash
+        run: |
+          git config user.name "366 Industries"
+          git config user.email "103216816+Hunting-Fishing@users.noreply.github.com"
+          git add \
+            lib/marketplace/marketplace_about_page.dart \
+            lib/marketplace/marketplace_account_hub.dart \
+            lib/marketplace/oil_gas_marketplace.dart \
+            test/marketplace_about_page_test.dart
+          git diff --cached --check
+          git commit -m "Move release identity to Account About"
+          git push origin HEAD:phase-1-1-account-about-release
