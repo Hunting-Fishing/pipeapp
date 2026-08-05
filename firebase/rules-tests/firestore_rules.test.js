@@ -20,6 +20,7 @@ const {
   collection,
   getDoc,
   getDocs,
+  GeoPoint,
   limit,
   orderBy,
   query,
@@ -1470,4 +1471,60 @@ test("notification endpoints and delivery evidence are server-controlled", async
   await assertFails(setDoc(doc(
       ownerDb, "notification_delivery_failures", "forged-failure",
   ), {status: "open"}));
+});
+
+test("new personal profile baseline and mapped community are writable", async () => {
+  const uid = "new-profile-user";
+  const db = testEnvironment.authenticatedContext(uid).firestore();
+  const updatedAt = Timestamp.fromDate(new Date("2026-08-06T00:00:00.000Z"));
+
+  await assertSucceeds(setDoc(doc(db, "users", uid), {
+    uid,
+    accountType: "personal",
+    userScore: 70,
+    accountVerified: false,
+    display_name: "New Seller",
+    pendingPhoneE164: "+12507194015",
+    baseCommunity: "Grande Prairie, Alberta",
+    primaryCommunityLocation: {
+      ownerUid: uid,
+      exactGeoPoint: new GeoPoint(55.1707, -118.7947),
+      fullAddress: "Private street address",
+      nearestTown: "Grande Prairie",
+      region: "Alberta",
+      postalCode: "T8V 0X9",
+      country: "Canada",
+      accessNotes: "Private notes",
+      visibility: "approximate",
+      publicName: "Grande Prairie, Alberta",
+      updatedAt,
+    },
+    sellerBio: "Oilfield marketplace seller and buyer.",
+    preferredContact: "In-app message",
+    personalProfileComplete: true,
+    profileComplete: true,
+    profileCompletion: 100,
+    profileUpdatedAt: updatedAt,
+  }));
+
+  await assertSucceeds(setDoc(doc(db, "public_seller_profiles", uid), {
+    ownerUid: uid,
+    displayName: "New Seller",
+    description: "Oilfield marketplace seller and buyer.",
+    baseCommunity: "Grande Prairie, Alberta",
+    primaryCommunity: {
+      locationVisibility: "approximate",
+      publicLocationName: "Grande Prairie, Alberta",
+      nearestTown: "Grande Prairie",
+      region: "Alberta",
+      country: "Canada",
+      approximateRadiusKm: 10,
+      publicGeoPoint: new GeoPoint(55.15, -118.8),
+    },
+    primaryCommunityGeoPoint: new GeoPoint(55.15, -118.8),
+    primaryCommunityTown: "Grande Prairie",
+    primaryCommunityRegion: "Alberta",
+    primaryCommunityCountry: "Canada",
+    updatedAt,
+  }));
 });
