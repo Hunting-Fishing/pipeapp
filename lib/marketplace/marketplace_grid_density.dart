@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'marketplace_adaptive_layout.dart';
+
 class MarketplaceGridDensityBar extends StatelessWidget {
   const MarketplaceGridDensityBar({
     super.key,
@@ -12,9 +14,12 @@ class MarketplaceGridDensityBar extends StatelessWidget {
   final int selectedColumns;
   final ValueChanged<int> onChanged;
 
-  static const double compactBreakpoint = 600;
-  static const double mediumBreakpoint = 900;
-  static const double expandedBreakpoint = 1200;
+  static const double compactBreakpoint =
+      MarketplaceAdaptiveLayout.compactBreakpoint;
+  static const double mediumBreakpoint =
+      MarketplaceAdaptiveLayout.mediumBreakpoint;
+  static const double expandedBreakpoint =
+      MarketplaceAdaptiveLayout.expandedBreakpoint;
 
   @override
   Widget build(BuildContext context) {
@@ -107,13 +112,8 @@ class MarketplaceGridDensityBar extends StatelessWidget {
   /// These breakpoints intentionally add a three-column desktop state instead
   /// of jumping directly from two to four columns. This keeps listing cards
   /// readable when a navigation rail or filter panel reduces the content area.
-  static int maxColumnsForWidth(double availableWidth) {
-    if (!availableWidth.isFinite || availableWidth <= 0) return 1;
-    if (availableWidth >= expandedBreakpoint) return 4;
-    if (availableWidth >= mediumBreakpoint) return 3;
-    if (availableWidth >= compactBreakpoint) return 2;
-    return 1;
-  }
+  static int maxColumnsForWidth(double availableWidth) =>
+      MarketplaceAdaptiveLayout.maxGridColumns(availableWidth);
 
   /// Resolves the effective grid density for an automatic or explicit user
   /// preference. Explicit preferences are preserved only when the available
