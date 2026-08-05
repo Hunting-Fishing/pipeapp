@@ -1,0 +1,43 @@
+name: Live web network diagnostic
+
+on:
+  push:
+    branches:
+      - diagnose/live-403-resource
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: windows-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Check out diagnostic source
+        uses: actions/checkout@v7.0.0
+
+      - name: Install Node runtime
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+
+      - name: Inspect live Pipe Buyer endpoints
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path build/diagnostic | Out-Null
+          node tool/web_network_diagnostic.mjs `
+            'https://flutter-flow-pipe.web.app' `
+            'https://www.pipebuyer.com' `
+            'https://www.pipebuyer.com/about' |
+            Tee-Object -FilePath build/diagnostic/network-results.json
+
+      - name: Retain diagnostic evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: live-web-network-diagnostic-${{ github.run_id }}
+          path: build/diagnostic/*
+          if-no-files-found: warn
+          retention-days: 7
