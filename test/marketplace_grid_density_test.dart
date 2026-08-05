@@ -57,8 +57,15 @@ void main() {
       await tester.tap(find.byTooltip('3 columns'));
       await tester.pumpAndSettle();
 
-      final semantics = tester.getSemantics(find.bySemanticsLabel('3 columns'));
-      expect(semantics.hasFlag(SemanticsFlag.isSelected), isTrue);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('3 columns')),
+        matchesSemantics(
+          label: '3 columns',
+          isButton: true,
+          isSelected: true,
+          hasTapAction: true,
+        ),
+      );
     });
   });
 }
