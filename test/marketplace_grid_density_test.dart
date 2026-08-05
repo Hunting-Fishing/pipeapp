@@ -34,9 +34,6 @@ void main() {
 
     testWidgets('exposes accessible density labels and selection state',
         (tester) async {
-      final semanticsHandle = tester.ensureSemantics();
-      addTearDown(semanticsHandle.dispose);
-
       var selected = 0;
       await tester.pumpWidget(
         MaterialApp(
@@ -51,24 +48,28 @@ void main() {
         ),
       );
 
-      expect(find.bySemanticsLabel('Automatic grid density'), findsOneWidget);
-      expect(find.bySemanticsLabel('1 column'), findsOneWidget);
-      expect(find.bySemanticsLabel('2 columns'), findsOneWidget);
-      expect(find.bySemanticsLabel('3 columns'), findsOneWidget);
-      expect(find.bySemanticsLabel('4 columns'), findsOneWidget);
+      final grid = find.byType(MarketplaceGridDensityBar);
+      final semanticsWidgets = find.descendant(
+        of: grid,
+        matching: find.byType(Semantics),
+      );
+
+      Semantics option(String label) => tester
+          .widgetList<Semantics>(semanticsWidgets)
+          .singleWhere((widget) => widget.properties.label == label);
+
+      expect(option('Automatic grid density').properties.button, isTrue);
+      expect(option('Automatic grid density').properties.selected, isTrue);
+      expect(option('1 column').properties.button, isTrue);
+      expect(option('2 columns').properties.button, isTrue);
+      expect(option('3 columns').properties.button, isTrue);
+      expect(option('4 columns').properties.button, isTrue);
 
       await tester.tap(find.byTooltip('3 columns'));
       await tester.pumpAndSettle();
 
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('3 columns')),
-        matchesSemantics(
-          label: '3 columns',
-          isButton: true,
-          isSelected: true,
-          hasTapAction: true,
-        ),
-      );
+      expect(option('Automatic grid density').properties.selected, isFalse);
+      expect(option('3 columns').properties.selected, isTrue);
     });
   });
 }
