@@ -28,8 +28,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path build/diagnostic | Out-Null
           node tool/web_network_diagnostic.mjs `
-            'https://flutter-flow-pipe.web.app' `
             'https://www.pipebuyer.com' `
+            'https://flutter-flow-pipe.web.app' `
             'https://www.pipebuyer.com/about' |
             Tee-Object -FilePath build/diagnostic/network-results.json
 
