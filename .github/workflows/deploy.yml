@@ -205,8 +205,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          worker_path="web/firebase-messaging-sw.js"
+          restore_worker() {
+            git restore --source=HEAD --worktree -- "$worker_path"
+          }
+          trap restore_worker EXIT
           node tool/configure_firebase_messaging_worker.mjs \
-            --output web/firebase-messaging-sw.js \
+            --output "$worker_path" \
             --api-key "$PIPE_FIREBASE_API_KEY" \
             --auth-domain "$PIPE_FIREBASE_AUTH_DOMAIN" \
             --project-id "$PIPE_FIREBASE_PROJECT_ID" \
@@ -229,6 +234,13 @@ jobs:
             --dart-define=PIPE_APP_CHECK_REQUIRED="$PIPE_APP_CHECK_REQUIRED" \
             --dart-define=PIPE_FIREBASE_WEB_PUSH_VAPID_KEY="$PIPE_FIREBASE_WEB_PUSH_VAPID_KEY" \
             --dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED="$PIPE_REMOTE_DIAGNOSTICS_ENABLED"
+          restore_worker
+          trap - EXIT
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git status --short
+            echo "::error::Release preparation modified repository source."
+            exit 1
+          fi
 
       - name: Confirm web notification worker
         run: >

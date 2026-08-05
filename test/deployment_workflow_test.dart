@@ -51,6 +51,31 @@ void main() {
     expect(workflow, contains('App Check is disabled for this production release'));
   });
 
+  test('web worker keeps release source clean and Flutter cache hashes exact', () {
+    final generationIndex = workflow.indexOf(
+      'node tool/configure_firebase_messaging_worker.mjs',
+    );
+    final webBuildIndex = workflow.indexOf('flutter build web');
+    final restoreIndex = workflow.indexOf('restore_worker\n          trap - EXIT');
+    final manifestIndex = workflow.indexOf('node tool/release_manifest.mjs');
+
+    expect(generationIndex, greaterThan(-1));
+    expect(webBuildIndex, greaterThan(generationIndex));
+    expect(restoreIndex, greaterThan(webBuildIndex));
+    expect(manifestIndex, greaterThan(restoreIndex));
+    expect(
+      workflow,
+      contains('worker_path="web/firebase-messaging-sw.js"'),
+    );
+    expect(workflow, contains('trap restore_worker EXIT'));
+    expect(
+      workflow,
+      contains(r'git restore --source=HEAD --worktree -- "$worker_path"'),
+    );
+    expect(workflow, contains('git status --porcelain'));
+    expect(workflow, contains('test -s build/web/firebase-messaging-sw.js'));
+  });
+
   test('deployment proves full-service parity and retains visual evidence', () {
     expect(
       workflow,
