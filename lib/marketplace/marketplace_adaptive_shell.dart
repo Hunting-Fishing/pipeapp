@@ -72,7 +72,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
           return Scaffold(
             key: scaffoldKey,
             backgroundColor: backgroundColor,
-            appBar: _buildAppBar(context, showMenuButton: false),
+            appBar: _buildAppBar(showMenuButton: false),
             body: SafeArea(
               child: Row(
                 children: [
@@ -120,7 +120,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
         return Scaffold(
           key: scaffoldKey,
           backgroundColor: backgroundColor,
-          appBar: _buildAppBar(context, showMenuButton: drawer != null),
+          appBar: _buildAppBar(showMenuButton: drawer != null),
           drawer: drawer,
           body: SafeArea(
             child: _ConstrainedMarketplaceBody(
@@ -157,10 +157,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
     );
   }
 
-  AppBar _buildAppBar(
-    BuildContext context, {
-    required bool showMenuButton,
-  }) {
+  AppBar _buildAppBar({required bool showMenuButton}) {
     return AppBar(
       backgroundColor: navigationBackgroundColor,
       surfaceTintColor: navigationBackgroundColor,
