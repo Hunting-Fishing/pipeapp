@@ -9,7 +9,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/config/phase1_feature_flags.dart';
-import '../core/config/public_release_config.dart';
 import '../core/accessibility/pipe_accessibility_theme.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -1285,25 +1284,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           ),
         ),
         actions: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0x3338BDF8), width: 1),
-              ),
-              child: Text(
-                PublicReleaseConfiguration.formattedReleaseLabel,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
           if (_features.marketplace)
             PipeAccessibleIconButton(
               label: 'Search Marketplace',
@@ -1413,60 +1393,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                   selected: false,
                   onTap: _openAuth,
                 ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  PublicReleaseConfiguration.formattedReleaseLabel,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: _muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
             ]),
           ),
         ),
-        body: Stack(
-          children: [
-            IndexedStack(index: _tab, children: pages),
-            Positioned(
-              bottom: 8,
-              right: 12,
-              child: IgnorePointer(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xE60F172A),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0x3338BDF8),
-                      width: 1,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x33000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    PublicReleaseConfiguration.formattedReleaseLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        body: IndexedStack(index: _tab, children: pages),
       ),
     );
   }
