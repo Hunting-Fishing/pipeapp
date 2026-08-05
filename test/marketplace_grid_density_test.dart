@@ -34,6 +34,9 @@ void main() {
 
     testWidgets('exposes accessible density labels and selection state',
         (tester) async {
+      final semanticsHandle = tester.ensureSemantics();
+      addTearDown(semanticsHandle.dispose);
+
       var selected = 0;
       await tester.pumpWidget(
         MaterialApp(
