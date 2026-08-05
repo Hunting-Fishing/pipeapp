@@ -29,6 +29,7 @@ import 'marketplace_reporting.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_account_hub.dart';
 import 'marketplace_grid_density.dart';
+import 'marketplace_adaptive_shell.dart';
 import 'marketplace_account_device_repository.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_avatar_image.dart';
@@ -1145,248 +1146,326 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                   borderSide: BorderSide.none)),
         ),
       ),
-      child: Scaffold(
-        key: _scaffoldKey,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
-          elevation: 0,
-          leading: PipeAccessibleIconButton(
-              label: 'Open navigation',
-              onTapHint: 'Opens the main navigation menu',
-              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              icon: const Icon(Icons.menu_rounded)),
-          title: Text(
-              const [
-                'Home',
-                'Marketplace',
-                'Create Listing',
-                'Saved',
-                'Messages',
-                'Account',
-                'Auctions',
-                'Dispatch'
-              ][_tab],
-              style:
-                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-          actions: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(right: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0x3338BDF8), width: 1),
-                ),
-                child: Text(
-                  PublicReleaseConfiguration.formattedReleaseLabel,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
+      child: MarketplaceAdaptiveShell(
+        scaffoldKey: _scaffoldKey,
+        selectedPageIndex: _tab,
+        title: const [
+          'Home',
+          'Marketplace',
+          'Create Listing',
+          'Saved',
+          'Messages',
+          'Account',
+          'Auctions',
+          'Dispatch'
+        ][_tab],
+        backgroundColor: _navy,
+        navigationBackgroundColor: Colors.white,
+        indicatorColor: _orange.withValues(alpha: .18),
+        onDestinationSelected: (target) {
+          if (target == 2) {
+            _openCreate();
+            return;
+          }
+          if (target == 1 || target == 3) {
+            _selectControlledTab(
+              target,
+              _features.marketplace,
+              'Marketplace',
+            );
+            return;
+          }
+          if (target == 6) {
+            _selectControlledTab(target, _features.auctions, 'Auctions');
+            return;
+          }
+          if (target == 7) {
+            _selectControlledTab(target, _features.dispatch, 'Dispatch');
+            return;
+          }
+          _selectTab(target);
+        },
+        compactDestinations: <MarketplaceShellDestination>[
+          const MarketplaceShellDestination(
+            pageIndex: 0,
+            label: 'Home',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+          ),
+          if (_features.marketplace) ...[
+            const MarketplaceShellDestination(
+              pageIndex: 1,
+              label: 'Browse',
+              icon: Icon(Icons.search),
+            ),
+            const MarketplaceShellDestination(
+              pageIndex: 2,
+              label: 'List',
+              icon: Icon(Icons.add_box_outlined),
+              selectedIcon: Icon(Icons.add_box),
+            ),
+          ],
+          const MarketplaceShellDestination(
+            pageIndex: 4,
+            label: 'Messages',
+            icon: _NavMessageIcon(selected: false),
+            selectedIcon: _NavMessageIcon(selected: true),
+          ),
+          const MarketplaceShellDestination(
+            pageIndex: 5,
+            label: 'Account',
+            icon: _NavAccountIcon(selected: false),
+            selectedIcon: _NavAccountIcon(selected: true),
+          ),
+        ],
+        railDestinations: <MarketplaceShellDestination>[
+          const MarketplaceShellDestination(
+            pageIndex: 0,
+            label: 'Home',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+          ),
+          if (_features.marketplace) ...[
+            const MarketplaceShellDestination(
+              pageIndex: 1,
+              label: 'Browse Marketplace',
+              icon: Icon(Icons.storefront_outlined),
+              selectedIcon: Icon(Icons.storefront),
+            ),
+            const MarketplaceShellDestination(
+              pageIndex: 2,
+              label: 'Create Listing',
+              icon: Icon(Icons.add_box_outlined),
+              selectedIcon: Icon(Icons.add_box),
+            ),
+            const MarketplaceShellDestination(
+              pageIndex: 3,
+              label: 'Saved Listings',
+              icon: Icon(Icons.bookmark_border),
+              selectedIcon: Icon(Icons.bookmark),
+            ),
+          ],
+          const MarketplaceShellDestination(
+            pageIndex: 4,
+            label: 'Messages',
+            icon: _NavMessageIcon(selected: false),
+            selectedIcon: _NavMessageIcon(selected: true),
+          ),
+          const MarketplaceShellDestination(
+            pageIndex: 5,
+            label: 'Account',
+            icon: _NavAccountIcon(selected: false),
+            selectedIcon: _NavAccountIcon(selected: true),
+          ),
+          if (_features.auctions)
+            const MarketplaceShellDestination(
+              pageIndex: 6,
+              label: 'Auctions',
+              icon: Icon(Icons.gavel_outlined),
+              selectedIcon: Icon(Icons.gavel),
+            ),
+          if (_features.dispatch)
+            const MarketplaceShellDestination(
+              pageIndex: 7,
+              label: 'Dispatch',
+              icon: Icon(Icons.local_shipping_outlined),
+              selectedIcon: Icon(Icons.local_shipping),
+            ),
+        ],
+        railLeading: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
+          child: Tooltip(
+            message: 'Pipe Buyer marketplace',
+            child: Image.asset(
+              'assets/images/pipe_buyer_logo.png',
+              width: 54,
+              height: 42,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+        actions: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0x3338BDF8), width: 1),
+              ),
+              child: Text(
+                PublicReleaseConfiguration.formattedReleaseLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-            if (_features.marketplace)
-              PipeAccessibleIconButton(
-                  label: 'Search Marketplace',
-                  onTapHint: 'Opens Marketplace search',
-                  onPressed: () => _selectTab(1),
-                  icon: const Icon(Icons.search_rounded))
-          ],
-        ),
+          ),
+          if (_features.marketplace)
+            PipeAccessibleIconButton(
+              label: 'Search Marketplace',
+              onTapHint: 'Opens Marketplace search',
+              onPressed: () => _selectTab(1),
+              icon: const Icon(Icons.search_rounded),
+            ),
+        ],
         drawer: Drawer(
           backgroundColor: Colors.white,
           child: SafeArea(
             child: Column(children: [
               ListTile(
                 contentPadding: const EdgeInsets.fromLTRB(20, 10, 16, 14),
-                leading: Image.asset('assets/images/pipe_buyer_logo.png',
-                    width: 54, height: 42, fit: BoxFit.contain),
-                title: const Text('PIPE BUYER',
-                    style: TextStyle(fontWeight: FontWeight.w900)),
+                leading: Image.asset(
+                  'assets/images/pipe_buyer_logo.png',
+                  width: 54,
+                  height: 42,
+                  fit: BoxFit.contain,
+                ),
+                title: const Text(
+                  'PIPE BUYER',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
                 subtitle: const Text('Oilfield marketplace'),
               ),
               const Divider(height: 1),
               _DrawerDestination(
-                  icon: Icons.home_outlined,
-                  label: 'Home',
-                  selected: _tab == 0,
-                  onTap: () => _selectTab(0)),
+                icon: Icons.home_outlined,
+                label: 'Home',
+                selected: _tab == 0,
+                onTap: () => _selectTab(0),
+              ),
               if (_features.marketplace) ...[
                 _DrawerDestination(
-                    icon: Icons.storefront_outlined,
-                    label: 'Browse Marketplace',
-                    selected: _tab == 1,
-                    onTap: () => _selectTab(1)),
+                  icon: Icons.storefront_outlined,
+                  label: 'Browse Marketplace',
+                  selected: _tab == 1,
+                  onTap: () => _selectTab(1),
+                ),
                 _DrawerDestination(
-                    icon: Icons.add_box_outlined,
-                    label: 'Create Listing',
-                    selected: _tab == 2,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _openCreate();
-                    }),
+                  icon: Icons.add_box_outlined,
+                  label: 'Create Listing',
+                  selected: _tab == 2,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _openCreate();
+                  },
+                ),
                 _DrawerDestination(
-                    icon: Icons.request_quote_outlined,
-                    label: 'Wanted ads & RFQs',
-                    selected: false,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _openCreate(wanted: true);
-                    }),
+                  icon: Icons.request_quote_outlined,
+                  label: 'Wanted ads & RFQs',
+                  selected: false,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _openCreate(wanted: true);
+                  },
+                ),
                 _DrawerDestination(
-                    icon: Icons.bookmark_border,
-                    label: 'Saved Listings',
-                    selected: _tab == 3,
-                    onTap: () => _selectTab(3)),
+                  icon: Icons.bookmark_border,
+                  label: 'Saved Listings',
+                  selected: _tab == 3,
+                  onTap: () => _selectTab(3),
+                ),
               ],
               if (_features.auctions)
                 _DrawerDestination(
-                    icon: Icons.gavel_outlined,
-                    label: 'Auctions',
-                    selected: _tab == 6,
-                    onTap: () => _selectTab(6)),
+                  icon: Icons.gavel_outlined,
+                  label: 'Auctions',
+                  selected: _tab == 6,
+                  onTap: () => _selectTab(6),
+                ),
               if (_features.dispatch)
                 _DrawerDestination(
-                    icon: Icons.local_shipping_outlined,
-                    label: 'Dispatch',
-                    selected: _tab == 7,
-                    onTap: () => _selectTab(7)),
+                  icon: Icons.local_shipping_outlined,
+                  label: 'Dispatch',
+                  selected: _tab == 7,
+                  onTap: () => _selectTab(7),
+                ),
               _DrawerDestination(
-                  icon: Icons.forum_outlined,
-                  label: 'Messages',
-                  selected: _tab == 4,
-                  trailing: _unreadBadge(),
-                  onTap: () => _selectTab(4)),
+                icon: Icons.forum_outlined,
+                label: 'Messages',
+                selected: _tab == 4,
+                trailing: _unreadBadge(),
+                onTap: () => _selectTab(4),
+              ),
               const Spacer(),
               const Divider(height: 1),
               _DrawerDestination(
-                  icon: Icons.person_outline,
-                  label: 'Account & Seller Profile',
-                  selected: _tab == 5,
-                  trailing: const _ProfileCompletionBadge(),
-                  onTap: () => _selectTab(5)),
+                icon: Icons.person_outline,
+                label: 'Account & Seller Profile',
+                selected: _tab == 5,
+                trailing: const _ProfileCompletionBadge(),
+                onTap: () => _selectTab(5),
+              ),
               if (FirebaseAuth.instance.currentUser != null)
                 _DrawerDestination(
-                    icon: Icons.logout,
-                    label: 'Sign out',
-                    selected: false,
-                    onTap: _signOut)
+                  icon: Icons.logout,
+                  label: 'Sign out',
+                  selected: false,
+                  onTap: _signOut,
+                )
               else
                 _DrawerDestination(
-                    icon: Icons.login,
-                    label: 'Sign in / Create account',
-                    selected: false,
-                    onTap: _openAuth),
+                  icon: Icons.login,
+                  label: 'Sign in / Create account',
+                  selected: false,
+                  onTap: _openAuth,
+                ),
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   PublicReleaseConfiguration.formattedReleaseLabel,
                   style: const TextStyle(
-                      fontSize: 11, color: _muted, fontWeight: FontWeight.w600),
+                    fontSize: 11,
+                    color: _muted,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ]),
           ),
         ),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              IndexedStack(index: _tab, children: pages),
-              Positioned(
-                bottom: 8,
-                right: 12,
-                child: IgnorePointer(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xE60F172A),
-                      borderRadius: BorderRadius.circular(16),
-                      border:
-                          Border.all(color: const Color(0x3338BDF8), width: 1),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+        body: Stack(
+          children: [
+            IndexedStack(index: _tab, children: pages),
+            Positioned(
+              bottom: 8,
+              right: 12,
+              child: IgnorePointer(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xE60F172A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0x3338BDF8),
+                      width: 1,
                     ),
-                    child: Text(
-                      PublicReleaseConfiguration.formattedReleaseLabel,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
                       ),
+                    ],
+                  ),
+                  child: Text(
+                    PublicReleaseConfiguration.formattedReleaseLabel,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: NavigationBarTheme(
-            data: NavigationBarThemeData(
-              height: 68,
-              backgroundColor: Colors.white,
-              indicatorColor: _orange.withValues(alpha: .18),
-              iconTheme:
-                  WidgetStateProperty.resolveWith((states) => IconThemeData(
-                        color: states.contains(WidgetState.selected)
-                            ? _orange
-                            : const Color(0xFF17202A),
-                        size: 25,
-                      )),
-              labelTextStyle: WidgetStateProperty.resolveWith((states) =>
-                  TextStyle(
-                      color: const Color(0xFF17202A),
-                      fontSize: 12,
-                      fontWeight: states.contains(WidgetState.selected)
-                          ? FontWeight.w800
-                          : FontWeight.w600)),
             ),
-            child: NavigationBar(
-              selectedIndex:
-                  _tab == 6 ? 1 : (_tab <= 2 ? _tab : (_tab == 4 ? 3 : 4)),
-              onDestinationSelected: (index) {
-                final target = index <= 2 ? index : (index == 3 ? 4 : 5);
-                if ((target == 1 || target == 2) && !_features.marketplace) {
-                  _showFeatureUnavailable('Marketplace');
-                  return;
-                }
-                setState(() => _tab = target);
-              },
-              destinations: const [
-                NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home),
-                    label: 'Home'),
-                NavigationDestination(
-                    icon: Icon(Icons.search), label: 'Browse'),
-                NavigationDestination(
-                    icon: Icon(Icons.add_box_outlined),
-                    selectedIcon: Icon(Icons.add_box),
-                    label: 'List'),
-                NavigationDestination(
-                    icon: _NavMessageIcon(selected: false),
-                    selectedIcon: _NavMessageIcon(selected: true),
-                    label: 'Messages'),
-                NavigationDestination(
-                    icon: _NavAccountIcon(selected: false),
-                    selectedIcon: _NavAccountIcon(selected: true),
-                    label: 'Account'),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
