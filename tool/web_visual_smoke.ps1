@@ -17,7 +17,9 @@ param(
   [ValidateRange(1, 15)]
   [int]$StabilizationSeconds = 5,
 
-  [string]$ExpectedTextPattern = 'Pipe Buyer'
+  [string]$ExpectedTextPattern = 'Pipe Buyer',
+
+  [string]$AppCheckDebugToken = $env:PIPE_APP_CHECK_WEB_DEBUG_TOKEN
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,6 +83,17 @@ function Measure-PngDiversity {
   }
 }
 
+function Get-SafeDiagnosticUrl {
+  param([string]$Value)
+  if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
+  try {
+    $uri = [uri]$Value
+    return $uri.GetLeftPart([System.UriPartial]::Path)
+  } catch {
+    return ''
+  }
+}
+
 function Send-WebSocketText {
   param(
     [Parameter(Mandatory = $true)]$Socket,
@@ -99,7 +112,7 @@ function Send-WebSocketText {
 function Receive-WebSocketJson {
   param(
     [Parameter(Mandatory = $true)]$Socket,
-    [ValidateRange(1, 30)][int]$TimeoutSeconds = 10
+    [ValidateRange(1, 60)][int]$TimeoutSeconds = 30
   )
   $buffer = New-Object byte[] 65536
   $stream = [System.IO.MemoryStream]::new()
@@ -148,7 +161,13 @@ function Add-BrowserEvent {
   }
   if ($Message.method -eq 'Log.entryAdded' -and
       $Message.params.entry.level -eq 'error') {
-    $script:BrowserErrors.Add([string]$Message.params.entry.text)
+    $entry = $Message.params.entry
+    $safeUrl = Get-SafeDiagnosticUrl -Value ([string]$entry.url)
+    $description = [string]$entry.text
+    if ($safeUrl) {
+      $description = "$description [$safeUrl]"
+    }
+    $script:BrowserErrors.Add($description)
   }
   if ($Message.method -eq 'Runtime.consoleAPICalled' -and
       $Message.params.type -eq 'error') {
@@ -244,6 +263,14 @@ try {
   Invoke-CdpCommand -Socket $socket -Method 'Log.enable' | Out-Null
   Invoke-CdpCommand -Socket $socket -Method 'Page.enable' | Out-Null
   Invoke-CdpCommand -Socket $socket -Method 'Accessibility.enable' | Out-Null
+  if (-not [string]::IsNullOrWhiteSpace($AppCheckDebugToken)) {
+    $debugTokenLiteral = $AppCheckDebugToken | ConvertTo-Json -Compress
+    Invoke-CdpCommand -Socket $socket `
+      -Method 'Page.addScriptToEvaluateOnNewDocument' `
+      -Parameters @{
+        source = "self.FIREBASE_APPCHECK_DEBUG_TOKEN = $debugTokenLiteral;"
+      } | Out-Null
+  }
   Invoke-CdpCommand -Socket $socket -Method 'Emulation.setDeviceMetricsOverride' `
     -Parameters @{
       width = $ViewportWidth

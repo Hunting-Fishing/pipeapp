@@ -361,6 +361,7 @@ jobs:
     env:
       PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
       PIPE_DEPLOY_ENVIRONMENT_GUARD: ${{ secrets.PIPE_DEPLOY_ENVIRONMENT_GUARD }}
+      PIPE_APP_CHECK_WEB_DEBUG_TOKEN: ${{ secrets.PIPE_APP_CHECK_WEB_DEBUG_TOKEN }}
 
     steps:
       - name: Check out exact release commit
@@ -378,7 +379,24 @@ jobs:
           if ($env:PIPE_DEPLOY_ENVIRONMENT_GUARD -ne '${{ inputs.environment }}') {
             throw 'The protected deployment environment guard does not match the selected environment.'
           }
-          $url = "https://$($env:PIPE_FIREBASE_PROJECT_ID).web.app"
+          if ([string]::IsNullOrWhiteSpace($env:PIPE_APP_CHECK_WEB_DEBUG_TOKEN)) {
+            throw 'PIPE_APP_CHECK_WEB_DEBUG_TOKEN is not configured in the selected GitHub Environment.'
+          }
+          $url = if ('${{ inputs.environment }}' -eq 'production') {
+            'https://www.pipebuyer.com'
+          } else {
+            "https://$($env:PIPE_FIREBASE_PROJECT_ID).web.app"
+          }
+          foreach ($path in @('/about', '/privacy', '/terms')) {
+            $publicUrl = "$($url.TrimEnd('/'))$path"
+            $response = Invoke-WebRequest -Uri $publicUrl -UseBasicParsing
+            if ($response.StatusCode -ne 200) {
+              throw "Public release page $publicUrl returned HTTP $($response.StatusCode)."
+            }
+            if ($response.Content -notmatch 'Pipe Buyer') {
+              throw "Public release page $publicUrl does not identify Pipe Buyer."
+            }
+          }
           .\tool\web_visual_smoke.ps1 `
             -Url $url `
             -ScreenshotPath 'build/acceptance/mobile-390x844.png' `
@@ -393,6 +411,8 @@ jobs:
             '## Web visual acceptance',
             '',
             "- URL: ``$url``",
+            '- App Check: registered CI debug token injected only into the headless browser',
+            '- Public pages: `/about`, `/privacy`, and `/terms` returned HTTP 200',
             '- Mobile viewport: `390x844`',
             '- Desktop viewport: `1440x1000`',
             '- Result: rendered with no browser exceptions'
