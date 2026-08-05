@@ -28,6 +28,7 @@ import 'marketplace_deep_links.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_dashboard.dart';
+import 'marketplace_about_page.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -3077,6 +3078,14 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePolicyCenterPage()))),
+      ListTile(
+          leading: const Icon(Icons.info_outline),
+          title: const Text('About Pipe Buyer'),
+          subtitle: const Text(
+              'Version, environment, support, and legal information.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MarketplaceAboutPage()))),
       const SizedBox(height: 12),
       const _WatchKeywords(),
       const SizedBox(height: 12),
