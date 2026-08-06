@@ -544,7 +544,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               _explanationBanner(
                 title: 'Global Energy & Mining Intelligence Watchboard',
                 explanation:
-                    'Monitors gross transaction volume (\$), 3.5% company commission earnings, auto-detects new signup countries, categorizes marketplace items into collapsible cards (collapsed first), and provides granular timeline breakdowns (Day, Week, Month, Quarter).',
+                    'Monitors gross marketplace lifecycle volume, signup countries, item categories, and time-based activity. Payment revenue and provider settlement remain inactive until the separately approved payment release.',
               ),
               if (isLoading) const LinearProgressIndicator(),
               const SizedBox(height: 16),
@@ -1055,7 +1055,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             _explanationBanner(
               title: '🔨 Timed Auctions Intelligence & Master Control Board',
               explanation:
-                  'Monitors live timed auctions, highest bid volume (\$), estimated 3.5% fees, global auction distribution across energy basins, and provides live master admin override controls (Force End, Extend, Cancel).',
+                  'Monitors live timed auctions, highest bid activity, global auction distribution across energy basins, and administrative auction lifecycle controls. Auction payment fees remain inactive until the separately approved payment release.',
             ),
             if (isLoading) const LinearProgressIndicator(),
             const SizedBox(height: 16),
@@ -1132,10 +1132,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     Colors.deepOrange),
                 const SizedBox(width: 12),
                 _metricCard(
-                    'EST. 3.5% AUCTION FEES',
-                    '\$${(grossAuctionVolume * 0.035).toStringAsFixed(2)}',
-                    Icons.account_balance_wallet,
-                    Colors.green),
+                    'AUCTION PAYMENT FEES',
+                    'Not active',
+                    Icons.account_balance_wallet_outlined,
+                    Colors.grey),
               ],
             ),
             const SizedBox(height: 12),
