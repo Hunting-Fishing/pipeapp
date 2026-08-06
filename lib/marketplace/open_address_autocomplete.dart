@@ -70,6 +70,9 @@ class OpenAddressAutocomplete extends StatefulWidget {
     this.hint = 'Start typing a street, town, lease or postal code',
     this.searchType = OpenAddressSearchType.all,
     this.focusNode,
+    this.enabled = true,
+    this.onChanged,
+    this.bias,
   });
   final String initialValue;
   final String label;
@@ -77,6 +80,9 @@ class OpenAddressAutocomplete extends StatefulWidget {
   final ValueChanged<OpenAddress> onSelected;
   final OpenAddressSearchType searchType;
   final FocusNode? focusNode;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+  final LatLng? bias;
 
   @override
   State<OpenAddressAutocomplete> createState() =>
@@ -97,6 +103,18 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
   }
 
   @override
+  void didUpdateWidget(covariant OpenAddressAutocomplete oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != oldWidget.initialValue &&
+        widget.initialValue != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.initialValue,
+        selection: TextSelection.collapsed(offset: widget.initialValue.length),
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
@@ -108,6 +126,7 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
         TextFormField(
           controller: _controller,
           focusNode: widget.focusNode,
+          enabled: widget.enabled,
           autofillHints: const [AutofillHints.fullStreetAddress],
           decoration: InputDecoration(
             labelText: widget.label,
@@ -121,7 +140,10 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
                         child: CircularProgressIndicator(strokeWidth: 2)))
                 : null,
           ),
-          onChanged: _changed,
+          onChanged: (value) {
+            widget.onChanged?.call(value);
+            _changed(value);
+          },
         ),
         if (_results.isNotEmpty)
           Container(
@@ -173,13 +195,14 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
     setState(() => _loading = true);
     try {
       final base = Uri.parse(pipeBuyerGeocoderUrl);
+      final bias = widget.bias;
       final uri = base.replace(queryParameters: {
         ...base.queryParameters,
         'q': query.trim(),
         'limit': '6',
         'lang': 'en',
-        'lat': '55.1707',
-        'lon': '-118.7947',
+        if (bias != null) 'lat': bias.latitude.toString(),
+        if (bias != null) 'lon': bias.longitude.toString(),
       });
       final response = await http.get(uri, headers: {
         'Accept': 'application/json'

@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_profile_repository.dart';
 import 'marketplace_profile_community.dart';
+import 'marketplace_primary_community_selector.dart';
 import 'marketplace_profile_feedback.dart';
 import 'marketplace_profile_tags.dart';
 import 'industrial_icon_assets.dart';
@@ -1080,36 +1081,36 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       );
 
   Widget _primaryCommunityField() {
-    final selected = _primaryCommunityLocation;
-    final legacyLabel = _community.text.trim();
-    final missing = selected == null;
-    final subtitle = selected != null
-        ? '${primaryCommunityLabel(selected)}\nExact pin private • broad area used for nearby results'
-        : legacyLabel.isNotEmpty
-            ? '$legacyLabel • Confirm this community on the map'
-            : 'Select a city, town, municipality, or operating area';
+    final missing = _primaryCommunityLocation == null;
     return Container(
       key: _communityKey,
       margin: const EdgeInsets.only(bottom: 11),
       decoration: _missingDecoration(missing),
-      child: ListTile(
-        leading: const Icon(Icons.map_outlined, color: Color(0xFF0878E8)),
-        title: const Text('Primary community',
-            style: TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Text(subtitle),
-        isThreeLine: selected != null,
-        trailing: const Icon(Icons.chevron_right),
-        onTap: _saving ? null : _selectPrimaryCommunity,
+      padding: const EdgeInsets.all(10),
+      child: MarketplacePrimaryCommunitySelector(
+        selected: _primaryCommunityLocation,
+        initialQuery: _community.text,
+        enabled: !_saving,
+        onQueryChanged: _primaryCommunityQueryChanged,
+        onSelected: _applyPrimaryCommunity,
       ),
     );
   }
 
-  Future<void> _selectPrimaryCommunity() async {
-    final selected = await MarketplaceLocationPicker.showCommunity(
-      context,
-      _primaryCommunityLocation,
-    );
-    if (selected == null || !mounted) return;
+  void _primaryCommunityQueryChanged(String query) {
+    final selectedLabel = _primaryCommunityLocation == null
+        ? ''
+        : primaryCommunityLabel(_primaryCommunityLocation!);
+    setState(() {
+      _community.text = query;
+      if (selectedLabel.isNotEmpty && query.trim() != selectedLabel) {
+        _primaryCommunityLocation = null;
+      }
+    });
+    _scheduleCompletionSync();
+  }
+
+  void _applyPrimaryCommunity(MarketplaceLocation selected) {
     final normalized = normalizePrimaryCommunityLocation(selected);
     setState(() {
       _primaryCommunityLocation = normalized;

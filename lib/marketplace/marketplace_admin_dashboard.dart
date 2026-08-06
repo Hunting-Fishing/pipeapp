@@ -292,8 +292,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     if (_isLoadingAuth) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -318,7 +316,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Current Account: ${user?.email ?? 'Signed Out'}\nOnly master administrator (jordilwbailey@gmail.com) can access the Admin Portal Dashboard.',
+                  'This account does not have the administrator role required for this workspace. Sign in with an approved administrator account and complete multi-factor authentication.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.grey),
                 ),
