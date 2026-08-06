@@ -67,7 +67,12 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text(r'$25 per year'), findsOneWidget);
-    expect(find.text(r'$10 per awarded job'), findsOneWidget);
+    expect(find.text(r'$10 per dispatched job'), findsOneWidget);
+    expect(find.text('Paid to Pipebuddy'), findsOneWidget);
+    expect(
+      find.textContaining('paid to Pipebuddy for each dispatched job'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('Billing and fee collection are not active'),
       findsOneWidget,
