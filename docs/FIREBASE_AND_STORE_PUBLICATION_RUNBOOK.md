@@ -25,6 +25,16 @@ The repository uses these protected environments:
 - `production`
 - `mobile-release-production`
 
+Before publication, configure `production` and `mobile-release-production` to:
+
+- require an owner or designated release approver
+- restrict deployment branches to protected `main`
+- prevent administrator bypass except for a documented emergency procedure
+- limit who can edit environment variables and secrets
+
+The repository environment inventory must not show an empty protection policy
+for either production environment at public launch.
+
 ### Production Firebase variables
 
 Configure these as GitHub Environment variables in `production`:
