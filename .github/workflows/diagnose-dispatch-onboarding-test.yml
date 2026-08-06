@@ -23,5 +23,19 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Run focused test with expanded output
-        run: flutter test test/marketplace_dispatch_onboarding_test.dart --reporter expanded
+      - name: Run complete suite and retain output
+        id: flutter_tests
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          flutter test --reporter expanded *>&1 | Tee-Object -FilePath full-flutter-test.log
+          exit $LASTEXITCODE
+      - name: Upload complete Flutter test log
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-flutter-test-log
+          path: full-flutter-test.log
+          retention-days: 1
+      - name: Preserve test result
+        if: steps.flutter_tests.outcome == 'failure'
+        run: exit 1
