@@ -44,12 +44,12 @@ class _MarketplaceAdminTransactionPortalState
     if (!_isAuthorized) {
       return Scaffold(
         appBar: AppBar(title: const Text('Admin Access Required')),
-        body: const Center(
+        body: Center(
           child: Padding(
-            padding: EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 480),
-              child: Column(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: const Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
