@@ -7,8 +7,13 @@ void main() {
     final source =
         File('lib/marketplace/marketplace_account_hub.dart').readAsStringSync();
     expect(source, isNot(contains('jordilwbailey@gmail.com')));
+    expect(source, isNot(contains('goldcity4u@icloud.com')));
     expect(source, isNot(contains('isMasterAdmin')));
-    expect(source, contains('marketplaceAdministratorAccess'));
+    expect(source, contains('marketplaceAdministratorState'));
+    expect(source, contains('MarketplaceAdministratorState.authorized'));
+    expect(source, contains('forceRefresh: true'));
+    expect(source, contains('Administrator role not assigned'));
+    expect(source, contains('Administrator sign-in requires MFA'));
   });
 
   test('unauthorized admin screen does not disclose approved identities', () {

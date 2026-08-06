@@ -443,7 +443,12 @@ class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
         ),
         Expanded(
           child: section == 0
-              ? MarketplaceDispatchDashboard(repo: repo)
+              ? MarketplaceDispatchDashboard(
+                  repo: repo,
+                  onPostLoad: () => setState(() => section = 2),
+                  onBrowseJobs: () => setState(() => section = 1),
+                  onJoinCarrier: () => setState(() => section = 3),
+                )
               : section == 1
                   ? _JobBoard(repo: repo)
                   : section == 2
