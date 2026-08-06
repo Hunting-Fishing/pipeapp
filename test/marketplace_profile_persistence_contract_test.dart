@@ -14,12 +14,20 @@ void main() {
     expect(source, contains("'primaryCommunityGeoPoint'"));
   });
 
-  test('profile page uses mapped community and safe feedback', () {
-    final source =
+  test('profile page uses predictive mapped community and safe feedback', () {
+    final profileSource =
         File('lib/marketplace/marketplace_profile_page.dart').readAsStringSync();
-    expect(source, contains('Primary community'));
-    expect(source, contains('showCommunity'));
-    expect(source, contains('pendingPhoneE164'));
-    expect(source, isNot(contains('Check Firebase rules')));
+    final selectorSource = File(
+      'lib/marketplace/marketplace_primary_community_selector.dart',
+    ).readAsStringSync();
+
+    expect(profileSource, contains('MarketplacePrimaryCommunitySelector'));
+    expect(profileSource, contains('pendingPhoneE164'));
+    expect(profileSource, isNot(contains('Check Firebase rules')));
+
+    expect(selectorSource, contains('Primary community or operating area'));
+    expect(selectorSource, contains('OpenAddressAutocomplete'));
+    expect(selectorSource, contains('showCommunity'));
+    expect(selectorSource, contains('Check or adjust map pin'));
   });
 }
