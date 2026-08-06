@@ -20,6 +20,6 @@ jobs:
           fetch-depth: 0
           ref: account-ux-batch-community-notifications-admin
 
-      - name: Apply and commit complete batch
+      - name: Reconstruct, validate, and commit complete batch
         shell: bash
         run: bash .github/scripts/apply_account_ux_batch.sh
