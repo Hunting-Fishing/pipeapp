@@ -1,0 +1,25 @@
+name: Apply account UX batch
+
+on:
+  push:
+    branches:
+      - account-ux-batch-community-notifications-admin
+    paths:
+      - .github/workflows/apply_account_ux_batch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out integration branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: account-ux-batch-community-notifications-admin
+
+      - name: Apply and commit complete batch
+        shell: bash
+        run: bash .github/scripts/apply_account_ux_batch.sh
