@@ -296,7 +296,7 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'The $10 Dispatch fee is paid to Pipebuddy for each dispatched job. Pricing is displayed for pilot planning only. Billing and fee collection are not active in this release. No charge is collected until payment and fee features receive separate approval, final terms are published, and the user explicitly accepts them.',
+              r'The $10 Dispatch fee is paid to Pipebuddy for each dispatched job. Pricing is displayed for pilot planning only. Billing and fee collection are not active in this release. No charge is collected until payment and fee features receive separate approval, final terms are published, and the user explicitly accepts them.',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,
