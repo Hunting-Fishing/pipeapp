@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+chunk_dir=".github/batch/account_ux/transform_chunks"
 patch_file=".github/batch/account_ux/account_ux_batch.patch"
 workflow_file=".github/workflows/apply_account_ux_batch.yml"
 script_file=".github/scripts/apply_account_ux_batch.sh"
+transformer="$(mktemp)"
 
-if [[ ! -f "$patch_file" ]]; then
-  echo "Batch patch is missing: $patch_file" >&2
+if [[ ! -d "$chunk_dir" ]]; then
+  echo "Transformer chunks are missing: $chunk_dir" >&2
   exit 1
 fi
 
-git apply --check "$patch_file"
-git apply "$patch_file"
+cat "$chunk_dir"/*.b64 | base64 --decode > "$transformer"
+python3 -m py_compile "$transformer"
+python3 "$transformer"
 git diff --check
 
+git rm -r "$chunk_dir"
 git rm "$patch_file" "$workflow_file" "$script_file"
 
 git add \
