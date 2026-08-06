@@ -37,6 +37,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
     this.actions = const <Widget>[],
     this.railLeading,
     this.railTrailing,
+    this.railFooter,
     this.backgroundColor,
     this.navigationBackgroundColor,
     this.indicatorColor,
@@ -54,6 +55,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
   final List<Widget> actions;
   final Widget? railLeading;
   final Widget? railTrailing;
+  final Widget? railFooter;
   final Color? backgroundColor;
   final Color? navigationBackgroundColor;
   final Color? indicatorColor;
@@ -76,30 +78,51 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
             body: SafeArea(
               child: Row(
                 children: [
-                  NavigationRail(
-                    selectedIndex: _selectedDestinationIndex(
-                      railDestinations,
-                    ),
-                    onDestinationSelected: (index) => onDestinationSelected(
-                      railDestinations[index].pageIndex,
-                    ),
-                    extended: extendRail,
-                    scrollable: true,
-                    groupAlignment: -1,
-                    backgroundColor: navigationBackgroundColor,
-                    indicatorColor: indicatorColor,
-                    leading: railLeading,
-                    trailing: railTrailing,
-                    destinations: railDestinations
-                        .map(
-                          (destination) => NavigationRailDestination(
-                            icon: destination.icon,
-                            selectedIcon:
-                                destination.selectedIcon ?? destination.icon,
-                            label: Text(destination.label),
+                  SizedBox(
+                    width: extendRail ? 256 : 80,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: NavigationRail(
+                            selectedIndex: _selectedDestinationIndex(
+                              railDestinations,
+                            ),
+                            onDestinationSelected: (index) =>
+                                onDestinationSelected(
+                              railDestinations[index].pageIndex,
+                            ),
+                            extended: extendRail,
+                            scrollable: true,
+                            groupAlignment: -1,
+                            backgroundColor: navigationBackgroundColor,
+                            indicatorColor: indicatorColor,
+                            leading: railLeading,
+                            trailing: railTrailing,
+                            destinations: railDestinations
+                                .map(
+                                  (destination) => NavigationRailDestination(
+                                    icon: destination.icon,
+                                    selectedIcon: destination.selectedIcon ??
+                                        destination.icon,
+                                    label: Text(destination.label),
+                                  ),
+                                )
+                                .toList(growable: false),
                           ),
-                        )
-                        .toList(growable: false),
+                        ),
+                        if (railFooter != null)
+                          SafeArea(
+                            top: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: railFooter,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   const VerticalDivider(width: 1),
                   Expanded(

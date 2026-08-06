@@ -1154,7 +1154,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           'Create Listing',
           'Saved',
           'Messages',
-          'Account',
+          'Profile',
           'Auctions',
           'Dispatch'
         ][_tab],
@@ -1212,7 +1212,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           ),
           const MarketplaceShellDestination(
             pageIndex: 5,
-            label: 'Account',
+            label: 'Profile',
             icon: _NavAccountIcon(selected: false),
             selectedIcon: _NavAccountIcon(selected: true),
           ),
@@ -1252,7 +1252,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           ),
           const MarketplaceShellDestination(
             pageIndex: 5,
-            label: 'Account',
+            label: 'Profile',
             icon: _NavAccountIcon(selected: false),
             selectedIcon: _NavAccountIcon(selected: true),
           ),
@@ -1282,6 +1282,27 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               fit: BoxFit.contain,
             ),
           ),
+        ),
+        railFooter: LayoutBuilder(
+          builder: (context, constraints) {
+            final signedIn = FirebaseAuth.instance.currentUser != null;
+            final extended = constraints.maxWidth >= 180;
+            final icon = signedIn ? Icons.logout : Icons.login;
+            final label = signedIn ? 'Sign out' : 'Sign in';
+            final onPressed = signedIn ? _signOut : _openAuth;
+            if (!extended) {
+              return IconButton(
+                tooltip: label,
+                onPressed: onPressed,
+                icon: Icon(icon),
+              );
+            }
+            return OutlinedButton.icon(
+              onPressed: onPressed,
+              icon: Icon(icon),
+              label: Text(label),
+            );
+          },
         ),
         actions: [
           if (_features.marketplace)
@@ -1526,7 +1547,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           : const SizedBox.shrink());
 
   Future<void> _openAuth() async {
-    Navigator.of(context).pop();
+    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+      Navigator.of(context).pop();
+    }
     final signedIn = await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const MarketplaceAuthPage()));
     if (mounted) {
@@ -1542,7 +1565,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   }
 
   Future<void> _signOut() async {
-    Navigator.of(context).pop();
+    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+      Navigator.of(context).pop();
+    }
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(

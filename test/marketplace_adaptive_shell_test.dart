@@ -27,7 +27,7 @@ void main() {
     ),
     MarketplaceShellDestination(
       pageIndex: 5,
-      label: 'Account',
+      label: 'Profile',
       icon: Icon(Icons.person_outline),
     ),
   ];
@@ -51,6 +51,7 @@ void main() {
     required double width,
     int selectedPageIndex = 0,
     ValueChanged<int>? onDestinationSelected,
+    Widget? railFooter,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, 900);
@@ -70,6 +71,7 @@ void main() {
           drawer: const Drawer(child: Text('Marketplace navigation')),
           compactDestinations: compactDestinations,
           railDestinations: railDestinations,
+          railFooter: railFooter,
           onDestinationSelected: onDestinationSelected ?? (_) {},
         ),
       ),
@@ -131,6 +133,22 @@ void main() {
     await tester.pump();
 
     expect(selectedPage, 7);
+  });
+
+  testWidgets('pins the rail footer below desktop destinations',
+      (tester) async {
+    await pumpShell(
+      tester,
+      width: 1300,
+      railFooter: const Text('Sign out', key: Key('rail-auth-footer')),
+    );
+
+    expect(find.byKey(const Key('rail-auth-footer')), findsOneWidget);
+    final dispatchBottom = tester.getBottomLeft(find.text('Dispatch')).dy;
+    final footerTop = tester.getTopLeft(
+      find.byKey(const Key('rail-auth-footer')),
+    ).dy;
+    expect(footerTop, greaterThan(dispatchBottom));
   });
 
   testWidgets('caps wide marketplace content at the shared maximum',
