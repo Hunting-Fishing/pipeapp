@@ -5,7 +5,7 @@ import 'package:pipe_app/marketplace/marketplace_dispatch_onboarding.dart';
 void main() {
   testWidgets('Dispatch onboarding explains network and wires primary actions',
       (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1200, 1100));
+    await tester.binding.setSurfaceSize(const Size(1200, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     var postCount = 0;
