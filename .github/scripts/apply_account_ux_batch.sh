@@ -14,7 +14,12 @@ fi
 
 cat "$chunk_dir"/*.b64 | base64 --decode > "$transformer"
 python3 -m py_compile "$transformer"
-python3 "$transformer"
+if ! python3 "$transformer"; then
+  echo "Remaining administrator email references after transformation:" >&2
+  grep -n -C 3 "jordilwbailey@gmail.com" \
+    lib/marketplace/marketplace_account_hub.dart >&2 || true
+  exit 1
+fi
 git diff --check
 
 git rm -r "$chunk_dir"
