@@ -4,13 +4,24 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'marketplace_dispatch_repository.dart';
+import 'marketplace_dispatch_onboarding.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_location_picker.dart';
 import 'marketplace_money.dart';
 
 class MarketplaceDispatchDashboard extends StatefulWidget {
-  const MarketplaceDispatchDashboard({super.key, required this.repo});
+  const MarketplaceDispatchDashboard({
+    super.key,
+    required this.repo,
+    required this.onPostLoad,
+    required this.onBrowseJobs,
+    required this.onJoinCarrier,
+  });
+
   final MarketplaceDispatchRepository repo;
+  final VoidCallback onPostLoad;
+  final VoidCallback onBrowseJobs;
+  final VoidCallback onJoinCarrier;
 
   @override
   State<MarketplaceDispatchDashboard> createState() =>
@@ -24,28 +35,32 @@ class _MarketplaceDispatchDashboardState
       StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: widget.repo.carrierProfile(),
           builder: (context, account) {
-            if (account.data?.exists != true) {
+            if (account.connectionState == ConnectionState.waiting &&
+                !account.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (account.hasError) {
               return const Center(
-                  child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        IndustrialAssetIcon(
-                            label: 'Dispatch dashboard',
-                            assetPath: IndustrialIconAssets.dashboard,
-                            size: 120,
-                            borderRadius: 20,
-                            fallback: Icon(Icons.dashboard_outlined,
-                                size: 72, color: Color(0xFF0878E8))),
-                        SizedBox(height: 16),
-                        Text('Activate your Dispatch dashboard',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w900)),
-                        SizedBox(height: 6),
-                        Text(
-                            'Complete Dispatch Signup to manage rates, lanes, fleet capacity, pilot vehicles, and quotes.',
-                            textAlign: TextAlign.center)
-                      ])));
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Card(
+                    child: ListTile(
+                      leading: Icon(Icons.cloud_off_outlined),
+                      title: Text('Dispatch profile unavailable'),
+                      subtitle: Text(
+                        'Check your connection and reload Dispatch.',
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            if (account.data?.exists != true) {
+              return MarketplaceDispatchOnboarding(
+                onPostLoad: widget.onPostLoad,
+                onBrowseJobs: widget.onBrowseJobs,
+                onJoinCarrier: widget.onJoinCarrier,
+              );
             }
             final data = account.data!.data()!;
             final serviceArea =

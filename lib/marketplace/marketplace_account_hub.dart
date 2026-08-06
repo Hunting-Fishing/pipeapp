@@ -53,8 +53,12 @@ class MarketplaceAccountHub extends StatefulWidget {
 class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     with TickerProviderStateMixin {
   late TabController _tabs;
-  bool _isAdminUser = false;
+  MarketplaceAdministratorState _adminState =
+      MarketplaceAdministratorState.signedOut;
   StreamSubscription<User?>? _adminTokenSubscription;
+
+  bool get _isAdminUser =>
+      _adminState == MarketplaceAdministratorState.authorized;
   int _adminCheckGeneration = 0;
 
   @override
@@ -63,22 +67,33 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     _tabs = TabController(length: 6, vsync: this);
     _adminTokenSubscription =
         FirebaseAuth.instance.idTokenChanges().listen((_) => _checkAdmin());
-    _checkAdmin();
+    _checkAdmin(forceRefresh: true);
   }
 
-  Future<void> _checkAdmin() async {
+  Future<void> _checkAdmin({bool forceRefresh = false}) async {
     final generation = ++_adminCheckGeneration;
-    final isAuthorized = await marketplaceAdministratorAccess();
+    final state = await marketplaceAdministratorState(
+      forceRefresh: forceRefresh,
+    );
     if (!mounted ||
         generation != _adminCheckGeneration ||
-        isAuthorized == _isAdminUser) {
+        state == _adminState) {
       return;
     }
+
+    final wasAuthorized = _isAdminUser;
+    final isAuthorized =
+        state == MarketplaceAdministratorState.authorized;
+    if (wasAuthorized == isAuthorized) {
+      setState(() => _adminState = state);
+      return;
+    }
+
     final nextLength = isAuthorized ? 7 : 6;
     final nextIndex = _tabs.index.clamp(0, nextLength - 1);
     final oldTabs = _tabs;
     setState(() {
-      _isAdminUser = isAuthorized;
+      _adminState = state;
       _tabs = TabController(
         length: nextLength,
         initialIndex: nextIndex,
@@ -146,7 +161,10 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
         const MarketplaceMessagesPage(),
         _AccountNotifications(
             onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
-        const _AccountSettings(),
+        _AccountSettings(
+          adminState: _adminState,
+          onRefreshAdmin: () => _checkAdmin(forceRefresh: true),
+        ),
         if (_isAdminUser) const MarketplaceAdminDashboard(),
       ]))
     ]);
@@ -2861,7 +2879,13 @@ class _AccountTabBadge extends StatelessWidget {
 }
 
 class _AccountSettings extends StatefulWidget {
-  const _AccountSettings();
+  const _AccountSettings({
+    required this.adminState,
+    required this.onRefreshAdmin,
+  });
+
+  final MarketplaceAdministratorState adminState;
+  final Future<void> Function() onRefreshAdmin;
 
   @override
   State<_AccountSettings> createState() => _AccountSettingsState();
@@ -3041,32 +3065,9 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),
-      FutureBuilder<bool>(
-        future: marketplaceAdministratorAccess(),
-        builder: (context, access) => access.data == true
-            ? Card(
-                color: Colors.purple.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.purple.shade200),
-                ),
-                child: ListTile(
-                    leading: Icon(Icons.admin_panel_settings,
-                        color: Colors.purple.shade800, size: 28),
-                    title: Text(
-                      'Administrator Portal',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade900),
-                    ),
-                    subtitle: const Text(
-                        'Analytics, escrow operations, user roles, moderation, and system configuration.'),
-                    trailing:
-                        const Icon(Icons.chevron_right, color: Colors.purple),
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const MarketplaceAdminDashboard()))),
-              )
-            : const SizedBox.shrink(),
+      _AdministratorAccessCard(
+        state: widget.adminState,
+        onRefresh: widget.onRefreshAdmin,
       ),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
@@ -3188,6 +3189,128 @@ class _AccountSettingsState extends State<_AccountSettings> {
           icon: const Icon(Icons.logout),
           label: const Text('Sign out')),
     ]);
+  }
+}
+
+
+class _AdministratorAccessCard extends StatefulWidget {
+  const _AdministratorAccessCard({
+    required this.state,
+    required this.onRefresh,
+  });
+
+  final MarketplaceAdministratorState state;
+  final Future<void> Function() onRefresh;
+
+  @override
+  State<_AdministratorAccessCard> createState() =>
+      _AdministratorAccessCardState();
+}
+
+class _AdministratorAccessCardState
+    extends State<_AdministratorAccessCard> {
+  bool _refreshing = false;
+
+  Future<void> _refresh() async {
+    setState(() => _refreshing = true);
+    await widget.onRefresh();
+    if (mounted) setState(() => _refreshing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final authorized = state == MarketplaceAdministratorState.authorized;
+    final mfaRequired = state == MarketplaceAdministratorState.mfaRequired;
+    final unavailable = state == MarketplaceAdministratorState.unavailable;
+    final title = switch (state) {
+      MarketplaceAdministratorState.authorized =>
+        'Administrator access active',
+      MarketplaceAdministratorState.mfaRequired =>
+        'Administrator sign-in requires MFA',
+      MarketplaceAdministratorState.roleMissing =>
+        'Administrator role not assigned',
+      MarketplaceAdministratorState.unavailable =>
+        'Administrator access could not be verified',
+      MarketplaceAdministratorState.signedOut =>
+        'Administrator access unavailable',
+    };
+    final description = switch (state) {
+      MarketplaceAdministratorState.authorized =>
+        'This session has the approved administrator claims and second-factor evidence.',
+      MarketplaceAdministratorState.mfaRequired =>
+        'The administrator role is present, but this session did not complete multi-factor authentication. Sign out, sign in with MFA, then refresh access.',
+      MarketplaceAdministratorState.roleMissing =>
+        'No administrator role is assigned to this account token. Email ownership alone never grants access; an approved production operator must provision the role.',
+      MarketplaceAdministratorState.unavailable =>
+        'The current token could not be checked. Confirm your connection and refresh access.',
+      MarketplaceAdministratorState.signedOut =>
+        'Sign in before administrator access can be checked.',
+    };
+    final color = authorized
+        ? Colors.purple
+        : mfaRequired
+            ? Colors.orange
+            : unavailable
+                ? Colors.red
+                : Colors.blueGrey;
+
+    return Card(
+      color: color.withValues(alpha: .08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withValues(alpha: .35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.admin_panel_settings_outlined, color: color),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(description),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _refreshing ? null : _refresh,
+                  icon: _refreshing
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh),
+                  label: const Text('Refresh access'),
+                ),
+                if (authorized)
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MarketplaceAdminDashboard(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.launch),
+                    label: const Text('Open Admin Portal'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
