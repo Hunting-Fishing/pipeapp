@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:pipe_app/marketplace/marketplace_location.dart';
 import 'package:pipe_app/marketplace/marketplace_profile_community.dart';
 import 'package:pipe_app/marketplace/open_address_autocomplete.dart';
 
