@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pipeapp/marketplace/marketplace_dispatch_onboarding.dart';
+import 'package:pipe_app/marketplace/marketplace_dispatch_onboarding.dart';
 
 void main() {
   testWidgets('Dispatch onboarding explains network and wires primary actions',
