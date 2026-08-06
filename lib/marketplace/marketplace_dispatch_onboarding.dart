@@ -289,14 +289,14 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
                   subtitle: 'Dispatch network membership',
                 ),
                 _PriceChip(
-                  title: r'$10 per awarded job',
-                  subtitle: 'Platform Dispatch fee',
+                  title: r'$10 per dispatched job',
+                  subtitle: 'Paid to Pipebuddy',
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
-              'Pricing is displayed for pilot planning only. Billing and fee collection are not active in this release. No charge is collected until payment and fee features receive separate approval, final terms are published, and the user explicitly accepts them.',
+              r'The $10 Dispatch fee is paid to Pipebuddy for each dispatched job. Pricing is displayed for pilot planning only. Billing and fee collection are not active in this release. No charge is collected until payment and fee features receive separate approval, final terms are published, and the user explicitly accepts them.',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,
