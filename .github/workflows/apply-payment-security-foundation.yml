@@ -1,0 +1,35 @@
+name: Apply payment security foundation
+
+on:
+  push:
+    branches:
+      - phase-1-1-payment-provider-security-foundation
+    paths:
+      - .github/workflows/apply-payment-security-foundation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: phase-1-1-payment-provider-security-foundation
+          fetch-depth: 0
+      - name: Apply isolated source patch
+        run: python tool/apply_payment_security_foundation.py
+      - name: Verify prohibited patterns are absent
+        run: |
+          ! grep -nE 'stripeSecretKey|stripeWebhookSecret|paypalSecretKey|authorizeTransactionKey|companyAccountNumber|companyRoutingNumber|force_release|force_refund|escrowEnabled|subtotal \* 0\.025|subtotal \* 0\.010' \
+            lib/marketplace/marketplace_admin_dashboard.dart \
+            lib/marketplace/marketplace_admin_transaction_portal.dart
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/marketplace/marketplace_admin_dashboard.dart
+          git diff --cached --check
+          git commit -m "Harden payment provider administration"
+          git push origin HEAD:phase-1-1-payment-provider-security-foundation
