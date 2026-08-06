@@ -20,6 +20,6 @@ jobs:
           fetch-depth: 0
           ref: account-ux-batch-community-notifications-admin
 
-      - name: Apply validated community notification and admin batch
+      - name: Commit validated account UX batch
         shell: bash
         run: bash .github/scripts/apply_account_ux_batch.sh
