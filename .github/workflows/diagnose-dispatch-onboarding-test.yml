@@ -1,0 +1,27 @@
+name: Diagnose Dispatch onboarding widget test
+
+on:
+  push:
+    branches:
+      - ops/diagnose-dispatch-onboarding-test
+    paths:
+      - .github/workflows/diagnose-dispatch-onboarding-test.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/diagnose-dispatch-onboarding-test
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Run focused test with expanded output
+        run: flutter test test/marketplace_dispatch_onboarding_test.dart --reporter expanded
