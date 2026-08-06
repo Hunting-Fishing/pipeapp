@@ -38,11 +38,26 @@ void main() {
       'lib/marketplace/marketplace_admin_dashboard.dart',
     ).readAsStringSync();
 
-    expect(source, isNot(contains('subtotal * 0.025')));
-    expect(source, isNot(contains('subtotal * 0.010')));
-    expect(source, isNot(contains('TOTAL COMPANY EARNINGS (3.5%)')));
-    expect(source, isNot(contains('2.5% SELLER COMMISSIONS')));
-    expect(source, isNot(contains('1.0% ESCROW PROTECTION')));
+    const prohibited = <String>[
+      'subtotal * 0.025',
+      'subtotal * 0.010',
+      'grossAuctionVolume * 0.035',
+      'TOTAL COMPANY EARNINGS (3.5%)',
+      '2.5% SELLER COMMISSIONS',
+      '1.0% ESCROW PROTECTION',
+      'EST. 3.5% AUCTION FEES',
+      '3.5% company commission earnings',
+      'estimated 3.5% fees',
+    ];
+
+    for (final value in prohibited) {
+      expect(source, isNot(contains(value)), reason: value);
+    }
+    expect(source, contains("'PAYMENT REVENUE'"));
+    expect(source, contains("'COMMISSION SCHEDULE'"));
+    expect(source, contains("'PROVIDER SETTLEMENT'"));
+    expect(source, contains("'AUCTION PAYMENT FEES'"));
+    expect(source, contains("'Not active'"));
   });
 
   test('payment readiness policy remains safe by default', () {
