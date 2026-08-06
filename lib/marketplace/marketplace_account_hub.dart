@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +22,7 @@ import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_money.dart';
 import 'marketplace_notification_service.dart';
+import 'marketplace_notification_presentation.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_command_client.dart';
 import 'account_export_downloader.dart';
@@ -51,34 +54,43 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     with TickerProviderStateMixin {
   late TabController _tabs;
   bool _isAdminUser = false;
+  StreamSubscription<User?>? _adminTokenSubscription;
+  int _adminCheckGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    _isAdminUser =
-        user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
-    _tabs = TabController(length: _isAdminUser ? 7 : 6, vsync: this);
+    _tabs = TabController(length: 6, vsync: this);
+    _adminTokenSubscription =
+        FirebaseAuth.instance.idTokenChanges().listen((_) => _checkAdmin());
     _checkAdmin();
   }
 
   Future<void> _checkAdmin() async {
-    final user = FirebaseAuth.instance.currentUser;
-    final isMaster =
-        user?.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
-    final isAdminClaim = await marketplaceAdministratorAccess();
-    final isAuthorized = isMaster || isAdminClaim;
-    if (isAuthorized && mounted && !_isAdminUser) {
-      setState(() {
-        _isAdminUser = true;
-        _tabs.dispose();
-        _tabs = TabController(length: 7, vsync: this);
-      });
+    final generation = ++_adminCheckGeneration;
+    final isAuthorized = await marketplaceAdministratorAccess();
+    if (!mounted ||
+        generation != _adminCheckGeneration ||
+        isAuthorized == _isAdminUser) {
+      return;
     }
+    final nextLength = isAuthorized ? 7 : 6;
+    final nextIndex = _tabs.index.clamp(0, nextLength - 1);
+    final oldTabs = _tabs;
+    setState(() {
+      _isAdminUser = isAuthorized;
+      _tabs = TabController(
+        length: nextLength,
+        initialIndex: nextIndex,
+        vsync: this,
+      );
+    });
+    oldTabs.dispose();
   }
 
   @override
   void dispose() {
+    _adminTokenSubscription?.cancel();
     _tabs.dispose();
     super.dispose();
   }
@@ -124,7 +136,8 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       ),
       Expanded(
           child: TabBarView(controller: _tabs, children: [
-        _Overview(onOpen: _tabs.animateTo),
+        _Overview(
+            onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
         const MarketplaceProfilePage(),
         _MyListings(
             onAddListing: widget.onAddListing,
@@ -141,8 +154,9 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
 }
 
 class _Overview extends StatelessWidget {
-  const _Overview({required this.onOpen});
+  const _Overview({required this.onOpen, required this.showAdminPortal});
   final ValueChanged<int> onOpen;
+  final bool showAdminPortal;
 
   @override
   Widget build(BuildContext context) {
@@ -164,11 +178,8 @@ class _Overview extends StatelessWidget {
           final completion = calculateProfileCompletion(user, data);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
-          final isMasterAdmin =
-              user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com';
-
           return ListView(padding: const EdgeInsets.all(18), children: [
-            if (isMasterAdmin) ...[
+            if (showAdminPortal) ...[
               Card(
                 color: Colors.purple.shade900,
                 child: Padding(
@@ -182,7 +193,7 @@ class _Overview extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: const [
                             Text(
-                              '👑 MASTER ADMIN PORTAL ACTIVE',
+                              'Administrator Portal active',
                               style: TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 16,
@@ -287,12 +298,8 @@ class _Overview extends StatelessWidget {
                 onTap: () => launchUrl(
                     Uri.parse('https://www.pipebuyer.com/terms'),
                     mode: LaunchMode.externalApplication)),
-            FutureBuilder<bool>(
-                future: marketplaceAdministratorAccess(),
-                builder: (context, access) => access.data == true ||
-                        user.email?.toLowerCase().trim() ==
-                            'jordilwbailey@gmail.com'
-                    ? Card(
+            if (showAdminPortal)
+              Card(
                         color: Colors.purple.shade50,
                         margin: const EdgeInsets.only(top: 8),
                         shape: RoundedRectangleBorder(
@@ -303,7 +310,7 @@ class _Overview extends StatelessWidget {
                           leading: Icon(Icons.admin_panel_settings,
                               color: Colors.purple.shade800, size: 26),
                           title: Text(
-                            '👑 MASTER ADMIN PORTAL DASHBOARD',
+                            'Administrator Portal',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.purple.shade900),
@@ -318,8 +325,7 @@ class _Overview extends StatelessWidget {
                                     const MarketplaceAdminDashboard()),
                           ),
                         ),
-                      )
-                    : const SizedBox.shrink()),
+                      ),
           ]);
         });
   }
@@ -2635,6 +2641,12 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
     try {
       final current = _deviceStatus ??
           await MarketplaceNotificationService.instance.status();
+      final presentation = marketplaceNotificationPresentation(current);
+      if (!presentation.actionEnabled) return;
+      if (presentation.refreshOnly) {
+        await _refreshStatus();
+        return;
+      }
       final status = current == MarketplaceNotificationStatus.enabled
           ? await MarketplaceNotificationService.instance.disable()
           : await MarketplaceNotificationService.instance.enable();
@@ -2687,6 +2699,7 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
             'Sign in to receive instant price drop alerts, bid updates, and buyer messages.',
       );
     }
+    final presentation = marketplaceNotificationPresentation(_deviceStatus);
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -2696,23 +2709,17 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
             leading: Icon(_deviceStatus == MarketplaceNotificationStatus.enabled
                 ? Icons.notifications_active_outlined
                 : Icons.notifications_outlined),
-            title: Text(_deviceStatus == MarketplaceNotificationStatus.enabled
-                ? 'Device notifications enabled'
-                : 'Get important activity on this device'),
-            subtitle: Text(_deviceStatus ==
-                    MarketplaceNotificationStatus.missingWebConfiguration
-                ? 'This web release needs its approved push key before notifications can be enabled.'
-                : 'Receive offer, message, auction, Dispatch, support, and account-security updates.'),
+            title: Text(presentation.title),
+            subtitle: Text(presentation.description),
             trailing: _changing
                 ? const SizedBox.square(
                     dimension: 24,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : FilledButton.tonal(
-                    onPressed: _changeDeviceNotifications,
-                    child: Text(
-                        _deviceStatus == MarketplaceNotificationStatus.enabled
-                            ? 'Turn off'
-                            : 'Enable'),
+                    onPressed: presentation.actionEnabled
+                        ? _changeDeviceNotifications
+                        : null,
+                    child: Text(presentation.actionLabel),
                   ),
           ),
         ),
@@ -3034,27 +3041,33 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),
-      if (user.email?.toLowerCase().trim() == 'jordilwbailey@gmail.com')
-        Card(
-          color: Colors.purple.shade50,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.purple.shade200),
-          ),
-          child: ListTile(
-              leading: Icon(Icons.admin_panel_settings,
-                  color: Colors.purple.shade800, size: 28),
-              title: Text(
-                'MASTER ADMIN PORTAL DASHBOARD',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.purple.shade900),
-              ),
-              subtitle: const Text(
-                  'Analytics, Escrow Overrides, Banking Setup, User Roles, Moderation & System Config.'),
-              trailing: const Icon(Icons.chevron_right, color: Colors.purple),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const MarketplaceAdminDashboard()))),
-        ),
+      FutureBuilder<bool>(
+        future: marketplaceAdministratorAccess(),
+        builder: (context, access) => access.data == true
+            ? Card(
+                color: Colors.purple.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.purple.shade200),
+                ),
+                child: ListTile(
+                    leading: Icon(Icons.admin_panel_settings,
+                        color: Colors.purple.shade800, size: 28),
+                    title: Text(
+                      'Administrator Portal',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade900),
+                    ),
+                    subtitle: const Text(
+                        'Analytics, escrow operations, user roles, moderation, and system configuration.'),
+                    trailing:
+                        const Icon(Icons.chevron_right, color: Colors.purple),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const MarketplaceAdminDashboard()))),
+              )
+            : const SizedBox.shrink(),
+      ),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
           title: const Text('Send password reset email'),
