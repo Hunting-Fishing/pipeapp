@@ -68,9 +68,9 @@ void main() {
     );
     expect(find.text(r'$25 per year'), findsOneWidget);
     expect(find.text(r'$10 per dispatched job'), findsOneWidget);
-    expect(find.text('Paid to Pipebuddy'), findsOneWidget);
+    expect(find.text('Paid to Pipe Buyer'), findsOneWidget);
     expect(
-      find.textContaining('paid to Pipebuddy for each dispatched job'),
+      find.textContaining('paid to Pipe Buyer for each dispatched job'),
       findsOneWidget,
     );
     expect(
