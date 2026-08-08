@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/core/config/public_release_config.dart';
 import 'package:pipe_app/marketplace/marketplace_about_page.dart';
 
 void main() {
@@ -10,7 +11,12 @@ void main() {
     );
 
     expect(find.text('About Pipe Buyer'), findsWidgets);
-    expect(find.textContaining('v1.0.0+1'), findsOneWidget);
+    // Bound to pubspec by test/release_version_contract_test.dart, so this
+    // stays correct across version bumps instead of pinning a stale literal.
+    expect(
+      find.textContaining('v${PublicReleaseConfiguration.appVersion}'),
+      findsOneWidget,
+    );
     expect(find.text('Release revision'), findsOneWidget);
     expect(find.text('support@pipebuyer.com'), findsOneWidget);
 
