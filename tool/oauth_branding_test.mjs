@@ -34,7 +34,7 @@ test('static OAuth homepage uses exact branding, explains Google Sign-In, and us
   const about = read('web/about.html');
   requireExactAppIdentity(about, 'web/about.html');
   assert.match(about, /Application purpose and functionality/u);
-  assert.match(about, /international B2B industrial marketplace/u);
+  assert.match(about, /B2B industrial marketplace serving the United States and Canada/u);
   assert.match(about, /Google Sign-In and Google user data/u);
   assert.match(about, /Google email address, full name, and profile photo/u);
   assert.match(about, /rel="canonical" href="https:\/\/www\.pipebuyer\.com\/about"/u);

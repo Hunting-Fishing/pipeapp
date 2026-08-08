@@ -62,6 +62,10 @@ Write-Host 'Running Flutter tests'
 flutter test @diagnosticDefines
 Assert-NativeSuccess 'Flutter tests'
 
+Write-Host 'Testing OAuth branding contract'
+node --test tool/oauth_branding_test.mjs
+Assert-NativeSuccess 'OAuth branding tests'
+
 Write-Host 'Testing release manifest controls'
 node --test tool/release_manifest_test.mjs
 Assert-NativeSuccess 'Release manifest tests'
