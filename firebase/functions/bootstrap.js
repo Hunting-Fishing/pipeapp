@@ -6,12 +6,19 @@ const coreExports = require("./index");
 Object.assign(exports, coreExports);
 
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
-const {onCall, onRequest} = require("firebase-functions/v2/https");
+const {HttpsError, onCall, onRequest} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
 const {createAffiliateCommands} = require("./affiliate_commands");
 const {createAffiliatePayouts} = require("./affiliate_payouts");
+const {createMarketplaceCommands} = require("./marketplace_commands");
+const {
+  createPolicyAcceptanceCommands,
+} = require("./policy_acceptance_commands");
+const {
+  cancellationRequiresFinancialResolution,
+} = require("./marketplace_financial_guard");
 const {
   createStripeMarketplaceCommands,
   stripeSecretKey,
@@ -38,6 +45,8 @@ const {
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
 const affiliatePayouts = createAffiliatePayouts(admin);
+const marketplaceCommands = createMarketplaceCommands(admin);
+const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
@@ -48,6 +57,35 @@ const stripeDisputeResponse = createStripeDisputeResponse(admin);
 const stripeWebhookHandler = createStripeWebhookHandler(admin, {
   marketplaceFinancialResolution,
 });
+
+async function updateMarketplaceTransactionWithFinancialGuard(request) {
+  const action = String(request.data && request.data.action || "").trim();
+  const offerId = String(request.data && request.data.offerId || "").trim();
+  if (action === "cancel" && offerId && !offerId.includes("/")) {
+    const saleSnapshot = await admin.firestore()
+        .collection("marketplace_transactions")
+        .doc(offerId)
+        .get();
+    if (saleSnapshot.exists &&
+        cancellationRequiresFinancialResolution(saleSnapshot.data())) {
+      throw new HttpsError(
+          "failed-precondition",
+          "A paid Pipe Buyer transaction must be fully refunded before it can be cancelled.",
+      );
+    }
+  }
+  return marketplaceCommands.updateMarketplaceTransaction(request);
+}
+
+// Override the legacy transaction callable with a financial guard while
+// preserving its existing policy acceptance, authorization, rate limiting,
+// command validation, and idempotency behavior.
+exports.updateMarketplaceTransaction = onCall(
+    protectedCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        updateMarketplaceTransactionWithFinancialGuard,
+    ),
+);
 
 exports.ensureAffiliateCode = onCall(
     protectedCallableOptions,
