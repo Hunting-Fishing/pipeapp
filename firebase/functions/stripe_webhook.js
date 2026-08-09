@@ -104,25 +104,119 @@ async function retrievePaymentIntent(secretKey, paymentIntentId) {
   return payload;
 }
 
+function billingType(session) {
+  return String(session && session.metadata && session.metadata.billingType || "")
+      .trim();
+}
+
 function createStripeWebhookHandler(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+
+  function affiliateEligibleAfter() {
+    return Timestamp.fromMillis(
+        Date.now() + AFFILIATE_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+  }
+
+  async function updateAffiliateAfterFeeCollection(transactionId) {
+    const affiliateLedgerRef = db.collection("affiliate_commission_ledger")
+        .doc(`marketplace_${transactionId}`);
+    const affiliateLedger = await affiliateLedgerRef.get();
+    if (!affiliateLedger.exists ||
+        affiliateLedger.data().status !== "pending_platform_fee_payment") {
+      return;
+    }
+    await affiliateLedgerRef.update({
+      status: "pending_refund_window",
+      eligibleAfter: affiliateEligibleAfter(),
+      platformFeeCollectedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
 
   async function markCheckoutFailure(session) {
     const transactionId = String(
         session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
     ).trim();
     if (!transactionId) return;
-    await db.collection("marketplace_transactions").doc(transactionId).set({
-      paymentProviderStatus: "failed",
-      stripeCheckoutSessionId: String(session.id || ""),
-      paymentFailedAt: FieldValue.serverTimestamp(),
+    const feeOnly = billingType(session) === "marketplace_fee_only";
+    await db.collection("marketplace_transactions").doc(transactionId).set(
+        feeOnly ? {
+          marketplaceFeeStatus: "payment_failed",
+          stripeMarketplaceFeeSessionId: String(session.id || ""),
+          marketplaceFeePaymentFailedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        } : {
+          paymentProviderStatus: "failed",
+          stripeCheckoutSessionId: String(session.id || ""),
+          paymentFailedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+    );
+  }
+
+  async function settleMarketplaceFeeOnly(session) {
+    const transactionId = String(
+        session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
+    ).trim();
+    if (!transactionId) return;
+    const transactionRef = db.collection("marketplace_transactions")
+        .doc(transactionId);
+    const transactionSnapshot = await transactionRef.get();
+    if (!transactionSnapshot.exists) {
+      throw new Error("Pipe Buyer transaction for fee checkout was not found.");
+    }
+    const sale = transactionSnapshot.data();
+    if (sale.marketplaceFeeStatus === "collected") return;
+    const fee = sale.marketplaceFeeSnapshot || {};
+    const expectedFeeMinor = Number(fee.marketplaceFeeMinor);
+    const subtotalMinor = Number(session.amount_subtotal || 0);
+    const taxCollectedMinor = Number(
+        session.total_details && session.total_details.amount_tax || 0,
+    );
+    if (!Number.isSafeInteger(expectedFeeMinor) || expectedFeeMinor <= 0 ||
+        subtotalMinor !== expectedFeeMinor) {
+      throw new Error("Stripe fee checkout does not match the immutable fee snapshot.");
+    }
+    const paymentIntentId = typeof session.payment_intent === "string" ?
+      session.payment_intent :
+      String(session.payment_intent && session.payment_intent.id || "");
+    if (!paymentIntentId.startsWith("pi_")) {
+      throw new Error("The fee checkout has no Stripe payment intent.");
+    }
+    const paymentIntent = await retrievePaymentIntent(
+        stripeSecretKey.value(),
+        paymentIntentId,
+    );
+    if (paymentIntent.status !== "succeeded") return;
+    const latestCharge = paymentIntent.latest_charge;
+    const chargeId = typeof latestCharge === "string" ?
+      latestCharge : String(latestCharge && latestCharge.id || "");
+    if (!chargeId.startsWith("ch_")) {
+      throw new Error("The paid marketplace fee has no Stripe charge.");
+    }
+    await transactionRef.set({
+      marketplaceFeeStatus: "collected",
+      stripeMarketplaceFeeSessionId: String(session.id || ""),
+      stripeMarketplaceFeePaymentIntentId: paymentIntentId,
+      stripeMarketplaceFeeChargeId: chargeId,
+      platformMarketplaceFeeMinor: expectedFeeMinor,
+      marketplaceFeeTaxCollectedMinor: taxCollectedMinor,
+      marketplaceFeeBuyerChargedMinor: Number(session.amount_total || 0),
+      marketplaceFeeCollectedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
+    await updateAffiliateAfterFeeCollection(transactionId);
   }
 
   async function settleSuccessfulCheckout(session) {
+    if (billingType(session) === "marketplace_fee_only") {
+      await settleMarketplaceFeeOnly(session);
+      return;
+    }
     const transactionId = String(
         session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
     ).trim();
@@ -141,6 +235,10 @@ function createStripeWebhookHandler(admin) {
     if (!Number.isSafeInteger(marketplaceFeeMinor) || marketplaceFeeMinor < 0 ||
         !Number.isSafeInteger(sellerProceedsMinor) || sellerProceedsMinor < 0) {
       throw new Error("The immutable Pipe Buyer fee snapshot is unavailable.");
+    }
+    const saleSubtotalMinor = Number(session.amount_subtotal || 0);
+    if (saleSubtotalMinor !== Number(fee.agreedTotalMinor)) {
+      throw new Error("Stripe sale checkout does not match the immutable sale snapshot.");
     }
     const sellerProvider = await db.collection("payment_provider_accounts")
         .doc(String(sale.sellerUid || "")).get();
@@ -197,9 +295,6 @@ function createStripeWebhookHandler(admin) {
     );
     const affiliateLedgerRef = db.collection("affiliate_commission_ledger")
         .doc(`marketplace_${transactionId}`);
-    const affiliateEligibleAfter = Timestamp.fromMillis(
-        Date.now() + AFFILIATE_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
-    );
     await db.runTransaction(async (firestoreTransaction) => {
       const current = await firestoreTransaction.get(transactionRef);
       const affiliateLedger = await firestoreTransaction.get(affiliateLedgerRef);
@@ -228,12 +323,32 @@ function createStripeWebhookHandler(admin) {
           affiliateLedger.data().status === "pending_platform_fee_payment") {
         firestoreTransaction.update(affiliateLedgerRef, {
           status: "pending_refund_window",
-          eligibleAfter: affiliateEligibleAfter,
+          eligibleAfter: affiliateEligibleAfter(),
           platformFeeCollectedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
       }
     });
+  }
+
+  async function markCheckoutProcessing(session) {
+    const transactionId = String(
+        session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
+    ).trim();
+    if (!transactionId) return;
+    const feeOnly = billingType(session) === "marketplace_fee_only";
+    await db.collection("marketplace_transactions").doc(transactionId).set(
+        feeOnly ? {
+          marketplaceFeeStatus: "processing",
+          stripeMarketplaceFeeSessionId: String(session.id || ""),
+          updatedAt: FieldValue.serverTimestamp(),
+        } : {
+          paymentProviderStatus: "processing",
+          stripeCheckoutSessionId: String(session.id || ""),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+    );
   }
 
   async function handleEvent(event) {
@@ -244,16 +359,7 @@ function createStripeWebhookHandler(admin) {
       if (object.payment_status === "paid") {
         await settleSuccessfulCheckout(object);
       } else {
-        const transactionId = String(
-            object.metadata && object.metadata.pipeBuyerTransactionId || "",
-        ).trim();
-        if (transactionId) {
-          await db.collection("marketplace_transactions").doc(transactionId).set({
-            paymentProviderStatus: "processing",
-            stripeCheckoutSessionId: String(object.id || ""),
-            updatedAt: FieldValue.serverTimestamp(),
-          }, {merge: true});
-        }
+        await markCheckoutProcessing(object);
       }
       return;
     }
@@ -324,6 +430,7 @@ function createStripeWebhookHandler(admin) {
 module.exports = {
   AFFILIATE_REFUND_WINDOW_DAYS,
   SIGNATURE_TOLERANCE_SECONDS,
+  billingType,
   createStripeWebhookHandler,
   stripeWebhookSecret,
   verifyStripeSignature,
