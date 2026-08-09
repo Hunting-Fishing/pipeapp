@@ -47,16 +47,14 @@ function createAffiliateCommands(admin) {
 
   const ensureAffiliateCode = command(async (request) => {
     const uid = requireAuth(request);
-    await enforceUserRateLimit({db, admin, request, scope: "affiliate"});
+    await enforceUserRateLimit({db, admin, request, scope: "account"});
     const code = referralCodeForUid(uid);
     const profileRef = db.collection("affiliate_profiles").doc(uid);
     const codeRef = db.collection("affiliate_codes").doc(code);
 
     await db.runTransaction(async (transaction) => {
-      const [profileSnapshot, codeSnapshot] = await Promise.all([
-        transaction.get(profileRef),
-        transaction.get(codeRef),
-      ]);
+      const profileSnapshot = await transaction.get(profileRef);
+      const codeSnapshot = await transaction.get(codeRef);
       if (profileSnapshot.exists) {
         const existingCode = String(profileSnapshot.data().code || "");
         if (existingCode && existingCode !== code) {
@@ -100,16 +98,14 @@ function createAffiliateCommands(admin) {
 
   const claimAffiliateReferral = command(async (request) => {
     const uid = requireAuth(request);
-    await enforceUserRateLimit({db, admin, request, scope: "affiliate"});
+    await enforceUserRateLimit({db, admin, request, scope: "account"});
     const code = normalizeReferralCode(request.data && request.data.code);
     const codeRef = db.collection("affiliate_codes").doc(code);
     const relationshipRef = db.collection("affiliate_relationships").doc(uid);
 
     return db.runTransaction(async (transaction) => {
-      const [codeSnapshot, relationshipSnapshot] = await Promise.all([
-        transaction.get(codeRef),
-        transaction.get(relationshipRef),
-      ]);
+      const codeSnapshot = await transaction.get(codeRef);
+      const relationshipSnapshot = await transaction.get(relationshipRef);
       if (!codeSnapshot.exists || codeSnapshot.data().active !== true) {
         throw new HttpsError("not-found", "This referral code is not active.");
       }
