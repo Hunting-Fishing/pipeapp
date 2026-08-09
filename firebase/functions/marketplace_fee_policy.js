@@ -82,10 +82,6 @@ function inferMarketplaceFeeClass(listing) {
   return "equipment_asset";
 }
 
-function cap(value, maximum) {
-  return Number.isSafeInteger(maximum) ? Math.min(value, maximum) : value;
-}
-
 function calculatePipeFee({
   agreedQuantity,
   agreedTotalMinor,

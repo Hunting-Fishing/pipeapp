@@ -146,6 +146,14 @@ jobs:
           --only firestore,storage
           "npm test --prefix firebase/rules-tests"
 
+      - name: Prepare emulator-only payment secrets
+        shell: pwsh
+        run: |
+          @'
+          STRIPE_SECRET_KEY=sk_test_pipe_buyer_emulator_only
+          STRIPE_WEBHOOK_SECRET=whsec_pipe_buyer_emulator_only
+          '@ | Set-Content -Path firebase/functions/.secret.local
+
       - name: Test authenticated callable workflows and retries
         env:
           PIPE_ENFORCE_APP_CHECK: "false"

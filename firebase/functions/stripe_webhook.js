@@ -1,14 +1,21 @@
 "use strict";
 
 const crypto = require("node:crypto");
-const {defineSecret} = require("firebase-functions/params");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 const {
   createSubscriptionMonetization,
 } = require("./subscription_monetization");
 
-const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+const STRIPE_WEBHOOK_SECRET_NAME = "STRIPE_WEBHOOK_SECRET";
+const stripeWebhookSecret = Object.freeze({
+  name: STRIPE_WEBHOOK_SECRET_NAME,
+  value() {
+    const value = String(process.env[STRIPE_WEBHOOK_SECRET_NAME] || "").trim();
+    if (!value) throw new Error("Stripe webhook credentials are unavailable.");
+    return value;
+  },
+});
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 const AFFILIATE_REFUND_WINDOW_DAYS = 30;
 
@@ -81,7 +88,8 @@ async function stripeFormRequest({
   }
   if (!response.ok) {
     const code = String(
-        payload && payload.error && (payload.error.code || payload.error.type) || "",
+        payload && payload.error &&
+        (payload.error.code || payload.error.type) || "",
     ).slice(0, 120);
     const error = new Error("Stripe provider request failed.");
     error.stripeStatus = response.status;
@@ -112,10 +120,11 @@ function billingType(session) {
       .trim();
 }
 
-function createStripeWebhookHandler(admin) {
+function createStripeWebhookHandler(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+  const financialResolution = options.marketplaceFinancialResolution || null;
   const subscriptionMonetization = createSubscriptionMonetization(
       admin,
       stripeMarketplaceConfig,
@@ -146,7 +155,8 @@ function createStripeWebhookHandler(admin) {
 
   async function markCheckoutFailure(session) {
     const transactionId = String(
-        session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
+        session && session.metadata &&
+        session.metadata.pipeBuyerTransactionId || "",
     ).trim();
     if (!transactionId) return;
     const feeOnly = billingType(session) === "marketplace_fee_only";
@@ -168,7 +178,8 @@ function createStripeWebhookHandler(admin) {
 
   async function settleMarketplaceFeeOnly(session) {
     const transactionId = String(
-        session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
+        session && session.metadata &&
+        session.metadata.pipeBuyerTransactionId || "",
     ).trim();
     if (!transactionId) return;
     const transactionRef = db.collection("marketplace_transactions")
@@ -187,7 +198,9 @@ function createStripeWebhookHandler(admin) {
     );
     if (!Number.isSafeInteger(expectedFeeMinor) || expectedFeeMinor <= 0 ||
         subtotalMinor !== expectedFeeMinor) {
-      throw new Error("Stripe fee checkout does not match the immutable fee snapshot.");
+      throw new Error(
+          "Stripe fee checkout does not match the immutable fee snapshot.",
+      );
     }
     const paymentIntentId = typeof session.payment_intent === "string" ?
       session.payment_intent :
@@ -230,13 +243,15 @@ function createStripeWebhookHandler(admin) {
           .doc(String(session.id || "")).set({
             status: session.payment_status === "paid" ? "active" : "processing",
             stripeSubscriptionId: typeof session.subscription === "string" ?
-              session.subscription : String(session.subscription && session.subscription.id || ""),
+              session.subscription :
+              String(session.subscription && session.subscription.id || ""),
             updatedAt: FieldValue.serverTimestamp(),
           }, {merge: true});
       return;
     }
     const transactionId = String(
-        session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
+        session && session.metadata &&
+        session.metadata.pipeBuyerTransactionId || "",
     ).trim();
     if (!transactionId) return;
     const transactionRef = db.collection("marketplace_transactions")
@@ -246,7 +261,8 @@ function createStripeWebhookHandler(admin) {
       throw new Error("Pipe Buyer transaction for Stripe Checkout was not found.");
     }
     const sale = transactionSnapshot.data();
-    if (sale.paymentProviderStatus === "paid" && sale.stripeSellerTransferId) return;
+    if (sale.paymentProviderStatus === "paid" &&
+        sale.stripeSellerTransferId) return;
     const fee = sale.marketplaceFeeSnapshot || {};
     const marketplaceFeeMinor = Number(fee.marketplaceFeeMinor);
     const sellerProceedsMinor = Number(fee.sellerProceedsBeforeTaxMinor);
@@ -256,12 +272,18 @@ function createStripeWebhookHandler(admin) {
     }
     const saleSubtotalMinor = Number(session.amount_subtotal || 0);
     if (saleSubtotalMinor !== Number(fee.agreedTotalMinor)) {
-      throw new Error("Stripe sale checkout does not match the immutable sale snapshot.");
+      throw new Error(
+          "Stripe sale checkout does not match the immutable sale snapshot.",
+      );
     }
     const sellerProvider = await db.collection("payment_provider_accounts")
         .doc(String(sale.sellerUid || "")).get();
-    if (!sellerProvider.exists || sellerProvider.data().transferStatus !== "active") {
+    if (!sellerProvider.exists ||
+        sellerProvider.data().transferStatus !== "active") {
       throw new Error("The seller Stripe recipient account is not payout-ready.");
+    }
+    if (sellerProvider.data().sellerPayoutHold === true) {
+      throw new Error("The seller account has an unresolved financial hold.");
     }
     const destination = String(sellerProvider.data().stripeAccountId || "");
     if (!destination.startsWith("acct_")) {
@@ -285,7 +307,8 @@ function createStripeWebhookHandler(admin) {
       throw new Error("The successful payment has no Stripe charge.");
     }
     const transferGroup = String(
-        sale.stripeTransferGroup || paymentIntent.transfer_group || `PB_${transactionId}`,
+        sale.stripeTransferGroup || paymentIntent.transfer_group ||
+        `PB_${transactionId}`,
     ).slice(0, 200);
 
     let transfer = null;
@@ -331,9 +354,12 @@ function createStripeWebhookHandler(admin) {
         stripeSellerTransferId: transfer ? String(transfer.id || "") : null,
         stripeTransferGroup: transferGroup,
         buyerChargedMinor: amountTotal,
+        refundedMinor: 0,
         taxCollectedMinor,
         sellerProceedsMinor,
         platformMarketplaceFeeMinor: marketplaceFeeMinor,
+        financialStatus: "settled",
+        financialHold: false,
         paidAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
@@ -360,7 +386,8 @@ function createStripeWebhookHandler(admin) {
       return;
     }
     const transactionId = String(
-        session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
+        session && session.metadata &&
+        session.metadata.pipeBuyerTransactionId || "",
     ).trim();
     if (!transactionId) return;
     const feeOnly = billingType(session) === "marketplace_fee_only";
@@ -407,6 +434,27 @@ function createStripeWebhookHandler(admin) {
     }
     if (type === "charge.refunded") {
       await subscriptionMonetization.voidPendingCommissionForRefund(object);
+      if (financialResolution) {
+        await financialResolution.reconcileChargeRefund(object);
+      }
+      return;
+    }
+    if (["refund.created", "refund.updated", "refund.failed"].includes(type)) {
+      if (financialResolution) {
+        await financialResolution.handleRefundStatusEvent(object, type);
+      }
+      return;
+    }
+    if ([
+      "charge.dispute.created",
+      "charge.dispute.updated",
+      "charge.dispute.closed",
+      "charge.dispute.funds_withdrawn",
+      "charge.dispute.funds_reinstated",
+    ].includes(type)) {
+      if (financialResolution) {
+        await financialResolution.handleDisputeEvent(object, type);
+      }
     }
   }
 
@@ -468,6 +516,7 @@ function createStripeWebhookHandler(admin) {
 module.exports = {
   AFFILIATE_REFUND_WINDOW_DAYS,
   SIGNATURE_TOLERANCE_SECONDS,
+  STRIPE_WEBHOOK_SECRET_NAME,
   billingType,
   createStripeWebhookHandler,
   stripeWebhookSecret,

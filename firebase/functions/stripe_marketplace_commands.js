@@ -1,6 +1,5 @@
 "use strict";
 
-const {defineSecret} = require("firebase-functions/params");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AccountSecurityError,
@@ -13,7 +12,20 @@ const {
 } = require("./phase1_feature_flags");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 
-const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
+const STRIPE_SECRET_KEY_NAME = "STRIPE_SECRET_KEY";
+const stripeSecretKey = Object.freeze({
+  name: STRIPE_SECRET_KEY_NAME,
+  value() {
+    const value = String(process.env[STRIPE_SECRET_KEY_NAME] || "").trim();
+    if (!value) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Stripe payment credentials are unavailable.",
+      );
+    }
+    return value;
+  },
+});
 
 const initialSellerCountries = new Set(["CA", "US"]);
 
@@ -370,6 +382,7 @@ function createStripeMarketplaceCommands(admin) {
 }
 
 module.exports = {
+  STRIPE_SECRET_KEY_NAME,
   createStripeMarketplaceCommands,
   loadProviderReadiness,
   safePipeBuyerCallbackUrl,

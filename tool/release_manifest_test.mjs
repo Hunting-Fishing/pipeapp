@@ -5,11 +5,14 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  collectFunctionExports,
   extractFunctionExports,
+  extractLocalExportReexports,
   hashDirectory,
   hashRelativeFiles,
   isValidPublicSupportEmail,
   readFunctionSources,
+  resolveFunctionEntrypoint,
   validateReleaseInputs,
 } from "./release_manifest.mjs";
 
@@ -20,6 +23,16 @@ test("function exports are unique and sorted", () => {
     exports.zeta = replacement();
   `);
   assert.deepEqual(exports, ["alpha", "zeta"]);
+});
+
+test("local Object.assign export re-exports are detected", () => {
+  const source = `
+    const coreExports = require("./index");
+    const unrelated = require("./other");
+    Object.assign(exports, coreExports);
+    void unrelated;
+  `;
+  assert.deepEqual(extractLocalExportReexports(source), ["./index"]);
 });
 
 test("all configured Function codebases are release inputs", () => {
@@ -34,6 +47,44 @@ test("all configured Function codebases are release inputs", () => {
     {source: "firebase/functions", codebase: "marketplace"},
     {source: "firebase/agent-functions", codebase: "functions"},
   ]);
+});
+
+test("Function inventory follows package main plus explicit local re-exports", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pipe-function-entrypoint-"));
+  const source = path.join(root, "firebase", "functions");
+  mkdirSync(source, {recursive: true});
+  writeFileSync(path.join(source, "package.json"), JSON.stringify({
+    main: "bootstrap.js",
+  }));
+  writeFileSync(path.join(source, "bootstrap.js"), `
+    const coreExports = require("./index");
+    Object.assign(exports, coreExports);
+    exports.actual = true;
+  `);
+  writeFileSync(path.join(source, "index.js"), `
+    exports.legacy = true;
+    exports.shared = true;
+  `);
+  const entrypoint = resolveFunctionEntrypoint(root, "firebase/functions");
+  assert.equal(entrypoint, "bootstrap.js");
+  assert.deepEqual(
+      collectFunctionExports(root, "firebase/functions", entrypoint),
+      ["actual", "legacy", "shared"],
+  );
+});
+
+test("Function entrypoints cannot escape their configured source", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pipe-function-escape-"));
+  const source = path.join(root, "firebase", "functions");
+  mkdirSync(source, {recursive: true});
+  writeFileSync(path.join(source, "package.json"), JSON.stringify({
+    main: "../outside.js",
+  }));
+  writeFileSync(path.join(root, "firebase", "outside.js"), "exports.bad = true;\n");
+  assert.throws(
+      () => resolveFunctionEntrypoint(root, "firebase/functions"),
+      /Invalid Firebase Functions entrypoint/u,
+  );
 });
 
 test("file and directory hashes are deterministic and content-sensitive", () => {
