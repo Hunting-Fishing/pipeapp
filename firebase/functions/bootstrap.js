@@ -29,6 +29,7 @@ const {
 const {
   createMarketplaceFinancialResolution,
 } = require("./marketplace_financial_resolution");
+const {createStripeDisputeResponse} = require("./stripe_dispute_response");
 const {
   createStripeWebhookHandler,
   stripeWebhookSecret,
@@ -43,6 +44,7 @@ const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
+const stripeDisputeResponse = createStripeDisputeResponse(admin);
 const stripeWebhookHandler = createStripeWebhookHandler(admin, {
   marketplaceFinancialResolution,
 });
@@ -104,6 +106,18 @@ exports.executeMarketplaceRefund = onCall(
 exports.retryMarketplaceSellerRecovery = onCall(
     stripeCallableOptions,
     marketplaceFinancialResolution.retryMarketplaceSellerRecovery,
+);
+exports.stageMarketplaceDisputeEvidence = onCall(
+    stripeCallableOptions,
+    stripeDisputeResponse.stageMarketplaceDisputeEvidence,
+);
+exports.submitMarketplaceDisputeEvidence = onCall(
+    stripeCallableOptions,
+    stripeDisputeResponse.submitMarketplaceDisputeEvidence,
+);
+exports.acceptMarketplaceDispute = onCall(
+    stripeCallableOptions,
+    stripeDisputeResponse.acceptMarketplaceDispute,
 );
 
 exports.stripeMarketplaceWebhook = onRequest(
