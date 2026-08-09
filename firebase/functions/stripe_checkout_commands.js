@@ -171,6 +171,12 @@ function createStripeCheckoutCommands(admin) {
             "The seller must finish payout verification before online checkout.",
         );
       }
+      if (sellerProvider.data().sellerPayoutHold === true) {
+        throw new HttpsError(
+            "failed-precondition",
+            "The seller has an unresolved refund or dispute recovery hold.",
+        );
+      }
       const listingSnapshot = await db.collection("public_listings")
           .doc(String(sale.listingId || "")).get();
       if (!listingSnapshot.exists) {
