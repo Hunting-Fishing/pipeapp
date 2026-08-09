@@ -27,6 +27,9 @@ const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
 const {
+  createMarketplaceFinancialResolution,
+} = require("./marketplace_financial_resolution");
+const {
   createStripeWebhookHandler,
   stripeWebhookSecret,
 } = require("./stripe_webhook");
@@ -39,7 +42,10 @@ const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
-const stripeWebhookHandler = createStripeWebhookHandler(admin);
+const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
+const stripeWebhookHandler = createStripeWebhookHandler(admin, {
+  marketplaceFinancialResolution,
+});
 
 exports.ensureAffiliateCode = onCall(
     protectedCallableOptions,
@@ -52,6 +58,14 @@ exports.claimAffiliateReferral = onCall(
 exports.confirmExternalSettlement = onCall(
     protectedCallableOptions,
     externalSettlementCommands.confirmExternalSettlement,
+);
+exports.requestMarketplaceRefund = onCall(
+    protectedCallableOptions,
+    marketplaceFinancialResolution.requestMarketplaceRefund,
+);
+exports.cancelMarketplaceRefundRequest = onCall(
+    protectedCallableOptions,
+    marketplaceFinancialResolution.cancelMarketplaceRefundRequest,
 );
 
 const stripeCallableOptions = Object.freeze({
@@ -82,6 +96,14 @@ exports.createExternalSettlementFeeCheckout = onCall(
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
     dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+);
+exports.executeMarketplaceRefund = onCall(
+    stripeCallableOptions,
+    marketplaceFinancialResolution.executeMarketplaceRefund,
+);
+exports.retryMarketplaceSellerRecovery = onCall(
+    stripeCallableOptions,
+    marketplaceFinancialResolution.retryMarketplaceSellerRecovery,
 );
 
 exports.stripeMarketplaceWebhook = onRequest(
