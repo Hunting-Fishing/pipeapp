@@ -16,6 +16,9 @@ const {
 } = require("./stripe_marketplace_commands");
 const {createStripeCheckoutCommands} = require("./stripe_checkout_commands");
 const {
+  createExternalSettlementCommands,
+} = require("./external_settlement_commands");
+const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
 const {
@@ -27,6 +30,7 @@ const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
+const externalSettlementCommands = createExternalSettlementCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const stripeWebhookHandler = createStripeWebhookHandler(admin);
 
@@ -37,6 +41,10 @@ exports.ensureAffiliateCode = onCall(
 exports.claimAffiliateReferral = onCall(
     protectedCallableOptions,
     affiliateCommands.claimAffiliateReferral,
+);
+exports.confirmExternalSettlement = onCall(
+    protectedCallableOptions,
+    externalSettlementCommands.confirmExternalSettlement,
 );
 
 const stripeCallableOptions = Object.freeze({
@@ -59,6 +67,10 @@ exports.refreshStripeSellerStatus = onCall(
 exports.createMarketplaceCheckout = onCall(
     stripeCallableOptions,
     stripeCheckoutCommands.createMarketplaceCheckout,
+);
+exports.createExternalSettlementFeeCheckout = onCall(
+    stripeCallableOptions,
+    externalSettlementCommands.createExternalSettlementFeeCheckout,
 );
 
 exports.stripeMarketplaceWebhook = onRequest(
