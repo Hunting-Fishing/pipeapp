@@ -141,7 +141,7 @@ exports.cancelMarketplaceRefundRequest = onCall(
 
 const stripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
-  secrets: [stripeSecretKey],
+  secrets: [stripeSecretKey.name],
 });
 
 exports.ensureStripeSellerAccount = onCall(
@@ -191,7 +191,7 @@ exports.acceptMarketplaceDispute = onCall(
 
 exports.stripeMarketplaceWebhook = onRequest(
     {
-      secrets: [stripeSecretKey, stripeWebhookSecret],
+      secrets: [stripeSecretKey.name, stripeWebhookSecret.name],
       cors: false,
     },
     stripeWebhookHandler,
@@ -201,7 +201,7 @@ exports.processEligibleAffiliatePayouts = onSchedule(
     {
       schedule: "every day 06:15",
       timeZone: "America/Vancouver",
-      secrets: [stripeSecretKey],
+      secrets: [stripeSecretKey.name],
     },
     affiliatePayouts.processEligibleAffiliatePayouts,
 );
