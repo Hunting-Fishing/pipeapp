@@ -19,6 +19,9 @@ const {
   createExternalSettlementCommands,
 } = require("./external_settlement_commands");
 const {
+  createDispatchSubscriptionCommands,
+} = require("./dispatch_subscription_commands");
+const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
 const {
@@ -31,6 +34,7 @@ const affiliateCommands = createAffiliateCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
+const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const stripeWebhookHandler = createStripeWebhookHandler(admin);
 
@@ -71,6 +75,10 @@ exports.createMarketplaceCheckout = onCall(
 exports.createExternalSettlementFeeCheckout = onCall(
     stripeCallableOptions,
     externalSettlementCommands.createExternalSettlementFeeCheckout,
+);
+exports.createDispatchSubscriptionCheckout = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
 );
 
 exports.stripeMarketplaceWebhook = onRequest(
