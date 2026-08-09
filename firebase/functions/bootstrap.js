@@ -7,9 +7,11 @@ Object.assign(exports, coreExports);
 
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 const {onCall, onRequest} = require("firebase-functions/v2/https");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
 const {createAffiliateCommands} = require("./affiliate_commands");
+const {createAffiliatePayouts} = require("./affiliate_payouts");
 const {
   createStripeMarketplaceCommands,
   stripeSecretKey,
@@ -31,6 +33,7 @@ const {
 
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
+const affiliatePayouts = createAffiliatePayouts(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
@@ -87,6 +90,15 @@ exports.stripeMarketplaceWebhook = onRequest(
       cors: false,
     },
     stripeWebhookHandler,
+);
+
+exports.processEligibleAffiliatePayouts = onSchedule(
+    {
+      schedule: "every day 06:15",
+      timeZone: "America/Vancouver",
+      secrets: [stripeSecretKey],
+    },
+    affiliatePayouts.processEligibleAffiliatePayouts,
 );
 
 exports.onMarketplaceTransactionCreatedMonetization = onDocumentCreated(
