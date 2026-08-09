@@ -33,16 +33,22 @@ function createMarketplaceRefundWebhookGate(admin, financialResolution) {
     return {document: feeOnly.docs[0], billingType: "marketplace_fee_only"};
   }
 
-  async function holdAffiliateForFinalizedRefund({transactionId, sale, refundedMinor}) {
+  async function reconcileMarketplaceAffiliateRefund({
+    transactionId,
+    sale,
+    charge,
+  }) {
     const ledgerRef = db.collection("affiliate_commission_ledger")
         .doc(`marketplace_${transactionId}`);
     const ledgerSnapshot = await ledgerRef.get();
     if (!ledgerSnapshot.exists) return;
     const ledger = ledgerSnapshot.data();
     const commissionMinor = Number(ledger.commissionMinor || 0);
-    const chargeAmountMinor = Number(sale.buyerChargedMinor || 0);
+    const chargeAmountMinor = Number(charge && charge.amount || 0);
+    const refundedMinor = Math.max(0, Number(charge && charge.amount_refunded || 0));
     if (!Number.isSafeInteger(commissionMinor) || commissionMinor <= 0 ||
-        !Number.isSafeInteger(chargeAmountMinor) || chargeAmountMinor <= 0) {
+        !Number.isSafeInteger(chargeAmountMinor) || chargeAmountMinor <= 0 ||
+        !Number.isSafeInteger(refundedMinor) || refundedMinor <= 0) {
       return;
     }
     const adjustedMinor = adjustedAffiliateCommission({
@@ -52,7 +58,29 @@ function createMarketplaceRefundWebhookGate(admin, financialResolution) {
     });
     const recoveryMinor = Math.max(0, commissionMinor - adjustedMinor);
     const referrerUid = String(ledger.referrerUid || "").trim();
-    if (!referrerUid || recoveryMinor <= 0) return;
+    const status = String(ledger.status || "");
+    const ledgerChanges = {
+      adjustedCommissionMinor: adjustedMinor,
+      financialExposureMinor: refundedMinor,
+      financialAdjustmentReason: "refund",
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (status !== "paid") {
+      if (adjustedMinor === 0) {
+        ledgerChanges.statusBeforeFinancialAdjustment = status;
+        ledgerChanges.status = "void_refunded";
+      } else if (["void_refunded", "void_financial_event"].includes(status)) {
+        ledgerChanges.status = String(
+            ledger.statusBeforeFinancialAdjustment || "pending_refund_window",
+        );
+      }
+      await ledgerRef.set(ledgerChanges, {merge: true});
+      return;
+    }
+    if (!referrerUid || recoveryMinor <= 0) {
+      await ledgerRef.set(ledgerChanges, {merge: true});
+      return;
+    }
     const obligationRef = db.collection("affiliate_recovery_obligations")
         .doc(`marketplace_${transactionId}_${referrerUid}`);
     const existing = await obligationRef.get();
@@ -70,17 +98,12 @@ function createMarketplaceRefundWebhookGate(admin, financialResolution) {
         targetRecoveryMinor: recoveryMinor,
         recoveredMinor,
         amountDueMinor,
-        reason: "finalized_refund_pending_seller_reconciliation",
+        reason: "finalized_marketplace_refund",
         status: amountDueMinor > 0 ? "open" : "resolved",
         updatedAt: FieldValue.serverTimestamp(),
         ...(amountDueMinor === 0 ? {resolvedAt: FieldValue.serverTimestamp()} : {}),
       }, {merge: true}),
-      ledgerRef.set({
-        adjustedCommissionMinor: adjustedMinor,
-        financialExposureMinor: refundedMinor,
-        financialAdjustmentReason: "refund",
-        updatedAt: FieldValue.serverTimestamp(),
-      }, {merge: true}),
+      ledgerRef.set(ledgerChanges, {merge: true}),
       db.collection("payment_provider_accounts").doc(referrerUid).set({
         affiliatePayoutHold: amountDueMinor > 0,
         affiliatePayoutHoldReason: amountDueMinor > 0 ?
@@ -99,6 +122,7 @@ function createMarketplaceRefundWebhookGate(admin, financialResolution) {
     const transactionRef = match.document.ref;
     const sale = match.document.data();
     const refundedMinor = Math.max(0, Number(charge.amount_refunded || 0));
+    await reconcileMarketplaceAffiliateRefund({transactionId, sale, charge});
     if (match.billingType === "marketplace_fee_only") {
       await transactionRef.set({
         marketplaceFeeStatus: charge.refunded ? "refunded" : "partially_refunded",
@@ -140,12 +164,21 @@ function createMarketplaceRefundWebhookGate(admin, financialResolution) {
           sellerPayoutHoldReason: "manual_refund_recovery_review",
           sellerPayoutHoldUpdatedAt: FieldValue.serverTimestamp(),
         }, {merge: true}) : Promise.resolve(),
-      holdAffiliateForFinalizedRefund({transactionId, sale, refundedMinor}),
     ]);
     return {transactionId, billingType: match.billingType, caseId, reviewRequired: true};
   }
 
   async function reconcileChargeRefund(charge) {
+    const chargeId = String(charge && charge.id || "").trim();
+    const match = chargeId.startsWith("ch_") ?
+      await findMarketplaceTransaction(chargeId) : null;
+    if (match) {
+      await reconcileMarketplaceAffiliateRefund({
+        transactionId: match.document.id,
+        sale: match.document.data(),
+        charge,
+      });
+    }
     if (await automationReady()) {
       return financialResolution.reconcileChargeRefund(charge);
     }
@@ -157,6 +190,7 @@ function createMarketplaceRefundWebhookGate(admin, financialResolution) {
     handleRefundStatusEvent: financialResolution.handleRefundStatusEvent,
     reconcileChargeRefund,
     recordRefundForManualRecovery,
+    reconcileMarketplaceAffiliateRefund,
   };
 }
 
