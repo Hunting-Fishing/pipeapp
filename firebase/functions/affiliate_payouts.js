@@ -3,6 +3,12 @@
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 const {stripeFormRequest} = require("./stripe_checkout_commands");
 
+function isContingentDisputeTransaction(data) {
+  if (!data || typeof data !== "object") return false;
+  return data.financialStatus === "disputed" ||
+    (Array.isArray(data.activeDisputeIds) && data.activeDisputeIds.length > 0);
+}
+
 function createAffiliatePayouts(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -52,9 +58,20 @@ function createAffiliatePayouts(admin) {
     });
   }
 
+  async function obligationIsContingent(data) {
+    const transactionId = String(data && data.transactionId || "").trim();
+    if (!transactionId) return false;
+    const transactionSnapshot = await db.collection("marketplace_transactions")
+        .doc(transactionId)
+        .get();
+    if (!transactionSnapshot.exists) return false;
+    return isContingentDisputeTransaction(transactionSnapshot.data());
+  }
+
   async function applyRecoveryObligations(referrerUid, availableMinor, currency) {
     let remaining = Math.max(0, Number(availableMinor || 0));
     let applied = 0;
+    let contingentDispute = false;
     const obligations = await db.collection("affiliate_recovery_obligations")
         .where("referrerUid", "==", referrerUid)
         .where("status", "==", "open")
@@ -62,6 +79,11 @@ function createAffiliatePayouts(admin) {
         .get();
     for (const document of obligations.docs) {
       if (remaining <= 0) break;
+      const obligation = document.data();
+      if (await obligationIsContingent(obligation)) {
+        contingentDispute = true;
+        continue;
+      }
       const result = await db.runTransaction(async (transaction) => {
         const current = await transaction.get(document.ref);
         if (!current.exists || current.data().status !== "open") return 0;
@@ -95,21 +117,34 @@ function createAffiliatePayouts(admin) {
         applied += result;
       }
     }
+
     const stillOpen = await db.collection("affiliate_recovery_obligations")
         .where("referrerUid", "==", referrerUid)
         .where("status", "==", "open")
-        .limit(1)
+        .limit(100)
         .get();
+    let finalizedDebtOpen = false;
+    let contingentDebtOpen = contingentDispute;
+    for (const document of stillOpen.docs) {
+      if (await obligationIsContingent(document.data())) {
+        contingentDebtOpen = true;
+      } else {
+        finalizedDebtOpen = true;
+      }
+    }
+    const anyHold = finalizedDebtOpen || contingentDebtOpen;
     await db.collection("payment_provider_accounts").doc(referrerUid).set({
-      affiliatePayoutHold: !stillOpen.empty,
-      affiliatePayoutHoldReason: !stillOpen.empty ?
-        "affiliate_recovery_obligation" : null,
+      affiliatePayoutHold: anyHold,
+      affiliatePayoutHoldReason: contingentDebtOpen ?
+        "open_dispute_contingent_exposure" :
+        finalizedDebtOpen ? "affiliate_recovery_obligation" : null,
       affiliatePayoutHoldUpdatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
     return {
       appliedMinor: applied,
       payableMinor: remaining,
-      unresolved: !stillOpen.empty,
+      unresolved: finalizedDebtOpen,
+      contingentDispute: contingentDebtOpen,
     };
   }
 
@@ -147,6 +182,14 @@ function createAffiliatePayouts(admin) {
         postRecoveryPayableMinor: recovery.payableMinor,
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
+    }
+    if (recovery.contingentDispute) {
+      await document.ref.set({
+        status: "eligible_financial_review_required",
+        contingentDisputeHold: true,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return "financial_hold";
     }
     if (recovery.payableMinor <= 0) {
       await document.ref.set({
@@ -194,6 +237,7 @@ function createAffiliatePayouts(admin) {
       });
       await document.ref.set({
         status: "paid",
+        contingentDisputeHold: false,
         grossEligibleCommissionMinor: grossAmount,
         recoveryOffsetMinor: recovery.appliedMinor,
         paidCommissionMinor: amount,
@@ -256,4 +300,7 @@ function createAffiliatePayouts(admin) {
   };
 }
 
-module.exports = {createAffiliatePayouts};
+module.exports = {
+  createAffiliatePayouts,
+  isContingentDisputeTransaction,
+};
