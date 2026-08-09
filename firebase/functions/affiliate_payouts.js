@@ -25,18 +25,21 @@ function createAffiliatePayouts(admin) {
       const data = current.data();
       const status = String(data.status || "");
       const eligibleAfter = data.eligibleAfter;
-      const eligibleMillis = eligibleAfter && typeof eligibleAfter.toMillis === "function" ?
+      const eligibleMillis = eligibleAfter &&
+        typeof eligibleAfter.toMillis === "function" ?
         eligibleAfter.toMillis() : Number.POSITIVE_INFINITY;
       if (![
         "pending_refund_window",
         "payout_retry",
         "eligible_payout_setup_required",
+        "eligible_financial_review_required",
       ].includes(status) || eligibleMillis > Date.now()) {
         return null;
       }
       if (status === "payout_retry") {
         const nextRetryAt = data.nextRetryAt;
-        const retryMillis = nextRetryAt && typeof nextRetryAt.toMillis === "function" ?
+        const retryMillis = nextRetryAt &&
+          typeof nextRetryAt.toMillis === "function" ?
           nextRetryAt.toMillis() : 0;
         if (retryMillis > Date.now()) return null;
       }
@@ -53,14 +56,23 @@ function createAffiliatePayouts(admin) {
     const ledger = await claimLedger(document);
     if (!ledger) return "skipped";
     const referrerUid = String(ledger.referrerUid || "").trim();
-    const amount = Number(ledger.commissionMinor || 0);
+    const adjusted = Number(ledger.adjustedCommissionMinor);
+    const amount = Number.isSafeInteger(adjusted) ?
+      adjusted : Number(ledger.commissionMinor || 0);
     const currency = String(ledger.currency || "CAD").toLowerCase();
-    if (!referrerUid || !Number.isSafeInteger(amount) || amount <= 0) {
+    if (!referrerUid || !Number.isSafeInteger(amount)) {
       await document.ref.set({
         status: "invalid",
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       return "invalid";
+    }
+    if (amount <= 0) {
+      await document.ref.set({
+        status: "void_financial_event",
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return "voided";
     }
     const provider = await db.collection("payment_provider_accounts")
         .doc(referrerUid).get();
@@ -72,22 +84,31 @@ function createAffiliatePayouts(admin) {
       }, {merge: true});
       return "needs_onboarding";
     }
+    if (provider.data().affiliatePayoutHold === true) {
+      await document.ref.set({
+        status: "eligible_financial_review_required",
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return "financial_hold";
+    }
     try {
       const transfer = await stripeFormRequest({
         secretKey: stripeSecretKey.value(),
         path: "/v1/transfers",
-        idempotencyKey: `pipebuyer-affiliate-${document.id}`,
+        idempotencyKey: `pipebuyer-affiliate-${document.id}-${amount}`,
         fields: {
           amount,
           currency,
           destination: String(provider.data().stripeAccountId),
           "metadata[pipeBuyerAffiliateLedgerId]": document.id,
           "metadata[referrerUid]": referrerUid,
-          "metadata[commissionType]": String(ledger.type || "affiliate_commission"),
+          "metadata[commissionType]":
+            String(ledger.type || "affiliate_commission"),
         },
       });
       await document.ref.set({
         status: "paid",
+        paidCommissionMinor: amount,
         stripeTransferId: String(transfer.id || ""),
         paidAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -101,7 +122,8 @@ function createAffiliatePayouts(admin) {
       });
       await document.ref.set({
         status: "payout_retry",
-        payoutErrorCode: String(error.stripeCode || "provider_error").slice(0, 120),
+        payoutErrorCode:
+          String(error.stripeCode || "provider_error").slice(0, 120),
         nextRetryAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
@@ -119,7 +141,15 @@ function createAffiliatePayouts(admin) {
         .where("eligibleAfter", "<=", Timestamp.now())
         .limit(100)
         .get();
-    const counts = {paid: 0, retry: 0, needs_onboarding: 0, skipped: 0, invalid: 0};
+    const counts = {
+      paid: 0,
+      retry: 0,
+      needs_onboarding: 0,
+      financial_hold: 0,
+      voided: 0,
+      skipped: 0,
+      invalid: 0,
+    };
     for (const document of snapshot.docs) {
       const result = await processLedger(document);
       counts[result] = Number(counts[result] || 0) + 1;
