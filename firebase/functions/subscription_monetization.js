@@ -20,10 +20,48 @@ async function retrieveStripeSubscription({secretKey, apiVersion, subscriptionId
 }
 
 function invoiceCommissionBaseMinor(invoice) {
-  const excludingTax = Number(invoice && invoice.subtotal_excluding_tax);
-  if (Number.isSafeInteger(excludingTax) && excludingTax >= 0) return excludingTax;
+  const totalExcludingTax = Number(invoice && invoice.total_excluding_tax);
+  if (Number.isSafeInteger(totalExcludingTax) && totalExcludingTax >= 0) {
+    return totalExcludingTax;
+  }
+  const total = Number(invoice && invoice.total);
+  const tax = Number(invoice && invoice.tax);
+  if (Number.isSafeInteger(total) && total >= 0 &&
+      Number.isSafeInteger(tax) && tax >= 0) {
+    return Math.max(0, total - tax);
+  }
   const subtotal = Number(invoice && invoice.subtotal);
-  return Number.isSafeInteger(subtotal) && subtotal >= 0 ? subtotal : 0;
+  const discounts = Array.isArray(invoice && invoice.total_discount_amounts) ?
+    invoice.total_discount_amounts.reduce(
+        (sum, discount) => sum + Math.max(0, Number(discount.amount || 0)),
+        0,
+    ) : 0;
+  return Number.isSafeInteger(subtotal) && subtotal >= 0 ?
+    Math.max(0, subtotal - discounts) : 0;
+}
+
+function subscriptionIdentityFromInvoice(invoice) {
+  const parent = invoice && invoice.parent;
+  const details = parent && parent.subscription_details;
+  const parentSubscription = details && details.subscription;
+  const subscriptionId = typeof parentSubscription === "string" ?
+    parentSubscription :
+    typeof invoice.subscription === "string" ? invoice.subscription :
+    String(invoice.subscription && invoice.subscription.id || "");
+  const metadata = details && details.metadata ? details.metadata : null;
+  return {subscriptionId, metadata};
+}
+
+function sourceChargeFromInvoice(invoice) {
+  if (typeof invoice.charge === "string") return invoice.charge;
+  if (invoice.charge && invoice.charge.id) return String(invoice.charge.id);
+  const payments = invoice && invoice.payments && invoice.payments.data;
+  if (!Array.isArray(payments)) return "";
+  for (const invoicePayment of payments) {
+    const payment = invoicePayment && invoicePayment.payment;
+    if (payment && typeof payment.charge === "string") return payment.charge;
+  }
+  return "";
 }
 
 function createSubscriptionMonetization(admin, stripeConfig) {
@@ -33,16 +71,18 @@ function createSubscriptionMonetization(admin, stripeConfig) {
 
   async function handleDispatchInvoicePaid(invoice, secretKey) {
     const invoiceId = String(invoice && invoice.id || "");
-    const subscriptionId = typeof invoice.subscription === "string" ?
-      invoice.subscription :
-      String(invoice.subscription && invoice.subscription.id || "");
+    const identity = subscriptionIdentityFromInvoice(invoice);
+    const subscriptionId = String(identity.subscriptionId || "");
     if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) return;
-    const subscription = await retrieveStripeSubscription({
-      secretKey,
-      apiVersion: stripeConfig.apiVersion,
-      subscriptionId,
-    });
-    const metadata = subscription.metadata || {};
+    let metadata = identity.metadata;
+    if (!metadata) {
+      const subscription = await retrieveStripeSubscription({
+        secretKey,
+        apiVersion: stripeConfig.apiVersion,
+        subscriptionId,
+      });
+      metadata = subscription.metadata || {};
+    }
     if (metadata.billingType !== "dispatch_subscription") return;
     const uid = String(metadata.pipeBuyerUid || "").trim();
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
@@ -53,8 +93,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
-    const sourceChargeId = typeof invoice.charge === "string" ?
-      invoice.charge : String(invoice.charge && invoice.charge.id || "");
+    const sourceChargeId = sourceChargeFromInvoice(invoice);
     const eligibleAfter = Timestamp.fromMillis(
         Date.now() + SUBSCRIPTION_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
     );
@@ -137,4 +176,6 @@ module.exports = {
   createSubscriptionMonetization,
   invoiceCommissionBaseMinor,
   retrieveStripeSubscription,
+  sourceChargeFromInvoice,
+  subscriptionIdentityFromInvoice,
 };
