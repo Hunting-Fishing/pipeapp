@@ -1,14 +1,21 @@
 "use strict";
 
 const crypto = require("node:crypto");
-const {defineSecret} = require("firebase-functions/params");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 const {
   createSubscriptionMonetization,
 } = require("./subscription_monetization");
 
-const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+const STRIPE_WEBHOOK_SECRET_NAME = "STRIPE_WEBHOOK_SECRET";
+const stripeWebhookSecret = Object.freeze({
+  name: STRIPE_WEBHOOK_SECRET_NAME,
+  value() {
+    const value = String(process.env[STRIPE_WEBHOOK_SECRET_NAME] || "").trim();
+    if (!value) throw new Error("Stripe webhook credentials are unavailable.");
+    return value;
+  },
+});
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 const AFFILIATE_REFUND_WINDOW_DAYS = 30;
 
@@ -509,6 +516,7 @@ function createStripeWebhookHandler(admin, options = {}) {
 module.exports = {
   AFFILIATE_REFUND_WINDOW_DAYS,
   SIGNATURE_TOLERANCE_SECONDS,
+  STRIPE_WEBHOOK_SECRET_NAME,
   billingType,
   createStripeWebhookHandler,
   stripeWebhookSecret,
