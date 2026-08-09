@@ -52,28 +52,120 @@ function createAffiliatePayouts(admin) {
     });
   }
 
+  async function applyRecoveryObligations(referrerUid, availableMinor, currency) {
+    let remaining = Math.max(0, Number(availableMinor || 0));
+    let applied = 0;
+    const obligations = await db.collection("affiliate_recovery_obligations")
+        .where("referrerUid", "==", referrerUid)
+        .where("status", "==", "open")
+        .limit(100)
+        .get();
+    for (const document of obligations.docs) {
+      if (remaining <= 0) break;
+      const result = await db.runTransaction(async (transaction) => {
+        const current = await transaction.get(document.ref);
+        if (!current.exists || current.data().status !== "open") return 0;
+        const data = current.data();
+        if (String(data.currency || currency).toUpperCase() !== currency.toUpperCase()) {
+          return 0;
+        }
+        const due = Math.max(0, Number(data.amountDueMinor || 0));
+        if (!Number.isSafeInteger(due) || due <= 0) {
+          transaction.update(document.ref, {
+            status: "resolved",
+            resolvedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          return 0;
+        }
+        const offset = Math.min(remaining, due);
+        const nextDue = due - offset;
+        transaction.update(document.ref, {
+          recoveredMinor: FieldValue.increment(offset),
+          amountDueMinor: nextDue,
+          status: nextDue === 0 ? "resolved" : "open",
+          lastRecoverySource: "future_affiliate_commission",
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(nextDue === 0 ? {resolvedAt: FieldValue.serverTimestamp()} : {}),
+        });
+        return offset;
+      });
+      if (result > 0) {
+        remaining -= result;
+        applied += result;
+      }
+    }
+    const stillOpen = await db.collection("affiliate_recovery_obligations")
+        .where("referrerUid", "==", referrerUid)
+        .where("status", "==", "open")
+        .limit(1)
+        .get();
+    await db.collection("payment_provider_accounts").doc(referrerUid).set({
+      affiliatePayoutHold: !stillOpen.empty,
+      affiliatePayoutHoldReason: !stillOpen.empty ?
+        "affiliate_recovery_obligation" : null,
+      affiliatePayoutHoldUpdatedAt: FieldValue.serverTimestamp(),
+    }, {merge: true});
+    return {
+      appliedMinor: applied,
+      payableMinor: remaining,
+      unresolved: !stillOpen.empty,
+    };
+  }
+
   async function processLedger(document) {
     const ledger = await claimLedger(document);
     if (!ledger) return "skipped";
     const referrerUid = String(ledger.referrerUid || "").trim();
     const adjusted = Number(ledger.adjustedCommissionMinor);
-    const amount = Number.isSafeInteger(adjusted) ?
+    const grossAmount = Number.isSafeInteger(adjusted) ?
       adjusted : Number(ledger.commissionMinor || 0);
-    const currency = String(ledger.currency || "CAD").toLowerCase();
-    if (!referrerUid || !Number.isSafeInteger(amount)) {
+    const currency = String(ledger.currency || "CAD").toUpperCase();
+    if (!referrerUid || !Number.isSafeInteger(grossAmount)) {
       await document.ref.set({
         status: "invalid",
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       return "invalid";
     }
-    if (amount <= 0) {
+    if (grossAmount <= 0) {
       await document.ref.set({
         status: "void_financial_event",
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       return "voided";
     }
+
+    const recovery = await applyRecoveryObligations(
+        referrerUid,
+        grossAmount,
+        currency,
+    );
+    if (recovery.appliedMinor > 0) {
+      await document.ref.set({
+        recoveryOffsetMinor: recovery.appliedMinor,
+        postRecoveryPayableMinor: recovery.payableMinor,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+    }
+    if (recovery.payableMinor <= 0) {
+      await document.ref.set({
+        status: "applied_to_financial_recovery",
+        paidCommissionMinor: 0,
+        recoveredCommissionMinor: recovery.appliedMinor,
+        settledAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return "recovered";
+    }
+    if (recovery.unresolved) {
+      await document.ref.set({
+        status: "eligible_financial_review_required",
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return "financial_hold";
+    }
+
     const provider = await db.collection("payment_provider_accounts")
         .doc(referrerUid).get();
     if (!provider.exists || provider.data().transferStatus !== "active" ||
@@ -84,21 +176,15 @@ function createAffiliatePayouts(admin) {
       }, {merge: true});
       return "needs_onboarding";
     }
-    if (provider.data().affiliatePayoutHold === true) {
-      await document.ref.set({
-        status: "eligible_financial_review_required",
-        updatedAt: FieldValue.serverTimestamp(),
-      }, {merge: true});
-      return "financial_hold";
-    }
     try {
+      const amount = recovery.payableMinor;
       const transfer = await stripeFormRequest({
         secretKey: stripeSecretKey.value(),
         path: "/v1/transfers",
         idempotencyKey: `pipebuyer-affiliate-${document.id}-${amount}`,
         fields: {
           amount,
-          currency,
+          currency: currency.toLowerCase(),
           destination: String(provider.data().stripeAccountId),
           "metadata[pipeBuyerAffiliateLedgerId]": document.id,
           "metadata[referrerUid]": referrerUid,
@@ -108,6 +194,8 @@ function createAffiliatePayouts(admin) {
       });
       await document.ref.set({
         status: "paid",
+        grossEligibleCommissionMinor: grossAmount,
+        recoveryOffsetMinor: recovery.appliedMinor,
         paidCommissionMinor: amount,
         stripeTransferId: String(transfer.id || ""),
         paidAt: FieldValue.serverTimestamp(),
@@ -143,6 +231,7 @@ function createAffiliatePayouts(admin) {
         .get();
     const counts = {
       paid: 0,
+      recovered: 0,
       retry: 0,
       needs_onboarding: 0,
       financial_hold: 0,
@@ -161,7 +250,10 @@ function createAffiliatePayouts(admin) {
     };
   }
 
-  return {processEligibleAffiliatePayouts};
+  return {
+    applyRecoveryObligations,
+    processEligibleAffiliatePayouts,
+  };
 }
 
 module.exports = {createAffiliatePayouts};
