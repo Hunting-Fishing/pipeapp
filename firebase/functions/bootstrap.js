@@ -20,6 +20,9 @@ const {
   cancellationRequiresFinancialResolution,
 } = require("./marketplace_financial_guard");
 const {
+  createMarketplaceRefundWebhookGate,
+} = require("./marketplace_refund_webhook_gate");
+const {
   createStripeMarketplaceCommands,
   stripeSecretKey,
 } = require("./stripe_marketplace_commands");
@@ -53,9 +56,13 @@ const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
+const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
+    admin,
+    marketplaceFinancialResolution,
+);
 const stripeDisputeResponse = createStripeDisputeResponse(admin);
 const stripeWebhookHandler = createStripeWebhookHandler(admin, {
-  marketplaceFinancialResolution,
+  marketplaceFinancialResolution: marketplaceRefundWebhookGate,
 });
 
 async function updateMarketplaceTransactionWithFinancialGuard(request) {
