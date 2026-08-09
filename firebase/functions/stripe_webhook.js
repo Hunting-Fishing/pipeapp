@@ -4,6 +4,9 @@ const crypto = require("node:crypto");
 const {defineSecret} = require("firebase-functions/params");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {
+  createSubscriptionMonetization,
+} = require("./subscription_monetization");
 
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
@@ -113,6 +116,10 @@ function createStripeWebhookHandler(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+  const subscriptionMonetization = createSubscriptionMonetization(
+      admin,
+      stripeMarketplaceConfig,
+  );
 
   function affiliateEligibleAfter() {
     return Timestamp.fromMillis(
@@ -120,7 +127,7 @@ function createStripeWebhookHandler(admin) {
     );
   }
 
-  async function updateAffiliateAfterFeeCollection(transactionId) {
+  async function updateAffiliateAfterFeeCollection(transactionId, chargeId) {
     const affiliateLedgerRef = db.collection("affiliate_commission_ledger")
         .doc(`marketplace_${transactionId}`);
     const affiliateLedger = await affiliateLedgerRef.get();
@@ -131,6 +138,7 @@ function createStripeWebhookHandler(admin) {
     await affiliateLedgerRef.update({
       status: "pending_refund_window",
       eligibleAfter: affiliateEligibleAfter(),
+      sourceChargeId: chargeId || null,
       platformFeeCollectedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -209,12 +217,22 @@ function createStripeWebhookHandler(admin) {
       marketplaceFeeCollectedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
-    await updateAffiliateAfterFeeCollection(transactionId);
+    await updateAffiliateAfterFeeCollection(transactionId, chargeId);
   }
 
   async function settleSuccessfulCheckout(session) {
     if (billingType(session) === "marketplace_fee_only") {
       await settleMarketplaceFeeOnly(session);
+      return;
+    }
+    if (billingType(session) === "dispatch_subscription") {
+      await db.collection("subscription_checkout_sessions")
+          .doc(String(session.id || "")).set({
+            status: session.payment_status === "paid" ? "active" : "processing",
+            stripeSubscriptionId: typeof session.subscription === "string" ?
+              session.subscription : String(session.subscription && session.subscription.id || ""),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
       return;
     }
     const transactionId = String(
@@ -324,6 +342,7 @@ function createStripeWebhookHandler(admin) {
         firestoreTransaction.update(affiliateLedgerRef, {
           status: "pending_refund_window",
           eligibleAfter: affiliateEligibleAfter(),
+          sourceChargeId: chargeId,
           platformFeeCollectedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -332,6 +351,14 @@ function createStripeWebhookHandler(admin) {
   }
 
   async function markCheckoutProcessing(session) {
+    if (billingType(session) === "dispatch_subscription") {
+      await db.collection("subscription_checkout_sessions")
+          .doc(String(session.id || "")).set({
+            status: "processing",
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+      return;
+    }
     const transactionId = String(
         session && session.metadata && session.metadata.pipeBuyerTransactionId || "",
     ).trim();
@@ -369,6 +396,17 @@ function createStripeWebhookHandler(admin) {
     }
     if (type === "checkout.session.async_payment_failed") {
       await markCheckoutFailure(object);
+      return;
+    }
+    if (type === "invoice.paid") {
+      await subscriptionMonetization.handleDispatchInvoicePaid(
+          object,
+          stripeSecretKey.value(),
+      );
+      return;
+    }
+    if (type === "charge.refunded") {
+      await subscriptionMonetization.voidPendingCommissionForRefund(object);
     }
   }
 
