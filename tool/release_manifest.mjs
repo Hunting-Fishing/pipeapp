@@ -136,6 +136,30 @@ export function readFunctionSources(root) {
   return sources;
 }
 
+export function resolveFunctionEntrypoint(root, source) {
+  const sourceDirectory = path.join(root, ...source.split("/"));
+  const packagePath = path.join(sourceDirectory, "package.json");
+  let entrypoint = "index.js";
+  if (existsSync(packagePath)) {
+    const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+    entrypoint = normalizePath(String(packageJson.main || "index.js").trim());
+  }
+  if (!entrypoint || path.isAbsolute(entrypoint) ||
+      entrypoint === ".." || entrypoint.startsWith("../") ||
+      entrypoint.includes("/../")) {
+    throw new Error(`Invalid Firebase Functions entrypoint for ${source}.`);
+  }
+  const absoluteEntrypoint = path.resolve(sourceDirectory, ...entrypoint.split("/"));
+  const relativeToSource = path.relative(sourceDirectory, absoluteEntrypoint);
+  if (relativeToSource.startsWith("..") || path.isAbsolute(relativeToSource) ||
+      !existsSync(absoluteEntrypoint) || !statSync(absoluteEntrypoint).isFile()) {
+    throw new Error(
+        `Firebase Functions entrypoint is missing or escapes its source: ${source}/${entrypoint}`,
+    );
+  }
+  return entrypoint;
+}
+
 export function validateReleaseInputs({
   environment,
   releaseSha,
@@ -231,16 +255,21 @@ export function createReleaseManifest({
     throw new Error("No tracked Firebase Functions source files were found.");
   }
   const expectedFunctionsByCodebase = {};
+  const functionEntrypointsByCodebase = {};
   for (const entry of functionSources) {
-    const functionIndex = readFileSync(
-        path.join(root, ...entry.source.split("/"), "index.js"),
+    const entrypoint = resolveFunctionEntrypoint(root, entry.source);
+    const functionSource = readFileSync(
+        path.join(root, ...entry.source.split("/"), ...entrypoint.split("/")),
         "utf8",
     );
-    const exports = extractFunctionExports(functionIndex);
+    const exports = extractFunctionExports(functionSource);
     if (exports.length === 0) {
-      throw new Error(`No Firebase Function exports found for ${entry.codebase}.`);
+      throw new Error(
+          `No Firebase Function exports found for ${entry.codebase} in ${entrypoint}.`,
+      );
     }
     expectedFunctionsByCodebase[entry.codebase] = exports;
+    functionEntrypointsByCodebase[entry.codebase] = entrypoint;
   }
   const expectedFunctions = expectedFunctionsByCodebase.marketplace || [];
   const expectedFunctionCount = Object.values(expectedFunctionsByCodebase)
@@ -286,6 +315,7 @@ export function createReleaseManifest({
           ["firebase/firestore.indexes.json"],
       ),
       functionsSourceSha256: hashRelativeFiles(root, functionFiles),
+      functionEntrypointsByCodebase,
       expectedFunctions,
       expectedFunctionsByCodebase,
       expectedFunctionCount,
