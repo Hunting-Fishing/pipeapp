@@ -70,6 +70,9 @@ function createMarketplaceMonetization(admin) {
       if (currentData.marketplaceFeeSnapshot) {
         return currentData.marketplaceFeeSnapshot;
       }
+      const existingLedger = affiliateLedgerRef ?
+        await firestoreTransaction.get(affiliateLedgerRef) :
+        null;
       const storedSnapshot = {
         ...feeSnapshot,
         source: "server_fee_policy",
@@ -82,26 +85,28 @@ function createMarketplaceMonetization(admin) {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      if (affiliateLedgerRef && feeSnapshot.affiliateCommissionMinor > 0) {
-        const existingLedger = await firestoreTransaction.get(affiliateLedgerRef);
-        if (!existingLedger.exists) {
-          firestoreTransaction.create(affiliateLedgerRef, {
-            type: "marketplace_fee_share",
-            transactionId,
-            listingId,
-            referredUid: sellerUid,
-            referrerUid,
-            currency: feeSnapshot.currency,
-            feeScheduleRevision: feeSnapshot.scheduleRevision,
-            platformFeeMinor: feeSnapshot.marketplaceFeeMinor,
-            commissionShareBps: feeSnapshot.affiliateShareBps,
-            commissionMinor: feeSnapshot.affiliateCommissionMinor,
-            status: "pending_platform_fee_payment",
-            payoutProvider: "stripe_connect",
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-        }
+      if (
+        affiliateLedgerRef &&
+        feeSnapshot.affiliateCommissionMinor > 0 &&
+        existingLedger &&
+        !existingLedger.exists
+      ) {
+        firestoreTransaction.create(affiliateLedgerRef, {
+          type: "marketplace_fee_share",
+          transactionId,
+          listingId,
+          referredUid: sellerUid,
+          referrerUid,
+          currency: feeSnapshot.currency,
+          feeScheduleRevision: feeSnapshot.scheduleRevision,
+          platformFeeMinor: feeSnapshot.marketplaceFeeMinor,
+          commissionShareBps: feeSnapshot.affiliateShareBps,
+          commissionMinor: feeSnapshot.affiliateCommissionMinor,
+          status: "pending_platform_fee_payment",
+          payoutProvider: "stripe_connect",
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       }
       return storedSnapshot;
     });
