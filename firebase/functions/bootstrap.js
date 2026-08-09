@@ -6,7 +6,7 @@ const coreExports = require("./index");
 Object.assign(exports, coreExports);
 
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
-const {onCall} = require("firebase-functions/v2/https");
+const {onCall, onRequest} = require("firebase-functions/v2/https");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
 const {createAffiliateCommands} = require("./affiliate_commands");
@@ -18,12 +18,17 @@ const {createStripeCheckoutCommands} = require("./stripe_checkout_commands");
 const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
+const {
+  createStripeWebhookHandler,
+  stripeWebhookSecret,
+} = require("./stripe_webhook");
 
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
+const stripeWebhookHandler = createStripeWebhookHandler(admin);
 
 exports.ensureAffiliateCode = onCall(
     protectedCallableOptions,
@@ -54,6 +59,14 @@ exports.refreshStripeSellerStatus = onCall(
 exports.createMarketplaceCheckout = onCall(
     stripeCallableOptions,
     stripeCheckoutCommands.createMarketplaceCheckout,
+);
+
+exports.stripeMarketplaceWebhook = onRequest(
+    {
+      secrets: [stripeSecretKey, stripeWebhookSecret],
+      cors: false,
+    },
+    stripeWebhookHandler,
 );
 
 exports.onMarketplaceTransactionCreatedMonetization = onDocumentCreated(
