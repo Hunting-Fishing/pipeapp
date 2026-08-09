@@ -14,6 +14,7 @@ const {
   createStripeMarketplaceCommands,
   stripeSecretKey,
 } = require("./stripe_marketplace_commands");
+const {createStripeCheckoutCommands} = require("./stripe_checkout_commands");
 const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
@@ -21,6 +22,7 @@ const {
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
+const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 
 exports.ensureAffiliateCode = onCall(
@@ -48,6 +50,10 @@ exports.createStripeSellerOnboardingLink = onCall(
 exports.refreshStripeSellerStatus = onCall(
     stripeCallableOptions,
     stripeMarketplaceCommands.refreshStripeSellerStatus,
+);
+exports.createMarketplaceCheckout = onCall(
+    stripeCallableOptions,
+    stripeCheckoutCommands.createMarketplaceCheckout,
 );
 
 exports.onMarketplaceTransactionCreatedMonetization = onDocumentCreated(
