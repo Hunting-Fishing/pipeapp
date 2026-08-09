@@ -47,6 +47,21 @@ export function extractFunctionExports(source) {
   return [...names].sort();
 }
 
+export function extractLocalExportReexports(source) {
+  const bindings = new Map();
+  const requires = /\bconst\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*require\(\s*["'](\.\/[^"']+)["']\s*\)\s*;/gu;
+  for (const match of source.matchAll(requires)) {
+    bindings.set(match[1], match[2]);
+  }
+  const modules = new Set();
+  const assignments = /\bObject\.assign\(\s*exports\s*,\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\)/gu;
+  for (const match of source.matchAll(assignments)) {
+    const modulePath = bindings.get(match[1]);
+    if (modulePath) modules.add(modulePath);
+  }
+  return [...modules].sort(compareText);
+}
+
 export function hashRelativeFiles(root, relativeFiles) {
   const digest = sha256();
   const normalized = [...relativeFiles]
@@ -160,6 +175,37 @@ export function resolveFunctionEntrypoint(root, source) {
   return entrypoint;
 }
 
+export function collectFunctionExports(root, source, entrypoint) {
+  const sourceDirectory = path.resolve(root, ...source.split("/"));
+  const names = new Set();
+  const visited = new Set();
+
+  function visit(relativeFile) {
+    const absoluteFile = path.resolve(sourceDirectory, ...relativeFile.split("/"));
+    const relativeToSource = path.relative(sourceDirectory, absoluteFile);
+    if (relativeToSource.startsWith("..") || path.isAbsolute(relativeToSource) ||
+        !existsSync(absoluteFile) || !statSync(absoluteFile).isFile()) {
+      throw new Error(
+          `Firebase export module is missing or escapes its source: ${source}/${relativeFile}`,
+      );
+    }
+    const normalized = normalizePath(relativeToSource);
+    if (visited.has(normalized)) return;
+    visited.add(normalized);
+    const moduleSource = readFileSync(absoluteFile, "utf8");
+    for (const name of extractFunctionExports(moduleSource)) names.add(name);
+    for (const modulePath of extractLocalExportReexports(moduleSource)) {
+      const candidate = path.resolve(path.dirname(absoluteFile), modulePath);
+      const withExtension = path.extname(candidate) ? candidate : `${candidate}.js`;
+      const childRelative = normalizePath(path.relative(sourceDirectory, withExtension));
+      visit(childRelative);
+    }
+  }
+
+  visit(entrypoint);
+  return [...names].sort(compareText);
+}
+
 export function validateReleaseInputs({
   environment,
   releaseSha,
@@ -258,11 +304,7 @@ export function createReleaseManifest({
   const functionEntrypointsByCodebase = {};
   for (const entry of functionSources) {
     const entrypoint = resolveFunctionEntrypoint(root, entry.source);
-    const functionSource = readFileSync(
-        path.join(root, ...entry.source.split("/"), ...entrypoint.split("/")),
-        "utf8",
-    );
-    const exports = extractFunctionExports(functionSource);
+    const exports = collectFunctionExports(root, entry.source, entrypoint);
     if (exports.length === 0) {
       throw new Error(
           `No Firebase Function exports found for ${entry.codebase} in ${entrypoint}.`,
