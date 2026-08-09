@@ -27,9 +27,18 @@ function createAffiliatePayouts(admin) {
       const eligibleAfter = data.eligibleAfter;
       const eligibleMillis = eligibleAfter && typeof eligibleAfter.toMillis === "function" ?
         eligibleAfter.toMillis() : Number.POSITIVE_INFINITY;
-      if (!["pending_refund_window", "payout_retry"].includes(status) ||
-          eligibleMillis > Date.now()) {
+      if (![
+        "pending_refund_window",
+        "payout_retry",
+        "eligible_payout_setup_required",
+      ].includes(status) || eligibleMillis > Date.now()) {
         return null;
+      }
+      if (status === "payout_retry") {
+        const nextRetryAt = data.nextRetryAt;
+        const retryMillis = nextRetryAt && typeof nextRetryAt.toMillis === "function" ?
+          nextRetryAt.toMillis() : 0;
+        if (retryMillis > Date.now()) return null;
       }
       transaction.update(document.ref, {
         status: "paying",
