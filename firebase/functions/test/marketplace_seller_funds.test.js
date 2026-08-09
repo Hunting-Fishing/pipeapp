@@ -32,7 +32,7 @@ test("seller net includes restoration transfers minus their reversals", () => {
 
 test("seller transfer IDs are de-duplicated across original and restorations", () => {
   assert.deepEqual(uniqueSellerTransferIds({
-    stripeSellerTransferId: "tr_original",
-    sellerPayoutTransferIds: ["tr_original", "tr_restore1", "bad"],
-  }), ["tr_original", "tr_restore1"]);
+    stripeSellerTransferId: "tr_Original123",
+    sellerPayoutTransferIds: ["tr_Original123", "tr_Restore456", "bad"],
+  }), ["tr_Original123", "tr_Restore456"]);
 });
