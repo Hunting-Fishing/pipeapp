@@ -10,6 +10,7 @@ import {
   hashRelativeFiles,
   isValidPublicSupportEmail,
   readFunctionSources,
+  resolveFunctionEntrypoint,
   validateReleaseInputs,
 } from "./release_manifest.mjs";
 
@@ -34,6 +35,35 @@ test("all configured Function codebases are release inputs", () => {
     {source: "firebase/functions", codebase: "marketplace"},
     {source: "firebase/agent-functions", codebase: "functions"},
   ]);
+});
+
+test("Function inventory follows each package's actual main entrypoint", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pipe-function-entrypoint-"));
+  const source = path.join(root, "firebase", "functions");
+  mkdirSync(source, {recursive: true});
+  writeFileSync(path.join(source, "package.json"), JSON.stringify({
+    main: "bootstrap.js",
+  }));
+  writeFileSync(path.join(source, "bootstrap.js"), "exports.actual = true;\n");
+  writeFileSync(path.join(source, "index.js"), "exports.legacy = true;\n");
+  assert.equal(
+      resolveFunctionEntrypoint(root, "firebase/functions"),
+      "bootstrap.js",
+  );
+});
+
+test("Function entrypoints cannot escape their configured source", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pipe-function-escape-"));
+  const source = path.join(root, "firebase", "functions");
+  mkdirSync(source, {recursive: true});
+  writeFileSync(path.join(source, "package.json"), JSON.stringify({
+    main: "../outside.js",
+  }));
+  writeFileSync(path.join(root, "firebase", "outside.js"), "exports.bad = true;\n");
+  assert.throws(
+      () => resolveFunctionEntrypoint(root, "firebase/functions"),
+      /Invalid Firebase Functions entrypoint/u,
+  );
 });
 
 test("file and directory hashes are deterministic and content-sensitive", () => {
