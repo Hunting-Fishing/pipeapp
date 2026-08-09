@@ -5,7 +5,9 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  collectFunctionExports,
   extractFunctionExports,
+  extractLocalExportReexports,
   hashDirectory,
   hashRelativeFiles,
   isValidPublicSupportEmail,
@@ -23,6 +25,16 @@ test("function exports are unique and sorted", () => {
   assert.deepEqual(exports, ["alpha", "zeta"]);
 });
 
+test("local Object.assign export re-exports are detected", () => {
+  const source = `
+    const coreExports = require("./index");
+    const unrelated = require("./other");
+    Object.assign(exports, coreExports);
+    void unrelated;
+  `;
+  assert.deepEqual(extractLocalExportReexports(source), ["./index"]);
+});
+
 test("all configured Function codebases are release inputs", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "pipe-function-sources-"));
   writeFileSync(path.join(root, "firebase.json"), JSON.stringify({
@@ -37,18 +49,27 @@ test("all configured Function codebases are release inputs", () => {
   ]);
 });
 
-test("Function inventory follows each package's actual main entrypoint", () => {
+test("Function inventory follows package main plus explicit local re-exports", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "pipe-function-entrypoint-"));
   const source = path.join(root, "firebase", "functions");
   mkdirSync(source, {recursive: true});
   writeFileSync(path.join(source, "package.json"), JSON.stringify({
     main: "bootstrap.js",
   }));
-  writeFileSync(path.join(source, "bootstrap.js"), "exports.actual = true;\n");
-  writeFileSync(path.join(source, "index.js"), "exports.legacy = true;\n");
-  assert.equal(
-      resolveFunctionEntrypoint(root, "firebase/functions"),
-      "bootstrap.js",
+  writeFileSync(path.join(source, "bootstrap.js"), `
+    const coreExports = require("./index");
+    Object.assign(exports, coreExports);
+    exports.actual = true;
+  `);
+  writeFileSync(path.join(source, "index.js"), `
+    exports.legacy = true;
+    exports.shared = true;
+  `);
+  const entrypoint = resolveFunctionEntrypoint(root, "firebase/functions");
+  assert.equal(entrypoint, "bootstrap.js");
+  assert.deepEqual(
+      collectFunctionExports(root, "firebase/functions", entrypoint),
+      ["actual", "legacy", "shared"],
   );
 });
 
