@@ -84,6 +84,30 @@ async function updateMarketplaceTransactionWithFinancialGuard(request) {
   return marketplaceCommands.updateMarketplaceTransaction(request);
 }
 
+async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
+  const caseId = String(request.data && request.data.caseId || "").trim();
+  if (caseId && caseId.length <= 180 && !caseId.includes("/")) {
+    const caseSnapshot = await admin.firestore()
+        .collection("marketplace_financial_cases")
+        .doc(caseId)
+        .get();
+    if (caseSnapshot.exists) {
+      const financialCase = caseSnapshot.data();
+      if (financialCase.type === "refund_request" &&
+          ["blocked_seller_recovery", "refund_retry_required"].includes(
+              String(financialCase.status || ""),
+          )) {
+        // Re-enter the approved refund executor so seller recovery is retried
+        // against the requested refund's projected exposure. Using the generic
+        // rebalance here would see only already-completed refunds and could
+        // incorrectly restore funds before the pending refund is issued.
+        return marketplaceFinancialResolution.executeMarketplaceRefund(request);
+      }
+    }
+  }
+  return marketplaceFinancialResolution.retryMarketplaceSellerRecovery(request);
+}
+
 // Override the legacy transaction callable with a financial guard while
 // preserving its existing policy acceptance, authorization, rate limiting,
 // command validation, and idempotency behavior.
@@ -150,7 +174,7 @@ exports.executeMarketplaceRefund = onCall(
 );
 exports.retryMarketplaceSellerRecovery = onCall(
     stripeCallableOptions,
-    marketplaceFinancialResolution.retryMarketplaceSellerRecovery,
+    retryMarketplaceSellerRecoveryWithRefundGuard,
 );
 exports.stageMarketplaceDisputeEvidence = onCall(
     stripeCallableOptions,
