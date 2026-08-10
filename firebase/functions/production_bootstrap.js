@@ -11,8 +11,10 @@ const {protectedCallableOptions} = require("./app_check_config");
 const {
   createPaymentReadinessAdmin,
 } = require("./payment_readiness_admin");
+const {createMarketplaceFeeAdmin} = require("./marketplace_fee_admin");
 
 const readinessAdmin = createPaymentReadinessAdmin(createAdminRuntime());
+const marketplaceFeeAdmin = createMarketplaceFeeAdmin();
 
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
@@ -22,4 +24,9 @@ exports.getPaymentProviderReadiness = onCall(
 exports.setPaymentProviderReadiness = onCall(
     protectedCallableOptions,
     readinessAdmin.setPaymentProviderReadiness,
+);
+
+exports.getMarketplaceFeeCatalog = onCall(
+    protectedCallableOptions,
+    marketplaceFeeAdmin.getMarketplaceFeeCatalog,
 );
