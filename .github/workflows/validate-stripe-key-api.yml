@@ -38,7 +38,7 @@ jobs:
           umask 077
           firebase functions:secrets:access STRIPE_SECRET_KEY \
             --project "$FIREBASE_PROJECT_ID" \
-            --token "$FIREBASE_TOKEN" > .stripe-key
+            --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
           node <<'NODE'
           const fs = require('node:fs');
           const key = fs.readFileSync('.stripe-key', 'utf8').trim();
