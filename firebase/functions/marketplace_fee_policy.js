@@ -13,9 +13,10 @@ const BASIS_POINTS = 10000;
 // Launch fee schedule. Every transaction stores the revision and computed
 // snapshot so later pricing changes never rewrite an already-agreed fee.
 const launchMarketplaceFeeSchedule = Object.freeze({
-  revision: "2026-08-10-launch-v2",
+  revision: "2026-08-10-launch-v3",
   payer: "seller",
-  affiliateShareBps: 2000,
+  affiliateShareBps: 500,
+  affiliateCommissionBasis: "positive_net_eligible_pipe_buyer_revenue",
   pipe: Object.freeze({
     unitFeeMinorByCurrency: Object.freeze({CAD: 100, USD: 100}),
     minimumFeeMinorByCurrency: Object.freeze({CAD: 2500, USD: 2500}),
@@ -184,6 +185,9 @@ function calculateMarketplaceFeeSnapshot({
   if (marketplaceFeeMinor > agreedTotalMinor) {
     invalid("The marketplace fee cannot exceed the agreed transaction total.");
   }
+  // This is the maximum/provisional commission at acceptance time. Actual
+  // payable commission is recalculated only after revenue is collected and
+  // provider/tax costs are known.
   const affiliateCommissionMinor = Math.floor(
       marketplaceFeeMinor * Number(schedule.affiliateShareBps || 0) /
       BASIS_POINTS,
@@ -197,9 +201,16 @@ function calculateMarketplaceFeeSnapshot({
     marketplaceFeeMinor,
     marketplaceFee: fromMinorUnits(marketplaceFeeMinor),
     affiliateShareBps: Number(schedule.affiliateShareBps || 0),
+    affiliateCommissionBasis: String(
+        schedule.affiliateCommissionBasis ||
+        "positive_net_eligible_pipe_buyer_revenue",
+    ),
+    affiliateCommissionProvisional: true,
     affiliateCommissionMinor,
     affiliateCommission: fromMinorUnits(affiliateCommissionMinor),
     sellerProceedsBeforeTaxMinor: Math.max(0, agreedTotalMinor - marketplaceFeeMinor),
+    sellerProceedsBeforeProviderFeesMinor:
+      Math.max(0, agreedTotalMinor - marketplaceFeeMinor),
     ...calculation,
   });
 }
