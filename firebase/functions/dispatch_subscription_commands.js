@@ -19,6 +19,10 @@ const {
   stripeFormRequest,
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
+const {
+  automaticTaxEnabled,
+  taxCollectionStatus,
+} = require("./pending_tax_policy");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -33,8 +37,13 @@ function selectedPlan(value) {
 }
 
 function requireSubscriptionReady(readiness) {
+  const taxPrepared = readiness.stripeTaxReady === true ||
+    readiness.stripeTaxRegistrationPending === true;
   if (!readiness.stripeSubscriptionsEnabled ||
-      !["sandbox", "production"].includes(readiness.stripeMode)) {
+      readiness.stripeMode !== "production" ||
+      readiness.stripeWebhookVerified !== true ||
+      readiness.stripeReconciliationReady !== true ||
+      !taxPrepared) {
     throw new HttpsError(
         "failed-precondition",
         "Dispatch subscription checkout is not enabled yet.",
@@ -71,10 +80,13 @@ function createDispatchSubscriptionCommands(admin) {
       const readiness = {
         ...(await loadProviderReadiness(db)),
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
+        stripeTaxRegistrationPending:
+          readinessData.stripeTaxRegistrationPending === true,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
       requireSubscriptionReady(readiness);
+      const collectionStatus = taxCollectionStatus(readiness);
       const plan = selectedPlan(request.data && request.data.plan);
       const priceId = plan === "monthly" ?
         stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId :
@@ -106,18 +118,20 @@ function createDispatchSubscriptionCommands(admin) {
           client_reference_id: uid,
           billing_address_collection: "required",
           allow_promotion_codes: "false",
-          "automatic_tax[enabled]": "true",
+          "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
           "line_items[0][price]": priceId,
           "line_items[0][quantity]": 1,
           ...(couponId ? {"discounts[0][coupon]": couponId} : {}),
           "metadata[billingType]": "dispatch_subscription",
           "metadata[pipeBuyerUid]": uid,
           "metadata[dispatchPlan]": plan,
+          "metadata[taxCollectionStatus]": collectionStatus,
           ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
           ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
           "subscription_data[metadata][billingType]": "dispatch_subscription",
           "subscription_data[metadata][pipeBuyerUid]": uid,
           "subscription_data[metadata][dispatchPlan]": plan,
+          "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
           ...(referrerUid ? {
             "subscription_data[metadata][affiliateReferrerUid]": referrerUid,
           } : {}),
@@ -134,6 +148,9 @@ function createDispatchSubscriptionCommands(admin) {
         priceId,
         couponId: couponId || null,
         referrerUid: referrerUid || null,
+        taxCollectionStatus: collectionStatus,
+        taxExposureReviewRequired: collectionStatus === "registration_pending",
+        automaticTaxEnabled: automaticTaxEnabled(readiness),
         status: "created",
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -143,6 +160,7 @@ function createDispatchSubscriptionCommands(admin) {
         checkoutUrl,
         plan,
         promotionApplied: Boolean(couponId),
+        taxCollectionStatus: collectionStatus,
       };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
