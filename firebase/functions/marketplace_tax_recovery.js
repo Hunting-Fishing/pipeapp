@@ -57,9 +57,46 @@ async function hasOpenObligation(db, uid) {
   return !snapshot.empty;
 }
 
+function timestampMillis(value) {
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  return 0;
+}
+
 function createMarketplaceTaxRecovery(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+
+  const getMarketplaceTaxRecoveryAdmin = async (request) => {
+    try {
+      requireAdministrator(request);
+      const snapshot = await db.collection("marketplace_tax_recovery_cases")
+          .where("status", "==", "open").limit(100).get();
+      const cases = snapshot.docs
+          .map((doc) => ({id: doc.id, ...doc.data()}))
+          .sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt))
+          .map((row) => ({
+            id: row.id,
+            transactionId: String(row.transactionId || ""),
+            buyerUid: String(row.buyerUid || ""),
+            sellerUid: String(row.sellerUid || ""),
+            responsibleParty: String(row.responsibleParty || ""),
+            taxType: String(row.taxType || ""),
+            currency: String(row.currency || ""),
+            amountMinor: Number(row.amountMinor || 0),
+            reason: String(row.reason || ""),
+            authorityReference: String(row.authorityReference || ""),
+            status: String(row.status || "open"),
+          }));
+      return {openCases: cases, openCount: cases.length};
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error instanceof AdministratorAuthorizationError) {
+        throw new HttpsError(error.code, error.message);
+      }
+      console.error("Tax recovery queue failed", error);
+      throw new HttpsError("internal", "The tax recovery queue is unavailable.");
+    }
+  };
 
   const createMarketplaceTaxRecoveryCase = async (request) => {
     try {
@@ -123,6 +160,8 @@ function createMarketplaceTaxRecovery(admin) {
         taxType,
         currency,
         amountMinor,
+        maximumRecoverableMinor: amountMinor,
+        amountRecoveredMinor: 0,
         reason,
         authorityReference,
         status: "open",
@@ -139,8 +178,10 @@ function createMarketplaceTaxRecovery(admin) {
           transactionId,
           responsibleUid: entry.uid,
           responsibleRole: entry.role,
+          jointAndSeveral: responsibleParty === "both",
           currency,
           amountMinor,
+          maximumCaseRecoveryMinor: amountMinor,
           status: "open",
           taxType,
           reason,
@@ -287,6 +328,7 @@ function createMarketplaceTaxRecovery(admin) {
 
   return {
     createMarketplaceTaxRecoveryCase,
+    getMarketplaceTaxRecoveryAdmin,
     resolveMarketplaceTaxRecoveryCase,
   };
 }
