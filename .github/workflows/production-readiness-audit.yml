@@ -13,6 +13,7 @@ permissions:
 
 env:
   FIREBASE_PROJECT_ID: flutter-flow-pipe
+  EXPECTED_STRIPE_ACCOUNT: acct_1U2QmKDkO07WMXyR
 
 jobs:
   audit:
@@ -63,6 +64,43 @@ jobs:
             fi
           done
           echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Stripe secret belongs to Pipe Buyer LIVE account
+        id: stripe
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          firebase functions:secrets:access STRIPE_SECRET_KEY \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
+          node <<'NODE'
+          const fs = require('node:fs');
+          const key = fs.readFileSync('.stripe-key', 'utf8').trim();
+          async function stripe(path) {
+            const response = await fetch(`https://api.stripe.com${path}`, {
+              headers: {Authorization: `Bearer ${key}`},
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(`Stripe credential validation failed (${response.status}).`);
+            return payload;
+          }
+          (async () => {
+            const [account, balance] = await Promise.all([stripe('/v1/account'), stripe('/v1/balance')]);
+            const accountMatch = String(account.id || '') === process.env.EXPECTED_STRIPE_ACCOUNT;
+            const live = balance.livemode === true;
+            fs.appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `Stripe account match: **${accountMatch ? 'YES' : 'NO'}**\nStripe API mode: **${live ? 'LIVE' : 'TEST'}**\n`,
+            );
+            if (!accountMatch) throw new Error('Firebase STRIPE_SECRET_KEY belongs to a different Stripe account.');
+            if (!live) throw new Error('Firebase STRIPE_SECRET_KEY is not live mode.');
+          })().catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
+          rm -f .stripe-key
 
       - name: Check deployed payment functions
         id: functions
