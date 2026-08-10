@@ -89,6 +89,7 @@ jobs:
             --config firebase.json \
             --only "$only" \
             --message "Pipe Buyer gated payment backend $GITHUB_SHA" \
+            --force \
             --non-interactive
 
       - name: Verify deployed payment functions
