@@ -1,5 +1,9 @@
 "use strict";
 
+const {
+  provisionalTaxReserveMinor,
+} = require("./pending_tax_policy");
+
 const SUBSCRIPTION_AFFILIATE_SHARE_BPS = 2000;
 const BASIS_POINTS = 10000;
 const SUBSCRIPTION_REFUND_WINDOW_DAYS = 30;
@@ -86,7 +90,9 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     if (metadata.billingType !== "dispatch_subscription") return;
     const uid = String(metadata.pipeBuyerUid || "").trim();
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
+    const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
+    const reserveMinor = provisionalTaxReserveMinor(baseMinor, taxStatus);
     const commissionMinor = Math.floor(
         baseMinor * SUBSCRIPTION_AFFILIATE_SHARE_BPS / BASIS_POINTS,
     );
@@ -110,6 +116,12 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         commissionBaseMinor: baseMinor,
         amountPaidMinor: Number(invoice.amount_paid || 0),
         taxMinor: Math.max(0, Number(invoice.total || 0) - baseMinor),
+        taxCollectionStatus: taxStatus,
+        taxExposureReviewRequired: taxStatus === "registration_pending",
+        provisionalTaxReserveMinor: reserveMinor,
+        taxReserveStatus: taxStatus === "registration_pending" ?
+          "provisional_pending_cra" :
+          "not_required",
         sourceChargeId: sourceChargeId || null,
         status: "paid",
         paidAt: FieldValue.serverTimestamp(),
