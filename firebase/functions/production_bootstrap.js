@@ -12,9 +12,14 @@ const {
   createPaymentReadinessAdmin,
 } = require("./payment_readiness_admin");
 const {createMarketplaceFeeAdmin} = require("./marketplace_fee_admin");
+const {
+  createMarketplaceTaxCompliance,
+} = require("./marketplace_tax_compliance");
 
-const readinessAdmin = createPaymentReadinessAdmin(createAdminRuntime());
+const admin = createAdminRuntime();
+const readinessAdmin = createPaymentReadinessAdmin(admin);
 const marketplaceFeeAdmin = createMarketplaceFeeAdmin();
+const marketplaceTaxCompliance = createMarketplaceTaxCompliance(admin);
 
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
@@ -29,4 +34,29 @@ exports.setPaymentProviderReadiness = onCall(
 exports.getMarketplaceFeeCatalog = onCall(
     protectedCallableOptions,
     marketplaceFeeAdmin.getMarketplaceFeeCatalog,
+);
+
+exports.getMarketplaceTaxProfile = onCall(
+    protectedCallableOptions,
+    marketplaceTaxCompliance.getMarketplaceTaxProfile,
+);
+
+exports.updateMarketplaceTaxProfile = onCall(
+    protectedCallableOptions,
+    marketplaceTaxCompliance.updateMarketplaceTaxProfile,
+);
+
+exports.submitMarketplaceTaxExemptionClaim = onCall(
+    protectedCallableOptions,
+    marketplaceTaxCompliance.submitMarketplaceTaxExemptionClaim,
+);
+
+exports.getMarketplaceTaxComplianceAdmin = onCall(
+    protectedCallableOptions,
+    marketplaceTaxCompliance.getMarketplaceTaxComplianceAdmin,
+);
+
+exports.reviewMarketplaceTaxExemptionClaim = onCall(
+    protectedCallableOptions,
+    marketplaceTaxCompliance.reviewMarketplaceTaxExemptionClaim,
 );
