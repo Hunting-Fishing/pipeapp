@@ -50,6 +50,26 @@ test("marketplace checkout is fail-closed until every prerequisite is true", () 
   assert.equal(ready.stripeCheckoutEnabled, true);
 });
 
+test("Dispatch subscriptions require webhook, tax, and reconciliation readiness", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeSubscriptionsEnabled: true,
+      }, {confirmProduction: true}),
+      /verified webhooks, tax readiness, and reconciliation readiness/i,
+  );
+  const ready = validateReadiness({
+    ...base,
+    stripeMode: "production",
+    stripeSubscriptionsEnabled: true,
+    stripeWebhookVerified: true,
+    stripeTaxReady: true,
+    stripeReconciliationReady: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.stripeSubscriptionsEnabled, true);
+});
+
 test("financial resolution requires verified webhook and reconciliation", () => {
   assert.throws(
       () => validateReadiness({
