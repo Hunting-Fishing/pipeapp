@@ -1,0 +1,115 @@
+name: Production Payment Readiness Audit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/production-readiness-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FIREBASE_PROJECT_ID: flutter-flow-pipe
+
+jobs:
+  audit:
+    name: Audit production payment prerequisites
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.0
+
+      - name: Install Node 22
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
+
+      - name: Validate Firebase production credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${FIREBASE_TOKEN:-}" ]]; then
+            echo "::error::FIREBASE_TOKEN is not configured in the production GitHub Environment."
+            exit 1
+          fi
+
+      - name: Check Stripe Secret Manager metadata
+        id: secrets
+        shell: bash
+        run: |
+          set -uo pipefail
+          missing=0
+          for secret in STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET; do
+            if firebase functions:secrets:get "$secret" \
+              --project "$FIREBASE_PROJECT_ID" \
+              --token "$FIREBASE_TOKEN" \
+              --json > /dev/null 2>&1; then
+              echo "$secret: configured" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "$secret: MISSING" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::$secret is not configured in Firebase Secret Manager."
+              missing=1
+            fi
+          done
+          echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+      - name: Check deployed payment functions
+        id: functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase functions:list \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --json > deployed-functions.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const raw = JSON.parse(fs.readFileSync('deployed-functions.json', 'utf8'));
+          const entries = Array.isArray(raw) ? raw : (raw.result || raw.functions || []);
+          const names = new Set(entries.map((entry) => String(
+            entry.id || entry.name || entry.function || entry.entryPoint || ''
+          ).split('/').pop()));
+          const required = [
+            'stripeMarketplaceWebhook',
+            'ensureStripeSellerAccount',
+            'createMarketplaceCheckout',
+            'createDispatchSubscriptionCheckout',
+            'executeMarketplaceRefund',
+            'stageMarketplaceDisputeEvidence',
+            'processEligibleAffiliatePayouts',
+            'getPaymentProviderReadiness',
+            'setPaymentProviderReadiness',
+          ];
+          let missing = 0;
+          for (const name of required) {
+            const present = names.has(name);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${name}: ${present ? 'deployed' : 'NOT DEPLOYED'}\n`);
+            if (!present) missing = 1;
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `missing=${missing}\n`);
+          NODE
+
+      - name: Readiness result
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.secrets.outputs.missing }}" != "0" ]]; then
+            echo "::error::Production Stripe secrets are not fully configured."
+            exit 1
+          fi
+          if [[ "${{ steps.functions.outputs.missing }}" != "0" ]]; then
+            echo "::error::Production payment functions are not fully deployed."
+            exit 1
+          fi
+          echo "Production payment infrastructure prerequisites are present." >> "$GITHUB_STEP_SUMMARY"
