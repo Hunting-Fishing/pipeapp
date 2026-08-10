@@ -5,6 +5,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   SIGNATURE_TOLERANCE_SECONDS,
+  chargeEconomics,
   verifyStripeSignature,
 } = require("../stripe_webhook");
 
@@ -61,4 +62,46 @@ test("rejects a modified payload", () => {
       verifyStripeSignature(modified, header, secret, timestamp),
       false,
   );
+});
+
+test("reads actual Stripe provider fee from expanded balance transaction", () => {
+  const economics = chargeEconomics({
+    latest_charge: {
+      id: "ch_live_example",
+      balance_transaction: {
+        id: "txn_live_example",
+        fee: 2930,
+        net: 97070,
+        currency: "cad",
+      },
+    },
+  }, "CAD");
+  assert.equal(economics.chargeId, "ch_live_example");
+  assert.equal(economics.balanceTransactionId, "txn_live_example");
+  assert.equal(economics.providerFeeMinor, 2930);
+  assert.equal(economics.netChargeImpactMinor, 97070);
+  assert.equal(economics.currency, "CAD");
+});
+
+test("fails closed when Stripe settlement currency does not match", () => {
+  assert.throws(() => chargeEconomics({
+    latest_charge: {
+      id: "ch_live_example",
+      balance_transaction: {
+        id: "txn_live_example",
+        fee: 2930,
+        net: 97070,
+        currency: "usd",
+      },
+    },
+  }, "CAD"), /financial review/);
+});
+
+test("fails closed when Stripe provider fee details are unavailable", () => {
+  assert.throws(() => chargeEconomics({
+    latest_charge: {
+      id: "ch_live_example",
+      balance_transaction: "txn_not_expanded",
+    },
+  }, "CAD"), /fee details are unavailable/);
 });
