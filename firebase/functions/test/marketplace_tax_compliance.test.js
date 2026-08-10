@@ -10,6 +10,10 @@ const {
   transactionTaxComplianceSnapshot,
 } = require("../marketplace_tax_compliance");
 
+function timestamp(ms) {
+  return {toMillis: () => ms};
+}
+
 test("changing a verified tax number returns it to pending verification", () => {
   assert.equal(nextVerificationStatus("PST-123", "PST-123", "verified"), "verified");
   assert.equal(
@@ -46,15 +50,18 @@ test("tax profile requires responsibility acknowledgement and seller GST status"
   );
 });
 
-test("resale claim can rely on an already verified BC PST number", () => {
+test("resale claim can rely only on a current verified BC PST number", () => {
+  const now = Date.now();
   assert.equal(claimHasMinimumEvidence({exemptionType: "resale"}, {
     pstBcStatus: "verified",
     pstBcNumber: "PST-1234-5678",
-  }), true);
+    pstBcNumberReviewDueAt: timestamp(now + 60_000),
+  }, now), true);
   assert.equal(claimHasMinimumEvidence({exemptionType: "resale"}, {
-    pstBcStatus: "pending_verification",
+    pstBcStatus: "verified",
     pstBcNumber: "PST-1234-5678",
-  }), false);
+    pstBcNumberReviewDueAt: timestamp(now - 1),
+  }, now), false);
 });
 
 test("unverified seller tax status blocks automated checkout", () => {
@@ -71,6 +78,7 @@ test("unverified seller tax status blocks automated checkout", () => {
       countryCode: "CA",
       regionCode: "AB",
       sellerNormalGstHstRegistered: "yes",
+      gstHstNumber: "123456789 RT0001",
       gstHstStatus: "pending_verification",
     },
     claim: null,
@@ -79,8 +87,37 @@ test("unverified seller tax status blocks automated checkout", () => {
   assert.ok(result.blockers.includes("seller_gst_number_verification_required"));
 });
 
-test("approved BC exemption still requires manual tax review", () => {
+test("expired seller GST verification blocks automated checkout", () => {
+  const now = Date.now();
   const result = transactionTaxComplianceSnapshot({
+    nowMs: now,
+    buyerProfile: {
+      taxResponsibilityPolicyVersion: TAX_RESPONSIBILITY_TERMS_VERSION,
+      revision: 2,
+      countryCode: "CA",
+      regionCode: "BC",
+    },
+    sellerProfile: {
+      taxResponsibilityPolicyVersion: TAX_RESPONSIBILITY_TERMS_VERSION,
+      revision: 3,
+      countryCode: "CA",
+      regionCode: "AB",
+      sellerNormalGstHstRegistered: "yes",
+      gstHstNumber: "123456789 RT0001",
+      gstHstStatus: "verified",
+      gstHstNumberReviewDueAt: timestamp(now - 1),
+    },
+    claim: null,
+  });
+  assert.equal(result.eligibleForAutomatedCheckout, false);
+  assert.equal(result.seller.gstHstStatus, "review_required");
+  assert.ok(result.blockers.includes("seller_gst_number_verification_required"));
+});
+
+test("approved BC exemption still requires manual tax review", () => {
+  const now = Date.now();
+  const result = transactionTaxComplianceSnapshot({
+    nowMs: now,
     buyerProfile: {
       taxResponsibilityPolicyVersion: TAX_RESPONSIBILITY_TERMS_VERSION,
       revision: 2,
@@ -88,6 +125,7 @@ test("approved BC exemption still requires manual tax review", () => {
       regionCode: "BC",
       pstBcStatus: "verified",
       pstBcNumber: "PST-1234-5678",
+      pstBcNumberReviewDueAt: timestamp(now + 60_000),
     },
     sellerProfile: {
       taxResponsibilityPolicyVersion: TAX_RESPONSIBILITY_TERMS_VERSION,
