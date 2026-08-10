@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   classify:
-    name: Classify Stripe key without exposing it
+    name: Classify Stripe production key without exposing it
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
@@ -31,25 +31,27 @@ jobs:
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
 
-      - name: Read and classify Stripe key privately
+      - name: Read and classify Stripe production key privately
         shell: bash
         run: |
           set -euo pipefail
           umask 077
-          firebase functions:secrets:access STRIPE_SECRET_KEY \
+          firebase functions:secrets:access STRIPE_SECRET_PRODUCTION \
             --project "$FIREBASE_PROJECT_ID" \
-            --token "$FIREBASE_TOKEN" > .stripe-key
+            --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
           node <<'NODE'
           const fs = require('node:fs');
           const key = fs.readFileSync('.stripe-key', 'utf8').trim();
           let keyClass = 'unknown';
           if (key.startsWith('sk_live_')) keyClass = 'live secret';
           else if (key.startsWith('rk_live_')) keyClass = 'live restricted';
+          else if (key.startsWith('pk_live_')) keyClass = 'live publishable';
           else if (key.startsWith('sk_test_')) keyClass = 'test secret';
           else if (key.startsWith('rk_test_')) keyClass = 'test restricted';
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Stripe key class: **${keyClass}**\n`);
+          else if (key.startsWith('pk_test_')) keyClass = 'test publishable';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Stripe production key class: **${keyClass}**\n`);
           if (!['live secret', 'live restricted'].includes(keyClass)) {
-            throw new Error(`Firebase STRIPE_SECRET_KEY is not a live Stripe credential (${keyClass}).`);
+            throw new Error(`STRIPE_SECRET_PRODUCTION is not an authenticated live server credential (${keyClass}).`);
           }
           (async () => {
             const response = await fetch('https://api.stripe.com/v1/account', {
@@ -58,7 +60,7 @@ jobs:
             const account = await response.json();
             if (!response.ok) throw new Error(`Stripe account validation failed (${response.status}).`);
             if (String(account.id || '') !== process.env.EXPECTED_STRIPE_ACCOUNT) {
-              throw new Error('Firebase Stripe key belongs to a different Stripe account.');
+              throw new Error('STRIPE_SECRET_PRODUCTION belongs to a different Stripe account.');
             }
             fs.appendFileSync(
               process.env.GITHUB_STEP_SUMMARY,
