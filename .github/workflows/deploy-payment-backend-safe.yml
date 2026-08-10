@@ -1,0 +1,122 @@
+name: Deploy Gated Payment Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/deploy-payment-backend-safe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy gated marketplace payment functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_PROJECT_ID: flutter-flow-pipe
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.0
+
+      - name: Install Node 22
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Restore and validate marketplace Functions
+        run: |
+          npm ci --prefix firebase/functions
+          npm audit --omit=dev --audit-level=high --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
+
+      - name: Require Stripe API secret metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase functions:secrets:get STRIPE_SECRET_KEY \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --json > /dev/null
+
+      - name: Deploy gated payment backend without webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          targets=(
+            updateMarketplaceTransaction
+            ensureAffiliateCode
+            claimAffiliateReferral
+            confirmExternalSettlement
+            requestMarketplaceRefund
+            cancelMarketplaceRefundRequest
+            ensureStripeSellerAccount
+            createStripeSellerOnboardingLink
+            refreshStripeSellerStatus
+            createMarketplaceCheckout
+            createExternalSettlementFeeCheckout
+            createDispatchSubscriptionCheckout
+            executeMarketplaceRefund
+            retryMarketplaceSellerRecovery
+            stageMarketplaceDisputeEvidence
+            submitMarketplaceDisputeEvidence
+            acceptMarketplaceDispute
+            processEligibleAffiliatePayouts
+            onMarketplaceTransactionCreatedMonetization
+            getPaymentProviderReadiness
+            setPaymentProviderReadiness
+          )
+          only=""
+          for name in "${targets[@]}"; do
+            item="functions:marketplace:$name"
+            only="${only:+$only,}$item"
+          done
+          firebase deploy \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --config firebase.json \
+            --only "$only" \
+            --message "Pipe Buyer gated payment backend $GITHUB_SHA" \
+            --non-interactive
+
+      - name: Verify deployed payment functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase functions:list \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --json > deployed-functions.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const raw = JSON.parse(fs.readFileSync('deployed-functions.json', 'utf8'));
+          const entries = Array.isArray(raw) ? raw : (raw.result || raw.functions || []);
+          const names = new Set(entries.map((entry) => String(
+            entry.id || entry.name || entry.function || entry.entryPoint || ''
+          ).split('/').pop()));
+          const required = [
+            'ensureStripeSellerAccount',
+            'createMarketplaceCheckout',
+            'createDispatchSubscriptionCheckout',
+            'executeMarketplaceRefund',
+            'stageMarketplaceDisputeEvidence',
+            'processEligibleAffiliatePayouts',
+            'getPaymentProviderReadiness',
+            'setPaymentProviderReadiness',
+          ];
+          for (const name of required) {
+            if (!names.has(name)) throw new Error(`${name} was not deployed.`);
+          }
+          NODE
