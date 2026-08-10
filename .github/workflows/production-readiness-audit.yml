@@ -51,7 +51,7 @@ jobs:
         run: |
           set -uo pipefail
           missing=0
-          for secret in STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET; do
+          for secret in STRIPE_SECRET_PRODUCTION STRIPE_WEBHOOK_SECRET; do
             if firebase functions:secrets:get "$secret" \
               --project "$FIREBASE_PROJECT_ID" \
               --token "$FIREBASE_TOKEN" \
@@ -65,13 +65,13 @@ jobs:
           done
           echo "missing=$missing" >> "$GITHUB_OUTPUT"
 
-      - name: Validate Stripe secret belongs to Pipe Buyer LIVE account
+      - name: Validate Stripe production secret belongs to Pipe Buyer LIVE account
         id: stripe
         shell: bash
         run: |
           set -euo pipefail
           umask 077
-          firebase functions:secrets:access STRIPE_SECRET_KEY \
+          firebase functions:secrets:access STRIPE_SECRET_PRODUCTION \
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
           node <<'NODE'
@@ -91,10 +91,10 @@ jobs:
             const live = balance.livemode === true;
             fs.appendFileSync(
               process.env.GITHUB_STEP_SUMMARY,
-              `Stripe account match: **${accountMatch ? 'YES' : 'NO'}**\nStripe API mode: **${live ? 'LIVE' : 'TEST'}**\n`,
+              `Stripe production account match: **${accountMatch ? 'YES' : 'NO'}**\nStripe production API mode: **${live ? 'LIVE' : 'TEST'}**\n`,
             );
-            if (!accountMatch) throw new Error('Firebase STRIPE_SECRET_KEY belongs to a different Stripe account.');
-            if (!live) throw new Error('Firebase STRIPE_SECRET_KEY is not live mode.');
+            if (!accountMatch) throw new Error('Firebase STRIPE_SECRET_PRODUCTION belongs to a different Stripe account.');
+            if (!live) throw new Error('Firebase STRIPE_SECRET_PRODUCTION is not live mode.');
           })().catch((error) => {
             console.error(error.message);
             process.exit(1);
