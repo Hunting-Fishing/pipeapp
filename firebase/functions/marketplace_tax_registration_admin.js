@@ -12,6 +12,8 @@ const REVIEW_FIELDS = Object.freeze({
   pstBcNumber: "pstBcStatus",
 });
 const REVIEW_STATUSES = new Set(["verified", "invalid", "review_required"]);
+const TAX_REGISTRATION_REVIEW_DAYS = 180;
+const REVIEW_INTERVAL_MS = TAX_REGISTRATION_REVIEW_DAYS * 24 * 60 * 60 * 1000;
 
 function clean(value, maxLength = 1200) {
   const text = String(value == null ? "" : value).trim();
@@ -21,21 +23,66 @@ function clean(value, maxLength = 1200) {
   return text;
 }
 
+function timestampMillis(value) {
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return 0;
+}
+
+function isRegistrationVerificationCurrent(profile, field, nowMs = Date.now()) {
+  const statusField = REVIEW_FIELDS[field];
+  if (!statusField || !profile || profile[statusField] !== "verified") return false;
+  if (!String(profile[field] || "").trim()) return false;
+  const reviewDueAt = timestampMillis(profile[`${field}ReviewDueAt`]);
+  return reviewDueAt > nowMs;
+}
+
+function effectiveVerificationStatus(profile, field, nowMs = Date.now()) {
+  const statusField = REVIEW_FIELDS[field];
+  const raw = String(profile && profile[statusField] || "not_provided");
+  if (raw === "verified" && !isRegistrationVerificationCurrent(profile, field, nowMs)) {
+    return "review_required";
+  }
+  return raw;
+}
+
 function createMarketplaceTaxRegistrationAdmin(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+  const Timestamp = admin.firestore.Timestamp;
 
   const getMarketplaceTaxRegistrationAdmin = async (request) => {
     try {
       requireAdministrator(request);
       const snapshot = await db.collection("business_tax_profiles").limit(250).get();
+      const nowMs = Date.now();
       const rows = snapshot.docs.map((doc) => ({uid: doc.id, ...doc.data()}));
+      const prepared = rows.map((row) => ({
+        ...row,
+        businessNumberEffectiveStatus: effectiveVerificationStatus(
+            row,
+            "businessNumber",
+            nowMs,
+        ),
+        gstHstEffectiveStatus: effectiveVerificationStatus(
+            row,
+            "gstHstNumber",
+            nowMs,
+        ),
+        pstBcEffectiveStatus: effectiveVerificationStatus(
+            row,
+            "pstBcNumber",
+            nowMs,
+        ),
+      }));
       return {
-        pendingProfiles: rows
+        reviewIntervalDays: TAX_REGISTRATION_REVIEW_DAYS,
+        pendingProfiles: prepared
             .filter((row) => [
-              row.businessNumberStatus,
-              row.gstHstStatus,
-              row.pstBcStatus,
+              row.businessNumberEffectiveStatus,
+              row.gstHstEffectiveStatus,
+              row.pstBcEffectiveStatus,
             ].some((status) => status === "pending_verification" ||
               status === "review_required"))
             .slice(0, 100)
@@ -45,13 +92,14 @@ function createMarketplaceTaxRegistrationAdmin(admin) {
               countryCode: String(row.countryCode || ""),
               regionCode: String(row.regionCode || ""),
               businessNumber: String(row.businessNumber || ""),
-              businessNumberStatus: String(
-                  row.businessNumberStatus || "not_provided",
-              ),
+              businessNumberStatus: row.businessNumberEffectiveStatus,
+              businessNumberReviewDueAt: row.businessNumberReviewDueAt || null,
               gstHstNumber: String(row.gstHstNumber || ""),
-              gstHstStatus: String(row.gstHstStatus || "not_provided"),
+              gstHstStatus: row.gstHstEffectiveStatus,
+              gstHstNumberReviewDueAt: row.gstHstNumberReviewDueAt || null,
               pstBcNumber: String(row.pstBcNumber || ""),
-              pstBcStatus: String(row.pstBcStatus || "not_provided"),
+              pstBcStatus: row.pstBcEffectiveStatus,
+              pstBcNumberReviewDueAt: row.pstBcNumberReviewDueAt || null,
               sellerNormalGstHstRegistered: String(
                   row.sellerNormalGstHstRegistered || "pending",
               ),
@@ -97,11 +145,16 @@ function createMarketplaceTaxRegistrationAdmin(admin) {
         );
       }
       const statusField = REVIEW_FIELDS[field];
+      const reviewDueField = `${field}ReviewDueAt`;
+      const nextReviewAt = status === "verified" ?
+        Timestamp.fromMillis(Date.now() + REVIEW_INTERVAL_MS) :
+        FieldValue.delete();
       await ref.set({
         [statusField]: status,
         [`${field}ReviewNote`]: reviewNote,
         [`${field}ReviewedBy`]: adminUid,
         [`${field}ReviewedAt`]: FieldValue.serverTimestamp(),
+        [reviewDueField]: nextReviewAt,
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       await db.collection("tax_compliance_events").add({
@@ -110,10 +163,16 @@ function createMarketplaceTaxRegistrationAdmin(admin) {
         ownerUid: uid,
         field,
         status,
+        reviewIntervalDays: TAX_REGISTRATION_REVIEW_DAYS,
         profileRevision: Number(data.revision || 0),
         createdAt: FieldValue.serverTimestamp(),
       });
-      return {uid, field, status};
+      return {
+        uid,
+        field,
+        status,
+        reviewIntervalDays: TAX_REGISTRATION_REVIEW_DAYS,
+      };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       if (error instanceof AdministratorAuthorizationError) {
@@ -133,5 +192,9 @@ function createMarketplaceTaxRegistrationAdmin(admin) {
 module.exports = {
   REVIEW_FIELDS,
   REVIEW_STATUSES,
+  TAX_REGISTRATION_REVIEW_DAYS,
   createMarketplaceTaxRegistrationAdmin,
+  effectiveVerificationStatus,
+  isRegistrationVerificationCurrent,
+  timestampMillis,
 };
