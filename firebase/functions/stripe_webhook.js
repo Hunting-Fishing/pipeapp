@@ -4,6 +4,9 @@ const crypto = require("node:crypto");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 const {
+  affiliateEconomics,
+} = require("./affiliate_revenue_policy");
+const {
   createSubscriptionMonetization,
 } = require("./subscription_monetization");
 
@@ -102,7 +105,7 @@ async function stripeFormRequest({
 async function retrievePaymentIntent(secretKey, paymentIntentId) {
   const response = await fetch(
       `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}` +
-      "?expand[]=latest_charge",
+      "?expand[]=latest_charge.balance_transaction",
       {
         headers: {
           Authorization: `Bearer ${secretKey}`,
@@ -113,6 +116,41 @@ async function retrievePaymentIntent(secretKey, paymentIntentId) {
   const payload = await response.json();
   if (!response.ok) throw new Error("Stripe payment intent retrieval failed.");
   return payload;
+}
+
+function chargeEconomics(paymentIntent, expectedCurrency) {
+  const latestCharge = paymentIntent && paymentIntent.latest_charge;
+  const chargeId = typeof latestCharge === "string" ?
+    latestCharge : String(latestCharge && latestCharge.id || "");
+  if (!chargeId.startsWith("ch_")) {
+    throw new Error("The successful payment has no Stripe charge.");
+  }
+  if (!latestCharge || typeof latestCharge !== "object") {
+    throw new Error("Stripe charge economics are unavailable.");
+  }
+  const balanceTransaction = latestCharge.balance_transaction;
+  if (!balanceTransaction || typeof balanceTransaction !== "object") {
+    throw new Error("Stripe charge fee details are unavailable.");
+  }
+  const providerFeeMinor = Number(balanceTransaction.fee);
+  if (!Number.isSafeInteger(providerFeeMinor) || providerFeeMinor < 0) {
+    throw new Error("Stripe charge fee details are invalid.");
+  }
+  const currency = String(balanceTransaction.currency || "").toUpperCase();
+  const expected = String(expectedCurrency || "").toUpperCase();
+  if (!currency || (expected && currency !== expected)) {
+    // Do not guess FX economics. Hold settlement for reconciliation instead of
+    // transferring seller funds while Pipe Buyer's actual provider cost is in
+    // another settlement currency.
+    throw new Error("Stripe charge settlement currency requires financial review.");
+  }
+  return {
+    chargeId,
+    balanceTransactionId: String(balanceTransaction.id || ""),
+    providerFeeMinor,
+    netChargeImpactMinor: Number(balanceTransaction.net || 0),
+    currency,
+  };
 }
 
 function billingType(session) {
@@ -136,7 +174,11 @@ function createStripeWebhookHandler(admin, options = {}) {
     );
   }
 
-  async function updateAffiliateAfterFeeCollection(transactionId, chargeId) {
+  async function updateAffiliateAfterFeeCollection(
+      transactionId,
+      chargeId,
+      economics,
+  ) {
     const affiliateLedgerRef = db.collection("affiliate_commission_ledger")
         .doc(`marketplace_${transactionId}`);
     const affiliateLedger = await affiliateLedgerRef.get();
@@ -144,10 +186,37 @@ function createStripeWebhookHandler(admin, options = {}) {
         affiliateLedger.data().status !== "pending_platform_fee_payment") {
       return;
     }
+    const commissionMinor = Number(economics && economics.commissionMinor || 0);
     await affiliateLedgerRef.update({
-      status: "pending_refund_window",
-      eligibleAfter: affiliateEligibleAfter(),
+      status: commissionMinor > 0 ?
+        "pending_refund_window" : "void_no_eligible_revenue",
+      eligibleAfter: commissionMinor > 0 ? affiliateEligibleAfter() : null,
       sourceChargeId: chargeId || null,
+      affiliateRevenuePolicyRevision: String(
+          economics && economics.policyRevision || "",
+      ),
+      commissionShareBps: Number(economics && economics.shareBps || 0),
+      grossPlatformRevenueMinor: Number(
+          economics && economics.grossPlatformRevenueMinor || 0,
+      ),
+      paymentProviderFeeMinor: Number(
+          economics && economics.paymentProviderFeeMinor || 0,
+      ),
+      providerFeeRecoveredMinor: Number(
+          economics && economics.providerFeeRecoveredMinor || 0,
+      ),
+      unrecoveredProviderFeeMinor: Number(
+          economics && economics.unrecoveredProviderFeeMinor || 0,
+      ),
+      provisionalTaxReserveMinor: Number(
+          economics && economics.provisionalTaxReserveMinor || 0,
+      ),
+      commissionableRevenueMinor: Number(
+          economics && economics.commissionableRevenueMinor || 0,
+      ),
+      commissionMinor,
+      adjustedCommissionMinor: commissionMinor,
+      commissionProvisional: false,
       platformFeeCollectedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -213,24 +282,41 @@ function createStripeWebhookHandler(admin, options = {}) {
         paymentIntentId,
     );
     if (paymentIntent.status !== "succeeded") return;
-    const latestCharge = paymentIntent.latest_charge;
-    const chargeId = typeof latestCharge === "string" ?
-      latestCharge : String(latestCharge && latestCharge.id || "");
-    if (!chargeId.startsWith("ch_")) {
-      throw new Error("The paid marketplace fee has no Stripe charge.");
-    }
+    const charge = chargeEconomics(
+        paymentIntent,
+        String(fee.currency || sale.currency || "CAD"),
+    );
+    const provisionalReserveMinor = Math.max(
+        0,
+        Number(sale.marketplaceFeeProvisionalTaxReserveIfCollectedMinor || 0),
+    );
+    const economics = affiliateEconomics({
+      grossPlatformRevenueMinor: expectedFeeMinor,
+      paymentProviderFeeMinor: charge.providerFeeMinor,
+      providerFeeRecoveredMinor: 0,
+      provisionalTaxReserveMinor: provisionalReserveMinor,
+      shareBps: Number(fee.affiliateShareBps || 500),
+    });
     await transactionRef.set({
       marketplaceFeeStatus: "collected",
       stripeMarketplaceFeeSessionId: String(session.id || ""),
       stripeMarketplaceFeePaymentIntentId: paymentIntentId,
-      stripeMarketplaceFeeChargeId: chargeId,
+      stripeMarketplaceFeeChargeId: charge.chargeId,
+      stripeMarketplaceFeeBalanceTransactionId: charge.balanceTransactionId,
+      marketplaceFeePaymentProviderFeeMinor: charge.providerFeeMinor,
       platformMarketplaceFeeMinor: expectedFeeMinor,
+      platformNetEligibleRevenueMinor: economics.commissionableRevenueMinor,
+      affiliateRevenuePolicyRevision: economics.policyRevision,
       marketplaceFeeTaxCollectedMinor: taxCollectedMinor,
       marketplaceFeeBuyerChargedMinor: Number(session.amount_total || 0),
       marketplaceFeeCollectedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
-    await updateAffiliateAfterFeeCollection(transactionId, chargeId);
+    await updateAffiliateAfterFeeCollection(
+        transactionId,
+        charge.chargeId,
+        economics,
+    );
   }
 
   async function settleSuccessfulCheckout(session) {
@@ -265,9 +351,13 @@ function createStripeWebhookHandler(admin, options = {}) {
         sale.stripeSellerTransferId) return;
     const fee = sale.marketplaceFeeSnapshot || {};
     const marketplaceFeeMinor = Number(fee.marketplaceFeeMinor);
-    const sellerProceedsMinor = Number(fee.sellerProceedsBeforeTaxMinor);
+    const sellerProceedsBeforeProviderFeesMinor = Number(
+        fee.sellerProceedsBeforeProviderFeesMinor ??
+        fee.sellerProceedsBeforeTaxMinor,
+    );
     if (!Number.isSafeInteger(marketplaceFeeMinor) || marketplaceFeeMinor < 0 ||
-        !Number.isSafeInteger(sellerProceedsMinor) || sellerProceedsMinor < 0) {
+        !Number.isSafeInteger(sellerProceedsBeforeProviderFeesMinor) ||
+        sellerProceedsBeforeProviderFeesMinor < 0) {
       throw new Error("The immutable Pipe Buyer fee snapshot is unavailable.");
     }
     const saleSubtotalMinor = Number(session.amount_subtotal || 0);
@@ -300,12 +390,22 @@ function createStripeWebhookHandler(admin, options = {}) {
         paymentIntentId,
     );
     if (paymentIntent.status !== "succeeded") return;
-    const latestCharge = paymentIntent.latest_charge;
-    const chargeId = typeof latestCharge === "string" ?
-      latestCharge : String(latestCharge && latestCharge.id || "");
-    if (!chargeId.startsWith("ch_")) {
-      throw new Error("The successful payment has no Stripe charge.");
-    }
+    const expectedCurrency = String(fee.currency || sale.currency || "CAD");
+    const charge = chargeEconomics(paymentIntent, expectedCurrency);
+    const providerFeeRecoveredMinor = Math.min(
+        sellerProceedsBeforeProviderFeesMinor,
+        charge.providerFeeMinor,
+    );
+    const sellerProceedsMinor = Math.max(
+        0,
+        sellerProceedsBeforeProviderFeesMinor - providerFeeRecoveredMinor,
+    );
+    const economics = affiliateEconomics({
+      grossPlatformRevenueMinor: marketplaceFeeMinor,
+      paymentProviderFeeMinor: charge.providerFeeMinor,
+      providerFeeRecoveredMinor,
+      shareBps: Number(fee.affiliateShareBps || 500),
+    });
     const transferGroup = String(
         sale.stripeTransferGroup || paymentIntent.transfer_group ||
         `PB_${transactionId}`,
@@ -319,13 +419,14 @@ function createStripeWebhookHandler(admin, options = {}) {
         idempotencyKey: `pipebuyer-seller-transfer-${transactionId}`,
         fields: {
           amount: sellerProceedsMinor,
-          currency: String(fee.currency || sale.currency || "CAD").toLowerCase(),
+          currency: expectedCurrency.toLowerCase(),
           destination,
-          source_transaction: chargeId,
+          source_transaction: charge.chargeId,
           transfer_group: transferGroup,
           "metadata[pipeBuyerTransactionId]": transactionId,
           "metadata[listingId]": String(sale.listingId || ""),
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
+          "metadata[providerFeeRecoveredMinor]": providerFeeRecoveredMinor,
         },
       });
     }
@@ -350,14 +451,22 @@ function createStripeWebhookHandler(admin, options = {}) {
         marketplaceFeeStatus: "collected",
         stripeCheckoutSessionId: String(session.id || ""),
         stripePaymentIntentId: paymentIntentId,
-        stripeChargeId: chargeId,
+        stripeChargeId: charge.chargeId,
+        stripeChargeBalanceTransactionId: charge.balanceTransactionId,
+        stripeChargeFeeMinor: charge.providerFeeMinor,
         stripeSellerTransferId: transfer ? String(transfer.id || "") : null,
         stripeTransferGroup: transferGroup,
         buyerChargedMinor: amountTotal,
         refundedMinor: 0,
         taxCollectedMinor,
+        sellerProceedsBeforeProviderFeesMinor,
+        sellerPaymentProviderCostMinor: charge.providerFeeMinor,
+        sellerPaymentProviderCostRecoveredMinor: providerFeeRecoveredMinor,
+        originalSellerProceedsMinor: sellerProceedsMinor,
         sellerProceedsMinor,
         platformMarketplaceFeeMinor: marketplaceFeeMinor,
+        platformNetEligibleRevenueMinor: economics.commissionableRevenueMinor,
+        affiliateRevenuePolicyRevision: economics.policyRevision,
         financialStatus: "settled",
         financialHold: false,
         paidAt: FieldValue.serverTimestamp(),
@@ -365,10 +474,22 @@ function createStripeWebhookHandler(admin, options = {}) {
       }, {merge: true});
       if (affiliateLedger.exists &&
           affiliateLedger.data().status === "pending_platform_fee_payment") {
+        const commissionMinor = economics.commissionMinor;
         firestoreTransaction.update(affiliateLedgerRef, {
-          status: "pending_refund_window",
-          eligibleAfter: affiliateEligibleAfter(),
-          sourceChargeId: chargeId,
+          status: commissionMinor > 0 ?
+            "pending_refund_window" : "void_no_eligible_revenue",
+          eligibleAfter: commissionMinor > 0 ? affiliateEligibleAfter() : null,
+          sourceChargeId: charge.chargeId,
+          affiliateRevenuePolicyRevision: economics.policyRevision,
+          commissionShareBps: economics.shareBps,
+          grossPlatformRevenueMinor: economics.grossPlatformRevenueMinor,
+          paymentProviderFeeMinor: economics.paymentProviderFeeMinor,
+          providerFeeRecoveredMinor: economics.providerFeeRecoveredMinor,
+          unrecoveredProviderFeeMinor: economics.unrecoveredProviderFeeMinor,
+          commissionableRevenueMinor: economics.commissionableRevenueMinor,
+          commissionMinor,
+          adjustedCommissionMinor: commissionMinor,
+          commissionProvisional: false,
           platformFeeCollectedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -518,7 +639,9 @@ module.exports = {
   SIGNATURE_TOLERANCE_SECONDS,
   STRIPE_WEBHOOK_SECRET_NAME,
   billingType,
+  chargeEconomics,
   createStripeWebhookHandler,
+  retrievePaymentIntent,
   stripeWebhookSecret,
   verifyStripeSignature,
 };
