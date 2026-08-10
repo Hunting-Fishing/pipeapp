@@ -53,7 +53,7 @@ jobs:
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" \
             --config firebase.json \
-            --only functions:getPaymentProviderReadiness,functions:setPaymentProviderReadiness \
+            --only functions:marketplace:getPaymentProviderReadiness,functions:marketplace:setPaymentProviderReadiness \
             --message "Pipe Buyer payment readiness control $GITHUB_SHA" \
             --non-interactive
 
