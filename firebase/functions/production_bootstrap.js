@@ -61,7 +61,21 @@ exports.updateMarketplaceTaxProfile = onCall(
 
 exports.submitMarketplaceTaxExemptionClaim = onCall(
     protectedCallableOptions,
-    marketplaceTaxCompliance.submitMarketplaceTaxExemptionClaim,
+    async (request) => {
+      const result = await marketplaceTaxCompliance
+          .submitMarketplaceTaxExemptionClaim(request);
+      const transactionId = String(
+          request.data && request.data.transactionId || "",
+      ).trim();
+      const claimId = String(result && result.claimId || "").trim();
+      if (transactionId && claimId) {
+        await marketplaceTaxClaimLink.attachMarketplaceTaxExemptionClaim({
+          ...request,
+          data: {transactionId, claimId},
+        });
+      }
+      return result;
+    },
 );
 
 exports.attachMarketplaceTaxExemptionClaim = onCall(
