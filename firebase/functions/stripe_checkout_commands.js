@@ -15,6 +15,9 @@ const {
   stripeSecretKey,
 } = require("./stripe_marketplace_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
+const {
+  createMarketplaceTaxCompliance,
+} = require("./marketplace_tax_compliance");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -126,6 +129,7 @@ async function stripeFormRequest({
 function createStripeCheckoutCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+  const taxCompliance = createMarketplaceTaxCompliance(admin);
 
   const createMarketplaceCheckout = async (request) => {
     try {
@@ -200,6 +204,20 @@ function createStripeCheckoutCommands(admin) {
         throw new HttpsError("not-found", "The marketplace listing is unavailable.");
       }
       const listing = listingSnapshot.data();
+      const taxComplianceSnapshot =
+        await taxCompliance.evaluateTransactionTaxCompliance(sale);
+      if (taxComplianceSnapshot.manualTaxReviewRequired) {
+        throw new HttpsError(
+            "failed-precondition",
+            "This transaction has a tax exemption claim that requires Pipe Buyer tax review before online checkout.",
+        );
+      }
+      if (!taxComplianceSnapshot.eligibleForAutomatedCheckout) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Buyer and seller tax profiles must be current and verified before online marketplace checkout.",
+        );
+      }
       const amountMinor = Number(fee.agreedTotalMinor);
       if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
         throw new HttpsError("failed-precondition", "The checkout amount is invalid.");
@@ -239,6 +257,7 @@ function createStripeCheckoutCommands(admin) {
           cancel_url: cancelUrl,
           client_reference_id: transactionId,
           billing_address_collection: "required",
+          "tax_id_collection[enabled]": "true",
           "automatic_tax[enabled]": "true",
           "line_items[0][quantity]": 1,
           "line_items[0][price_data][currency]": currency,
@@ -255,6 +274,12 @@ function createStripeCheckoutCommands(admin) {
           "metadata[buyerUid]": String(sale.buyerUid || ""),
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
           "metadata[taxCollectionStatus]": "registered",
+          "metadata[taxPolicyVersion]": String(
+              taxComplianceSnapshot.taxPolicyVersion || "",
+          ),
+          "metadata[taxResponsibilityTermsVersion]": String(
+              taxComplianceSnapshot.taxResponsibilityPolicyVersion || "",
+          ),
         },
       });
       const sessionId = String(session.id || "");
@@ -269,6 +294,7 @@ function createStripeCheckoutCommands(admin) {
         stripeCheckoutSessionId: sessionId,
         stripeTransferGroup: transferGroup,
         taxCollectionStatus: "registered",
+        taxComplianceSnapshot,
         stripeCheckoutCreatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
