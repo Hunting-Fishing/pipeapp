@@ -44,16 +44,16 @@ jobs:
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
 
-      - name: Prepare and validate Stripe credential without logging value
+      - name: Prepare and validate Stripe production credential without logging value
         shell: bash
         run: |
           set -euo pipefail
           umask 077
-          firebase functions:secrets:access STRIPE_SECRET_KEY \
+          firebase functions:secrets:access STRIPE_SECRET_PRODUCTION \
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-api-key
           if [[ ! -s .stripe-api-key ]]; then
-            echo "::error::STRIPE_SECRET_KEY could not be read from Firebase Secret Manager."
+            echo "::error::STRIPE_SECRET_PRODUCTION could not be read from Firebase Secret Manager."
             exit 1
           fi
           node <<'NODE'
@@ -70,12 +70,12 @@ jobs:
           (async () => {
             const [account, balance] = await Promise.all([stripe('/v1/account'), stripe('/v1/balance')]);
             if (String(account.id || '') !== process.env.EXPECTED_STRIPE_ACCOUNT) {
-              throw new Error('Firebase STRIPE_SECRET_KEY does not belong to the Pipe Buyer Stripe account.');
+              throw new Error('Firebase STRIPE_SECRET_PRODUCTION does not belong to the Pipe Buyer Stripe account.');
             }
             if (balance.livemode !== true) {
-              throw new Error('Firebase STRIPE_SECRET_KEY is not a LIVE-mode credential.');
+              throw new Error('Firebase STRIPE_SECRET_PRODUCTION is not a LIVE-mode credential.');
             }
-            console.log('Pipe Buyer live Stripe credential verified.');
+            console.log('Pipe Buyer live Stripe production credential verified.');
           })().catch((error) => {
             console.error(error.message);
             process.exit(1);
