@@ -80,6 +80,11 @@ exports.reviewMarketplaceTaxRegistration = onCall(
     marketplaceTaxRegistrationAdmin.reviewMarketplaceTaxRegistration,
 );
 
+exports.getMarketplaceTaxRecoveryAdmin = onCall(
+    protectedCallableOptions,
+    marketplaceTaxRecovery.getMarketplaceTaxRecoveryAdmin,
+);
+
 exports.createMarketplaceTaxRecoveryCase = onCall(
     protectedCallableOptions,
     marketplaceTaxRecovery.createMarketplaceTaxRecoveryCase,
