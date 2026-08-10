@@ -29,14 +29,18 @@ test("production mode requires explicit confirmation", () => {
   assert.equal(next.stripeMode, "production");
 });
 
-test("marketplace checkout is fail-closed until every prerequisite is true", () => {
+test("full marketplace checkout still requires active tax registration", () => {
   assert.throws(
       () => validateReadiness({
         ...base,
         stripeMode: "production",
+        stripeConnectOnboardingEnabled: true,
         stripeCheckoutEnabled: true,
+        stripeWebhookVerified: true,
+        stripeTaxRegistrationPending: true,
+        stripeReconciliationReady: true,
       }, {confirmProduction: true}),
-      /verified webhooks, tax readiness, and reconciliation readiness/i,
+      /active tax registration/i,
   );
   const ready = validateReadiness({
     ...base,
@@ -50,24 +54,53 @@ test("marketplace checkout is fail-closed until every prerequisite is true", () 
   assert.equal(ready.stripeCheckoutEnabled, true);
 });
 
-test("Dispatch subscriptions require webhook, tax, and reconciliation readiness", () => {
-  assert.throws(
-      () => validateReadiness({
-        ...base,
-        stripeMode: "production",
-        stripeSubscriptionsEnabled: true,
-      }, {confirmProduction: true}),
-      /verified webhooks, tax readiness, and reconciliation readiness/i,
-  );
+test("Dispatch subscriptions can launch while tax registration is pending", () => {
   const ready = validateReadiness({
     ...base,
     stripeMode: "production",
     stripeSubscriptionsEnabled: true,
     stripeWebhookVerified: true,
-    stripeTaxReady: true,
+    stripeTaxRegistrationPending: true,
     stripeReconciliationReady: true,
   }, {confirmProduction: true});
   assert.equal(ready.stripeSubscriptionsEnabled, true);
+  assert.equal(ready.stripeTaxReady, false);
+  assert.equal(ready.stripeTaxRegistrationPending, true);
+});
+
+test("Pipe Buyer marketplace fee billing can launch while tax registration is pending", () => {
+  const ready = validateReadiness({
+    ...base,
+    stripeMode: "production",
+    stripeFeeBillingEnabled: true,
+    stripeWebhookVerified: true,
+    stripeTaxRegistrationPending: true,
+    stripeReconciliationReady: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.stripeFeeBillingEnabled, true);
+});
+
+test("tax registration cannot be pending and ready at the same time", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeTaxReady: true,
+        stripeTaxRegistrationPending: true,
+      }, {confirmProduction: true}),
+      /cannot be both pending and ready/i,
+  );
+});
+
+test("tax registration pending is production-only", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "sandbox",
+        stripeTaxRegistrationPending: true,
+      }),
+      /only be used with production billing/i,
+  );
 });
 
 test("financial resolution requires verified webhook and reconciliation", () => {

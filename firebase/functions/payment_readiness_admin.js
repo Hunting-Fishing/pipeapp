@@ -12,9 +12,11 @@ const MODES = new Set(["disabled", "sandbox", "production"]);
 const BOOLEAN_FIELDS = Object.freeze([
   "stripeConnectOnboardingEnabled",
   "stripeCheckoutEnabled",
+  "stripeFeeBillingEnabled",
   "stripeSubscriptionsEnabled",
   "stripeWebhookVerified",
   "stripeTaxReady",
+  "stripeTaxRegistrationPending",
   "stripeReconciliationReady",
   "affiliatePayoutsEnabled",
   "marketplaceFinancialResolutionEnabled",
@@ -57,6 +59,11 @@ function normalizeReadiness(data = {}) {
   return normalized;
 }
 
+function taxBillingPrepared(next) {
+  return next.stripeTaxReady === true ||
+    next.stripeTaxRegistrationPending === true;
+}
+
 function validateReadiness(next, options = {}) {
   if (!MODES.has(next.stripeMode)) {
     throw new HttpsError("invalid-argument", "stripeMode is invalid.");
@@ -65,6 +72,18 @@ function validateReadiness(next, options = {}) {
     throw new HttpsError(
         "failed-precondition",
         "Production mode requires explicit confirmation.",
+    );
+  }
+  if (next.stripeTaxReady && next.stripeTaxRegistrationPending) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Tax registration cannot be both pending and ready.",
+    );
+  }
+  if (next.stripeTaxRegistrationPending && next.stripeMode !== "production") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Pending tax registration may only be used with production billing.",
     );
   }
   if (next.stripeCheckoutEnabled && !(
@@ -76,18 +95,29 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace checkout requires production mode, Connect onboarding, verified webhooks, tax readiness, and reconciliation readiness.",
+        "Full marketplace checkout requires production mode, Connect onboarding, verified webhooks, active tax registration, and reconciliation readiness.",
+    );
+  }
+  if (next.stripeFeeBillingEnabled && !(
+    next.stripeMode === "production" &&
+    next.stripeWebhookVerified &&
+    taxBillingPrepared(next) &&
+    next.stripeReconciliationReady
+  )) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Marketplace fee billing requires production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
     );
   }
   if (next.stripeSubscriptionsEnabled && !(
     next.stripeMode === "production" &&
     next.stripeWebhookVerified &&
-    next.stripeTaxReady &&
+    taxBillingPrepared(next) &&
     next.stripeReconciliationReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode, verified webhooks, tax readiness, and reconciliation readiness.",
+        "Live Dispatch subscriptions require production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
@@ -244,5 +274,6 @@ module.exports = {
   createPaymentReadinessAdmin,
   normalizeReadiness,
   safeHttpsPipeBuyerUrl,
+  taxBillingPrepared,
   validateReadiness,
 };

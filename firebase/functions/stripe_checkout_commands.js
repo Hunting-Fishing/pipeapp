@@ -40,7 +40,7 @@ function safeConfiguredUrl(value, field) {
 
 function requireCheckoutReady(readiness) {
   const ready =
-    ["sandbox", "production"].includes(readiness.stripeMode) &&
+    readiness.stripeMode === "production" &&
     readiness.stripeCheckoutEnabled &&
     readiness.stripeWebhookVerified &&
     readiness.stripeTaxReady &&
@@ -48,7 +48,24 @@ function requireCheckoutReady(readiness) {
   if (!ready) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace checkout is not yet approved for live money movement.",
+        "Full marketplace checkout is not yet approved for live money movement.",
+    );
+  }
+}
+
+function requirePlatformFeeBillingReady(readiness) {
+  const taxPrepared = readiness.stripeTaxReady === true ||
+    readiness.stripeTaxRegistrationPending === true;
+  const ready =
+    readiness.stripeMode === "production" &&
+    readiness.stripeFeeBillingEnabled &&
+    readiness.stripeWebhookVerified &&
+    taxPrepared &&
+    readiness.stripeReconciliationReady;
+  if (!ready) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Pipe Buyer marketplace fee billing is not enabled yet.",
     );
   }
 }
@@ -237,6 +254,7 @@ function createStripeCheckoutCommands(admin) {
           "metadata[sellerUid]": String(sale.sellerUid || ""),
           "metadata[buyerUid]": String(sale.buyerUid || ""),
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
+          "metadata[taxCollectionStatus]": "registered",
         },
       });
       const sessionId = String(session.id || "");
@@ -250,6 +268,7 @@ function createStripeCheckoutCommands(admin) {
         paymentProviderStatus: "checkout_created",
         stripeCheckoutSessionId: sessionId,
         stripeTransferGroup: transferGroup,
+        taxCollectionStatus: "registered",
         stripeCheckoutCreatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
@@ -275,6 +294,7 @@ function createStripeCheckoutCommands(admin) {
 module.exports = {
   createStripeCheckoutCommands,
   requireCheckoutReady,
+  requirePlatformFeeBillingReady,
   safeConfiguredUrl,
   stripeFormRequest,
 };
