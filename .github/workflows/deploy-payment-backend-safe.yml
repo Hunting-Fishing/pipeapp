@@ -20,6 +20,7 @@ jobs:
     env:
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
       FIREBASE_PROJECT_ID: flutter-flow-pipe
+      EXPECTED_STRIPE_ACCOUNT: acct_1U2QmKDkO07WMXyR
 
     steps:
       - name: Check out source
@@ -42,14 +43,40 @@ jobs:
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
 
-      - name: Require Stripe API secret metadata
+      - name: Verify Firebase Stripe credential is Pipe Buyer LIVE account
         shell: bash
         run: |
           set -euo pipefail
-          firebase functions:secrets:get STRIPE_SECRET_KEY \
+          umask 077
+          firebase functions:secrets:access STRIPE_SECRET_KEY \
             --project "$FIREBASE_PROJECT_ID" \
-            --token "$FIREBASE_TOKEN" \
-            --json > /dev/null
+            --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
+          node <<'NODE'
+          const fs = require('node:fs');
+          const key = fs.readFileSync('.stripe-key', 'utf8').trim();
+          async function stripe(path) {
+            const response = await fetch(`https://api.stripe.com${path}`, {
+              headers: {Authorization: `Bearer ${key}`},
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(`Stripe credential validation failed (${response.status}).`);
+            return payload;
+          }
+          (async () => {
+            const [account, balance] = await Promise.all([stripe('/v1/account'), stripe('/v1/balance')]);
+            if (String(account.id || '') !== process.env.EXPECTED_STRIPE_ACCOUNT) {
+              throw new Error('Firebase STRIPE_SECRET_KEY does not belong to the Pipe Buyer Stripe account.');
+            }
+            if (balance.livemode !== true) {
+              throw new Error('Firebase STRIPE_SECRET_KEY is not a LIVE-mode credential.');
+            }
+            console.log('Pipe Buyer live Stripe credential verified.');
+          })().catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
+          rm -f .stripe-key
 
       - name: Deploy gated payment backend without webhook
         shell: bash
