@@ -128,14 +128,38 @@ test("dispute evidence cannot outrun dispute automation", () => {
   );
 });
 
-test("affiliate payouts require the payout prerequisites", () => {
+test("affiliate payouts require separate payout economics approval", () => {
+  const providerReady = {
+    ...base,
+    stripeMode: "production",
+    stripeConnectOnboardingEnabled: true,
+    stripeWebhookVerified: true,
+    stripeReconciliationReady: true,
+  };
+  assert.throws(
+      () => validateReadiness({
+        ...providerReady,
+        affiliatePayoutsEnabled: true,
+      }, {confirmProduction: true}),
+      /separate approved affiliate payout economics gate/i,
+  );
+  const ready = validateReadiness({
+    ...providerReady,
+    affiliatePayoutEconomicsReady: true,
+    affiliatePayoutsEnabled: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.affiliatePayoutEconomicsReady, true);
+  assert.equal(ready.affiliatePayoutsEnabled, true);
+});
+
+test("affiliate payout economics approval requires provider readiness", () => {
   assert.throws(
       () => validateReadiness({
         ...base,
         stripeMode: "production",
-        affiliatePayoutsEnabled: true,
+        affiliatePayoutEconomicsReady: true,
       }, {confirmProduction: true}),
-      /Affiliate payouts require/i,
+      /economics approval requires production mode, Connect onboarding/i,
   );
 });
 
