@@ -9,6 +9,10 @@ const {
   AdministratorAuthorizationError,
   requireAdministrator,
 } = require("./administrator_authorization");
+const {
+  TAX_REGISTRATION_REVIEW_DAYS,
+  effectiveVerificationStatus,
+} = require("./marketplace_tax_registration_admin");
 
 const TAX_POLICY_VERSION = "2026-08-10-ca-marketplace-tax-v1";
 const TAX_RESPONSIBILITY_TERMS_VERSION = "2026-08-10-tax-responsibility-v1";
@@ -129,20 +133,36 @@ function nextVerificationStatus(previousValue, nextValue, previousStatus) {
   return "pending_verification";
 }
 
-function sanitizeProfileForClient(profile = {}) {
+function sanitizeProfileForClient(profile = {}, nowMs = Date.now()) {
   return {
     legalBusinessName: String(profile.legalBusinessName || ""),
     countryCode: String(profile.countryCode || ""),
     regionCode: String(profile.regionCode || ""),
     businessNumber: String(profile.businessNumber || ""),
-    businessNumberStatus: String(profile.businessNumberStatus || "not_provided"),
+    businessNumberStatus: effectiveVerificationStatus(
+        profile,
+        "businessNumber",
+        nowMs,
+    ),
+    businessNumberReviewDueAt: profile.businessNumberReviewDueAt || null,
     gstHstNumber: String(profile.gstHstNumber || ""),
-    gstHstStatus: String(profile.gstHstStatus || "not_provided"),
+    gstHstStatus: effectiveVerificationStatus(
+        profile,
+        "gstHstNumber",
+        nowMs,
+    ),
+    gstHstNumberReviewDueAt: profile.gstHstNumberReviewDueAt || null,
     pstBcNumber: String(profile.pstBcNumber || ""),
-    pstBcStatus: String(profile.pstBcStatus || "not_provided"),
+    pstBcStatus: effectiveVerificationStatus(
+        profile,
+        "pstBcNumber",
+        nowMs,
+    ),
+    pstBcNumberReviewDueAt: profile.pstBcNumberReviewDueAt || null,
     sellerNormalGstHstRegistered: String(
         profile.sellerNormalGstHstRegistered || "pending",
     ),
+    taxComplianceHold: profile.taxComplianceHold === true,
     taxPolicyVersion: String(profile.taxPolicyVersion || TAX_POLICY_VERSION),
     taxResponsibilityPolicyVersion: String(
         profile.taxResponsibilityPolicyVersion || "",
@@ -198,16 +218,22 @@ function normalizeExemptionClaim(data = {}) {
   };
 }
 
-function claimHasMinimumEvidence(claim, profile) {
+function claimHasMinimumEvidence(claim, profile, nowMs = Date.now()) {
   if (!claim) return false;
   if (claim.exemptionType === "resale" && profile &&
-      profile.pstBcStatus === "verified" && profile.pstBcNumber) {
+      effectiveVerificationStatus(profile, "pstBcNumber", nowMs) === "verified" &&
+      profile.pstBcNumber) {
     return true;
   }
   return Boolean(claim.evidenceStoragePath || claim.certificateReference);
 }
 
-function transactionTaxComplianceSnapshot({buyerProfile, sellerProfile, claim}) {
+function transactionTaxComplianceSnapshot({
+  buyerProfile,
+  sellerProfile,
+  claim,
+  nowMs = Date.now(),
+}) {
   const blockers = [];
   if (!buyerProfile ||
       buyerProfile.taxResponsibilityPolicyVersion !== TAX_RESPONSIBILITY_TERMS_VERSION) {
@@ -217,10 +243,16 @@ function transactionTaxComplianceSnapshot({buyerProfile, sellerProfile, claim}) 
       sellerProfile.taxResponsibilityPolicyVersion !== TAX_RESPONSIBILITY_TERMS_VERSION) {
     blockers.push("seller_tax_terms_required");
   }
+  const buyerPstStatus = buyerProfile ?
+    effectiveVerificationStatus(buyerProfile, "pstBcNumber", nowMs) :
+    "not_provided";
+  const sellerGstVerification = sellerProfile ?
+    effectiveVerificationStatus(sellerProfile, "gstHstNumber", nowMs) :
+    "not_provided";
   if (sellerProfile) {
     const gstStatus = String(sellerProfile.sellerNormalGstHstRegistered || "pending");
     if (gstStatus === "pending") blockers.push("seller_gst_status_required");
-    if (gstStatus === "yes" && sellerProfile.gstHstStatus !== "verified") {
+    if (gstStatus === "yes" && sellerGstVerification !== "verified") {
       blockers.push("seller_gst_number_verification_required");
     }
   }
@@ -228,7 +260,7 @@ function transactionTaxComplianceSnapshot({buyerProfile, sellerProfile, claim}) 
   let manualTaxReviewRequired = false;
   if (claim) {
     if (claim.status !== "approved") blockers.push("exemption_not_approved");
-    if (!claimHasMinimumEvidence(claim, buyerProfile)) {
+    if (!claimHasMinimumEvidence(claim, buyerProfile, nowMs)) {
       blockers.push("exemption_evidence_required");
     }
     manualTaxReviewRequired = true;
@@ -243,6 +275,7 @@ function transactionTaxComplianceSnapshot({buyerProfile, sellerProfile, claim}) 
   return {
     taxPolicyVersion: TAX_POLICY_VERSION,
     taxResponsibilityPolicyVersion: TAX_RESPONSIBILITY_TERMS_VERSION,
+    registrationReviewIntervalDays: TAX_REGISTRATION_REVIEW_DAYS,
     eligibleForAutomatedCheckout: blockers.length === 0 && !manualTaxReviewRequired,
     manualTaxReviewRequired,
     blockers,
@@ -250,7 +283,7 @@ function transactionTaxComplianceSnapshot({buyerProfile, sellerProfile, claim}) 
       profileRevision: Number(buyerProfile.revision || 0),
       countryCode: String(buyerProfile.countryCode || ""),
       regionCode: String(buyerProfile.regionCode || ""),
-      pstBcStatus: String(buyerProfile.pstBcStatus || "not_provided"),
+      pstBcStatus: buyerPstStatus,
     } : null,
     seller: sellerProfile ? {
       profileRevision: Number(sellerProfile.revision || 0),
@@ -259,7 +292,7 @@ function transactionTaxComplianceSnapshot({buyerProfile, sellerProfile, claim}) 
       sellerNormalGstHstRegistered: String(
           sellerProfile.sellerNormalGstHstRegistered || "pending",
       ),
-      gstHstStatus: String(sellerProfile.gstHstStatus || "not_provided"),
+      gstHstStatus: sellerGstVerification,
     } : null,
     exemption,
   };
@@ -290,6 +323,7 @@ function createMarketplaceTaxCompliance(admin) {
         profile: sanitizeProfileForClient(snapshot.exists ? snapshot.data() : {}),
         taxPolicyVersion: TAX_POLICY_VERSION,
         responsibilityTermsVersion: TAX_RESPONSIBILITY_TERMS_VERSION,
+        registrationReviewIntervalDays: TAX_REGISTRATION_REVIEW_DAYS,
         responsibilitySummary: TAX_RESPONSIBILITY_SUMMARY,
         exemptionTypes: Object.entries(EXEMPTION_TYPES).map(([value, config]) => ({
           value,
@@ -313,25 +347,37 @@ function createMarketplaceTaxCompliance(admin) {
       const priorSnapshot = await ref.get();
       const prior = priorSnapshot.exists ? priorSnapshot.data() : {};
       const revision = Math.max(0, Number(prior.revision || 0)) + 1;
+      const businessNumberStatus = nextVerificationStatus(
+          prior.businessNumber,
+          next.businessNumber,
+          prior.businessNumberStatus,
+      );
+      const gstHstStatus = nextVerificationStatus(
+          prior.gstHstNumber,
+          next.gstHstNumber,
+          prior.gstHstStatus,
+      );
+      const pstBcStatus = nextVerificationStatus(
+          prior.pstBcNumber,
+          next.pstBcNumber,
+          prior.pstBcStatus,
+      );
       const values = {
         ...next,
         ownerUid: uid,
         revision,
-        businessNumberStatus: nextVerificationStatus(
-            prior.businessNumber,
-            next.businessNumber,
-            prior.businessNumberStatus,
-        ),
-        gstHstStatus: nextVerificationStatus(
-            prior.gstHstNumber,
-            next.gstHstNumber,
-            prior.gstHstStatus,
-        ),
-        pstBcStatus: nextVerificationStatus(
-            prior.pstBcNumber,
-            next.pstBcNumber,
-            prior.pstBcStatus,
-        ),
+        businessNumberStatus,
+        gstHstStatus,
+        pstBcStatus,
+        ...(businessNumberStatus === "verified" ? {} : {
+          businessNumberReviewDueAt: FieldValue.delete(),
+        }),
+        ...(gstHstStatus === "verified" ? {} : {
+          gstHstNumberReviewDueAt: FieldValue.delete(),
+        }),
+        ...(pstBcStatus === "verified" ? {} : {
+          pstBcNumberReviewDueAt: FieldValue.delete(),
+        }),
         taxResponsibilityAcknowledgedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         ...(priorSnapshot.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
@@ -350,9 +396,9 @@ function createMarketplaceTaxCompliance(admin) {
         saved: true,
         revision,
         verification: {
-          businessNumberStatus: values.businessNumberStatus,
-          gstHstStatus: values.gstHstStatus,
-          pstBcStatus: values.pstBcStatus,
+          businessNumberStatus: sanitizeProfileForClient(values).businessNumberStatus,
+          gstHstStatus: sanitizeProfileForClient(values).gstHstStatus,
+          pstBcStatus: sanitizeProfileForClient(values).pstBcStatus,
         },
       };
     } catch (error) {
@@ -418,19 +464,27 @@ function createMarketplaceTaxCompliance(admin) {
         db.collection("marketplace_tax_exemption_claims")
             .orderBy("createdAt", "desc").limit(250).get(),
       ]);
+      const nowMs = Date.now();
       const profileRows = profiles.docs.map((doc) => ({id: doc.id, ...doc.data()}));
       const claimRows = claims.docs.map((doc) => ({id: doc.id, ...doc.data()}));
       return {
         taxPolicyVersion: TAX_POLICY_VERSION,
         responsibilityTermsVersion: TAX_RESPONSIBILITY_TERMS_VERSION,
+        registrationReviewIntervalDays: TAX_REGISTRATION_REVIEW_DAYS,
         counts: {
           profiles: profileRows.length,
-          pstPending: profileRows.filter((row) =>
-            row.pstBcStatus === "pending_verification").length,
-          pstVerified: profileRows.filter((row) => row.pstBcStatus === "verified").length,
-          gstPending: profileRows.filter((row) =>
-            row.gstHstStatus === "pending_verification").length,
-          gstVerified: profileRows.filter((row) => row.gstHstStatus === "verified").length,
+          pstPending: profileRows.filter((row) => {
+            const status = effectiveVerificationStatus(row, "pstBcNumber", nowMs);
+            return status === "pending_verification" || status === "review_required";
+          }).length,
+          pstVerified: profileRows.filter((row) =>
+            effectiveVerificationStatus(row, "pstBcNumber", nowMs) === "verified").length,
+          gstPending: profileRows.filter((row) => {
+            const status = effectiveVerificationStatus(row, "gstHstNumber", nowMs);
+            return status === "pending_verification" || status === "review_required";
+          }).length,
+          gstVerified: profileRows.filter((row) =>
+            effectiveVerificationStatus(row, "gstHstNumber", nowMs) === "verified").length,
           exemptionPending: claimRows.filter((row) =>
             row.status === "pending_review" || row.status === "needs_info").length,
           exemptionApproved: claimRows.filter((row) => row.status === "approved").length,
@@ -485,7 +539,7 @@ function createMarketplaceTaxCompliance(admin) {
         if (!evidenceVerified || !claimHasMinimumEvidence(claim, profile)) {
           throw new HttpsError(
               "failed-precondition",
-              "Approval requires verified exemption evidence or a verified B.C. PST number where permitted.",
+              "Approval requires verified exemption evidence or a current verified B.C. PST number where permitted.",
           );
         }
       }
@@ -557,5 +611,6 @@ module.exports = {
   nextVerificationStatus,
   normalizeExemptionClaim,
   normalizeTaxProfileInput,
+  sanitizeProfileForClient,
   transactionTaxComplianceSnapshot,
 };
