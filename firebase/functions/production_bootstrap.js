@@ -18,6 +18,9 @@ const {
 const {
   createMarketplaceTaxRegistrationAdmin,
 } = require("./marketplace_tax_registration_admin");
+const {
+  createMarketplaceTaxRecovery,
+} = require("./marketplace_tax_recovery");
 
 const admin = createAdminRuntime();
 const readinessAdmin = createPaymentReadinessAdmin(admin);
@@ -25,6 +28,7 @@ const marketplaceFeeAdmin = createMarketplaceFeeAdmin();
 const marketplaceTaxCompliance = createMarketplaceTaxCompliance(admin);
 const marketplaceTaxRegistrationAdmin =
   createMarketplaceTaxRegistrationAdmin(admin);
+const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
 
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
@@ -74,4 +78,14 @@ exports.getMarketplaceTaxRegistrationAdmin = onCall(
 exports.reviewMarketplaceTaxRegistration = onCall(
     protectedCallableOptions,
     marketplaceTaxRegistrationAdmin.reviewMarketplaceTaxRegistration,
+);
+
+exports.createMarketplaceTaxRecoveryCase = onCall(
+    protectedCallableOptions,
+    marketplaceTaxRecovery.createMarketplaceTaxRecoveryCase,
+);
+
+exports.resolveMarketplaceTaxRecoveryCase = onCall(
+    protectedCallableOptions,
+    marketplaceTaxRecovery.resolveMarketplaceTaxRecoveryCase,
 );
