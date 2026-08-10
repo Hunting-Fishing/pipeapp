@@ -15,10 +15,15 @@ const {
   stripeSecretKey,
 } = require("./stripe_marketplace_commands");
 const {
-  requireCheckoutReady,
+  requirePlatformFeeBillingReady,
   safeConfiguredUrl,
   stripeFormRequest,
 } = require("./stripe_checkout_commands");
+const {
+  automaticTaxEnabled,
+  provisionalTaxReserveMinor,
+  taxCollectionStatus,
+} = require("./pending_tax_policy");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -121,16 +126,17 @@ function createExternalSettlementCommands(admin) {
       requirePhase1Feature(flags, "paidFeatures");
       const readinessSnapshot = await db.collection("platform_configuration")
           .doc("payment_provider_readiness").get();
+      const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
       const readiness = {
         ...(await loadProviderReadiness(db)),
-        checkoutSuccessUrl: String(
-            readinessSnapshot.data() && readinessSnapshot.data().checkoutSuccessUrl || "",
-        ),
-        checkoutCancelUrl: String(
-            readinessSnapshot.data() && readinessSnapshot.data().checkoutCancelUrl || "",
-        ),
+        stripeFeeBillingEnabled: readinessData.stripeFeeBillingEnabled === true,
+        stripeTaxRegistrationPending:
+          readinessData.stripeTaxRegistrationPending === true,
+        checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
+        checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
-      requireCheckoutReady(readiness);
+      requirePlatformFeeBillingReady(readiness);
+      const collectionStatus = taxCollectionStatus(readiness);
       const transactionId = transactionIdFromRequest(request);
       const transactionRef = db.collection("marketplace_transactions")
           .doc(transactionId);
@@ -179,6 +185,10 @@ function createExternalSettlementCommands(admin) {
       const productLabel = fee.feeClass === "pipe" ?
         "Pipe Buyer Marketplace Fee - Pipe" :
         "Pipe Buyer Marketplace Fee - Equipment & Assets";
+      const reserveIfCollectedMinor = provisionalTaxReserveMinor(
+          feeMinor,
+          collectionStatus,
+      );
       const session = await stripeFormRequest({
         secretKey: stripeSecretKey.value(),
         path: "/v1/checkout/sessions",
@@ -189,7 +199,7 @@ function createExternalSettlementCommands(admin) {
           cancel_url: cancelUrl,
           client_reference_id: transactionId,
           billing_address_collection: "required",
-          "automatic_tax[enabled]": "true",
+          "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
           "line_items[0][quantity]": 1,
           "line_items[0][price_data][currency]":
             String(fee.currency || sale.currency || "CAD").toLowerCase(),
@@ -201,6 +211,7 @@ function createExternalSettlementCommands(admin) {
           "metadata[billingType]": "marketplace_fee_only",
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
           "metadata[sellerUid]": String(sale.sellerUid || ""),
+          "metadata[taxCollectionStatus]": collectionStatus,
         },
       });
       const sessionId = String(session.id || "");
@@ -211,6 +222,12 @@ function createExternalSettlementCommands(admin) {
       await transactionRef.set({
         marketplaceFeeStatus: "checkout_created",
         stripeMarketplaceFeeSessionId: sessionId,
+        marketplaceFeeTaxCollectionStatus: collectionStatus,
+        marketplaceFeeTaxExposureReviewRequired:
+          collectionStatus === "registration_pending",
+        marketplaceFeeProvisionalTaxReserveIfCollectedMinor:
+          reserveIfCollectedMinor,
+        marketplaceFeeAutomaticTaxEnabled: automaticTaxEnabled(readiness),
         marketplaceFeeCheckoutCreatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
@@ -219,6 +236,7 @@ function createExternalSettlementCommands(admin) {
         checkoutSessionId: sessionId,
         checkoutUrl,
         alreadyPaid: false,
+        taxCollectionStatus: collectionStatus,
       };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
