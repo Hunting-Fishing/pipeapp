@@ -1,0 +1,31 @@
+name: Dispatch current Pipe Buyer production release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/dispatch-current-production.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-production:
+    name: Dispatch verified production release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch existing verified Firebase release workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: 8fa000cc77055a4300acc35f45ae27567aad26eb
+        run: |
+          set -euo pipefail
+          gh workflow run deploy.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f environment=production \
+            -f commit_sha="$RELEASE_SHA" \
+            -f app_check_mode=enforce
+          echo "Dispatched production release for $RELEASE_SHA"
