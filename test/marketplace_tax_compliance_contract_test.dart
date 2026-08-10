@@ -54,7 +54,7 @@ void main() {
     expect(terms, contains('To the fullest extent permitted by applicable law'));
     expect(terms, contains('indemnify, reimburse and hold harmless Pipe Buyer'));
     expect(terms, contains('Statutory obligations are not disclaimed'));
-    expect(terms, contains('does not exclude, transfer or limit'));
+    expect(terms, contains('Nothing in these terms excludes, transfers or limits'));
     expect(terms, contains('Recovery, reserves, set-off and payout holds'));
   });
 
