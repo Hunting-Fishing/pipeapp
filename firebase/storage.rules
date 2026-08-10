@@ -29,6 +29,10 @@ service firebase.storage {
       return request.resource.contentType.matches('video/.*');
     }
 
+    function isBusinessDocument() {
+      return isImage() || request.resource.contentType == 'application/pdf';
+    }
+
     function validUploadAuthorization(fileName, userId, purpose, targetId) {
       let authorization = firestore.get(
         /databases/(default)/documents/media_upload_authorizations/$(fileName)
@@ -76,9 +80,11 @@ service firebase.storage {
     }
 
     match /business_documents/{userId}/{fileName} {
-      allow read, create, update, delete: if isOwner(userId)
-        && (request.method == 'delete'
-          || request.resource.size <= 15 * 1024 * 1024);
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId)
+        && request.resource.size <= 15 * 1024 * 1024
+        && isBusinessDocument();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /chat_attachments/{conversationId}/{userId}/{fileName} {

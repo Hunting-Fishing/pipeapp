@@ -10,11 +10,17 @@ const stripeMarketplaceConfig = Object.freeze({
       productId: "prod_V2WkE5D16GhGaD",
       priceId: "price_1U2SYGDkO07WMXyRm6xbprUn",
       taxCode: "txcd_10103001",
+      currency: "CAD",
+      unitAmountMinor: 2500,
+      billingInterval: "month",
     }),
     dispatchYearlyCad: Object.freeze({
       productId: "prod_V2WsPl25y7Qe6A",
       priceId: "price_1U2XDVDkO07WMXyRS0eCYKCh",
       taxCode: "txcd_10103001",
+      currency: "CAD",
+      unitAmountMinor: 30000,
+      billingInterval: "year",
     }),
     pipeMarketplaceFeeCad: Object.freeze({
       productId: "prod_V2cTDvqWIPAZEm",

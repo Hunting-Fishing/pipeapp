@@ -60,19 +60,19 @@ void main() {
     expect(source, contains("'Not active'"));
   });
 
-  test('payment readiness policy remains safe by default', () {
+  test('payment readiness policy is server controlled and secret free', () {
     final source = File(
       'lib/marketplace/marketplace_payment_readiness.dart',
     ).readAsStringSync();
 
-    expect(source, contains('paymentsEnabled = false'));
-    expect(source, contains('tokenPurchasesEnabled = false'));
-    expect(source, contains('platformCustodyEnabled = false'));
-    expect(source, contains('directBankDetailsAllowed = false'));
-    expect(source, contains('clientSecretEntryAllowed = false'));
-    expect(source, contains('Stripe Connect'));
-    expect(source, contains('PayPal Multiparty'));
-    expect(source, contains('Processor-managed only'));
+    expect(source, contains("getPaymentProviderReadiness"));
+    expect(source, contains("getMarketplaceFeeCatalog"));
+    expect(source, contains("stripeCheckoutEnabled"));
+    expect(source, contains("stripeTaxReady"));
+    expect(source, isNot(contains('paymentsEnabled = true')));
+    expect(source, isNot(contains('stripeSecretKey')));
+    expect(source, isNot(contains('stripeWebhookSecret')));
+    expect(source, isNot(contains('clientSecretEntryAllowed = true')));
   });
 
   test('architecture requires server secrets and verified webhooks', () {

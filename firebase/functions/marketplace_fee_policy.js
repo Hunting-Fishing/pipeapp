@@ -10,19 +10,16 @@ class MarketplaceFeePolicyError extends Error {
 
 const BASIS_POINTS = 10000;
 
-// Launch defaults approved for implementation planning. Every transaction stores
-// the revision and computed snapshot so later pricing changes never rewrite an
-// already-agreed fee. Move these values into an administrator-approved versioned
-// Firestore schedule before enabling production money movement.
+// Launch fee schedule. Every transaction stores the revision and computed
+// snapshot so later pricing changes never rewrite an already-agreed fee.
 const launchMarketplaceFeeSchedule = Object.freeze({
-  revision: "2026-08-09-launch-v1",
+  revision: "2026-08-10-launch-v2",
   payer: "seller",
   affiliateShareBps: 2000,
   pipe: Object.freeze({
     unitFeeMinorByCurrency: Object.freeze({CAD: 100, USD: 100}),
     minimumFeeMinorByCurrency: Object.freeze({CAD: 2500, USD: 2500}),
     maximumFeeMinorByCurrency: Object.freeze({CAD: 500000, USD: 500000}),
-    percentageCapBps: 300,
   }),
   equipment: Object.freeze({
     minimumFeeMinorByCurrency: Object.freeze({CAD: 2500, USD: 2500}),
@@ -109,22 +106,21 @@ function calculatePipeFee({
       "The maximum pipe marketplace fee",
   );
   const baseFeeMinor = roundedQuantity * unitFeeMinor;
-  const percentageCapMinor = Math.floor(
-      agreedTotalMinor * Number(schedule.percentageCapBps || 0) / BASIS_POINTS,
-  );
-  const feeBeforeCapsMinor = Math.max(baseFeeMinor, minimumFeeMinor);
   const marketplaceFeeMinor = Math.max(
-      0,
-      Math.min(feeBeforeCapsMinor, percentageCapMinor, maximumFeeMinor),
+      minimumFeeMinor,
+      Math.min(baseFeeMinor, maximumFeeMinor),
   );
+  if (marketplaceFeeMinor > agreedTotalMinor) {
+    invalid(
+        "The agreed transaction total must be at least the minimum Pipe Buyer marketplace fee.",
+    );
+  }
   return {
     marketplaceFeeMinor,
     feeClass: "pipe",
     quantityCharged: roundedQuantity,
     unitFeeMinor,
     minimumFeeMinor,
-    percentageCapBps: schedule.percentageCapBps,
-    percentageCapMinor,
     maximumFeeMinor,
   };
 }

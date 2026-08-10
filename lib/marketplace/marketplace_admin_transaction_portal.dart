@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'marketplace_admin_access.dart';
 import 'marketplace_payment_readiness.dart';
+import 'marketplace_tax_compliance_admin_page.dart';
 
 class MarketplaceAdminTransactionPortal extends StatefulWidget {
   const MarketplaceAdminTransactionPortal({super.key});
@@ -79,19 +80,24 @@ class _MarketplaceAdminTransactionPortalState
     }
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Billing and payment readiness'),
+          title: const Text('Billing, fees & tax'),
           bottom: const TabBar(
+            isScrollable: true,
             tabs: [
               Tab(
-                icon: Icon(Icons.rule_folder_outlined),
-                text: 'Provider readiness',
+                icon: Icon(Icons.price_check_outlined),
+                text: 'Fees & Tax',
+              ),
+              Tab(
+                icon: Icon(Icons.fact_check_outlined),
+                text: 'Tax Compliance',
               ),
               Tab(
                 icon: Icon(Icons.receipt_long_outlined),
-                text: 'Transaction records',
+                text: 'Transaction Records',
               ),
             ],
           ),
@@ -99,6 +105,7 @@ class _MarketplaceAdminTransactionPortalState
         body: const TabBarView(
           children: [
             MarketplacePaymentReadinessPanel(),
+            MarketplaceTaxComplianceAdminPage(),
             MarketplaceTransactionRecordsPanel(),
           ],
         ),

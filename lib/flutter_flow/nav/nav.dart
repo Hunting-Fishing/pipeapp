@@ -16,6 +16,8 @@ import '/marketplace/marketplace_dispatch_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
 import '/marketplace/marketplace_public_information.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
+import '/marketplace/marketplace_tax_compliance_admin_page.dart';
+import '/marketplace/marketplace_tax_profile_page.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -36,8 +38,7 @@ class AppStateNotifier extends ChangeNotifier {
   String? _redirectLocation;
 
   /// Determines whether the app will refresh and build again when a sign
-  /// in or sign out happens. This is useful when the app is launched or
-  /// on an unexpected logout. However, this must be turned off when we
+  /// in or sign out happens. This is useful when the app is launched or on an unexpected logout. However, this must be turned off when we
   /// intend to sign in/out and then navigate or perform any actions after.
   /// Otherwise, this will trigger a refresh and interrupt the action(s).
   bool notifyOnAuthChange = true;
@@ -54,6 +55,7 @@ class AppStateNotifier extends ChangeNotifier {
 
   /// Mark as not needing to notify on a sign in / out when we intend
   /// to perform subsequent actions (such as navigation) afterwards.
+  /// Otherwise, this will trigger a refresh and interrupt the action(s).
   void updateNotifyOnAuthChange(bool notify) => notifyOnAuthChange = notify;
 
   void update(BaseAuthUser newUser) {
@@ -66,8 +68,8 @@ class AppStateNotifier extends ChangeNotifier {
     if (notifyOnAuthChange && shouldUpdate) {
       notifyListeners();
     }
-    // Once again mark the notifier as needing to update on auth change
-    // (in order to catch sign in / out events).
+    // Once again mark the notifier as needing to notify on auth change
+    // (in order to catch any future updates).
     updateNotifyOnAuthChange(true);
   }
 
@@ -131,6 +133,19 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => MarketplaceDispatchJobRoutePage(
             jobId: params.getParam<String>('jobId', ParamType.string) ?? '',
           ),
+        ),
+        FFRoute(
+          name: 'marketplaceTaxProfile',
+          path: '/account/tax-profile',
+          requireAuth: true,
+          builder: (context, params) => const MarketplaceTaxProfilePage(),
+        ),
+        FFRoute(
+          name: 'marketplaceTaxComplianceAdmin',
+          path: '/admin/tax-compliance',
+          requireAuth: true,
+          builder: (context, params) =>
+              const MarketplaceTaxComplianceAdminPage(),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.privacyRouteName,
