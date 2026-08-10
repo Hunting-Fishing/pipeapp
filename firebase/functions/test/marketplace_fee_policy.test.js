@@ -26,6 +26,26 @@ test("charges one dollar per stick for a normal pipe sale", () => {
   assert.equal(fee.affiliateCommissionMinor, 20000);
 });
 
+test("enforces the twenty-five dollar minimum on small pipe sales", () => {
+  const fee = calculateMarketplaceFeeSnapshot({
+    listing: {category: "Tubing"},
+    agreedQuantity: 5,
+    agreedTotal: 100,
+    currency: "CAD",
+  });
+  assert.equal(fee.marketplaceFeeMinor, 2500);
+  assert.equal(fee.marketplaceFee, 25);
+});
+
+test("rejects pipe sales whose total is below the minimum marketplace fee", () => {
+  assert.throws(() => calculateMarketplaceFeeSnapshot({
+    listing: {category: "Tubing"},
+    agreedQuantity: 5,
+    agreedTotal: 20,
+    currency: "CAD",
+  }), /minimum Pipe Buyer marketplace fee/);
+});
+
 test("caps very large pipe lots at five thousand dollars", () => {
   const fee = calculateMarketplaceFeeSnapshot({
     listing: {category: "Casing"},
@@ -34,16 +54,6 @@ test("caps very large pipe lots at five thousand dollars", () => {
     currency: "CAD",
   });
   assert.equal(fee.marketplaceFeeMinor, 500000);
-});
-
-test("percentage cap wins over the pipe minimum on very small-value sales", () => {
-  const fee = calculateMarketplaceFeeSnapshot({
-    listing: {category: "Tubing"},
-    agreedQuantity: 5,
-    agreedTotal: 100,
-    currency: "CAD",
-  });
-  assert.equal(fee.marketplaceFeeMinor, 300);
 });
 
 test("equipment fee uses launch percentage tiers", () => {
