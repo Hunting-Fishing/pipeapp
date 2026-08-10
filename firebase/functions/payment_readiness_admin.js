@@ -79,10 +79,15 @@ function validateReadiness(next, options = {}) {
         "Marketplace checkout requires production mode, Connect onboarding, verified webhooks, tax readiness, and reconciliation readiness.",
     );
   }
-  if (next.stripeSubscriptionsEnabled && next.stripeMode !== "production") {
+  if (next.stripeSubscriptionsEnabled && !(
+    next.stripeMode === "production" &&
+    next.stripeWebhookVerified &&
+    next.stripeTaxReady &&
+    next.stripeReconciliationReady
+  )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode.",
+        "Live Dispatch subscriptions require production mode, verified webhooks, tax readiness, and reconciliation readiness.",
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
