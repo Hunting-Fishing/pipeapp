@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - ".github/workflows/deploy-payment-readiness-control.yml"
+      - "firebase/functions/payment_readiness_admin.js"
+      - "firebase/functions/production_bootstrap.js"
+      - "firebase/functions/package.json"
+      - "firebase/functions/package-lock.json"
   workflow_dispatch:
 
 permissions:
