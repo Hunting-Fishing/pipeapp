@@ -184,8 +184,21 @@ function createStripeCheckoutCommands(admin) {
             "The server marketplace fee snapshot is not ready yet.",
         );
       }
+      const buyerUid = String(sale.buyerUid || "");
+      const sellerUid = String(sale.sellerUid || "");
+      const [buyerTaxProfile, sellerTaxProfile] = await Promise.all([
+        db.collection("business_tax_profiles").doc(buyerUid).get(),
+        db.collection("business_tax_profiles").doc(sellerUid).get(),
+      ]);
+      if ((buyerTaxProfile.exists && buyerTaxProfile.data().taxComplianceHold === true) ||
+          (sellerTaxProfile.exists && sellerTaxProfile.data().taxComplianceHold === true)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "A buyer or seller tax-compliance recovery hold must be resolved before online checkout.",
+        );
+      }
       const sellerProvider = await db.collection("payment_provider_accounts")
-          .doc(String(sale.sellerUid || "")).get();
+          .doc(sellerUid).get();
       if (!sellerProvider.exists || sellerProvider.data().transferStatus !== "active") {
         throw new HttpsError(
             "failed-precondition",
@@ -195,7 +208,7 @@ function createStripeCheckoutCommands(admin) {
       if (sellerProvider.data().sellerPayoutHold === true) {
         throw new HttpsError(
             "failed-precondition",
-            "The seller has an unresolved refund or dispute recovery hold.",
+            "The seller has an unresolved financial recovery hold.",
         );
       }
       const listingSnapshot = await db.collection("public_listings")
@@ -270,8 +283,8 @@ function createStripeCheckoutCommands(admin) {
           "payment_intent_data[metadata][pipeBuyerTransactionId]": transactionId,
           "metadata[pipeBuyerTransactionId]": transactionId,
           "metadata[listingId]": String(sale.listingId || ""),
-          "metadata[sellerUid]": String(sale.sellerUid || ""),
-          "metadata[buyerUid]": String(sale.buyerUid || ""),
+          "metadata[sellerUid]": sellerUid,
+          "metadata[buyerUid]": buyerUid,
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
           "metadata[taxCollectionStatus]": "registered",
           "metadata[taxPolicyVersion]": String(
