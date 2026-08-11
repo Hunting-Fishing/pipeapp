@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pipeapp/marketplace/industrial_icon_assets.dart';
+import 'package:pipe_app/marketplace/industrial_icon_assets.dart';
 
 void main() {
   group('Pipe Buyer marketplace artwork', () {
