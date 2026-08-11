@@ -51,7 +51,8 @@ abstract final class IndustrialIconAssets {
   static const semiTruck = '$_root/05-commercial-vehicles/01-semi-truck.svg';
   static const flatbedTrailer =
       '$_root/05-commercial-vehicles/02-flatbed-trailer.svg';
-  static const craneTruck = '$_root/05-commercial-vehicles/03-crane-truck.svg';
+  static const craneTruck =
+      '$_root/05-commercial-vehicles/03-crane-truck-pipebuyer.svg';
   static const pickupFlatbed =
       '$_root/05-commercial-vehicles/04-pickup-flatbed-truck.svg';
   static const vacuumTruck =
@@ -123,22 +124,22 @@ abstract final class IndustrialIconAssets {
       '$_root/09-software-and-administration/08-compliance-gavel.svg';
 
   static const crawlerExcavator =
-      '$_root/10-heavy-equipment/01-crawler-excavator.svg';
+      '$_root/10-heavy-equipment/01-crawler-excavator-pipebuyer.svg';
   static const miniExcavator =
-      '$_root/10-heavy-equipment/02-mini-excavator.svg';
-  static const wheelLoader = '$_root/10-heavy-equipment/03-wheel-loader.svg';
-  static const skidSteer = '$_root/10-heavy-equipment/04-skid-steer-loader.svg';
-  static const bulldozer = '$_root/10-heavy-equipment/05-bulldozer.svg';
-  static const motorGrader = '$_root/10-heavy-equipment/06-motor-grader.svg';
+      '$_root/10-heavy-equipment/02-mini-excavator.png';
+  static const wheelLoader = '$_root/10-heavy-equipment/03-wheel-loader.png';
+  static const skidSteer = '$_root/10-heavy-equipment/04-skid-steer-loader.png';
+  static const bulldozer = '$_root/10-heavy-equipment/05-bulldozer.png';
+  static const motorGrader = '$_root/10-heavy-equipment/06-motor-grader.png';
   static const warehouseForklift =
-      '$_root/10-heavy-equipment/07-warehouse-forklift.svg';
+      '$_root/10-heavy-equipment/07-warehouse-forklift.png';
   static const telehandler =
-      '$_root/10-heavy-equipment/08-rough-terrain-telehandler.svg';
+      '$_root/10-heavy-equipment/08-rough-terrain-telehandler-pipebuyer.svg';
 
   static const lowboyTrailer =
-      '$_root/11-heavy-haul-and-escort/01-lowboy-trailer.svg';
+      '$_root/11-heavy-haul-and-escort/01-lowboy-trailer-pipebuyer.svg';
   static const detachableGooseneck =
-      '$_root/11-heavy-haul-and-escort/02-detachable-gooseneck-lowboy.svg';
+      '$_root/11-heavy-haul-and-escort/01-lowboy-trailer-pipebuyer.svg';
   static const stepDeckTrailer =
       '$_root/11-heavy-haul-and-escort/03-step-deck-trailer.svg';
   static const extendableStepDeck =
@@ -325,6 +326,8 @@ abstract final class IndustrialIconAssets {
       '$_root/20-transport-and-dispatch-equipment/13-jeep-booster-combination.svg';
   static const specializedBedTruck =
       '$_root/20-transport-and-dispatch-equipment/14-specialized-bed-truck.svg';
+  static const dumpTruck =
+      '$_root/20-transport-and-dispatch-equipment/15-dump-truck-pipebuyer.svg';
 
   static const crewShack = '$_root/21-portable-buildings/01-crew-shack.svg';
   static const lunchroom = '$_root/21-portable-buildings/02-lunchroom.svg';
@@ -477,6 +480,10 @@ abstract final class IndustrialIconAssets {
     if (label.isEmpty) return null;
 
     if (label == 'pipe, tubing & materials') return pipeBundle;
+    if (label == 'transport & hauling') return dumpTruck;
+    if (label == 'oil & gas equipment') return pumpjack;
+    if (label == 'oilfield & drilling') return drillingRig;
+    if (label == 'site support') return lightTower;
 
     if (label == 'browse' ||
         _containsAny(label, ['browse marketplace', 'browse listings'])) {
@@ -656,6 +663,7 @@ abstract final class IndustrialIconAssets {
     if (_containsAny(label, ['tank skid'])) return tankSkid;
     if (_containsAny(label, ['water tank'])) return waterTank;
 
+    if (_containsAny(label, ['dump truck'])) return dumpTruck;
     if (_containsAny(label, ['pipe hauling truck', 'pipe hauling'])) {
       return pipeHaulingTruck;
     }
@@ -1008,23 +1016,37 @@ class IndustrialAssetIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final path = assetPath ?? IndustrialIconAssets.forLabel(label);
     if (path == null) return fallback;
+
+    final lowerPath = path.toLowerCase();
+    final artwork = lowerPath.endsWith('.svg')
+        ? SvgPicture.asset(
+            path,
+            width: size,
+            height: size,
+            fit: fit,
+            placeholderBuilder: (_) => SizedBox.square(
+              dimension: size,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            errorBuilder: (_, __, ___) => fallback,
+          )
+        : Image.asset(
+            path,
+            width: size,
+            height: size,
+            fit: fit,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, __, ___) => fallback,
+          );
+
     return Semantics(
       image: true,
       label: label == null ? 'Industrial category' : '$label illustration',
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: SvgPicture.asset(
-          path,
-          width: size,
-          height: size,
-          fit: fit,
-          placeholderBuilder: (_) => SizedBox.square(
-            dimension: size,
-            child:
-                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          ),
-          errorBuilder: (_, __, ___) => fallback,
-        ),
+        child: artwork,
       ),
     );
   }
