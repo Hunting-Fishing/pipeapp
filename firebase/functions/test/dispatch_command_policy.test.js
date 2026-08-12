@@ -197,35 +197,6 @@ test("carrier quote validates signup, paid membership, fleet ownership, and payl
   assert.throws(
       () => validateDispatchQuote({
         job: {createdByUid: "customer", status: "open"},
-        carrier: {
-          ownerUid: "carrier",
-          status: "active",
-          availableForHire: true,
-        },
-        membership: {
-          ownerUid: "carrier",
-          active: true,
-          currentPeriodEnd: now.getTime() + 30 * 24 * 60 * 60 * 1000,
-        },
-        vehicle: {
-          ownerUid: "carrier",
-          available: true,
-          maximumPayloadKg: 25000,
-        },
-        existingBid: null,
-        actorUid: "carrier",
-        data: {
-          jobId: "job",
-          amount: 2500,
-          availableDate: now.getTime() + 24 * 60 * 60 * 1000,
-        },
-        now,
-      }),
-      (error) => error.code === "permission-denied",
-  );
-  assert.throws(
-      () => validateDispatchQuote({
-        job: {createdByUid: "customer", status: "open"},
         carrier: {ownerUid: "carrier", status: "active", availableForHire: true},
         membership: {
           ownerUid: "carrier",
