@@ -186,7 +186,7 @@ void main() {
         .whereType<File>()
         .where((file) => file.path.toLowerCase().endsWith('.svg'))
         .toList();
-    expect(files, hasLength(259));
+    expect(files, hasLength(264));
   });
 
   testWidgets('representative industrial SVGs render through Flutter',
@@ -218,7 +218,7 @@ void main() {
     expect(find.byType(IndustrialAssetIcon), findsNWidgets(10));
   });
 
-  testWidgets('all 56 expansion SVGs render through Flutter', (tester) async {
+  testWidgets('all 59 expansion SVGs render through Flutter', (tester) async {
     final paths = <String>[];
     for (var folder = 10; folder <= 15; folder++) {
       final directory = Directory('assets/images/industrial_icons')
@@ -234,7 +234,7 @@ void main() {
           .where((file) => file.path.toLowerCase().endsWith('.svg'))
           .map((file) => file.path.replaceAll(Platform.pathSeparator, '/')));
     }
-    expect(paths, hasLength(56));
+    expect(paths, hasLength(59));
 
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
@@ -250,10 +250,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(IndustrialAssetIcon), findsNWidgets(56));
+    expect(find.byType(IndustrialAssetIcon), findsNWidgets(59));
   });
 
-  testWidgets('all 131 Phase 2 SVGs render through Flutter', (tester) async {
+  testWidgets('all 132 Phase 2 SVGs render through Flutter', (tester) async {
     final paths = <String>[];
     for (var folder = 16; folder <= 25; folder++) {
       final directory = Directory('assets/images/industrial_icons')
@@ -269,7 +269,7 @@ void main() {
           .where((file) => file.path.toLowerCase().endsWith('.svg'))
           .map((file) => file.path.replaceAll(Platform.pathSeparator, '/')));
     }
-    expect(paths, hasLength(131));
+    expect(paths, hasLength(132));
 
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
@@ -285,6 +285,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(IndustrialAssetIcon), findsNWidgets(131));
+    expect(find.byType(IndustrialAssetIcon), findsNWidgets(132));
   });
 }
