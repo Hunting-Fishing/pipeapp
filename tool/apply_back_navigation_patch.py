@@ -13,13 +13,55 @@ def replace_once(path, old, new):
 messages = 'lib/marketplace/marketplace_messages_page.dart'
 replace_once(
     messages,
+    "  @override\n"
+    "  Widget build(BuildContext context) {\n"
+    "    final uid = FirebaseAuth.instance.currentUser?.uid;\n"
+    "    if (uid == null) return _SignedOutMessages();\n"
     "    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(\n",
-    "    return Column(\n      children: [\n        Container(\n          width: double.infinity,\n          padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),\n          child: Row(\n            children: [\n              IconButton(\n                tooltip: 'Back',\n                onPressed: () =>\n                    context.canPop() ? context.pop() : context.go('/'),\n                icon: const Icon(Icons.arrow_back),\n              ),\n              const SizedBox(width: 4),\n              const Expanded(\n                child: Text(\n                  'Forum & Messages',\n                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),\n                ),\n              ),\n            ],\n          ),\n        ),\n        Expanded(\n          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(\n",
+    "  @override\n"
+    "  Widget build(BuildContext context) {\n"
+    "    final uid = FirebaseAuth.instance.currentUser?.uid;\n"
+    "    if (uid == null) return _SignedOutMessages();\n"
+    "    return Column(\n"
+    "      children: [\n"
+    "        Container(\n"
+    "          width: double.infinity,\n"
+    "          padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),\n"
+    "          child: Row(\n"
+    "            children: [\n"
+    "              IconButton(\n"
+    "                tooltip: 'Back',\n"
+    "                onPressed: () =>\n"
+    "                    context.canPop() ? context.pop() : context.go('/'),\n"
+    "                icon: const Icon(Icons.arrow_back),\n"
+    "              ),\n"
+    "              const SizedBox(width: 4),\n"
+    "              const Expanded(\n"
+    "                child: Text(\n"
+    "                  'Forum & Messages',\n"
+    "                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),\n"
+    "                ),\n"
+    "              ),\n"
+    "            ],\n"
+    "          ),\n"
+    "        ),\n"
+    "        Expanded(\n"
+    "          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(\n",
 )
 replace_once(
     messages,
-    "      },\n    );\n  }\n}\n\nclass _ActivityLimitNotice",
-    "      },\n    )),\n      ],\n    );\n  }\n}\n\nclass _ActivityLimitNotice",
+    "      },\n"
+    "    );\n"
+    "  }\n"
+    "}\n\n"
+    "class _ActivityLimitNotice",
+    "      },\n"
+    "    )),\n"
+    "      ],\n"
+    "    );\n"
+    "  }\n"
+    "}\n\n"
+    "class _ActivityLimitNotice",
 )
 
 # Standalone onboarding/admin windows must not suppress the route back button.
