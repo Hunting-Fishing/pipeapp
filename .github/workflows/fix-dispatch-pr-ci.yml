@@ -1,0 +1,36 @@
+name: Fix Dispatch PR CI
+
+on:
+  push:
+    branches:
+      - feat/dispatch-open-signup-membership-pilot
+    paths:
+      - ".github/workflows/fix-dispatch-pr-ci.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: feat/dispatch-open-signup-membership-pilot
+          fetch-depth: 0
+      - name: Apply CI repair
+        run: python3 tool/fix_dispatch_pr_ci.py
+      - name: Check diff
+        run: git diff --check
+      - name: Commit repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Pipe Buyer CI"
+          git config user.email "103216816+Hunting-Fishing@users.noreply.github.com"
+          git add firebase lib test tool
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "test: align Dispatch quote policy with paid membership gate"
+          git push origin HEAD:feat/dispatch-open-signup-membership-pilot
