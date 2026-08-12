@@ -18,7 +18,6 @@ const {
 const {
   createAccountVerificationCommands,
 } = require("../account_verification_commands");
-const {createDispatchCommands} = require("../dispatch_commands");
 const {createModerationCommands} = require("../moderation_commands");
 const {
   createPolicyAcceptanceCommands,
@@ -66,10 +65,6 @@ const commandFirestore = Object.assign(
     {FieldValue, GeoPoint, Timestamp},
 );
 const accountVerificationCommands = createAccountVerificationCommands({
-  firestore: commandFirestore,
-  auth: () => auth,
-});
-const dispatchCommands = createDispatchCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
