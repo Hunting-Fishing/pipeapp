@@ -11,6 +11,7 @@ import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_repository.dart';
+import 'marketplace_dispatch_access.dart';
 import 'marketplace_dispatch_distance.dart';
 import 'marketplace_money.dart';
 import 'marketplace_service_area.dart';
@@ -356,108 +357,108 @@ class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
   final repo = MarketplaceDispatchRepository();
   int section = 0;
 
+  void _back(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (FirebaseAuth.instance.currentUser == null) {
       return const Center(child: Text('Sign in to use Dispatch.'));
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: repo.carrierProfile(),
+      builder: (context, carrierSnapshot) {
+        if (carrierSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final joined = dispatchAccountIsActive(carrierSnapshot.data?.data());
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 12, 18, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Dispatch',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                          ),
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Back',
+                        onPressed: () => _back(context),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                      const SizedBox(width: 4),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Dispatch',
+                                style: TextStyle(
+                                    fontSize: 28, fontWeight: FontWeight.w900)),
+                            Text(
+                              'Professional trucking services, load opportunities and carrier bids.',
+                            ),
+                          ],
                         ),
-                        Text(
-                          'Professional trucking services, load opportunities and carrier bids.',
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 12),
+                      const IndustrialAssetIcon(
+                        label: 'Dispatch load board',
+                        assetPath: IndustrialIconAssets.dispatchLoadBoard,
+                        size: 62,
+                        borderRadius: 12,
+                        fallback: Icon(Icons.local_shipping_outlined,
+                            size: 42, color: Color(0xFF0878E8)),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 12),
-                  IndustrialAssetIcon(
-                    label: 'Dispatch load board',
-                    assetPath: IndustrialIconAssets.dispatchLoadBoard,
-                    size: 62,
-                    borderRadius: 12,
-                    fallback: Icon(
-                      Icons.local_shipping_outlined,
-                      size: 42,
-                      color: Color(0xFF0878E8),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SegmentedButton<int>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: 0,
-                      icon: Icon(Icons.dashboard_outlined),
-                      label: Text('Dashboard'),
-                    ),
-                    ButtonSegment(
-                      value: 1,
-                      icon: Icon(Icons.local_shipping_outlined),
-                      label: Text('Jobs'),
-                    ),
-                    ButtonSegment(
-                      value: 2,
-                      icon: Icon(Icons.add_road_outlined),
-                      label: Text('Post'),
-                    ),
-                    ButtonSegment(
-                      value: 3,
-                      icon: Icon(Icons.local_shipping_outlined),
-                      label: Text('Signup'),
-                    ),
-                    ButtonSegment(
-                      value: 4,
-                      icon: Icon(Icons.assistant_direction_outlined),
-                      label: Text('Pilot'),
+                  if (joined) ...[
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SegmentedButton<int>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(value: 0, icon: Icon(Icons.dashboard_outlined), label: Text('Dashboard')),
+                          ButtonSegment(value: 1, icon: Icon(Icons.local_shipping_outlined), label: Text('Jobs')),
+                          ButtonSegment(value: 2, icon: Icon(Icons.add_road_outlined), label: Text('Post')),
+                          ButtonSegment(value: 3, icon: Icon(Icons.workspace_premium_outlined), label: Text('Membership')),
+                          ButtonSegment(value: 4, icon: Icon(Icons.assistant_direction_outlined), label: Text('Pilot')),
+                        ],
+                        selected: {section},
+                        onSelectionChanged: (value) =>
+                            setState(() => section = value.first),
+                      ),
                     ),
                   ],
-                  selected: {section},
-                  onSelectionChanged: (value) =>
-                      setState(() => section = value.first),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: section == 0
-              ? MarketplaceDispatchDashboard(
-                  repo: repo,
-                  onPostLoad: () => setState(() => section = 2),
-                  onBrowseJobs: () => setState(() => section = 1),
-                  onJoinCarrier: () => setState(() => section = 3),
-                )
-              : section == 1
-                  ? _JobBoard(repo: repo)
-                  : section == 2
-                      ? _PostJob(repo: repo)
-                      : section == 3
-                          ? _CarrierEnrollment(repo: repo)
-                          : _PilotTruckSection(repo: repo),
-        ),
-      ],
+            ),
+            Expanded(
+              child: !joined
+                  ? _CarrierEnrollment(repo: repo)
+                  : section == 0
+                      ? MarketplaceDispatchDashboard(
+                          repo: repo,
+                          onPostLoad: () => setState(() => section = 2),
+                          onBrowseJobs: () => setState(() => section = 1),
+                          onJoinCarrier: () => setState(() => section = 3),
+                        )
+                      : section == 1
+                          ? _JobBoard(repo: repo)
+                          : section == 2
+                              ? _PostJob(repo: repo)
+                              : section == 3
+                                  ? _CarrierEnrollment(repo: repo)
+                                  : _PilotTruckSection(repo: repo),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -477,6 +478,8 @@ class _PilotTruckSection extends StatelessWidget {
           const Text(
             'Find or provide pilot and escort support for oversize and specialized loads.',
           ),
+          const SizedBox(height: 12),
+          const DispatchPilotRequestCard(),
           const SizedBox(height: 12),
           const Card(
             color: Color(0xFFFFF4E5),
@@ -2283,13 +2286,9 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
       StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: widget.repo.carrierProfile(),
         builder: (context, snapshot) {
-          final signedUp = snapshot.data?.exists == true;
           final carrierData = snapshot.data?.data();
-          final storedStatus = '${carrierData?['status'] ?? ''}';
-          final effectiveStatus = storedStatus == 'active' &&
-                  carrierData?['providerReviewVersion'] != 1
-              ? 'review_required'
-              : storedStatus;
+          final signedUp = dispatchAccountIsActive(carrierData);
+          final effectiveStatus = '${carrierData?['status'] ?? ''}';
           return ListView(
             padding: const EdgeInsets.all(18),
             children: [
@@ -2313,10 +2312,13 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                 ),
               ),
               const SizedBox(height: 12),
+              const DispatchSignupEligibilityCard(),
+              const SizedBox(height: 10),
               if (!signedUp || editingApplication)
                 _signupForm()
               else ...[
                 _accountSummary(snapshot.data!.data()!),
+                const DispatchMembershipCard(),
                 _providerReviewHistory(),
                 if (const {
                   'changes_requested',
@@ -2342,7 +2344,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                       setState(() => editingApplication = true);
                     },
                     icon: const Icon(Icons.edit_note_outlined),
-                    label: const Text('Update and resubmit application'),
+                    label: const Text('Update Dispatch signup'),
                   ),
                 ],
                 const SizedBox(height: 18),
@@ -2379,21 +2381,24 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
           children: [
             for (final field in [
               (operating, 'Public operating name', Icons.storefront_outlined),
-              (legal, 'Company name', Icons.business_outlined),
+              (legal, 'Company / team name (optional)', Icons.business_outlined),
               (email, 'Dispatch email', Icons.email_outlined),
             ]) ...[
               TextFormField(
                 controller: field.$1,
                 readOnly: identical(field.$1, email),
                 decoration: InputDecoration(
-                  labelText: '${field.$2} *',
+                  labelText:
+                      '${field.$2}${identical(field.$1, operating) ? ' *' : ''}',
                   prefixIcon: Icon(field.$3),
                   helperText: identical(field.$1, email)
                       ? 'Uses the email verified on your Pipe account.'
                       : null,
                 ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
+                validator: (v) => identical(field.$1, operating) &&
+                        (v == null || v.trim().isEmpty)
+                    ? 'Required'
+                    : null,
               ),
               const SizedBox(height: 10),
             ],
@@ -2401,13 +2406,11 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
               controller: phone,
               readOnly: true,
               decoration: const InputDecoration(
-                labelText: 'Verified Dispatch phone *',
+                labelText: 'Verified Dispatch phone',
                 prefixIcon: Icon(Icons.phone_outlined),
-                helperText: 'Uses the mobile number verified on your account.',
+                helperText:
+                    'Either verified email or verified mobile is enough for Dispatch signup.',
               ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Verify a mobile number in Account Settings first.'
-                  : null,
             ),
             const SizedBox(height: 10),
             ListTile(
@@ -2432,6 +2435,18 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
               onPressed: submitting
                   ? null
                   : () async {
+                      final authUser = FirebaseAuth.instance.currentUser;
+                      final verifiedContact = authUser?.emailVerified == true ||
+                          (authUser?.phoneNumber ?? '').trim().isNotEmpty;
+                      if (!verifiedContact) {
+                        PipeFeedback.show(
+                          context,
+                          message:
+                              'Verify either your email or phone number before joining Dispatch.',
+                          tone: PipeStatusTone.warning,
+                        );
+                        return;
+                      }
                       if (!form.currentState!.validate() || area == null) {
                         PipeFeedback.show(
                           context,
@@ -2455,8 +2470,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                           PipeFeedback.show(
                             context,
                             message:
-                                'Dispatch application submitted for administrator review.',
-                            tone: PipeStatusTone.info,
+                                'Dispatch signup complete. You can now view jobs; an active membership is required only before bidding.',
+                            tone: PipeStatusTone.success,
                           );
                         }
                       } on FirebaseException catch (error) {
@@ -2485,8 +2500,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                   : const Icon(Icons.check_circle_outline),
               label: Text(
                 submitting
-                    ? 'Submitting Dispatch application…'
-                    : 'Submit for review',
+                    ? 'Joining Dispatch…'
+                    : 'Join Dispatch',
               ),
               style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(50)),
@@ -2510,13 +2525,9 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
       );
 
   Widget _accountSummary(Map<String, dynamic> data) {
-    final storedStatus = '${data['status'] ?? 'pending_review'}';
-    final status =
-        storedStatus == 'active' && data['providerReviewVersion'] != 1
-            ? 'review_required'
-            : storedStatus;
+    final status = '${data['status'] ?? 'active'}';
     final statusLabel = switch (status) {
-      'active' => 'APPROVED',
+      'active' => 'JOINED',
       'changes_requested' => 'CHANGES NEEDED',
       'rejected' => 'NOT APPROVED',
       'suspended' => 'SUSPENDED',
@@ -2561,7 +2572,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
           return Card(
             child: ExpansionTile(
               leading: const Icon(Icons.history_outlined),
-              title: const Text('Application history'),
+              title: const Text('Dispatch signup history'),
               subtitle: Text('${events.length} recorded event(s)'),
               children: [
                 if (snapshot.hasError)

@@ -18,7 +18,6 @@ const {
 const {
   createAccountVerificationCommands,
 } = require("../account_verification_commands");
-const {createDispatchCommands} = require("../dispatch_commands");
 const {createModerationCommands} = require("../moderation_commands");
 const {
   createPolicyAcceptanceCommands,
@@ -66,10 +65,6 @@ const commandFirestore = Object.assign(
     {FieldValue, GeoPoint, Timestamp},
 );
 const accountVerificationCommands = createAccountVerificationCommands({
-  firestore: commandFirestore,
-  auth: () => auth,
-});
-const dispatchCommands = createDispatchCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
@@ -304,6 +299,9 @@ try {
     }),
     db.doc(`users/${buyer.uid}`).set({
       displayName: "Production Buyer",
+      display_name: "Production Buyer",
+      baseCommunity: "Grande Prairie, Alberta",
+      sellerBio: "Integration Dispatch customer posting regional transport work.",
       userScore: 90,
       profileCompletion: 100,
       accountVerified: true,
@@ -311,6 +309,9 @@ try {
     }),
     db.doc(`users/${carrier.uid}`).set({
       displayName: "Production Carrier",
+      display_name: "Production Carrier",
+      baseCommunity: "Dawson Creek, British Columbia",
+      sellerBio: "Integration carrier providing regional trucking services.",
       userScore: 90,
       profileCompletion: 100,
       accountVerified: true,
@@ -416,28 +417,36 @@ try {
       providerRequest,
   );
   assert.deepEqual(providerRetry, providerFirst);
-  assert.equal(providerFirst.status, "pending_review");
-  assert.equal(
-      (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data().status,
-      "pending_review",
-  );
-  const providerReviewRequest = {
-    auth: reviewRequest.auth,
-    data: {
-      requestId: `dispatch-provider-review-${now}`,
-      providerUid: carrier.uid,
-      decision: "approved",
-      reason: "Verified public operating information and service coverage.",
+  assert.equal(providerFirst.status, "active");
+  assert.ok(providerFirst.profileCompletion >= 70);
+  const carrierProfile = (
+    await db.doc(`dispatch_carriers/${carrier.uid}`).get()
+  ).data();
+  assert.equal(carrierProfile.status, "active");
+  assert.ok(carrierProfile.profileCompletionAtSignup >= 70);
+  assert.match(carrierProfile.verifiedContactMethod, /email|phone/);
+
+  const dispatchCustomerRequest = {
+    requestId: `dispatch-customer-${now}`,
+    operatingName: "Production Buyer Dispatch",
+    serviceAreaLabel: "Grande Prairie and within 250 km",
+    serviceArea: {
+      mode: "radius",
+      center: {latitude: 55.1707, longitude: -118.7947},
+      centerLabel: "Grande Prairie, Alberta",
+      radiusKm: 250,
+      places: [],
     },
   };
-  const providerReviewFirst = await dispatchCommands
-      .reviewDispatchProvider(providerReviewRequest);
-  const providerReviewRetry = await dispatchCommands
-      .reviewDispatchProvider(providerReviewRequest);
-  assert.deepEqual(providerReviewRetry, providerReviewFirst);
-  assert.equal(providerReviewFirst.status, "active");
+  const dispatchCustomer = await call(
+      "submitDispatchProviderApplication",
+      buyer.token,
+      dispatchCustomerRequest,
+  );
+  assert.equal(dispatchCustomer.status, "active");
+  assert.ok(dispatchCustomer.profileCompletion >= 70);
   assert.equal(
-      (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data().status,
+      (await db.doc(`dispatch_carriers/${buyer.uid}`).get()).data().status,
       "active",
   );
   await assertCollectionSize("account_phone_registry", 3);
@@ -1547,6 +1556,17 @@ try {
       publishData,
   );
   assert.deepEqual(publishRetry, publishFirst);
+
+  await db.doc(`dispatch_memberships/${carrier.uid}`).set({
+    ownerUid: carrier.uid,
+    active: true,
+    status: "active",
+    plan: "monthly",
+    currentPeriodStart: Timestamp.fromMillis(now - 1000),
+    currentPeriodEnd: Timestamp.fromMillis(
+        now + 30 * 24 * 60 * 60 * 1000,
+    ),
+  });
 
   const quoteData = {
     requestId: `quote-${now}`,

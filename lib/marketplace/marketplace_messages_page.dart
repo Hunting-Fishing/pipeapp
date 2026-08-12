@@ -58,7 +58,31 @@ class MarketplaceMessagesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return _SignedOutMessages();
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Back',
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/'),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              const SizedBox(width: 4),
+              const Expanded(
+                child: Text(
+                  'Forum & Messages',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('conversations')
           .where('memberUids', arrayContains: uid)
@@ -130,6 +154,8 @@ class MarketplaceMessagesPage extends StatelessWidget {
           Expanded(child: list),
         ]);
       },
+    )),
+      ],
     );
   }
 }

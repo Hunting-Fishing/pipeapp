@@ -104,7 +104,7 @@ class _MarketplaceAccountSecurityPageState
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.onboarding ? 'Verify your account' : 'Security'),
-        automaticallyImplyLeading: !widget.onboarding,
+        automaticallyImplyLeading: true,
       ),
       body: Center(
         child: SingleChildScrollView(

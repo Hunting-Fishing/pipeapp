@@ -50,7 +50,7 @@ void main() {
     expect(browseCount, 1);
   });
 
-  testWidgets('Dispatch onboarding discloses workflow pricing and notifications',
+  testWidgets('Dispatch onboarding discloses membership and signup requirements',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(700, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -62,19 +62,21 @@ void main() {
     ));
 
     await tester.scrollUntilVisible(
-      find.text(r'$25 per year'),
+      find.text(r'CAD $25 per month'),
       500,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text(r'$25 per year'), findsOneWidget);
-    expect(find.text(r'$10 per dispatched job'), findsOneWidget);
-    expect(find.text('Paid to Pipe Buyer'), findsOneWidget);
+    expect(find.text('Dispatch membership pricing'), findsOneWidget);
+    expect(find.text(r'CAD $25 per month'), findsOneWidget);
+    expect(find.text(r'CAD $300 per year'), findsOneWidget);
+    expect(find.text('Monthly carrier bidding membership'), findsOneWidget);
+    expect(find.text('Yearly carrier bidding membership'), findsOneWidget);
     expect(
-      find.textContaining('paid to Pipe Buyer for each dispatched job'),
+      find.textContaining('Joining Dispatch is free'),
       findsOneWidget,
     );
     expect(
-      find.textContaining('Billing and fee collection are not active'),
+      find.textContaining('membership is required only before a carrier submits a bid'),
       findsOneWidget,
     );
 
@@ -91,7 +93,10 @@ void main() {
       400,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Carrier profile requirements'), findsOneWidget);
+    expect(find.text('Dispatch signup requirements'), findsOneWidget);
+    expect(find.textContaining('at least 70%'), findsOneWidget);
+    expect(find.textContaining('either their email or mobile number'), findsOneWidget);
+    expect(find.text('Join Dispatch'), findsOneWidget);
     expect(find.text('View open jobs'), findsOneWidget);
   });
 }
