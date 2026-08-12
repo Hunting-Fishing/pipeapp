@@ -299,6 +299,9 @@ try {
     }),
     db.doc(`users/${buyer.uid}`).set({
       displayName: "Production Buyer",
+      display_name: "Production Buyer",
+      baseCommunity: "Grande Prairie, Alberta",
+      sellerBio: "Integration Dispatch customer posting regional transport work.",
       userScore: 90,
       profileCompletion: 100,
       accountVerified: true,
@@ -422,6 +425,30 @@ try {
   assert.equal(carrierProfile.status, "active");
   assert.ok(carrierProfile.profileCompletionAtSignup >= 70);
   assert.match(carrierProfile.verifiedContactMethod, /email|phone/);
+
+  const dispatchCustomerRequest = {
+    requestId: `dispatch-customer-${now}`,
+    operatingName: "Production Buyer Dispatch",
+    serviceAreaLabel: "Grande Prairie and within 250 km",
+    serviceArea: {
+      mode: "radius",
+      center: {latitude: 55.1707, longitude: -118.7947},
+      centerLabel: "Grande Prairie, Alberta",
+      radiusKm: 250,
+      places: [],
+    },
+  };
+  const dispatchCustomer = await call(
+      "submitDispatchProviderApplication",
+      buyer.token,
+      dispatchCustomerRequest,
+  );
+  assert.equal(dispatchCustomer.status, "active");
+  assert.ok(dispatchCustomer.profileCompletion >= 70);
+  assert.equal(
+      (await db.doc(`dispatch_carriers/${buyer.uid}`).get()).data().status,
+      "active",
+  );
   await assertCollectionSize("account_phone_registry", 3);
   assert.deepEqual(
       await call("syncAccountVerification", unverified.token, {}),
@@ -1529,6 +1556,17 @@ try {
       publishData,
   );
   assert.deepEqual(publishRetry, publishFirst);
+
+  await db.doc(`dispatch_memberships/${carrier.uid}`).set({
+    ownerUid: carrier.uid,
+    active: true,
+    status: "active",
+    plan: "monthly",
+    currentPeriodStart: Timestamp.fromMillis(now - 1000),
+    currentPeriodEnd: Timestamp.fromMillis(
+        now + 30 * 24 * 60 * 60 * 1000,
+    ),
+  });
 
   const quoteData = {
     requestId: `quote-${now}`,
