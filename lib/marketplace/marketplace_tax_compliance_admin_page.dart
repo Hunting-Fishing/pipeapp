@@ -216,7 +216,7 @@ class _MarketplaceTaxComplianceAdminPageState
               mainAxisSize: MainAxisSize.min,
               children: [
                 AppBar(
-                  automaticallyImplyLeading: false,
+                  automaticallyImplyLeading: true,
                   title: const Text('Private tax evidence'),
                   actions: [
                     IconButton(

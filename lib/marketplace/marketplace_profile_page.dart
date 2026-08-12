@@ -340,7 +340,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Complete your profile'),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
       ),
       body: SafeArea(child: content),
     );
