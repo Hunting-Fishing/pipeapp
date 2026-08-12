@@ -26,6 +26,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # This one-shot migration is removed before merge.
           git config user.name "Pipe Buyer CI"
           git config user.email "103216816+Hunting-Fishing@users.noreply.github.com"
           git add lib tool
