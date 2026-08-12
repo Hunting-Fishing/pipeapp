@@ -18,20 +18,20 @@ jobs:
         with:
           ref: feat/dispatch-open-signup-membership-pilot
           fetch-depth: 0
-      - name: Apply deterministic migration
-        run: python3 tool/apply_dispatch_open_signup_patch.py
+      - name: Apply explicit back navigation
+        run: python3 tool/apply_back_navigation_patch.py
       - name: Validate patch whitespace
         run: git diff --check
-      - name: Commit migration
+      - name: Commit navigation patch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "Pipe Buyer CI"
           git config user.email "103216816+Hunting-Fishing@users.noreply.github.com"
-          git add firebase lib test .github tool
+          git add lib tool
           if git diff --cached --quiet; then
-            echo "No migration changes were produced."
+            echo "No navigation changes were produced."
             exit 0
           fi
-          git commit -m "feat: open Dispatch signup and require paid bidding membership"
+          git commit -m "fix: add back navigation to Dispatch and Forum windows"
           git push origin HEAD:feat/dispatch-open-signup-membership-pilot
