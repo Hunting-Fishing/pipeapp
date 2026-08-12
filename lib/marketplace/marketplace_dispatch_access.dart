@@ -323,9 +323,13 @@ class _DispatchPilotRequestCardState extends State<DispatchPilotRequestCard> {
     if (submitted == null || !mounted) return;
     setState(() => _submitting = true);
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'dispatch';
       final result = await _commands.execute(
         'createDispatchPilotRequest',
-        submitted,
+        {
+          ...submitted,
+          'requestId': '${uid}_${DateTime.now().microsecondsSinceEpoch}',
+        },
         timeout: const Duration(seconds: 45),
       );
       if (!mounted) return;

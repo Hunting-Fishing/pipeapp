@@ -48,6 +48,48 @@ function requireAuth(request) {
   return requireAuthenticatedIdentity(request).uid;
 }
 
+function nonEmpty(value) {
+  return String(value || "").trim().length > 0;
+}
+
+function dispatchSignupCompletion({identity, user, seller, business, privateBusiness}) {
+  const accountType = user && user.accountType === "business" ?
+    "business" : "personal";
+  const fields = accountType === "business" ? [
+    business && business.publicName,
+    privateBusiness && privateBusiness.legalName,
+    business && business.publicPhone,
+    business && business.publicEmail,
+    business && business.website,
+    business && (business.serviceArea || business.serviceAreaLabel),
+    privateBusiness && privateBusiness.privateAddress,
+    business && business.description,
+  ] : [
+    user && (user.display_name || seller && seller.displayName),
+    user && (user.verifiedPhoneE164 || user.pendingPhoneE164 ||
+      user.phone_number) || identity.phoneNumber,
+    user && (user.primaryCommunityLocation || user.baseCommunity) ||
+      seller && seller.baseCommunity,
+    user && user.sellerBio || seller && seller.description,
+  ];
+  const completed = fields.filter((value) => {
+    if (value && typeof value === "object") return true;
+    return nonEmpty(value);
+  }).length;
+  return Math.round(completed / fields.length * 100);
+}
+
+async function requireActiveDispatchAccount(db, uid) {
+  const snapshot = await db.collection("dispatch_carriers").doc(uid).get();
+  if (!snapshot.exists || snapshot.data().status !== "active") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Join Dispatch before viewing or posting Dispatch opportunities.",
+    );
+  }
+  return snapshot.data();
+}
+
 function command(handler) {
   return async (request) => {
     try {
@@ -172,136 +214,92 @@ function createDispatchCommands(admin) {
     })),
   });
 
-  async function notifyAdministratorsOfProvider(profile, revision) {
-    const roles = await db.collection("administrator_roles")
-        .where("active", "==", true)
-        .get();
-    if (roles.empty) {
-      console.warn(
-          `Dispatch provider ${profile.ownerUid} submitted without an active administrator`,
-      );
-      return;
-    }
-    const batch = db.batch();
-    for (const role of roles.docs) {
-      batch.set(
-          db.collection("users").doc(role.id).collection("notifications")
-              .doc(`dispatch-provider-${profile.ownerUid}-${revision}`),
-          {
-            recipientUid: role.id,
-            type: "dispatch_provider_submitted",
-            title: "Dispatch provider ready for review",
-            message: `${profile.operatingName} submitted a provider application.`,
-            providerUid: profile.ownerUid,
-            revision,
-            read: false,
-            createdAt: FieldValue.serverTimestamp(),
-          },
-      );
-    }
-    await batch.commit();
-  }
-
   const submitDispatchProviderApplication = dispatchCommand(async (request) => {
     const identity = requireAuthenticatedIdentity(request);
     const requestId = requiredId(request.data, "requestId");
-    const profile = validateDispatchProviderApplication(
-        request.data,
-        identity,
-    );
+    const profile = validateDispatchProviderApplication(request.data, identity);
+    const [userSnapshot, sellerSnapshot, businessSnapshot, privateBusinessSnapshot] =
+      await Promise.all([
+        db.collection("users").doc(identity.uid).get(),
+        db.collection("public_seller_profiles").doc(identity.uid).get(),
+        db.collection("public_business_profiles").doc(identity.uid).get(),
+        db.collection("business_private").doc(identity.uid).get(),
+      ]);
+    const completion = dispatchSignupCompletion({
+      identity,
+      user: userSnapshot.exists ? userSnapshot.data() : {},
+      seller: sellerSnapshot.exists ? sellerSnapshot.data() : {},
+      business: businessSnapshot.exists ? businessSnapshot.data() : {},
+      privateBusiness: privateBusinessSnapshot.exists ? privateBusinessSnapshot.data() : {},
+    });
+    if (completion < 70) {
+      throw new HttpsError(
+          "failed-precondition",
+          `Complete at least 70% of your Pipe Buyer profile before joining Dispatch. Current completion: ${completion}%.`,
+      );
+    }
     const carrierRef = db.collection("dispatch_carriers").doc(identity.uid);
     const receiptRef = receiptReference(
-        db,
-        identity.uid,
-        "submitDispatchProviderApplication",
-        requestId,
+        db, identity.uid, "submitDispatchProviderApplication", requestId,
     );
-    const result = await db.runTransaction(async (transaction) => {
+    return db.runTransaction(async (transaction) => {
       const [receipt, carrierSnapshot] = await Promise.all([
         transaction.get(receiptRef),
         transaction.get(carrierRef),
       ]);
       if (receipt.exists) return receipt.data().result;
       const current = carrierSnapshot.exists ? carrierSnapshot.data() : {};
-      if (current.status === "pending_review") {
-        const pending = {
-          providerUid: identity.uid,
-          status: "pending_review",
-          revision: Number(current.reviewRevision || 1),
-          submitted: false,
-        };
-        transaction.create(receiptRef, {
-          actorUid: identity.uid,
-          command: "submitDispatchProviderApplication",
-          result: pending,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-        return pending;
-      }
-      const revision = Number(current.reviewRevision || 0) + 1;
-      const submitted = {
+      const revision = Number(current.signupRevision || current.reviewRevision || 0) + 1;
+      const result = {
         providerUid: identity.uid,
-        status: "pending_review",
+        status: "active",
         revision,
         submitted: true,
+        profileCompletion: completion,
       };
+      const verifiedContactMethod = identity.email && identity.phoneNumber ?
+        "email_and_phone" : identity.email ? "email" : "phone";
       transaction.set(carrierRef, {
         ownerUid: identity.uid,
         ...profile,
         serviceArea: providerServiceAreaValue(profile.serviceArea),
         phone: profile.phoneE164,
-        status: "pending_review",
-        availableForHire: false,
-        providerReviewVersion: FieldValue.delete(),
-        reviewRevision: revision,
+        status: "active",
+        availableForHire: true,
+        signupVersion: 2,
+        signupRevision: revision,
+        profileCompletionAtSignup: completion,
+        verifiedContactMethod,
         privacyVersion: 3,
-        submittedAt: FieldValue.serverTimestamp(),
+        joinedAt: current.joinedAt || FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
+        providerReviewVersion: FieldValue.delete(),
+        reviewReason: FieldValue.delete(),
         reviewedAt: FieldValue.delete(),
         reviewedByUid: FieldValue.delete(),
-        reviewReason: FieldValue.delete(),
-        ...(carrierSnapshot.exists ? {} : {
-          createdAt: FieldValue.serverTimestamp(),
-        }),
+        ...(carrierSnapshot.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
       }, {merge: true});
       transaction.create(
           db.collection("dispatch_provider_review_events")
-              .doc(`${identity.uid}-${revision}-submitted`),
+              .doc(`${identity.uid}-${revision}-joined`),
           {
             providerUid: identity.uid,
             revision,
-            event: "submitted",
-            status: "pending_review",
+            event: "joined",
+            status: "active",
             actorUid: identity.uid,
+            profileCompletion: completion,
             createdAt: FieldValue.serverTimestamp(),
           },
       );
       transaction.create(receiptRef, {
         actorUid: identity.uid,
         command: "submitDispatchProviderApplication",
-        result: submitted,
+        result,
         createdAt: FieldValue.serverTimestamp(),
       });
-      return submitted;
+      return result;
     });
-    if (result.submitted) {
-      try {
-        await notifyAdministratorsOfProvider(
-            {ownerUid: identity.uid, ...profile},
-            result.revision,
-        );
-      } catch (error) {
-        // The durable pending-review record remains visible in the admin
-        // queue. A transient notification failure must not tell the provider
-        // that their successfully committed application was lost.
-        console.error("Dispatch provider administrator notification failed", {
-          providerUid: identity.uid,
-          revision: result.revision,
-          error,
-        });
-      }
-    }
-    return result;
   });
 
   const reviewDispatchProvider = dispatchCommand(async (request) => {
@@ -391,6 +389,7 @@ function createDispatchCommands(admin) {
 
   const createDispatchJob = dispatchCommand(async (request) => {
     const uid = requireAuth(request);
+    await requireActiveDispatchAccount(db, uid);
     rejectClientRouteFields(request.data);
     const requestId = requiredId(request.data, "requestId");
     const jobId = requiredId(request.data, "jobId");
@@ -657,6 +656,7 @@ function createDispatchCommands(admin) {
     const jobRef = db.collection("dispatch_jobs").doc(jobId);
     const carrierRef = db.collection("dispatch_carriers").doc(uid);
     const vehicleRef = carrierRef.collection("vehicles").doc(vehicleId);
+    const membershipRef = db.collection("dispatch_memberships").doc(uid);
 
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
@@ -664,6 +664,7 @@ function createDispatchCommands(admin) {
       const jobSnapshot = await transaction.get(jobRef);
       const carrierSnapshot = await transaction.get(carrierRef);
       const vehicleSnapshot = await transaction.get(vehicleRef);
+      const membershipSnapshot = await transaction.get(membershipRef);
       const quotes = await transaction.get(
           db.collection("dispatch_bids")
               .where("jobId", "==", jobId)
@@ -693,10 +694,13 @@ function createDispatchCommands(admin) {
         carrierSnapshot.exists ? carrierSnapshot.data() : null;
       const vehicle =
         vehicleSnapshot.exists ? vehicleSnapshot.data() : null;
+      const membership =
+        membershipSnapshot.exists ? membershipSnapshot.data() : null;
       const now = Timestamp.now();
       const quote = validateDispatchQuote({
         job,
         carrier,
+        membership,
         vehicle,
         existingBid,
         actorUid: uid,
@@ -1123,9 +1127,105 @@ function createDispatchCommands(admin) {
     });
   });
 
+
+  const createDispatchPilotRequest = dispatchCommand(async (request) => {
+    const identity = requireAuthenticatedIdentity(request);
+    const requestId = requiredId(request.data, "requestId");
+    await requireActiveDispatchAccount(db, identity.uid);
+    const textField = (field, maximum) => {
+      const value = String(request.data && request.data[field] || "").trim();
+      if (!value || value.length > maximum) {
+        throw new HttpsError(
+            "invalid-argument",
+            `${field} is required and must be ${maximum} characters or fewer.`,
+        );
+      }
+      return value;
+    };
+    const pickupLabel = textField("pickupLabel", 500);
+    const deliveryLabel = textField("deliveryLabel", 500);
+    const details = textField("details", 2000);
+    const requestedDate = Number(request.data && request.data.requestedDate);
+    const nowMillis = Date.now();
+    if (!Number.isInteger(requestedDate) ||
+        requestedDate < nowMillis - 24 * 60 * 60 * 1000 ||
+        requestedDate > nowMillis + 730 * 24 * 60 * 60 * 1000) {
+      throw new HttpsError(
+          "invalid-argument",
+          "Pilot service date must be within the next two years.",
+      );
+    }
+    const pilotVehicles = await db.collectionGroup("vehicles")
+        .where("pilotTruck", "==", true)
+        .limit(200)
+        .get();
+    const candidateUids = [...new Set(pilotVehicles.docs
+        .filter((vehicle) => vehicle.data().available !== false)
+        .map((vehicle) => vehicle.ref.parent.parent && vehicle.ref.parent.parent.id)
+        .filter((uid) => uid && uid !== identity.uid))];
+    const carrierSnapshots = candidateUids.length > 0 ?
+      await db.getAll(...candidateUids.map((uid) =>
+        db.collection("dispatch_carriers").doc(uid))) : [];
+    const recipients = carrierSnapshots
+        .filter((snapshot) => snapshot.exists &&
+          snapshot.data().status === "active" &&
+          snapshot.data().availableForHire !== false)
+        .map((snapshot) => snapshot.id)
+        .slice(0, 200);
+    const requestRef = db.collection("dispatch_pilot_requests").doc(requestId);
+    const receiptRef = receiptReference(
+        db, identity.uid, "createDispatchPilotRequest", requestId,
+    );
+    const result = {
+      requestId,
+      notifiedPilotProviders: recipients.length,
+      status: "open",
+    };
+    await db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return;
+      transaction.create(requestRef, {
+        requesterUid: identity.uid,
+        pickupLabel,
+        deliveryLabel,
+        details,
+        requestedDate: Timestamp.fromMillis(requestedDate),
+        status: "open",
+        schemaVersion: 1,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      for (const recipientUid of recipients) {
+        transaction.set(
+            db.collection("users").doc(recipientUid)
+                .collection("notifications")
+                .doc(`pilot-${requestId}`),
+            {
+              recipientUid,
+              actorUid: identity.uid,
+              type: "dispatch",
+              pilotRequestId: requestId,
+              title: "Pilot service requested",
+              body: `${pickupLabel} → ${deliveryLabel}. Open Dispatch Pilot services for details.`,
+              read: false,
+              createdAt: FieldValue.serverTimestamp(),
+            },
+        );
+      }
+      transaction.create(receiptRef, {
+        actorUid: identity.uid,
+        command: "createDispatchPilotRequest",
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    });
+    return result;
+  });
+
   return {
     awardDispatchQuote,
     createDispatchJob,
+    createDispatchPilotRequest,
     reviewDispatchProvider,
     publishDispatchJob,
     submitDispatchQuote,

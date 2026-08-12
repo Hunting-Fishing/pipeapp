@@ -132,7 +132,7 @@ test("only owners can edit live Dispatch jobs and revisions are bounded", () => 
   );
 });
 
-test("carrier quote validates enrollment, fleet ownership, and payload", () => {
+test("carrier quote validates signup, paid membership, fleet ownership, and payload", () => {
   const proposal = validateDispatchQuote({
     job: {
       createdByUid: "customer",
@@ -142,8 +142,12 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
     carrier: {
       ownerUid: "carrier",
       status: "active",
-      providerReviewVersion: 1,
       availableForHire: true,
+    },
+    membership: {
+      ownerUid: "carrier",
+      active: true,
+      currentPeriodEnd: now.getTime() + 30 * 24 * 60 * 60 * 1000,
     },
     vehicle: {
       ownerUid: "carrier",
@@ -169,6 +173,11 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
           status: "pending_review",
           availableForHire: false,
         },
+        membership: {
+          ownerUid: "carrier",
+          active: true,
+          currentPeriodEnd: now.getTime() + 30 * 24 * 60 * 60 * 1000,
+        },
         vehicle: {
           ownerUid: "carrier",
           available: true,
@@ -193,6 +202,11 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
           status: "active",
           availableForHire: true,
         },
+        membership: {
+          ownerUid: "carrier",
+          active: true,
+          currentPeriodEnd: now.getTime() + 30 * 24 * 60 * 60 * 1000,
+        },
         vehicle: {
           ownerUid: "carrier",
           available: true,
@@ -211,6 +225,28 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
   );
   assert.throws(
       () => validateDispatchQuote({
+        job: {createdByUid: "customer", status: "open"},
+        carrier: {ownerUid: "carrier", status: "active", availableForHire: true},
+        membership: {
+          ownerUid: "carrier",
+          active: false,
+          currentPeriodEnd: now.getTime() - 1000,
+        },
+        vehicle: {ownerUid: "carrier", available: true, maximumPayloadKg: 25000},
+        existingBid: null,
+        actorUid: "carrier",
+        data: {
+          jobId: "job",
+          amount: 2500,
+          availableDate: now.getTime() + 24 * 60 * 60 * 1000,
+        },
+        now,
+      }),
+      (error) => error.code === "permission-denied" &&
+        /membership/.test(error.message),
+  );
+  assert.throws(
+      () => validateDispatchQuote({
         job: {
           createdByUid: "customer",
           status: "open",
@@ -219,7 +255,11 @@ test("carrier quote validates enrollment, fleet ownership, and payload", () => {
         carrier: {
           ownerUid: "carrier",
           status: "active",
-          providerReviewVersion: 1,
+        },
+        membership: {
+          ownerUid: "carrier",
+          active: true,
+          currentPeriodEnd: now.getTime() + 30 * 24 * 60 * 60 * 1000,
         },
         vehicle: {
           ownerUid: "carrier",
@@ -245,7 +285,6 @@ test("job owners cannot quote their own requests", () => {
         carrier: {
           ownerUid: "carrier",
           status: "active",
-          providerReviewVersion: 1,
         },
         vehicle: {ownerUid: "carrier", maximumPayloadKg: 25000},
         existingBid: null,

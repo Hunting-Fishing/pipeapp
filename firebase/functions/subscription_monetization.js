@@ -44,6 +44,29 @@ function invoiceCommissionBaseMinor(invoice) {
     Math.max(0, subtotal - discounts) : 0;
 }
 
+function invoicePeriodBounds(invoice) {
+  const candidates = [];
+  const topStart = Number(invoice && invoice.period_start || 0);
+  const topEnd = Number(invoice && invoice.period_end || 0);
+  if (Number.isFinite(topStart) && topStart > 0) candidates.push({start: topStart});
+  if (Number.isFinite(topEnd) && topEnd > 0) candidates.push({end: topEnd});
+  const lines = invoice && invoice.lines && invoice.lines.data;
+  if (Array.isArray(lines)) {
+    for (const line of lines) {
+      const start = Number(line && line.period && line.period.start || 0);
+      const end = Number(line && line.period && line.period.end || 0);
+      if (Number.isFinite(start) && start > 0) candidates.push({start});
+      if (Number.isFinite(end) && end > 0) candidates.push({end});
+    }
+  }
+  const starts = candidates.map((item) => item.start).filter(Boolean);
+  const ends = candidates.map((item) => item.end).filter(Boolean);
+  return {
+    startMillis: starts.length ? Math.min(...starts) * 1000 : null,
+    endMillis: ends.length ? Math.max(...ends) * 1000 : null,
+  };
+}
+
 function subscriptionIdentityFromInvoice(invoice) {
   const parent = invoice && invoice.parent;
   const details = parent && parent.subscription_details;
@@ -100,6 +123,9 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
     const sourceChargeId = sourceChargeFromInvoice(invoice);
+    const period = invoicePeriodBounds(invoice);
+    const membershipRef = uid ?
+      db.collection("dispatch_memberships").doc(uid) : null;
     const eligibleAfter = Timestamp.fromMillis(
         Date.now() + SUBSCRIPTION_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
     );
@@ -107,6 +133,8 @@ function createSubscriptionMonetization(admin, stripeConfig) {
       const existingInvoice = await transaction.get(invoiceRef);
       const existingCommission = referrerUid && commissionMinor > 0 ?
         await transaction.get(commissionRef) : null;
+      const existingMembership = membershipRef ?
+        await transaction.get(membershipRef) : null;
       transaction.set(invoiceRef, {
         invoiceId,
         subscriptionId,
@@ -130,6 +158,26 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
         }),
       }, {merge: true});
+      if (membershipRef && period.endMillis) {
+        const currentEnd = existingMembership && existingMembership.exists &&
+          existingMembership.data().currentPeriodEnd &&
+          typeof existingMembership.data().currentPeriodEnd.toMillis === "function" ?
+          existingMembership.data().currentPeriodEnd.toMillis() : 0;
+        if (period.endMillis >= currentEnd) {
+          transaction.set(membershipRef, {
+            ownerUid: uid,
+            active: period.endMillis > Date.now(),
+            status: period.endMillis > Date.now() ? "active" : "expired",
+            plan: String(metadata.dispatchPlan || ""),
+            subscriptionId,
+            currentPeriodStart: period.startMillis ?
+              Timestamp.fromMillis(period.startMillis) : null,
+            currentPeriodEnd: Timestamp.fromMillis(period.endMillis),
+            lastPaidInvoiceId: invoiceId,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+        }
+      }
       if (referrerUid && commissionMinor > 0 &&
           existingCommission && !existingCommission.exists) {
         transaction.create(commissionRef, {
@@ -187,6 +235,7 @@ module.exports = {
   SUBSCRIPTION_REFUND_WINDOW_DAYS,
   createSubscriptionMonetization,
   invoiceCommissionBaseMinor,
+  invoicePeriodBounds,
   retrieveStripeSubscription,
   sourceChargeFromInvoice,
   subscriptionIdentityFromInvoice,

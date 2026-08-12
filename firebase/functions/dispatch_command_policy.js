@@ -158,7 +158,8 @@ function validateDispatchProviderApplication(data, identity) {
   }
   return {
     operatingName: requireText(data.operatingName, "Operating name", 160),
-    companyName: requireText(data.companyName, "Company name", 160),
+    companyName: optionalText(data.companyName, "Company name", 160) ||
+      requireText(data.operatingName, "Operating name", 160),
     email: identity.email,
     phoneE164: identity.phoneNumber,
     serviceAreaLabel: requireText(
@@ -343,6 +344,7 @@ function validateDispatchJobPublish(job, actorUid) {
 function validateDispatchQuote({
   job,
   carrier,
+  membership,
   vehicle,
   existingBid,
   actorUid,
@@ -365,12 +367,26 @@ function validateDispatchQuote({
     !carrier ||
     carrier.ownerUid !== actorUid ||
     carrier.status !== "active" ||
-    carrier.providerReviewVersion !== 1 ||
     carrier.availableForHire === false
   ) {
     throw new CommandPolicyError(
         "permission-denied",
-        "Dispatch provider approval and availability are required before quoting.",
+        "Join Dispatch and keep your provider profile available before bidding.",
+    );
+  }
+  const membershipEnd = timestampMillis(
+      membership && membership.currentPeriodEnd,
+  );
+  if (
+    !membership ||
+    membership.ownerUid !== actorUid ||
+    membership.active !== true ||
+    membershipEnd == null ||
+    membershipEnd <= timestampMillis(now)
+  ) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "An active Dispatch monthly or yearly membership is required before bidding.",
     );
   }
   if (

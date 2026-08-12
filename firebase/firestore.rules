@@ -38,6 +38,12 @@ service cloud.firestore {
         ).data.get(feature, false) == true;
     }
 
+    function dispatchSignedUp() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/dispatch_carriers/$(request.auth.uid)).data.status == 'active';
+    }
+
     function validPhase1FeatureConfiguration() {
       return request.resource.data.keys().hasOnly([
           'marketplace', 'wantedAds', 'offers', 'auctions', 'dispatch',
@@ -257,13 +263,26 @@ service cloud.firestore {
     }
 
     match /dispatch_jobs/{jobId} {
-      allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        (dispatchSignedUp() || isAdmin());
       allow create, update, delete: if false;
 
       match /revisions/{revisionId} {
-        allow read: if phase1FeatureEnabled('dispatch') && signedIn();
+        allow read: if phase1FeatureEnabled('dispatch') &&
+          (dispatchSignedUp() || isAdmin());
         allow create, update, delete: if false;
       }
+    }
+
+    match /dispatch_memberships/{uid} {
+      allow read: if owns(uid) || isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /dispatch_pilot_requests/{requestId} {
+      allow read: if phase1FeatureEnabled('dispatch') &&
+        (dispatchSignedUp() || isAdmin());
+      allow create, update, delete: if false;
     }
 
     // Exact route points, postal details, and access instructions are never

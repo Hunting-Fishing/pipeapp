@@ -132,7 +132,7 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Carrier profile requirements',
+                        'Dispatch signup requirements',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
@@ -143,7 +143,7 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Providers identify their service areas, equipment, payload limits, insurance and operating details. Job-specific permits, licensing, hours-of-service, escort, and safety requirements remain the provider’s responsibility.',
+                  'Any user can join after completing at least 70% of their Pipe Buyer profile and verifying either their email or mobile number. Carrier equipment and service details are added when the user wants to bid or provide trucking services.',
                 ),
                 const SizedBox(height: 14),
                 Wrap(
@@ -153,7 +153,7 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: onJoinCarrier,
                       icon: const Icon(Icons.app_registration_outlined),
-                      label: const Text('Start carrier signup'),
+                      label: const Text('Join Dispatch'),
                     ),
                     OutlinedButton.icon(
                       onPressed: onBrowseJobs,
@@ -270,7 +270,7 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Proposed pilot network pricing',
+                    'Dispatch membership pricing',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
@@ -285,18 +285,18 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
               runSpacing: 10,
               children: [
                 _PriceChip(
-                  title: r'$25 per year',
-                  subtitle: 'Dispatch network membership',
+                  title: r'CAD $25 per month',
+                  subtitle: 'Monthly carrier bidding membership',
                 ),
                 _PriceChip(
-                  title: r'$10 per dispatched job',
-                  subtitle: 'Paid to Pipe Buyer',
+                  title: r'CAD $300 per year',
+                  subtitle: 'Yearly carrier bidding membership',
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
-              r'The $10 Dispatch fee is paid to Pipe Buyer for each dispatched job. Pricing is displayed for pilot planning only. Billing and fee collection are not active in this release. No charge is collected until payment and fee features receive separate approval, final terms are published, and the user explicitly accepts them.',
+              'Joining Dispatch is free. Signed-up users can view and post Dispatch jobs. An active monthly or yearly Stripe membership is required only before a carrier submits a bid.',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,

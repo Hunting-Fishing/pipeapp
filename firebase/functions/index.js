@@ -240,6 +240,12 @@ exports.submitDispatchProviderApplication = onCall(
     dispatchCommands.submitDispatchProviderApplication,
   ),
 );
+exports.createDispatchPilotRequest = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.createDispatchPilotRequest,
+  ),
+);
 exports.reviewDispatchProvider = onCall(
   protectedCallableOptions,
   dispatchCommands.reviewDispatchProvider,
