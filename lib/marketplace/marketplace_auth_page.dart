@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import '../auth/firebase_auth/google_auth.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_components.dart';
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_mfa.dart';
@@ -43,188 +45,465 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(_signup ? 'Create account' : 'Sign in')),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Pipe Buyer'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: PipeBuyerStatusBadge(
+                label: 'SECURE ACCESS',
+                tone: PipeBuyerStatusTone.success,
+                icon: Icons.lock_outline_rounded,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 960;
+          if (wide) {
+            return Row(
+              children: [
+                Expanded(flex: 11, child: _brandPanel(context)),
+                Expanded(
+                  flex: 9,
+                  child: ColoredBox(
+                    color: theme.scaffoldBackgroundColor,
+                    child: _formViewport(context, compact: false),
+                  ),
+                ),
+              ],
+            );
+          }
+          return _formViewport(context, compact: true);
+        },
+      ),
+    );
+  }
+
+  Widget _brandPanel(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints.expand(),
+      padding: const EdgeInsets.fromLTRB(54, 52, 54, 44),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            PipeBuyerColors.ink,
+            PipeBuyerColors.charcoal,
+            Color(0xFF111820),
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -120,
+            top: -90,
+            child: Container(
+              width: 390,
+              height: 390,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: PipeBuyerColors.orange.withValues(alpha: .18),
+                  width: 46,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -30,
+            bottom: -130,
+            child: Container(
+              width: 330,
+              height: 330,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: .055),
+                  width: 72,
+                ),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _wordmark(),
+              const Spacer(),
+              const SizedBox(
+                width: 570,
+                child: Text(
+                  'Industrial commerce. Built for serious transactions.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 42,
+                    height: 1.08,
+                    letterSpacing: -1.3,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 540,
+                child: Text(
+                  _signup
+                      ? 'Create a verified marketplace identity for pipe, equipment, buildings, transport and energy inventory.'
+                      : 'Access listings, negotiations, timed auctions, secure payments and Pipe Buyer Dispatch from one account.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .72),
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+              const Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _DarkTrustPill(
+                    icon: Icons.verified_user_outlined,
+                    label: 'Verified marketplace identities',
+                  ),
+                  _DarkTrustPill(
+                    icon: Icons.shield_outlined,
+                    label: 'Fraud protection',
+                  ),
+                  _DarkTrustPill(
+                    icon: Icons.local_shipping_outlined,
+                    label: 'Dispatch & freight',
+                  ),
+                  _DarkTrustPill(
+                    icon: Icons.gavel_outlined,
+                    label: 'Timed auctions',
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.public_rounded,
+                    color: PipeBuyerColors.orange,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Built for North America. Designed for global industry.',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .66),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _formViewport(BuildContext context, {required bool compact}) {
+    final theme = Theme.of(context);
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 18 : 40,
+          vertical: compact ? 22 : 34,
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 20 : 30),
               child: Form(
                 key: _form,
-                child: Column(children: [
-                  Image.asset('assets/images/pipe_buyer_logo.png',
-                      width: 220, height: 100, fit: BoxFit.contain),
-                  Text(_signup ? 'Join the marketplace' : 'Welcome back',
-                      style: const TextStyle(
-                          fontSize: 27, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 6),
-                  Text(
-                      _signup
-                          ? 'Choose how you will buy and sell.'
-                          : 'Sign in to message sellers, make offers and save listings.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF66758A))),
-                  const SizedBox(height: 20),
-                  if (_signup) ...[
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (compact) ...[
+                      Center(child: _wordmark(darkText: true)),
+                      const SizedBox(height: 22),
+                    ],
+                    PipeBuyerPageHeader(
+                      eyebrow: _signup ? 'Create your account' : 'Secure sign in',
+                      title: _signup ? 'Join Pipe Buyer' : 'Welcome back',
+                      subtitle: _signup
+                          ? 'Choose how you will buy, sell and represent yourself in the marketplace.'
+                          : 'Sign in to manage listings, negotiate offers, bid on auctions and access Dispatch.',
+                      icon: _signup
+                          ? Icons.person_add_alt_1_outlined
+                          : Icons.lock_open_outlined,
+                    ),
+                    const SizedBox(height: 24),
+                    if (_signup) ...[
+                      const Text(
+                        'Account type',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
                             value: 'personal',
                             icon: Icon(Icons.person_outline),
-                            label: Text('Personal')),
-                        ButtonSegment(
+                            label: Text('Personal'),
+                          ),
+                          ButtonSegment(
                             value: 'business',
                             icon: Icon(Icons.business_outlined),
-                            label: Text('Business')),
-                      ],
-                      selected: {_accountType},
-                      onSelectionChanged: (value) =>
-                          setState(() => _accountType = value.first),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _name,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                          labelText: 'Your name',
-                          prefixIcon: Icon(Icons.person_outline)),
-                      validator: (value) =>
-                          value == null || value.trim().isEmpty
-                              ? 'Enter your name'
-                              : null,
-                    ),
-                    if (_accountType == 'business') ...[
-                      const SizedBox(height: 12),
+                            label: Text('Business'),
+                          ),
+                        ],
+                        selected: {_accountType},
+                        onSelectionChanged: (value) =>
+                            setState(() => _accountType = value.first),
+                      ),
+                      const SizedBox(height: 18),
                       TextFormField(
-                        controller: _businessName,
+                        controller: _name,
                         textCapitalization: TextCapitalization.words,
                         decoration: const InputDecoration(
-                            labelText: 'Public business name',
-                            prefixIcon: Icon(Icons.storefront_outlined)),
+                          labelText: 'Your name',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                                ? 'Enter the business name'
+                                ? 'Enter your name'
                                 : null,
-                      )
-                    ],
-                    const SizedBox(height: 12),
-                    RegionalPhoneField(
+                      ),
+                      if (_accountType == 'business') ...[
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _businessName,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Public business name',
+                            prefixIcon: Icon(Icons.storefront_outlined),
+                          ),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                                  ? 'Enter the business name'
+                                  : null,
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      RegionalPhoneField(
                         label: 'Mobile phone number (optional)',
                         initialValue: _phone.text,
                         required: false,
-                        onChanged: (value) => _phone.text = value),
-                    const SizedBox(height: 12),
-                  ],
-                  TextFormField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(
+                        onChanged: (value) => _phone.text = value,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    TextFormField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      decoration: const InputDecoration(
                         labelText: 'Email address',
-                        prefixIcon: Icon(Icons.email_outlined)),
-                    validator: (value) => value == null ||
-                            !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)
-                        ? 'Enter a valid email address'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _password,
-                    obscureText: _hidePassword,
-                    autofillHints: _signup
-                        ? const [AutofillHints.newPassword]
-                        : const [AutofillHints.password],
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (value) => value == null ||
+                              !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)
+                          ? 'Enter a valid email address'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _password,
+                      obscureText: _hidePassword,
+                      autofillHints: _signup
+                          ? const [AutofillHints.newPassword]
+                          : const [AutofillHints.password],
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
                           tooltip:
                               _hidePassword ? 'Show password' : 'Hide password',
                           onPressed: () =>
                               setState(() => _hidePassword = !_hidePassword),
-                          icon: Icon(_hidePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined)),
+                          icon: Icon(
+                            _hidePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (value) => value == null || value.length < 6
+                          ? 'Use at least 6 characters'
+                          : null,
                     ),
-                    validator: (value) => value == null || value.length < 6
-                        ? 'Use at least 6 characters'
-                        : null,
-                  ),
-                  if (!_signup)
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: _rememberMe,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: const Text('Remember me',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: const Text('Keep me signed in on this device.',
-                          style: TextStyle(fontSize: 12)),
-                      onChanged: _busy
-                          ? null
-                          : (value) =>
-                              setState(() => _rememberMe = value ?? true),
+                    if (!_signup)
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _rememberMe,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: const Text(
+                          'Remember me',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: const Text(
+                          'Keep me signed in on this device.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onChanged: _busy
+                            ? null
+                            : (value) =>
+                                setState(() => _rememberMe = value ?? true),
+                      ),
+                    const SizedBox(height: 16),
+                    if (_statusMessage != null) ...[
+                      PipeStatusSurface(
+                        tone: _statusIsError
+                            ? PipeStatusTone.error
+                            : PipeStatusTone.success,
+                        message: _statusMessage!,
+                        liveRegion: true,
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _submit,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(54),
+                      ),
+                      icon: _busy
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              _signup
+                                  ? Icons.arrow_forward_rounded
+                                  : Icons.login_rounded,
+                            ),
+                      label: Text(
+                        _busy
+                            ? 'Please wait…'
+                            : _signup
+                                ? 'Create ${_accountType == 'business' ? 'business' : 'personal'} account'
+                                : 'Sign in securely',
+                      ),
                     ),
-                  const SizedBox(height: 18),
-                  if (_statusMessage != null) ...[
-                    PipeStatusSurface(
-                      tone: _statusIsError
-                          ? PipeStatusTone.error
-                          : PipeStatusTone.success,
-                      message: _statusMessage!,
-                      liveRegion: true,
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'OR',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: .50),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
                     ),
-                    const SizedBox(height: 12)
-                  ],
-                  FilledButton(
-                    onPressed: _busy ? null : _submit,
-                    style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(54)),
-                    child: Text(_busy
-                        ? 'Please wait…'
-                        : _signup
-                            ? 'Create ${_accountType == 'business' ? 'business' : 'personal'} account'
-                            : 'Sign in'),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(children: const [
-                    Expanded(child: Divider()),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('OR',
-                          style: TextStyle(
-                              color: Color(0xFF66758A),
-                              fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _signInWithGoogle,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      icon: const Icon(Icons.g_mobiledata, size: 30),
+                      label: const Text('Continue with Google'),
                     ),
-                    Expanded(child: Divider()),
-                  ]),
-                  const SizedBox(height: 14),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _signInWithGoogle,
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52)),
-                    icon: const Icon(Icons.g_mobiledata, size: 30),
-                    label: const Text('Continue with Google'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
+                    const SizedBox(height: 10),
+                    TextButton(
                       onPressed: _busy
                           ? null
                           : () => setState(() => _signup = !_signup),
-                      child: Text(_signup
-                          ? 'Already have an account? Sign in'
-                          : 'New to Pipe Buyer? Create an account')),
-                  if (!_signup)
-                    TextButton.icon(
+                      child: Text(
+                        _signup
+                            ? 'Already have an account? Sign in'
+                            : 'New to Pipe Buyer? Create an account',
+                      ),
+                    ),
+                    if (!_signup)
+                      TextButton.icon(
                         onPressed: _busy ? null : _startAccountRecovery,
                         icon: const Icon(Icons.health_and_safety_outlined),
-                        label: const Text('Recover account')),
-                ]),
+                        label: const Text('Recover account'),
+                      ),
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    const Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 14,
+                      runSpacing: 8,
+                      children: [
+                        _CompactTrustItem(
+                          icon: Icons.verified_user_outlined,
+                          label: 'Verified accounts',
+                        ),
+                        _CompactTrustItem(
+                          icon: Icons.shield_outlined,
+                          label: 'Fraud protection',
+                        ),
+                        _CompactTrustItem(
+                          icon: Icons.lock_outline_rounded,
+                          label: 'Protected access',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
+
+  Widget _wordmark({bool darkText = false}) {
+    final primary = darkText ? PipeBuyerColors.ink : Colors.white;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'PIPE',
+          style: TextStyle(
+            color: primary,
+            fontWeight: FontWeight.w900,
+            fontSize: 25,
+            letterSpacing: -.7,
+          ),
+        ),
+        const Text(
+          'BUYER',
+          style: TextStyle(
+            color: PipeBuyerColors.orange,
+            fontWeight: FontWeight.w900,
+            fontSize: 25,
+            letterSpacing: -.7,
+          ),
+        ),
+      ],
+    );
+  }
 
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -354,8 +633,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
           await credential.user?.sendEmailVerification();
         } on FirebaseAuthException {
           verificationNotice =
-              'Your account was created, but the verification email was not '
-              'delivered yet. Use “Resend email” on the next screen.';
+              'Your account was created, but the verification email was not delivered yet. Use “Resend email” on the next screen.';
         }
         if (!mounted) return;
         await Navigator.of(context).pushReplacement(MaterialPageRoute(
@@ -467,7 +745,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                   ? 'Firestore is not created for this Firebase project yet. An administrator must create the default database.'
                   : error.message ?? 'Firebase could not finish account setup.',
           error: true);
-    } catch (error) {
+    } catch (_) {
       _notice('Could not finish account setup. Please try again.', error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -609,5 +887,64 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
         'Could not reach Google or Firebase. Check your internet connection.',
       _ => error.message ?? 'Google authentication failed (${error.code}).',
     };
+  }
+}
+
+class _DarkTrustPill extends StatelessWidget {
+  const _DarkTrustPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: .10)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: PipeBuyerColors.orange),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _CompactTrustItem extends StatelessWidget {
+  const _CompactTrustItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(width: 1),
+        Icon(icon, size: 16, color: PipeBuyerColors.success),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: .62),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
   }
 }
