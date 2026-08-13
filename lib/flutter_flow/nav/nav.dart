@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '/backend/backend.dart';
@@ -25,6 +26,11 @@ export 'serialization_util.dart';
 const kTransitionInfoKey = '__transition_info__';
 
 GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+String marketplaceInitialWebLocation(Uri location) {
+  final path = location.path.trim().isEmpty ? '/' : location.path;
+  return location.hasQuery ? '$path?${location.query}' : path;
+}
 
 class AppStateNotifier extends ChangeNotifier {
   AppStateNotifier._();
@@ -80,7 +86,8 @@ class AppStateNotifier extends ChangeNotifier {
 }
 
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: '/',
+      initialLocation: kIsWeb ? marketplaceInitialWebLocation(Uri.base) : '/',
+      overridePlatformDefaultLocation: kIsWeb,
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,

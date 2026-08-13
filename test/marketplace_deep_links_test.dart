@@ -28,6 +28,21 @@ void main() {
     );
   });
 
+  test('web router preserves a directly opened marketplace path', () {
+    expect(
+      marketplaceInitialWebLocation(
+        Uri.parse(
+          'https://www.pipebuyer.com/listings/listing%2042?source=message',
+        ),
+      ),
+      '/listings/listing%2042?source=message',
+    );
+    expect(
+      marketplaceInitialWebLocation(Uri.parse('https://www.pipebuyer.com')),
+      '/',
+    );
+  });
+
   test('router registers every Phase 1 entity destination', () {
     final router = createRouter(AppStateNotifier.instance);
     addTearDown(router.dispose);
