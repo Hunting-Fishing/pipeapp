@@ -1,0 +1,59 @@
+name: Premium UI Sandbox
+
+on:
+  push:
+    branches:
+      - pipebuyer-premium-ui
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lib/core/design/**'
+      - 'lib/core/accessibility/**'
+      - 'lib/marketplace/**'
+      - 'lib/main.dart'
+      - 'test/**'
+      - '.github/workflows/premium-ui-sandbox.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: premium-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-ui-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out sandbox branch
+        uses: actions/checkout@v4
+
+      - name: Install Flutter 3.44.6
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Restore dependencies
+        run: flutter pub get
+
+      - name: Analyze Dart and Flutter code
+        run: dart analyze lib test
+
+      - name: Run premium UI regression tests
+        run: >
+          flutter test
+          test/pipe_buyer_theme_test.dart
+          test/marketplace_adaptive_shell_test.dart
+          --dart-define=PIPE_ENV=ui-sandbox
+
+      - name: Compile web sandbox
+        run: >
+          flutter build web
+          --release
+          --dart-define=PIPE_ENV=ui-sandbox
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
