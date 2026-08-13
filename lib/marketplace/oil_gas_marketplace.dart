@@ -3804,6 +3804,8 @@ class _ListingDetailsState extends State<_ListingDetails> {
   String? _statusMessage;
   MarketplaceListing get listing => widget.listing;
   bool get _isWanted => listing.transactionType == 'Wanted / Seeking';
+  bool get _isOwner =>
+      FirebaseAuth.instance.currentUser?.uid == listing.sellerUid;
 
   @override
   void initState() {
@@ -3971,6 +3973,40 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 ])),
             const SizedBox(height: 10),
             _ListingActivityStrip(activity: listing.activity),
+            if (_isOwner && !_isWanted && _features.offers) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7E8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF4C56A)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.visibility_outlined, color: Color(0xFF9A5B00)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Owner view: offers are private to you and each buyer. Smart ranking never accepts an offer automatically.',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 760,
+                child: MarketplaceNegotiationHistory(
+                  listingId: listing.id,
+                  listingTitle: listing.title,
+                  buyerUid: '',
+                  sellerUid: listing.sellerUid,
+                  askingPrice: listing.numericPrice,
+                  availableQuantity: listing.quantity,
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             Material(
                 color: const Color(0xFFF4F7FA),
@@ -4030,7 +4066,9 @@ class _ListingDetailsState extends State<_ListingDetails> {
             const SizedBox(height: 16),
             _locationPanel(),
             const SizedBox(height: 16),
-            if (_isWanted)
+            if (_isOwner && !_isWanted)
+              const SizedBox.shrink()
+            else if (_isWanted)
               FilledButton.icon(
                   onPressed: _messageSeller,
                   icon: const Icon(Icons.reply_outlined),

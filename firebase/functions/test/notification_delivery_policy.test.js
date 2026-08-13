@@ -85,6 +85,21 @@ test("wanted match notifications use safe copy and listing deep links", () => {
   assert.equal(contactCopy.route, "/listings/supply_42");
 });
 
+test("offer notifications use explicit safe copy and open the listing", () => {
+  const copy = deliveryCopy({
+    type: "offer",
+    listingId: "listing_42",
+    pushTitle: "New offer received",
+    pushBody: "Tap to compare price, payment, pickup, and trucking.",
+    body: "Private conditions must not be copied to the lock screen.",
+  });
+  assert.equal(copy.title, "New offer received");
+  assert.equal(copy.body,
+      "Tap to compare price, payment, pickup, and trucking.");
+  assert.equal(copy.route, "/listings/listing_42");
+  assert.equal(copy.critical, true);
+});
+
 test("only permanent messaging errors revoke an endpoint", () => {
   assert.equal(invalidEndpointErrorCode(
       "messaging/registration-token-not-registered"), true);

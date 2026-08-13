@@ -1239,7 +1239,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                   ? 'Bidding history'
                   : isWanted
                       ? 'Suggested Marketplace matches'
-                      : 'Offer history',
+                      : 'Smart offers',
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
@@ -2810,12 +2810,18 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                                     fontWeight: unread
                                         ? FontWeight.w900
                                         : FontWeight.w600)),
-                            subtitle: Text(data['createdAt'] is Timestamp
-                                ? (data['createdAt'] as Timestamp)
-                                    .toDate()
-                                    .toLocal()
-                                    .toString()
-                                : ''),
+                            subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if ('${data['body'] ?? ''}'.trim().isNotEmpty)
+                                    Text('${data['body']}'),
+                                  Text(data['createdAt'] is Timestamp
+                                      ? (data['createdAt'] as Timestamp)
+                                          .toDate()
+                                          .toLocal()
+                                          .toString()
+                                      : ''),
+                                ]),
                             trailing: unread
                                 ? const Badge()
                                 : const Icon(Icons.chevron_right),
@@ -2828,7 +2834,14 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                               if (type == 'message') {
                                 widget.onOpenTab(3);
                               } else if (type == 'offer') {
-                                widget.onOpenTab(2);
+                                final listingId =
+                                    '${data['listingId'] ?? ''}'.trim();
+                                if (listingId.isNotEmpty && context.mounted) {
+                                  context.push(
+                                      MarketplaceDeepLinks.listing(listingId));
+                                } else {
+                                  widget.onOpenTab(2);
+                                }
                               } else if (type == 'new_listing_match' ||
                                   type == 'seller_new_listing') {
                                 widget.onBrowse();

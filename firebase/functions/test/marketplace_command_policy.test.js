@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
+  buildOfferNotification,
   CommandPolicyError,
   minimumAuctionBid,
   validateAuctionConversion,
@@ -602,6 +603,41 @@ test("listing offers use authoritative participants and quantity", () => {
       }),
       (error) => error.code === "invalid-argument",
   );
+});
+
+test("offer creation builds an unread seller notification with safe push copy", () => {
+  const notification = buildOfferNotification({
+    actorUid: "buyer",
+    listingId: "listing",
+    offerId: "offer-1",
+    proposal: {sellerUid: "seller", buyerUid: "buyer"},
+  });
+  assert.deepEqual(notification, {
+    recipientUid: "seller",
+    actorUid: "buyer",
+    type: "offer",
+    listingId: "listing",
+    offerId: "offer-1",
+    title: "New offer received",
+    body: "Compare price, payment, pickup, and trucking before accepting.",
+    pushTitle: "New offer received",
+    pushBody: "Tap to compare price, payment, pickup, and trucking.",
+    read: false,
+  });
+});
+
+test("seller counter-offers notify the buyer instead of the seller", () => {
+  const notification = buildOfferNotification({
+    actorUid: "seller",
+    listingId: "listing",
+    offerId: "offer-2",
+    conversationId: "conversation-1",
+    proposal: {sellerUid: "seller", buyerUid: "buyer"},
+  });
+  assert.equal(notification.recipientUid, "buyer");
+  assert.equal(notification.title, "Seller sent a counter-offer");
+  assert.equal(notification.pushTitle, "Counter-offer received");
+  assert.equal(notification.conversationId, "conversation-1");
 });
 
 test("marketplace transaction completes only after both parties confirm", () => {
