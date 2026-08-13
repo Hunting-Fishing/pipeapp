@@ -20,17 +20,14 @@ import '/marketplace/marketplace_public_profile_page.dart';
 import '/marketplace/marketplace_tax_compliance_admin_page.dart';
 import '/marketplace/marketplace_tax_profile_page.dart';
 
+import 'initial_location.dart';
+
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
 
 const kTransitionInfoKey = '__transition_info__';
 
 GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
-
-String marketplaceInitialWebLocation(Uri location) {
-  final path = location.path.trim().isEmpty ? '/' : location.path;
-  return location.hasQuery ? '$path?${location.query}' : path;
-}
 
 class AppStateNotifier extends ChangeNotifier {
   AppStateNotifier._();
@@ -86,7 +83,7 @@ class AppStateNotifier extends ChangeNotifier {
 }
 
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: kIsWeb ? marketplaceInitialWebLocation(Uri.base) : '/',
+      initialLocation: kIsWeb ? marketplaceInitialLocation() : '/',
       overridePlatformDefaultLocation: kIsWeb,
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,

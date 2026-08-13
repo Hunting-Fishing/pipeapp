@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/flutter_flow/nav/initial_location.dart';
 import 'package:pipe_app/flutter_flow/nav/nav.dart';
 import 'package:pipe_app/marketplace/marketplace_deep_links.dart';
 
@@ -30,15 +31,14 @@ void main() {
 
   test('web router preserves a directly opened marketplace path', () {
     expect(
-      marketplaceInitialWebLocation(
-        Uri.parse(
-          'https://www.pipebuyer.com/listings/listing%2042?source=message',
-        ),
+      marketplaceInitialLocationFromParts(
+        '/listings/listing%2042',
+        '?source=message',
       ),
       '/listings/listing%2042?source=message',
     );
     expect(
-      marketplaceInitialWebLocation(Uri.parse('https://www.pipebuyer.com')),
+      marketplaceInitialLocationFromParts('', ''),
       '/',
     );
   });
