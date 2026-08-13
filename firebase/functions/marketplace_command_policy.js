@@ -1,6 +1,10 @@
 "use strict";
 
 const {
+  marketplaceListingActivityContext,
+} = require("./marketplace_activity_context");
+
+const {
   approvedAccountVerification,
 } = require("./account_verification_policy");
 
@@ -1114,6 +1118,7 @@ function buildOfferNotification({
   offerId,
   proposal,
   conversationId = "",
+  listing = {},
 }) {
   const sellerUid = String(proposal && proposal.sellerUid || "");
   const buyerUid = String(proposal && proposal.buyerUid || "");
@@ -1125,6 +1130,7 @@ function buildOfferNotification({
     listingId,
     offerId,
     ...(conversationId ? {conversationId} : {}),
+    ...marketplaceListingActivityContext(listing),
     title: incomingForSeller ?
       "New offer received" :
       "Seller sent a counter-offer",

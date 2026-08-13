@@ -2076,6 +2076,7 @@ function createMarketplaceCommands(admin) {
         offerId: offerRef.id,
         proposal,
         conversationId,
+        listing,
       });
       const result = {
         offerId: offerRef.id,

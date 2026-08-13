@@ -15,6 +15,10 @@ const {
   validateUploadAuthorization,
   validateUploadInput,
 } = require("./communication_command_policy");
+const {
+  marketplaceListingActivityContext,
+  marketplaceMessagePreview,
+} = require("./marketplace_activity_context");
 
 const REPORT_LABELS = Object.freeze({
   duplicate_listing: "Duplicate listing",
@@ -177,6 +181,7 @@ function createCommunicationCommands(admin) {
               sellerName: String(
                   listing.sellerName || "Marketplace seller",
               ),
+              ...marketplaceListingActivityContext(listing),
               buyerDisplayName,
               openedByUid: uid,
               openedAt: FieldValue.serverTimestamp(),
@@ -447,6 +452,28 @@ function createCommunicationCommands(admin) {
                 listingId: conversation.listingId || null,
                 conversationId,
                 title: "New marketplace message",
+                body: marketplaceMessagePreview({
+                  text: input.text,
+                  attachment,
+                }),
+                listingTitle: conversation.listingTitle ||
+                  "Marketplace listing",
+                ...(conversation.listingContextVersion === 1 ? {
+                  listingContextVersion: 1,
+                  ...(conversation.listingThumbnailUrl ? {
+                    listingThumbnailUrl: conversation.listingThumbnailUrl,
+                  } : {}),
+                  ...(conversation.listingQuantity == null ? {} : {
+                    listingQuantity: conversation.listingQuantity,
+                  }),
+                  ...(conversation.listingPrice == null ? {} : {
+                    listingPrice: conversation.listingPrice,
+                  }),
+                  listingPriceBasis: conversation.listingPriceBasis || "",
+                  listingCategory: conversation.listingCategory || "",
+                  listingSellerName: conversation.listingSellerName ||
+                    conversation.sellerName || "Marketplace seller",
+                } : {}),
                 read: false,
                 createdAt: FieldValue.serverTimestamp(),
               },

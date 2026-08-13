@@ -640,6 +640,28 @@ test("seller counter-offers notify the buyer instead of the seller", () => {
   assert.equal(notification.conversationId, "conversation-1");
 });
 
+test("offer notifications identify the listing without private terms", () => {
+  const notification = buildOfferNotification({
+    actorUid: "buyer",
+    listingId: "listing",
+    offerId: "offer-with-context",
+    proposal: {sellerUid: "seller", buyerUid: "buyer"},
+    listing: {
+      title: "D8 dozer",
+      imageUrls: ["https://example.test/dozer.jpg"],
+      quantity: 1,
+      price: 250000,
+      priceBasis: "Total asking price",
+    },
+  });
+  assert.equal(notification.listingTitle, "D8 dozer");
+  assert.equal(notification.listingThumbnailUrl,
+      "https://example.test/dozer.jpg");
+  assert.equal(notification.listingQuantity, 1);
+  assert.equal(notification.listingPrice, 250000);
+  assert.equal("offeredTotal" in notification, false);
+});
+
 test("marketplace transaction completes only after both parties confirm", () => {
   const offer = {
     id: "offer",

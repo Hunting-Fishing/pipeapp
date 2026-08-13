@@ -24,6 +24,8 @@ import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
+import 'marketplace_activity_presentation.dart';
+import 'marketplace_listing_activity_builder.dart';
 
 class MarketplaceMessagesPage extends StatelessWidget {
   const MarketplaceMessagesPage({super.key});
@@ -97,29 +99,82 @@ class MarketplaceMessagesPage extends StatelessWidget {
                 ((data['unreadCounts'] as Map?)?[uid] as num?)?.toInt() ?? 0;
             final sellerName = '${data['sellerName'] ?? 'Marketplace seller'}';
             final title = '${data['listingTitle'] ?? 'Marketplace listing'}';
-            final memberUids =
-                List<String>.from(data['memberUids'] ?? const <String>[]);
-            final otherUid =
-                memberUids.where((member) => member != uid).firstOrNull ?? '';
-            return Card(
-              child: ListTile(
-                leading: MarketplaceUserAvatar(
-                    userUid: otherUid,
-                    size: 40,
-                    fallback: Center(
-                        child: Text(sellerName.isEmpty ? '?' : sellerName[0]))),
-                title: Text(title,
-                    maxLines: 1,
-                    style: TextStyle(
-                        fontWeight:
-                            unread > 0 ? FontWeight.w900 : FontWeight.w700)),
-                subtitle: Text('${data['lastMessage'] ?? ''}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: unread > 0
-                    ? Badge(label: Text('$unread'))
-                    : const Icon(Icons.chevron_right),
-                onTap: () =>
-                    context.push(MarketplaceDeepLinks.conversation(doc.id)),
+            final isSeller = '${data['sellerUid'] ?? ''}' == uid;
+            final otherName = isSeller
+                ? '${data['buyerDisplayName'] ?? 'Marketplace buyer'}'
+                : sellerName;
+            final listingId = '${data['listingId'] ?? ''}'.trim();
+            return MarketplaceListingActivityBuilder(
+              listingId: listingId,
+              embedded: {...data, 'listingTitle': title},
+              builder: (context, listing) => Card(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () =>
+                      context.push(MarketplaceDeepLinks.conversation(doc.id)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          MarketplaceListingActivityThumbnail(
+                            listing: listing,
+                            fallbackIcon: Icons.inventory_2_outlined,
+                            badgeIcon: Icons.chat_bubble_outline,
+                            size: 58,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    listing.title.isEmpty
+                                        ? title
+                                        : listing.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: unread > 0
+                                            ? FontWeight.w900
+                                            : FontWeight.w700)),
+                                Text(otherName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Color(0xFF53657A),
+                                        fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 3),
+                                Text(
+                                    '${data['lastMessage'] ?? 'Open conversation'}',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis),
+                                if (listing.commerceLine.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(listing.commerceLine,
+                                      style: const TextStyle(
+                                          color: Color(0xFF0F5BB5),
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 12)),
+                                ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${(data['messageCount'] as num?)?.toInt() ?? 0} messages'
+                                  '${marketplaceActivityTime(data['lastMessageAt']).isEmpty ? '' : ' • ${marketplaceActivityTime(data['lastMessageAt'])}'}',
+                                  style: const TextStyle(
+                                      color: Color(0xFF66758A), fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          unread > 0
+                              ? Badge(label: Text('$unread'))
+                              : const Icon(Icons.chevron_right),
+                        ]),
+                  ),
+                ),
               ),
             );
           },

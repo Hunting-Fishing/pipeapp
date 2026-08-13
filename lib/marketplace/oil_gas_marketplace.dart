@@ -45,6 +45,7 @@ import 'marketplace_listing_media.dart';
 import 'marketplace_offer_validation.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
+import 'marketplace_activity_presentation.dart';
 
 const _navy = Color(0xFFF8FAFC);
 const _panel = Colors.white;
@@ -3284,23 +3285,37 @@ class _WelcomeUser extends StatelessWidget {
             .doc(user.uid)
             .snapshots(),
         builder: (context, snapshot) {
-          final data = snapshot.data?.data() ?? const <String, dynamic>{};
-          final candidates = [
-            data['businessName'],
-            data['displayName'],
-            data['fullName'],
-            data['name'],
-            user.displayName,
-            user.email?.split('@').first,
-          ];
-          final name = candidates
-              .map((value) => '${value ?? ''}'.trim())
-              .firstWhere((value) => value.isNotEmpty, orElse: () => 'User');
-          return Text('Welcome, $name',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: _orange, fontSize: 15, fontWeight: FontWeight.w800));
+          final account = snapshot.data?.data() ?? const <String, dynamic>{};
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('public_business_profiles')
+                  .doc(user.uid)
+                  .snapshots(),
+              builder: (context, businessSnapshot) =>
+                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('public_seller_profiles')
+                        .doc(user.uid)
+                        .snapshots(),
+                    builder: (context, sellerSnapshot) {
+                      final name = marketplaceGreetingName(
+                        account: account,
+                        publicBusiness: businessSnapshot.data?.data() ??
+                            const <String, dynamic>{},
+                        publicSeller: sellerSnapshot.data?.data() ??
+                            const <String, dynamic>{},
+                        authDisplayName: user.displayName,
+                        email: user.email,
+                      );
+                      return Text('Welcome, $name',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: _orange,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800));
+                    },
+                  ));
         });
   }
 }

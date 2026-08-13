@@ -33,6 +33,8 @@ import 'marketplace_offer_ranking.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_dashboard.dart';
 import 'marketplace_about_page.dart';
+import 'marketplace_activity_presentation.dart';
+import 'marketplace_listing_activity_builder.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -251,7 +253,8 @@ class _Overview extends StatelessWidget {
               ),
               const SizedBox(height: 14),
             ],
-            Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
+            Text(
+                'Welcome, ${marketplaceGreetingName(account: data, authDisplayName: user.displayName, email: user.email)}',
                 style:
                     const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
             Text('${data['accountType'] ?? 'personal'} account'),
@@ -1086,55 +1089,110 @@ class _MyListingsState extends State<_MyListings> {
                   final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
                   final isAuction = data['transactionType'] == 'Auction';
                   return Card(
-                      child: ListTile(
-                    onTap: () async {
-                      await _markListingNotificationsRead(document.id);
-                      if (!context.mounted) return;
-                      showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (_) => _OwnerListingDetails(
-                              listingId: document.id,
-                              data: data,
-                              auctionsEnabled: widget.auctionsEnabled,
-                              paidFeaturesEnabled: widget.paidFeaturesEnabled));
-                    },
-                    leading: SizedBox.square(
-                        dimension: 54,
-                        child: Stack(fit: StackFit.expand, children: [
-                          thumbnail == null
-                              ? const Icon(Icons.inventory_2_outlined)
-                              : ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(thumbnail,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(
-                                          Icons.inventory_2_outlined))),
-                          Positioned(
-                              right: 1,
-                              bottom: 1,
-                              child: CircleAvatar(
-                                  radius: 11,
-                                  backgroundColor: isAuction
-                                      ? Colors.deepOrange
-                                      : const Color(0xFF0878E8),
-                                  child: Icon(
-                                      isAuction
-                                          ? Icons.gavel
-                                          : Icons.storefront,
-                                      size: 13,
-                                      color: Colors.white)))
-                        ])),
-                    title: Text('${data['title'] ?? 'Untitled listing'}'),
-                    subtitle: Text(
-                        '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
-                        '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
-                    isThreeLine: createdAt != null,
-                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      _ListingNotificationBadge(listingId: document.id),
-                      const Icon(Icons.chevron_right),
-                    ]),
-                  ));
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () async {
+                          await _markListingNotificationsRead(document.id);
+                          if (!context.mounted) return;
+                          showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (_) => _OwnerListingDetails(
+                                  listingId: document.id,
+                                  data: data,
+                                  auctionsEnabled: widget.auctionsEnabled,
+                                  paidFeaturesEnabled:
+                                      widget.paidFeaturesEnabled));
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox.square(
+                                    dimension: 58,
+                                    child:
+                                        Stack(fit: StackFit.expand, children: [
+                                      thumbnail == null
+                                          ? const Icon(
+                                              Icons.inventory_2_outlined)
+                                          : ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child: Image.network(thumbnail,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      const Icon(Icons
+                                                          .inventory_2_outlined))),
+                                      Positioned(
+                                          right: 1,
+                                          bottom: 1,
+                                          child: CircleAvatar(
+                                              radius: 11,
+                                              backgroundColor: isAuction
+                                                  ? Colors.deepOrange
+                                                  : const Color(0xFF0878E8),
+                                              child: Icon(
+                                                  isAuction
+                                                      ? Icons.gavel
+                                                      : Icons.storefront,
+                                                  size: 13,
+                                                  color: Colors.white)))
+                                    ])),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          '${data['title'] ?? 'Untitled listing'}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800)),
+                                      Text(
+                                          '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}'),
+                                      Text(_ownerListingTime(data, createdAt)),
+                                      const SizedBox(height: 4),
+                                      Text(_ownerListingCommerceLine(data),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF0F5BB5))),
+                                      if (isAuction)
+                                        Text(
+                                          'Best bid ${marketplaceMoney(data['currentBid'] as num? ?? 0)}',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF166534)),
+                                        )
+                                      else
+                                        _SellerBestOfferAmount(
+                                          listingId: document.id,
+                                          sellerUid:
+                                              '${data['sellerUid'] ?? uid}',
+                                          hasOffers:
+                                              (data['offerCount'] as num? ??
+                                                      0) >
+                                                  0,
+                                        ),
+                                      const SizedBox(height: 3),
+                                      Text(_analyticsLine(data),
+                                          style: const TextStyle(
+                                              color: Color(0xFF53657A),
+                                              fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                                  _ListingNotificationBadge(
+                                      listingId: document.id),
+                                  const Icon(Icons.chevron_right),
+                                ]),
+                              ]),
+                        ),
+                      ));
                 }),
       ),
     ]);
@@ -1147,6 +1205,64 @@ String _analyticsLine(Map<String, dynamic> data) =>
     '${(data['shareCount'] as num?)?.toInt() ?? 0} shares • '
     '${(data['likeCount'] as num?)?.toInt() ?? 0} likes • '
     '${(data['offerCount'] as num?)?.toInt() ?? 0} offers';
+
+String _ownerListingCommerceLine(Map<String, dynamic> data) {
+  final quantity = (data['quantity'] as num?)?.toInt();
+  final price = data['price'] as num?;
+  final basis = '${data['priceBasis'] ?? ''}'.trim();
+  final parts = <String>[
+    if (quantity != null && quantity > 0)
+      '$quantity ${quantity == 1 ? 'piece' : 'pieces'}',
+    if (price != null) marketplaceMoney(price),
+    if (basis.isNotEmpty) basis,
+  ];
+  return parts.isEmpty ? 'Price and quantity not supplied' : parts.join(' • ');
+}
+
+class _SellerBestOfferAmount extends StatelessWidget {
+  const _SellerBestOfferAmount({
+    required this.listingId,
+    required this.sellerUid,
+    required this.hasOffers,
+  });
+
+  final String listingId;
+  final String sellerUid;
+  final bool hasOffers;
+
+  @override
+  Widget build(BuildContext context) {
+    const style =
+        TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF166534));
+    if (!hasOffers) return const Text('Best offer —', style: style);
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('offers')
+          .where('listingId', isEqualTo: listingId)
+          .where('sellerUid', isEqualTo: sellerUid)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Text('Best offer unavailable', style: style);
+        }
+        if (!snapshot.hasData) {
+          return const Text('Best offer loading…', style: style);
+        }
+        final best = marketplaceBestSellerOfferTotal(
+          snapshot.data!.docs.map((document) => document.data()),
+        );
+        return Text(
+          best == null
+              ? 'Best offer —'
+              : 'Best offer ${marketplaceMoney(best)}',
+          style: style,
+        );
+      },
+    );
+  }
+}
 
 String _ownerListingTime(Map<String, dynamic> data, DateTime? createdAt) {
   if (data['transactionType'] == 'Auction') {
@@ -3071,65 +3187,135 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                       final document = items[index - (atLimit ? 1 : 0)];
                       final data = document.data();
                       final unread = data['read'] != true;
-                      return Card(
-                          color: unread ? const Color(0xFFEAF4FD) : null,
-                          child: ListTile(
-                            leading: Icon(data['type'] == 'offer'
-                                ? Icons.handshake_outlined
-                                : Icons.chat_bubble_outline),
-                            title: Text(
-                                '${data['title'] ?? 'Marketplace activity'}',
-                                style: TextStyle(
-                                    fontWeight: unread
-                                        ? FontWeight.w900
-                                        : FontWeight.w600)),
-                            subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if ('${data['body'] ?? ''}'.trim().isNotEmpty)
-                                    Text('${data['body']}'),
-                                  Text(data['createdAt'] is Timestamp
-                                      ? (data['createdAt'] as Timestamp)
-                                          .toDate()
-                                          .toLocal()
-                                          .toString()
-                                      : ''),
-                                ]),
-                            trailing: unread
-                                ? const Badge()
-                                : const Icon(Icons.chevron_right),
-                            onTap: () async {
-                              await document.reference.update({
-                                'read': true,
-                                'readAt': FieldValue.serverTimestamp(),
-                              });
-                              final type = '${data['type'] ?? ''}';
-                              if (type == 'message') {
-                                widget.onOpenTab(4);
-                              } else if (type == 'offer') {
-                                final listingId =
-                                    '${data['listingId'] ?? ''}'.trim();
-                                if (listingId.isNotEmpty && context.mounted) {
-                                  context.push(
-                                      MarketplaceDeepLinks.listing(listingId));
-                                } else {
-                                  widget.onOpenTab(3);
-                                }
-                              } else if (type == 'new_listing_match' ||
-                                  type == 'seller_new_listing') {
-                                widget.onBrowse();
-                              } else if (type == 'score_change') {
-                                if (context.mounted) {
-                                  _showUserScore(context, widget.onOpenTab);
-                                }
-                              } else {
-                                widget.onOpenTab(1);
-                              }
-                            },
-                          ));
+                      return _MarketplaceNotificationCard(
+                        data: data,
+                        unread: unread,
+                        onTap: () async {
+                          await document.reference.update({
+                            'read': true,
+                            'readAt': FieldValue.serverTimestamp(),
+                          });
+                          final type = '${data['type'] ?? ''}';
+                          if (type == 'message') {
+                            widget.onOpenTab(4);
+                          } else if (type == 'offer') {
+                            final listingId =
+                                '${data['listingId'] ?? ''}'.trim();
+                            if (listingId.isNotEmpty && context.mounted) {
+                              context.push(
+                                  MarketplaceDeepLinks.listing(listingId));
+                            } else {
+                              widget.onOpenTab(3);
+                            }
+                          } else if (type == 'new_listing_match' ||
+                              type == 'seller_new_listing') {
+                            widget.onBrowse();
+                          } else if (type == 'score_change') {
+                            if (context.mounted) {
+                              _showUserScore(context, widget.onOpenTab);
+                            }
+                          } else {
+                            widget.onOpenTab(1);
+                          }
+                        },
+                      );
                     });
               })),
     ]);
+  }
+}
+
+class _MarketplaceNotificationCard extends StatelessWidget {
+  const _MarketplaceNotificationCard({
+    required this.data,
+    required this.unread,
+    required this.onTap,
+  });
+
+  final Map<String, dynamic> data;
+  final bool unread;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = '${data['type'] ?? ''}'.trim().toLowerCase();
+    final listingId = '${data['listingId'] ?? ''}'.trim();
+    final icon = switch (type) {
+      'offer' => Icons.handshake_outlined,
+      'message' => Icons.chat_bubble_outline,
+      'dispatch' ||
+      'dispatch_signup' ||
+      'dispatch_provider_signup' =>
+        Icons.local_shipping_outlined,
+      'auction' || 'bid' => Icons.gavel_outlined,
+      'new_listing_match' ||
+      'seller_new_listing' ||
+      'wanted_match' =>
+        Icons.auto_awesome_outlined,
+      'device' || 'device_remembered' => Icons.devices_outlined,
+      'catalog_suggestion' => Icons.category_outlined,
+      _ => Icons.notifications_outlined,
+    };
+    return MarketplaceListingActivityBuilder(
+      listingId: listingId,
+      embedded: data,
+      builder: (context, listing) => Card(
+        color: unread ? const Color(0xFFEAF4FD) : null,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              MarketplaceListingActivityThumbnail(
+                listing: listing,
+                fallbackIcon: icon,
+                badgeIcon: listing.hasListing ? icon : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${data['title'] ?? 'Marketplace activity'}',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight:
+                                unread ? FontWeight.w900 : FontWeight.w700)),
+                    if (listing.hasListing) ...[
+                      const SizedBox(height: 2),
+                      Text(listing.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900)),
+                    ],
+                    const SizedBox(height: 3),
+                    Text(marketplaceNotificationBody(data, listing)),
+                    if (listing.commerceLine.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(listing.commerceLine,
+                          style: const TextStyle(
+                              color: Color(0xFF0F5BB5),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12)),
+                    ],
+                    const SizedBox(height: 5),
+                    Text(
+                      '${marketplaceActivityTypeLabel(data)}'
+                      '${marketplaceActivityTime(data['createdAt']).isEmpty ? '' : ' • ${marketplaceActivityTime(data['createdAt'])}'}',
+                      style: const TextStyle(
+                          color: Color(0xFF66758A), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              unread ? const Badge() : const Icon(Icons.chevron_right),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }
 
