@@ -53,7 +53,7 @@ abstract final class PipeAccessibilityTheme {
     final style = baseStyle ?? const ButtonStyle();
     return style.copyWith(
       minimumSize: _minimumSize(style.minimumSize, minimumSize),
-      tapTargetSize: const WidgetStatePropertyAll(MaterialTapTargetSize.padded),
+      tapTargetSize: MaterialTapTargetSize.padded,
       side: _focusSide(
         focusIndicator,
         base: style.side,
