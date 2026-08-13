@@ -10,26 +10,65 @@ abstract final class PipeAccessibilityTheme {
 
   static WidgetStateProperty<BorderSide?> _focusSide(
     Color color, {
+    WidgetStateProperty<BorderSide?>? base,
     BorderSide normal = BorderSide.none,
   }) =>
-      WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.focused)
-              ? BorderSide(color: color, width: 3)
-              : normal);
+      WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.focused)) {
+          return BorderSide(color: color, width: 3);
+        }
+        return base?.resolve(states) ?? normal;
+      });
 
-  static WidgetStateProperty<Color?> _focusOverlay(Color color) =>
-      WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.focused)
-              ? color.withValues(alpha: 0.14)
-              : null);
+  static WidgetStateProperty<Color?> _focusOverlay(
+    Color color, {
+    WidgetStateProperty<Color?>? base,
+  }) =>
+      WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.focused)) {
+          return color.withValues(alpha: 0.14);
+        }
+        return base?.resolve(states);
+      });
+
+  static WidgetStateProperty<Size?> _minimumSize(
+    WidgetStateProperty<Size?>? base,
+    Size minimum,
+  ) =>
+      WidgetStateProperty.resolveWith((states) {
+        final current = base?.resolve(states);
+        if (current == null) return minimum;
+        return Size(
+          current.width < minimum.width ? minimum.width : current.width,
+          current.height < minimum.height ? minimum.height : current.height,
+        );
+      });
+
+  static ButtonStyle _accessibleButtonStyle(
+    ButtonStyle? baseStyle, {
+    required Color focusIndicator,
+    required Size minimumSize,
+    BorderSide fallbackSide = BorderSide.none,
+  }) {
+    final style = baseStyle ?? const ButtonStyle();
+    return style.copyWith(
+      minimumSize: _minimumSize(style.minimumSize, minimumSize),
+      tapTargetSize: const WidgetStatePropertyAll(MaterialTapTargetSize.padded),
+      side: _focusSide(
+        focusIndicator,
+        base: style.side,
+        normal: fallbackSide,
+      ),
+      overlayColor: _focusOverlay(
+        focusIndicator,
+        base: style.overlayColor,
+      ),
+    );
+  }
 
   static ThemeData apply(ThemeData base) {
-    const squareMinimum = WidgetStatePropertyAll(
-      Size.square(minimumTouchTarget),
-    );
-    const buttonMinimum = WidgetStatePropertyAll(
-      Size(64, minimumTouchTarget),
-    );
+    const squareMinimum = Size.square(minimumTouchTarget);
+    const buttonMinimum = Size(64, minimumTouchTarget);
     const padded = MaterialTapTargetSize.padded;
     final focusIndicator = base.brightness == Brightness.dark
         ? darkFocusIndicator
@@ -43,52 +82,55 @@ abstract final class PipeAccessibilityTheme {
     final semanticColors = base.brightness == Brightness.dark
         ? const PipeStatusColors.dark()
         : const PipeStatusColors.light();
+
     return base.copyWith(
       extensions: [
         ...base.extensions.values.where((item) => item is! PipeStatusColors),
         semanticColors,
       ],
       focusColor: focusIndicator.withValues(alpha: 0.14),
-      materialTapTargetSize: MaterialTapTargetSize.padded,
+      materialTapTargetSize: padded,
       visualDensity: VisualDensity.standard,
       iconButtonTheme: IconButtonThemeData(
-        style: ButtonStyle(
+        style: _accessibleButtonStyle(
+          base.iconButtonTheme.style,
+          focusIndicator: focusIndicator,
           minimumSize: squareMinimum,
-          tapTargetSize: padded,
-          side: _focusSide(focusIndicator),
-          overlayColor: _focusOverlay(focusIndicator),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: ButtonStyle(
+        style: _accessibleButtonStyle(
+          base.filledButtonTheme.style,
+          focusIndicator: focusIndicator,
           minimumSize: buttonMinimum,
-          tapTargetSize: padded,
-          side: _focusSide(focusIndicator),
-          overlayColor: _focusOverlay(focusIndicator),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: _accessibleButtonStyle(
+          base.elevatedButtonTheme.style,
+          focusIndicator: focusIndicator,
+          minimumSize: buttonMinimum,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: ButtonStyle(
+        style: _accessibleButtonStyle(
+          base.outlinedButtonTheme.style,
+          focusIndicator: focusIndicator,
           minimumSize: buttonMinimum,
-          tapTargetSize: padded,
-          side: _focusSide(
-            focusIndicator,
-            normal: BorderSide(color: base.colorScheme.outline),
-          ),
-          overlayColor: _focusOverlay(focusIndicator),
+          fallbackSide: BorderSide(color: base.colorScheme.outline),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: ButtonStyle(
+        style: _accessibleButtonStyle(
+          base.textButtonTheme.style,
+          focusIndicator: focusIndicator,
           minimumSize: buttonMinimum,
-          tapTargetSize: padded,
-          side: _focusSide(focusIndicator),
-          overlayColor: _focusOverlay(focusIndicator),
         ),
       ),
-      checkboxTheme: const CheckboxThemeData(materialTapTargetSize: padded),
-      radioTheme: const RadioThemeData(materialTapTargetSize: padded),
-      switchTheme: const SwitchThemeData(materialTapTargetSize: padded),
+      checkboxTheme:
+          base.checkboxTheme.copyWith(materialTapTargetSize: padded),
+      radioTheme: base.radioTheme.copyWith(materialTapTargetSize: padded),
+      switchTheme: base.switchTheme.copyWith(materialTapTargetSize: padded),
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         focusedBorder: focusedInputBorder,
       ),
