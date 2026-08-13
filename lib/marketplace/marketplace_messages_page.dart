@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -285,40 +286,70 @@ class _ConversationNegotiationPanelState
                 return Material(
                     color: const Color(0xFFF4F8FC),
                     child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(children: [
-                          const CircleAvatar(
-                              radius: 20,
-                              child:
-                                  Icon(Icons.local_offer_outlined, size: 20)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                const Text('Offer',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w900)),
-                                Text(
-                                    currentPrice == null
-                                        ? 'Price available on request'
-                                        : '\$${currentPrice.toStringAsFixed(2)}'
-                                            '${basis.isEmpty ? '' : ' • $basis'}'
-                                            '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis)
-                              ])),
-                          const SizedBox(width: 10),
-                          ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                  minWidth: 160, minHeight: 50),
-                              child: FilledButton.tonalIcon(
-                                  onPressed: () =>
-                                      _openOffers(conversation!, listing),
-                                  icon: const Icon(Icons.handshake_outlined),
-                                  label: Text(latest.isEmpty
-                                      ? 'Make offer'
-                                      : 'Offers & history')))
+                        padding: const EdgeInsets.all(10),
+                        child: Column(children: [
+                          InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => context.push(
+                                  MarketplaceDeepLinks.listing(listingId)),
+                              child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 6),
+                                  child: Row(children: [
+                                    const Icon(Icons.inventory_2_outlined,
+                                        size: 20, color: Color(0xFF075EB8)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                          Text(
+                                              '${conversation?['listingTitle'] ?? 'Marketplace listing'}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w900)),
+                                          const Text('View marketplace listing',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF526579)))
+                                        ])),
+                                    const Icon(Icons.open_in_new, size: 18)
+                                  ]))),
+                          const Divider(height: 12),
+                          Row(children: [
+                            const CircleAvatar(
+                                radius: 20,
+                                child:
+                                    Icon(Icons.local_offer_outlined, size: 20)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  const Text('Offer',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w900)),
+                                  Text(
+                                      currentPrice == null
+                                          ? 'Price available on request'
+                                          : '\$${currentPrice.toStringAsFixed(2)}'
+                                              '${basis.isEmpty ? '' : ' • $basis'}'
+                                              '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis)
+                                ])),
+                            const SizedBox(width: 10),
+                            FilledButton.tonalIcon(
+                                onPressed: () =>
+                                    _openOffers(conversation!, listing),
+                                icon: const Icon(Icons.handshake_outlined),
+                                label: Text(latest.isEmpty
+                                    ? 'Make offer'
+                                    : 'Offers & history'))
+                          ])
                         ])));
               });
         });
@@ -2391,6 +2422,205 @@ class ListingMessageBadge extends StatelessWidget {
   }
 }
 
+class ListingBuyerActivityActions extends StatelessWidget {
+  const ListingBuyerActivityActions({
+    super.key,
+    required this.listingId,
+    required this.sellerUid,
+    required this.publicOfferCount,
+    required this.offersEnabled,
+    required this.onMessage,
+    required this.onMakeOffer,
+    required this.onViewOffers,
+  });
+
+  final String listingId;
+  final String sellerUid;
+  final int publicOfferCount;
+  final bool offersEnabled;
+  final VoidCallback onMessage;
+  final VoidCallback onMakeOffer;
+  final VoidCallback onViewOffers;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid == sellerUid) {
+      return _buttons(context, sentMessageCount: 0, submittedOffers: const []);
+    }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('offers')
+          .where('listingId', isEqualTo: listingId)
+          .where('buyerUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
+          .snapshots(),
+      builder: (context, offerSnapshot) {
+        final submittedOffers = (offerSnapshot.data?.docs ?? const [])
+            .where((document) =>
+                document.data()['proposedByUid'] == uid &&
+                document.data()['status'] != 'archived')
+            .toList();
+        final conversationId = MarketplaceActionsRepository.conversationIdFor(
+          uid,
+          sellerUid,
+          listingId,
+        );
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('conversations')
+              .doc(conversationId)
+              .snapshots(),
+          builder: (context, conversationSnapshot) {
+            if (conversationSnapshot.data?.exists != true) {
+              return _buttons(
+                context,
+                sentMessageCount: 0,
+                submittedOffers: submittedOffers,
+              );
+            }
+            return FutureBuilder<AggregateQuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('conversations')
+                  .doc(conversationId)
+                  .collection('messages')
+                  .where('senderUid', isEqualTo: uid)
+                  .count()
+                  .get(),
+              builder: (context, sentSnapshot) => _buttons(
+                context,
+                sentMessageCount: sentSnapshot.data?.count ?? 0,
+                submittedOffers: submittedOffers,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buttons(
+    BuildContext context, {
+    required int sentMessageCount,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> submittedOffers,
+  }) {
+    final hasOffers = submittedOffers.isNotEmpty;
+    final lastOfferAt = hasOffers
+        ? (submittedOffers.first.data()['createdAt'] as Timestamp?)?.toDate()
+        : null;
+    final lastOfferLabel = lastOfferAt == null
+        ? ''
+        : MaterialLocalizations.of(context).formatShortDate(lastOfferAt);
+    final messageDetails = hasOffers
+        ? '$sentMessageCount message${sentMessageCount == 1 ? '' : 's'} sent • '
+            '${submittedOffers.length} offer${submittedOffers.length == 1 ? '' : 's'}'
+            '${lastOfferLabel.isEmpty ? '' : ' • $lastOfferLabel'}'
+        : sentMessageCount == 0
+            ? 'Start a private conversation'
+            : '$sentMessageCount message${sentMessageCount == 1 ? '' : 's'} sent';
+    final messageLabel = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Message seller',
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        Text(messageDetails,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10.5)),
+      ],
+    );
+    final messageButton = hasOffers
+        ? FilledButton.icon(
+            onPressed: onMessage,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFF97316),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(58),
+            ),
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: messageLabel,
+          )
+        : OutlinedButton.icon(
+            onPressed: onMessage,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0F52BA),
+              minimumSize: const Size.fromHeight(58),
+            ),
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: messageLabel,
+          );
+    final offerButton = FilledButton.icon(
+      onPressed: offersEnabled ? onMakeOffer : null,
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xFF0F52BA),
+        foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(58),
+      ),
+      icon: const Icon(Icons.local_offer_outlined),
+      label: Text(hasOffers ? 'Revise offer' : 'Make offer'),
+    );
+
+    return Column(children: [
+      if (hasOffers) ...[
+        Material(
+          color: const Color(0xFFFFF3E8),
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onViewOffers,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(children: [
+                const Icon(Icons.verified_outlined, color: Color(0xFFC2410C)),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'You submitted ${submittedOffers.length} private offer${submittedOffers.length == 1 ? '' : 's'}'
+                    '${lastOfferLabel.isEmpty ? '' : ' • Last sent $lastOfferLabel'}',
+                    style: const TextStyle(
+                      color: Color(0xFF9A3412),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const Text('View',
+                    style: TextStyle(
+                        color: Color(0xFFC2410C), fontWeight: FontWeight.w900)),
+                const SizedBox(width: 3),
+                const Icon(Icons.chevron_right, color: Color(0xFFC2410C)),
+              ]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ],
+      Semantics(
+        label:
+            '$publicOfferCount total offers are recorded on this listing. Individual offer terms are private.',
+        child: LayoutBuilder(builder: (context, constraints) {
+          if (constraints.maxWidth < 520) {
+            return Column(children: [
+              SizedBox(width: double.infinity, child: messageButton),
+              if (offersEnabled) ...[
+                const SizedBox(height: 8),
+                SizedBox(width: double.infinity, child: offerButton),
+              ],
+            ]);
+          }
+          return Row(children: [
+            Expanded(child: messageButton),
+            if (offersEnabled) ...[
+              const SizedBox(width: 10),
+              Expanded(child: offerButton),
+            ],
+          ]);
+        }),
+      ),
+    ]);
+  }
+}
+
 class _SignedOutMessages extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MarketplaceAuthRequiredCard(
@@ -2494,6 +2724,50 @@ class _ConversationRouteFailure extends StatelessWidget {
           primaryLabel: 'Return to Marketplace',
           onPrimary: () => context.go('/'),
         ),
+      );
+}
+
+class MarketplaceChatAttachmentMenu extends StatelessWidget {
+  const MarketplaceChatAttachmentMenu({
+    super.key,
+    required this.uploading,
+    required this.onSelected,
+  });
+
+  final bool uploading;
+  final ValueChanged<ImageSource> onSelected;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<ImageSource>(
+        tooltip: 'Attach photo',
+        enabled: !uploading,
+        onSelected: onSelected,
+        icon: uploading
+            ? const SizedBox.square(
+                dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.attach_file),
+        itemBuilder: (_) => const [
+          PopupMenuItem(
+            value: ImageSource.gallery,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading:
+                  Icon(Icons.photo_library_outlined, color: Color(0xFF0878E8)),
+              title: Text('Choose from gallery'),
+              subtitle: Text('Upload an existing photo'),
+            ),
+          ),
+          PopupMenuItem(
+            value: ImageSource.camera,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading:
+                  Icon(Icons.camera_alt_outlined, color: Color(0xFF10B981)),
+              title: Text('Take a photo'),
+              subtitle: Text('Open this device camera'),
+            ),
+          ),
+        ],
       );
 }
 
@@ -2708,14 +2982,10 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                   tooltip: 'Add emoji',
                   onPressed: _showEmojiPicker,
                   icon: const Icon(Icons.emoji_emotions_outlined)),
-              IconButton(
-                  tooltip: 'Attach photo',
-                  onPressed: _uploading ? null : _pickAttachment,
-                  icon: _uploading
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.attach_file)),
+              MarketplaceChatAttachmentMenu(
+                uploading: _uploading,
+                onSelected: _pickAttachmentFrom,
+              ),
               Expanded(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                 if (_attachment != null)
@@ -2829,47 +3099,13 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                         .toList()))));
   }
 
-  Future<void> _pickAttachment() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Attach Image or Spec Document',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_library, color: Color(0xFF0878E8)),
-              title: const Text('Choose Photo from Gallery'),
-              subtitle:
-                  const Text('Select photos of pipe, valves, or equipment'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF10B981)),
-              title: const Text('Take Photo with Camera'),
-              subtitle: const Text('Capture live photos at yard or jobsite'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-    if (source == null) return;
-
+  Future<void> _pickAttachmentFrom(ImageSource source) async {
     try {
-      final file = await ImagePicker()
-          .pickImage(source: source, imageQuality: 82, maxWidth: 1800);
+      final file = await ImagePicker().pickImage(
+          source: source,
+          preferredCameraDevice: CameraDevice.rear,
+          imageQuality: 82,
+          maxWidth: 1800);
       if (file == null) return;
       final sizeBytes = await file.length();
       if (sizeBytes > 15 * 1024 * 1024) {
@@ -2882,6 +3118,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         }
         return;
       }
+      if (!mounted) return;
       setState(() => _uploading = true);
       final extension = file.name.split('.').last.toLowerCase();
       final contentType = extension == 'png'
@@ -2916,6 +3153,24 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
           context,
           message: 'Image attached. Add a message or press Send.',
           tone: PipeStatusTone.success,
+        );
+      }
+    } on PlatformException catch (error) {
+      if (mounted) {
+        final permissionDenied = const {
+          'camera_access_denied',
+          'camera_access_denied_without_prompt',
+          'photo_access_denied',
+          'photo_access_denied_without_prompt',
+        }.contains(error.code);
+        PipeFeedback.show(
+          context,
+          message: permissionDenied
+              ? 'Photo access was denied. Allow access in device or browser settings, then try again.'
+              : source == ImageSource.camera
+                  ? 'The camera could not be opened on this device. Choose from gallery or check camera permissions.'
+                  : 'The photo library could not be opened. Check photo permissions and try again.',
+          tone: PipeStatusTone.error,
         );
       }
     } on FirebaseException catch (error) {

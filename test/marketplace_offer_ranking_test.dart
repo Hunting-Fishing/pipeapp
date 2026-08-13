@@ -146,4 +146,67 @@ void main() {
     expect(byId['orange'], MarketplaceOfferBand.orange);
     expect(byId['red'], MarketplaceOfferBand.red);
   });
+
+  test('buyer summaries contain only that buyer submitted offers', () {
+    MarketplaceOfferRankingInput history(
+      String id, {
+      required String buyerUid,
+      required String proposedByUid,
+      required String listingId,
+      required DateTime createdAt,
+    }) =>
+        MarketplaceOfferRankingInput(
+          offerId: id,
+          data: {
+            'buyerUid': buyerUid,
+            'sellerUid': 'seller',
+            'proposedByUid': proposedByUid,
+            'listingId': listingId,
+            'createdAt': createdAt,
+          },
+        );
+
+    final summaries = summarizeMarketplaceBuyerOffers(
+      buyerUid: 'buyer-a',
+      offers: [
+        history(
+          'buyer-a-new',
+          buyerUid: 'buyer-a',
+          proposedByUid: 'buyer-a',
+          listingId: 'listing-a',
+          createdAt: now.add(const Duration(days: 2)),
+        ),
+        history(
+          'seller-counter',
+          buyerUid: 'buyer-a',
+          proposedByUid: 'seller',
+          listingId: 'listing-a',
+          createdAt: now.add(const Duration(days: 1)),
+        ),
+        history(
+          'buyer-a-old',
+          buyerUid: 'buyer-a',
+          proposedByUid: 'buyer-a',
+          listingId: 'listing-a',
+          createdAt: now,
+        ),
+        history(
+          'private-other-buyer',
+          buyerUid: 'buyer-b',
+          proposedByUid: 'buyer-b',
+          listingId: 'listing-a',
+          createdAt: now.add(const Duration(days: 3)),
+        ),
+      ],
+    );
+
+    expect(summaries, hasLength(1));
+    expect(summaries.single.submittedCount, 2);
+    expect(summaries.single.history, hasLength(3));
+    expect(summaries.single.latestSubmitted.offerId, 'buyer-a-new');
+    expect(
+      summaries.single.history.map((offer) => offer.offerId),
+      isNot(contains('private-other-buyer')),
+    );
+  });
 }

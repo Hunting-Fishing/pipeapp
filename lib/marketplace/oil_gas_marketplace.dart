@@ -4083,29 +4083,15 @@ class _ListingDetailsState extends State<_ListingDetails> {
                         listingId: listing.id, sellerUid: listing.sellerUid)
                   ]))
             else
-              Row(children: [
-                Expanded(
-                    child: OutlinedButton.icon(
-                        onPressed: _messageSeller,
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        label: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Text('Message seller'),
-                          const SizedBox(width: 6),
-                          ListingMessageBadge(
-                              listingId: listing.id,
-                              sellerUid: listing.sellerUid)
-                        ]))),
-                if (_features.offers) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: FilledButton(
-                          onPressed: _makeOffer,
-                          style: FilledButton.styleFrom(
-                              backgroundColor: _orange,
-                              foregroundColor: Colors.white),
-                          child: const Text('Make offer')))
-                ],
-              ]),
+              ListingBuyerActivityActions(
+                listingId: listing.id,
+                sellerUid: listing.sellerUid,
+                publicOfferCount: listing.offerCount,
+                offersEnabled: _features.offers,
+                onMessage: _messageSeller,
+                onMakeOffer: _makeOffer,
+                onViewOffers: _showMyOffers,
+              ),
             if (_features.dispatch) ...[
               const SizedBox(height: 10),
               MarketplaceDispatchQuoteCard(onPressed: _getTruckingQuote),
@@ -4470,6 +4456,60 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 ],
               ));
     }
+  }
+
+  Future<void> _showMyOffers() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _notice('Sign in to view your submitted offers.');
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: .9,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const CircleAvatar(
+                  backgroundColor: Color(0xFFFFE7D5),
+                  child: Icon(Icons.local_offer_outlined,
+                      color: Color(0xFFC2410C))),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('My submitted offers',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w900)),
+                      Text('Visible only to you and this listing owner')
+                    ]),
+              ),
+              IconButton(
+                  tooltip: 'Close submitted offers',
+                  onPressed: () => Navigator.pop(sheetContext),
+                  icon: const Icon(Icons.close)),
+            ]),
+            const SizedBox(height: 12),
+            Expanded(
+              child: MarketplaceNegotiationHistory(
+                listingId: listing.id,
+                listingTitle: listing.title,
+                buyerUid: uid,
+                sellerUid: listing.sellerUid,
+                askingPrice: listing.numericPrice,
+                availableQuantity: listing.quantity,
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 
   Future<void> _makeOffer() async {

@@ -22,6 +22,61 @@ class MarketplaceOfferRankingInput {
   final String dispatchStatus;
 }
 
+class MarketplaceBuyerListingOfferSummary {
+  const MarketplaceBuyerListingOfferSummary({
+    required this.listingId,
+    required this.sellerUid,
+    required this.history,
+    required this.submittedByBuyer,
+  });
+
+  final String listingId;
+  final String sellerUid;
+  final List<MarketplaceOfferRankingInput> history;
+  final List<MarketplaceOfferRankingInput> submittedByBuyer;
+
+  MarketplaceOfferRankingInput get latestUpdate => history.first;
+  MarketplaceOfferRankingInput get latestSubmitted => submittedByBuyer.first;
+  int get submittedCount => submittedByBuyer.length;
+  DateTime? get lastSubmittedAt => marketplaceOfferRankingDate(
+        latestSubmitted.data['createdAt'],
+      );
+}
+
+List<MarketplaceBuyerListingOfferSummary> summarizeMarketplaceBuyerOffers({
+  required List<MarketplaceOfferRankingInput> offers,
+  required String buyerUid,
+}) {
+  final grouped = <String, List<MarketplaceOfferRankingInput>>{};
+  for (final offer in offers) {
+    final data = offer.data;
+    final listingId = '${data['listingId'] ?? ''}'.trim();
+    if (listingId.isEmpty || '${data['buyerUid'] ?? ''}' != buyerUid) continue;
+    grouped.putIfAbsent(listingId, () => []).add(offer);
+  }
+
+  final summaries = <MarketplaceBuyerListingOfferSummary>[];
+  for (final entry in grouped.entries) {
+    final history = entry.value.toList()
+      ..sort((left, right) =>
+          _createdAtMillis(right.data).compareTo(_createdAtMillis(left.data)));
+    final submitted = history
+        .where((offer) => '${offer.data['proposedByUid'] ?? ''}' == buyerUid)
+        .toList();
+    if (submitted.isEmpty) continue;
+    summaries.add(MarketplaceBuyerListingOfferSummary(
+      listingId: entry.key,
+      sellerUid: '${history.first.data['sellerUid'] ?? ''}',
+      history: history,
+      submittedByBuyer: submitted,
+    ));
+  }
+  summaries.sort((left, right) =>
+      (right.lastSubmittedAt?.millisecondsSinceEpoch ?? 0)
+          .compareTo(left.lastSubmittedAt?.millisecondsSinceEpoch ?? 0));
+  return summaries;
+}
+
 class MarketplaceOfferRank {
   const MarketplaceOfferRank({
     required this.input,
