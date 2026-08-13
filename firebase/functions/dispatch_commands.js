@@ -172,36 +172,6 @@ function createDispatchCommands(admin) {
     })),
   });
 
-  async function notifyAdministratorsOfProvider(profile, revision) {
-    const roles = await db.collection("administrator_roles")
-        .where("active", "==", true)
-        .get();
-    if (roles.empty) {
-      console.warn(
-          `Dispatch provider ${profile.ownerUid} submitted without an active administrator`,
-      );
-      return;
-    }
-    const batch = db.batch();
-    for (const role of roles.docs) {
-      batch.set(
-          db.collection("users").doc(role.id).collection("notifications")
-              .doc(`dispatch-provider-${profile.ownerUid}-${revision}`),
-          {
-            recipientUid: role.id,
-            type: "dispatch_provider_submitted",
-            title: "Dispatch provider ready for review",
-            message: `${profile.operatingName} submitted a provider application.`,
-            providerUid: profile.ownerUid,
-            revision,
-            read: false,
-            createdAt: FieldValue.serverTimestamp(),
-          },
-      );
-    }
-    await batch.commit();
-  }
-
   const submitDispatchProviderApplication = dispatchCommand(async (request) => {
     const identity = requireAuthenticatedIdentity(request);
     const requestId = requiredId(request.data, "requestId");
@@ -223,39 +193,32 @@ function createDispatchCommands(admin) {
       ]);
       if (receipt.exists) return receipt.data().result;
       const current = carrierSnapshot.exists ? carrierSnapshot.data() : {};
-      if (current.status === "pending_review") {
-        const pending = {
-          providerUid: identity.uid,
-          status: "pending_review",
-          revision: Number(current.reviewRevision || 1),
-          submitted: false,
-        };
-        transaction.create(receiptRef, {
-          actorUid: identity.uid,
-          command: "submitDispatchProviderApplication",
-          result: pending,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-        return pending;
+      if (current.status === "suspended") {
+        throw new HttpsError(
+            "failed-precondition",
+            "This Dispatch account is suspended. Contact Pipe Buyer support before reactivation.",
+        );
       }
       const revision = Number(current.reviewRevision || 0) + 1;
-      const submitted = {
+      const activated = {
         providerUid: identity.uid,
-        status: "pending_review",
+        status: "active",
         revision,
-        submitted: true,
+        activated: true,
       };
       transaction.set(carrierRef, {
         ownerUid: identity.uid,
         ...profile,
         serviceArea: providerServiceAreaValue(profile.serviceArea),
         phone: profile.phoneE164,
-        status: "pending_review",
-        availableForHire: false,
-        providerReviewVersion: FieldValue.delete(),
+        status: "active",
+        availableForHire: true,
+        providerReviewVersion: 1,
+        activationMode: "automatic",
         reviewRevision: revision,
         privacyVersion: 3,
         submittedAt: FieldValue.serverTimestamp(),
+        activatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         reviewedAt: FieldValue.delete(),
         reviewedByUid: FieldValue.delete(),
@@ -266,12 +229,13 @@ function createDispatchCommands(admin) {
       }, {merge: true});
       transaction.create(
           db.collection("dispatch_provider_review_events")
-              .doc(`${identity.uid}-${revision}-submitted`),
+              .doc(`${identity.uid}-${revision}-activated`),
           {
             providerUid: identity.uid,
             revision,
-            event: "submitted",
-            status: "pending_review",
+            event: "automatically_activated",
+            status: "active",
+            activationMode: "automatic",
             actorUid: identity.uid,
             createdAt: FieldValue.serverTimestamp(),
           },
@@ -279,28 +243,11 @@ function createDispatchCommands(admin) {
       transaction.create(receiptRef, {
         actorUid: identity.uid,
         command: "submitDispatchProviderApplication",
-        result: submitted,
+        result: activated,
         createdAt: FieldValue.serverTimestamp(),
       });
-      return submitted;
+      return activated;
     });
-    if (result.submitted) {
-      try {
-        await notifyAdministratorsOfProvider(
-            {ownerUid: identity.uid, ...profile},
-            result.revision,
-        );
-      } catch (error) {
-        // The durable pending-review record remains visible in the admin
-        // queue. A transient notification failure must not tell the provider
-        // that their successfully committed application was lost.
-        console.error("Dispatch provider administrator notification failed", {
-          providerUid: identity.uid,
-          revision: result.revision,
-          error,
-        });
-      }
-    }
     return result;
   });
 

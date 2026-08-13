@@ -2299,7 +2299,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                     const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
               ),
               const Text(
-                'Only the contact and service information needed to connect you with trucking work is collected.',
+                'Carrier and pilot-truck accounts activate immediately after verified contact and service-area validation.',
               ),
               const SizedBox(height: 10),
               const Card(
@@ -2318,12 +2318,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
               else ...[
                 _accountSummary(snapshot.data!.data()!),
                 _providerReviewHistory(),
-                if (const {
-                  'changes_requested',
-                  'rejected',
-                  'suspended',
-                  'review_required',
-                }.contains(effectiveStatus)) ...[
+                if (effectiveStatus != 'suspended') ...[
                   const SizedBox(height: 8),
                   FilledButton.icon(
                     onPressed: () {
@@ -2342,7 +2337,9 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                       setState(() => editingApplication = true);
                     },
                     icon: const Icon(Icons.edit_note_outlined),
-                    label: const Text('Update and resubmit application'),
+                    label: Text(effectiveStatus == 'active'
+                        ? 'Edit Dispatch profile'
+                        : 'Update and activate account'),
                   ),
                 ],
                 const SizedBox(height: 18),
@@ -2363,7 +2360,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                   ],
                 ),
                 const Text(
-                  'Add every truck separately so its payload and services are accurate when bidding.',
+                  'Add every truck separately so its payload and services are accurate when bidding. Trucks and pilot/escort vehicles are available immediately when added.',
                 ),
                 const SizedBox(height: 10),
                 _fleet(),
@@ -2454,9 +2451,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                           setState(() => editingApplication = false);
                           PipeFeedback.show(
                             context,
-                            message:
-                                'Dispatch application submitted for administrator review.',
-                            tone: PipeStatusTone.info,
+                            message: 'Dispatch account activated.',
+                            tone: PipeStatusTone.success,
                           );
                         }
                       } on FirebaseException catch (error) {
@@ -2485,8 +2481,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                   : const Icon(Icons.check_circle_outline),
               label: Text(
                 submitting
-                    ? 'Submitting Dispatch application…'
-                    : 'Submit for review',
+                    ? 'Activating Dispatch account…'
+                    : 'Activate Dispatch account',
               ),
               style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(50)),
@@ -2516,7 +2512,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
             ? 'review_required'
             : storedStatus;
     final statusLabel = switch (status) {
-      'active' => 'APPROVED',
+      'active' => 'ACTIVE',
       'changes_requested' => 'CHANGES NEEDED',
       'rejected' => 'NOT APPROVED',
       'suspended' => 'SUSPENDED',
@@ -2561,7 +2557,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
           return Card(
             child: ExpansionTile(
               leading: const Icon(Icons.history_outlined),
-              title: const Text('Application history'),
+              title: const Text('Account history'),
               subtitle: Text('${events.length} recorded event(s)'),
               children: [
                 if (snapshot.hasError)

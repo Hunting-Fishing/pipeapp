@@ -39,6 +39,15 @@ class OpenAddress {
 
 enum OpenAddressSearchType { all, settlement, administrative }
 
+const settlementOpenAddressTypes = {
+  'city',
+  'town',
+  'village',
+  'hamlet',
+  'locality',
+  'municipality',
+};
+
 Future<OpenAddress?> reverseOpenAddress(LatLng point) async {
   final base = Uri.parse(pipeBuyerGeocoderUrl);
   final reverse = base.resolve('../reverse').replace(queryParameters: {
@@ -57,7 +66,7 @@ Future<OpenAddress?> reverseOpenAddress(LatLng point) async {
   final data = jsonDecode(response.body) as Map<String, dynamic>;
   final features = data['features'] as List? ?? const [];
   if (features.isEmpty) return null;
-  return _openAddressFromFeature(
+  return openAddressFromFeature(
       Map<String, dynamic>.from(features.first as Map));
 }
 
@@ -211,19 +220,12 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final results = (data['features'] as List? ?? const [])
           .map((raw) =>
-              _openAddressFromFeature(Map<String, dynamic>.from(raw as Map)))
+              openAddressFromFeature(Map<String, dynamic>.from(raw as Map)))
           .where((item) => item.label.isNotEmpty)
           .where((item) => switch (widget.searchType) {
                 OpenAddressSearchType.all => true,
-                OpenAddressSearchType.settlement => const [
-                    'city',
-                    'town',
-                    'village',
-                    'hamlet',
-                    'locality',
-                    'district',
-                    'county'
-                  ].contains(item.placeType),
+                OpenAddressSearchType.settlement =>
+                  settlementOpenAddressTypes.contains(item.placeType),
                 OpenAddressSearchType.administrative => const [
                     'country',
                     'state',
@@ -243,28 +245,33 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
   }
 }
 
-OpenAddress _openAddressFromFeature(Map<String, dynamic> feature) {
+OpenAddress openAddressFromFeature(Map<String, dynamic> feature) {
   final properties =
       Map<String, dynamic>.from(feature['properties'] as Map? ?? const {});
   final geometry =
       Map<String, dynamic>.from(feature['geometry'] as Map? ?? const {});
   final coordinates = geometry['coordinates'] as List? ?? const [0, 0];
   String read(String key) => '${properties[key] ?? ''}'.trim();
+  final placeType = read('type').toLowerCase();
+  final featureName = read('name');
   final street = [read('housenumber'), read('street')]
       .where((value) => value.isNotEmpty)
       .join(' ');
   final community = [
+    if (settlementOpenAddressTypes.contains(placeType)) featureName,
     read('city'),
     read('town'),
     read('village'),
     read('hamlet'),
     read('locality'),
+    // District/county are useful fallbacks for rural addresses, but must not
+    // replace the explicit name of a city or town result.
     read('district'),
     read('county'),
   ].firstWhere((value) => value.isNotEmpty, orElse: () => '');
   final parts = [
     street,
-    read('name'),
+    featureName,
     community,
     read('state'),
     read('postcode'),
@@ -280,7 +287,7 @@ OpenAddress _openAddressFromFeature(Map<String, dynamic> feature) {
     postalCode: read('postcode'),
     country: read('country'),
     countryCode: read('countrycode').toUpperCase(),
-    placeType: read('type'),
+    placeType: placeType,
     osmType: read('osm_type'),
     osmId: read('osm_id'),
   );

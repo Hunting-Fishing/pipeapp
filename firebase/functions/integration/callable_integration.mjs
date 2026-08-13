@@ -18,7 +18,6 @@ const {
 const {
   createAccountVerificationCommands,
 } = require("../account_verification_commands");
-const {createDispatchCommands} = require("../dispatch_commands");
 const {createModerationCommands} = require("../moderation_commands");
 const {
   createPolicyAcceptanceCommands,
@@ -66,10 +65,6 @@ const commandFirestore = Object.assign(
     {FieldValue, GeoPoint, Timestamp},
 );
 const accountVerificationCommands = createAccountVerificationCommands({
-  firestore: commandFirestore,
-  auth: () => auth,
-});
-const dispatchCommands = createDispatchCommands({
   firestore: commandFirestore,
   auth: () => auth,
 });
@@ -416,30 +411,16 @@ try {
       providerRequest,
   );
   assert.deepEqual(providerRetry, providerFirst);
-  assert.equal(providerFirst.status, "pending_review");
-  assert.equal(
-      (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data().status,
-      "pending_review",
-  );
-  const providerReviewRequest = {
-    auth: reviewRequest.auth,
-    data: {
-      requestId: `dispatch-provider-review-${now}`,
-      providerUid: carrier.uid,
-      decision: "approved",
-      reason: "Verified public operating information and service coverage.",
-    },
-  };
-  const providerReviewFirst = await dispatchCommands
-      .reviewDispatchProvider(providerReviewRequest);
-  const providerReviewRetry = await dispatchCommands
-      .reviewDispatchProvider(providerReviewRequest);
-  assert.deepEqual(providerReviewRetry, providerReviewFirst);
-  assert.equal(providerReviewFirst.status, "active");
+  assert.equal(providerFirst.status, "active");
   assert.equal(
       (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data().status,
       "active",
   );
+  const activatedProvider =
+    (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data();
+  assert.equal(activatedProvider.availableForHire, true);
+  assert.equal(activatedProvider.providerReviewVersion, 1);
+  assert.equal(activatedProvider.activationMode, "automatic");
   await assertCollectionSize("account_phone_registry", 3);
   assert.deepEqual(
       await call("syncAccountVerification", unverified.token, {}),
@@ -1853,7 +1834,7 @@ try {
   );
 
   const receipts = await db.collection("marketplace_command_receipts").get();
-  assert.equal(receipts.size, 50);
+  assert.equal(receipts.size, 49);
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
   assert.equal(communicationReceipts.size, 3);
@@ -1863,7 +1844,8 @@ try {
       "listing lifecycle, " +
       "Wanted match dismissal, restore, contact history, " +
       "offer completion, auction settlement, bid, Buy It Now, Dispatch revision, " +
-      "provider review, quote, award, delivery closure, protected messages/reports/uploads, " +
+      "automatic provider activation, quote, award, delivery closure, " +
+      "protected messages/reports/uploads, " +
       "versioned policy publication and acceptance, " +
       "private export, staged deletion, remembered devices, session revocation, " +
       "and retry idempotency.",

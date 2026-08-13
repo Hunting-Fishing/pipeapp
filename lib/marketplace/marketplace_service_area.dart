@@ -13,6 +13,69 @@ import 'open_address_autocomplete.dart';
 
 enum ServiceAreaMode { radius, places, regions }
 
+const serviceAreaSettlementBoundaryTypes = {
+  'city',
+  'town',
+  'village',
+  'hamlet',
+  'locality',
+  'municipality',
+  'borough',
+};
+
+String _normalizedServiceAreaName(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
+
+Map<String, dynamic>? selectServiceAreaBoundaryCandidate(
+  Iterable<Map<String, dynamic>> candidates, {
+  required String requestedName,
+  required bool settlementOnly,
+}) {
+  final requested = _normalizedServiceAreaName(requestedName);
+  if (requested.isEmpty) return null;
+  for (final item in candidates) {
+    final geometry = item['geojson'];
+    if (geometry is! Map ||
+        !const {'Polygon', 'MultiPolygon'}.contains(geometry['type'])) {
+      continue;
+    }
+    final addressData = item['address'] is Map
+        ? Map<String, dynamic>.from(item['address'] as Map)
+        : const <String, dynamic>{};
+    final boundaryType = _normalizedServiceAreaName(
+      '${item['addresstype'] ?? item['type'] ?? ''}',
+    );
+    if (settlementOnly &&
+        !serviceAreaSettlementBoundaryTypes.contains(boundaryType)) {
+      continue;
+    }
+    final names = (settlementOnly
+            ? [
+                addressData['city'],
+                addressData['town'],
+                addressData['village'],
+                addressData['hamlet'],
+                addressData['locality'],
+                addressData['municipality'],
+                addressData['name'],
+              ]
+            : [
+                addressData['state'],
+                addressData['province'],
+                addressData['region'],
+                addressData['county'],
+                addressData['municipality'],
+                addressData['name'],
+              ])
+        .map((value) => _normalizedServiceAreaName('${value ?? ''}'));
+    final display = _normalizedServiceAreaName('${item['display_name'] ?? ''}');
+    if (names.contains(requested) || display.startsWith(requested)) {
+      return item;
+    }
+  }
+  return null;
+}
+
 class ServiceAreaPlace {
   const ServiceAreaPlace({
     required this.name,
@@ -542,62 +605,66 @@ class _MarketplaceServiceAreaPickerState
 
   Future<List<List<LatLng>>> _loadBoundary(OpenAddress address) async {
     try {
-      final directRelation = _mode == ServiceAreaMode.regions &&
-          address.osmType.toUpperCase() == 'R' &&
-          address.osmId.isNotEmpty;
       final requestedName = _mode == ServiceAreaMode.places
           ? _settlementName(address)
           : address.region;
-      final uri = directRelation
-          ? Uri.https('nominatim.openstreetmap.org', '/lookup', {
-              'osm_ids': 'R${address.osmId}',
-              'format': 'jsonv2',
-              'polygon_geojson': '1',
-              'polygon_threshold': '0.005',
-              'email': 'admin@pipebuyer.com',
-            })
-          : Uri.https('nominatim.openstreetmap.org', '/search', {
-              'q': [requestedName, address.region, address.country]
-                  .where((part) => part.isNotEmpty)
-                  .join(', '),
-              'format': 'jsonv2',
-              'addressdetails': '1',
-              'polygon_geojson': '1',
-              'polygon_threshold': '0.005',
-              'limit': '8',
-              'email': 'admin@pipebuyer.com',
-            });
-      final response = await http.get(uri, headers: {
-        'Accept': 'application/json'
-      }).timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200) return const [];
-      final results = jsonDecode(response.body) as List;
-      if (results.isEmpty) return const [];
-      final candidates = results
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item));
-      final polygonCandidates = candidates.where((item) =>
-          item['geojson'] is Map &&
-          const ['Polygon', 'MultiPolygon']
-              .contains((item['geojson'] as Map)['type']));
-      final requested = _normalized(requestedName);
-      final selected = polygonCandidates.firstWhere((item) {
-        final display = _normalized('${item['display_name'] ?? ''}');
-        final addressData = item['address'] is Map
-            ? Map<String, dynamic>.from(item['address'] as Map)
-            : const <String, dynamic>{};
-        final names = [
-          addressData['city'],
-          addressData['town'],
-          addressData['village'],
-          addressData['municipality'],
-          addressData['county'],
-          addressData['name']
-        ].map((value) => _normalized('${value ?? ''}'));
-        return requested.isNotEmpty &&
-            (display.startsWith(requested) || names.contains(requested));
-      }, orElse: () => <String, dynamic>{});
-      final geometry = selected['geojson'] as Map<String, dynamic>?;
+      final osmType = switch (address.osmType.trim().toUpperCase()) {
+        'R' || 'RELATION' => 'R',
+        'W' || 'WAY' => 'W',
+        _ => '',
+      };
+      final exactLookup = osmType.isNotEmpty && address.osmId.isNotEmpty;
+
+      Future<List<Map<String, dynamic>>> load(Uri uri) async {
+        final response = await http.get(uri, headers: {
+          'Accept': 'application/json'
+        }).timeout(const Duration(seconds: 20));
+        if (response.statusCode != 200) return const [];
+        return (jsonDecode(response.body) as List)
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+      }
+
+      Map<String, dynamic>? selected;
+      if (exactLookup) {
+        final candidates = await load(
+          Uri.https('nominatim.openstreetmap.org', '/lookup', {
+            'osm_ids': '$osmType${address.osmId}',
+            'format': 'jsonv2',
+            'addressdetails': '1',
+            'polygon_geojson': '1',
+            'polygon_threshold': '0.005',
+            'email': 'admin@pipebuyer.com',
+          }),
+        );
+        selected = selectServiceAreaBoundaryCandidate(
+          candidates,
+          requestedName: requestedName,
+          settlementOnly: _mode == ServiceAreaMode.places,
+        );
+      }
+      if (selected == null) {
+        final candidates = await load(
+          Uri.https('nominatim.openstreetmap.org', '/search', {
+            'q': [requestedName, address.region, address.country]
+                .where((part) => part.isNotEmpty)
+                .join(', '),
+            'format': 'jsonv2',
+            'addressdetails': '1',
+            'polygon_geojson': '1',
+            'polygon_threshold': '0.005',
+            'limit': '8',
+            'email': 'admin@pipebuyer.com',
+          }),
+        );
+        selected = selectServiceAreaBoundaryCandidate(
+          candidates,
+          requestedName: requestedName,
+          settlementOnly: _mode == ServiceAreaMode.places,
+        );
+      }
+      final geometry = selected?['geojson'] as Map<String, dynamic>?;
       if (geometry == null) return const [];
       final coordinates = geometry['coordinates'];
       final rings = <List<LatLng>>[];
