@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_adaptive_layout.dart';
 
 @immutable
@@ -62,6 +63,13 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final effectiveBackground = backgroundColor ?? theme.scaffoldBackgroundColor;
+    final effectiveNavigation =
+        navigationBackgroundColor ?? theme.colorScheme.surface;
+    final effectiveIndicator = indicatorColor ?? PipeBuyerColors.orangeSoft;
+    final navigationBorder = theme.dividerColor;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
@@ -73,13 +81,19 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
         if (useRail) {
           return Scaffold(
             key: scaffoldKey,
-            backgroundColor: backgroundColor,
-            appBar: _buildAppBar(showMenuButton: false),
+            backgroundColor: effectiveBackground,
+            appBar: _buildAppBar(context, showMenuButton: false),
             body: SafeArea(
               child: Row(
                 children: [
-                  SizedBox(
-                    width: extendRail ? 256 : 80,
+                  Container(
+                    width: extendRail ? 268 : 82,
+                    decoration: BoxDecoration(
+                      color: effectiveNavigation,
+                      border: Border(
+                        right: BorderSide(color: navigationBorder),
+                      ),
+                    ),
                     child: Column(
                       children: [
                         Expanded(
@@ -94,8 +108,10 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
                             extended: extendRail,
                             scrollable: true,
                             groupAlignment: -1,
-                            backgroundColor: navigationBackgroundColor,
-                            indicatorColor: indicatorColor,
+                            minWidth: 82,
+                            minExtendedWidth: 268,
+                            backgroundColor: Colors.transparent,
+                            indicatorColor: effectiveIndicator,
                             leading: railLeading,
                             trailing: railTrailing,
                             destinations: railDestinations
@@ -124,14 +140,16 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const VerticalDivider(width: 1),
                   Expanded(
-                    child: _ConstrainedMarketplaceBody(
-                      availableWidth: _contentWidthAfterRail(
-                        availableWidth,
-                        extendRail,
+                    child: ColoredBox(
+                      color: effectiveBackground,
+                      child: _ConstrainedMarketplaceBody(
+                        availableWidth: _contentWidthAfterRail(
+                          availableWidth,
+                          extendRail,
+                        ),
+                        child: body,
                       ),
-                      child: body,
                     ),
                   ),
                 ],
@@ -142,8 +160,8 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
 
         return Scaffold(
           key: scaffoldKey,
-          backgroundColor: backgroundColor,
-          appBar: _buildAppBar(showMenuButton: drawer != null),
+          backgroundColor: effectiveBackground,
+          appBar: _buildAppBar(context, showMenuButton: drawer != null),
           drawer: drawer,
           body: SafeArea(
             child: _ConstrainedMarketplaceBody(
@@ -153,26 +171,35 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
           ),
           bottomNavigationBar: SafeArea(
             top: false,
-            child: NavigationBar(
-              backgroundColor: navigationBackgroundColor,
-              indicatorColor: indicatorColor,
-              selectedIndex: _selectedDestinationIndex(
-                    compactDestinations,
-                  ) ??
-                  0,
-              onDestinationSelected: (index) => onDestinationSelected(
-                compactDestinations[index].pageIndex,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: effectiveNavigation,
+                border: Border(
+                  top: BorderSide(color: navigationBorder),
+                ),
               ),
-              destinations: compactDestinations
-                  .map(
-                    (destination) => NavigationDestination(
-                      icon: destination.icon,
-                      selectedIcon:
-                          destination.selectedIcon ?? destination.icon,
-                      label: destination.label,
-                    ),
-                  )
-                  .toList(growable: false),
+              child: NavigationBar(
+                backgroundColor: effectiveNavigation,
+                indicatorColor: effectiveIndicator,
+                elevation: 0,
+                selectedIndex: _selectedDestinationIndex(
+                      compactDestinations,
+                    ) ??
+                    0,
+                onDestinationSelected: (index) => onDestinationSelected(
+                  compactDestinations[index].pageIndex,
+                ),
+                destinations: compactDestinations
+                    .map(
+                      (destination) => NavigationDestination(
+                        icon: destination.icon,
+                        selectedIcon:
+                            destination.selectedIcon ?? destination.icon,
+                        label: destination.label,
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
             ),
           ),
         );
@@ -180,11 +207,20 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
     );
   }
 
-  AppBar _buildAppBar({required bool showMenuButton}) {
+  AppBar _buildAppBar(
+    BuildContext context, {
+    required bool showMenuButton,
+  }) {
+    final theme = Theme.of(context);
     return AppBar(
-      backgroundColor: navigationBackgroundColor,
-      surfaceTintColor: navigationBackgroundColor,
+      backgroundColor:
+          theme.appBarTheme.backgroundColor ?? PipeBuyerColors.ink,
+      foregroundColor: theme.appBarTheme.foregroundColor ?? Colors.white,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
+      shape: const Border(
+        bottom: BorderSide(color: PipeBuyerColors.orange, width: 2),
+      ),
       leading: showMenuButton
           ? IconButton(
               tooltip: 'Open navigation',
@@ -197,7 +233,12 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+        style: theme.appBarTheme.titleTextStyle ??
+            const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
       ),
       actions: actions,
     );
@@ -213,8 +254,8 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
   }
 
   double _contentWidthAfterRail(double availableWidth, bool extended) {
-    const collapsedRailWidth = 80.0;
-    const extendedRailWidth = 256.0;
+    const collapsedRailWidth = 82.0;
+    const extendedRailWidth = 268.0;
     final width = availableWidth -
         (extended ? extendedRailWidth : collapsedRailWidth) -
         1;
