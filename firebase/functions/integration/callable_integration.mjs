@@ -693,6 +693,19 @@ try {
       1,
       [["listingId", "==", offerListingId]],
   );
+  const offerNotifications = await db
+      .collection(`users/${seller.uid}/notifications`)
+      .where("offerId", "==", offerId)
+      .get();
+  assert.equal(offerNotifications.size, 1);
+  const offerNotification = offerNotifications.docs[0].data();
+  assert.equal(offerNotification.type, "offer");
+  assert.equal(offerNotification.title, "New offer received");
+  assert.equal(offerNotification.read, false);
+  assert.equal(
+      offerNotification.pushBody,
+      "Tap to compare price, payment, pickup, and trucking.",
+  );
 
   const conversationData = {listingId: offerListingId};
   const conversationFirst = await call(

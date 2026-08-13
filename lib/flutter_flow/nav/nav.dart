@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '/backend/backend.dart';
@@ -18,6 +19,8 @@ import '/marketplace/marketplace_public_information.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
 import '/marketplace/marketplace_tax_compliance_admin_page.dart';
 import '/marketplace/marketplace_tax_profile_page.dart';
+
+import 'initial_location.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -80,7 +83,8 @@ class AppStateNotifier extends ChangeNotifier {
 }
 
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: '/',
+      initialLocation: kIsWeb ? marketplaceInitialLocation() : '/',
+      overridePlatformDefaultLocation: kIsWeb,
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,

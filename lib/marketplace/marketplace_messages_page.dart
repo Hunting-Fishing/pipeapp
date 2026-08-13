@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -16,12 +17,15 @@ import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_avatar_image.dart';
+import 'marketplace_offer_ranking.dart';
 import 'marketplace_offer_schedule.dart';
 import 'marketplace_account_hub.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
+import 'marketplace_activity_presentation.dart';
+import 'marketplace_listing_activity_builder.dart';
 
 class MarketplaceMessagesPage extends StatelessWidget {
   const MarketplaceMessagesPage({super.key});
@@ -95,29 +99,82 @@ class MarketplaceMessagesPage extends StatelessWidget {
                 ((data['unreadCounts'] as Map?)?[uid] as num?)?.toInt() ?? 0;
             final sellerName = '${data['sellerName'] ?? 'Marketplace seller'}';
             final title = '${data['listingTitle'] ?? 'Marketplace listing'}';
-            final memberUids =
-                List<String>.from(data['memberUids'] ?? const <String>[]);
-            final otherUid =
-                memberUids.where((member) => member != uid).firstOrNull ?? '';
-            return Card(
-              child: ListTile(
-                leading: MarketplaceUserAvatar(
-                    userUid: otherUid,
-                    size: 40,
-                    fallback: Center(
-                        child: Text(sellerName.isEmpty ? '?' : sellerName[0]))),
-                title: Text(title,
-                    maxLines: 1,
-                    style: TextStyle(
-                        fontWeight:
-                            unread > 0 ? FontWeight.w900 : FontWeight.w700)),
-                subtitle: Text('${data['lastMessage'] ?? ''}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: unread > 0
-                    ? Badge(label: Text('$unread'))
-                    : const Icon(Icons.chevron_right),
-                onTap: () =>
-                    context.push(MarketplaceDeepLinks.conversation(doc.id)),
+            final isSeller = '${data['sellerUid'] ?? ''}' == uid;
+            final otherName = isSeller
+                ? '${data['buyerDisplayName'] ?? 'Marketplace buyer'}'
+                : sellerName;
+            final listingId = '${data['listingId'] ?? ''}'.trim();
+            return MarketplaceListingActivityBuilder(
+              listingId: listingId,
+              embedded: {...data, 'listingTitle': title},
+              builder: (context, listing) => Card(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () =>
+                      context.push(MarketplaceDeepLinks.conversation(doc.id)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          MarketplaceListingActivityThumbnail(
+                            listing: listing,
+                            fallbackIcon: Icons.inventory_2_outlined,
+                            badgeIcon: Icons.chat_bubble_outline,
+                            size: 58,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    listing.title.isEmpty
+                                        ? title
+                                        : listing.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: unread > 0
+                                            ? FontWeight.w900
+                                            : FontWeight.w700)),
+                                Text(otherName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Color(0xFF53657A),
+                                        fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 3),
+                                Text(
+                                    '${data['lastMessage'] ?? 'Open conversation'}',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis),
+                                if (listing.commerceLine.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(listing.commerceLine,
+                                      style: const TextStyle(
+                                          color: Color(0xFF0F5BB5),
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 12)),
+                                ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${(data['messageCount'] as num?)?.toInt() ?? 0} messages'
+                                  '${marketplaceActivityTime(data['lastMessageAt']).isEmpty ? '' : ' • ${marketplaceActivityTime(data['lastMessageAt'])}'}',
+                                  style: const TextStyle(
+                                      color: Color(0xFF66758A), fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          unread > 0
+                              ? Badge(label: Text('$unread'))
+                              : const Icon(Icons.chevron_right),
+                        ]),
+                  ),
+                ),
               ),
             );
           },
@@ -284,40 +341,70 @@ class _ConversationNegotiationPanelState
                 return Material(
                     color: const Color(0xFFF4F8FC),
                     child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(children: [
-                          const CircleAvatar(
-                              radius: 20,
-                              child:
-                                  Icon(Icons.local_offer_outlined, size: 20)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                const Text('Offer',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w900)),
-                                Text(
-                                    currentPrice == null
-                                        ? 'Price available on request'
-                                        : '\$${currentPrice.toStringAsFixed(2)}'
-                                            '${basis.isEmpty ? '' : ' • $basis'}'
-                                            '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis)
-                              ])),
-                          const SizedBox(width: 10),
-                          ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                  minWidth: 160, minHeight: 50),
-                              child: FilledButton.tonalIcon(
-                                  onPressed: () =>
-                                      _openOffers(conversation!, listing),
-                                  icon: const Icon(Icons.handshake_outlined),
-                                  label: Text(latest.isEmpty
-                                      ? 'Make offer'
-                                      : 'Offers & history')))
+                        padding: const EdgeInsets.all(10),
+                        child: Column(children: [
+                          InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => context.push(
+                                  MarketplaceDeepLinks.listing(listingId)),
+                              child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 6),
+                                  child: Row(children: [
+                                    const Icon(Icons.inventory_2_outlined,
+                                        size: 20, color: Color(0xFF075EB8)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                          Text(
+                                              '${conversation?['listingTitle'] ?? 'Marketplace listing'}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w900)),
+                                          const Text('View marketplace listing',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF526579)))
+                                        ])),
+                                    const Icon(Icons.open_in_new, size: 18)
+                                  ]))),
+                          const Divider(height: 12),
+                          Row(children: [
+                            const CircleAvatar(
+                                radius: 20,
+                                child:
+                                    Icon(Icons.local_offer_outlined, size: 20)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  const Text('Offer',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w900)),
+                                  Text(
+                                      currentPrice == null
+                                          ? 'Price available on request'
+                                          : '\$${currentPrice.toStringAsFixed(2)}'
+                                              '${basis.isEmpty ? '' : ' • $basis'}'
+                                              '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis)
+                                ])),
+                            const SizedBox(width: 10),
+                            FilledButton.tonalIcon(
+                                onPressed: () =>
+                                    _openOffers(conversation!, listing),
+                                icon: const Icon(Icons.handshake_outlined),
+                                label: Text(latest.isEmpty
+                                    ? 'Make offer'
+                                    : 'Offers & history'))
+                          ])
                         ])));
               });
         });
@@ -941,7 +1028,7 @@ class _ConversationNegotiationPanelState
       ]));
 }
 
-class MarketplaceNegotiationHistory extends StatelessWidget {
+class MarketplaceNegotiationHistory extends StatefulWidget {
   const MarketplaceNegotiationHistory(
       {super.key,
       required this.listingId,
@@ -956,6 +1043,25 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
   final String sellerUid;
   final num? askingPrice;
   final int? availableQuantity;
+
+  @override
+  State<MarketplaceNegotiationHistory> createState() =>
+      _MarketplaceNegotiationHistoryState();
+}
+
+class _MarketplaceNegotiationHistoryState
+    extends State<MarketplaceNegotiationHistory> {
+  RangeValues _percentOffRange = const RangeValues(0, 100);
+  DateTimeRange? _pickupRange;
+  MarketplaceOfferTruckingFilter _truckingFilter =
+      MarketplaceOfferTruckingFilter.all;
+
+  String get listingId => widget.listingId;
+  String get listingTitle => widget.listingTitle;
+  String get buyerUid => widget.buyerUid;
+  String get sellerUid => widget.sellerUid;
+  num? get askingPrice => widget.askingPrice;
+  int? get availableQuantity => widget.availableQuantity;
 
   @override
   Widget build(BuildContext context) {
@@ -1000,13 +1106,18 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   .compareTo(at?.millisecondsSinceEpoch ?? 0);
             });
           if (events.isEmpty) {
-            return Center(
-                child: Text(
-                    'Seller asks ${askingPrice == null ? 'contact for price' : '\$${askingPrice!.toStringAsFixed(2)}'}'
-                    '${availableQuantity == null ? '' : ' for up to $availableQuantity units'}.\n'
-                    'No offers have been submitted yet.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.black54)));
+            return MarketplaceDataStateView(
+              kind: MarketplaceDataStateKind.empty,
+              compact: true,
+              icon: isSeller
+                  ? Icons.auto_awesome_outlined
+                  : Icons.handshake_outlined,
+              title: isSeller ? 'Smart offers' : 'No offers yet',
+              message: isSeller
+                  ? 'New buyer offers will be ranked here by price, payment, pickup, and trucking readiness.'
+                  : 'Seller asks ${askingPrice == null ? 'contact for price' : '\$${askingPrice!.toStringAsFixed(2)}'}'
+                      '${availableQuantity == null ? '' : ' for up to $availableQuantity units'}.',
+            );
           }
           final revisionsByBuyer =
               <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
@@ -1014,17 +1125,77 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             final buyer = '${event.data()['buyerUid'] ?? ''}';
             revisionsByBuyer.putIfAbsent(buyer, () => []).add(event);
           }
-          final displayed = isSeller
-              ? revisionsByBuyer.values.map((history) => history.first).toList()
-              : events;
-          final bestTotal = displayed.fold<num>(
-              0,
-              (best, event) =>
-                  (event.data()['offeredTotal'] as num? ?? 0) > best
-                      ? event.data()['offeredTotal'] as num
-                      : best);
+          if (isSeller) {
+            final displayed = revisionsByBuyer.values.map((history) {
+              return history.firstWhere(
+                (document) {
+                  final data = document.data();
+                  return data['proposedByUid'] == data['buyerUid'];
+                },
+                orElse: () => history.first,
+              );
+            }).toList();
+            return _sellerSmartHistory(
+              context,
+              displayed: displayed,
+              revisionsByBuyer: revisionsByBuyer,
+              totalUpdates: events.length,
+              atLimit: snapshot.data!.docs.length == defaultActivityFeedLimit,
+            );
+          }
+          return _buyerOfferHistory(
+            context,
+            events: events,
+            revisionsByBuyer: revisionsByBuyer,
+            atLimit: snapshot.data!.docs.length == defaultActivityFeedLimit,
+          );
+        });
+  }
+
+  Widget _sellerSmartHistory(
+    BuildContext context, {
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> displayed,
+    required Map<String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+        revisionsByBuyer,
+    required int totalUpdates,
+    required bool atLimit,
+  }) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('dispatch_jobs')
+            .where('listingId', isEqualTo: listingId)
+            .limit(defaultActivityFeedLimit)
+            .snapshots(),
+        builder: (context, dispatchSnapshot) {
+          final dispatchStatuses = <String, String>{};
+          for (final document in dispatchSnapshot.data?.docs ??
+              const <QueryDocumentSnapshot<Map<String, dynamic>>>[]) {
+            final data = document.data();
+            final offerId = '${data['offerId'] ?? document.id}';
+            dispatchStatuses[offerId] =
+                '${data['dispatchRequestStatus'] ?? data['status'] ?? ''}';
+          }
+          final ranked = rankMarketplaceOffers(
+            now: DateTime.now(),
+            askingUnitPrice: askingPrice,
+            offers: displayed
+                .map((document) => MarketplaceOfferRankingInput(
+                      offerId: document.id,
+                      data: document.data(),
+                      dispatchStatus: dispatchStatuses[document.id] ?? '',
+                    ))
+                .toList(),
+          );
+          final filters = MarketplaceOfferRankingFilters(
+            minimumPercentOff: _percentOffRange.start,
+            maximumPercentOff: _percentOffRange.end,
+            pickupFrom: _pickupRange?.start,
+            pickupTo: _pickupRange?.end,
+            trucking: _truckingFilter,
+          );
+          final filtered = ranked.where(filters.matches).toList();
           return Column(children: [
-            if (snapshot.data!.docs.length == defaultActivityFeedLimit)
+            if (atLimit)
               const ListTile(
                 dense: true,
                 leading: Icon(Icons.info_outline),
@@ -1032,53 +1203,282 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                 subtitle: Text(
                     'Older revisions remain in the authoritative transaction history.'),
               ),
-            if (isSeller)
-              Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFEAF4FD),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Row(children: [
-                    const Icon(Icons.analytics_outlined,
-                        color: Color(0xFF0878E8)),
-                    const SizedBox(width: 9),
-                    Expanded(
-                        child: Text(
-                            '${revisionsByBuyer.length} buyer${revisionsByBuyer.length == 1 ? '' : 's'} • '
-                            '${events.length} total offer${events.length == 1 ? '' : 's'}',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w900))),
-                    Text('Best \$${bestTotal.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900, color: Colors.green))
-                  ])),
+            _smartOffersHeader(
+              buyerCount: revisionsByBuyer.length,
+              totalUpdates: totalUpdates,
+              shownCount: filtered.length,
+              topOffer: filtered.isEmpty ? null : filtered.first,
+              dispatchLoading:
+                  dispatchSnapshot.connectionState == ConnectionState.waiting,
+              dispatchError: dispatchSnapshot.hasError,
+            ),
+            const SizedBox(height: 9),
+            _smartOfferFilters(context, filters),
+            const SizedBox(height: 10),
             Expanded(
-                child: ListView.separated(
-                    itemCount: displayed.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, index) {
-                      final document = displayed[index];
-                      final event = document.data();
-                      final buyer = '${event['buyerUid'] ?? ''}';
-                      return _offerCard(event,
+              child: filtered.isEmpty
+                  ? MarketplaceDataStateView(
+                      kind: MarketplaceDataStateKind.empty,
+                      compact: true,
+                      icon: Icons.filter_alt_off_outlined,
+                      title: 'No offers match these filters',
+                      message:
+                          'Clear or widen the price, pickup, or trucking filters.',
+                      primaryLabel: 'Clear filters',
+                      primaryIcon: Icons.restart_alt,
+                      onPrimary: _resetOfferFilters,
+                    )
+                  : ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, index) {
+                        final rank = filtered[index];
+                        final document = displayed.firstWhere(
+                            (candidate) => candidate.id == rank.input.offerId);
+                        final event = document.data();
+                        final buyer = '${event['buyerUid'] ?? ''}';
+                        return _offerCard(
+                          event,
                           context: context,
                           offerId: document.id,
-                          isSeller: isSeller,
-                          isBest:
-                              (event['offeredTotal'] as num? ?? 0) == bestTotal,
-                          revisions: revisionsByBuyer[buyer] ?? const []);
-                    }))
+                          isSeller: true,
+                          isBest: rank.bestOverall,
+                          smartRank: rank,
+                          revisions: revisionsByBuyer[buyer] ?? const [],
+                        );
+                      },
+                    ),
+            ),
           ]);
-        });
+        },
+      );
+
+  Widget _buyerOfferHistory(
+    BuildContext context, {
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> events,
+    required Map<String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+        revisionsByBuyer,
+    required bool atLimit,
+  }) {
+    final bestTotal = events.fold<num>(
+        0,
+        (best, event) => (event.data()['offeredTotal'] as num? ?? 0) > best
+            ? event.data()['offeredTotal'] as num
+            : best);
+    return Column(children: [
+      if (atLimit)
+        const ListTile(
+          dense: true,
+          leading: Icon(Icons.info_outline),
+          title: Text('Showing the latest 100 offer updates'),
+          subtitle: Text('Older revisions remain in the transaction history.'),
+        ),
+      Expanded(
+        child: ListView.separated(
+          itemCount: events.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, index) {
+            final document = events[index];
+            final event = document.data();
+            final buyer = '${event['buyerUid'] ?? ''}';
+            return _offerCard(
+              event,
+              context: context,
+              offerId: document.id,
+              isSeller: false,
+              isBest: (event['offeredTotal'] as num? ?? 0) == bestTotal,
+              revisions: revisionsByBuyer[buyer] ?? const [],
+            );
+          },
+        ),
+      ),
+    ]);
   }
+
+  Widget _smartOffersHeader({
+    required int buyerCount,
+    required int totalUpdates,
+    required int shownCount,
+    required MarketplaceOfferRank? topOffer,
+    required bool dispatchLoading,
+    required bool dispatchError,
+  }) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEAF4FD),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFB8D9F8)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.auto_awesome, color: Color(0xFF0878E8)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('Smart offers',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            ),
+            if (topOffer != null)
+              Text(
+                  'Top match #${topOffer.rank} • ${topOffer.score.round()}/100',
+                  style: TextStyle(
+                      color: _offerBandColor(topOffer.band),
+                      fontWeight: FontWeight.w900)),
+          ]),
+          const SizedBox(height: 4),
+          Text(
+            '$buyerCount buyer${buyerCount == 1 ? '' : 's'} • '
+            '$totalUpdates update${totalUpdates == 1 ? '' : 's'} • '
+            '$shownCount shown',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Best overall is ranked by price (50%), payment date (20%), pickup date (20%), and trucking readiness (10%). Ranking is guidance—review every condition before accepting.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF53657A)),
+          ),
+          if (dispatchLoading)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: LinearProgressIndicator(minHeight: 2),
+            )
+          else if (dispatchError)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'Dispatch confirmation is temporarily unavailable; requested trucking is shown as pending.',
+                style: TextStyle(fontSize: 11, color: Colors.deepOrange),
+              ),
+            ),
+        ]),
+      );
+
+  Widget _smartOfferFilters(
+          BuildContext context, MarketplaceOfferRankingFilters filters) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFD8E3ED)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.tune, size: 19),
+            const SizedBox(width: 7),
+            const Expanded(
+                child: Text('Filter offers',
+                    style: TextStyle(fontWeight: FontWeight.w900))),
+            if (filters.hasActiveFilters)
+              TextButton(
+                  onPressed: _resetOfferFilters,
+                  child: const Text('Clear all')),
+          ]),
+          Text(
+              '${_percentOffRange.start.round()}–${_percentOffRange.end.round()}% off asking price'),
+          RangeSlider(
+            values: _percentOffRange,
+            min: 0,
+            max: 100,
+            divisions: 20,
+            labels: RangeLabels(
+              '${_percentOffRange.start.round()}%',
+              '${_percentOffRange.end.round()}%',
+            ),
+            onChanged: (value) => setState(() => _percentOffRange = value),
+          ),
+          Wrap(spacing: 7, runSpacing: 7, children: [
+            OutlinedButton.icon(
+              onPressed: () => _selectPickupRange(context),
+              icon: const Icon(Icons.date_range_outlined, size: 18),
+              label: Text(_pickupRange == null
+                  ? 'Any pickup date'
+                  : 'Pickup ${_shortDate(_pickupRange!.start)}–${_shortDate(_pickupRange!.end)}'),
+            ),
+            if (_pickupRange != null)
+              IconButton.filledTonal(
+                tooltip: 'Clear pickup dates',
+                onPressed: () => setState(() => _pickupRange = null),
+                icon: const Icon(Icons.event_busy_outlined, size: 18),
+              ),
+          ]),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: MarketplaceOfferTruckingFilter.values
+                .map((filter) => ChoiceChip(
+                      selected: _truckingFilter == filter,
+                      label: Text(_truckingFilterLabel(filter)),
+                      avatar: Icon(_truckingFilterIcon(filter), size: 16),
+                      onSelected: (_) =>
+                          setState(() => _truckingFilter = filter),
+                    ))
+                .toList(),
+          ),
+        ]),
+      );
+
+  Future<void> _selectPickupRange(BuildContext context) async {
+    final today = DateTime.now();
+    final selected = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(today.year, today.month, today.day),
+      lastDate: today.add(const Duration(days: 730)),
+      initialDateRange: _pickupRange,
+      helpText: 'FILTER BY PICKUP DATE',
+    );
+    if (selected != null && mounted) {
+      setState(() => _pickupRange = selected);
+    }
+  }
+
+  void _resetOfferFilters() => setState(() {
+        _percentOffRange = const RangeValues(0, 100);
+        _pickupRange = null;
+        _truckingFilter = MarketplaceOfferTruckingFilter.all;
+      });
+
+  String _shortDate(DateTime value) =>
+      '${value.month}/${value.day}/${value.year}';
+
+  String _truckingFilterLabel(MarketplaceOfferTruckingFilter filter) =>
+      switch (filter) {
+        MarketplaceOfferTruckingFilter.all => 'All trucking',
+        MarketplaceOfferTruckingFilter.buyerArranged => 'Trucking arranged',
+        MarketplaceOfferTruckingFilter.dispatchRequested => 'Seeking Dispatch',
+        MarketplaceOfferTruckingFilter.dispatchConfirmed =>
+          'Dispatch confirmed',
+        MarketplaceOfferTruckingFilter.sellerArranged => 'Seller arranged',
+      };
+
+  IconData _truckingFilterIcon(MarketplaceOfferTruckingFilter filter) =>
+      switch (filter) {
+        MarketplaceOfferTruckingFilter.all => Icons.local_shipping_outlined,
+        MarketplaceOfferTruckingFilter.buyerArranged => Icons.task_alt,
+        MarketplaceOfferTruckingFilter.dispatchRequested =>
+          Icons.route_outlined,
+        MarketplaceOfferTruckingFilter.dispatchConfirmed =>
+          Icons.verified_outlined,
+        MarketplaceOfferTruckingFilter.sellerArranged =>
+          Icons.handshake_outlined,
+      };
+
+  Color _offerBandColor(MarketplaceOfferBand band) => switch (band) {
+        MarketplaceOfferBand.green => const Color(0xFF15803D),
+        MarketplaceOfferBand.yellow => const Color(0xFFF9A825),
+        MarketplaceOfferBand.orange => const Color(0xFFEA580C),
+        MarketplaceOfferBand.red => const Color(0xFFDC2626),
+      };
 
   Widget _offerCard(Map<String, dynamic> event,
       {required BuildContext context,
       required String offerId,
       required bool isSeller,
       required bool isBest,
+      MarketplaceOfferRank? smartRank,
       required List<QueryDocumentSnapshot<Map<String, dynamic>>> revisions}) {
     final price = event['offeredUnitPrice'] as num? ?? 0;
     final quantity = (event['requestedQuantity'] as num?)?.toInt() ?? 0;
@@ -1097,15 +1497,25 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     final quantityPercent = availableQuantity == null || availableQuantity == 0
         ? null
         : quantity / availableQuantity! * 100;
+    final bandColor = smartRank == null
+        ? (isBest ? Colors.green : Colors.blueGrey)
+        : _offerBandColor(smartRank.band);
     return Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-            color: isBest ? const Color(0xFFEAF8F1) : Colors.white,
+            color: smartRank != null
+                ? bandColor.withValues(alpha: .07)
+                : isBest
+                    ? const Color(0xFFEAF8F1)
+                    : Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color:
-                    isBest ? Colors.green.shade400 : Colors.blueGrey.shade100,
-                width: isBest ? 1.5 : 1)),
+                color: smartRank != null
+                    ? bandColor.withValues(alpha: .72)
+                    : isBest
+                        ? Colors.green.shade400
+                        : Colors.blueGrey.shade100,
+                width: isBest ? 2 : 1)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(
@@ -1149,8 +1559,55 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             else if (isBest)
               const Chip(
                   avatar: Icon(Icons.emoji_events_outlined, size: 17),
-                  label: Text('BEST PRICE')),
+                  label: Text('BEST OVERALL')),
           ]),
+          if (smartRank != null) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              _offerComparisonChip(
+                Icons.leaderboard_outlined,
+                '#${smartRank.rank} • ${smartRank.score.round()}/100',
+                bandColor,
+              ),
+              _offerComparisonChip(
+                Icons.attach_money,
+                smartRank.bestPrice
+                    ? 'Best price'
+                    : smartRank.percentOffAsking == null
+                        ? 'Price compared'
+                        : smartRank.percentOffAsking! <= .05
+                            ? 'At / above asking'
+                            : '${smartRank.percentOffAsking!.toStringAsFixed(0)}% off',
+                smartRank.bestPrice ? Colors.green.shade700 : bandColor,
+              ),
+              _offerComparisonChip(
+                Icons.local_shipping_outlined,
+                smartRank.pickupDays == null
+                    ? 'Pickup not set'
+                    : smartRank.soonestPickup
+                        ? 'Soonest pickup • ${smartRank.pickupDays}d'
+                        : 'Pickup • ${smartRank.pickupDays}d',
+                smartRank.soonestPickup
+                    ? Colors.green.shade700
+                    : smartRank.pickupDays == null
+                        ? Colors.red.shade700
+                        : bandColor,
+              ),
+              _offerComparisonChip(
+                Icons.account_balance_outlined,
+                smartRank.paymentDays == null
+                    ? 'Payment not set'
+                    : smartRank.soonestPayment
+                        ? 'Soonest payment • ${smartRank.paymentDays}d'
+                        : 'Payment • ${smartRank.paymentDays}d',
+                smartRank.soonestPayment
+                    ? Colors.green.shade700
+                    : smartRank.paymentDays == null
+                        ? Colors.red.shade700
+                        : bandColor,
+              ),
+            ]),
+          ],
           const SizedBox(height: 9),
           Row(children: [
             Expanded(
@@ -1186,7 +1643,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
           Wrap(spacing: 7, runSpacing: 7, children: [
             if ('${event['truckingPlan'] ?? ''}'.isNotEmpty &&
                 event['truckingPlan'] != 'not_specified')
-              _truckingPlanChip(event),
+              _truckingPlanChip(event, smartRank: smartRank),
           ]),
           if ('${event['dispatchDeliveryLabel'] ?? ''}'.isNotEmpty) ...[
             const SizedBox(height: 7),
@@ -1243,6 +1700,23 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
           ]
         ]));
   }
+
+  Widget _offerComparisonChip(IconData icon, String label, Color color) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .09),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: .32)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+        ]),
+      );
 
   Future<void> _showRevisionHistory(BuildContext context,
       List<QueryDocumentSnapshot<Map<String, dynamic>>> revisions) async {
@@ -1331,28 +1805,38 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
         ]));
   }
 
-  Widget _truckingPlanChip(Map<String, dynamic> offer) {
+  Widget _truckingPlanChip(Map<String, dynamic> offer,
+      {MarketplaceOfferRank? smartRank}) {
     final plan = '${offer['truckingPlan'] ?? ''}';
     final dispatch = plan == 'request_dispatch';
     final buyerArranged = plan == 'buyer_arranged';
+    final dispatchConfirmed = smartRank?.dispatchConfirmed == true;
+    final color = buyerArranged
+        ? Colors.green.shade700
+        : dispatchConfirmed
+            ? const Color(0xFF0878E8)
+            : dispatch
+                ? Colors.deepOrange.shade700
+                : Colors.orange.shade800;
     return Chip(
         avatar: Icon(
             dispatch
-                ? Icons.route_outlined
+                ? dispatchConfirmed
+                    ? Icons.verified_outlined
+                    : Icons.route_outlined
                 : buyerArranged
                     ? Icons.local_shipping_outlined
                     : Icons.handshake_outlined,
             size: 16,
-            color: dispatch
-                ? const Color(0xFF0878E8)
-                : buyerArranged
-                    ? Colors.green.shade700
-                    : Colors.blueGrey),
+            color: color),
         label: Text(dispatch
-            ? 'Dispatch requested'
+            ? dispatchConfirmed
+                ? 'Dispatch confirmed for requested dates'
+                : 'Seeking Dispatch confirmation'
             : buyerArranged
-                ? 'Buyer has trucking'
-                : 'Pickup / seller-arranged'));
+                ? 'Trucking arranged'
+                : 'Pickup / seller-arranged'),
+        side: BorderSide(color: color.withValues(alpha: .4)));
   }
 
   Future<void> _showOfferBuyerProfile(
@@ -1993,6 +2477,205 @@ class ListingMessageBadge extends StatelessWidget {
   }
 }
 
+class ListingBuyerActivityActions extends StatelessWidget {
+  const ListingBuyerActivityActions({
+    super.key,
+    required this.listingId,
+    required this.sellerUid,
+    required this.publicOfferCount,
+    required this.offersEnabled,
+    required this.onMessage,
+    required this.onMakeOffer,
+    required this.onViewOffers,
+  });
+
+  final String listingId;
+  final String sellerUid;
+  final int publicOfferCount;
+  final bool offersEnabled;
+  final VoidCallback onMessage;
+  final VoidCallback onMakeOffer;
+  final VoidCallback onViewOffers;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid == sellerUid) {
+      return _buttons(context, sentMessageCount: 0, submittedOffers: const []);
+    }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('offers')
+          .where('listingId', isEqualTo: listingId)
+          .where('buyerUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
+          .snapshots(),
+      builder: (context, offerSnapshot) {
+        final submittedOffers = (offerSnapshot.data?.docs ?? const [])
+            .where((document) =>
+                document.data()['proposedByUid'] == uid &&
+                document.data()['status'] != 'archived')
+            .toList();
+        final conversationId = MarketplaceActionsRepository.conversationIdFor(
+          uid,
+          sellerUid,
+          listingId,
+        );
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('conversations')
+              .doc(conversationId)
+              .snapshots(),
+          builder: (context, conversationSnapshot) {
+            if (conversationSnapshot.data?.exists != true) {
+              return _buttons(
+                context,
+                sentMessageCount: 0,
+                submittedOffers: submittedOffers,
+              );
+            }
+            return FutureBuilder<AggregateQuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('conversations')
+                  .doc(conversationId)
+                  .collection('messages')
+                  .where('senderUid', isEqualTo: uid)
+                  .count()
+                  .get(),
+              builder: (context, sentSnapshot) => _buttons(
+                context,
+                sentMessageCount: sentSnapshot.data?.count ?? 0,
+                submittedOffers: submittedOffers,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buttons(
+    BuildContext context, {
+    required int sentMessageCount,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> submittedOffers,
+  }) {
+    final hasOffers = submittedOffers.isNotEmpty;
+    final lastOfferAt = hasOffers
+        ? (submittedOffers.first.data()['createdAt'] as Timestamp?)?.toDate()
+        : null;
+    final lastOfferLabel = lastOfferAt == null
+        ? ''
+        : MaterialLocalizations.of(context).formatShortDate(lastOfferAt);
+    final messageDetails = hasOffers
+        ? '$sentMessageCount message${sentMessageCount == 1 ? '' : 's'} sent • '
+            '${submittedOffers.length} offer${submittedOffers.length == 1 ? '' : 's'}'
+            '${lastOfferLabel.isEmpty ? '' : ' • $lastOfferLabel'}'
+        : sentMessageCount == 0
+            ? 'Start a private conversation'
+            : '$sentMessageCount message${sentMessageCount == 1 ? '' : 's'} sent';
+    final messageLabel = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Message seller',
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        Text(messageDetails,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10.5)),
+      ],
+    );
+    final messageButton = hasOffers
+        ? FilledButton.icon(
+            onPressed: onMessage,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFF97316),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(58),
+            ),
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: messageLabel,
+          )
+        : OutlinedButton.icon(
+            onPressed: onMessage,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0F52BA),
+              minimumSize: const Size.fromHeight(58),
+            ),
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: messageLabel,
+          );
+    final offerButton = FilledButton.icon(
+      onPressed: offersEnabled ? onMakeOffer : null,
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xFF0F52BA),
+        foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(58),
+      ),
+      icon: const Icon(Icons.local_offer_outlined),
+      label: Text(hasOffers ? 'Revise offer' : 'Make offer'),
+    );
+
+    return Column(children: [
+      if (hasOffers) ...[
+        Material(
+          color: const Color(0xFFFFF3E8),
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onViewOffers,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(children: [
+                const Icon(Icons.verified_outlined, color: Color(0xFFC2410C)),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'You submitted ${submittedOffers.length} private offer${submittedOffers.length == 1 ? '' : 's'}'
+                    '${lastOfferLabel.isEmpty ? '' : ' • Last sent $lastOfferLabel'}',
+                    style: const TextStyle(
+                      color: Color(0xFF9A3412),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const Text('View',
+                    style: TextStyle(
+                        color: Color(0xFFC2410C), fontWeight: FontWeight.w900)),
+                const SizedBox(width: 3),
+                const Icon(Icons.chevron_right, color: Color(0xFFC2410C)),
+              ]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ],
+      Semantics(
+        label:
+            '$publicOfferCount total offers are recorded on this listing. Individual offer terms are private.',
+        child: LayoutBuilder(builder: (context, constraints) {
+          if (constraints.maxWidth < 520) {
+            return Column(children: [
+              SizedBox(width: double.infinity, child: messageButton),
+              if (offersEnabled) ...[
+                const SizedBox(height: 8),
+                SizedBox(width: double.infinity, child: offerButton),
+              ],
+            ]);
+          }
+          return Row(children: [
+            Expanded(child: messageButton),
+            if (offersEnabled) ...[
+              const SizedBox(width: 10),
+              Expanded(child: offerButton),
+            ],
+          ]);
+        }),
+      ),
+    ]);
+  }
+}
+
 class _SignedOutMessages extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MarketplaceAuthRequiredCard(
@@ -2096,6 +2779,50 @@ class _ConversationRouteFailure extends StatelessWidget {
           primaryLabel: 'Return to Marketplace',
           onPrimary: () => context.go('/'),
         ),
+      );
+}
+
+class MarketplaceChatAttachmentMenu extends StatelessWidget {
+  const MarketplaceChatAttachmentMenu({
+    super.key,
+    required this.uploading,
+    required this.onSelected,
+  });
+
+  final bool uploading;
+  final ValueChanged<ImageSource> onSelected;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<ImageSource>(
+        tooltip: 'Attach photo',
+        enabled: !uploading,
+        onSelected: onSelected,
+        icon: uploading
+            ? const SizedBox.square(
+                dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.attach_file),
+        itemBuilder: (_) => const [
+          PopupMenuItem(
+            value: ImageSource.gallery,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading:
+                  Icon(Icons.photo_library_outlined, color: Color(0xFF0878E8)),
+              title: Text('Choose from gallery'),
+              subtitle: Text('Upload an existing photo'),
+            ),
+          ),
+          PopupMenuItem(
+            value: ImageSource.camera,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading:
+                  Icon(Icons.camera_alt_outlined, color: Color(0xFF10B981)),
+              title: Text('Take a photo'),
+              subtitle: Text('Open this device camera'),
+            ),
+          ),
+        ],
       );
 }
 
@@ -2310,14 +3037,10 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                   tooltip: 'Add emoji',
                   onPressed: _showEmojiPicker,
                   icon: const Icon(Icons.emoji_emotions_outlined)),
-              IconButton(
-                  tooltip: 'Attach photo',
-                  onPressed: _uploading ? null : _pickAttachment,
-                  icon: _uploading
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.attach_file)),
+              MarketplaceChatAttachmentMenu(
+                uploading: _uploading,
+                onSelected: _pickAttachmentFrom,
+              ),
               Expanded(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                 if (_attachment != null)
@@ -2431,45 +3154,13 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                         .toList()))));
   }
 
-  Future<void> _pickAttachment() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Attach Image or Spec Document',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF0878E8)),
-              title: const Text('Choose Photo from Gallery'),
-              subtitle: const Text('Select photos of pipe, valves, or equipment'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF10B981)),
-              title: const Text('Take Photo with Camera'),
-              subtitle: const Text('Capture live photos at yard or jobsite'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-    if (source == null) return;
-
+  Future<void> _pickAttachmentFrom(ImageSource source) async {
     try {
       final file = await ImagePicker().pickImage(
-          source: source, imageQuality: 82, maxWidth: 1800);
+          source: source,
+          preferredCameraDevice: CameraDevice.rear,
+          imageQuality: 82,
+          maxWidth: 1800);
       if (file == null) return;
       final sizeBytes = await file.length();
       if (sizeBytes > 15 * 1024 * 1024) {
@@ -2482,6 +3173,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         }
         return;
       }
+      if (!mounted) return;
       setState(() => _uploading = true);
       final extension = file.name.split('.').last.toLowerCase();
       final contentType = extension == 'png'
@@ -2516,6 +3208,24 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
           context,
           message: 'Image attached. Add a message or press Send.',
           tone: PipeStatusTone.success,
+        );
+      }
+    } on PlatformException catch (error) {
+      if (mounted) {
+        final permissionDenied = const {
+          'camera_access_denied',
+          'camera_access_denied_without_prompt',
+          'photo_access_denied',
+          'photo_access_denied_without_prompt',
+        }.contains(error.code);
+        PipeFeedback.show(
+          context,
+          message: permissionDenied
+              ? 'Photo access was denied. Allow access in device or browser settings, then try again.'
+              : source == ImageSource.camera
+                  ? 'The camera could not be opened on this device. Choose from gallery or check camera permissions.'
+                  : 'The photo library could not be opened. Check photo permissions and try again.',
+          tone: PipeStatusTone.error,
         );
       }
     } on FirebaseException catch (error) {

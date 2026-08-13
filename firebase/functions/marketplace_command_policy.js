@@ -1,6 +1,10 @@
 "use strict";
 
 const {
+  marketplaceListingActivityContext,
+} = require("./marketplace_activity_context");
+
+const {
   approvedAccountVerification,
 } = require("./account_verification_policy");
 
@@ -1108,7 +1112,43 @@ function validateOfferFrequency(offers, buyerUid, now) {
   return buyerOffers.length + 1;
 }
 
+function buildOfferNotification({
+  actorUid,
+  listingId,
+  offerId,
+  proposal,
+  conversationId = "",
+  listing = {},
+}) {
+  const sellerUid = String(proposal && proposal.sellerUid || "");
+  const buyerUid = String(proposal && proposal.buyerUid || "");
+  const incomingForSeller = actorUid !== sellerUid;
+  return {
+    recipientUid: incomingForSeller ? sellerUid : buyerUid,
+    actorUid,
+    type: "offer",
+    listingId,
+    offerId,
+    ...(conversationId ? {conversationId} : {}),
+    ...marketplaceListingActivityContext(listing),
+    title: incomingForSeller ?
+      "New offer received" :
+      "Seller sent a counter-offer",
+    body: incomingForSeller ?
+      "Compare price, payment, pickup, and trucking before accepting." :
+      "Review the seller's updated price, dates, and trucking terms.",
+    pushTitle: incomingForSeller ?
+      "New offer received" :
+      "Counter-offer received",
+    pushBody: incomingForSeller ?
+      "Tap to compare price, payment, pickup, and trucking." :
+      "Tap to review the updated offer terms.",
+    read: false,
+  };
+}
+
 module.exports = {
+  buildOfferNotification,
   CommandPolicyError,
   TERMINAL_AUCTION_STATUSES,
   minimumAuctionBid,

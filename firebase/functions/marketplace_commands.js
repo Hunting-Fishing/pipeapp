@@ -9,6 +9,7 @@ const {
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
 const {isAdministrator} = require("./administrator_authorization");
 const {
+  buildOfferNotification,
   CommandPolicyError,
   TERMINAL_AUCTION_STATUSES,
   validateAuctionConversion,
@@ -2069,8 +2070,14 @@ function createMarketplaceCommands(admin) {
       const differenceAmount = proposal.offeredTotal - askingTotal;
       const differencePercent =
         askingTotal === 0 ? null : differenceAmount / askingTotal * 100;
-      const recipientUid =
-        uid === proposal.sellerUid ? proposal.buyerUid : proposal.sellerUid;
+      const notification = buildOfferNotification({
+        actorUid: uid,
+        listingId,
+        offerId: offerRef.id,
+        proposal,
+        conversationId,
+        listing,
+      });
       const result = {
         offerId: offerRef.id,
         listingId,
@@ -2148,20 +2155,11 @@ function createMarketplaceCommands(admin) {
       }
       transaction.set(
           db.collection("users")
-              .doc(recipientUid)
+              .doc(notification.recipientUid)
               .collection("notifications")
               .doc(receiptRef.id),
           {
-            recipientUid,
-            actorUid: uid,
-            type: "offer",
-            listingId,
-            offerId: offerRef.id,
-            ...(conversationId ? {conversationId} : {}),
-            title: uid === proposal.sellerUid ?
-              "Seller sent a counter-offer" :
-              "New offer received",
-            read: false,
+            ...notification,
             createdAt: FieldValue.serverTimestamp(),
           },
       );

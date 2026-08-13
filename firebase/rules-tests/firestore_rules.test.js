@@ -281,6 +281,28 @@ beforeEach(async () => {
       messageCount: 0,
       unreadCounts: {buyer: 0, seller: 0},
     });
+    await setDoc(doc(
+        db,
+        "conversations",
+        "conversation",
+        "messages",
+        "buyer-message",
+    ), {
+      senderUid: "buyer",
+      text: "Buyer message",
+      createdAt: Timestamp.fromDate(new Date("2026-07-19T12:00:00.000Z")),
+    });
+    await setDoc(doc(
+        db,
+        "conversations",
+        "conversation",
+        "messages",
+        "seller-message",
+    ), {
+      senderUid: "seller",
+      text: "Seller reply",
+      createdAt: Timestamp.fromDate(new Date("2026-07-19T12:01:00.000Z")),
+    });
     await setDoc(doc(db, "auction_private", "auction"), {
       ownerUid: "seller",
       reservePrice: 175,
@@ -649,6 +671,26 @@ test("conversation participants cannot bypass server communication commands", as
   }));
 });
 
+test("only conversation participants can count messages sent by a buyer", async () => {
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+  const buyerMessages = (db) => query(
+      collection(db, "conversations", "conversation", "messages"),
+      where("senderUid", "==", "buyer"),
+  );
+
+  await assertSucceeds(getDocs(buyerMessages(buyerDb)));
+  await assertSucceeds(getDocs(buyerMessages(sellerDb)));
+  await assertFails(getDocs(buyerMessages(strangerDb)));
+});
+
 test("reports, upload grants, and command receipts are server-owned", async () => {
   const buyerDb = testEnvironment
       .authenticatedContext("buyer")
@@ -900,6 +942,41 @@ test("buyer cannot forge the seller identity on a new offer", async () => {
         status: "pending",
       },
   ));
+});
+
+test("offer terms stay private to the buyer and listing owner", async () => {
+  const buyerDb = testEnvironment
+      .authenticatedContext("buyer")
+      .firestore();
+  const sellerDb = testEnvironment
+      .authenticatedContext("seller")
+      .firestore();
+  const strangerDb = testEnvironment
+      .authenticatedContext("stranger")
+      .firestore();
+
+  await assertSucceeds(getDoc(doc(buyerDb, "offers", "offer")));
+  await assertSucceeds(getDoc(doc(sellerDb, "offers", "offer")));
+  await assertFails(getDoc(doc(strangerDb, "offers", "offer")));
+  await assertSucceeds(getDocs(query(
+      collection(buyerDb, "offers"),
+      where("buyerUid", "==", "buyer"),
+      limit(100),
+  )));
+  await assertSucceeds(getDocs(query(
+      collection(sellerDb, "offers"),
+      where("sellerUid", "==", "seller"),
+      limit(100),
+  )));
+  await assertFails(getDocs(query(
+      collection(strangerDb, "offers"),
+      where("buyerUid", "==", "buyer"),
+      limit(100),
+  )));
+  await assertFails(getDocs(query(
+      collection(buyerDb, "offers"),
+      limit(100),
+  )));
 });
 
 test("saved listings are private and can only be changed by server commands", async () => {

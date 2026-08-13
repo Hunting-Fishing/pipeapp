@@ -29,9 +29,12 @@ import 'account_export_downloader.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_actions_repository.dart';
+import 'marketplace_offer_ranking.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_dashboard.dart';
 import 'marketplace_about_page.dart';
+import 'marketplace_activity_presentation.dart';
+import 'marketplace_listing_activity_builder.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -64,7 +67,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 6, vsync: this);
+    _tabs = TabController(length: 7, vsync: this);
     _adminTokenSubscription =
         FirebaseAuth.instance.idTokenChanges().listen((_) => _checkAdmin());
     _checkAdmin(forceRefresh: true);
@@ -82,14 +85,13 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     }
 
     final wasAuthorized = _isAdminUser;
-    final isAuthorized =
-        state == MarketplaceAdministratorState.authorized;
+    final isAuthorized = state == MarketplaceAdministratorState.authorized;
     if (wasAuthorized == isAuthorized) {
       setState(() => _adminState = state);
       return;
     }
 
-    final nextLength = isAuthorized ? 7 : 6;
+    final nextLength = isAuthorized ? 8 : 7;
     final nextIndex = _tabs.index.clamp(0, nextLength - 1);
     final oldTabs = _tabs;
     setState(() {
@@ -131,6 +133,9 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
                     types: {'offer'}, icon: Icons.inventory_2_outlined),
                 text: 'Listings'),
             const Tab(
+                icon: Icon(Icons.local_offer_outlined, size: 20),
+                text: 'My offers'),
+            const Tab(
                 icon: _AccountTabBadge(
                     types: {'message'}, icon: Icons.forum_outlined),
                 text: 'Messages'),
@@ -151,13 +156,13 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       ),
       Expanded(
           child: TabBarView(controller: _tabs, children: [
-        _Overview(
-            onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
+        _Overview(onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
         const MarketplaceProfilePage(),
         _MyListings(
             onAddListing: widget.onAddListing,
             auctionsEnabled: widget.auctionsEnabled,
             paidFeaturesEnabled: widget.paidFeaturesEnabled),
+        const _BuyerSubmittedOffers(),
         const MarketplaceMessagesPage(),
         _AccountNotifications(
             onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
@@ -233,7 +238,7 @@ class _Overview extends StatelessWidget {
                         style: FilledButton.styleFrom(
                             backgroundColor: Colors.amber.shade700),
                         onPressed: () =>
-                            onOpen(6), // Switch to 7th Admin Portal Tab
+                            onOpen(7), // Switch to the Admin Portal tab.
                         icon: const Icon(Icons.launch,
                             color: Colors.black, size: 16),
                         label: const Text(
@@ -248,7 +253,8 @@ class _Overview extends StatelessWidget {
               ),
               const SizedBox(height: 14),
             ],
-            Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
+            Text(
+                'Welcome, ${marketplaceGreetingName(account: data, authDisplayName: user.displayName, email: user.email)}',
                 style:
                     const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
             Text('${data['accountType'] ?? 'personal'} account'),
@@ -293,17 +299,21 @@ class _Overview extends StatelessWidget {
                 title: 'Manage my listings',
                 onTap: () => onOpen(2)),
             _AccountShortcut(
+                icon: Icons.local_offer_outlined,
+                title: 'My submitted offers',
+                onTap: () => onOpen(3)),
+            _AccountShortcut(
                 icon: Icons.forum_outlined,
                 title: 'Marketplace messages',
-                onTap: () => onOpen(3)),
+                onTap: () => onOpen(4)),
             _AccountShortcut(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications and activity',
-                onTap: () => onOpen(4)),
+                onTap: () => onOpen(5)),
             _AccountShortcut(
                 icon: Icons.settings_outlined,
                 title: 'Account settings',
-                onTap: () => onOpen(5)),
+                onTap: () => onOpen(6)),
             _AccountShortcut(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy Policy',
@@ -318,32 +328,31 @@ class _Overview extends StatelessWidget {
                     mode: LaunchMode.externalApplication)),
             if (showAdminPortal)
               Card(
-                        color: Colors.purple.shade50,
-                        margin: const EdgeInsets.only(top: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.purple.shade200),
-                        ),
-                        child: ListTile(
-                          leading: Icon(Icons.admin_panel_settings,
-                              color: Colors.purple.shade800, size: 26),
-                          title: Text(
-                            'Administrator Portal',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.purple.shade900),
-                          ),
-                          subtitle: const Text(
-                              'Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
-                          trailing: const Icon(Icons.chevron_right,
-                              color: Colors.purple),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    const MarketplaceAdminDashboard()),
-                          ),
-                        ),
-                      ),
+                color: Colors.purple.shade50,
+                margin: const EdgeInsets.only(top: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.purple.shade200),
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.admin_panel_settings,
+                      color: Colors.purple.shade800, size: 26),
+                  title: Text(
+                    'Administrator Portal',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple.shade900),
+                  ),
+                  subtitle: const Text(
+                      'Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
+                  trailing:
+                      const Icon(Icons.chevron_right, color: Colors.purple),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const MarketplaceAdminDashboard()),
+                  ),
+                ),
+              ),
           ]);
         });
   }
@@ -634,6 +643,273 @@ class _AccountShortcut extends StatelessWidget {
           onTap: onTap));
 }
 
+class _BuyerSubmittedOffers extends StatelessWidget {
+  const _BuyerSubmittedOffers();
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return const MarketplaceAuthRequiredCard(
+        title: 'My submitted offers',
+        description:
+            'Sign in to privately review the offers you have sent to listing owners.',
+      );
+    }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('offers')
+          .where('buyerUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return MarketplaceDataStateView.failure(
+            error: snapshot.error,
+            resource: 'Submitted offers',
+            onRetry: () => FirebaseAuth.instance.currentUser?.getIdToken(true),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const MarketplaceDataStateView.loading(
+            title: 'Loading your submitted offers',
+            message: 'Retrieving your private offer history…',
+          );
+        }
+        final summaries = summarizeMarketplaceBuyerOffers(
+          buyerUid: uid,
+          offers: snapshot.data!.docs
+              .map((document) => MarketplaceOfferRankingInput(
+                    offerId: document.id,
+                    data: document.data(),
+                  ))
+              .toList(),
+        );
+        if (summaries.isEmpty) {
+          return const MarketplaceDataStateView(
+            kind: MarketplaceDataStateKind.empty,
+            icon: Icons.local_offer_outlined,
+            title: 'No submitted offers yet',
+            message:
+                'When you make an offer, it will appear here and remain private to you and that listing owner.',
+          );
+        }
+        return Column(children: [
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7E8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFF4C56A)),
+            ),
+            child: const Row(children: [
+              Icon(Icons.lock_outline, color: Color(0xFF9A5B00)),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'These offer amounts and dates are visible only to you and each listing owner. Public listings show only the total offer count.',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ]),
+          ),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 16),
+              itemCount: summaries.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
+              itemBuilder: (context, index) => _BuyerSubmittedOfferCard(
+                summary: summaries[index],
+                buyerUid: uid,
+              ),
+            ),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+class _BuyerSubmittedOfferCard extends StatelessWidget {
+  const _BuyerSubmittedOfferCard({
+    required this.summary,
+    required this.buyerUid,
+  });
+
+  final MarketplaceBuyerListingOfferSummary summary;
+  final String buyerUid;
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('public_listings')
+            .doc(summary.listingId)
+            .snapshots(),
+        builder: (context, listingSnapshot) {
+          final listing = listingSnapshot.data?.data() ?? {};
+          final offer = summary.latestSubmitted.data;
+          final title = '${listing['title'] ?? 'Marketplace listing'}';
+          final offeredTotal = (offer['offeredTotal'] as num?)?.toDouble() ?? 0;
+          final quantity = (offer['requestedQuantity'] as num?)?.toInt() ?? 0;
+          final status = '${summary.latestUpdate.data['status'] ?? 'pending'}';
+          final date = summary.lastSubmittedAt;
+          final publicCount = (listing['offerCount'] as num?)?.toInt() ?? 0;
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const CircleAvatar(
+                        backgroundColor: Color(0xFFFFE7D5),
+                        child: Icon(Icons.local_offer_outlined,
+                            color: Color(0xFFC2410C)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900)),
+                              Text(
+                                '${summary.submittedCount} submitted • $publicCount total on listing',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xFF64748B)),
+                              ),
+                            ]),
+                      ),
+                      _OfferStatusChip(status: status),
+                    ]),
+                    const SizedBox(height: 10),
+                    Wrap(spacing: 8, runSpacing: 6, children: [
+                      Chip(
+                        avatar: const Icon(Icons.payments_outlined, size: 17),
+                        label:
+                            Text('\$${offeredTotal.toStringAsFixed(2)} total'),
+                      ),
+                      Chip(
+                        avatar: const Icon(Icons.numbers, size: 17),
+                        label: Text('Qty $quantity'),
+                      ),
+                      if (date != null)
+                        Chip(
+                          avatar: const Icon(Icons.calendar_today_outlined,
+                              size: 16),
+                          label: Text(
+                              'Sent ${MaterialLocalizations.of(context).formatShortDate(date)}'),
+                        ),
+                    ]),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.push(
+                              MarketplaceDeepLinks.listing(summary.listingId)),
+                          icon: const Icon(Icons.inventory_2_outlined),
+                          label: const Text('View listing'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          onPressed: listing.isEmpty
+                              ? null
+                              : () => _showHistory(context, listing, title),
+                          icon: const Icon(Icons.history),
+                          label: const Text('Offer history'),
+                        ),
+                      ),
+                    ]),
+                  ]),
+            ),
+          );
+        },
+      );
+
+  Future<void> _showHistory(
+    BuildContext context,
+    Map<String, dynamic> listing,
+    String title,
+  ) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (sheetContext) => FractionallySizedBox(
+          heightFactor: .9,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(children: [
+              Row(children: [
+                const Expanded(
+                    child: Text('My private offer history',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w900))),
+                IconButton(
+                    tooltip: 'Close offer history',
+                    onPressed: () => Navigator.pop(sheetContext),
+                    icon: const Icon(Icons.close)),
+              ]),
+              const SizedBox(height: 8),
+              Expanded(
+                child: MarketplaceNegotiationHistory(
+                  listingId: summary.listingId,
+                  listingTitle: title,
+                  buyerUid: buyerUid,
+                  sellerUid: summary.sellerUid,
+                  askingPrice: listing['price'] as num?,
+                  availableQuantity: (listing['quantity'] as num?)?.toInt(),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+}
+
+class _OfferStatusChip extends StatelessWidget {
+  const _OfferStatusChip({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = status.trim().toLowerCase();
+    final accepted = normalized == 'accepted';
+    final closed = const {'declined', 'cancelled', 'expired', 'archived'}
+        .contains(normalized);
+    return Chip(
+      backgroundColor: accepted
+          ? const Color(0xFFDCFCE7)
+          : closed
+              ? const Color(0xFFFEE2E2)
+              : const Color(0xFFFEF3C7),
+      side: BorderSide.none,
+      label: Text(
+        normalized.isEmpty ? 'Pending' : normalized.replaceAll('_', ' '),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          color: accepted
+              ? const Color(0xFF166534)
+              : closed
+                  ? const Color(0xFF991B1B)
+                  : const Color(0xFF92400E),
+        ),
+      ),
+    );
+  }
+}
+
 class _MyListings extends StatefulWidget {
   const _MyListings(
       {required this.onAddListing,
@@ -813,55 +1089,110 @@ class _MyListingsState extends State<_MyListings> {
                   final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
                   final isAuction = data['transactionType'] == 'Auction';
                   return Card(
-                      child: ListTile(
-                    onTap: () async {
-                      await _markListingNotificationsRead(document.id);
-                      if (!context.mounted) return;
-                      showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (_) => _OwnerListingDetails(
-                              listingId: document.id,
-                              data: data,
-                              auctionsEnabled: widget.auctionsEnabled,
-                              paidFeaturesEnabled: widget.paidFeaturesEnabled));
-                    },
-                    leading: SizedBox.square(
-                        dimension: 54,
-                        child: Stack(fit: StackFit.expand, children: [
-                          thumbnail == null
-                              ? const Icon(Icons.inventory_2_outlined)
-                              : ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(thumbnail,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(
-                                          Icons.inventory_2_outlined))),
-                          Positioned(
-                              right: 1,
-                              bottom: 1,
-                              child: CircleAvatar(
-                                  radius: 11,
-                                  backgroundColor: isAuction
-                                      ? Colors.deepOrange
-                                      : const Color(0xFF0878E8),
-                                  child: Icon(
-                                      isAuction
-                                          ? Icons.gavel
-                                          : Icons.storefront,
-                                      size: 13,
-                                      color: Colors.white)))
-                        ])),
-                    title: Text('${data['title'] ?? 'Untitled listing'}'),
-                    subtitle: Text(
-                        '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
-                        '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
-                    isThreeLine: createdAt != null,
-                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      _ListingNotificationBadge(listingId: document.id),
-                      const Icon(Icons.chevron_right),
-                    ]),
-                  ));
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () async {
+                          await _markListingNotificationsRead(document.id);
+                          if (!context.mounted) return;
+                          showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (_) => _OwnerListingDetails(
+                                  listingId: document.id,
+                                  data: data,
+                                  auctionsEnabled: widget.auctionsEnabled,
+                                  paidFeaturesEnabled:
+                                      widget.paidFeaturesEnabled));
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox.square(
+                                    dimension: 58,
+                                    child:
+                                        Stack(fit: StackFit.expand, children: [
+                                      thumbnail == null
+                                          ? const Icon(
+                                              Icons.inventory_2_outlined)
+                                          : ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child: Image.network(thumbnail,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      const Icon(Icons
+                                                          .inventory_2_outlined))),
+                                      Positioned(
+                                          right: 1,
+                                          bottom: 1,
+                                          child: CircleAvatar(
+                                              radius: 11,
+                                              backgroundColor: isAuction
+                                                  ? Colors.deepOrange
+                                                  : const Color(0xFF0878E8),
+                                              child: Icon(
+                                                  isAuction
+                                                      ? Icons.gavel
+                                                      : Icons.storefront,
+                                                  size: 13,
+                                                  color: Colors.white)))
+                                    ])),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          '${data['title'] ?? 'Untitled listing'}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800)),
+                                      Text(
+                                          '${isAuction ? 'TIMED AUCTION' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}'),
+                                      Text(_ownerListingTime(data, createdAt)),
+                                      const SizedBox(height: 4),
+                                      Text(_ownerListingCommerceLine(data),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF0F5BB5))),
+                                      if (isAuction)
+                                        Text(
+                                          'Best bid ${marketplaceMoney(data['currentBid'] as num? ?? 0)}',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF166534)),
+                                        )
+                                      else
+                                        _SellerBestOfferAmount(
+                                          listingId: document.id,
+                                          sellerUid:
+                                              '${data['sellerUid'] ?? uid}',
+                                          hasOffers:
+                                              (data['offerCount'] as num? ??
+                                                      0) >
+                                                  0,
+                                        ),
+                                      const SizedBox(height: 3),
+                                      Text(_analyticsLine(data),
+                                          style: const TextStyle(
+                                              color: Color(0xFF53657A),
+                                              fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                                  _ListingNotificationBadge(
+                                      listingId: document.id),
+                                  const Icon(Icons.chevron_right),
+                                ]),
+                              ]),
+                        ),
+                      ));
                 }),
       ),
     ]);
@@ -874,6 +1205,64 @@ String _analyticsLine(Map<String, dynamic> data) =>
     '${(data['shareCount'] as num?)?.toInt() ?? 0} shares • '
     '${(data['likeCount'] as num?)?.toInt() ?? 0} likes • '
     '${(data['offerCount'] as num?)?.toInt() ?? 0} offers';
+
+String _ownerListingCommerceLine(Map<String, dynamic> data) {
+  final quantity = (data['quantity'] as num?)?.toInt();
+  final price = data['price'] as num?;
+  final basis = '${data['priceBasis'] ?? ''}'.trim();
+  final parts = <String>[
+    if (quantity != null && quantity > 0)
+      '$quantity ${quantity == 1 ? 'piece' : 'pieces'}',
+    if (price != null) marketplaceMoney(price),
+    if (basis.isNotEmpty) basis,
+  ];
+  return parts.isEmpty ? 'Price and quantity not supplied' : parts.join(' • ');
+}
+
+class _SellerBestOfferAmount extends StatelessWidget {
+  const _SellerBestOfferAmount({
+    required this.listingId,
+    required this.sellerUid,
+    required this.hasOffers,
+  });
+
+  final String listingId;
+  final String sellerUid;
+  final bool hasOffers;
+
+  @override
+  Widget build(BuildContext context) {
+    const style =
+        TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF166534));
+    if (!hasOffers) return const Text('Best offer —', style: style);
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('offers')
+          .where('listingId', isEqualTo: listingId)
+          .where('sellerUid', isEqualTo: sellerUid)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Text('Best offer unavailable', style: style);
+        }
+        if (!snapshot.hasData) {
+          return const Text('Best offer loading…', style: style);
+        }
+        final best = marketplaceBestSellerOfferTotal(
+          snapshot.data!.docs.map((document) => document.data()),
+        );
+        return Text(
+          best == null
+              ? 'Best offer —'
+              : 'Best offer ${marketplaceMoney(best)}',
+          style: style,
+        );
+      },
+    );
+  }
+}
 
 String _ownerListingTime(Map<String, dynamic> data, DateTime? createdAt) {
   if (data['transactionType'] == 'Auction') {
@@ -1239,7 +1628,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                   ? 'Bidding history'
                   : isWanted
                       ? 'Suggested Marketplace matches'
-                      : 'Offer history',
+                      : 'Smart offers',
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
@@ -2798,52 +3187,135 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                       final document = items[index - (atLimit ? 1 : 0)];
                       final data = document.data();
                       final unread = data['read'] != true;
-                      return Card(
-                          color: unread ? const Color(0xFFEAF4FD) : null,
-                          child: ListTile(
-                            leading: Icon(data['type'] == 'offer'
-                                ? Icons.handshake_outlined
-                                : Icons.chat_bubble_outline),
-                            title: Text(
-                                '${data['title'] ?? 'Marketplace activity'}',
-                                style: TextStyle(
-                                    fontWeight: unread
-                                        ? FontWeight.w900
-                                        : FontWeight.w600)),
-                            subtitle: Text(data['createdAt'] is Timestamp
-                                ? (data['createdAt'] as Timestamp)
-                                    .toDate()
-                                    .toLocal()
-                                    .toString()
-                                : ''),
-                            trailing: unread
-                                ? const Badge()
-                                : const Icon(Icons.chevron_right),
-                            onTap: () async {
-                              await document.reference.update({
-                                'read': true,
-                                'readAt': FieldValue.serverTimestamp(),
-                              });
-                              final type = '${data['type'] ?? ''}';
-                              if (type == 'message') {
-                                widget.onOpenTab(3);
-                              } else if (type == 'offer') {
-                                widget.onOpenTab(2);
-                              } else if (type == 'new_listing_match' ||
-                                  type == 'seller_new_listing') {
-                                widget.onBrowse();
-                              } else if (type == 'score_change') {
-                                if (context.mounted) {
-                                  _showUserScore(context, widget.onOpenTab);
-                                }
-                              } else {
-                                widget.onOpenTab(1);
-                              }
-                            },
-                          ));
+                      return _MarketplaceNotificationCard(
+                        data: data,
+                        unread: unread,
+                        onTap: () async {
+                          await document.reference.update({
+                            'read': true,
+                            'readAt': FieldValue.serverTimestamp(),
+                          });
+                          final type = '${data['type'] ?? ''}';
+                          if (type == 'message') {
+                            widget.onOpenTab(4);
+                          } else if (type == 'offer') {
+                            final listingId =
+                                '${data['listingId'] ?? ''}'.trim();
+                            if (listingId.isNotEmpty && context.mounted) {
+                              context.push(
+                                  MarketplaceDeepLinks.listing(listingId));
+                            } else {
+                              widget.onOpenTab(3);
+                            }
+                          } else if (type == 'new_listing_match' ||
+                              type == 'seller_new_listing') {
+                            widget.onBrowse();
+                          } else if (type == 'score_change') {
+                            if (context.mounted) {
+                              _showUserScore(context, widget.onOpenTab);
+                            }
+                          } else {
+                            widget.onOpenTab(1);
+                          }
+                        },
+                      );
                     });
               })),
     ]);
+  }
+}
+
+class _MarketplaceNotificationCard extends StatelessWidget {
+  const _MarketplaceNotificationCard({
+    required this.data,
+    required this.unread,
+    required this.onTap,
+  });
+
+  final Map<String, dynamic> data;
+  final bool unread;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = '${data['type'] ?? ''}'.trim().toLowerCase();
+    final listingId = '${data['listingId'] ?? ''}'.trim();
+    final icon = switch (type) {
+      'offer' => Icons.handshake_outlined,
+      'message' => Icons.chat_bubble_outline,
+      'dispatch' ||
+      'dispatch_signup' ||
+      'dispatch_provider_signup' =>
+        Icons.local_shipping_outlined,
+      'auction' || 'bid' => Icons.gavel_outlined,
+      'new_listing_match' ||
+      'seller_new_listing' ||
+      'wanted_match' =>
+        Icons.auto_awesome_outlined,
+      'device' || 'device_remembered' => Icons.devices_outlined,
+      'catalog_suggestion' => Icons.category_outlined,
+      _ => Icons.notifications_outlined,
+    };
+    return MarketplaceListingActivityBuilder(
+      listingId: listingId,
+      embedded: data,
+      builder: (context, listing) => Card(
+        color: unread ? const Color(0xFFEAF4FD) : null,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              MarketplaceListingActivityThumbnail(
+                listing: listing,
+                fallbackIcon: icon,
+                badgeIcon: listing.hasListing ? icon : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${data['title'] ?? 'Marketplace activity'}',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight:
+                                unread ? FontWeight.w900 : FontWeight.w700)),
+                    if (listing.hasListing) ...[
+                      const SizedBox(height: 2),
+                      Text(listing.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900)),
+                    ],
+                    const SizedBox(height: 3),
+                    Text(marketplaceNotificationBody(data, listing)),
+                    if (listing.commerceLine.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(listing.commerceLine,
+                          style: const TextStyle(
+                              color: Color(0xFF0F5BB5),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12)),
+                    ],
+                    const SizedBox(height: 5),
+                    Text(
+                      '${marketplaceActivityTypeLabel(data)}'
+                      '${marketplaceActivityTime(data['createdAt']).isEmpty ? '' : ' • ${marketplaceActivityTime(data['createdAt'])}'}',
+                      style: const TextStyle(
+                          color: Color(0xFF66758A), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              unread ? const Badge() : const Icon(Icons.chevron_right),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -3098,8 +3570,8 @@ class _AccountSettingsState extends State<_AccountSettings> {
           subtitle: const Text(
               'Version, environment, support, and legal information.'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const MarketplaceAboutPage()))),
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MarketplaceAboutPage()))),
       const SizedBox(height: 12),
       const _WatchKeywords(),
       const SizedBox(height: 12),
@@ -3192,7 +3664,6 @@ class _AccountSettingsState extends State<_AccountSettings> {
   }
 }
 
-
 class _AdministratorAccessCard extends StatefulWidget {
   const _AdministratorAccessCard({
     required this.state,
@@ -3207,8 +3678,7 @@ class _AdministratorAccessCard extends StatefulWidget {
       _AdministratorAccessCardState();
 }
 
-class _AdministratorAccessCardState
-    extends State<_AdministratorAccessCard> {
+class _AdministratorAccessCardState extends State<_AdministratorAccessCard> {
   bool _refreshing = false;
 
   Future<void> _refresh() async {
@@ -3224,8 +3694,7 @@ class _AdministratorAccessCardState
     final mfaRequired = state == MarketplaceAdministratorState.mfaRequired;
     final unavailable = state == MarketplaceAdministratorState.unavailable;
     final title = switch (state) {
-      MarketplaceAdministratorState.authorized =>
-        'Administrator access active',
+      MarketplaceAdministratorState.authorized => 'Administrator access active',
       MarketplaceAdministratorState.mfaRequired =>
         'Administrator sign-in requires MFA',
       MarketplaceAdministratorState.roleMissing =>

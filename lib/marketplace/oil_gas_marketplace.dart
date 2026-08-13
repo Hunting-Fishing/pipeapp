@@ -45,6 +45,7 @@ import 'marketplace_listing_media.dart';
 import 'marketplace_offer_validation.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
+import 'marketplace_activity_presentation.dart';
 
 const _navy = Color(0xFFF8FAFC);
 const _panel = Colors.white;
@@ -3284,23 +3285,37 @@ class _WelcomeUser extends StatelessWidget {
             .doc(user.uid)
             .snapshots(),
         builder: (context, snapshot) {
-          final data = snapshot.data?.data() ?? const <String, dynamic>{};
-          final candidates = [
-            data['businessName'],
-            data['displayName'],
-            data['fullName'],
-            data['name'],
-            user.displayName,
-            user.email?.split('@').first,
-          ];
-          final name = candidates
-              .map((value) => '${value ?? ''}'.trim())
-              .firstWhere((value) => value.isNotEmpty, orElse: () => 'User');
-          return Text('Welcome, $name',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: _orange, fontSize: 15, fontWeight: FontWeight.w800));
+          final account = snapshot.data?.data() ?? const <String, dynamic>{};
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('public_business_profiles')
+                  .doc(user.uid)
+                  .snapshots(),
+              builder: (context, businessSnapshot) =>
+                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('public_seller_profiles')
+                        .doc(user.uid)
+                        .snapshots(),
+                    builder: (context, sellerSnapshot) {
+                      final name = marketplaceGreetingName(
+                        account: account,
+                        publicBusiness: businessSnapshot.data?.data() ??
+                            const <String, dynamic>{},
+                        publicSeller: sellerSnapshot.data?.data() ??
+                            const <String, dynamic>{},
+                        authDisplayName: user.displayName,
+                        email: user.email,
+                      );
+                      return Text('Welcome, $name',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: _orange,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800));
+                    },
+                  ));
         });
   }
 }
@@ -3804,6 +3819,8 @@ class _ListingDetailsState extends State<_ListingDetails> {
   String? _statusMessage;
   MarketplaceListing get listing => widget.listing;
   bool get _isWanted => listing.transactionType == 'Wanted / Seeking';
+  bool get _isOwner =>
+      FirebaseAuth.instance.currentUser?.uid == listing.sellerUid;
 
   @override
   void initState() {
@@ -3971,6 +3988,40 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 ])),
             const SizedBox(height: 10),
             _ListingActivityStrip(activity: listing.activity),
+            if (_isOwner && !_isWanted && _features.offers) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7E8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF4C56A)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.visibility_outlined, color: Color(0xFF9A5B00)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Owner view: offers are private to you and each buyer. Smart ranking never accepts an offer automatically.',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 760,
+                child: MarketplaceNegotiationHistory(
+                  listingId: listing.id,
+                  listingTitle: listing.title,
+                  buyerUid: '',
+                  sellerUid: listing.sellerUid,
+                  askingPrice: listing.numericPrice,
+                  availableQuantity: listing.quantity,
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             Material(
                 color: const Color(0xFFF4F7FA),
@@ -4030,7 +4081,9 @@ class _ListingDetailsState extends State<_ListingDetails> {
             const SizedBox(height: 16),
             _locationPanel(),
             const SizedBox(height: 16),
-            if (_isWanted)
+            if (_isOwner && !_isWanted)
+              const SizedBox.shrink()
+            else if (_isWanted)
               FilledButton.icon(
                   onPressed: _messageSeller,
                   icon: const Icon(Icons.reply_outlined),
@@ -4045,29 +4098,15 @@ class _ListingDetailsState extends State<_ListingDetails> {
                         listingId: listing.id, sellerUid: listing.sellerUid)
                   ]))
             else
-              Row(children: [
-                Expanded(
-                    child: OutlinedButton.icon(
-                        onPressed: _messageSeller,
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        label: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Text('Message seller'),
-                          const SizedBox(width: 6),
-                          ListingMessageBadge(
-                              listingId: listing.id,
-                              sellerUid: listing.sellerUid)
-                        ]))),
-                if (_features.offers) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: FilledButton(
-                          onPressed: _makeOffer,
-                          style: FilledButton.styleFrom(
-                              backgroundColor: _orange,
-                              foregroundColor: Colors.white),
-                          child: const Text('Make offer')))
-                ],
-              ]),
+              ListingBuyerActivityActions(
+                listingId: listing.id,
+                sellerUid: listing.sellerUid,
+                publicOfferCount: listing.offerCount,
+                offersEnabled: _features.offers,
+                onMessage: _messageSeller,
+                onMakeOffer: _makeOffer,
+                onViewOffers: _showMyOffers,
+              ),
             if (_features.dispatch) ...[
               const SizedBox(height: 10),
               MarketplaceDispatchQuoteCard(onPressed: _getTruckingQuote),
@@ -4432,6 +4471,60 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 ],
               ));
     }
+  }
+
+  Future<void> _showMyOffers() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _notice('Sign in to view your submitted offers.');
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: .9,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const CircleAvatar(
+                  backgroundColor: Color(0xFFFFE7D5),
+                  child: Icon(Icons.local_offer_outlined,
+                      color: Color(0xFFC2410C))),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('My submitted offers',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w900)),
+                      Text('Visible only to you and this listing owner')
+                    ]),
+              ),
+              IconButton(
+                  tooltip: 'Close submitted offers',
+                  onPressed: () => Navigator.pop(sheetContext),
+                  icon: const Icon(Icons.close)),
+            ]),
+            const SizedBox(height: 12),
+            Expanded(
+              child: MarketplaceNegotiationHistory(
+                listingId: listing.id,
+                listingTitle: listing.title,
+                buyerUid: uid,
+                sellerUid: listing.sellerUid,
+                askingPrice: listing.numericPrice,
+                availableQuantity: listing.quantity,
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 
   Future<void> _makeOffer() async {
