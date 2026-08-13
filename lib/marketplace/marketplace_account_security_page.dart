@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'marketplace_command_client.dart';
+import 'marketplace_admin_access.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_profile_page.dart';
 import 'regional_phone_field.dart';
@@ -39,6 +40,7 @@ class _MarketplaceAccountSecurityPageState
   bool _busy = false;
   bool _codeSent = false;
   bool _mfaCodeSent = false;
+  bool _administratorOnboardingBypass = false;
   List<MultiFactorInfo> _enrolledFactors = const [];
   String? _message;
   bool _error = false;
@@ -59,6 +61,7 @@ class _MarketplaceAccountSecurityPageState
     _message = widget.initialNotice;
     _loadPendingPhone();
     _loadMfaFactors();
+    _loadAdministratorOnboardingBypass();
   }
 
   @override
@@ -263,16 +266,14 @@ class _MarketplaceAccountSecurityPageState
                       Row(children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed:
-                                _busy ? null : _sendMfaEnrollmentCode,
+                            onPressed: _busy ? null : _sendMfaEnrollmentCode,
                             child: const Text('Send a new code'),
                           ),
                         ),
                         const SizedBox(width: 9),
                         Expanded(
                           child: FilledButton(
-                            onPressed:
-                                _busy ? null : _confirmMfaEnrollmentCode,
+                            onPressed: _busy ? null : _confirmMfaEnrollmentCode,
                             child:
                                 Text(_busy ? 'Enrolling…' : 'Enable two-step'),
                           ),
@@ -322,6 +323,26 @@ class _MarketplaceAccountSecurityPageState
                       icon: const Icon(Icons.arrow_forward),
                       label: const Text('Continue to your profile'),
                     ),
+                  if (widget.onboarding &&
+                      _administratorOnboardingBypass &&
+                      _emailVerified &&
+                      !_phoneVerified) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _skipPhoneForNow,
+                      icon: const Icon(Icons.schedule_outlined),
+                      label: const Text('Skip phone for now'),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Administrator onboarding only. Your phone remains unverified, and posting, auctions, payments, Dispatch, and administrator tools keep their existing verification requirements.',
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF66758A)),
+                      ),
+                    ),
+                  ],
                   if (widget.onboarding)
                     TextButton.icon(
                       onPressed: _busy ? null : _signOut,
@@ -454,7 +475,8 @@ class _MarketplaceAccountSecurityPageState
           error: true);
     }
     if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(phone)) {
-      return _notice('Verify a complete mobile phone number before enrolling MFA.',
+      return _notice(
+          'Verify a complete mobile phone number before enrolling MFA.',
           error: true);
     }
 
@@ -514,8 +536,7 @@ class _MarketplaceAccountSecurityPageState
     });
   }
 
-  Future<void> _completeMfaEnrollment(
-      PhoneAuthCredential credential) async {
+  Future<void> _completeMfaEnrollment(PhoneAuthCredential credential) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw StateError('Sign in again before enrolling MFA.');
@@ -539,6 +560,31 @@ class _MarketplaceAccountSecurityPageState
 
   Future<void> _syncVerification() async {
     await _commands.execute('syncAccountVerification', const {});
+  }
+
+  Future<void> _loadAdministratorOnboardingBypass() async {
+    final available = await marketplaceAdministratorRole(forceRefresh: true);
+    if (mounted) {
+      setState(() => _administratorOnboardingBypass = available);
+    }
+  }
+
+  Future<void> _skipPhoneForNow() async {
+    await _run(() async {
+      final allowed = await marketplaceAdministratorRole(forceRefresh: true);
+      if (!allowed || !_emailVerified) {
+        throw StateError(
+            'Verify the account email and refresh the administrator role before skipping phone setup.');
+      }
+      await _syncVerification();
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => MarketplaceProfilePage(
+          onboarding: true,
+          initialAccountType: widget.initialAccountType,
+        ),
+      ));
+    });
   }
 
   Future<void> _continueToProfile() async {

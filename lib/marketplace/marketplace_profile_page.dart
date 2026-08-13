@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_profile_repository.dart';
+import 'marketplace_admin_access.dart';
 import 'marketplace_profile_community.dart';
 import 'marketplace_primary_community_selector.dart';
 import 'marketplace_profile_feedback.dart';
@@ -95,6 +96,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
   final List<String> _loadIssues = [];
   bool _loadInProgress = false;
   bool _profileSourceLoaded = false;
+  bool _administratorOnboardingBypass = false;
 
   @override
   void initState() {
@@ -133,7 +135,9 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     Map<String, dynamic>? privateBusiness;
     _loadIssues.clear();
     try {
-      await user.getIdToken();
+      final token = await user.getIdTokenResult(true);
+      _administratorOnboardingBypass =
+          marketplaceAdministratorRoleClaims(token.claims);
     } catch (_) {
       _loadIssues.add('Secure account session');
     }
@@ -170,7 +174,8 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       _accountEmail = '${personal['email'] ?? user.email ?? ''}';
       _displayName.text =
           '${personal['display_name'] ?? publicSeller?['displayName'] ?? ''}';
-      _phone.text = '${personal['pendingPhoneE164'] ?? personal['verifiedPhoneE164'] ?? personal['phone_number'] ?? user.phoneNumber ?? ''}';
+      _phone.text =
+          '${personal['pendingPhoneE164'] ?? personal['verifiedPhoneE164'] ?? personal['phone_number'] ?? user.phoneNumber ?? ''}';
       _community.text =
           '${personal['baseCommunity'] ?? publicSeller?['baseCommunity'] ?? ''}';
       final primaryCommunity = personal['primaryCommunityLocation'];
@@ -181,8 +186,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
               Map<String, dynamic>.from(primaryCommunity),
             ),
           );
-          _community.text =
-              primaryCommunityLabel(_primaryCommunityLocation!);
+          _community.text = primaryCommunityLabel(_primaryCommunityLocation!);
         } catch (_) {
           _loadIssues.add('Primary community map');
         }
@@ -341,6 +345,14 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       appBar: AppBar(
         title: const Text('Complete your profile'),
         automaticallyImplyLeading: false,
+        actions: [
+          if (_administratorOnboardingBypass)
+            TextButton(
+              onPressed: _saving ? null : _skipOnboardingForNow,
+              child: const Text('Skip for now'),
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(child: content),
     );
@@ -1076,6 +1088,8 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             MarketplaceProfileTags(accountType: _accountType),
             _savedLocationsSection(),
             _saveButton('Save personal profile', _savePersonal),
+            if (widget.onboarding && _administratorOnboardingBypass)
+              _administratorSkipButton(),
           ]),
         ),
       );
@@ -1228,6 +1242,8 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             MarketplaceProfileTags(accountType: _accountType),
             _savedLocationsSection(),
             _saveButton('Save business profile', _saveBusiness),
+            if (widget.onboarding && _administratorOnboardingBypass)
+              _administratorSkipButton(),
           ]),
         ),
       );
@@ -1290,6 +1306,45 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             onPressed: _saving ? null : action,
             child: Text(_saving ? 'Saving…' : label)),
       );
+
+  Widget _administratorSkipButton() => Padding(
+        padding: const EdgeInsets.only(bottom: 28),
+        child: Column(children: [
+          OutlinedButton.icon(
+            onPressed: _saving ? null : _skipOnboardingForNow,
+            icon: const Icon(Icons.schedule_outlined),
+            label: const Text('Skip for now'),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'No verification or completion status will be granted. Posting, auctions, payments, Dispatch, and administrator tools remain restricted until their requirements are completed.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Color(0xFF66758A)),
+          ),
+        ]),
+      );
+
+  Future<void> _skipOnboardingForNow() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final allowed = await marketplaceAdministratorRole(forceRefresh: true);
+      if (!allowed) {
+        if (mounted) {
+          PipeFeedback.show(
+            context,
+            message:
+                'The administrator role could not be confirmed. Refresh the account and try again.',
+            tone: PipeStatusTone.warning,
+          );
+        }
+        return;
+      }
+      if (mounted) Navigator.of(context).pop(true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   Widget _savedLocationsSection() => Padding(
         padding: const EdgeInsets.only(top: 8),
@@ -1360,8 +1415,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       await _reloadSavedLocations();
       if (mounted) {
         PipeFeedback.show(context,
-            message: 'Saved location added.',
-            tone: PipeStatusTone.success);
+            message: 'Saved location added.', tone: PipeStatusTone.success);
       }
     } catch (error) {
       if (mounted) {
@@ -1388,14 +1442,12 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     try {
       await _repo.saveLocation(
           id: '${data['id']}',
-          location:
-              updated.privateData(FirebaseAuth.instance.currentUser!.uid),
+          location: updated.privateData(FirebaseAuth.instance.currentUser!.uid),
           purpose: '${data['purpose'] ?? 'saved_location'}');
       await _reloadSavedLocations();
       if (mounted) {
         PipeFeedback.show(context,
-            message: 'Saved location updated.',
-            tone: PipeStatusTone.success);
+            message: 'Saved location updated.', tone: PipeStatusTone.success);
       }
     } catch (error) {
       if (mounted) {
@@ -1416,8 +1468,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       await _reloadSavedLocations();
       if (mounted) {
         PipeFeedback.show(context,
-            message: 'Saved location removed.',
-            tone: PipeStatusTone.success);
+            message: 'Saved location removed.', tone: PipeStatusTone.success);
       }
     } catch (error) {
       if (mounted) {

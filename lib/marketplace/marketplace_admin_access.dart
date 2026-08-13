@@ -8,12 +8,20 @@ enum MarketplaceAdministratorState {
   unavailable,
 }
 
+/// Identifies a provisioned administrator role without treating it as an
+/// authorized administrator session. This is suitable only for low-risk UI
+/// routing such as deferring onboarding; privileged tools still require MFA
+/// through [marketplaceAdministratorClaims].
+bool marketplaceAdministratorRoleClaims(Map<String, dynamic>? claims) {
+  final values = claims ?? const <String, dynamic>{};
+  return values['admin'] == true && values['role'] == 'administrator';
+}
+
 MarketplaceAdministratorState marketplaceAdministratorClaimsState(
   Map<String, dynamic>? claims,
 ) {
   final values = claims ?? const <String, dynamic>{};
-  final hasAdministratorRole =
-      values['admin'] == true && values['role'] == 'administrator';
+  final hasAdministratorRole = marketplaceAdministratorRoleClaims(values);
   if (!hasAdministratorRole) {
     return MarketplaceAdministratorState.roleMissing;
   }
@@ -26,6 +34,25 @@ MarketplaceAdministratorState marketplaceAdministratorClaimsState(
     return MarketplaceAdministratorState.mfaRequired;
   }
   return MarketplaceAdministratorState.authorized;
+}
+
+/// Returns whether the signed-in account has the server-issued administrator
+/// role. This does not grant access to administrator tools and does not replace
+/// their second-factor requirement.
+Future<bool> marketplaceAdministratorRole({
+  FirebaseAuth? auth,
+  bool forceRefresh = false,
+}) async {
+  final user = (auth ?? FirebaseAuth.instance).currentUser;
+  if (user == null) return false;
+  try {
+    final result = await user.getIdTokenResult(forceRefresh);
+    return marketplaceAdministratorRoleClaims(result.claims);
+  } on FirebaseAuthException {
+    return false;
+  } catch (_) {
+    return false;
+  }
 }
 
 bool marketplaceAdministratorClaims(Map<String, dynamic>? claims) =>

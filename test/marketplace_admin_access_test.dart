@@ -17,12 +17,11 @@ void main() {
     });
 
     test('reports MFA requirement for a provisioned administrator role', () {
-      expect(
-        marketplaceAdministratorClaimsState(
-          const {'admin': true, 'role': 'administrator'},
-        ),
-        MarketplaceAdministratorState.mfaRequired,
-      );
+      const claims = {'admin': true, 'role': 'administrator'};
+      expect(marketplaceAdministratorRoleClaims(claims), isTrue);
+      expect(marketplaceAdministratorClaimsState(claims),
+          MarketplaceAdministratorState.mfaRequired);
+      expect(marketplaceAdministratorClaims(claims), isFalse);
     });
 
     test('authorizes only a role with second-factor evidence', () {
@@ -41,6 +40,14 @@ void main() {
     test('email and public profile fields cannot grant administrator UI', () {
       expect(
         marketplaceAdministratorClaims({
+          'email': 'administrator@example.com',
+          'email_verified': true,
+          'isAdmin': true,
+        }),
+        isFalse,
+      );
+      expect(
+        marketplaceAdministratorRoleClaims({
           'email': 'administrator@example.com',
           'email_verified': true,
           'isAdmin': true,
