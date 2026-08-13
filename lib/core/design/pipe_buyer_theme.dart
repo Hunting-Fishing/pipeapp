@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Premium Pipe Buyer visual system shared by web, tablet, and mobile.
-///
-/// This file intentionally contains no marketplace or Firebase logic. It is a
-/// pure presentation layer so product screens can adopt the brand without
-/// changing transaction behavior.
+/// Core Pipe Buyer brand colors shared across web, tablet, and mobile.
 abstract final class PipeBuyerColors {
   static const orange = Color(0xFFFF6A00);
   static const orangePressed = Color(0xFFE85F00);
@@ -36,23 +32,25 @@ abstract final class PipeBuyerColors {
   static const danger = Color(0xFFD92D20);
 }
 
+/// Premium marketplace theme applied before the accessibility layer.
+///
+/// The visual theme is deliberately independent of marketplace state and
+/// Firebase so UI changes cannot alter transaction behavior.
 abstract final class PipeBuyerTheme {
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
 
   static ThemeData _build(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    final canvas =
-        isDark ? PipeBuyerColors.darkCanvas : PipeBuyerColors.canvas;
-    final surface =
-        isDark ? PipeBuyerColors.darkSurface : PipeBuyerColors.surface;
-    final surfaceMuted = isDark
+    final dark = brightness == Brightness.dark;
+    final canvas = dark ? PipeBuyerColors.darkCanvas : PipeBuyerColors.canvas;
+    final surface = dark ? PipeBuyerColors.darkSurface : PipeBuyerColors.surface;
+    final surfaceMuted = dark
         ? PipeBuyerColors.darkSurfaceMuted
         : PipeBuyerColors.surfaceMuted;
-    final field = isDark ? PipeBuyerColors.darkField : PipeBuyerColors.field;
-    final line = isDark ? PipeBuyerColors.darkLine : PipeBuyerColors.line;
-    final text = isDark ? PipeBuyerColors.darkText : PipeBuyerColors.ink;
-    final muted = isDark ? PipeBuyerColors.darkMuted : PipeBuyerColors.muted;
+    final field = dark ? PipeBuyerColors.darkField : PipeBuyerColors.field;
+    final line = dark ? PipeBuyerColors.darkLine : PipeBuyerColors.line;
+    final text = dark ? PipeBuyerColors.darkText : PipeBuyerColors.ink;
+    final muted = dark ? PipeBuyerColors.darkMuted : PipeBuyerColors.muted;
 
     final scheme = ColorScheme.fromSeed(
       seedColor: PipeBuyerColors.orange,
@@ -67,7 +65,6 @@ abstract final class PipeBuyerTheme {
       surface: surface,
       onSurface: text,
       outline: line,
-      shadow: Colors.black,
     );
 
     final base = ThemeData(
@@ -79,7 +76,6 @@ abstract final class PipeBuyerTheme {
       canvasColor: canvas,
       cardColor: surface,
       dividerColor: line,
-      splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
     );
 
@@ -87,11 +83,11 @@ abstract final class PipeBuyerTheme {
         .copyWith(
           displayLarge: base.textTheme.displayLarge?.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: -1.5,
+            letterSpacing: -1.4,
           ),
           displayMedium: base.textTheme.displayMedium?.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: -1.1,
+            letterSpacing: -1.0,
           ),
           headlineLarge: base.textTheme.headlineLarge?.copyWith(
             fontWeight: FontWeight.w800,
@@ -99,15 +95,13 @@ abstract final class PipeBuyerTheme {
           ),
           headlineMedium: base.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
+            letterSpacing: -0.4,
           ),
           headlineSmall: base.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: -0.25,
           ),
           titleLarge: base.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: -0.2,
           ),
           titleMedium: base.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
@@ -117,27 +111,24 @@ abstract final class PipeBuyerTheme {
           ),
           bodyLarge: base.textTheme.bodyLarge?.copyWith(height: 1.45),
           bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.42),
-          bodySmall: base.textTheme.bodySmall?.copyWith(height: 1.35),
           labelLarge: base.textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: 0.1,
           ),
         )
         .apply(bodyColor: text, displayColor: text);
 
-    final radius = BorderRadius.circular(14);
-    final inputRadius = BorderRadius.circular(12);
+    final cardRadius = BorderRadius.circular(14);
+    final controlRadius = BorderRadius.circular(12);
 
     return base.copyWith(
       textTheme: textTheme,
       primaryTextTheme: textTheme,
       iconTheme: IconThemeData(color: text, size: 22),
-      primaryIconTheme: const IconThemeData(color: Colors.white),
-      appBarTheme: AppBarTheme(
+      appBarTheme: AppBarThemeData(
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor:
-            isDark ? PipeBuyerColors.darkCanvas : PipeBuyerColors.ink,
+            dark ? PipeBuyerColors.darkCanvas : PipeBuyerColors.ink,
         foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
@@ -152,65 +143,49 @@ abstract final class PipeBuyerTheme {
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
-        shadowColor: Colors.black.withValues(alpha: isDark ? 0.26 : 0.08),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: radius,
+          borderRadius: cardRadius,
           side: BorderSide(color: line),
         ),
       ),
-      dividerTheme: DividerThemeData(
-        color: line,
-        thickness: 1,
-        space: 1,
-      ),
+      dividerTheme: DividerThemeData(color: line, thickness: 1, space: 1),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: field,
-        isDense: false,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         labelStyle: TextStyle(color: muted, fontWeight: FontWeight.w600),
-        hintStyle: TextStyle(color: muted.withValues(alpha: 0.9)),
+        hintStyle: TextStyle(color: muted),
         prefixIconColor: muted,
         suffixIconColor: muted,
         border: OutlineInputBorder(
-          borderRadius: inputRadius,
+          borderRadius: controlRadius,
           borderSide: BorderSide(color: line),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: inputRadius,
+          borderRadius: controlRadius,
           borderSide: BorderSide(color: line),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: inputRadius,
+          borderRadius: controlRadius,
           borderSide:
               const BorderSide(color: PipeBuyerColors.orange, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: inputRadius,
+          borderRadius: controlRadius,
           borderSide: const BorderSide(color: PipeBuyerColors.danger),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: inputRadius,
-          borderSide:
-              const BorderSide(color: PipeBuyerColors.danger, width: 2),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: PipeBuyerColors.orange,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: muted.withValues(alpha: 0.25),
-          disabledForegroundColor: muted,
           minimumSize: const Size(64, 50),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: inputRadius),
-          textStyle: const TextStyle(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.1,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: controlRadius),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -218,10 +193,8 @@ abstract final class PipeBuyerTheme {
           backgroundColor: PipeBuyerColors.orange,
           foregroundColor: Colors.white,
           minimumSize: const Size(64, 50),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           elevation: 0,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: inputRadius),
+          shape: RoundedRectangleBorder(borderRadius: controlRadius),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -229,9 +202,8 @@ abstract final class PipeBuyerTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: text,
           minimumSize: const Size(64, 50),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           side: BorderSide(color: line, width: 1.2),
-          shape: RoundedRectangleBorder(borderRadius: inputRadius),
+          shape: RoundedRectangleBorder(borderRadius: controlRadius),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -239,20 +211,14 @@ abstract final class PipeBuyerTheme {
         style: TextButton.styleFrom(
           foregroundColor: PipeBuyerColors.orange,
           minimumSize: const Size(64, 48),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: PipeBuyerColors.orange,
-        foregroundColor: Colors.white,
-        elevation: 2,
-      ),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceMuted,
         selectedColor: PipeBuyerColors.orangeSoft,
-        disabledColor: surfaceMuted.withValues(alpha: 0.6),
+        disabledColor: surfaceMuted,
         labelStyle: TextStyle(color: text, fontWeight: FontWeight.w700),
         secondaryLabelStyle:
             const TextStyle(color: PipeBuyerColors.orangePressed),
@@ -315,51 +281,11 @@ abstract final class PipeBuyerTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isDark ? PipeBuyerColors.darkSurface : PipeBuyerColors.ink,
-        contentTextStyle: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
+        backgroundColor: dark ? PipeBuyerColors.darkSurface : PipeBuyerColors.ink,
+        contentTextStyle:
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         actionTextColor: PipeBuyerColors.orange,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 12,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        titleTextStyle: TextStyle(
-          color: text,
-          fontSize: 21,
-          fontWeight: FontWeight.w800,
-        ),
-        contentTextStyle: TextStyle(color: muted, fontSize: 14, height: 1.4),
-      ),
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: surface,
-        surfaceTintColor: Colors.transparent,
-        modalBackgroundColor: surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-      ),
-      popupMenuTheme: PopupMenuThemeData(
-        color: surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: TextStyle(color: text, fontWeight: FontWeight.w600),
-      ),
-      tooltipTheme: TooltipThemeData(
-        decoration: BoxDecoration(
-          color: isDark ? PipeBuyerColors.darkText : PipeBuyerColors.ink,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        textStyle: TextStyle(
-          color: isDark ? PipeBuyerColors.ink : Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
       ),
     );
   }
