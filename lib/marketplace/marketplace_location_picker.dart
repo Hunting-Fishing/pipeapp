@@ -60,9 +60,7 @@ class MarketplaceLocationPicker extends StatefulWidget {
       Navigator.of(context).push<MarketplaceLocation>(MaterialPageRoute(
           fullscreenDialog: true,
           builder: (_) => MarketplaceLocationPicker(
-              initial: initial,
-              title: 'Primary community',
-              community: true)));
+              initial: initial, title: 'Primary community', community: true)));
 
   @override
   State<MarketplaceLocationPicker> createState() =>
@@ -351,8 +349,7 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
             const Card(
                 color: Color(0xFFEAF4FD),
                 child: ListTile(
-                    leading:
-                        Icon(Icons.radar, color: Color(0xFF0878E8)),
+                    leading: Icon(Icons.radar, color: Color(0xFF0878E8)),
                     title: Text('Broad-area profile location'),
                     subtitle: Text(
                         'Pipe Buyer stores the exact pin privately and publishes only an approximate area for discovery.')))
@@ -410,8 +407,7 @@ class _MarketplaceLocationPickerState extends State<MarketplaceLocationPicker> {
       );
 
   void _save() {
-    if ((widget.delivery || widget.community) &&
-        _town.text.trim().isEmpty) {
+    if ((widget.delivery || widget.community) && _town.text.trim().isEmpty) {
       PipeFeedback.show(
         context,
         message: widget.community
@@ -689,48 +685,129 @@ class _MarketplaceMapSheetState extends State<MarketplaceMapSheet> {
 
 class ListingLocationMap extends StatelessWidget {
   const ListingLocationMap(
-      {super.key, required this.point, required this.approximate});
+      {super.key,
+      required this.point,
+      required this.approximate,
+      this.height = 190,
+      this.allowExpand = true});
   final LatLng point;
   final bool approximate;
+  final double height;
+  final bool allowExpand;
 
   @override
   Widget build(BuildContext context) => ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: SizedBox(
-          height: 190,
-          child: FlutterMap(
-            options: MapOptions(
-                initialCenter: point,
-                initialZoom: approximate ? 9 : 13,
-                interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag)),
-            children: [
-              TileLayer(
-                  urlTemplate: pipeBuyerTileUrl,
-                  userAgentPackageName: 'ca.pipebuyer.marketplace'),
-              if (approximate)
-                CircleLayer(circles: [
-                  CircleMarker(
+          height: height,
+          child: Stack(children: [
+            Positioned.fill(
+              child: FlutterMap(
+                options: MapOptions(
+                    initialCenter: point,
+                    initialZoom: approximate ? 9 : 13,
+                    interactionOptions:
+                        const InteractionOptions(flags: InteractiveFlag.all)),
+                children: [
+                  TileLayer(
+                      urlTemplate: pipeBuyerTileUrl,
+                      userAgentPackageName: 'ca.pipebuyer.marketplace'),
+                  if (approximate)
+                    CircleLayer(circles: [
+                      CircleMarker(
+                          point: point,
+                          radius: 5000,
+                          useRadiusInMeter: true,
+                          color: const Color(0x332E7DFF),
+                          borderColor: const Color(0xFF2E7DFF),
+                          borderStrokeWidth: 2)
+                    ])
+                  else
+                    MarkerLayer(markers: [
+                      Marker(
+                          point: point,
+                          width: 44,
+                          height: 44,
+                          child: const Icon(Icons.location_pin,
+                              size: 42, color: Color(0xFFFF5A00)))
+                    ]),
+                  const SimpleAttributionWidget(
+                      source: Text('© OpenStreetMap contributors')),
+                ],
+              ),
+            ),
+            if (allowExpand)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Material(
+                  color: const Color(0xEFFFFFFF),
+                  borderRadius: BorderRadius.circular(10),
+                  elevation: 2,
+                  child: IconButton(
+                    tooltip: 'Open interactive location map',
+                    onPressed: () => _showExpandedListingMap(
+                      context,
                       point: point,
-                      radius: 5000,
-                      useRadiusInMeter: true,
-                      color: const Color(0x332E7DFF),
-                      borderColor: const Color(0xFF2E7DFF),
-                      borderStrokeWidth: 2)
-                ])
-              else
-                MarkerLayer(markers: [
-                  Marker(
-                      point: point,
-                      width: 44,
-                      height: 44,
-                      child: const Icon(Icons.location_pin,
-                          size: 42, color: Color(0xFFFF5A00)))
-                ]),
-              const SimpleAttributionWidget(
-                  source: Text('© OpenStreetMap contributors')),
-            ],
-          ),
+                      approximate: approximate,
+                    ),
+                    icon: const Icon(Icons.open_in_full_rounded),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 8,
+              top: 8,
+              child: IgnorePointer(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xEFFFFFFF),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Text(
+                    'Drag or zoom map',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+          ]),
         ),
       );
 }
+
+Future<void> _showExpandedListingMap(
+  BuildContext context, {
+  required LatLng point,
+  required bool approximate,
+}) =>
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        child: SafeArea(
+          child: Column(children: [
+            ListTile(
+              leading: IconButton(
+                tooltip: 'Close map',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+              title: Text(approximate
+                  ? 'Approximate listing area'
+                  : 'Listing location'),
+              subtitle: const Text('Drag, pinch or scroll to explore the map.'),
+            ),
+            Expanded(
+              child: ListingLocationMap(
+                point: point,
+                approximate: approximate,
+                height: double.infinity,
+                allowExpand: false,
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
