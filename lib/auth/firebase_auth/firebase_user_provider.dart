@@ -61,8 +61,8 @@ class PipeAppFirebaseUser extends BaseAuthUser {
 Stream<BaseAuthUser> pipeAppFirebaseUserStream() => FirebaseAuth.instance
         .authStateChanges()
         .debounce((user) => user == null && !loggedIn
-            ? TimerStream(true, const Duration(seconds: 1))
-            : Stream.value(user))
+            ? TimerStream<void>(null, const Duration(seconds: 1))
+            : Stream<void>.value(null))
         .map<BaseAuthUser>(
       (user) {
         currentUser = PipeAppFirebaseUser(user);

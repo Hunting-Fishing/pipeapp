@@ -75,6 +75,18 @@ test('native Google Sign-In callback and active marketplace entry point are conf
   assert.match(authPage, /googleSignInFunc\(\)/u);
 });
 
+test('native Google Sign-In uses the initialized 7.x API and preserves cancellation', () => {
+  const googleAuth = read('lib/auth/firebase_auth/google_auth.dart');
+
+  assert.match(googleAuth, /GoogleSignIn\.instance/u);
+  assert.match(googleAuth, /_googleSignIn\.initialize\(\)/u);
+  assert.match(googleAuth, /_googleSignIn\.authenticate\(/u);
+  assert.match(googleAuth, /GoogleSignInExceptionCode\.canceled/u);
+  assert.match(googleAuth, /GoogleAuthProvider\.credential\(idToken:\s*idToken\)/u);
+  assert.doesNotMatch(googleAuth, /GoogleSignIn\(scopes:/u);
+  assert.doesNotMatch(googleAuth, /_googleSignIn\.signIn\(\)/u);
+});
+
 test('sitemap publishes the exact non-redirecting branding and legal URLs', () => {
   const sitemap = read('web/sitemap.xml');
   for (const url of [
