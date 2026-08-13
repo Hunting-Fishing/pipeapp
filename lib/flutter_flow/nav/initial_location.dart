@@ -1,7 +1,18 @@
 import 'initial_location_source_stub.dart'
     if (dart.library.html) 'initial_location_source_web.dart' as source;
 
-String marketplaceInitialLocation() => marketplaceInitialLocationFromParts(
+String? _capturedMarketplaceInitialLocation;
+
+void captureMarketplaceInitialLocation() {
+  _capturedMarketplaceInitialLocation ??= marketplaceInitialLocationFromParts(
+    source.marketplacePathname(),
+    source.marketplaceSearch(),
+  );
+}
+
+String marketplaceInitialLocation() =>
+    _capturedMarketplaceInitialLocation ??
+    marketplaceInitialLocationFromParts(
       source.marketplacePathname(),
       source.marketplaceSearch(),
     );

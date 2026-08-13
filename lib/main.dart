@@ -17,12 +17,14 @@ import 'core/config/public_release_config.dart';
 import 'core/diagnostics/app_diagnostics.dart';
 import 'core/startup/pipe_startup_monitor.dart';
 import 'marketplace/marketplace_notification_service.dart';
+import 'flutter_flow/nav/initial_location.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/internationalization.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  captureMarketplaceInitialLocation();
   AppDiagnostics.install();
   final startupMonitor = PipeStartupMonitor();
   runApp(PipeStartupMonitorApp(monitor: startupMonitor));
