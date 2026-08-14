@@ -165,9 +165,9 @@ class _PublicPageHeader extends StatelessWidget {
                       child: IndustrialAssetIcon(
                         label: kind.title,
                         assetPath: kind == MarketplacePublicInformationKind.support
-                            ? IndustrialIconAssets.inAppMessaging
+                            ? IndustrialIconAssets.messages
                             : kind == MarketplacePublicInformationKind.privacy
-                                ? IndustrialIconAssets.fraudScan
+                                ? IndustrialIconAssets.safetyShield
                                 : IndustrialIconAssets.industrialSite,
                         size: compact ? 66 : 90,
                         borderRadius: 11,
