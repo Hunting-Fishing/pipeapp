@@ -420,7 +420,7 @@ class _SpecialtiesHeader extends StatelessWidget {
                   ? 'Industrial business specialties'
                   : 'Marketplace specialties',
               assetPath: accountType == 'business'
-                  ? IndustrialIconAssets.marketplace
+                  ? IndustrialIconAssets.industrialSite
                   : IndustrialIconAssets.pipeBundle,
               size: compact ? 52 : 66,
               borderRadius: 10,
