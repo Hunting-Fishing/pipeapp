@@ -24,13 +24,29 @@ class MarketplaceGridDensityBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final compact = screenWidth < compactBreakpoint;
+    final options = compact
+        ? const <({int columns, IconData icon, String label})>[
+            (columns: 0, icon: Icons.auto_awesome_rounded, label: 'Auto'),
+            (columns: 1, icon: Icons.view_headline_rounded, label: '1'),
+            (columns: 2, icon: Icons.grid_view_rounded, label: '2'),
+          ]
+        : const <({int columns, IconData icon, String label})>[
+            (columns: 0, icon: Icons.auto_awesome_rounded, label: 'Auto'),
+            (columns: 1, icon: Icons.view_headline_rounded, label: '1'),
+            (columns: 2, icon: Icons.grid_view_rounded, label: '2'),
+            (columns: 3, icon: Icons.grid_on_rounded, label: '3'),
+            (columns: 4, icon: Icons.apps_rounded, label: '4'),
+          ];
+
     return Semantics(
       container: true,
       label: 'Marketplace listing layout density',
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Theme.of(context).dividerColor),
           boxShadow: const [
             BoxShadow(
@@ -43,13 +59,17 @@ class MarketplaceGridDensityBar extends StatelessWidget {
         padding: const EdgeInsets.all(4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildOption(context, 0, Icons.auto_awesome_rounded, 'Auto'),
-            _buildOption(context, 1, Icons.view_headline_rounded, '1'),
-            _buildOption(context, 2, Icons.grid_view_rounded, '2'),
-            _buildOption(context, 3, Icons.grid_on_rounded, '3'),
-            _buildOption(context, 4, Icons.apps_rounded, '4'),
-          ],
+          children: options
+              .map(
+                (option) => _buildOption(
+                  context,
+                  option.columns,
+                  option.icon,
+                  option.label,
+                  iconOnly: compact && option.columns != 0,
+                ),
+              )
+              .toList(growable: false),
         ),
       ),
     );
@@ -59,10 +79,15 @@ class MarketplaceGridDensityBar extends StatelessWidget {
     BuildContext context,
     int columns,
     IconData icon,
-    String label,
-  ) {
+    String label, {
+    bool iconOnly = false,
+  }) {
     final theme = Theme.of(context);
-    final isSelected = selectedColumns == columns;
+    final maxColumns = maxColumnsForWidth(MediaQuery.sizeOf(context).width);
+    final effectiveSelection = selectedColumns <= 0
+        ? 0
+        : selectedColumns.clamp(1, maxColumns).toInt();
+    final isSelected = effectiveSelection == columns;
     final semanticLabel = columns == 0
         ? 'Automatic responsive grid density'
         : '$columns ${columns == 1 ? 'column' : 'columns'}';
@@ -75,19 +100,23 @@ class MarketplaceGridDensityBar extends StatelessWidget {
         message: semanticLabel,
         child: InkWell(
           onTap: () => onChanged(columns),
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(10),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 34),
+            padding: EdgeInsets.symmetric(
+              horizontal: iconOnly ? 8 : 9,
+              vertical: 7,
+            ),
             decoration: BoxDecoration(
               color: isSelected ? PipeBuyerColors.orange : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(10),
               boxShadow: isSelected
                   ? const [
                       BoxShadow(
-                        color: Color(0x28F36A21),
-                        blurRadius: 8,
+                        color: Color(0x28FF6A00),
+                        blurRadius: 9,
                         offset: Offset(0, 3),
                       ),
                     ]
@@ -95,25 +124,28 @@ class MarketplaceGridDensityBar extends StatelessWidget {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   icon,
-                  size: 14,
+                  size: 15,
                   color: isSelected
                       ? Colors.white
                       : theme.colorScheme.onSurface.withValues(alpha: .62),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                    color: isSelected
-                        ? Colors.white
-                        : theme.colorScheme.onSurface.withValues(alpha: .68),
+                if (!iconOnly) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                      color: isSelected
+                          ? Colors.white
+                          : theme.colorScheme.onSurface.withValues(alpha: .68),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
