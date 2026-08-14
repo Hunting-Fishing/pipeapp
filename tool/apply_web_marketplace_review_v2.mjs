@@ -45,7 +45,7 @@ function patchVipDart(source) {
   return replaceLiteralOnce(
     source,
     "  final explicit = marketplaceAccessDate(listing['vipEarlyAccessUntil']);\n  if (explicit != null) return explicit;\n  if (listing['vipEarlyAccessEnabled'] == false) return null;",
-    "  final explicit = marketplaceAccessDate(listing['vipEarlyAccessUntil']);\n  if (explicit != null) return explicit;\n  // PIPEBUYER_VIP_EXPLICIT_FLAG_V1: existing listings remain public unless publishing explicitly enables early access.\n  if (listing['vipEarlyAccessEnabled'] != true) return null;",
+    "  final explicit = marketplaceAccessDate(listing['vipEarlyAccessUntil']);\n  if (explicit != null) return explicit;\n  // PIPEBUYER_VIP_EXPLICIT_FLAG_V1: historical listings remain public unless publishing explicitly enables early access.\n  if (listing['vipEarlyAccessEnabled'] != true) return null;",
     "explicit VIP listing flag",
   );
 }
@@ -73,7 +73,7 @@ function patchCore(source) {
   source = replaceLiteralOnce(
     source,
     "              final askingUnit = listing.numericPrice ?? 0;\n              final askingTotal = askingUnit * requestedQty;\n              final offeredTotal = offeredUnit * requestedQty;\n              final difference = offeredTotal - askingTotal;\n              final percent =\n                  askingTotal == 0 ? 0 : (difference / askingTotal * 100);\n              return AlertDialog(",
-    "              final askingUnit = listing.numericPrice ?? 0;\n              final listedQty = (listing.quantity ?? requestedQty).toInt();\n              final analysis = MarketplaceOfferAnalysis(\n                listedQuantity: listedQty,\n                requestedQuantity: requestedQty,\n                askingUnitPrice: askingUnit,\n                offeredUnitPrice: offeredUnit,\n              );\n              final askingTotal = analysis.requestedAskValue;\n              final offeredTotal = analysis.offeredTotal;\n              final difference = analysis.requestedValueDifference;\n              final percent = analysis.priceDifferencePercent;\n              final offerReady = requestedQty > 0 &&\n                  requestedQty <= listedQty &&\n                  offeredUnit > 0 &&\n                  truckingPlan != null &&\n                  (truckingPlan != MarketplaceTruckingPlan.requestDispatch ||\n                      (dispatchDeliveryLocation != null && truckingDate != null));\n              return AlertDialog(",
+    "              final askingUnit = listing.numericPrice ?? 0;\n              final listedQty = (listing.quantity ?? requestedQty).toInt();\n              final analysis = MarketplaceOfferAnalysis(\n                listedQuantity: listedQty,\n                requestedQuantity: requestedQty,\n                askingUnitPrice: askingUnit,\n                offeredUnitPrice: offeredUnit,\n              );\n              final offerReady = requestedQty > 0 &&\n                  requestedQty <= listedQty &&\n                  offeredUnit > 0 &&\n                  truckingPlan != null &&\n                  (truckingPlan != MarketplaceTruckingPlan.requestDispatch ||\n                      (dispatchDeliveryLocation != null && truckingDate != null));\n              return AlertDialog(",
     "offer analysis calculation",
   );
   source = replaceLiteralOnce(
