@@ -257,7 +257,7 @@ class _MarketplaceDigitalBolModalState
                       borderRadius: BorderRadius.circular(14),
                       onTap: () => setState(() => _driverSigned = true),
                       child: Container(
-                        minHeight: 108,
+                        constraints: const BoxConstraints(minHeight: 108),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: (_driverSigned
