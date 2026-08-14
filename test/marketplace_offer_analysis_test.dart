@@ -21,6 +21,7 @@ void main() {
     expect(analysis.unitDifference, -3);
     expect(analysis.requestedValueDifference, -75);
     expect(analysis.priceDifferencePercent, closeTo(-4.1095, .001));
+    expect(analysis.valid, isTrue);
   });
 
   test('full-quantity offer at asking price is neutral', () {
@@ -36,9 +37,10 @@ void main() {
     expect(analysis.offeredTotal, 3942);
     expect(analysis.requestedValueDifference, 0);
     expect(analysis.priceDifferencePercent, 0);
+    expect(analysis.valid, isTrue);
   });
 
-  test('requested quantity is capped at available inventory for display math', () {
+  test('requested quantity is capped for display but rejected for submission', () {
     const analysis = MarketplaceOfferAnalysis(
       listedQuantity: 54,
       requestedQuantity: 80,
@@ -49,5 +51,6 @@ void main() {
     expect(analysis.normalizedRequestedQuantity, 54);
     expect(analysis.remainingQuantity, 0);
     expect(analysis.requestedQuantityPercent, 100);
+    expect(analysis.valid, isFalse);
   });
 }
