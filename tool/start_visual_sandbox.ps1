@@ -1,6 +1,7 @@
 param(
   [switch]$SeedOnly,
-  [switch]$SkipSeed
+  [switch]$SkipSeed,
+  [switch]$WithFunctions
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,14 +38,29 @@ Require-Command 'flutter' 'Install Flutter and ensure flutter\bin is on PATH.'
 $functionsDir = Join-Path $repoRoot 'firebase\functions'
 $adminModule = Join-Path $functionsDir 'node_modules\firebase-admin'
 if (-not (Test-Path $adminModule)) {
-  Write-Step 'Installing local Firebase Functions dependencies'
+  Write-Step 'Installing the Firebase Admin dependency used by the local data seeder'
   & npm --prefix $functionsDir install
   if ($LASTEXITCODE -ne 0) {
     throw 'npm install for firebase/functions failed.'
   }
 }
 
-$requiredPorts = @(9099, 8080, 5001, 9199)
+$emulatorNames = 'auth,firestore,storage'
+$requiredPorts = @(9099, 8080, 9199)
+if ($WithFunctions) {
+  $agentFunctionsDir = Join-Path $repoRoot 'firebase\agent-functions'
+  $agentAdminModule = Join-Path $agentFunctionsDir 'node_modules\firebase-admin'
+  if (-not (Test-Path $agentAdminModule)) {
+    Write-Step 'Installing the optional administrative Functions dependencies'
+    & npm --prefix $agentFunctionsDir install
+    if ($LASTEXITCODE -ne 0) {
+      throw 'npm install for firebase/agent-functions failed.'
+    }
+  }
+  $emulatorNames = 'auth,firestore,functions,storage'
+  $requiredPorts += 5001
+}
+
 $needsEmulators = $false
 foreach ($port in $requiredPorts) {
   if (-not (Test-LocalPort $port)) {
@@ -56,11 +72,12 @@ foreach ($port in $requiredPorts) {
 if ($needsEmulators) {
   Write-Step 'Starting isolated Firebase emulators in a second PowerShell window'
   $safeRoot = $repoRoot.Replace("'", "''")
-  $emulatorCommand = "Set-Location -LiteralPath '$safeRoot'; firebase emulators:start --only auth,firestore,functions,storage --project flutter-flow-pipe"
+  $emulatorCommand = "Set-Location -LiteralPath '$safeRoot'; firebase emulators:start --only $emulatorNames --project flutter-flow-pipe"
   Start-Process powershell.exe -ArgumentList @('-NoExit', '-Command', $emulatorCommand)
 
-  Write-Host 'Waiting for Auth, Firestore, Functions and Storage emulators...' -ForegroundColor DarkGray
+  Write-Host "Waiting for $emulatorNames emulators..." -ForegroundColor DarkGray
   $deadline = (Get-Date).AddMinutes(2)
+  $ready = $false
   do {
     Start-Sleep -Seconds 2
     $ready = $true
@@ -101,6 +118,10 @@ Write-Host '  Password for all three: PipeBuyerDemo!2026' -ForegroundColor White
 Write-Host ''
 Write-Host 'Firebase Emulator UI: http://127.0.0.1:4000' -ForegroundColor DarkGray
 Write-Host 'All seeded records are local-only and do not touch production.' -ForegroundColor Green
+if (-not $WithFunctions) {
+  Write-Host 'Function-backed write actions are intentionally disabled in this visual-only run.' -ForegroundColor DarkGray
+  Write-Host 'Use -WithFunctions later when you want to test sending offers/messages and Dispatch commands.' -ForegroundColor DarkGray
+}
 
 if ($SeedOnly) {
   Write-Step 'Seed complete'
