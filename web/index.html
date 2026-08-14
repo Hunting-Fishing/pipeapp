@@ -23,8 +23,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Pipe Buyer">
 
-  
-
   <meta name="google-signin-client_id" content="426221783223-07jigk5gpa3qb7i9d0dcr1rp8uuc75ee.apps.googleusercontent.com">
   <meta name="google-site-verification" content="googled8be046fc034f0b2" />
   <meta name="robots" content="index, follow">
@@ -41,7 +39,7 @@
   <meta name="twitter:description" content="Pipe Buyer is an online low-fee B2B industrial marketplace, timed auctions platform, and freight trucking dispatch network for oil & gas equipment, OCTG casing, tubing, line pipe, valves, and heavy machinery across the United States and Canada.">
   <meta name="twitter:image" content="https://www.pipebuyer.com/splash/img/light-4x.png">
   <meta name="twitter:card" content="summary_large_image">
-  
+
   <title>Pipe Buyer</title>
   <meta name="description" content="Pipe Buyer is a B2B marketplace, timed auctions platform, and trucking dispatch network for oil & gas pipe, OCTG casing, line pipe, valves, and heavy machinery across the United States and Canada.">
 
@@ -64,101 +62,228 @@
   }
   </script>
 
-
   <!-- Status Bar color in Safari browser (iOS) and PWA -->
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f1f4f8">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1d2428">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#11151a">
 
   <link rel="manifest" href="manifest.json">
 
-
-
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
   <style id="splash-screen-style">
+    :root {
+      --pipe-orange: #f36a21;
+      --pipe-orange-deep: #c94e0c;
+      --pipe-ink: #11151a;
+      --pipe-graphite: #1b2026;
+      --pipe-muted: #929ca8;
+    }
     html, body {
       height: 100%;
       margin: 0;
-      background: #061D49;
+      background: var(--pipe-ink);
       color: #ffffff;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
     }
     #splash {
       position: fixed;
       inset: 0;
+      z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 28px;
       box-sizing: border-box;
       background:
-        radial-gradient(circle at 50% 42%, rgba(8, 120, 232, .18), transparent 38%),
-        #061D49;
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+        radial-gradient(circle at 78% 12%, rgba(243, 106, 33, .12), transparent 28%),
+        radial-gradient(circle at 10% 90%, rgba(255, 255, 255, .035), transparent 30%),
+        linear-gradient(135deg, #0b0e12 0%, #11151a 55%, #1b2026 100%);
+      background-size: 48px 48px, 48px 48px, auto, auto, auto;
     }
     .splash-card {
-      width: min(460px, 100%);
+      width: min(540px, 100%);
+      padding: 24px 24px 20px;
+      box-sizing: border-box;
       text-align: center;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 24px;
+      background: rgba(24, 29, 35, .92);
+      box-shadow: 0 28px 70px rgba(0,0,0,.34);
+      backdrop-filter: blur(8px);
+    }
+    .splash-logo-frame {
+      width: min(210px, 58vw);
+      height: min(128px, 34vw);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      box-sizing: border-box;
+      background: #fff;
+      border: 1px solid rgba(243, 106, 33, .38);
+      border-radius: 18px;
+      box-shadow: 0 18px 34px rgba(0,0,0,.24);
     }
     .splash-logo {
-      width: min(220px, 56vw);
-      height: min(180px, 46vw);
+      width: 100%;
+      height: 100%;
       object-fit: contain;
     }
+    .splash-kicker {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 5px 9px;
+      border: 1px solid rgba(243, 106, 33, .30);
+      border-radius: 999px;
+      background: rgba(243, 106, 33, .09);
+      color: var(--pipe-orange);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .75px;
+      text-transform: uppercase;
+    }
     .splash-title {
-      margin: 18px 0 8px;
-      font-size: clamp(22px, 5vw, 28px);
-      font-weight: 800;
+      margin: 13px 0 6px;
+      font-size: clamp(24px, 5vw, 29px);
+      line-height: 1.12;
+      font-weight: 900;
+      letter-spacing: -.35px;
+    }
+    .splash-description {
+      max-width: 440px;
+      margin: 0 auto 12px;
+      color: #aeb8c3;
+      font-size: 12.5px;
+      line-height: 1.45;
     }
     #splash-status {
       min-height: 22px;
-      margin: 0 0 18px;
-      color: #cbd5e1;
-      font-size: 14px;
+      margin: 0 0 14px;
+      color: #c9d0d8;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .splash-progress-card {
+      padding: 14px 14px 12px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      background: rgba(12,16,20,.56);
     }
     .splash-progress-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
-      color: #dbeafe;
-      font-size: 13px;
-      font-weight: 700;
+      align-items: center;
+      margin-bottom: 32px;
+      color: #d9dee4;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    #splash-percent {
+      color: var(--pipe-orange);
+      font-size: 17px;
+      font-weight: 900;
     }
     .splash-track {
-      height: 10px;
-      overflow: hidden;
-      border: 1px solid rgba(147, 197, 253, .28);
+      position: relative;
+      height: 8px;
+      overflow: visible;
+      border: 1px solid rgba(255,255,255,.12);
       border-radius: 999px;
-      background: #243b64;
+      background: #30363d;
     }
     #splash-progress {
       width: 0%;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, #0878e8, #21c7e8);
+      background: var(--pipe-orange);
       transition: width 280ms ease-out;
+      box-shadow: 0 0 14px rgba(243, 106, 33, .22);
     }
+    #splash-truck {
+      position: absolute;
+      left: 6%;
+      top: -31px;
+      width: 58px;
+      height: 31px;
+      transform: translateX(-50%);
+      transition: left 280ms ease-out;
+      filter: drop-shadow(0 4px 5px rgba(0,0,0,.42));
+      pointer-events: none;
+    }
+    .truck-bed {
+      position: absolute;
+      left: 2px;
+      bottom: 7px;
+      width: 34px;
+      height: 5px;
+      border-radius: 3px;
+      background: #6d7782;
+    }
+    .truck-pipe {
+      position: absolute;
+      left: 4px;
+      width: 32px;
+      height: 3px;
+      border-radius: 999px;
+      background: #c1c8cf;
+    }
+    .truck-pipe.p1 { top: 5px; }
+    .truck-pipe.p2 { top: 10px; }
+    .truck-pipe.p3 { top: 15px; }
+    .truck-cab {
+      position: absolute;
+      right: 1px;
+      bottom: 7px;
+      width: 20px;
+      height: 17px;
+      border-radius: 4px 6px 2px 2px;
+      background: var(--pipe-orange);
+    }
+    .truck-window {
+      position: absolute;
+      right: 5px;
+      bottom: 17px;
+      width: 8px;
+      height: 6px;
+      border-radius: 2px;
+      background: #222930;
+    }
+    .truck-wheel {
+      position: absolute;
+      bottom: 2px;
+      width: 8px;
+      height: 8px;
+      border: 2px solid #868f99;
+      border-radius: 50%;
+      background: #11151a;
+    }
+    .truck-wheel.w1 { left: 10px; }
+    .truck-wheel.w2 { right: 6px; }
     .splash-meta {
       display: flex;
       justify-content: space-between;
-      margin-top: 9px;
-      color: #94a3b8;
-      font-size: 12px;
+      margin-top: 10px;
+      color: #828d99;
+      font-size: 11px;
     }
     #splash-details {
-      margin-top: 18px;
-      color: #93c5fd;
-      font-size: 12px;
+      margin-top: 14px;
+      color: #b6bec7;
+      font-size: 11.5px;
     }
     #splash-details summary {
       cursor: pointer;
-      font-weight: 700;
+      font-weight: 800;
     }
     #splash-debug-status {
       margin-top: 10px;
       padding: 10px;
-      border: 1px solid rgba(72, 168, 255, .25);
+      border: 1px solid rgba(243, 106, 33, .16);
       border-radius: 10px;
-      background: rgba(3, 20, 47, .72);
-      color: #cbd5e1;
+      background: rgba(10, 13, 17, .70);
+      color: #c7ced6;
       text-align: left;
       line-height: 1.45;
     }
@@ -178,29 +303,35 @@
       display: none;
       margin-top: 12px;
       padding: 9px 16px;
-      border: 1px solid #60a5fa;
+      border: 1px solid rgba(243, 106, 33, .62);
       border-radius: 999px;
       background: transparent;
-      color: #dbeafe;
+      color: #ffd8c2;
       cursor: pointer;
-      font-weight: 700;
+      font-weight: 800;
     }
     #splash-repair {
-      border-color: #22d3ee;
-      color: #cffafe;
       margin-right: 8px;
+      border-color: var(--pipe-orange);
+      color: #fff;
     }
     #splash-version {
       position: fixed;
       top: 14px;
       right: 14px;
       padding: 6px 10px;
-      border: 1px solid rgba(72, 168, 255, .4);
+      border: 1px solid rgba(243, 106, 33, .28);
       border-radius: 999px;
-      background: rgba(3, 20, 47, .82);
-      color: #ffffff;
-      font-size: 11px;
+      background: rgba(17, 21, 26, .88);
+      color: #c5ccd4;
+      font-size: 10.5px;
       font-weight: 800;
+    }
+    @media (max-width: 600px) {
+      #splash { padding: 16px; }
+      .splash-card { padding: 20px 16px 17px; border-radius: 20px; }
+      .splash-description { font-size: 11.5px; }
+      .splash-progress-header { margin-bottom: 30px; }
     }
   </style>
   <script id="splash-screen-script">
@@ -213,10 +344,15 @@
       pipeStartupStage = status;
       const progress = document.getElementById("splash-progress");
       const progressTrack = document.querySelector(".splash-track");
+      const truck = document.getElementById("splash-truck");
       const percentLabel = document.getElementById("splash-percent");
       const statusLabel = document.getElementById("splash-status");
       const debugStatus = document.getElementById("splash-debug-status");
       if (progress) progress.style.width = `${pipeStartupPercent}%`;
+      if (truck) {
+        const visualPercent = Math.max(6, Math.min(94, pipeStartupPercent));
+        truck.style.left = `${visualPercent}%`;
+      }
       if (progressTrack) {
         progressTrack.setAttribute("aria-valuenow", `${pipeStartupPercent}`);
       }
@@ -311,41 +447,55 @@
   </script>
 </head>
 <body>
-  <header style="padding: 16px; background: #0F172A; color: #FFFFFF; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <header style="padding: 16px; background: #11151A; color: #FFFFFF; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; border-bottom: 2px solid #F36A21;">
     <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #FFFFFF;">Pipe Buyer</h1>
-    <h2 style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #38BDF8;">Buy & Sell Marketplace for Oil & Gas Products</h2>
+    <h2 style="margin: 6px 0 0 0; font-size: 16px; font-weight: 800; color: #F36A21;">Buy & Sell Marketplace for Oil & Gas Products</h2>
     <p style="max-width: 800px; margin: 10px auto 0 auto; font-size: 14px; line-height: 1.5; color: #E2E8F0;">
       <strong>Application Purpose & Identity:</strong> Pipe Buyer is an online B2B industrial marketplace, timed auctions platform, and freight trucking dispatch network for buying and selling oil & gas equipment, OCTG casing, tubing, line pipe, valves, and heavy machinery across the United States and Canada, with low seller fees. Pipe Buyer is a venue and is not a party to transactions between users.
     </p>
     <nav style="margin-top: 10px; display: flex; justify-content: center; gap: 20px;">
-      <a href="https://www.pipebuyer.com/privacy" target="_blank" style="color: #38BDF8; font-size: 13px; font-weight: 600; text-decoration: underline;">Privacy Policy</a>
-      <a href="https://www.pipebuyer.com/terms" target="_blank" style="color: #38BDF8; font-size: 13px; font-weight: 600; text-decoration: underline;">Terms of Service</a>
+      <a href="https://www.pipebuyer.com/privacy" target="_blank" style="color: #F36A21; font-size: 13px; font-weight: 700; text-decoration: underline;">Privacy Policy</a>
+      <a href="https://www.pipebuyer.com/terms" target="_blank" style="color: #F36A21; font-size: 13px; font-weight: 700; text-decoration: underline;">Terms of Service</a>
     </nav>
   </header>
   <div id="splash" role="status" aria-live="polite">
     <div id="splash-version">v1.0.5+6 • web bootstrap</div>
     <div class="splash-card">
-      <picture>
-        <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
-        <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
-        <img class="splash-logo" src="splash/img/light-1x.png" alt="Pipe Buyer">
-      </picture>
-      <h1 class="splash-title" itemprop="name" style="margin: 0; font-size: 24px; font-weight: 900;">Pipe Buyer</h1>
-      <h2 style="font-size: 15px; font-weight: 700; color: #0878E8; margin: 4px 0 6px 0;">Buy & Sell Marketplace for Oil & Gas Products</h2>
-      <p itemprop="description" style="font-size: 13px; font-weight: 500; color: #475569; margin: 4px 0 12px 0; line-height: 1.4;">
-        Pipe Buyer is an online low-fee B2B industrial marketplace, timed auctions platform, and freight trucking dispatch network for buying and selling oil & gas equipment, OCTG casing, tubing, line pipe, valves, and heavy machinery across the United States and Canada.
+      <div class="splash-logo-frame">
+        <picture>
+          <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
+          <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
+          <img class="splash-logo" src="splash/img/light-1x.png" alt="Pipe Buyer">
+        </picture>
+      </div>
+      <div class="splash-kicker">Industrial Marketplace • Dispatch • Auctions</div>
+      <h1 class="splash-title" itemprop="name">Preparing Pipe Buyer</h1>
+      <p itemprop="description" class="splash-description">
+        Pipe Buyer connects industrial buyers and sellers across the United States and Canada for pipe, OCTG, equipment, timed auctions, and freight dispatch.
       </p>
       <div id="splash-status">Preparing application shell</div>
-      <div class="splash-progress-header">
-        <span>Application startup</span>
-        <span id="splash-percent">0%</span>
-      </div>
-      <div class="splash-track" role="progressbar" aria-label="Application startup progress" aria-valuemin="0" aria-valuemax="100">
-        <div id="splash-progress"></div>
-      </div>
-      <div class="splash-meta">
-        <span>Secure startup</span>
-        <span id="splash-elapsed">0s elapsed</span>
+      <div class="splash-progress-card">
+        <div class="splash-progress-header">
+          <span>Application startup</span>
+          <span id="splash-percent">0%</span>
+        </div>
+        <div class="splash-track" role="progressbar" aria-label="Application startup progress" aria-valuemin="0" aria-valuemax="100">
+          <div id="splash-progress"></div>
+          <div id="splash-truck" aria-hidden="true">
+            <div class="truck-pipe p1"></div>
+            <div class="truck-pipe p2"></div>
+            <div class="truck-pipe p3"></div>
+            <div class="truck-bed"></div>
+            <div class="truck-cab"></div>
+            <div class="truck-window"></div>
+            <div class="truck-wheel w1"></div>
+            <div class="truck-wheel w2"></div>
+          </div>
+        </div>
+        <div class="splash-meta">
+          <span>PipeBuyer startup</span>
+          <span id="splash-elapsed">0s elapsed</span>
+        </div>
       </div>
       <div id="splash-warning"></div>
       <details id="splash-details">
@@ -385,6 +535,5 @@
       document.getElementById("splash-reload").style.display = "inline-block";
     });
   </script>
-
 
 </body></html>
