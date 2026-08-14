@@ -18,6 +18,9 @@ class MarketplaceAboutPage extends StatelessWidget {
     final releaseSha = PublicReleaseConfiguration.releaseSha.trim();
     final displayedSha = releaseSha.isEmpty ? 'dev' : releaseSha;
     final supportMailto = release.supportMailto;
+    final environment = release.normalizedEnvironment.isEmpty
+        ? 'development'
+        : release.normalizedEnvironment;
 
     return Scaffold(
       appBar: AppBar(title: const Text('About Pipe Buyer')),
@@ -34,7 +37,7 @@ class MarketplaceAboutPage extends StatelessWidget {
                   children: [
                     PipeBuyerMetricCard(
                       label: 'Environment',
-                      value: release.environmentLabel,
+                      value: environment,
                       icon: Icons.cloud_outlined,
                       caption: 'Current application environment',
                       tone: PipeBuyerStatusTone.info,
