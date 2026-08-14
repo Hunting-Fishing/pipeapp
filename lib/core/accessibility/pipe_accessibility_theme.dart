@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../design/pipe_buyer_theme.dart';
 import 'pipe_status_feedback.dart';
 
 /// Release-wide interaction defaults for touch, keyboard, and assistive tech.
@@ -7,6 +8,15 @@ abstract final class PipeAccessibilityTheme {
   static const double minimumTouchTarget = 48;
   static const Color lightFocusIndicator = Color(0xFF111827);
   static const Color darkFocusIndicator = Color(0xFFFFFFFF);
+
+  // Historic marketplace surfaces used these as their primary brand blue.
+  // Normalizing only these exact values lets the premium design system migrate
+  // older screens to PipeBuyer orange without removing blue from informational
+  // or semantic UI where it is still useful.
+  static const Set<int> _legacyBrandPrimaryValues = {
+    0xFF0F52BA,
+    0xFF0878E8,
+  };
 
   static WidgetStateProperty<BorderSide?> _focusSide(
     Color color, {
@@ -66,26 +76,51 @@ abstract final class PipeAccessibilityTheme {
     );
   }
 
+  static ThemeData _normalizeLegacyBrandTheme(ThemeData base) {
+    if (!_legacyBrandPrimaryValues.contains(base.colorScheme.primary.toARGB32())) {
+      return base;
+    }
+    final scheme = base.colorScheme.copyWith(
+      primary: PipeBuyerColors.orange,
+      onPrimary: Colors.white,
+      primaryContainer: PipeBuyerColors.orangeSoft,
+      onPrimaryContainer: PipeBuyerColors.orangePressed,
+      secondary: PipeBuyerColors.industrialBlue,
+    );
+    return base.copyWith(
+      colorScheme: scheme,
+      progressIndicatorTheme: base.progressIndicatorTheme.copyWith(
+        color: PipeBuyerColors.orange,
+      ),
+      floatingActionButtonTheme: base.floatingActionButtonTheme.copyWith(
+        backgroundColor: PipeBuyerColors.orange,
+        foregroundColor: Colors.white,
+      ),
+    );
+  }
+
   static ThemeData apply(ThemeData base) {
+    final brandedBase = _normalizeLegacyBrandTheme(base);
     const squareMinimum = Size.square(minimumTouchTarget);
     const buttonMinimum = Size(64, minimumTouchTarget);
     const padded = MaterialTapTargetSize.padded;
-    final focusIndicator = base.brightness == Brightness.dark
+    final focusIndicator = brandedBase.brightness == Brightness.dark
         ? darkFocusIndicator
         : lightFocusIndicator;
-    final outlineBorder = base.inputDecorationTheme.border;
+    final outlineBorder = brandedBase.inputDecorationTheme.border;
     final focusedInputBorder = outlineBorder is OutlineInputBorder
         ? outlineBorder.copyWith(
             borderSide: BorderSide(color: focusIndicator, width: 3),
           )
-        : base.inputDecorationTheme.focusedBorder;
-    final semanticColors = base.brightness == Brightness.dark
+        : brandedBase.inputDecorationTheme.focusedBorder;
+    final semanticColors = brandedBase.brightness == Brightness.dark
         ? const PipeStatusColors.dark()
         : const PipeStatusColors.light();
 
-    return base.copyWith(
+    return brandedBase.copyWith(
       extensions: [
-        ...base.extensions.values.where((item) => item is! PipeStatusColors),
+        ...brandedBase.extensions.values
+            .where((item) => item is! PipeStatusColors),
         semanticColors,
       ],
       focusColor: focusIndicator.withValues(alpha: 0.14),
@@ -93,48 +128,50 @@ abstract final class PipeAccessibilityTheme {
       visualDensity: VisualDensity.standard,
       iconButtonTheme: IconButtonThemeData(
         style: _accessibleButtonStyle(
-          base.iconButtonTheme.style,
+          brandedBase.iconButtonTheme.style,
           focusIndicator: focusIndicator,
           minimumSize: squareMinimum,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: _accessibleButtonStyle(
-          base.filledButtonTheme.style,
+          brandedBase.filledButtonTheme.style,
           focusIndicator: focusIndicator,
           minimumSize: buttonMinimum,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: _accessibleButtonStyle(
-          base.elevatedButtonTheme.style,
+          brandedBase.elevatedButtonTheme.style,
           focusIndicator: focusIndicator,
           minimumSize: buttonMinimum,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: _accessibleButtonStyle(
-          base.outlinedButtonTheme.style,
+          brandedBase.outlinedButtonTheme.style,
           focusIndicator: focusIndicator,
           minimumSize: buttonMinimum,
-          fallbackSide: BorderSide(color: base.colorScheme.outline),
+          fallbackSide: BorderSide(color: brandedBase.colorScheme.outline),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: _accessibleButtonStyle(
-          base.textButtonTheme.style,
+          brandedBase.textButtonTheme.style,
           focusIndicator: focusIndicator,
           minimumSize: buttonMinimum,
         ),
       ),
       checkboxTheme:
-          base.checkboxTheme.copyWith(materialTapTargetSize: padded),
-      radioTheme: base.radioTheme.copyWith(materialTapTargetSize: padded),
-      switchTheme: base.switchTheme.copyWith(materialTapTargetSize: padded),
-      inputDecorationTheme: base.inputDecorationTheme.copyWith(
+          brandedBase.checkboxTheme.copyWith(materialTapTargetSize: padded),
+      radioTheme:
+          brandedBase.radioTheme.copyWith(materialTapTargetSize: padded),
+      switchTheme:
+          brandedBase.switchTheme.copyWith(materialTapTargetSize: padded),
+      inputDecorationTheme: brandedBase.inputDecorationTheme.copyWith(
         focusedBorder: focusedInputBorder,
       ),
-      tooltipTheme: base.tooltipTheme.copyWith(
+      tooltipTheme: brandedBase.tooltipTheme.copyWith(
         waitDuration: const Duration(milliseconds: 400),
         showDuration: const Duration(seconds: 4),
         preferBelow: true,
