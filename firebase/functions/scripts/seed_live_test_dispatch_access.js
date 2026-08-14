@@ -25,6 +25,15 @@ async function main() {
   const carrierUid = "visual-carrier";
 
   await Promise.all([
+    db.collection("platform_configuration").doc("phase1_features").set({
+      marketplace: true,
+      wantedAds: true,
+      offers: true,
+      auctions: true,
+      dispatch: true,
+      updatedAt: now,
+      source: "live_test_dispatch_access",
+    }, {merge: true}),
     db.collection("dispatch_carriers").doc(carrierUid).set({
       ownerUid: carrierUid,
       operatingName: "Northline Heavy Haul",
@@ -42,6 +51,8 @@ async function main() {
     }, {merge: true}),
     db.collection("users").doc(carrierUid).set({
       dispatchAccess: true,
+      dispatchRole: "carrier",
+      isDispatchCarrier: true,
       dispatchProviderStatus: "active",
       dispatchSubscriptionStatus: "active",
       dispatchSubscriptionPlan: "yearly",
@@ -50,11 +61,36 @@ async function main() {
     }, {merge: true}),
   ]);
 
-  console.log("Dispatch sandbox access enabled for carrier.visual@pipebuyer.test");
-  console.log("  provider status        : active");
-  console.log("  providerReviewVersion  : 1");
-  console.log("  availableForHire       : true");
-  console.log("  subscription fixture   : active / yearly / test mode");
+  const [flagsSnapshot, carrierSnapshot, userSnapshot] = await Promise.all([
+    db.collection("platform_configuration").doc("phase1_features").get(),
+    db.collection("dispatch_carriers").doc(carrierUid).get(),
+    db.collection("users").doc(carrierUid).get(),
+  ]);
+
+  const flags = flagsSnapshot.data() || {};
+  const carrier = carrierSnapshot.data() || {};
+  const user = userSnapshot.data() || {};
+  const failures = [];
+  if (flags.dispatch !== true) failures.push("phase1_features.dispatch is not true");
+  if (carrier.status !== "active") failures.push("carrier status is not active");
+  if (carrier.providerReviewVersion !== 1) failures.push("providerReviewVersion is not 1");
+  if (carrier.availableForHire !== true) failures.push("availableForHire is not true");
+  if (user.dispatchAccess !== true) failures.push("users.dispatchAccess is not true");
+  if (user.dispatchSubscriptionStatus !== "active") {
+    failures.push("dispatchSubscriptionStatus is not active");
+  }
+
+  if (failures.length) {
+    throw new Error(`Dispatch integration fixture failed: ${failures.join("; ")}`);
+  }
+
+  console.log("Dispatch sandbox access enabled and verified for carrier.visual@pipebuyer.test");
+  console.log("  feature flag            : dispatch=true");
+  console.log("  provider status         : active");
+  console.log("  providerReviewVersion   : 1");
+  console.log("  availableForHire        : true");
+  console.log("  user Dispatch access    : true / carrier");
+  console.log("  subscription fixture    : active / yearly / test mode");
 }
 
 main()
