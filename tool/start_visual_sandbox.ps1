@@ -30,10 +30,28 @@ if ($branch -ne 'pipebuyer-premium-ui') {
 }
 
 Require-Command 'git' 'Install Git for Windows, then reopen PowerShell.'
-Require-Command 'node' 'Install Node.js 22 or newer, then reopen PowerShell.'
+Require-Command 'node' 'Install Node.js 20 or 22, then reopen PowerShell.'
 Require-Command 'npm' 'npm is installed with Node.js.'
-Require-Command 'firebase' 'Install the Firebase CLI with: npm install -g firebase-tools'
+Require-Command 'npx' 'npx is installed with Node.js/npm.'
 Require-Command 'flutter' 'Install Flutter and ensure flutter\bin is on PATH.'
+Require-Command 'java' 'Install a Java JDK 11 or newer, then reopen PowerShell. The Firestore/Storage emulators require Java.'
+
+$firebaseGlobal = Get-Command 'firebase' -ErrorAction SilentlyContinue
+if ($firebaseGlobal) {
+  $firebaseCommand = 'firebase'
+  Write-Step 'Using installed Firebase CLI'
+  & firebase --version
+  if ($LASTEXITCODE -ne 0) {
+    throw 'The installed Firebase CLI could not run.'
+  }
+} else {
+  $firebaseCommand = 'npx --yes firebase-tools'
+  Write-Step 'Firebase CLI is not installed globally; using npx firebase-tools for this sandbox'
+  & npx --yes firebase-tools --version
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Firebase CLI could not be started with npx. Run npm install -g firebase-tools, then retry.'
+  }
+}
 
 $functionsDir = Join-Path $repoRoot 'firebase\functions'
 $adminModule = Join-Path $functionsDir 'node_modules\firebase-admin'
@@ -72,11 +90,11 @@ foreach ($port in $requiredPorts) {
 if ($needsEmulators) {
   Write-Step 'Starting isolated Firebase emulators in a second PowerShell window'
   $safeRoot = $repoRoot.Replace("'", "''")
-  $emulatorCommand = "Set-Location -LiteralPath '$safeRoot'; firebase emulators:start --only $emulatorNames --project flutter-flow-pipe"
+  $emulatorCommand = "Set-Location -LiteralPath '$safeRoot'; $firebaseCommand emulators:start --only $emulatorNames --project flutter-flow-pipe"
   Start-Process powershell.exe -ArgumentList @('-NoExit', '-Command', $emulatorCommand)
 
   Write-Host "Waiting for $emulatorNames emulators..." -ForegroundColor DarkGray
-  $deadline = (Get-Date).AddMinutes(2)
+  $deadline = (Get-Date).AddMinutes(3)
   $ready = $false
   do {
     Start-Sleep -Seconds 2
@@ -90,7 +108,7 @@ if ($needsEmulators) {
   } while (-not $ready -and (Get-Date) -lt $deadline)
 
   if (-not $ready) {
-    throw 'Firebase emulators did not become ready within two minutes. Check the second PowerShell window for the first Firebase/Java/Node error.'
+    throw 'Firebase emulators did not become ready within three minutes. Check the second PowerShell window for the first Firebase/Java/Node error.'
   }
 } else {
   Write-Step 'Using Firebase emulators already running on this PC'
