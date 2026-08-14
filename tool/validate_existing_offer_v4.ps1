@@ -16,21 +16,27 @@ if ($branch -ne 'pipebuyer-premium-ui') {
 $marketplace = 'lib/marketplace/oil_gas_marketplace.dart'
 $analysis = 'lib/marketplace/marketplace_offer_analysis.dart'
 $summary = 'lib/marketplace/marketplace_offer_commerce_summary.dart'
+$vipAccess = 'lib/marketplace/marketplace_vip_access.dart'
 $backupDir = Join-Path $repoRoot '_local_backups'
 New-Item -ItemType Directory -Force $backupDir | Out-Null
 Copy-Item -LiteralPath $marketplace -Destination (Join-Path $backupDir 'oil_gas_marketplace_before_v4_validation.dart') -Force
 Copy-Item -LiteralPath $analysis -Destination (Join-Path $backupDir 'marketplace_offer_analysis_before_v4_validation.dart') -Force
+Copy-Item -LiteralPath $vipAccess -Destination (Join-Path $backupDir 'marketplace_vip_access_before_v4_validation.dart') -Force
 
 Write-Step 'Normalizing the existing local V4 offer patch'
 & node '.\tool\fix_existing_offer_v4.mjs'
 if ($LASTEXITCODE -ne 0) { throw 'Existing V4 normalization failed.' }
 
-Write-Step 'Formatting the offer files'
-& dart format $marketplace $analysis $summary
+Write-Step 'Normalizing VIP early-access policy and lints'
+& node '.\tool\fix_vip_access_lints.mjs'
+if ($LASTEXITCODE -ne 0) { throw 'VIP early-access normalization failed.' }
+
+Write-Step 'Formatting the offer and VIP files'
+& dart format $marketplace $analysis $summary $vipAccess
 if ($LASTEXITCODE -ne 0) { throw 'dart format failed.' }
 
 Write-Step 'Checking Dart diff quality'
-& git diff --check -- $marketplace $analysis $summary
+& git diff --check -- $marketplace $analysis $summary $vipAccess
 if ($LASTEXITCODE -ne 0) { throw 'git diff --check found whitespace or patch problems.' }
 
 Write-Step 'Analyzing Flutter application'
@@ -44,25 +50,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Marketplace offer calculation tests failed.' }
 & flutter test '.\test\marketplace_offer_commerce_summary_test.dart'
 if ($LASTEXITCODE -ne 0) { throw 'Marketplace offer commerce-summary tests failed.' }
 
-Write-Step 'Showing only the intended offer diff'
-git diff --stat -- $marketplace $analysis $summary
+Write-Step 'Testing VIP early-access regression cases'
+& flutter test '.\test\marketplace_vip_access_test.dart'
+if ($LASTEXITCODE -ne 0) { throw 'Marketplace VIP early-access tests failed.' }
 
-Write-Step 'Staging only PipeBuyer offer files'
-git add -- $marketplace $analysis $summary
+Write-Step 'Showing only the intended offer/VIP diff'
+git diff --stat -- $marketplace $analysis $summary $vipAccess
+
+Write-Step 'Staging only PipeBuyer offer and VIP files'
+git add -- $marketplace $analysis $summary $vipAccess
 
 git diff --cached --quiet
 $hasStagedChanges = $LASTEXITCODE -ne 0
 if ($hasStagedChanges) {
-  git commit -m 'Finalize static listing and live offer analytics'
+  git commit -m 'Finalize static listing offer analytics and VIP gate'
   if ($LASTEXITCODE -ne 0) { throw 'git commit failed.' }
 
   git push origin pipebuyer-premium-ui
   if ($LASTEXITCODE -ne 0) { throw 'git push failed.' }
 } else {
-  Write-Host 'No new offer changes needed committing.' -ForegroundColor Yellow
+  Write-Host 'No new offer/VIP changes needed committing.' -ForegroundColor Yellow
 }
 
 Write-Host ''
-Write-Host 'Existing Make Offer V4 changes validated successfully.' -ForegroundColor Green
+Write-Host 'Existing Make Offer V4 and VIP access changes validated successfully.' -ForegroundColor Green
 Write-Host 'Generated Flutter plugin files and _local_backups were not staged.' -ForegroundColor Green
 Write-Host 'You can now restart the full PipeBuyer sandbox.' -ForegroundColor Green
