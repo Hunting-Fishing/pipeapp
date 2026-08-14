@@ -21,13 +21,18 @@ $backupDir = Join-Path $repoRoot '_local_backups'
 New-Item -ItemType Directory -Force $backupDir | Out-Null
 Copy-Item -LiteralPath $marketplace -Destination (Join-Path $backupDir 'oil_gas_marketplace_before_v4_validation.dart') -Force
 Copy-Item -LiteralPath $analysis -Destination (Join-Path $backupDir 'marketplace_offer_analysis_before_v4_validation.dart') -Force
+Copy-Item -LiteralPath $summary -Destination (Join-Path $backupDir 'marketplace_offer_summary_before_v5_validation.dart') -Force
 Copy-Item -LiteralPath $vipAccess -Destination (Join-Path $backupDir 'marketplace_vip_access_before_v4_validation.dart') -Force
 
-Write-Step 'Normalizing the existing local V4 offer patch'
+Write-Step 'Normalizing the existing local Make Offer wiring'
 & node '.\tool\fix_existing_offer_v4.mjs'
-if ($LASTEXITCODE -ne 0) { throw 'Existing V4 normalization failed.' }
+if ($LASTEXITCODE -ne 0) { throw 'Existing Make Offer normalization failed.' }
 
-Write-Step 'Normalizing VIP early-access policy and lints'
+Write-Step 'Normalizing the V5 web comparison layout'
+& node '.\tool\fix_offer_v5_layout.mjs'
+if ($LASTEXITCODE -ne 0) { throw 'Make Offer V5 layout normalization failed.' }
+
+Write-Step 'Normalizing VIP UTC timing, policy and lints'
 & node '.\tool\fix_vip_access_lints.mjs'
 if ($LASTEXITCODE -ne 0) { throw 'VIP early-access normalization failed.' }
 
@@ -73,6 +78,6 @@ if ($hasStagedChanges) {
 }
 
 Write-Host ''
-Write-Host 'Existing Make Offer V4 and VIP access changes validated successfully.' -ForegroundColor Green
+Write-Host 'Make Offer V5 and VIP access changes validated successfully.' -ForegroundColor Green
 Write-Host 'Generated Flutter plugin files and _local_backups were not staged.' -ForegroundColor Green
 Write-Host 'You can now restart the full PipeBuyer sandbox.' -ForegroundColor Green
