@@ -19,7 +19,9 @@ class MarketplaceOfferAnalysis {
   int get normalizedRequestedQuantity =>
       requestedQuantity.clamp(0, listedQuantity).toInt();
   int get remainingQuantity =>
-      (listedQuantity - normalizedRequestedQuantity).clamp(0, listedQuantity).toInt();
+      (listedQuantity - normalizedRequestedQuantity)
+          .clamp(0, listedQuantity)
+          .toInt();
   double get requestedQuantityPercent => listedQuantity <= 0
       ? 0
       : normalizedRequestedQuantity / listedQuantity * 100;
@@ -37,6 +39,7 @@ class MarketplaceOfferAnalysis {
       : unitDifference / askingUnitPrice * 100;
   bool get valid => listedQuantity > 0 &&
       normalizedRequestedQuantity > 0 &&
+      requestedQuantity <= listedQuantity &&
       askingUnitPrice >= 0 &&
       offeredUnitPrice > 0;
 }
@@ -58,7 +61,12 @@ class MarketplaceOfferAnalysisCard extends StatelessWidget {
         ? PipeBuyerColors.danger
         : difference > 0
             ? PipeBuyerColors.success
-            : PipeBuyerColors.industrialBlue;
+            : PipeBuyerColors.success;
+    final requestedPercent =
+        analysis.requestedQuantityPercent.toStringAsFixed(1);
+    final remainingPercent =
+        analysis.remainingQuantityPercent.toStringAsFixed(1);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -72,80 +80,108 @@ class MarketplaceOfferAnalysisCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.calculate_outlined, color: PipeBuyerColors.orangePressed),
-              const SizedBox(width: 8),
-              Text(
-                'Offer comparison',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+              const Icon(
+                Icons.calculate_outlined,
+                color: PipeBuyerColors.orangePressed,
               ),
-              const Spacer(),
-              Text(
-                '${analysis.requestedQuantityPercent.toStringAsFixed(1)}% of listing',
-                style: const TextStyle(
-                  color: PipeBuyerColors.industrialBlue,
-                  fontWeight: FontWeight.w900,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Listing vs your offer',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
+              ),
+              _PercentPill(
+                label: '$requestedPercent% requested',
+                color: PipeBuyerColors.industrialBlue,
               ),
             ],
           ),
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 520;
-              final baseline = _OfferMetricGroup(
-                title: 'LISTING BASELINE',
+              final sideBySide = constraints.maxWidth >= 460;
+              final listing = _OfferSideCard(
+                title: 'SELLER LISTING',
+                accent: PipeBuyerColors.industrialBlue,
                 rows: [
-                  _MetricRow('Seller ask', '${marketplaceMoney(analysis.askingUnitPrice)} / $unitLabel'),
-                  _MetricRow('Total listed', '${analysis.listedQuantity} $unitLabel'),
-                  _MetricRow('Full listing value', marketplaceMoney(analysis.fullListingAskValue)),
+                  _MetricRow(
+                    'Total quantity',
+                    '${analysis.listedQuantity} $unitLabel',
+                  ),
+                  _MetricRow(
+                    'Asking price',
+                    '${marketplaceMoney(analysis.askingUnitPrice)} / $unitLabel',
+                  ),
+                  _MetricRow(
+                    'Full listing value',
+                    marketplaceMoney(analysis.fullListingAskValue),
+                    strong: true,
+                  ),
                 ],
               );
-              final request = _OfferMetricGroup(
+              final offer = _OfferSideCard(
                 title: 'YOUR OFFER',
+                accent: PipeBuyerColors.orangePressed,
                 rows: [
-                  _MetricRow('Requested', '${analysis.normalizedRequestedQuantity} $unitLabel'),
-                  _MetricRow('Offer price', '${marketplaceMoney(analysis.offeredUnitPrice)} / $unitLabel'),
-                  _MetricRow('Offer total', marketplaceMoney(analysis.offeredTotal)),
+                  _MetricRow(
+                    'Quantity requested',
+                    '${analysis.normalizedRequestedQuantity} $unitLabel ($requestedPercent%)',
+                  ),
+                  _MetricRow(
+                    'Offer price',
+                    '${marketplaceMoney(analysis.offeredUnitPrice)} / $unitLabel',
+                  ),
+                  _MetricRow(
+                    'Offer total',
+                    marketplaceMoney(analysis.offeredTotal),
+                    strong: true,
+                  ),
                 ],
               );
-              if (!wide) {
+              if (!sideBySide) {
                 return Column(
-                  children: [baseline, const SizedBox(height: 10), request],
+                  children: [listing, const SizedBox(height: 9), offer],
                 );
               }
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: baseline),
-                  const SizedBox(width: 10),
-                  Expanded(child: request),
+                  Expanded(child: listing),
+                  const SizedBox(width: 9),
+                  Expanded(child: offer),
                 ],
               );
             },
           ),
           const SizedBox(height: 10),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: differenceColor.withValues(alpha: .07),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: differenceColor.withValues(alpha: .20)),
+              border: Border.all(
+                color: differenceColor.withValues(alpha: .22),
+              ),
             ),
             child: Column(
               children: [
                 _DenseComparisonRow(
-                  label: 'Value at seller ask for requested qty',
+                  label: 'Requested qty at seller ask',
                   value: marketplaceMoney(analysis.requestedAskValue),
                 ),
                 _DenseComparisonRow(
-                  label: 'Your offered value',
+                  label: 'Your offer on requested qty',
                   value: marketplaceMoney(analysis.offeredTotal),
                   valueColor: differenceColor,
+                  strong: true,
                 ),
+                const Divider(height: 16),
                 _DenseComparisonRow(
-                  label: 'Price difference',
+                  label: 'Unit price difference',
                   value:
                       '${_signedMoney(analysis.unitDifference)} / $unitLabel  (${_signedPercent(analysis.priceDifferencePercent)})',
                   valueColor: differenceColor,
@@ -156,18 +192,48 @@ class MarketplaceOfferAnalysisCard extends StatelessWidget {
                   valueColor: differenceColor,
                   strong: true,
                 ),
-                const Divider(height: 17),
-                _DenseComparisonRow(
-                  label: 'Quantity remaining',
-                  value:
-                      '${analysis.remainingQuantity} $unitLabel  (${analysis.remainingQuantityPercent.toStringAsFixed(1)}%)',
-                  strong: true,
-                ),
-                _DenseComparisonRow(
-                  label: 'Remaining value at seller ask',
-                  value: marketplaceMoney(analysis.remainingAskValue),
-                ),
               ],
+            ),
+          ),
+          const SizedBox(height: 9),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: PipeBuyerColors.industrialBlue.withValues(alpha: .055),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: PipeBuyerColors.industrialBlue.withValues(alpha: .16),
+              ),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 420;
+                final quantity = _InventoryMetric(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Remaining inventory',
+                  value:
+                      '${analysis.remainingQuantity} $unitLabel ($remainingPercent%)',
+                );
+                final value = _InventoryMetric(
+                  icon: Icons.payments_outlined,
+                  label: 'Remaining value at ask',
+                  value: marketplaceMoney(analysis.remainingAskValue),
+                );
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [quantity, const SizedBox(height: 7), value],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: quantity),
+                    const SizedBox(width: 12),
+                    Expanded(child: value),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -183,35 +249,73 @@ class MarketplaceOfferQuantityField extends StatelessWidget {
     required this.availableQuantity,
     required this.onChanged,
     this.unitLabel = 'pieces',
+    this.errorText,
   });
 
   final TextEditingController controller;
   final int availableQuantity;
   final ValueChanged<String> onChanged;
   final String unitLabel;
+  final String? errorText;
 
   @override
-  Widget build(BuildContext context) => TextField(
-        controller: controller,
-        onChanged: onChanged,
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          labelText: 'Quantity requested',
-          hintText: 'e.g. $availableQuantity',
-          helperText: 'Choose how much of the available inventory you want.',
-          suffixIconConstraints: const BoxConstraints(minWidth: 76),
-          suffixIcon: Align(
-            widthFactor: 1,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              unitLabel,
-              style: const TextStyle(
-                color: PipeBuyerColors.slate,
-                fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final fieldWidth = constraints.maxWidth >= 360
+              ? 220.0
+              : (constraints.maxWidth - 86).clamp(130.0, 220.0).toDouble();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: fieldWidth,
+                    child: TextField(
+                      controller: controller,
+                      onChanged: onChanged,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Quantity requested',
+                        hintText: 'e.g. $availableQuantity',
+                        errorText: errorText,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.canvas,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFD9E0E8)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unitLabel,
+                        style: const TextStyle(
+                          color: PipeBuyerColors.slate,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
-        ),
+              const SizedBox(height: 4),
+              Text(
+                'Available: $availableQuantity $unitLabel. Enter how many you want to purchase.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: PipeBuyerColors.muted,
+                    ),
+              ),
+            ],
+          );
+        },
       );
 }
 
@@ -249,14 +353,15 @@ class MarketplaceOfferRequirementsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final missing = requirements.where((item) => !item.complete).toList();
     final complete = missing.isEmpty;
-    final accent = complete ? PipeBuyerColors.success : PipeBuyerColors.orangePressed;
+    final accent =
+        complete ? PipeBuyerColors.success : PipeBuyerColors.orangePressed;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: .06),
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: accent.withValues(alpha: .24)),
+        border: Border.all(color: accent.withValues(alpha: .28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,38 +386,53 @@ class MarketplaceOfferRequirementsPanel extends StatelessWidget {
           if (!complete) ...[
             const SizedBox(height: 8),
             for (final requirement in missing)
-              InkWell(
-                onTap: requirement.onTap,
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        requirement.state == MarketplaceOfferRequirementState.invalid
-                            ? Icons.error_outline
-                            : requirement.icon,
-                        size: 18,
-                        color: requirement.state == MarketplaceOfferRequirementState.invalid
-                            ? PipeBuyerColors.danger
-                            : PipeBuyerColors.orangePressed,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(requirement.label,
-                                style: const TextStyle(fontWeight: FontWeight.w800)),
-                            if (requirement.detail.isNotEmpty)
-                              Text(requirement.detail,
-                                  style: Theme.of(context).textTheme.bodySmall),
-                          ],
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: requirement.onTap,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          requirement.state ==
+                                  MarketplaceOfferRequirementState.invalid
+                              ? Icons.error_outline
+                              : requirement.icon,
+                          size: 18,
+                          color: requirement.state ==
+                                  MarketplaceOfferRequirementState.invalid
+                              ? PipeBuyerColors.danger
+                              : PipeBuyerColors.orangePressed,
                         ),
-                      ),
-                      if (requirement.onTap != null)
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                    ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                requirement.label,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (requirement.detail.isNotEmpty)
+                                Text(
+                                  requirement.detail,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (requirement.onTap != null)
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -344,16 +464,17 @@ class MarketplaceOfferDateField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final complete = value != null;
-    final accent = complete ? PipeBuyerColors.success : PipeBuyerColors.orangePressed;
+    final accent =
+        complete ? PipeBuyerColors.success : PipeBuyerColors.orangePressed;
     return Material(
       color: complete
-          ? PipeBuyerColors.success.withValues(alpha: .055)
-          : PipeBuyerColors.orange.withValues(alpha: .035),
+          ? PipeBuyerColors.success.withValues(alpha: .065)
+          : PipeBuyerColors.orange.withValues(alpha: .04),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(13),
         side: BorderSide(
-          color: accent.withValues(alpha: complete ? .34 : .24),
-          width: complete ? 1.4 : 1,
+          color: accent.withValues(alpha: complete ? .42 : .28),
+          width: complete ? 1.5 : 1.1,
         ),
       ),
       child: InkWell(
@@ -367,13 +488,16 @@ class MarketplaceOfferDateField extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .11),
+                  color: accent.withValues(alpha: .12),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: complete
-                      ? const Icon(Icons.check_rounded,
-                          color: PipeBuyerColors.success, size: 21)
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: PipeBuyerColors.success,
+                          size: 21,
+                        )
                       : Text(
                           '$step',
                           style: TextStyle(
@@ -387,17 +511,36 @@ class MarketplaceOfferDateField extends StatelessWidget {
               Icon(icon, color: accent, size: 20),
               const SizedBox(width: 9),
               Expanded(
-                child: Text(
-                  complete
-                      ? '$label: ${_formatDate(value!)}'
-                      : 'Select $label${required ? ' *' : ''}',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      complete
+                          ? _formatDate(value!)
+                          : required
+                              ? 'Required — select a date'
+                              : 'Optional — select a date',
+                      style: TextStyle(
+                        color: complete
+                            ? PipeBuyerColors.success
+                            : PipeBuyerColors.muted,
+                        fontSize: 11,
+                        fontWeight:
+                            complete ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Icon(
                 complete ? Icons.verified_rounded : Icons.chevron_right_rounded,
                 color: accent,
-                size: 20,
+                size: 21,
               ),
             ],
           ),
@@ -407,26 +550,32 @@ class MarketplaceOfferDateField extends StatelessWidget {
   }
 }
 
-class _OfferMetricGroup extends StatelessWidget {
-  const _OfferMetricGroup({required this.title, required this.rows});
+class _OfferSideCard extends StatelessWidget {
+  const _OfferSideCard({
+    required this.title,
+    required this.accent,
+    required this.rows,
+  });
 
   final String title;
+  final Color accent;
   final List<_MetricRow> rows;
 
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
-          color: PipeBuyerColors.canvas,
+          color: accent.withValues(alpha: .045),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: .14)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: PipeBuyerColors.muted,
+              style: TextStyle(
+                color: accent,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w900,
                 letterSpacing: .7,
@@ -436,7 +585,11 @@ class _OfferMetricGroup extends StatelessWidget {
             for (final row in rows)
               Padding(
                 padding: const EdgeInsets.only(bottom: 5),
-                child: _DenseComparisonRow(label: row.label, value: row.value),
+                child: _DenseComparisonRow(
+                  label: row.label,
+                  value: row.value,
+                  strong: row.strong,
+                ),
               ),
           ],
         ),
@@ -444,9 +597,10 @@ class _OfferMetricGroup extends StatelessWidget {
 }
 
 class _MetricRow {
-  const _MetricRow(this.label, this.value);
+  const _MetricRow(this.label, this.value, {this.strong = false});
   final String label;
   final String value;
+  final bool strong;
 }
 
 class _DenseComparisonRow extends StatelessWidget {
@@ -492,6 +646,74 @@ class _DenseComparisonRow extends StatelessWidget {
             ),
           ],
         ),
+      );
+}
+
+class _PercentPill extends StatelessWidget {
+  const _PercentPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: .18)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      );
+}
+
+class _InventoryMetric extends StatelessWidget {
+  const _InventoryMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: PipeBuyerColors.industrialBlue),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: PipeBuyerColors.muted,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: PipeBuyerColors.ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
 }
 
