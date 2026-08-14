@@ -38,7 +38,7 @@ class MarketplaceSubscriptionArtwork extends StatelessWidget {
             errorBuilder: (_, __, ___) => Center(
               child: IndustrialAssetIcon(
                 label: fallbackLabel,
-                size: height.clamp(90, 132),
+                size: height.clamp(90.0, 132.0).toDouble(),
                 borderRadius: 12,
                 fallback: const Icon(
                   Icons.workspace_premium_outlined,
