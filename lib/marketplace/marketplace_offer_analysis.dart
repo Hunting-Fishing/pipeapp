@@ -18,26 +18,24 @@ class MarketplaceOfferAnalysis {
 
   int get normalizedRequestedQuantity =>
       requestedQuantity.clamp(0, listedQuantity).toInt();
-  int get remainingQuantity =>
-      (listedQuantity - normalizedRequestedQuantity)
-          .clamp(0, listedQuantity)
-          .toInt();
+  int get remainingQuantity => (listedQuantity - normalizedRequestedQuantity)
+      .clamp(0, listedQuantity)
+      .toInt();
   double get requestedQuantityPercent => listedQuantity <= 0
       ? 0
       : normalizedRequestedQuantity / listedQuantity * 100;
-  double get remainingQuantityPercent => listedQuantity <= 0
-      ? 0
-      : remainingQuantity / listedQuantity * 100;
+  double get remainingQuantityPercent =>
+      listedQuantity <= 0 ? 0 : remainingQuantity / listedQuantity * 100;
   num get fullListingAskValue => askingUnitPrice * listedQuantity;
   num get requestedAskValue => askingUnitPrice * normalizedRequestedQuantity;
   num get offeredTotal => offeredUnitPrice * normalizedRequestedQuantity;
   num get remainingAskValue => askingUnitPrice * remainingQuantity;
   num get unitDifference => offeredUnitPrice - askingUnitPrice;
   num get requestedValueDifference => offeredTotal - requestedAskValue;
-  double get priceDifferencePercent => askingUnitPrice == 0
-      ? 0
-      : unitDifference / askingUnitPrice * 100;
-  bool get valid => listedQuantity > 0 &&
+  double get priceDifferencePercent =>
+      askingUnitPrice == 0 ? 0 : unitDifference / askingUnitPrice * 100;
+  bool get valid =>
+      listedQuantity > 0 &&
       normalizedRequestedQuantity > 0 &&
       requestedQuantity <= listedQuantity &&
       askingUnitPrice >= 0 &&

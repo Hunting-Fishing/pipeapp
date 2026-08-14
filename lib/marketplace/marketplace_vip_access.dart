@@ -9,18 +9,22 @@ import 'industrial_icon_assets.dart';
 
 const marketplaceVipEarlyAccessDuration = Duration(hours: 24);
 
-DateTime? marketplaceAccessDate(dynamic value) => switch (value) {
-      Timestamp timestamp => timestamp.toDate(),
-      DateTime date => date,
-      int milliseconds => DateTime.fromMillisecondsSinceEpoch(milliseconds),
-      String text => DateTime.tryParse(text),
-      _ => null,
-    };
+DateTime? marketplaceAccessDate(dynamic value) {
+  final parsed = switch (value) {
+    Timestamp timestamp => timestamp.toDate(),
+    DateTime date => date,
+    int milliseconds =>
+      DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true),
+    String text => DateTime.tryParse(text),
+    _ => null,
+  };
+  return parsed?.toUtc();
+}
 
 DateTime? marketplaceVipEarlyAccessUntil(Map<String, dynamic> listing) {
   final explicit = marketplaceAccessDate(listing['vipEarlyAccessUntil']);
   if (explicit != null) return explicit;
-  if (listing['vipEarlyAccessEnabled'] == false) return null;
+  if (listing['vipEarlyAccessEnabled'] != true) return null;
   final published = marketplaceAccessDate(listing['publishedAt']) ??
       marketplaceAccessDate(listing['createdAt']);
   return published?.add(marketplaceVipEarlyAccessDuration);
@@ -35,17 +39,19 @@ bool marketplaceVipActive(
   final nested = profile['membership'] is Map
       ? Map<String, dynamic>.from(profile['membership'] as Map)
       : const <String, dynamic>{};
-  final tier = '${profile['membershipTier'] ?? profile['subscriptionTier'] ?? nested['tier'] ?? ''}'
-      .trim()
-      .toLowerCase();
-  final status = '${profile['vipStatus'] ?? profile['subscriptionStatus'] ?? nested['status'] ?? ''}'
-      .trim()
-      .toLowerCase();
-  final activeFlag = profile['vipActive'] == true ||
-      profile['isVip'] == true ||
-      tier == 'vip';
+  final tier =
+      '${profile['membershipTier'] ?? profile['subscriptionTier'] ?? nested['tier'] ?? ''}'
+          .trim()
+          .toLowerCase();
+  final status =
+      '${profile['vipStatus'] ?? profile['subscriptionStatus'] ?? nested['status'] ?? ''}'
+          .trim()
+          .toLowerCase();
+  final activeFlag =
+      profile['vipActive'] == true || profile['isVip'] == true || tier == 'vip';
   if (!activeFlag) return false;
-  if (status.isNotEmpty && !const {'active', 'trialing', 'vip'}.contains(status)) {
+  if (status.isNotEmpty &&
+      !const {'active', 'trialing', 'vip'}.contains(status)) {
     return false;
   }
   final expires = marketplaceAccessDate(profile['vipExpiresAt']) ??
@@ -61,7 +67,8 @@ bool marketplaceListingLockedForViewer({
   DateTime? now,
 }) {
   final current = now ?? DateTime.now();
-  final sellerUid = '${listing['sellerUid'] ?? listing['ownerUid'] ?? ''}'.trim();
+  final sellerUid =
+      '${listing['sellerUid'] ?? listing['ownerUid'] ?? ''}'.trim();
   if (viewerUid.isNotEmpty && viewerUid == sellerUid) return false;
   if (marketplaceVipActive(viewerProfile, now: current)) return false;
   final until = marketplaceVipEarlyAccessUntil(listing);
@@ -102,7 +109,8 @@ class MarketplaceVipEarlyAccessGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null && '${listing['sellerUid'] ?? ''}' == user.uid) return child;
+    if (user != null && '${listing['sellerUid'] ?? ''}' == user.uid)
+      return child;
     if (marketplaceVipEarlyAccessUntil(listing) == null) return child;
     if (user == null) {
       return _MarketplaceVipGateBody(
@@ -111,12 +119,15 @@ class MarketplaceVipEarlyAccessGate extends StatelessWidget {
           listing: listing,
           viewerProfile: null,
         ),
-        child: child,
         onUpgrade: onUpgrade,
+        child: child,
       );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
       builder: (context, snapshot) {
         final profile = snapshot.data?.data();
         return _MarketplaceVipGateBody(
@@ -126,8 +137,8 @@ class MarketplaceVipEarlyAccessGate extends StatelessWidget {
             viewerProfile: profile,
             viewerUid: user.uid,
           ),
-          child: child,
           onUpgrade: onUpgrade,
+          child: child,
         );
       },
     );
@@ -148,7 +159,8 @@ class _MarketplaceVipGateBody extends StatefulWidget {
   final VoidCallback? onUpgrade;
 
   @override
-  State<_MarketplaceVipGateBody> createState() => _MarketplaceVipGateBodyState();
+  State<_MarketplaceVipGateBody> createState() =>
+      _MarketplaceVipGateBodyState();
 }
 
 class _MarketplaceVipGateBodyState extends State<_MarketplaceVipGateBody> {
@@ -163,7 +175,8 @@ class _MarketplaceVipGateBodyState extends State<_MarketplaceVipGateBody> {
   @override
   void didUpdateWidget(covariant _MarketplaceVipGateBody oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.locked != widget.locked || oldWidget.listing != widget.listing) {
+    if (oldWidget.locked != widget.locked ||
+        oldWidget.listing != widget.listing) {
       _syncTimer();
     }
   }
@@ -251,7 +264,8 @@ class _MarketplaceVipGateBodyState extends State<_MarketplaceVipGateBody> {
                         ),
                         const SizedBox(height: 7),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
                             color: Colors.black26,
                             borderRadius: BorderRadius.circular(999),
@@ -275,7 +289,8 @@ class _MarketplaceVipGateBodyState extends State<_MarketplaceVipGateBody> {
                               }
                               showDialog<void>(
                                 context: context,
-                                builder: (_) => const MarketplaceSubscriptionPlansDialog(),
+                                builder: (_) =>
+                                    const MarketplaceSubscriptionPlansDialog(),
                               );
                             },
                             icon: const Icon(Icons.lock_open_rounded),
@@ -317,7 +332,8 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                         children: [
                           Text(
                             'Pipe Buyer memberships',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.w900),
                           ),
                           SizedBox(height: 4),
                           Text(
@@ -377,9 +393,12 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (var index = 0; index < cards.length; index++) ...[
+                          for (var index = 0;
+                              index < cards.length;
+                              index++) ...[
                             Expanded(child: cards[index]),
-                            if (index < cards.length - 1) const SizedBox(width: 12),
+                            if (index < cards.length - 1)
+                              const SizedBox(width: 12),
                           ],
                         ],
                       );
@@ -388,7 +407,8 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                       children: [
                         for (var index = 0; index < cards.length; index++) ...[
                           cards[index],
-                          if (index < cards.length - 1) const SizedBox(height: 12),
+                          if (index < cards.length - 1)
+                            const SizedBox(height: 12),
                         ],
                       ],
                     );
@@ -422,7 +442,8 @@ class _SubscriptionPlanCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: premium ? const Color(0xFF101721) : Theme.of(context).cardColor,
+          color:
+              premium ? const Color(0xFF101721) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: premium
@@ -438,7 +459,9 @@ class _SubscriptionPlanCard extends StatelessWidget {
               width: double.infinity,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: premium ? Colors.white.withValues(alpha: .04) : PipeBuyerColors.canvas,
+                  color: premium
+                      ? Colors.white.withValues(alpha: .04)
+                      : PipeBuyerColors.canvas,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
@@ -449,7 +472,9 @@ class _SubscriptionPlanCard extends StatelessWidget {
                     fallback: Icon(
                       icon,
                       size: 58,
-                      color: premium ? const Color(0xFFFFB21A) : PipeBuyerColors.orange,
+                      color: premium
+                          ? const Color(0xFFFFB21A)
+                          : PipeBuyerColors.orange,
                     ),
                   ),
                 ),
@@ -459,7 +484,9 @@ class _SubscriptionPlanCard extends StatelessWidget {
             Text(
               eyebrow,
               style: TextStyle(
-                color: premium ? const Color(0xFFFFC44D) : PipeBuyerColors.orangePressed,
+                color: premium
+                    ? const Color(0xFFFFC44D)
+                    : PipeBuyerColors.orangePressed,
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: .8,
@@ -484,7 +511,9 @@ class _SubscriptionPlanCard extends StatelessWidget {
                     Icon(
                       Icons.check_circle_rounded,
                       size: 17,
-                      color: premium ? const Color(0xFFFFC44D) : PipeBuyerColors.success,
+                      color: premium
+                          ? const Color(0xFFFFC44D)
+                          : PipeBuyerColors.success,
                     ),
                     const SizedBox(width: 7),
                     Expanded(
