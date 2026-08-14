@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pipe_buyer/marketplace/marketplace_auctions_page.dart';
+import 'package:pipe_app/marketplace/marketplace_auctions_page.dart';
 
 void main() {
   group('auction timing state', () {
