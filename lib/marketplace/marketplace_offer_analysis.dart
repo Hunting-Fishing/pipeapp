@@ -16,8 +16,10 @@ class MarketplaceOfferAnalysis {
   final num askingUnitPrice;
   final num offeredUnitPrice;
 
-  int get normalizedRequestedQuantity => requestedQuantity.clamp(0, listedQuantity);
-  int get remainingQuantity => (listedQuantity - normalizedRequestedQuantity).clamp(0, listedQuantity);
+  int get normalizedRequestedQuantity =>
+      requestedQuantity.clamp(0, listedQuantity).toInt();
+  int get remainingQuantity =>
+      (listedQuantity - normalizedRequestedQuantity).clamp(0, listedQuantity).toInt();
   double get requestedQuantityPercent => listedQuantity <= 0
       ? 0
       : normalizedRequestedQuantity / listedQuantity * 100;
