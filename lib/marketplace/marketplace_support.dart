@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_components.dart';
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_data_state.dart';
 
@@ -59,25 +61,22 @@ class MarketplaceSupportPage extends StatelessWidget {
   const MarketplaceSupportPage({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Help & Support')),
-        body: const DefaultTabController(
-          length: 2,
-          child: Column(
+  Widget build(BuildContext context) => DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Help & Support'),
+            bottom: const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.add_comment_outlined), text: 'New case'),
+                Tab(icon: Icon(Icons.history_outlined), text: 'My cases'),
+              ],
+            ),
+          ),
+          body: const TabBarView(
             children: [
-              Material(
-                color: Colors.white,
-                child: TabBar(tabs: [
-                  Tab(icon: Icon(Icons.add_comment_outlined), text: 'New case'),
-                  Tab(icon: Icon(Icons.history_outlined), text: 'My cases'),
-                ]),
-              ),
-              Expanded(
-                child: TabBarView(children: [
-                  _NewSupportCaseForm(),
-                  _MySupportCases(),
-                ]),
-              ),
+              _NewSupportCaseForm(),
+              _MySupportCases(),
             ],
           ),
         ),
@@ -163,6 +162,7 @@ class _NewSupportCaseFormState extends State<_NewSupportCaseForm> {
       _relatedId.clear();
       setState(() => _category = null);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
         content: Text(
             'Support case ${result['caseId'] ?? requestId} was submitted.'),
       ));
@@ -176,118 +176,291 @@ class _NewSupportCaseFormState extends State<_NewSupportCaseForm> {
   }
 
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          const Text('How can we help?',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-          const Text(
-              'Choose the closest category so the case receives the correct service target.'),
-          const SizedBox(height: 14),
-          RadioGroup<_SupportCategory>(
-            groupValue: _category,
-            onChanged: _submitting
-                ? (_) {}
-                : (value) => setState(() => _category = value),
-            child: Column(
-              children: _supportCategories
-                  .map((category) => Card(
-                        color: _category?.code == category.code
-                            ? Colors.blue.shade50
-                            : null,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(
-                            color: _category?.code == category.code
-                                ? Colors.blue
-                                : Colors.black12,
-                            width: _category?.code == category.code ? 2 : 1,
+  Widget build(BuildContext context) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 980),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 22, 18, 40),
+            children: [
+              const PipeBuyerPageHeader(
+                eyebrow: 'CUSTOMER CARE',
+                title: 'How can we help?',
+                subtitle:
+                    'Route your case to the right team with the correct response target.',
+                icon: Icons.support_agent_outlined,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [PipeBuyerColors.ink, PipeBuyerColors.graphite],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.shield_outlined,
+                        color: PipeBuyerColors.orange, size: 26),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Private support channel',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Case details and replies are visible only to your account and authorized support administrators.',
+                            style: TextStyle(color: Colors.white70, height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              PipeBuyerSectionCard(
+                title: 'Choose a support category',
+                subtitle:
+                    'Selecting the closest category applies the correct service target.',
+                leading: const _SupportSectionIcon(Icons.route_outlined),
+                child: RadioGroup<_SupportCategory>(
+                  groupValue: _category,
+                  onChanged: _submitting
+                      ? (_) {}
+                      : (value) => setState(() => _category = value),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = constraints.maxWidth >= 720 ? 2 : 1;
+                      const gap = 10.0;
+                      final width = columns == 1
+                          ? constraints.maxWidth
+                          : (constraints.maxWidth - gap) / 2;
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: _supportCategories
+                            .map((category) => SizedBox(
+                                  width: width,
+                                  child: _SupportCategoryCard(
+                                    category: category,
+                                    selected:
+                                        _category?.code == category.code,
+                                    submitting: _submitting,
+                                  ),
+                                ))
+                            .toList(growable: false),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              PipeBuyerSectionCard(
+                title: 'Case details',
+                subtitle:
+                    'Include enough context for support to reproduce or investigate the issue.',
+                leading: const _SupportSectionIcon(Icons.description_outlined),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _subject,
+                      enabled: !_submitting,
+                      maxLength: 120,
+                      decoration: const InputDecoration(
+                        labelText: 'Subject *',
+                        hintText: 'Example: Listing photo upload stops at 2%',
+                        prefixIcon: Icon(Icons.short_text_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _description,
+                      enabled: !_submitting,
+                      minLines: 5,
+                      maxLines: 9,
+                      maxLength: 4000,
+                      decoration: const InputDecoration(
+                        labelText: 'What happened? *',
+                        hintText:
+                            'Describe what you were doing, what you expected, what occurred, and whether retrying changed anything.',
+                        prefixIcon: Icon(Icons.notes_outlined),
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _relatedId,
+                      enabled: !_submitting,
+                      maxLength: 180,
+                      decoration: const InputDecoration(
+                        labelText:
+                            'Related listing, offer, job, or conversation ID',
+                        hintText: 'Optional — paste the reference if you have it',
+                        prefixIcon: Icon(Icons.link_outlined),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.success.withValues(alpha: .07),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: PipeBuyerColors.success.withValues(alpha: .18),
+                  ),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.privacy_tip_outlined,
+                        color: PipeBuyerColors.success),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Never include passwords, verification codes, banking credentials, or government identification in a support message.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .errorContainer
+                        .withValues(alpha: .55),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          color: Theme.of(context).colorScheme.error),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        child: RadioListTile<_SupportCategory>(
-                          value: category,
-                          enabled: !_submitting,
-                          secondary: CircleAvatar(child: Icon(category.icon)),
-                          title: Text(category.label,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w800)),
-                          subtitle: Text(
-                              '${category.description}\n${category.target}'),
-                          isThreeLine: true,
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _subject,
-            enabled: !_submitting,
-            maxLength: 120,
-            decoration: const InputDecoration(
-              labelText: 'Subject *',
-              hintText: 'Example: Listing photo upload stops at 2%',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _description,
-            enabled: !_submitting,
-            minLines: 5,
-            maxLines: 9,
-            maxLength: 4000,
-            decoration: const InputDecoration(
-              labelText: 'What happened? *',
-              hintText:
-                  'Describe what you were doing, what you expected, what occurred, and whether retrying changed anything.',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _relatedId,
-            enabled: !_submitting,
-            maxLength: 180,
-            decoration: const InputDecoration(
-              labelText: 'Related listing, offer, job, or conversation ID',
-              hintText: 'Optional — paste the reference if you have it',
-              prefixIcon: Icon(Icons.link_outlined),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const Card(
-            color: Color(0xFFE8F5E9),
-            child: Padding(
-              padding: EdgeInsets.all(12),
-              child: Row(children: [
-                Icon(Icons.privacy_tip_outlined, color: Colors.green),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                      'Never include passwords, verification codes, banking credentials, or government identification in a support message.'),
+                      ),
+                    ],
+                  ),
                 ),
-              ]),
+              ],
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 54,
+                child: FilledButton.icon(
+                  onPressed: _submitting ? null : _submit,
+                  icon: _submitting
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.support_agent_outlined),
+                  label: Text(_submitting
+                      ? 'Submitting support case…'
+                      : 'Review and submit case'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _SupportCategoryCard extends StatelessWidget {
+  const _SupportCategoryCard({
+    required this.category,
+    required this.selected,
+    required this.submitting,
+  });
+
+  final _SupportCategory category;
+  final bool selected;
+  final bool submitting;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: selected
+                ? PipeBuyerColors.orange
+                : Theme.of(context).dividerColor,
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: RadioListTile<_SupportCategory>(
+          value: category,
+          enabled: !submitting,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          secondary: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: selected
+                  ? PipeBuyerColors.orangeSoft
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(
+              category.icon,
+              color: selected
+                  ? PipeBuyerColors.orangePressed
+                  : PipeBuyerColors.slate,
             ),
           ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(_error!,
-                  style: const TextStyle(
-                      color: Colors.red, fontWeight: FontWeight.w700)),
-            ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: _submitting ? null : _submit,
-            icon: _submitting
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.support_agent_outlined),
-            label: const Text('Review and submit'),
+          title: Text(
+            category.label,
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-        ],
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(category.description),
+                const SizedBox(height: 5),
+                Text(
+                  category.target,
+                  style: TextStyle(
+                    color: selected
+                        ? PipeBuyerColors.orangePressed
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: .58),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
 }
 
@@ -297,7 +470,14 @@ class _MySupportCases extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return const Center(child: Text('Sign in to view cases.'));
+    if (uid == null) {
+      return const MarketplaceDataStateView(
+        kind: MarketplaceDataStateKind.unavailable,
+        icon: Icons.login_outlined,
+        title: 'Sign in to view support cases',
+        message: 'Your private support history is available after sign-in.',
+      );
+    }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('support_cases')
@@ -330,17 +510,65 @@ class _MySupportCases extends StatelessWidget {
             message: 'Cases you submit will appear here with their history.',
           );
         }
-        return ListView(
-          padding: const EdgeInsets.all(18),
-          children: [
-            const Text('My support cases',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 10),
-            ...cases.map((supportCase) => _SupportCaseCard(
-                  document: supportCase,
-                  onTap: () => showSupportCaseDialog(context, supportCase),
-                )),
-          ],
+        final open =
+            cases.where((item) => item.data()['status'] != 'resolved').length;
+        final urgent = cases
+            .where((item) =>
+                item.data()['priority'] == 'urgent' &&
+                item.data()['status'] != 'resolved')
+            .length;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 980),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 40),
+              children: [
+                const PipeBuyerPageHeader(
+                  eyebrow: 'CUSTOMER CARE',
+                  title: 'My support cases',
+                  subtitle:
+                      'Review private case status, response history, and follow-up messages.',
+                  icon: Icons.history_outlined,
+                ),
+                const SizedBox(height: 16),
+                PipeBuyerMetricGrid(
+                  children: [
+                    PipeBuyerMetricCard(
+                      label: 'Open cases',
+                      value: '$open',
+                      icon: Icons.mark_chat_unread_outlined,
+                      tone: open > 0
+                          ? PipeBuyerStatusTone.info
+                          : PipeBuyerStatusTone.success,
+                    ),
+                    PipeBuyerMetricCard(
+                      label: 'Urgent cases',
+                      value: '$urgent',
+                      icon: Icons.gpp_maybe_outlined,
+                      tone: urgent > 0
+                          ? PipeBuyerStatusTone.danger
+                          : PipeBuyerStatusTone.neutral,
+                    ),
+                    PipeBuyerMetricCard(
+                      label: 'Case history',
+                      value: '${cases.length}',
+                      icon: Icons.receipt_long_outlined,
+                      tone: PipeBuyerStatusTone.neutral,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...cases.map((supportCase) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _SupportCaseCard(
+                        document: supportCase,
+                        onTap: () =>
+                            showSupportCaseDialog(context, supportCase),
+                      ),
+                    )),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -382,30 +610,60 @@ class AdminSupportQueue extends StatelessWidget {
                   item.data()['status'] != 'resolved')
               .length;
           return ListView(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 40),
             children: [
-              const Text('Support operations',
-                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
-              const Text(
-                  'Private customer cases. Response targets are assigned by category.'),
-              const SizedBox(height: 12),
-              Wrap(spacing: 8, children: [
-                Chip(label: Text('$open open')),
-                Chip(
-                    avatar: const Icon(Icons.priority_high, color: Colors.red),
-                    label: Text('$urgent urgent')),
-                const Chip(label: Text('Newest 100 cases')),
-              ]),
-              const SizedBox(height: 10),
+              const PipeBuyerPageHeader(
+                eyebrow: 'SUPPORT OPERATIONS',
+                title: 'Customer support queue',
+                subtitle:
+                    'Private customer cases with category-based response targets.',
+                icon: Icons.support_agent_outlined,
+              ),
+              const SizedBox(height: 16),
+              PipeBuyerMetricGrid(
+                children: [
+                  PipeBuyerMetricCard(
+                    label: 'Open',
+                    value: '$open',
+                    icon: Icons.inbox_outlined,
+                    tone: PipeBuyerStatusTone.info,
+                  ),
+                  PipeBuyerMetricCard(
+                    label: 'Urgent',
+                    value: '$urgent',
+                    icon: Icons.priority_high_rounded,
+                    tone: urgent > 0
+                        ? PipeBuyerStatusTone.danger
+                        : PipeBuyerStatusTone.neutral,
+                  ),
+                  PipeBuyerMetricCard(
+                    label: 'Queue window',
+                    value: '${cases.length}',
+                    icon: Icons.view_list_outlined,
+                    caption: 'Newest 100 cases',
+                    tone: PipeBuyerStatusTone.neutral,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               if (cases.isEmpty)
-                const Card(child: ListTile(title: Text('No support cases'))),
-              ...cases.map((supportCase) => _SupportCaseCard(
-                    document: supportCase,
-                    administrator: true,
-                    onTap: () => showSupportCaseDialog(
-                      context,
-                      supportCase,
+                const MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  icon: Icons.support_agent_outlined,
+                  title: 'No support cases',
+                  message: 'The support queue is currently clear.',
+                  compact: true,
+                ),
+              ...cases.map((supportCase) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _SupportCaseCard(
+                      document: supportCase,
                       administrator: true,
+                      onTap: () => showSupportCaseDialog(
+                        context,
+                        supportCase,
+                        administrator: true,
+                      ),
                     ),
                   )),
             ],
@@ -434,33 +692,85 @@ class _SupportCaseCard extends StatelessWidget {
     final overdue = data['firstRespondedAt'] == null &&
         due != null &&
         due.toDate().isBefore(DateTime.now());
+    final tone = overdue || priority == 'urgent'
+        ? PipeBuyerStatusTone.danger
+        : status == 'resolved'
+            ? PipeBuyerStatusTone.success
+            : PipeBuyerStatusTone.info;
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: overdue || priority == 'urgent'
-              ? Colors.red
-              : status == 'resolved'
-                  ? Colors.green
-                  : Colors.black12,
-        ),
-      ),
-      child: ListTile(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: _priorityColor(priority).withValues(alpha: .12),
-          child: Icon(_categoryIcon('${data['category'] ?? ''}'),
-              color: _priorityColor(priority)),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: _priorityColor(priority).withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _categoryIcon('${data['category'] ?? ''}'),
+                  color: _priorityColor(priority),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${data['subject'] ?? 'Support case'}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        PipeBuyerStatusBadge(
+                          label: status.replaceAll('_', ' ').toUpperCase(),
+                          tone: tone,
+                        ),
+                        PipeBuyerStatusBadge(
+                          label: '${priority.toUpperCase()} PRIORITY',
+                          tone: priority == 'urgent'
+                              ? PipeBuyerStatusTone.danger
+                              : PipeBuyerStatusTone.neutral,
+                        ),
+                        if (overdue)
+                          const PipeBuyerStatusBadge(
+                            label: 'TARGET OVERDUE',
+                            tone: PipeBuyerStatusTone.danger,
+                            icon: Icons.schedule_outlined,
+                          ),
+                      ],
+                    ),
+                    if (administrator) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Case ${document.id}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
         ),
-        title: Text('${data['subject'] ?? 'Support case'}',
-            style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Text(
-          '${status.replaceAll('_', ' ')} • $priority'
-          '${administrator ? '\nCase ${document.id}' : ''}'
-          '${overdue ? '\nResponse target overdue' : ''}',
-        ),
-        isThreeLine: administrator || overdue,
-        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
@@ -481,92 +791,218 @@ Future<void> showSupportCaseDialog(
   }
   await showDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text('${data['subject'] ?? 'Support case'}'),
-      content: SizedBox(
-        width: 620,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(spacing: 8, children: [
-                Chip(
-                    label: Text(
-                        '${data['status'] ?? 'open'}'.replaceAll('_', ' '))),
-                Chip(label: Text('${data['priority'] ?? 'normal'} priority')),
-                Chip(
-                    label: Text('Target ${data['firstResponseHours'] ?? 48}h')),
-              ]),
-              Text('${data['description'] ?? ''}'),
-              if ('${data['relatedId'] ?? ''}'.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text('Related reference: ${data['relatedId']}',
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-              ],
-              const SizedBox(height: 16),
-              const Text('Case history',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: eventQuery.limit(100).snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Text(
-                        'Case history is temporarily unavailable.');
-                  }
-                  if (!snapshot.hasData) return const LinearProgressIndicator();
-                  final events = snapshot.data!.docs.toList()
-                    ..sort((a, b) => _timestamp(a.data()['createdAt'])
-                        .compareTo(_timestamp(b.data()['createdAt'])));
-                  return Column(
-                    children: events.map((event) {
-                      final item = event.data();
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(item['actorRole'] == 'administrator'
-                            ? Icons.support_agent_outlined
-                            : Icons.person_outline),
-                        title: Text('${item['event'] ?? 'update'}'
-                            .replaceAll('_', ' ')),
-                        subtitle: Text('${item['message'] ?? ''}'),
-                      );
-                    }).toList(),
-                  );
-                },
+    builder: (dialogContext) => Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 820),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _SupportSectionIcon(Icons.support_agent_outlined),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${data['subject'] ?? 'Support case'}',
+                          style: Theme.of(dialogContext)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            PipeBuyerStatusBadge(
+                              label: '${data['status'] ?? 'open'}'
+                                  .replaceAll('_', ' ')
+                                  .toUpperCase(),
+                              tone: '${data['status']}' == 'resolved'
+                                  ? PipeBuyerStatusTone.success
+                                  : PipeBuyerStatusTone.info,
+                            ),
+                            PipeBuyerStatusBadge(
+                              label:
+                                  '${data['priority'] ?? 'normal'} PRIORITY'
+                                      .toUpperCase(),
+                              tone: '${data['priority']}' == 'urgent'
+                                  ? PipeBuyerStatusTone.danger
+                                  : PipeBuyerStatusTone.neutral,
+                            ),
+                            PipeBuyerStatusBadge(
+                              label:
+                                  'TARGET ${data['firstResponseHours'] ?? 48}H',
+                              tone: PipeBuyerStatusTone.neutral,
+                              icon: Icons.schedule_outlined,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(dialogContext),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PipeBuyerSectionCard(
+                      title: 'Case description',
+                      leading: const _SupportSectionIcon(Icons.notes_outlined),
+                      child: Text('${data['description'] ?? ''}'),
+                    ),
+                    if ('${data['relatedId'] ?? ''}'.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      PipeBuyerSectionCard(
+                        title: 'Related marketplace reference',
+                        leading: const _SupportSectionIcon(Icons.link_outlined),
+                        child: SelectableText('${data['relatedId']}'),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    PipeBuyerSectionCard(
+                      title: 'Case history',
+                      subtitle: 'Private updates recorded for this support case.',
+                      leading:
+                          const _SupportSectionIcon(Icons.history_outlined),
+                      child: StreamBuilder<
+                          QuerySnapshot<Map<String, dynamic>>>(
+                        stream: eventQuery.limit(100).snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return const Text(
+                                'Case history is temporarily unavailable.');
+                          }
+                          if (!snapshot.hasData) {
+                            return const LinearProgressIndicator();
+                          }
+                          final events = snapshot.data!.docs.toList()
+                            ..sort((a, b) => _timestamp(a.data()['createdAt'])
+                                .compareTo(
+                                    _timestamp(b.data()['createdAt'])));
+                          if (events.isEmpty) {
+                            return const Text('No case events recorded yet.');
+                          }
+                          return Column(
+                            children: events.map((event) {
+                              final item = event.data();
+                              final admin =
+                                  item['actorRole'] == 'administrator';
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: (admin
+                                                ? PipeBuyerColors.orange
+                                                : PipeBuyerColors.industrialBlue)
+                                            .withValues(alpha: .10),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        admin
+                                            ? Icons.support_agent_outlined
+                                            : Icons.person_outline,
+                                        size: 18,
+                                        color: admin
+                                            ? PipeBuyerColors.orangePressed
+                                            : PipeBuyerColors.industrialBlue,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${item['event'] ?? 'update'}'
+                                                .replaceAll('_', ' '),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w800),
+                                          ),
+                                          if ('${item['message'] ?? ''}'
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text('${item['message'] ?? ''}'),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(growable: false),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Close'),
+                  ),
+                  const SizedBox(width: 8),
+                  if (administrator)
+                    FilledButton.icon(
+                      onPressed: () async {
+                        final changed =
+                            await _adminUpdateCase(dialogContext, document);
+                        if (changed && dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
+                      },
+                      icon: const Icon(Icons.support_agent_outlined),
+                      label: const Text('Update case'),
+                    )
+                  else if ('${data['status']}' != 'resolved')
+                    FilledButton.icon(
+                      onPressed: () async {
+                        final changed =
+                            await _replyToCase(dialogContext, document.id);
+                        if (changed && dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
+                      },
+                      icon: const Icon(Icons.reply_outlined),
+                      label: const Text('Reply'),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close')),
-        if (administrator)
-          FilledButton.icon(
-            onPressed: () async {
-              final changed = await _adminUpdateCase(dialogContext, document);
-              if (changed && dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
-            icon: const Icon(Icons.support_agent_outlined),
-            label: const Text('Update case'),
-          )
-        else if ('${data['status']}' != 'resolved')
-          FilledButton.icon(
-            onPressed: () async {
-              final changed = await _replyToCase(dialogContext, document.id);
-              if (changed && dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
-            icon: const Icon(Icons.reply_outlined),
-            label: const Text('Reply'),
-          ),
-      ],
     ),
   );
 }
@@ -622,10 +1058,7 @@ Future<bool> _adminUpdateCase(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 DropdownButtonFormField<String>(
                   initialValue: action,
-                  decoration: const InputDecoration(
-                    labelText: 'Action',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Action'),
                   items: actions
                       .map((value) => DropdownMenuItem(
                             value: value,
@@ -647,7 +1080,6 @@ Future<bool> _adminUpdateCase(
                     labelText: 'Customer-visible response *',
                     hintText:
                         'Record what was reviewed, the next step, and any information the customer must provide.',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 if (error != null)
@@ -735,10 +1167,7 @@ Future<bool> _supportMessageDialog(
                   minLines: 3,
                   maxLines: 7,
                   maxLength: 2000,
-                  decoration: InputDecoration(
-                    labelText: label,
-                    border: const OutlineInputBorder(),
-                  ),
+                  decoration: InputDecoration(labelText: label),
                 ),
                 if (error != null)
                   Text(error!, style: const TextStyle(color: Colors.red)),
@@ -811,6 +1240,23 @@ class _SupportLoadState extends StatelessWidget {
       );
 }
 
+class _SupportSectionIcon extends StatelessWidget {
+  const _SupportSectionIcon(this.icon);
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: PipeBuyerColors.orangeSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: PipeBuyerColors.orangePressed),
+      );
+}
+
 int _timestamp(Object? value) =>
     value is Timestamp ? value.millisecondsSinceEpoch : 0;
 
@@ -824,7 +1270,7 @@ IconData _categoryIcon(String category) => switch (category) {
     };
 
 Color _priorityColor(String priority) => switch (priority) {
-      'urgent' => Colors.red,
-      'high' => Colors.orange,
-      _ => Colors.blue,
+      'urgent' => PipeBuyerColors.danger,
+      'high' => PipeBuyerColors.warning,
+      _ => PipeBuyerColors.industrialBlue,
     };
