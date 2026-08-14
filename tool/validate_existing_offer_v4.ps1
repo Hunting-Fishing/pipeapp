@@ -50,7 +50,9 @@ git diff --stat -- $marketplace $analysis $summary
 Write-Step 'Staging only PipeBuyer offer files'
 git add -- $marketplace $analysis $summary
 
-if (-not (git diff --cached --quiet)) {
+git diff --cached --quiet
+$hasStagedChanges = $LASTEXITCODE -ne 0
+if ($hasStagedChanges) {
   git commit -m 'Finalize static listing and live offer analytics'
   if ($LASTEXITCODE -ne 0) { throw 'git commit failed.' }
 
