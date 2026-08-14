@@ -11,6 +11,11 @@ const target = path.join(root, "lib", "marketplace", "marketplace_vip_access.dar
 let source = fs.readFileSync(target, "utf8");
 
 source = source.replace(
+  `DateTime? marketplaceAccessDate(dynamic value) => switch (value) {\n      Timestamp timestamp => timestamp.toDate(),\n      DateTime date => date,\n      int milliseconds => DateTime.fromMillisecondsSinceEpoch(milliseconds),\n      String text => DateTime.tryParse(text),\n      _ => null,\n    };`,
+  `DateTime? marketplaceAccessDate(dynamic value) {\n  final parsed = switch (value) {\n    Timestamp timestamp => timestamp.toDate(),\n    DateTime date => date,\n    int milliseconds =>\n      DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true),\n    String text => DateTime.tryParse(text),\n    _ => null,\n  };\n  return parsed?.toUtc();\n}`,
+);
+
+source = source.replace(
   "  if (listing['vipEarlyAccessEnabled'] == false) return null;",
   "  if (listing['vipEarlyAccessEnabled'] != true) return null;",
 );
@@ -26,4 +31,4 @@ source = source.replace(
 );
 
 fs.writeFileSync(target, source, "utf8");
-console.log("Normalized VIP early-access policy and Flutter child ordering.");
+console.log("Normalized VIP UTC timing, explicit early-access policy and Flutter child ordering.");
