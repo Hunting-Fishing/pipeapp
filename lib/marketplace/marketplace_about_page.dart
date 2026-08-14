@@ -62,7 +62,7 @@ class MarketplaceAboutPage extends StatelessWidget {
                   child: Column(
                     children: [
                       _InfoRow(
-                        icon: Icons.deployed_code_outlined,
+                        icon: Icons.info_outline,
                         label: 'Version and environment',
                         value: PublicReleaseConfiguration.formattedReleaseLabel,
                       ),
