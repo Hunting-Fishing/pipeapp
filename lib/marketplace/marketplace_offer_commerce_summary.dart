@@ -199,7 +199,7 @@ class MarketplaceOfferCommerceSummary extends StatelessWidget {
       builder: (context, constraints) {
         if (constraints.maxWidth >= 720) {
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: original),
               const SizedBox(width: 9),
@@ -317,8 +317,7 @@ class _AnalyticsPanel extends StatelessWidget {
                   _AnalyticsTile(
                     label: 'Inventory remaining',
                     value: '$remainingPercent%',
-                    detail:
-                        '${analysis.remainingQuantity} $unitLabel remain',
+                    detail: '${analysis.remainingQuantity} $unitLabel remain',
                     icon: Icons.inventory_2_outlined,
                     color: analysis.remainingQuantity == 0
                         ? PipeBuyerColors.success
@@ -350,7 +349,8 @@ class _AnalyticsPanel extends StatelessWidget {
                   _AnalyticsTile(
                     label: 'Remaining value at ask',
                     value: marketplaceMoney(analysis.remainingAskValue),
-                    detail: 'Value of inventory outside your requested quantity',
+                    detail:
+                        'Value of inventory outside your requested quantity',
                     icon: Icons.account_balance_wallet_outlined,
                     color: PipeBuyerColors.industrialBlue,
                   ),
@@ -365,7 +365,8 @@ class _AnalyticsPanel extends StatelessWidget {
                   _AnalyticsTile(
                     label: 'Full lot at your unit price',
                     value: marketplaceMoney(impliedFullLotOfferValue),
-                    detail: 'Projection only — your entered price across the full lot',
+                    detail:
+                        'Projection only — your entered price across the full lot',
                     icon: Icons.functions_rounded,
                     color: PipeBuyerColors.orangePressed,
                   ),
@@ -477,7 +478,6 @@ class _CommercePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        height: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: accent.withValues(alpha: .055),
