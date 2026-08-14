@@ -152,7 +152,7 @@ if (-not $SkipSeed) {
 }
 
 if (-not $SkipSmokeTest) {
-  Write-Step 'Verifying Auth + Functions end-to-end before opening Flutter'
+  Write-Step 'Verifying Auth + Functions + Dispatch rules before opening Flutter'
   $signInBody = @{
     email = 'buyer.visual@pipebuyer.test'
     password = 'PipeBuyerDemo!2026'
@@ -192,7 +192,7 @@ if (-not $SkipSmokeTest) {
     -Uri "http://127.0.0.1:$authPort/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=pipebuyer-local" `
     -ContentType 'application/json' `
     -Body $carrierBody
-  if ($carrierSignIn.localId -ne 'visual-carrier') {
+  if ($carrierSignIn.localId -ne 'visual-carrier' -or [string]::IsNullOrWhiteSpace($carrierSignIn.idToken)) {
     throw 'The Dispatch carrier fixture could not authenticate against the Pipe Buyer Auth emulator.'
   }
 
@@ -207,7 +207,27 @@ if (-not $SkipSmokeTest) {
   if ($null -eq $callable.result) {
     throw 'The Functions emulator answered, but syncAccountVerification did not return a callable result.'
   }
-  Write-Host 'VIP + Standard + Carrier Auth and Firestore-backed callable verification passed.' -ForegroundColor Green
+
+  $carrierHeaders = @{ Authorization = "Bearer $($carrierSignIn.idToken)" }
+  $firestoreBase = "http://127.0.0.1:$firestorePort/v1/projects/$projectId/databases/(default)/documents"
+  $carrierDocument = Invoke-RestMethod `
+    -Method Get `
+    -Uri "$firestoreBase/dispatch_carriers/visual-carrier" `
+    -Headers $carrierHeaders
+  if ([string]::IsNullOrWhiteSpace($carrierDocument.name)) {
+    throw 'Carrier-authenticated Firestore access could not read the Dispatch carrier profile.'
+  }
+
+  $dispatchJobs = Invoke-RestMethod `
+    -Method Get `
+    -Uri "$firestoreBase/dispatch_jobs?pageSize=2" `
+    -Headers $carrierHeaders
+  if ($null -eq $dispatchJobs) {
+    throw 'Carrier-authenticated Firestore access could not read the Dispatch job board.'
+  }
+
+  Write-Host 'VIP + Standard + Carrier Auth verification passed.' -ForegroundColor Green
+  Write-Host 'Carrier-authenticated Firestore rules can read the Dispatch profile and job board.' -ForegroundColor Green
 }
 
 Write-Host ''
@@ -233,6 +253,8 @@ if ($SeedOnly) {
 Write-Step 'Launching Pipe Buyer Chrome integration test'
 & flutter run -d chrome `
   --dart-define=PIPE_ENV=local `
+  --dart-define=PIPE_ENABLE_DISPATCH=true `
+  --dart-define=PIPE_ENABLE_AUCTIONS=true `
   --dart-define=PIPE_FIREBASE_EMULATOR_HOST=127.0.0.1 `
   --dart-define=PIPE_FIREBASE_AUTH_EMULATOR_PORT=$authPort `
   --dart-define=PIPE_FIREBASE_FIRESTORE_EMULATOR_PORT=$firestorePort `
