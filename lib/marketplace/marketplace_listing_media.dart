@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 import 'industrial_icon_assets.dart';
+import 'marketplace_vip_access.dart';
 
 /// Returns the ordered, non-empty listing photo URLs saved by the media service.
 List<String> marketplaceListingImageUrls(Map<String, dynamic> listing) {
@@ -30,6 +31,11 @@ String? marketplaceListingThumbnailUrl(Map<String, dynamic> listing) {
 /// the existing Pipe Buyer industrial illustration library, resolved from the
 /// product type/category. Stock/category artwork is always identified as an
 /// illustration so it cannot be mistaken for a photograph of the listed item.
+///
+/// The media layer also carries the VIP early-access treatment. This is
+/// intentionally shared so Browse, Auctions and other card surfaces present
+/// the same locked teaser and countdown for standard users during a listing's
+/// first 24 hours. Sellers and active VIP members see normal media immediately.
 class MarketplaceListingMedia extends StatelessWidget {
   const MarketplaceListingMedia({
     super.key,
@@ -156,7 +162,10 @@ class MarketplaceListingMedia extends StatelessWidget {
       label: !hasSellerPhoto
           ? '$_title. Industrial category illustration; seller photo not provided.'
           : '$_title seller-provided listing photo',
-      child: content,
+      child: MarketplaceVipEarlyAccessGate(
+        listing: listing,
+        child: content,
+      ),
     );
   }
 }
