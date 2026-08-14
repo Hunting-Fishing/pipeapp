@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_components.dart';
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_admin_access.dart';
+import 'marketplace_data_state.dart';
 import 'marketplace_payment_readiness.dart';
 import 'marketplace_tax_compliance_admin_page.dart';
 
@@ -38,7 +41,10 @@ class _MarketplaceAdminTransactionPortalState
   Widget build(BuildContext context) {
     if (_isLoadingAuth) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: MarketplaceDataStateView.loading(
+          title: 'Verifying administrator access',
+          message: 'Checking role and security requirements…',
+        ),
       );
     }
 
@@ -46,32 +52,63 @@ class _MarketplaceAdminTransactionPortalState
       return Scaffold(
         appBar: AppBar(title: const Text('Admin Access Required')),
         body: Center(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.admin_panel_settings_outlined,
-                    size: 64,
-                    color: Colors.red,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Administrator privileges required',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: PipeBuyerSectionCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.danger.withValues(alpha: .09),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: PipeBuyerColors.danger.withValues(alpha: .20),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.admin_panel_settings_outlined,
+                        size: 34,
+                        color: PipeBuyerColors.danger,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Sign in with an approved administrator account and complete multi-factor authentication.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    const PipeBuyerStatusBadge(
+                      label: 'PROTECTED ADMIN AREA',
+                      icon: Icons.lock_outline,
+                      tone: PipeBuyerStatusTone.danger,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Administrator privileges required',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Sign in with an approved administrator account and complete multi-factor authentication before accessing billing, fee, tax, or transaction controls.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            height: 1.45,
+                          ),
+                    ),
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() => _isLoadingAuth = true);
+                        _checkAdminAuth();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Re-check administrator access'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -83,7 +120,18 @@ class _MarketplaceAdminTransactionPortalState
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Billing, fees & tax'),
+          title: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Billing, fees & tax'),
+              SizedBox(width: 10),
+              PipeBuyerStatusBadge(
+                label: 'ADMIN',
+                icon: Icons.admin_panel_settings_outlined,
+                tone: PipeBuyerStatusTone.premium,
+              ),
+            ],
+          ),
           bottom: const TabBar(
             isScrollable: true,
             tabs: [
