@@ -52,6 +52,10 @@ try {
     test\marketplace_adaptive_layout_test.dart
   if ($LASTEXITCODE -ne 0) { throw 'Focused marketplace tests failed.' }
 
+  Step 'Testing VIP early-access server policy'
+  & node --test 'firebase\functions\test\marketplace_vip_access_policy.test.js'
+  if ($LASTEXITCODE -ne 0) { throw 'VIP server policy test failed.' }
+
   Step 'Review batch validated locally'
   git status --short
 
@@ -61,7 +65,10 @@ try {
   }
 
   Step 'Creating one sandbox commit'
-  git add -- @patchedFiles
+  foreach ($file in $patchedFiles) {
+    git add -- $file
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage $file" }
+  }
   git commit -m 'Refine web offers deal room and VIP early access'
   if ($LASTEXITCODE -ne 0) { throw 'Local commit failed.' }
 
@@ -73,6 +80,8 @@ try {
 } catch {
   Write-Host "`nBatch failed: $($_.Exception.Message)" -ForegroundColor Red
   Write-Host 'The batch began from a clean working tree. Restoring only the five patched tracked files.' -ForegroundColor Yellow
-  git restore -- @patchedFiles
+  foreach ($file in $patchedFiles) {
+    git restore -- $file
+  }
   throw
 }
