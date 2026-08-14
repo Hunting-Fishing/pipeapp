@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-const Color _ownerBlue = Color(0xFF0878E8);
-const Color _offerOrange = Color(0xFFF08A00);
-const Color _priceGreen = Color(0xFF0B9F67);
+import '../core/design/pipe_buyer_theme.dart';
+
+const Color _ownerBlue = PipeBuyerColors.industrialBlue;
+const Color _offerOrange = PipeBuyerColors.orange;
+const Color _priceGreen = PipeBuyerColors.success;
 const Color _newTeal = Color(0xFF008C95);
-const Color _urgentRed = Color(0xFFD94040);
+const Color _urgentRed = PipeBuyerColors.danger;
+const Color _wantedPurple = Color(0xFF7C3AED);
 const Color _neutralBorder = Color(0xFFD8E0E9);
 
 class MarketplaceListingBadge {
@@ -79,54 +82,95 @@ class MarketplaceListingPresentation {
         auctionEnd != null &&
         auctionEnd.isAfter(clock) &&
         auctionEnd.difference(clock) <= const Duration(hours: 24);
+    final transactionType = '${data['transactionType'] ?? ''}'.toLowerCase();
+    final isWanted = transactionType == 'wanted / seeking' ||
+        transactionType == 'wanted' ||
+        transactionType.contains('seeking');
+    final boosted = '${data['boostStatus'] ?? ''}'.toLowerCase() == 'active';
+    final verifiedSeller = data['sellerVerified'] == true;
 
     final badges = <MarketplaceListingBadge>[
       if (isOwner)
         const MarketplaceListingBadge(
-            label: 'Your listing',
-            icon: Icons.admin_panel_settings_outlined,
-            color: _ownerBlue),
+          label: 'Your listing',
+          icon: Icons.admin_panel_settings_outlined,
+          color: _ownerBlue,
+        ),
+      if (isWanted)
+        const MarketplaceListingBadge(
+          label: 'Wanted',
+          icon: Icons.search_rounded,
+          color: _wantedPurple,
+        ),
       if (pendingSale)
         const MarketplaceListingBadge(
-            label: 'Pending sale',
-            icon: Icons.handshake_outlined,
-            color: _offerOrange)
+          label: 'Pending sale',
+          icon: Icons.handshake_outlined,
+          color: _offerOrange,
+        )
       else if (activityCount > 0)
         MarketplaceListingBadge(
-            label: isAuction
-                ? '$activityCount ${activityCount == 1 ? 'bid' : 'bids'}'
-                : '$activityCount ${activityCount == 1 ? 'offer' : 'offers'}',
-            icon: isAuction ? Icons.gavel : Icons.local_offer_outlined,
-            color: _offerOrange),
+          label: isAuction
+              ? '$activityCount ${activityCount == 1 ? 'bid' : 'bids'}'
+              : '$activityCount ${activityCount == 1 ? 'offer' : 'offers'}',
+          icon: isAuction ? Icons.gavel : Icons.local_offer_outlined,
+          color: _offerOrange,
+        ),
       if (priceWasReduced)
         MarketplaceListingBadge(
-            label:
-                '↓ ${priceDropPercent < 1 ? priceDropPercent.toStringAsFixed(1) : priceDropPercent.toStringAsFixed(0)}% price drop',
-            icon: Icons.trending_down,
-            color: _priceGreen),
-      if (isNew)
-        const MarketplaceListingBadge(
-            label: 'New', icon: Icons.auto_awesome_outlined, color: _newTeal),
+          label:
+              '↓ ${priceDropPercent < 1 ? priceDropPercent.toStringAsFixed(1) : priceDropPercent.toStringAsFixed(0)}% price drop',
+          icon: Icons.trending_down,
+          color: _priceGreen,
+        ),
       if (endsSoon)
         const MarketplaceListingBadge(
-            label: 'Ends soon', icon: Icons.timer_outlined, color: _urgentRed),
+          label: 'Ends soon',
+          icon: Icons.timer_outlined,
+          color: _urgentRed,
+        ),
+      if (verifiedSeller)
+        const MarketplaceListingBadge(
+          label: 'Verified seller',
+          icon: Icons.verified_outlined,
+          color: PipeBuyerColors.success,
+        ),
+      if (boosted)
+        const MarketplaceListingBadge(
+          label: 'Boosted',
+          icon: Icons.bolt_rounded,
+          color: PipeBuyerColors.orange,
+        ),
+      if (isNew)
+        const MarketplaceListingBadge(
+          label: 'New',
+          icon: Icons.auto_awesome_outlined,
+          color: _newTeal,
+        ),
     ];
 
     final primary = isOwner
         ? _ownerBlue
-        : pendingSale
-            ? _offerOrange
-            : priceWasReduced
-                ? _priceGreen
-                : activityCount > 0
-                    ? _offerOrange
-                    : endsSoon
-                        ? _urgentRed
-                        : isNew
-                            ? _newTeal
-                            : _neutralBorder;
+        : isWanted
+            ? _wantedPurple
+            : pendingSale
+                ? _offerOrange
+                : endsSoon
+                    ? _urgentRed
+                    : priceWasReduced
+                        ? _priceGreen
+                        : activityCount > 0 || boosted
+                            ? _offerOrange
+                            : verifiedSeller
+                                ? PipeBuyerColors.success
+                                : isNew
+                                    ? _newTeal
+                                    : _neutralBorder;
     return MarketplaceListingPresentation(
-        borderColor: primary, badges: badges, emphasized: badges.isNotEmpty);
+      borderColor: primary,
+      badges: badges,
+      emphasized: badges.isNotEmpty,
+    );
   }
 }
 
@@ -135,103 +179,207 @@ class MarketplaceListingBadges extends StatelessWidget {
     super.key,
     required this.badges,
     this.compact = false,
+    this.maxVisible,
   });
 
   final List<MarketplaceListingBadge> badges;
   final bool compact;
+  final int? maxVisible;
 
   @override
   Widget build(BuildContext context) {
     if (badges.isEmpty) return const SizedBox.shrink();
+    final limit = (maxVisible ?? (compact ? 3 : 6)).clamp(1, badges.length);
+    final visible = badges.take(limit).toList(growable: false);
+    final hidden = badges.length - visible.length;
+
     return Wrap(
       spacing: 5,
       runSpacing: 5,
-      children: badges
-          .map((badge) => Container(
-                padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 7 : 9, vertical: compact ? 3 : 4),
-                decoration: BoxDecoration(
-                  color: badge.color.withValues(alpha: .11),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: badge.color.withValues(alpha: .52), width: .8),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(badge.icon, size: compact ? 12 : 14, color: badge.color),
-                  const SizedBox(width: 4),
-                  Text(badge.label,
-                      style: TextStyle(
-                          color: badge.color,
-                          fontSize: compact ? 9.5 : 10.5,
-                          fontWeight: FontWeight.w800)),
-                ]),
-              ))
-          .toList(),
+      children: [
+        ...visible.map((badge) => _BadgePill(badge: badge, compact: compact)),
+        if (hidden > 0)
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 7 : 9,
+              vertical: compact ? 3 : 4,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: .78),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
+            child: Text(
+              '+$hidden',
+              style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: .70),
+                fontSize: compact ? 9.5 : 10.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+      ],
     );
   }
+}
+
+class _BadgePill extends StatelessWidget {
+  const _BadgePill({required this.badge, required this.compact});
+
+  final MarketplaceListingBadge badge;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 7 : 9,
+          vertical: compact ? 3 : 4,
+        ),
+        decoration: BoxDecoration(
+          color: badge.color.withValues(alpha: .095),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: badge.color.withValues(alpha: .32),
+            width: .8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              badge.icon,
+              size: compact ? 12 : 14,
+              color: badge.color,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              badge.label,
+              style: TextStyle(
+                color: badge.color,
+                fontSize: compact ? 9.5 : 10.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 Future<void> showMarketplaceListingLegend(BuildContext context) =>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Listing color key',
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
-            ),
-            const SizedBox(height: 4),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                  'Borders make important listing activity easier to recognize. A card can show more than one badge.',
-                  style: TextStyle(color: Color(0xFF66758A))),
-            ),
-            const SizedBox(height: 16),
-            ...const [
-              MarketplaceListingBadge(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Listing signals',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Color and status badges surface the most important marketplace activity without replacing the listing details themselves.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: .64),
+                      height: 1.4,
+                    ),
+              ),
+              const SizedBox(height: 18),
+              ...const [
+                MarketplaceListingBadge(
                   label: 'Your listing',
                   icon: Icons.admin_panel_settings_outlined,
-                  color: _ownerBlue),
-              MarketplaceListingBadge(
+                  color: _ownerBlue,
+                ),
+                MarketplaceListingBadge(
+                  label: 'Wanted / seeking inventory',
+                  icon: Icons.search_rounded,
+                  color: _wantedPurple,
+                ),
+                MarketplaceListingBadge(
                   label: 'Offers, bids, or pending sale',
                   icon: Icons.handshake_outlined,
-                  color: _offerOrange),
-              MarketplaceListingBadge(
+                  color: _offerOrange,
+                ),
+                MarketplaceListingBadge(
+                  label: 'Verified seller',
+                  icon: Icons.verified_outlined,
+                  color: PipeBuyerColors.success,
+                ),
+                MarketplaceListingBadge(
                   label: 'Price reduced',
                   icon: Icons.trending_down,
-                  color: _priceGreen),
-              MarketplaceListingBadge(
+                  color: _priceGreen,
+                ),
+                MarketplaceListingBadge(
+                  label: 'Boosted visibility',
+                  icon: Icons.bolt_rounded,
+                  color: PipeBuyerColors.orange,
+                ),
+                MarketplaceListingBadge(
                   label: 'New listing',
                   icon: Icons.auto_awesome_outlined,
-                  color: _newTeal),
-              MarketplaceListingBadge(
+                  color: _newTeal,
+                ),
+                MarketplaceListingBadge(
                   label: 'Auction ending soon',
                   icon: Icons.timer_outlined,
-                  color: _urgentRed),
-            ].map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 9),
-                  child: Row(children: [
-                    Container(
-                        width: 6,
-                        height: 34,
-                        decoration: BoxDecoration(
+                  color: _urgentRed,
+                ),
+              ].map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: item.color.withValues(alpha: .055),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: item.color.withValues(alpha: .18),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 36,
+                          decoration: BoxDecoration(
                             color: item.color,
-                            borderRadius: BorderRadius.circular(6))),
-                    const SizedBox(width: 10),
-                    Icon(item.icon, color: item.color, size: 21),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: Text(item.label,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700))),
-                  ]),
-                )),
-          ]),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Icon(item.icon, color: item.color, size: 21),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            item.label,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
