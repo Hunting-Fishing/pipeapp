@@ -157,6 +157,7 @@ abstract final class PipeBuyerTheme {
             const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         labelStyle: TextStyle(color: muted, fontWeight: FontWeight.w600),
         hintStyle: TextStyle(color: muted),
+        helperStyle: TextStyle(color: muted, height: 1.3),
         prefixIconColor: muted,
         suffixIconColor: muted,
         border: OutlineInputBorder(
@@ -175,6 +176,10 @@ abstract final class PipeBuyerTheme {
         errorBorder: OutlineInputBorder(
           borderRadius: controlRadius,
           borderSide: const BorderSide(color: PipeBuyerColors.danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: controlRadius,
+          borderSide: const BorderSide(color: PipeBuyerColors.danger, width: 2),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -226,6 +231,35 @@ abstract final class PipeBuyerTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(48, 44)),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return PipeBuyerColors.orange;
+            }
+            return surface;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            return text;
+          }),
+          side: WidgetStateProperty.resolveWith((states) => BorderSide(
+                color: states.contains(WidgetState.selected)
+                    ? PipeBuyerColors.orange
+                    : line,
+                width: states.contains(WidgetState.selected) ? 1.4 : 1,
+              )),
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+          ),
+          iconColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.selected) ? Colors.white : muted),
+        ),
+      ),
       tabBarTheme: TabBarThemeData(
         labelColor: PipeBuyerColors.orange,
         unselectedLabelColor: muted,
@@ -274,10 +308,87 @@ abstract final class PipeBuyerTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surface,
+        modalBackgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        modalElevation: 0,
+        showDragHandle: true,
+        dragHandleColor: muted.withValues(alpha: .38),
+        dragHandleSize: const Size(40, 4),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 18,
+        shadowColor: Colors.black.withValues(alpha: .16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titleTextStyle: TextStyle(
+          color: text,
+          fontSize: 20,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -.25,
+        ),
+        contentTextStyle: TextStyle(color: text, height: 1.42),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 12,
+        shadowColor: Colors.black.withValues(alpha: .14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: TextStyle(color: text, fontWeight: FontWeight.w700),
+      ),
+      badgeTheme: const BadgeThemeData(
+        backgroundColor: PipeBuyerColors.orange,
+        textColor: Colors.white,
+        textStyle: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+        padding: EdgeInsets.symmetric(horizontal: 6),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+        side: BorderSide(color: muted.withValues(alpha: .65), width: 1.4),
+        fillColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? PipeBuyerColors.orange
+                : Colors.transparent),
+        checkColor: const WidgetStatePropertyAll(Colors.white),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? Colors.white
+                : muted.withValues(alpha: .85)),
+        trackColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? PipeBuyerColors.orange
+                : line),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? PipeBuyerColors.orangePressed
+                : muted.withValues(alpha: .32)),
+      ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: PipeBuyerColors.orange,
         linearTrackColor: line,
         circularTrackColor: line,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: dark ? PipeBuyerColors.darkText : PipeBuyerColors.ink,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        textStyle: TextStyle(
+          color: dark ? PipeBuyerColors.ink : Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        waitDuration: const Duration(milliseconds: 450),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
