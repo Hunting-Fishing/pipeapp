@@ -18,9 +18,10 @@ function toMillis(value) {
 }
 
 function vipEarlyAccessUntilMillis(listing) {
-  if (!listing || listing.vipEarlyAccessEnabled === false) return null;
+  if (!listing) return null;
   const explicit = toMillis(listing.vipEarlyAccessUntil);
   if (explicit != null) return explicit;
+  if (listing.vipEarlyAccessEnabled !== true) return null;
   const published = toMillis(listing.publishedAt) || toMillis(listing.createdAt);
   return published == null ? null : published + VIP_EARLY_ACCESS_HOURS * 60 * 60 * 1000;
 }
