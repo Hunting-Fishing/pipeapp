@@ -139,6 +139,10 @@ if (-not $SkipSeed) {
   if ($LASTEXITCODE -ne 0) {
     throw 'Pipe Buyer integration seed failed. Check the error above.'
   }
+  & node (Join-Path $functionsDir 'scripts\seed_live_test_memberships.js')
+  if ($LASTEXITCODE -ne 0) {
+    throw 'VIP/standard membership seed failed. Check the error above.'
+  }
 }
 
 if (-not $SkipSmokeTest) {
@@ -155,7 +159,21 @@ if (-not $SkipSmokeTest) {
     -Body $signInBody
 
   if ($signIn.localId -ne 'visual-buyer' -or [string]::IsNullOrWhiteSpace($signIn.idToken)) {
-    throw 'The buyer fixture could not authenticate against the Pipe Buyer Auth emulator.'
+    throw 'The VIP buyer fixture could not authenticate against the Pipe Buyer Auth emulator.'
+  }
+
+  $standardBody = @{
+    email = 'standard.visual@pipebuyer.test'
+    password = 'PipeBuyerDemo!2026'
+    returnSecureToken = $true
+  } | ConvertTo-Json
+  $standardSignIn = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://127.0.0.1:$authPort/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=pipebuyer-local" `
+    -ContentType 'application/json' `
+    -Body $standardBody
+  if ($standardSignIn.localId -ne 'visual-standard') {
+    throw 'The standard-user fixture could not authenticate against the Pipe Buyer Auth emulator.'
   }
 
   $headers = @{ Authorization = "Bearer $($signIn.idToken)" }
@@ -169,18 +187,20 @@ if (-not $SkipSmokeTest) {
   if ($null -eq $callable.result) {
     throw 'The Functions emulator answered, but syncAccountVerification did not return a callable result.'
   }
-  Write-Host 'Auth + Firestore-backed callable verification passed.' -ForegroundColor Green
+  Write-Host 'VIP Auth + standard Auth + Firestore-backed callable verification passed.' -ForegroundColor Green
 }
 
 Write-Host ''
 Write-Host 'FULL Pipe Buyer integration sandbox' -ForegroundColor Yellow
 Write-Host "  Emulator UI: http://127.0.0.1:$uiPort" -ForegroundColor White
-Write-Host "  Buyer:       buyer.visual@pipebuyer.test" -ForegroundColor White
-Write-Host "  Seller:      seller.visual@pipebuyer.test" -ForegroundColor White
-Write-Host "  Carrier:     carrier.visual@pipebuyer.test" -ForegroundColor White
-Write-Host '  Password:    PipeBuyerDemo!2026' -ForegroundColor White
+Write-Host "  VIP Buyer:    buyer.visual@pipebuyer.test" -ForegroundColor White
+Write-Host "  Standard:     standard.visual@pipebuyer.test" -ForegroundColor White
+Write-Host "  Seller:       seller.visual@pipebuyer.test" -ForegroundColor White
+Write-Host "  Carrier:      carrier.visual@pipebuyer.test" -ForegroundColor White
+Write-Host '  Password:     PipeBuyerDemo!2026' -ForegroundColor White
 Write-Host ''
-Write-Host 'Marketplace, Wanted, Offers, Auctions, Messaging and Dispatch functions are enabled locally.' -ForegroundColor Green
+Write-Host 'Marketplace, Wanted, Offers, Auctions, Messaging, Dispatch and VIP early access are enabled locally.' -ForegroundColor Green
+Write-Host 'Use the Standard account to verify locked 24-hour teaser cards; use the VIP Buyer to verify immediate access.' -ForegroundColor Green
 Write-Host 'Production customer data is not read or written by this sandbox.' -ForegroundColor Green
 Write-Host 'External payment-processor calls require separate TEST-mode provider credentials; never use production payment secrets here.' -ForegroundColor Yellow
 
