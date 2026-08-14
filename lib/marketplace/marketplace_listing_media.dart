@@ -28,8 +28,8 @@ String? marketplaceListingThumbnailUrl(Map<String, dynamic> listing) {
 ///
 /// Real seller photography always wins. Listings without a valid photo use
 /// the existing Pipe Buyer industrial illustration library, resolved from the
-/// product type/category. This keeps empty cards visually useful without
-/// pretending stock artwork is an actual photo of the listed item.
+/// product type/category. Stock/category artwork is always identified as an
+/// illustration so it cannot be mistaken for a photograph of the listed item.
 class MarketplaceListingMedia extends StatelessWidget {
   const MarketplaceListingMedia({
     super.key,
@@ -39,6 +39,7 @@ class MarketplaceListingMedia extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.showPhotoCount = true,
     this.showCategoryLabel = false,
+    this.showSourceLabel = true,
     this.heroTag,
   });
 
@@ -48,6 +49,7 @@ class MarketplaceListingMedia extends StatelessWidget {
   final BoxFit fit;
   final bool showPhotoCount;
   final bool showCategoryLabel;
+  final bool showSourceLabel;
   final Object? heroTag;
 
   String get _title => '${listing['title'] ?? 'Marketplace listing'}'.trim();
@@ -59,7 +61,8 @@ class MarketplaceListingMedia extends StatelessWidget {
   Widget build(BuildContext context) {
     final images = marketplaceListingImageUrls(listing);
     final thumbnail = marketplaceListingThumbnailUrl(listing);
-    final visual = thumbnail == null
+    final hasSellerPhoto = thumbnail != null;
+    final visual = !hasSellerPhoto
         ? _IndustrialFallback(
             label: _visualLabel,
             title: _title,
@@ -89,15 +92,29 @@ class MarketplaceListingMedia extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.transparent,
                       Color(0x08000000),
-                      Color(0x50000000),
+                      Colors.transparent,
+                      Color(0x5C000000),
                     ],
-                    stops: [0, .58, 1],
+                    stops: [0, .52, 1],
                   ),
                 ),
               ),
             ),
+            if (showSourceLabel)
+              Positioned(
+                left: 10,
+                top: 10,
+                child: _MediaBadge(
+                  icon: hasSellerPhoto
+                      ? Icons.photo_camera_outlined
+                      : Icons.draw_outlined,
+                  label: hasSellerPhoto ? 'Seller photo' : 'Category illustration',
+                  accent: hasSellerPhoto
+                      ? PipeBuyerColors.success
+                      : PipeBuyerColors.orange,
+                ),
+              ),
             if (showPhotoCount && images.length > 1)
               Positioned(
                 right: 10,
@@ -117,6 +134,7 @@ class MarketplaceListingMedia extends StatelessWidget {
                   child: _MediaBadge(
                     icon: Icons.category_outlined,
                     label: _category,
+                    accent: PipeBuyerColors.orange,
                   ),
                 ),
               ),
@@ -135,9 +153,9 @@ class MarketplaceListingMedia extends StatelessWidget {
 
     return Semantics(
       image: true,
-      label: thumbnail == null
+      label: !hasSellerPhoto
           ? '$_title. Industrial category illustration; seller photo not provided.'
-          : '$_title listing photo',
+          : '$_title seller-provided listing photo',
       child: content,
     );
   }
@@ -163,23 +181,43 @@ class _RemoteListingPhoto extends StatelessWidget {
         url,
         fit: fit,
         filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) return child;
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              _IndustrialFallback(
-                label: fallbackLabel,
-                title: title,
-                category: category,
-              ),
-              const Center(
-                child: SizedBox.square(
-                  dimension: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2.5),
-                ),
-              ),
-            ],
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            switchInCurve: Curves.easeOut,
+            child: frame != null
+                ? KeyedSubtree(key: const ValueKey('photo'), child: child)
+                : Stack(
+                    key: const ValueKey('loading'),
+                    fit: StackFit.expand,
+                    children: [
+                      _IndustrialFallback(
+                        label: fallbackLabel,
+                        title: title,
+                        category: category,
+                      ),
+                      const Center(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xD9111820),
+                            shape: BoxShape.circle,
+                          ),
+                          child: SizedBox.square(
+                            dimension: 44,
+                            child: Padding(
+                              padding: EdgeInsets.all(10),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: PipeBuyerColors.orange,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
           );
         },
         errorBuilder: (_, __, ___) => _IndustrialFallback(
@@ -211,12 +249,19 @@ class _IndustrialFallback extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             PipeBuyerColors.ink,
+            PipeBuyerColors.charcoal,
             PipeBuyerColors.graphite,
           ],
+          stops: [0, .55, 1],
         ),
       ),
       child: Stack(
         children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _IndustrialGridPainter()),
+            ),
+          ),
           Positioned(
             right: -28,
             top: -34,
@@ -225,7 +270,7 @@ class _IndustrialFallback extends StatelessWidget {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: PipeBuyerColors.orange.withValues(alpha: .10),
+                color: PipeBuyerColors.orange.withValues(alpha: .12),
               ),
             ),
           ),
@@ -249,7 +294,7 @@ class _IndustrialFallback extends StatelessWidget {
                 children: [
                   IndustrialAssetIcon(
                     label: resolvedLabel,
-                    size: 104,
+                    size: 108,
                     borderRadius: 12,
                     fallback: const Icon(
                       Icons.precision_manufacturing_outlined,
@@ -280,6 +325,7 @@ class _IndustrialFallback extends StatelessWidget {
             child: _MediaBadge(
               icon: Icons.image_not_supported_outlined,
               label: 'Seller photo not provided',
+              accent: PipeBuyerColors.orange,
             ),
           ),
         ],
@@ -288,25 +334,58 @@ class _IndustrialFallback extends StatelessWidget {
   }
 }
 
+class _IndustrialGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: .035)
+      ..strokeWidth = 1;
+    const spacing = 28.0;
+    for (double x = 0; x <= size.width; x += spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y <= size.height; y += spacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _MediaBadge extends StatelessWidget {
-  const _MediaBadge({required this.icon, required this.label});
+  const _MediaBadge({
+    required this.icon,
+    required this.label,
+    this.accent,
+  });
 
   final IconData icon;
   final String label;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) => Container(
         constraints: const BoxConstraints(maxWidth: 250),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xCC111820),
+          color: const Color(0xDF111820),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white24),
+          border: Border.all(
+            color: accent?.withValues(alpha: .72) ?? Colors.white24,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x26000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 14),
+            Icon(icon, color: accent ?? Colors.white, size: 14),
             const SizedBox(width: 5),
             Flexible(
               child: Text(
