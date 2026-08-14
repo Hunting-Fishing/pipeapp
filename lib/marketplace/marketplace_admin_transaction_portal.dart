@@ -6,6 +6,7 @@ import 'marketplace_admin_access.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_payment_readiness.dart';
 import 'marketplace_tax_compliance_admin_page.dart';
+import 'marketplace_weight_catalog_admin.dart';
 
 class MarketplaceAdminTransactionPortal extends StatefulWidget {
   const MarketplaceAdminTransactionPortal({super.key});
@@ -92,7 +93,7 @@ class _MarketplaceAdminTransactionPortalState
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Sign in with an approved administrator account and complete multi-factor authentication before accessing billing, fee, tax, or transaction controls.',
+                      'Sign in with an approved administrator account and complete multi-factor authentication before accessing billing, fee, tax, transaction, or reference-data controls.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             height: 1.45,
@@ -117,13 +118,13 @@ class _MarketplaceAdminTransactionPortalState
     }
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Billing, fees & tax'),
+              Text('Administration'),
               SizedBox(width: 10),
               PipeBuyerStatusBadge(
                 label: 'ADMIN',
@@ -144,6 +145,10 @@ class _MarketplaceAdminTransactionPortalState
                 text: 'Tax Compliance',
               ),
               Tab(
+                icon: Icon(Icons.scale_outlined),
+                text: 'Weight Catalog',
+              ),
+              Tab(
                 icon: Icon(Icons.receipt_long_outlined),
                 text: 'Transaction Records',
               ),
@@ -154,6 +159,7 @@ class _MarketplaceAdminTransactionPortalState
           children: [
             MarketplacePaymentReadinessPanel(),
             MarketplaceTaxComplianceAdminPage(),
+            MarketplaceWeightCatalogAdminPage(),
             MarketplaceTransactionRecordsPanel(),
           ],
         ),
