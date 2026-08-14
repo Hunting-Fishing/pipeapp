@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/config/public_release_config.dart';
+import '../core/design/pipe_buyer_theme.dart';
+import 'industrial_icon_assets.dart';
 import 'marketplace_data_state.dart';
 
 enum MarketplacePublicInformationKind {
@@ -77,7 +79,7 @@ class MarketplacePublicInformationPage extends StatelessWidget {
               context.go('/');
             }
           },
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
         ),
         title: const Text('Pipe Buyer'),
       ),
@@ -86,12 +88,12 @@ class MarketplacePublicInformationPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
+              constraints: const BoxConstraints(maxWidth: 900),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _PublicPageHeader(kind: kind),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   if (kind.policyId != null)
                     _PublishedPolicy(policyId: kind.policyId!)
                   else if (kind == MarketplacePublicInformationKind.support)
@@ -116,38 +118,121 @@ class _PublicPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
         header: true,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: Icon(
-                kind.icon,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                size: 30,
-              ),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [PipeBuyerColors.ink, PipeBuyerColors.graphite],
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    kind.title,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x21000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -58,
+                top: -72,
+                child: Container(
+                  width: 210,
+                  height: 210,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: PipeBuyerColors.orange.withValues(alpha: .08),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(22),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 620;
+                    final artwork = Container(
+                      width: compact ? 78 : 104,
+                      height: compact ? 78 : 104,
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: IndustrialAssetIcon(
+                        label: kind.title,
+                        assetPath: kind == MarketplacePublicInformationKind.support
+                            ? IndustrialIconAssets.inAppMessaging
+                            : kind == MarketplacePublicInformationKind.privacy
+                                ? IndustrialIconAssets.fraudScan
+                                : IndustrialIconAssets.industrialSite,
+                        size: compact ? 66 : 90,
+                        borderRadius: 11,
+                        fallback: Icon(
+                          kind.icon,
+                          color: PipeBuyerColors.orange,
+                          size: compact ? 34 : 46,
                         ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    kind.subtitle,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ],
+                      ),
+                    );
+                    final copy = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'PIPE BUYER • TRUST & ACCOUNT',
+                          style: TextStyle(
+                            color: PipeBuyerColors.orange,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: .72,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          kind.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 27,
+                            height: 1.12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          kind.subtitle,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13.5,
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
+                    );
+                    if (compact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          artwork,
+                          const SizedBox(height: 16),
+                          copy,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        artwork,
+                        const SizedBox(width: 18),
+                        Expanded(child: copy),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
 }
@@ -227,39 +312,82 @@ class _PublishedPolicyCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${data['title'] ?? 'Published policy'}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                if (version.isNotEmpty || effectiveAt != null) ...[
-                  const SizedBox(height: 4),
-                  Text([
-                    if (version.isNotEmpty) 'Version $version',
-                    if (effectiveAt != null)
-                      'Effective ${DateFormat.yMMMd().format(effectiveAt.toDate())}',
-                  ].join(' • ')),
+        Container(
+          padding: const EdgeInsets.all(19),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: Theme.of(context).dividerColor),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0C000000),
+                blurRadius: 15,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: PipeBuyerColors.orangeSoft,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: const Icon(
+                      Icons.verified_user_outlined,
+                      color: PipeBuyerColors.orangePressed,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${data['title'] ?? 'Published policy'}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        if (version.isNotEmpty || effectiveAt != null) ...[
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 7,
+                            runSpacing: 5,
+                            children: [
+                              if (version.isNotEmpty)
+                                _PolicyMetaPill('Version $version'),
+                              if (effectiveAt != null)
+                                _PolicyMetaPill(
+                                  'Effective ${DateFormat.yMMMd().format(effectiveAt.toDate())}',
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
-                const SizedBox(height: 14),
-                Text(
-                  '${data['summary'] ?? 'Open the reviewed document for complete information.'}',
-                  style: const TextStyle(height: 1.45),
-                ),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: () => _openDocument(context),
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text('Open approved document'),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 15),
+              Text(
+                '${data['summary'] ?? 'Open the reviewed document for complete information.'}',
+                style: const TextStyle(height: 1.5),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: () => _openDocument(context),
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Open approved document'),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -273,6 +401,25 @@ class _PublishedPolicyCard extends StatelessWidget {
       ],
     );
   }
+}
+
+class _PolicyMetaPill extends StatelessWidget {
+  const _PolicyMetaPill(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+        ),
+      );
 }
 
 class _PublicSupport extends StatelessWidget {
@@ -302,6 +449,7 @@ class _PublicSupport extends StatelessWidget {
             title: 'Signed-in support',
             message:
                 'Open Account, then Settings and Help & Support. Your case and replies remain private between your account and authorized support administrators.',
+            tone: PipeBuyerColors.orange,
           ),
           const SizedBox(height: 12),
           _InformationCard(
@@ -310,6 +458,7 @@ class _PublicSupport extends StatelessWidget {
             message: configuration.hasValidSupportEmail
                 ? 'Email ${configuration.normalizedSupportEmail}. Do not send passwords, verification codes, banking credentials, or government identification.'
                 : 'The public support address is not configured in this non-release build. Public launch remains blocked until it is available.',
+            tone: PipeBuyerColors.industrialBlue,
             action: configuration.hasValidSupportEmail
                 ? FilledButton.icon(
                     onPressed: () => _email(context),
@@ -357,6 +506,7 @@ class _AccountDeletion extends StatelessWidget {
             title: 'Request deletion in Pipe Buyer',
             message:
                 'Sign in, open Account, choose Settings, then Privacy & account and Schedule account deletion. Recent authentication and an exact confirmation are required.',
+            tone: PipeBuyerColors.orange,
           ),
           const SizedBox(height: 12),
           const _InformationCard(
@@ -364,6 +514,7 @@ class _AccountDeletion extends StatelessWidget {
             title: 'Fourteen-day cancellation period',
             message:
                 'You can cancel the request during the 14-day waiting period. The service rechecks active listings, offers, transactions, Dispatch work, disputes, and administrator responsibilities before final deletion.',
+            tone: PipeBuyerColors.industrialBlue,
           ),
           const SizedBox(height: 12),
           const _InformationCard(
@@ -371,6 +522,7 @@ class _AccountDeletion extends StatelessWidget {
             title: 'Records that must be retained',
             message:
                 'Private profile and owned media are removed when deletion completes. Records required for safety, disputes, completed transactions, fraud prevention, or legal obligations may be anonymized and retained under the approved retention policy.',
+            tone: PipeBuyerColors.slate,
           ),
           if (configuration.hasValidSupportEmail) ...[
             const SizedBox(height: 12),
@@ -391,44 +543,57 @@ class _InformationCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
+    required this.tone,
     this.action,
   });
 
   final IconData icon;
   final String title;
   final String message;
+  final Color tone;
   final Widget? action;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(icon, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: .09),
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(message, style: const TextStyle(height: 1.45)),
-              if (action != null) ...[
-                const SizedBox(height: 16),
-                action!,
+                  child: Icon(icon, color: tone),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
               ],
+            ),
+            const SizedBox(height: 10),
+            Text(message, style: const TextStyle(height: 1.45)),
+            if (action != null) ...[
+              const SizedBox(height: 16),
+              action!,
             ],
-          ),
+          ],
         ),
       );
 }
