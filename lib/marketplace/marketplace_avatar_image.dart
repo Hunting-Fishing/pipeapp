@@ -58,6 +58,25 @@ class MarketplaceAvatarImage extends StatelessWidget {
                 ? PipeBuyerColors.orange
                 : Theme.of(context).dividerColor);
     final innerSize = (size - 4).clamp(0, size).toDouble();
+    final businessRadius = BorderRadius.circular((size * .22).clamp(10, 18));
+
+    Widget clipIdentity(Widget child) => business
+        ? ClipRRect(borderRadius: businessRadius, child: child)
+        : ClipOval(child: child);
+
+    final frameDecoration = BoxDecoration(
+      shape: business ? BoxShape.rectangle : BoxShape.circle,
+      borderRadius: business ? businessRadius : null,
+      color: Theme.of(context).cardColor,
+      border: Border.all(color: ring, width: verified ? 2.5 : 1.5),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x16000000),
+          blurRadius: 14,
+          offset: Offset(0, 5),
+        ),
+      ],
+    );
 
     return Semantics(
       image: true,
@@ -74,20 +93,9 @@ class MarketplaceAvatarImage extends StatelessWidget {
                 width: size,
                 height: size,
                 padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).cardColor,
-                  border: Border.all(color: ring, width: verified ? 2.5 : 1.5),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x16000000),
-                      blurRadius: 14,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: SizedBox.square(
+                decoration: frameDecoration,
+                child: clipIdentity(
+                  SizedBox.square(
                     dimension: innerSize,
                     child: FutureBuilder<Uint8List?>(
                       future: loadBytes(photoUrl),
@@ -99,6 +107,7 @@ class MarketplaceAvatarImage extends StatelessWidget {
                             key: ValueKey(photoUrl),
                             fit: BoxFit.cover,
                             filterQuality: FilterQuality.high,
+                            gaplessPlayback: true,
                           );
                         }
                         if (snapshot.connectionState != ConnectionState.done &&
@@ -123,6 +132,25 @@ class MarketplaceAvatarImage extends StatelessWidget {
                 ),
               ),
             ),
+            if (business)
+              Positioned(
+                left: 5,
+                top: 5,
+                child: Container(
+                  width: size >= 64 ? 22 : 18,
+                  height: size >= 64 ? 22 : 18,
+                  decoration: BoxDecoration(
+                    color: const Color(0xE6111820),
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Icon(
+                    Icons.business_outlined,
+                    color: PipeBuyerColors.orange,
+                    size: size >= 64 ? 13 : 10,
+                  ),
+                ),
+              ),
             if (verified)
               Positioned(
                 right: -1,
@@ -201,11 +229,15 @@ class MarketplaceStorageMediaImage extends StatelessWidget {
         builder: (context, snapshot) {
           final bytes = snapshot.data;
           if (bytes != null) {
-            return Image.memory(
-              bytes,
-              key: ValueKey(url),
-              fit: fit,
-              filterQuality: FilterQuality.high,
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: Image.memory(
+                bytes,
+                key: ValueKey(url),
+                fit: fit,
+                filterQuality: FilterQuality.high,
+                gaplessPlayback: true,
+              ),
             );
           }
           if (snapshot.connectionState != ConnectionState.done) {
@@ -214,14 +246,34 @@ class MarketplaceStorageMediaImage extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFFF3F5F7), Color(0xFFE7EBEF)],
+                  colors: [
+                    PipeBuyerColors.ink,
+                    PipeBuyerColors.graphite,
+                  ],
                 ),
               ),
-              child: const Center(
-                child: SizedBox.square(
-                  dimension: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2.25),
-                ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned(
+                    right: -30,
+                    top: -38,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color(0x1FFF6A00),
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox.square(dimension: 130),
+                    ),
+                  ),
+                  const SizedBox.square(
+                    dimension: 34,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: PipeBuyerColors.orange,
+                    ),
+                  ),
+                ],
               ),
             );
           }
