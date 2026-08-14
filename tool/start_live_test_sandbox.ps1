@@ -86,7 +86,7 @@ if (-not $allSandboxServicesRunning) {
   if (Test-LocalPort $hubPort) {
     throw @"
 Another Firebase Emulator Suite is already running on hub port $hubPort.
-This is usually the earlier PipeBuyer visual sandbox. In that emulator window press Ctrl+C, wait for it to stop, then run this command again.
+This is usually an earlier PipeBuyer sandbox. In that emulator window press Ctrl+C, wait for it to stop, then run this command again.
 Your separate service on port 8080 does NOT need to be stopped; the full PipeBuyer sandbox uses Firestore port $firestorePort.
 "@
   }
@@ -139,9 +139,15 @@ if (-not $SkipSeed) {
   if ($LASTEXITCODE -ne 0) {
     throw 'Pipe Buyer integration seed failed. Check the error above.'
   }
+
   & node (Join-Path $functionsDir 'scripts\seed_live_test_memberships.js')
   if ($LASTEXITCODE -ne 0) {
     throw 'VIP/standard membership seed failed. Check the error above.'
+  }
+
+  & node (Join-Path $functionsDir 'scripts\seed_live_test_dispatch_access.js')
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Dispatch carrier-access seed failed. Check the error above.'
   }
 }
 
@@ -176,6 +182,20 @@ if (-not $SkipSmokeTest) {
     throw 'The standard-user fixture could not authenticate against the Pipe Buyer Auth emulator.'
   }
 
+  $carrierBody = @{
+    email = 'carrier.visual@pipebuyer.test'
+    password = 'PipeBuyerDemo!2026'
+    returnSecureToken = $true
+  } | ConvertTo-Json
+  $carrierSignIn = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://127.0.0.1:$authPort/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=pipebuyer-local" `
+    -ContentType 'application/json' `
+    -Body $carrierBody
+  if ($carrierSignIn.localId -ne 'visual-carrier') {
+    throw 'The Dispatch carrier fixture could not authenticate against the Pipe Buyer Auth emulator.'
+  }
+
   $headers = @{ Authorization = "Bearer $($signIn.idToken)" }
   $callable = Invoke-RestMethod `
     -Method Post `
@@ -187,7 +207,7 @@ if (-not $SkipSmokeTest) {
   if ($null -eq $callable.result) {
     throw 'The Functions emulator answered, but syncAccountVerification did not return a callable result.'
   }
-  Write-Host 'VIP Auth + standard Auth + Firestore-backed callable verification passed.' -ForegroundColor Green
+  Write-Host 'VIP + Standard + Carrier Auth and Firestore-backed callable verification passed.' -ForegroundColor Green
 }
 
 Write-Host ''
@@ -196,11 +216,12 @@ Write-Host "  Emulator UI: http://127.0.0.1:$uiPort" -ForegroundColor White
 Write-Host "  VIP Buyer:    buyer.visual@pipebuyer.test" -ForegroundColor White
 Write-Host "  Standard:     standard.visual@pipebuyer.test" -ForegroundColor White
 Write-Host "  Seller:       seller.visual@pipebuyer.test" -ForegroundColor White
-Write-Host "  Carrier:      carrier.visual@pipebuyer.test" -ForegroundColor White
+Write-Host "  Carrier:      carrier.visual@pipebuyer.test  (approved Dispatch provider)" -ForegroundColor White
 Write-Host '  Password:     PipeBuyerDemo!2026' -ForegroundColor White
 Write-Host ''
 Write-Host 'Marketplace, Wanted, Offers, Auctions, Messaging, Dispatch and VIP early access are enabled locally.' -ForegroundColor Green
 Write-Host 'Use the Standard account to verify locked 24-hour teaser cards; use the VIP Buyer to verify immediate access.' -ForegroundColor Green
+Write-Host 'The Carrier fixture is approved, available for hire and has a test Dispatch entitlement.' -ForegroundColor Green
 Write-Host 'Production customer data is not read or written by this sandbox.' -ForegroundColor Green
 Write-Host 'External payment-processor calls require separate TEST-mode provider credentials; never use production payment secrets here.' -ForegroundColor Yellow
 
