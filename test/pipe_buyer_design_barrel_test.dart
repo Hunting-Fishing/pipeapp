@@ -22,6 +22,11 @@ void main() {
       value: '12',
       icon: Icons.local_shipping_outlined,
     );
+    const analyticsMetric = PipeBuyerAnalyticsMetricData(
+      label: 'Views',
+      value: '184',
+      icon: Icons.visibility_outlined,
+    );
     const dealRow = PipeBuyerDealRowData(
       label: 'Quantity',
       value: '20,000 ft',
@@ -35,6 +40,7 @@ void main() {
     expect(trust.title, 'Verified Businesses');
     expect(specification.value, 'J-55');
     expect(dispatchMetric.value, '12');
+    expect(analyticsMetric.value, '184');
     expect(dealRow.value, '20,000 ft');
     expect(health.complete, isTrue);
     expect(PipeBuyerColors.orange, const Color(0xFFFF6A00));
