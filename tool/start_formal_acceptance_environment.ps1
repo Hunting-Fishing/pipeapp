@@ -16,6 +16,7 @@ $formalLauncher = Join-Path $PSScriptRoot 'start_formal_test_sandbox.ps1'
 $reseedHelper = Join-Path $PSScriptRoot 'reseed_formal_test_data.ps1'
 $clientLauncher = Join-Path $PSScriptRoot 'launch_formal_flutter_client.ps1'
 $analyticsTest = Join-Path $repoRoot 'firebase\functions\test\marketplace_listing_insights.test.js'
+$timedBuyingSmoke = Join-Path $repoRoot 'firebase\functions\integration\timed_buying_sandbox.mjs'
 if (-not (Test-Path $formalLauncher)) {
   throw 'tool/start_formal_test_sandbox.ps1 is missing.'
 }
@@ -28,6 +29,9 @@ if (-not (Test-Path $clientLauncher)) {
 if (-not (Test-Path $analyticsTest)) {
   throw 'Marketplace listing analytics test is missing.'
 }
+if (-not (Test-Path $timedBuyingSmoke)) {
+  throw 'Timed Buying sandbox callable smoke test is missing.'
+}
 
 Write-Step 'Starting Pipe Buyer emulators, deterministic fixtures and smoke tests'
 & powershell -ExecutionPolicy Bypass -File $formalLauncher -SeedOnly
@@ -39,6 +43,24 @@ Write-Step 'Refreshing and verifying the complete acceptance dataset including a
 & powershell -ExecutionPolicy Bypass -File $reseedHelper
 if ($LASTEXITCODE -ne 0) {
   throw 'Formal test-data verification failed.'
+}
+
+Write-Step 'Proving Timed Buying offer submission through Auth + Functions + Firestore'
+$env:FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:19099'
+$env:FIRESTORE_EMULATOR_HOST = '127.0.0.1:18080'
+$env:FIREBASE_STORAGE_EMULATOR_HOST = '127.0.0.1:19199'
+$env:FUNCTIONS_EMULATOR_HOST = '127.0.0.1:15001'
+$env:GCLOUD_PROJECT = 'flutter-flow-pipe'
+$env:GOOGLE_CLOUD_PROJECT = 'flutter-flow-pipe'
+& node $timedBuyingSmoke
+if ($LASTEXITCODE -ne 0) {
+  throw 'Timed Buying callable smoke test failed. Read the error above before opening Flutter.'
+}
+
+Write-Step 'Confirming deterministic fixtures after Timed Buying smoke cleanup'
+& powershell -ExecutionPolicy Bypass -File $reseedHelper -SkipSeed
+if ($LASTEXITCODE -ne 0) {
+  throw 'Formal test-data verification failed after Timed Buying smoke cleanup.'
 }
 
 Write-Step 'Running seller listing analytics function contracts'
