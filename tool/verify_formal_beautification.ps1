@@ -30,6 +30,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Dart analyzer failed.' }
 
   $formalTests = @(
+    'test/pipe_buyer_design_barrel_test.dart',
     'test/pipe_buyer_commerce_components_test.dart',
     'test/pipe_buyer_browse_components_test.dart',
     'test/pipe_buyer_formal_sequence_test.dart',
