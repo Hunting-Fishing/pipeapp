@@ -34,9 +34,45 @@ if ($branch -ne 'design/formal-beautification-foundation') {
   throw "This helper is for design/formal-beautification-foundation. Current branch: $branch"
 }
 
+# Flutter tooling can rewrite these tracked registrant files after dependency
+# restoration even when there is no intentional source change. They are safe to
+# restore to the branch version before this migration. Any other local change is
+# treated as user work and blocks the migration.
+$generatedFlutterFiles = @(
+  'linux/flutter/generated_plugin_registrant.cc',
+  'linux/flutter/generated_plugin_registrant.h',
+  'linux/flutter/generated_plugins.cmake',
+  'macos/Flutter/GeneratedPluginRegistrant.swift',
+  'windows/flutter/generated_plugin_registrant.cc',
+  'windows/flutter/generated_plugin_registrant.h',
+  'windows/flutter/generated_plugins.cmake'
+)
+
+$statusLines = @(git status --porcelain)
+if ($statusLines.Count -gt 0) {
+  $localPaths = @(
+    $statusLines | ForEach-Object {
+      if ($_.Length -ge 4) { $_.Substring(3).Trim().Trim('"') }
+    }
+  )
+  $nonGeneratedChanges = @(
+    $localPaths | Where-Object { $_ -and $_ -notin $generatedFlutterFiles }
+  )
+  if ($nonGeneratedChanges.Count -gt 0) {
+    git status --short
+    throw 'Local source changes detected. Commit/stash them before applying the Timed Buying migration.'
+  }
+
+  Write-Step 'Restoring Flutter-generated plugin registrant noise'
+  & git restore -- $generatedFlutterFiles
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Could not restore Flutter-generated registrant files.'
+  }
+}
+
 if (git status --porcelain) {
   git status --short
-  throw 'Local changes detected. Commit/stash them before applying the Timed Buying migration.'
+  throw 'Local changes remain after generated-file cleanup. Commit/stash them before applying the Timed Buying migration.'
 }
 
 $patcher = Join-Path $PSScriptRoot 'apply_timed_buying_experience_v1.mjs'
