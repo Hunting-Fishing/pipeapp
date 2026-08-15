@@ -56,6 +56,7 @@ function patchTimedBuyingPage() {
   const labels = [
     ['Loading timed auction', 'Loading Timed Buying'],
     ['Retrieving current bids, timing, and listing details…', 'Retrieving current timed offers, timing, and listing details…'],
+    ['Timed auctions', 'Timed Buying'],
     ['Timed auction', 'Timed Buying'],
     ['This auction may have ended, been removed, or the link may be incorrect.', 'This Timed Buying listing may have closed, been removed, or the link may be incorrect.'],
     ['The auction index is still being prepared. Try again shortly.', 'The Timed Buying index is still being prepared. Try again shortly.'],
@@ -65,7 +66,6 @@ function patchTimedBuyingPage() {
     ['All auctions loaded.', 'All Timed Buying listings loaded.'],
     ['Load more auctions', 'Load more Timed Buying'],
     ['PIPE BUYER AUCTIONS', 'PIPE BUYER TIMED BUYING'],
-    ['Timed auctions', 'Timed Buying'],
     ['Bid on oilfield pipe, equipment and industrial inventory with clear timing and auditable bid history.', 'Use timed offers for oilfield pipe, equipment and industrial inventory with clear closing times and auditable offer activity.'],
     ['Create auction', 'Create timed listing'],
     ['Signals', 'Time legend'],
@@ -97,7 +97,7 @@ function patchTimedBuyingPage() {
     ['Bid withdrawn. Auction totals were updated.', 'Timed offer withdrawn. Timed Buying totals were updated.'],
     ['Auctions could not be loaded', 'Timed Buying could not be loaded'],
     ['More auctions could not be loaded', 'More Timed Buying listings could not be loaded'],
-    ['Timed auction listings will appear here separately from Marketplace inventory.', 'Timed Buying listings will appear here separately from Marketplace inventory.'],
+    ['Timed Buying listings will appear here separately from Marketplace inventory.', 'Timed Buying listings will appear here separately from Marketplace inventory.'],
     ['Create an auction', 'Create a timed listing'],
     ['Check more auctions', 'Check more Timed Buying'],
     ['This immediately closes the auction.', 'This immediately closes the Timed Buying listing.'],
@@ -109,14 +109,14 @@ function patchTimedBuyingPage() {
     ['No reserve price', 'No seller minimum'],
     ['Reserve has been met', 'Seller minimum has been met'],
     ['Reserve not met', 'Seller minimum not met'],
-    ['Reserve', 'Seller minimum'],
+    ["_row('Reserve',", "_row('Seller minimum',"],
   ];
   for (const [before, after] of labels) {
     source = replaceOptional(source, before, after);
   }
 
-  source = replaceOptional(source, "Icons.gavel_outlined", "Icons.timer_outlined");
-  source = replaceOptional(source, "Icons.gavel", "Icons.timer_rounded");
+  source = replaceOptional(source, 'Icons.gavel_outlined', 'Icons.timer_outlined');
+  source = replaceOptional(source, 'Icons.gavel', 'Icons.timer_rounded');
   source = replaceOptional(
     source,
     'IndustrialIconAssets.complianceGavel',
@@ -145,7 +145,7 @@ function patchTimedBuyingPage() {
   source = replaceRequired(
     source,
     `          ],\n        ),\n      ),\n    );\n  }\n}\n\nclass _AuctionStateBadge`,
-    `          ],\n        ),\n      ),\n    ),\n  );\n  }\n}\n\nclass _AuctionStateBadge`,
+    `          ],\n        ),\n      ),\n    ),\n    );\n  }\n}\n\nclass _AuctionStateBadge`,
     'Timed Buying urgency border closing',
   );
 
