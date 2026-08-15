@@ -85,8 +85,8 @@ async function main() {
   if (analytics.analyticsFixtureVersion !== 1 ||
       Number(analytics.viewCount || 0) !== 184 ||
       Number(analytics.saveCount || 0) !== 21 ||
-      Number(analytics.messageCount || 0) !== 7 ||
-      Number(analytics.offerCount || 0) !== 3) {
+      Number(analytics.messageCount || 0) !== 4 ||
+      Number(analytics.offerCount || 0) !== 2) {
     throw new Error(
         "Listing analytics fixture is missing or stale. Reseed the formal test data before acceptance testing.",
     );
