@@ -61,6 +61,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $scripts = @(
             'tool/verify.ps1',
+            'tool/verify_formal_beautification.ps1',
             'tool/web_visual_smoke.ps1',
             'tool/phase1_safe_default_rehearsal.ps1'
           )
