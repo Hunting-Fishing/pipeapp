@@ -111,79 +111,84 @@ class PipeBuyerHeroPanel extends StatelessWidget {
           ),
         );
 
+        final foreground = Padding(
+          padding: EdgeInsets.all(compact ? 24 : 38),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    content,
+                    if (trailing != null) ...[
+                      const SizedBox(height: 20),
+                      trailing!,
+                    ],
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(flex: 7, child: content),
+                    if (trailing != null) ...[
+                      const SizedBox(width: 28),
+                      Expanded(flex: 3, child: trailing!),
+                    ],
+                  ],
+                ),
+        );
+
         return ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: minHeight),
             child: Stack(
-              fit: StackFit.expand,
               children: [
-                if (backgroundImage != null)
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: backgroundImage!,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  )
-                else
-                  const DecoratedBox(
+                Positioned.fill(
+                  child: backgroundImage != null
+                      ? DecoratedBox(
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: backgroundImage!,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        )
+                      : const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                PipeBuyerColors.ink,
+                                PipeBuyerColors.graphite,
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
                         colors: [
-                          PipeBuyerColors.ink,
-                          PipeBuyerColors.graphite,
+                          PipeBuyerColors.ink.withValues(alpha: .96),
+                          PipeBuyerColors.ink.withValues(alpha: .78),
+                          PipeBuyerColors.ink.withValues(
+                            alpha: compact ? .62 : .22,
+                          ),
                         ],
+                        stops: const [0, .48, 1],
                       ),
+                      border: Border.all(
+                        color: PipeBuyerColors.orange.withValues(alpha: .18),
+                      ),
+                      borderRadius: BorderRadius.circular(22),
                     ),
                   ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        PipeBuyerColors.ink.withValues(alpha: .96),
-                        PipeBuyerColors.ink.withValues(alpha: .78),
-                        PipeBuyerColors.ink.withValues(
-                          alpha: compact ? .62 : .22,
-                        ),
-                      ],
-                      stops: const [0, .48, 1],
-                    ),
-                    border: Border.all(
-                      color: PipeBuyerColors.orange.withValues(alpha: .18),
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
                 ),
-                Padding(
-                  padding: EdgeInsets.all(compact ? 24 : 38),
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            content,
-                            if (trailing != null) ...[
-                              const SizedBox(height: 20),
-                              trailing!,
-                            ],
-                          ],
-                        )
-                      : Row(
-                          children: [
-                            Expanded(flex: 7, child: content),
-                            if (trailing != null) ...[
-                              const SizedBox(width: 28),
-                              Expanded(flex: 3, child: trailing!),
-                            ],
-                          ],
-                        ),
-                ),
+                foreground,
               ],
             ),
           ),
