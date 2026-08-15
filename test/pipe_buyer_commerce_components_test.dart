@@ -39,6 +39,38 @@ void main() {
       expect(find.byIcon(Icons.arrow_forward_rounded), findsOneWidget);
     });
 
+    testWidgets('hero renders safely inside the scrolling mobile home',
+        (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(MaterialApp(
+        theme: PipeBuyerTheme.light(),
+        home: Scaffold(
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: const [
+              PipeBuyerHeroPanel(
+                eyebrow: 'Industrial marketplace',
+                title: 'Find. Connect. Move.',
+                subtitle: 'Industry inventory and logistics in one marketplace.',
+                trailing: SizedBox(
+                  height: 120,
+                  child: Placeholder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ));
+
+      expect(find.text('Find. Connect. Move.'), findsOneWidget);
+      expect(find.byType(Placeholder), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('search toolbar stacks on mobile', (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 844);
