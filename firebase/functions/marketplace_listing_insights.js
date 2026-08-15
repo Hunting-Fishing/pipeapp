@@ -21,6 +21,20 @@ function numericValue(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function nonNegativeCount(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
+}
+
+function safePercent(numerator, denominator) {
+  const top = Number(numerator);
+  const bottom = Number(denominator);
+  if (!Number.isFinite(top) || !Number.isFinite(bottom) || bottom <= 0) {
+    return null;
+  }
+  return Math.round((top / bottom * 100) * 10) / 10;
+}
+
 function normalizedPriceBasis(value) {
   const basis = normalizedText(value);
   if (basis.includes("total") || basis.includes("lot")) return "total";
@@ -94,6 +108,68 @@ function median(values) {
     (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+function engagementSignal({views, saves, messages, offers}) {
+  if (views < 10) {
+    return {
+      code: "building",
+      label: "Building signal",
+      strong: false,
+      message: "This listing does not have enough view activity yet for a reliable engagement pattern. Keep the listing accurate and let more buyer traffic accumulate.",
+    };
+  }
+
+  const offerRate = safePercent(offers, views) || 0;
+  const messageRate = safePercent(messages, views) || 0;
+  const saveRate = safePercent(saves, views) || 0;
+  if (offers >= 3 || offerRate >= 3 || messages >= 6 || messageRate >= 6) {
+    return {
+      code: "strong",
+      label: "Strong buyer signal",
+      strong: true,
+      message: "This listing is generating meaningful buyer actions. Keep availability, pricing and response details current while interest is active.",
+    };
+  }
+  if (offers >= 1 || messages >= 2 || saves >= 3 ||
+      messageRate >= 2 || saveRate >= 4) {
+    return {
+      code: "developing",
+      label: "Developing buyer signal",
+      strong: false,
+      message: "Buyers are taking follow-up actions beyond viewing. Monitor messages, saves and offers before making major listing changes.",
+    };
+  }
+  return {
+    code: "limited",
+    label: "Limited follow-through",
+    strong: false,
+    message: "The listing is receiving views but few downstream actions. Review the first photo, title, price basis, specifications and transportation details.",
+  };
+}
+
+function buildEngagementAnalytics(listing) {
+  const views = nonNegativeCount(listing.viewCount);
+  const saves = nonNegativeCount(listing.saveCount);
+  const shares = nonNegativeCount(listing.shareCount);
+  const messages = nonNegativeCount(listing.messageCount);
+  const offers = nonNegativeCount(
+      listing.offerCount == null ? listing.pendingOfferCount : listing.offerCount,
+  );
+  const actions = saves + messages + offers;
+  return {
+    views,
+    saves,
+    shares,
+    messages,
+    offers,
+    actions,
+    saveRatePercent: safePercent(saves, views),
+    messageRatePercent: safePercent(messages, views),
+    offerRatePercent: safePercent(offers, views),
+    actionRatePercent: safePercent(actions, views),
+    signal: engagementSignal({views, saves, messages, offers}),
+  };
+}
+
 function compactComparable(id, data, score) {
   return {
     listingId: id,
@@ -138,7 +214,12 @@ function buildMarketplaceListingInsights({listing, candidates, nowMillis}) {
   const medianPrice = median(comparablePrices);
   const lowPrice = comparablePrices.length ? Math.min(...comparablePrices) : null;
   const highPrice = comparablePrices.length ? Math.max(...comparablePrices) : null;
+  const priceDeltaPercent = sourcePrice != null && sourcePrice > 0 &&
+      medianPrice != null && medianPrice > 0 ?
+    Math.round(((sourcePrice - medianPrice) / medianPrice * 100) * 10) / 10 :
+    null;
 
+  const engagement = buildEngagementAnalytics(listing);
   const suggestions = [];
   const status = normalizedText(listing.status);
   if (status === "expired") {
@@ -191,10 +272,7 @@ function buildMarketplaceListingInsights({listing, candidates, nowMillis}) {
     }
   }
 
-  const views = Number(listing.viewCount || 0);
-  const saves = Number(listing.saveCount || 0);
-  const offers = Number(listing.offerCount || listing.pendingOfferCount || 0);
-  if (views >= 20 && offers === 0) {
+  if (engagement.views >= 20 && engagement.offers === 0) {
     suggestions.push({
       code: "views_no_offers",
       priority: "medium",
@@ -202,12 +280,28 @@ function buildMarketplaceListingInsights({listing, candidates, nowMillis}) {
       detail: "Consider reviewing price, photos, specifications, offer flexibility and transportation details before renewing.",
     });
   }
-  if (saves > 0 && status === "expired") {
+  if (engagement.views >= 40 && engagement.saves === 0) {
+    suggestions.push({
+      code: "views_no_saves",
+      priority: "medium",
+      title: "Buyer views are not producing saves yet",
+      detail: "Check the lead photo, title, condition wording, price basis and location summary so buyers can understand the listing quickly.",
+    });
+  }
+  if (engagement.messages >= 3 && engagement.offers === 0) {
+    suggestions.push({
+      code: "messages_no_offers",
+      priority: "medium",
+      title: "Buyer conversations have not reached an offer yet",
+      detail: "Make sure quantity, loading, inspection, pickup timing and transportation expectations are clear in the listing and Deal Room.",
+    });
+  }
+  if (engagement.saves > 0 && status === "expired") {
     suggestions.push({
       code: "saved_interest",
       priority: "high",
       title: "Buyers previously saved this listing",
-      detail: `${saves} saved-listing signal${saves === 1 ? "" : "s"} remain attached to this listing. Renewing the same listing preserves that marketplace history.`,
+      detail: `${engagement.saves} saved-listing signal${engagement.saves === 1 ? "" : "s"} remain attached to this listing. Renewing the same listing preserves that marketplace history.`,
     });
   }
 
@@ -223,11 +317,11 @@ function buildMarketplaceListingInsights({listing, candidates, nowMillis}) {
       low: lowPrice,
       high: highPrice,
       priceBasis: sourceBasis,
+      listingPrice: sourcePrice,
+      deltaFromMedianPercent: priceDeltaPercent,
     },
     engagement: {
-      views,
-      saves,
-      offers,
+      ...engagement,
       ageDays,
     },
     similarListings: scored.slice(0, 6).map(
@@ -238,7 +332,7 @@ function buildMarketplaceListingInsights({listing, candidates, nowMillis}) {
         ),
     ),
     suggestions: suggestions.slice(0, 6),
-    disclaimer: "Marketplace analytics only. Comparable listings use seller-provided data and are not an appraisal, valuation, certified weight, legal determination, or guarantee of sale price.",
+    disclaimer: "Marketplace analytics only. Comparable listings and engagement signals use seller-provided data and Pipe Buyer activity counters. They are not an appraisal, valuation, certified weight, legal determination, or guarantee of sale price or buyer demand.",
   };
 }
 
@@ -299,9 +393,12 @@ function createMarketplaceListingInsights(admin) {
 }
 
 module.exports = {
+  buildEngagementAnalytics,
   buildMarketplaceListingInsights,
   comparableListingScore,
+  engagementSignal,
   createMarketplaceListingInsights,
   median,
   normalizedPriceBasis,
+  safePercent,
 };
