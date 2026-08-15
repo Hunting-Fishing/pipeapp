@@ -17,7 +17,9 @@ void main() {
       find.textContaining('v${PublicReleaseConfiguration.appVersion}'),
       findsOneWidget,
     );
-    expect(find.text('Release revision'), findsOneWidget);
+    // The redesigned About page intentionally exposes the release revision
+    // once in the summary metric grid and once in the detailed release card.
+    expect(find.text('Release revision'), findsNWidgets(2));
     expect(find.text('support@pipebuyer.com'), findsOneWidget);
 
     await tester.scrollUntilVisible(
