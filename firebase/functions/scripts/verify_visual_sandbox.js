@@ -77,6 +77,22 @@ async function main() {
     throw new Error("VIP early-access listing fixture is missing.");
   }
 
+  const analyticsListing = await db.doc("public_listings/visual-pipe-drill").get();
+  if (!analyticsListing.exists) {
+    throw new Error("Listing analytics fixture source listing is missing.");
+  }
+  const analytics = analyticsListing.data() || {};
+  if (analytics.analyticsFixtureVersion !== 1 ||
+      Number(analytics.viewCount || 0) !== 184 ||
+      Number(analytics.saveCount || 0) !== 21 ||
+      Number(analytics.messageCount || 0) !== 7 ||
+      Number(analytics.offerCount || 0) !== 3) {
+    throw new Error(
+        "Listing analytics fixture is missing or stale. Reseed the formal test data before acceptance testing.",
+    );
+  }
+  console.log("Listing analytics fixture verified: visual-pipe-drill");
+
   console.log("Seeded Auth fixtures:");
   for (const email of expectedAccounts) {
     const user = await auth.getUserByEmail(email);
