@@ -116,7 +116,7 @@ function patchTimedBuyingPage() {
   }
 
   source = replaceOptional(source, 'Icons.gavel_outlined', 'Icons.timer_outlined');
-  source = replaceOptional(source, 'Icons.gavel', 'Icons.timer_rounded');
+  source = replaceRegex(source, /Icons\.gavel\b/g, 'Icons.timer_rounded');
   source = replaceOptional(
     source,
     'IndustrialIconAssets.complianceGavel',
