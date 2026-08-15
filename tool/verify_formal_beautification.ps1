@@ -41,10 +41,15 @@ try {
   }
 
   Write-Host 'Running formal Pipe Buyer widget contracts...' -ForegroundColor Yellow
-  & flutter test @formalTests `
-    --dart-define=PIPE_ENV=formal-beautification-local `
-    --dart-define=PIPE_RELEASE_SHA=local-formal-beautification
-  if ($LASTEXITCODE -ne 0) { throw 'Formal widget tests failed.' }
+  foreach ($testFile in $formalTests) {
+    Write-Host "  flutter test $testFile" -ForegroundColor DarkGray
+    & flutter test $testFile `
+      --dart-define=PIPE_ENV=formal-beautification-local `
+      --dart-define=PIPE_RELEASE_SHA=local-formal-beautification
+    if ($LASTEXITCODE -ne 0) {
+      throw "Formal widget test failed: $testFile"
+    }
+  }
 
   if ($FullGate) {
     $fullVerifier = Join-Path $PSScriptRoot 'verify.ps1'
