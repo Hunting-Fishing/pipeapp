@@ -91,4 +91,5 @@ function patchListingStatus() {
 
 patchMarketplaceCommands();
 patchListingStatus();
+await import("./apply_listing_lifecycle_nav_v1_relist.mjs");
 console.log("Listing publication/lifecycle presentation hardening completed.");
