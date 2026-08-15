@@ -13,6 +13,8 @@ String marketplaceCommandErrorMessage(
   final message = raw.trim().replaceFirst(RegExp(r'^Bad state:\s*'), '');
   if (message.isEmpty ||
       message.length > 220 ||
+      RegExp(r'^(internal|unknown|error)$', caseSensitive: false)
+          .hasMatch(message) ||
       RegExp(r'(FIRESTORE|firebasejs|gstatic|stack trace|#\d+)',
               caseSensitive: false)
           .hasMatch(message)) {
@@ -65,9 +67,15 @@ class MarketplaceCommandClient {
           'This marketplace service is being updated. Refresh and try again.',
         _ => 'The marketplace action could not be completed.',
       };
-      throw StateError(
-        error.message?.trim().isNotEmpty == true ? error.message! : fallback,
-      );
+      final serverMessage = error.message?.trim() ?? '';
+      final normalizedMessage = serverMessage.toLowerCase();
+      final normalizedCode = error.code.toLowerCase();
+      final exposeServerMessage = error.code != 'internal' &&
+          serverMessage.isNotEmpty &&
+          normalizedMessage != normalizedCode &&
+          normalizedMessage != 'internal' &&
+          normalizedMessage != 'unknown';
+      throw StateError(exposeServerMessage ? serverMessage : fallback);
     }
   }
 }

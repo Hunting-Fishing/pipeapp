@@ -598,7 +598,9 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       }
 
       if (!mounted) return;
-      if (normalizePhoneNumber(user.phoneNumber ?? '').isEmpty) {
+      final googlePhoneVerified =
+          normalizePhoneNumber(user.phoneNumber ?? '').isNotEmpty;
+      if (!user.emailVerified && !googlePhoneVerified) {
         await Navigator.of(context).pushReplacement(MaterialPageRoute(
             builder: (_) => const MarketplaceAccountSecurityPage(
                   onboarding: true,
@@ -606,8 +608,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                 )));
         return;
       }
-      await MarketplaceCommandClient()
-          .execute('syncAccountVerification', const {});
+      await _syncVerificationBestEffort();
       if (mounted) Navigator.pop(context, true);
     } on FirebaseAuthException catch (error) {
       _notice(_friendlyGoogleAuthError(error),
@@ -727,8 +728,9 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
         }
         final securityAccountType =
             '${securityProfile?.data()?['accountType'] ?? 'personal'}';
-        if (!user.emailVerified ||
-            normalizePhoneNumber(user.phoneNumber ?? '').isEmpty) {
+        final phoneVerified =
+            normalizePhoneNumber(user.phoneNumber ?? '').isNotEmpty;
+        if (!user.emailVerified && !phoneVerified) {
           if (!mounted) return;
           await Navigator.of(context).pushReplacement(MaterialPageRoute(
               builder: (_) => MarketplaceAccountSecurityPage(
@@ -739,8 +741,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                   )));
           return;
         }
-        await MarketplaceCommandClient()
-            .execute('syncAccountVerification', const {});
+        await _syncVerificationBestEffort();
         final profileRef =
             FirebaseFirestore.instance.collection('users').doc(user.uid);
         final profile = await profileRef.get();
@@ -797,6 +798,20 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       _notice('Could not finish account setup. Please try again.', error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _syncVerificationBestEffort() async {
+    try {
+      await MarketplaceCommandClient().execute(
+        'syncAccountVerification',
+        const {},
+        timeout: const Duration(seconds: 6),
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Account verification sync deferred: $error');
+      }
     }
   }
 
