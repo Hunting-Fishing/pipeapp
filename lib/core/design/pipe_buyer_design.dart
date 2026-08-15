@@ -3,7 +3,6 @@
 /// Feature screens should prefer this barrel while the formal presentation
 /// layer is integrated around existing marketplace, Firebase and Dispatch
 /// behavior. The design modules remain presentation-only.
-library;
 
 export 'pipe_buyer_account_components.dart';
 export 'pipe_buyer_browse_components.dart';
