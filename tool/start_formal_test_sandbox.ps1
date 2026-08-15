@@ -37,7 +37,18 @@ if ($SeedOnly) { $arguments += '-SeedOnly' }
 if ($SkipSeed) { $arguments += '-SkipSeed' }
 if ($SkipSmokeTest) { $arguments += '-SkipSmokeTest' }
 
+# Firebase CLI uses a 10-second default discovery window for Functions source
+# analysis. The isolated administrative agent can exceed that on Windows even
+# though its source is valid, which can prevent the whole Functions emulator
+# from becoming callable. Use Firebase's documented discovery-timeout override
+# for this local integration sandbox only.
+$previousDiscoveryTimeout = $env:FUNCTIONS_DISCOVERY_TIMEOUT
+if ([string]::IsNullOrWhiteSpace($previousDiscoveryTimeout)) {
+  $env:FUNCTIONS_DISCOVERY_TIMEOUT = '30'
+}
+
 try {
+  Write-Host "Firebase Functions discovery timeout: $env:FUNCTIONS_DISCOVERY_TIMEOUT seconds" -ForegroundColor DarkGray
   Write-Host 'Starting the established Pipe Buyer Auth/Firestore/Functions/Storage sandbox against the formal UI branch.' -ForegroundColor Cyan
   & powershell -ExecutionPolicy Bypass -File $generatedLauncher @arguments
   $exitCode = $LASTEXITCODE
@@ -45,5 +56,10 @@ try {
   exit $exitCode
 }
 finally {
+  if ($null -eq $previousDiscoveryTimeout) {
+    Remove-Item Env:FUNCTIONS_DISCOVERY_TIMEOUT -ErrorAction SilentlyContinue
+  } else {
+    $env:FUNCTIONS_DISCOVERY_TIMEOUT = $previousDiscoveryTimeout
+  }
   Remove-Item -LiteralPath $generatedLauncher -Force -ErrorAction SilentlyContinue
 }
