@@ -50,6 +50,9 @@ if (-not $SkipSeed) {
 
   & node (Join-Path $functionsDir 'scripts\seed_live_test_dispatch_access.js')
   if ($LASTEXITCODE -ne 0) { throw 'Dispatch access seed failed.' }
+
+  & node (Join-Path $functionsDir 'scripts\seed_live_test_listing_analytics.js')
+  if ($LASTEXITCODE -ne 0) { throw 'Listing analytics seed failed.' }
 }
 
 Write-Step 'Verifying seeded Firestore and Auth fixtures'
@@ -73,4 +76,5 @@ Write-Host '  Seller    : seller.visual@pipebuyer.test' -ForegroundColor White
 Write-Host '  Carrier   : carrier.visual@pipebuyer.test' -ForegroundColor White
 Write-Host '  Password  : PipeBuyerDemo!2026' -ForegroundColor White
 Write-Host ''
+Write-Host 'Listing analytics fixtures are seeded for the seller inventory.' -ForegroundColor Green
 Write-Host 'Hard-refresh the Flutter Chrome tab after reseeding (Ctrl+Shift+R).' -ForegroundColor Green
