@@ -27,8 +27,8 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Formal sandbox seed/smoke phase failed.'
 }
 
-Write-Step 'Verifying the seeded acceptance-test dataset'
-& powershell -ExecutionPolicy Bypass -File $reseedHelper -SkipSeed
+Write-Step 'Refreshing and verifying the complete acceptance dataset including analytics'
+& powershell -ExecutionPolicy Bypass -File $reseedHelper
 if ($LASTEXITCODE -ne 0) {
   throw 'Formal test-data verification failed.'
 }
