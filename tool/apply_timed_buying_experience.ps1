@@ -106,6 +106,32 @@ try {
   & node $patcher
   if ($LASTEXITCODE -ne 0) { throw 'Timed Buying migration helper failed.' }
 
+  # The language migration intentionally changes visible "bids" copy, but the
+  # account hub also has a local Dart variable named `bids`. A broad text
+  # replacement can turn `final bids =` into invalid `final timed offers =`.
+  # Repair that code identifier before formatting/analyzing while preserving the
+  # new customer-facing Timed Buying wording.
+  $accountHubPath = Join-Path $repoRoot 'lib\marketplace\marketplace_account_hub.dart'
+  if (Test-Path -LiteralPath $accountHubPath) {
+    $accountHubSource = Get-Content -LiteralPath $accountHubPath -Raw
+    $accountHubSource = $accountHubSource.Replace('final timed offers =', 'final bids =')
+    Set-Content -LiteralPath $accountHubPath -Value $accountHubSource -Encoding UTF8
+  }
+
+  # _auctionTimeLabel now delegates to the shared Timed Buying presentation
+  # helper, so the old private _duration formatter is dead code. Remove it to
+  # keep the focused analyzer pass clean.
+  $timedBuyingPagePath = Join-Path $repoRoot 'lib\marketplace\marketplace_auctions_page.dart'
+  if (Test-Path -LiteralPath $timedBuyingPagePath) {
+    $timedBuyingPageSource = Get-Content -LiteralPath $timedBuyingPagePath -Raw
+    $timedBuyingPageSource = [regex]::Replace(
+      $timedBuyingPageSource,
+      '(?ms)\r?\nString _duration\(Duration value\) \{.*?\r?\n\}\s*$',
+      "`r`n"
+    )
+    Set-Content -LiteralPath $timedBuyingPagePath -Value $timedBuyingPageSource -Encoding UTF8
+  }
+
   Write-Step 'Formatting changed Flutter sources'
   & dart format @targets 'lib/marketplace/marketplace_timed_buying_presentation.dart' 'test/marketplace_timed_buying_presentation_test.dart'
   if ($LASTEXITCODE -ne 0) { throw 'dart format failed for Timed Buying sources.' }
