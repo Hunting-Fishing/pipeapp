@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
-import 'marketplace_money.dart';
 import 'marketplace_weight_catalog.dart';
 
 class MarketplaceWeightCatalogAdminPage extends StatelessWidget {
