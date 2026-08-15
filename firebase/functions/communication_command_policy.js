@@ -16,11 +16,14 @@ const TARGET_TYPES = new Set(["listing", "message", "offer", "user"]);
 const UPLOAD_PURPOSES = Object.freeze({
   chat_attachment: {
     maximumBytes: 15 * 1024 * 1024,
+    maximumVideoBytes: 25 * 1024 * 1024,
     contentTypes: new Set([
       "image/jpeg",
       "image/png",
       "image/webp",
       "application/pdf",
+      "video/mp4",
+      "video/quicktime",
     ]),
   },
   report_evidence: {
@@ -92,18 +95,21 @@ function validateUploadInput(data) {
     );
   }
   const contentType = requiredText(data, "contentType", 120).toLowerCase();
-  const sizeBytes = Number(data && data.sizeBytes);
-  if (!Number.isInteger(sizeBytes) || sizeBytes < 1 ||
-      sizeBytes > policy.maximumBytes) {
-    throw new CommunicationPolicyError(
-        "invalid-argument",
-        `The upload must be between 1 byte and ${policy.maximumBytes} bytes.`,
-    );
-  }
   if (!policy.contentTypes.has(contentType)) {
     throw new CommunicationPolicyError(
         "invalid-argument",
         "This file type is not supported for the selected upload.",
+    );
+  }
+  const maximumBytes = contentType.startsWith("video/") &&
+      policy.maximumVideoBytes ?
+    policy.maximumVideoBytes : policy.maximumBytes;
+  const sizeBytes = Number(data && data.sizeBytes);
+  if (!Number.isInteger(sizeBytes) || sizeBytes < 1 ||
+      sizeBytes > maximumBytes) {
+    throw new CommunicationPolicyError(
+        "invalid-argument",
+        `The upload must be between 1 byte and ${maximumBytes} bytes.`,
     );
   }
   return {
