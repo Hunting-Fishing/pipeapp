@@ -16,12 +16,6 @@ function Require-Port([int]$Port, [string]$Label) {
   }
 }
 
-function Get-CollectionCount([string]$Collection) {
-  $uri = "http://127.0.0.1:18080/v1/projects/flutter-flow-pipe/databases/(default)/documents/$Collection?pageSize=100"
-  $response = Invoke-RestMethod -Method Get -Uri $uri
-  return @($response.documents).Count
-}
-
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
@@ -58,43 +52,15 @@ if (-not $SkipSeed) {
   if ($LASTEXITCODE -ne 0) { throw 'Dispatch access seed failed.' }
 }
 
-Write-Step 'Verifying seeded Firestore fixtures'
-$counts = [ordered]@{
-  public_listings = Get-CollectionCount 'public_listings'
-  users = Get-CollectionCount 'users'
-  conversations = Get-CollectionCount 'conversations'
-  offers = Get-CollectionCount 'offers'
-  dispatch_jobs = Get-CollectionCount 'dispatch_jobs'
-  dispatch_carriers = Get-CollectionCount 'dispatch_carriers'
+Write-Step 'Verifying seeded Firestore and Auth fixtures'
+$verifier = Join-Path $functionsDir 'scripts\verify_visual_sandbox.js'
+if (-not (Test-Path -LiteralPath $verifier)) {
+  throw 'firebase/functions/scripts/verify_visual_sandbox.js is missing. Pull the latest formal branch.'
 }
 
-$counts.GetEnumerator() | ForEach-Object {
-  Write-Host ("  {0,-20} {1}" -f $_.Key, $_.Value) -ForegroundColor White
-}
-
-if ($counts.public_listings -lt 11) {
-  throw "Expected at least 11 public listings, found $($counts.public_listings)."
-}
-if ($counts.users -lt 4) {
-  throw "Expected at least 4 users, found $($counts.users)."
-}
-if ($counts.conversations -lt 2) {
-  throw "Expected at least 2 conversations, found $($counts.conversations)."
-}
-if ($counts.offers -lt 2) {
-  throw "Expected at least 2 offers, found $($counts.offers)."
-}
-if ($counts.dispatch_jobs -lt 2) {
-  throw "Expected at least 2 Dispatch jobs, found $($counts.dispatch_jobs)."
-}
-if ($counts.dispatch_carriers -lt 1) {
-  throw "Expected at least 1 Dispatch carrier, found $($counts.dispatch_carriers)."
-}
-
-$vipListingUri = 'http://127.0.0.1:18080/v1/projects/flutter-flow-pipe/databases/(default)/documents/public_listings/visual-vip-early-tubing'
-$vipListing = Invoke-RestMethod -Method Get -Uri $vipListingUri
-if ([string]::IsNullOrWhiteSpace($vipListing.name)) {
-  throw 'VIP early-access listing fixture is missing.'
+& node $verifier
+if ($LASTEXITCODE -ne 0) {
+  throw 'Formal test-data verification failed.'
 }
 
 Write-Step 'Pipe Buyer formal test data is ready'
