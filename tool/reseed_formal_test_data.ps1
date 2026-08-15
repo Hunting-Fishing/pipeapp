@@ -53,6 +53,9 @@ if (-not $SkipSeed) {
 
   & node (Join-Path $functionsDir 'scripts\seed_live_test_listing_analytics.js')
   if ($LASTEXITCODE -ne 0) { throw 'Listing analytics seed failed.' }
+
+  & node (Join-Path $functionsDir 'scripts\seed_live_test_timed_buying_labels.js')
+  if ($LASTEXITCODE -ne 0) { throw 'Timed Buying public-label seed failed.' }
 }
 
 Write-Step 'Verifying seeded Firestore and Auth fixtures'
@@ -77,4 +80,5 @@ Write-Host '  Carrier   : carrier.visual@pipebuyer.test' -ForegroundColor White
 Write-Host '  Password  : PipeBuyerDemo!2026' -ForegroundColor White
 Write-Host ''
 Write-Host 'Listing analytics fixtures are seeded for the seller inventory.' -ForegroundColor Green
+Write-Host 'Timed Buying public labels and closing-time fixtures are seeded.' -ForegroundColor Green
 Write-Host 'Hard-refresh the Flutter Chrome tab after reseeding (Ctrl+Shift+R).' -ForegroundColor Green
