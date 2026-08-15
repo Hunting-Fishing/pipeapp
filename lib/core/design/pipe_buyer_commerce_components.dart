@@ -209,7 +209,6 @@ class PipeBuyerCommerceSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -304,7 +303,7 @@ class PipeBuyerTrustBand extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final desired = constraints.maxWidth >= 1080
-              ? items.length.clamp(1, 4)
+              ? items.length.clamp(1, 4).toInt()
               : constraints.maxWidth >= 620
                   ? 2
                   : 1;
