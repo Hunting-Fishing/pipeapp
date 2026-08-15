@@ -47,11 +47,13 @@ $backup = Join-Path (Split-Path $workspace -Parent) "pipeapp_listing_lifecycle_b
 New-Item -ItemType Directory -Force $backup | Out-Null
 $targets = @(
   'firebase/functions/index.js',
+  'firebase/functions/marketplace_commands.js',
   'firebase/firestore.indexes.json',
   'lib/marketplace/marketplace_adaptive_shell.dart',
   'lib/marketplace/oil_gas_marketplace.dart',
   'lib/marketplace/marketplace_account_hub.dart',
-  'lib/marketplace/marketplace_listing_insights.dart'
+  'lib/marketplace/marketplace_listing_insights.dart',
+  'lib/marketplace/marketplace_listing_status.dart'
 )
 foreach ($target in $targets) {
   $destination = Join-Path $backup $target
@@ -65,6 +67,10 @@ try {
     node .\tool\apply_listing_lifecycle_nav_v1.mjs
   }
 
+  Invoke-Checked 'Hardening listing publication and expiry presentation' {
+    node .\tool\apply_listing_lifecycle_nav_v1_extra.mjs
+  }
+
   Invoke-Checked 'Formatting changed Dart files' {
     dart format `
       lib/marketplace/marketplace_adaptive_shell.dart `
@@ -72,6 +78,7 @@ try {
       lib/marketplace/marketplace_account_hub.dart `
       lib/marketplace/marketplace_listing_lifecycle.dart `
       lib/marketplace/marketplace_listing_insights.dart `
+      lib/marketplace/marketplace_listing_status.dart `
       lib/marketplace/marketplace_home_welcome.dart `
       lib/marketplace/marketplace_account_menu.dart `
       lib/marketplace/marketplace_grouped_navigation.dart `
@@ -82,8 +89,12 @@ try {
   try {
     Invoke-Checked 'Checking new Functions modules' {
       node --check marketplace_listing_lifecycle.js
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      if ($LASTEXITCODE -ne 0) { throw 'marketplace_listing_lifecycle.js syntax failed.' }
       node --check marketplace_listing_insights.js
+      if ($LASTEXITCODE -ne 0) { throw 'marketplace_listing_insights.js syntax failed.' }
+      node --check marketplace_commands.js
+      if ($LASTEXITCODE -ne 0) { throw 'marketplace_commands.js syntax failed.' }
+      node --check index.js
     }
     Invoke-Checked 'Running focused listing lifecycle Functions tests' {
       node --test `
@@ -122,9 +133,11 @@ try {
   $allowed = @(
     'firebase/firestore.indexes.json',
     'firebase/functions/index.js',
+    'firebase/functions/marketplace_commands.js',
     'lib/marketplace/marketplace_account_hub.dart',
     'lib/marketplace/marketplace_adaptive_shell.dart',
     'lib/marketplace/marketplace_listing_insights.dart',
+    'lib/marketplace/marketplace_listing_status.dart',
     'lib/marketplace/oil_gas_marketplace.dart'
   )
   $changed = @(git status --porcelain | ForEach-Object {
