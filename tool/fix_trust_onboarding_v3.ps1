@@ -8,7 +8,7 @@ if ((git branch --show-current).Trim() -ne 'main') {
 }
 
 $source = Join-Path $PSScriptRoot 'fix_trust_onboarding_v2.ps1'
-$runtime = Join-Path $PSScriptRoot '.fix_trust_onboarding_v3_runtime.ps1'
+$runtime = Join-Path ([System.IO.Path]::GetTempPath()) ("pipebuyer_fix_trust_onboarding_v3_{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
 
 $text = Get-Content $source -Raw
 $before = '$tracked = git ls-files --error-unmatch -- $file 2>$null'
@@ -20,6 +20,17 @@ if (-not $text.Contains($before)) {
 
 $text = $text.Replace($before, $after)
 $text = $text.Replace('if ($LASTEXITCODE -eq 0) {', 'if ($tracked.Count -gt 0) {')
+
+# The runtime copy lives outside the repository so git status cannot see it.
+# Inject the actual repository workspace because $PSScriptRoot now points to %TEMP%.
+$workspaceAnchor = '$workspace = (Resolve-Path (Join-Path $PSScriptRoot ''..'')).Path'
+$escapedWorkspace = $workspace.Replace("'", "''")
+$workspaceReplacement = "`$workspace = '$escapedWorkspace'"
+if (-not $text.Contains($workspaceAnchor)) {
+  throw 'V2 workspace anchor was not found.'
+}
+$text = $text.Replace($workspaceAnchor, $workspaceReplacement)
+
 Set-Content -Path $runtime -Value $text -Encoding UTF8
 
 try {
