@@ -5,6 +5,7 @@
 /// behavior. The design modules remain presentation-only.
 
 export 'pipe_buyer_account_components.dart';
+export 'pipe_buyer_analytics_components.dart';
 export 'pipe_buyer_browse_components.dart';
 export 'pipe_buyer_commerce_components.dart';
 export 'pipe_buyer_components.dart';
