@@ -1,0 +1,39 @@
+$ErrorActionPreference = 'Stop'
+
+function Write-Step([string]$Message) {
+  Write-Host "`n==> $Message" -ForegroundColor Cyan
+}
+
+$repoRoot = Split-Path -Parent $PSScriptRoot
+Set-Location -LiteralPath $repoRoot
+
+$branch = (git branch --show-current).Trim()
+if ($branch -ne 'design/formal-beautification-foundation') {
+  throw "This helper is for design/formal-beautification-foundation. Current branch: $branch"
+}
+
+$formalLauncher = Join-Path $PSScriptRoot 'start_formal_test_sandbox.ps1'
+$reseedHelper = Join-Path $PSScriptRoot 'reseed_formal_test_data.ps1'
+if (-not (Test-Path $formalLauncher)) {
+  throw 'tool/start_formal_test_sandbox.ps1 is missing.'
+}
+if (-not (Test-Path $reseedHelper)) {
+  throw 'tool/reseed_formal_test_data.ps1 is missing.'
+}
+
+Write-Step 'Starting Pipe Buyer emulators, deterministic fixtures and smoke tests'
+& powershell -ExecutionPolicy Bypass -File $formalLauncher -SeedOnly
+if ($LASTEXITCODE -ne 0) {
+  throw 'Formal sandbox seed/smoke phase failed.'
+}
+
+Write-Step 'Verifying the seeded acceptance-test dataset'
+& powershell -ExecutionPolicy Bypass -File $reseedHelper -SkipSeed
+if ($LASTEXITCODE -ne 0) {
+  throw 'Formal test-data verification failed.'
+}
+
+Write-Step 'Launching Flutter against the already-running verified sandbox'
+Write-Host 'Keep the Firebase Emulator window open. Do not press Ctrl+C while testing.' -ForegroundColor Yellow
+& powershell -ExecutionPolicy Bypass -File $formalLauncher -SkipSeed
+exit $LASTEXITCODE
