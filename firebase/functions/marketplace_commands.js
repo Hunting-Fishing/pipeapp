@@ -47,6 +47,10 @@ const {
 } = require("./phase1_feature_flags");
 const {buildDispatchRouteState} = require("./dispatch_routing_policy");
 const {
+  DAY_MS,
+  MARKETPLACE_LISTING_ACTIVE_DAYS,
+} = require("./marketplace_listing_lifecycle");
+const {
   WantedMatchingPolicyError,
   validateWantedMatchAction,
 } = require("./wanted_matching_policy");
@@ -205,6 +209,13 @@ function createMarketplaceCommands(admin) {
         ...(typeof listing.price === "number" ? {
           initialPrice: listing.price,
         } : {}),
+        publishedAt: Timestamp.now(),
+        expiresAt: Timestamp.fromMillis(
+          Date.now() + MARKETPLACE_LISTING_ACTIVE_DAYS * DAY_MS,
+        ),
+        listingDurationDays: MARKETPLACE_LISTING_ACTIVE_DAYS,
+        renewalCount: 0,
+        lifecycleVersion: 1,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         source: "marketplace_callable",
@@ -1231,13 +1242,22 @@ function createMarketplaceCommands(admin) {
         "auctionStatus", "auctionStartAt", "auctionEndAt", "startingBid",
         "minimumBidIncrement", "currentBid", "bidCount", "reserveMet",
         "buyNowPrice", "convertedAt", "conversionSource", "fulfilledAt",
-        "lastMatchedAt",
+        "lastMatchedAt", "publishedAt", "expiresAt", "renewedAt",
+        "expiredAt", "listingDurationDays", "renewalCount",
+        "lifecycleVersion", "expiryWarningSentAt", "expiryWarningFor",
       ]) delete clone[field];
       Object.assign(clone, {
         status: "active",
         saleStatus: "available",
         source: "marketplace_relist_callable",
         relistedFromListingId: listingId,
+        publishedAt: Timestamp.now(),
+        expiresAt: Timestamp.fromMillis(
+          Date.now() + MARKETPLACE_LISTING_ACTIVE_DAYS * DAY_MS,
+        ),
+        listingDurationDays: MARKETPLACE_LISTING_ACTIVE_DAYS,
+        renewalCount: 0,
+        lifecycleVersion: 1,
         initialPrice: Number(clone.price || 0),
         revision: 1,
         viewCount: 0,

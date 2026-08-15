@@ -311,7 +311,7 @@ class _MarketplaceListingInsightsDialogState
         ];
         if (constraints.maxWidth >= 680) {
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               cards[0],
               const SizedBox(width: 10),
@@ -335,7 +335,8 @@ class _MarketplaceListingInsightsDialogState
 
   Widget _suggestionCard(Map<String, dynamic> suggestion) {
     final high = suggestion['priority'] == 'high';
-    final color = high ? PipeBuyerColors.orange : PipeBuyerColors.industrialBlue;
+    final color =
+        high ? PipeBuyerColors.orange : PipeBuyerColors.industrialBlue;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
@@ -460,7 +461,8 @@ class _MarketplaceListingInsightsDialogState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 3),
                   Text(message),
                 ],

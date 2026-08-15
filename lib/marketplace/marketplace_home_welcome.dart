@@ -12,7 +12,10 @@ class MarketplaceHomeWelcome extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox.shrink();
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? const <String, dynamic>{};
         final candidates = [
@@ -24,7 +27,8 @@ class MarketplaceHomeWelcome extends StatelessWidget {
         ];
         final name = candidates
             .map((value) => '${value ?? ''}'.trim())
-            .firstWhere((value) => value.isNotEmpty, orElse: () => 'Pipe Buyer member');
+            .firstWhere((value) => value.isNotEmpty,
+                orElse: () => 'Pipe Buyer member');
         final accountType = '${data['accountType'] ?? 'personal'}';
         return Container(
           width: double.infinity,

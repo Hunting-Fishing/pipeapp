@@ -44,7 +44,8 @@ class MarketplaceListingLifecycle {
   final int renewalCount;
   final DateTime now;
 
-  bool get expired => status == 'expired' ||
+  bool get expired =>
+      status == 'expired' ||
       (expiresAt != null &&
           !expiresAt!.isAfter(now) &&
           const {'active', 'paused'}.contains(status));

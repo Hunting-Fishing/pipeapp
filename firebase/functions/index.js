@@ -15,6 +15,12 @@ const {
 } = require("./communication_commands");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createMarketplaceCommands } = require("./marketplace_commands");
+const {
+  createMarketplaceListingLifecycle,
+} = require("./marketplace_listing_lifecycle");
+const {
+  createMarketplaceListingInsights,
+} = require("./marketplace_listing_insights");
 const { createNotificationDelivery } = require("./notification_delivery");
 const { createModerationCommands } = require("./moderation_commands");
 const {
@@ -78,6 +84,8 @@ const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
+const marketplaceListingLifecycle = createMarketplaceListingLifecycle(admin);
+const marketplaceListingInsights = createMarketplaceListingInsights(admin);
 const moderationCommands = createModerationCommands(admin);
 const notificationDelivery = createNotificationDelivery(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
@@ -161,6 +169,13 @@ exports.cleanupExpiredMediaUploadAuthorizations = onSchedule(
 exports.cleanupExpiredMarketplaceListingDrafts = onSchedule(
   "every 24 hours",
   async () => marketplaceCommands.cleanupExpiredMarketplaceListingDrafts(),
+);
+exports.monitorMarketplaceListingLifecycle = onSchedule(
+  "every 1 hours",
+  async () => {
+    await marketplaceListingLifecycle.notifyExpiringListings();
+    await marketplaceListingLifecycle.expireMarketplaceListings();
+  },
 );
 exports.openMarketplaceConversation = onCall(
   protectedCallableOptions,
@@ -370,6 +385,18 @@ exports.relistMarketplaceListing = onCall(
     marketplaceCommands.relistMarketplaceListing,
   ),
 );
+exports.renewMarketplaceListing = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceListingLifecycle.renewMarketplaceListing,
+  ),
+);
+exports.getMarketplaceListingInsights = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceListingInsights.getMarketplaceListingInsights,
+  ),
+);
 exports.setMarketplaceListingSaved = onCall(
   protectedCallableOptions,
   policyAcceptanceCommands.requireCurrentPolicies(
@@ -451,6 +478,10 @@ exports.onPublicListingCreated = onDocumentCreated(
   "public_listings/{listingId}",
   async (event) => {
     const listing = event.data.data();
+    await marketplaceListingLifecycle.initializeListing(
+      event.params.listingId,
+      listing,
+    );
     const sellerUid = listing.sellerUid;
     if (!sellerUid) return null;
 

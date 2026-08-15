@@ -20,6 +20,8 @@ import 'marketplace_profile_page.dart';
 import 'marketplace_support.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
+import 'marketplace_listing_lifecycle.dart';
+import 'marketplace_listing_insights.dart';
 import 'marketplace_money.dart';
 import 'marketplace_notification_service.dart';
 import 'marketplace_notification_presentation.dart';
@@ -82,8 +84,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     }
 
     final wasAuthorized = _isAdminUser;
-    final isAuthorized =
-        state == MarketplaceAdministratorState.authorized;
+    final isAuthorized = state == MarketplaceAdministratorState.authorized;
     if (wasAuthorized == isAuthorized) {
       setState(() => _adminState = state);
       return;
@@ -151,8 +152,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       ),
       Expanded(
           child: TabBarView(controller: _tabs, children: [
-        _Overview(
-            onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
+        _Overview(onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
         const MarketplaceProfilePage(),
         _MyListings(
             onAddListing: widget.onAddListing,
@@ -318,32 +318,31 @@ class _Overview extends StatelessWidget {
                     mode: LaunchMode.externalApplication)),
             if (showAdminPortal)
               Card(
-                        color: Colors.purple.shade50,
-                        margin: const EdgeInsets.only(top: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.purple.shade200),
-                        ),
-                        child: ListTile(
-                          leading: Icon(Icons.admin_panel_settings,
-                              color: Colors.purple.shade800, size: 26),
-                          title: Text(
-                            'Administrator Portal',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.purple.shade900),
-                          ),
-                          subtitle: const Text(
-                              'Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
-                          trailing: const Icon(Icons.chevron_right,
-                              color: Colors.purple),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    const MarketplaceAdminDashboard()),
-                          ),
-                        ),
-                      ),
+                color: Colors.purple.shade50,
+                margin: const EdgeInsets.only(top: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.purple.shade200),
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.admin_panel_settings,
+                      color: Colors.purple.shade800, size: 26),
+                  title: Text(
+                    'Administrator Portal',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple.shade900),
+                  ),
+                  subtitle: const Text(
+                      'Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
+                  trailing:
+                      const Icon(Icons.chevron_right, color: Colors.purple),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const MarketplaceAdminDashboard()),
+                  ),
+                ),
+              ),
           ]);
         });
   }
@@ -876,6 +875,12 @@ String _analyticsLine(Map<String, dynamic> data) =>
     '${(data['offerCount'] as num?)?.toInt() ?? 0} offers';
 
 String _ownerListingTime(Map<String, dynamic> data, DateTime? createdAt) {
+  if (data['transactionType'] != 'Auction') {
+    final lifecycle = MarketplaceListingLifecycle.fromMap(data);
+    if (lifecycle.expiresAt != null || lifecycle.expired) {
+      return lifecycle.ownerLabel;
+    }
+  }
   if (data['transactionType'] == 'Auction') {
     final end = (data['auctionEndAt'] as Timestamp?)?.toDate();
     if (end == null) return 'Auction schedule unavailable';
@@ -1124,6 +1129,16 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
           if (createdAt != null)
             Text(_ownerListingTime(data, createdAt),
                 style: const TextStyle(color: Colors.black54)),
+          if (!isAuction) ...[
+            const SizedBox(height: 7),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: MarketplaceListingLifecyclePill(
+                data: data,
+                ownerView: true,
+              ),
+            ),
+          ],
           if (data['category'] == 'Site & Property') ...[
             const SizedBox(height: 12),
             _OwnerPropertyDetails(data: data),
@@ -1311,6 +1326,33 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             onPressed: busy ? null : () => _transitionListing('archive'),
             icon: const Icon(Icons.archive_outlined),
             label: const Text('Archive')),
+      if (status == 'expired')
+        FilledButton.icon(
+            onPressed: busy ? null : _renewListing,
+            icon: const Icon(Icons.event_repeat_rounded),
+            label: const Text('Renew 30 days')),
+      if (status != 'expired')
+        OutlinedButton.icon(
+            onPressed: busy
+                ? null
+                : () => MarketplaceListingInsightsDialog.show(
+                      context,
+                      listingId: widget.listingId,
+                      listingTitle: '${data['title'] ?? 'Marketplace listing'}',
+                    ),
+            icon: const Icon(Icons.auto_graph_rounded),
+            label: const Text('Smart suggestions')),
+      if (status == 'expired')
+        OutlinedButton.icon(
+            onPressed: busy
+                ? null
+                : () => MarketplaceListingInsightsDialog.show(
+                      context,
+                      listingId: widget.listingId,
+                      listingTitle: '${data['title'] ?? 'Marketplace listing'}',
+                    ),
+            icon: const Icon(Icons.auto_graph_rounded),
+            label: const Text('Review suggestions')),
       if (status == 'sold' || status == 'fulfilled' || status == 'archived')
         FilledButton.icon(
             onPressed: busy ? null : _relistListing,
@@ -1461,6 +1503,37 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         command: 'transitionMarketplaceListing',
         data: {'listingId': widget.listingId, 'action': action},
         success: 'Listing status updated.');
+  }
+
+  Future<void> _renewListing() async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Renew for another 30 days?'),
+            content: const Text(
+              'The same listing, saved links, history and analytics are retained. The listing becomes active for a new 30-day period.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Renew 30 days'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    await _runListingCommand(
+      key: 'renew',
+      label: 'Renewing listing…',
+      command: 'renewMarketplaceListing',
+      data: {'listingId': widget.listingId},
+      success: 'Listing renewed for another 30 days.',
+    );
   }
 
   Future<void> _relistListing() async {
@@ -3098,8 +3171,8 @@ class _AccountSettingsState extends State<_AccountSettings> {
           subtitle: const Text(
               'Version, environment, support, and legal information.'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const MarketplaceAboutPage()))),
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MarketplaceAboutPage()))),
       const SizedBox(height: 12),
       const _WatchKeywords(),
       const SizedBox(height: 12),
@@ -3192,7 +3265,6 @@ class _AccountSettingsState extends State<_AccountSettings> {
   }
 }
 
-
 class _AdministratorAccessCard extends StatefulWidget {
   const _AdministratorAccessCard({
     required this.state,
@@ -3207,8 +3279,7 @@ class _AdministratorAccessCard extends StatefulWidget {
       _AdministratorAccessCardState();
 }
 
-class _AdministratorAccessCardState
-    extends State<_AdministratorAccessCard> {
+class _AdministratorAccessCardState extends State<_AdministratorAccessCard> {
   bool _refreshing = false;
 
   Future<void> _refresh() async {
@@ -3224,8 +3295,7 @@ class _AdministratorAccessCardState
     final mfaRequired = state == MarketplaceAdministratorState.mfaRequired;
     final unavailable = state == MarketplaceAdministratorState.unavailable;
     final title = switch (state) {
-      MarketplaceAdministratorState.authorized =>
-        'Administrator access active',
+      MarketplaceAdministratorState.authorized => 'Administrator access active',
       MarketplaceAdministratorState.mfaRequired =>
         'Administrator sign-in requires MFA',
       MarketplaceAdministratorState.roleMissing =>

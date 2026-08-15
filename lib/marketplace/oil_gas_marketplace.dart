@@ -27,6 +27,12 @@ import 'marketplace_navigation.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_account_hub.dart';
+import 'marketplace_account_menu.dart';
+import 'marketplace_account_security_page.dart';
+import 'marketplace_grouped_navigation.dart';
+import 'marketplace_home_welcome.dart';
+import 'marketplace_support.dart';
+import 'marketplace_vip_access.dart';
 import 'marketplace_grid_density.dart';
 import 'marketplace_adaptive_shell.dart';
 import 'marketplace_account_device_repository.dart';
@@ -1082,7 +1088,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               saved: _saved,
               onSearch: (value) => setState(() => _search = value),
               onCategory: (value) => setState(() => _category = value),
-              onSaved: _toggleSaved)
+              onSaved: _toggleSaved,
+              onList: () => _openCreate(),
+              onWanted: () => _openCreate(wanted: true))
           : const _FeatureUnavailablePage(feature: 'Marketplace'),
       _features.marketplace
           ? _StableCreateListingPage(
@@ -1273,6 +1281,24 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               selectedIcon: Icon(Icons.local_shipping),
             ),
         ],
+        expandedRailNavigation: MarketplaceGroupedNavigation(
+          selectedPageIndex: _tab,
+          marketplaceEnabled: _features.marketplace,
+          auctionsEnabled: _features.auctions,
+          dispatchEnabled: _features.dispatch,
+          onDestinationSelected: (target) {
+            if (target == 2) {
+              _openCreate();
+            } else if (target == 6) {
+              _selectControlledTab(target, _features.auctions, 'Auctions');
+            } else if (target == 7) {
+              _selectControlledTab(target, _features.dispatch, 'Dispatch');
+            } else {
+              _selectTab(target);
+            }
+          },
+          onWanted: () => _openCreate(wanted: true),
+        ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
           child: Tooltip(
@@ -1289,20 +1315,38 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           builder: (context, constraints) {
             final signedIn = FirebaseAuth.instance.currentUser != null;
             final extended = constraints.maxWidth >= 180;
-            final icon = signedIn ? Icons.logout : Icons.login;
-            final label = signedIn ? 'Sign out' : 'Sign in';
-            final onPressed = signedIn ? _signOut : _openAuth;
-            if (!extended) {
-              return IconButton(
-                tooltip: label,
-                onPressed: onPressed,
-                icon: Icon(icon),
+            if (!signedIn) {
+              if (!extended) {
+                return IconButton(
+                  tooltip: 'Sign in',
+                  onPressed: _openAuth,
+                  icon: const Icon(Icons.login),
+                );
+              }
+              return OutlinedButton.icon(
+                onPressed: _openAuth,
+                icon: const Icon(Icons.login),
+                label: const Text('Sign in'),
               );
             }
-            return OutlinedButton.icon(
-              onPressed: onPressed,
-              icon: Icon(icon),
-              label: Text(label),
+            return MarketplaceAccountMenuButton(
+              extended: extended,
+              onAccount: () => _selectTab(5),
+              onTrust: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MarketplaceAccountSecurityPage(),
+                ),
+              ),
+              onMemberships: () => showDialog<void>(
+                context: context,
+                builder: (_) => const MarketplaceSubscriptionPlansDialog(),
+              ),
+              onSupport: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MarketplaceSupportPage(),
+                ),
+              ),
+              onSignOut: _signOut,
             );
           },
         ),
@@ -1783,168 +1827,8 @@ class _HomePage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              // Executive Hero Header Banner
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF0F172A), // Slate Midnight
-                      Color(0xFF0F52BA), // Deep Cobalt Blue
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x220F52BA),
-                      blurRadius: 18,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      runSpacing: 10,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset('assets/images/pipe_buyer_logo.png',
-                                width: 44, height: 36, fit: BoxFit.contain),
-                            const SizedBox(width: 8),
-                            const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'PIPE BUYER',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 18,
-                                    letterSpacing: 0.6,
-                                  ),
-                                ),
-                                Text(
-                                  'Buy & Sell Marketplace for Oil & Gas Products Globally',
-                                  style: TextStyle(
-                                    color: Color(0xFF94A3B8),
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0x3338BDF8),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0x6638BDF8)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.monetization_on_outlined,
-                                  size: 14, color: Color(0xFF38BDF8)),
-                              SizedBox(width: 4),
-                              Text(
-                                'Low-Fee Marketplace',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Buy & Sell Marketplace for Oil & Gas Products Globally',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    if (features.marketplace) ...[
-                      InkWell(
-                        onTap: onBrowse,
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          height: 50,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x1A000000),
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.search, color: _orange, size: 22),
-                              SizedBox(width: 10),
-                              Text(
-                                'Search pipe, valves, tanks, tubing…',
-                                style: TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Spacer(),
-                              Icon(Icons.tune_rounded,
-                                  color: Color(0xFF64748B), size: 20),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: const [
-                            ('Drill Pipe', Icons.horizontal_rule_rounded),
-                            ('Frac Tanks', Icons.oil_barrel_outlined),
-                            ('Choke Valves', Icons.settings_input_component),
-                            ('Excavators', Icons.precision_manufacturing),
-                            ('Tubing & Casing', Icons.view_stream_outlined),
-                          ]
-                              .map((item) => Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: _HeroDiscoveryChip(
-                                      label: item.$1,
-                                      icon: item.$2,
-                                      onTap: () => onCategory(item.$1),
-                                    ),
-                                  ))
-                              .toList(growable: false),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+              const MarketplaceHomeWelcome(),
               const SizedBox(height: 20),
-
               _HomeQuickActions(
                 features: features,
                 onBrowse: onBrowse,
@@ -1975,66 +1859,6 @@ class _HomePage extends StatelessWidget {
                       'Marketplace browsing and listing are temporarily paused.',
                 ),
             ],
-          ),
-        ),
-      );
-}
-
-class _HeroDiscoveryChip extends StatelessWidget {
-  const _HeroDiscoveryChip({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: 'Browse $label listings',
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FBFF),
-            borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: const Color(0xFFB8D7FA)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x24000000),
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(11),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 16, color: const Color(0xFF075EB8)),
-                    const SizedBox(width: 7),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: Color(0xFF102A43),
-                        fontSize: 11.5,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         ),
       );
@@ -2605,7 +2429,9 @@ class _BrowsePage extends StatefulWidget {
       required this.saved,
       required this.onSearch,
       required this.onCategory,
-      required this.onSaved});
+      required this.onSaved,
+      required this.onList,
+      required this.onWanted});
   final Phase1FeatureFlags features;
   final String search;
   final String? category;
@@ -2613,6 +2439,8 @@ class _BrowsePage extends StatefulWidget {
   final ValueChanged<String> onSearch;
   final ValueChanged<String?> onCategory;
   final ValueChanged<MarketplaceListing> onSaved;
+  final VoidCallback onList;
+  final VoidCallback onWanted;
 
   @override
   State<_BrowsePage> createState() => _BrowsePageState();
@@ -2665,8 +2493,9 @@ class _BrowsePageState extends State<_BrowsePage> {
   }
 
   Query<Map<String, dynamic>> _query() {
-    Query<Map<String, dynamic>> query =
-        FirebaseFirestore.instance.collection('public_listings');
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('public_listings')
+        .where('status', isEqualTo: 'active');
     final searchToken = normalizeMarketplaceSearchQuery(widget.search);
     if (searchToken.isNotEmpty) {
       query = query.where('searchTokens', arrayContains: searchToken);
@@ -2729,6 +2558,7 @@ class _BrowsePageState extends State<_BrowsePage> {
         _documents.map(MarketplaceListing.fromFirestore).toList();
     final results = liveListings
         .where((item) =>
+            item.details['status'] == 'active' &&
             item.transactionType != 'Auction' &&
             (item.category != 'Site & Property' ||
                 widget.features.regulatedListings) &&
@@ -2881,10 +2711,29 @@ class _BrowsePageState extends State<_BrowsePage> {
     }
     if (results.isEmpty) {
       final wanted = _filters.transactionType == 'Wanted / Seeking';
+      final hasDiscoveryFilter =
+          normalizeMarketplaceSearchQuery(widget.search).isNotEmpty ||
+              widget.category != null ||
+              _filters.activeCount > 0;
+      if (_documents.isEmpty && !hasDiscoveryFilter) {
+        return MarketplaceDataStateView(
+          kind: MarketplaceDataStateKind.empty,
+          icon: Icons.inventory_2_outlined,
+          title: 'No Marketplace listings yet',
+          message:
+              'Be the first to publish inventory on Pipe Buyer, or post a Wanted Ad so sellers know what you need.',
+          primaryLabel: 'Create a listing',
+          primaryIcon: Icons.add_box_outlined,
+          onPrimary: widget.onList,
+          secondaryLabel: 'Post a Wanted Ad',
+          onSecondary: widget.onWanted,
+        );
+      }
       return MarketplaceDataStateView(
         kind: MarketplaceDataStateKind.empty,
         icon: wanted ? Icons.campaign_outlined : Icons.search_off_outlined,
-        title: wanted ? 'No wanted ads match' : 'No listings match',
+        title:
+            wanted ? 'No wanted ads match' : 'No listings match your filters',
         message: wanted
             ? 'Adjust the filters or check additional pages for buyer requests.'
             : 'Adjust the search or filters to broaden the Marketplace results.',

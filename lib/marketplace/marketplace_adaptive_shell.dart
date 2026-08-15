@@ -39,6 +39,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
     this.railLeading,
     this.railTrailing,
     this.railFooter,
+    this.expandedRailNavigation,
     this.backgroundColor,
     this.navigationBackgroundColor,
     this.indicatorColor,
@@ -57,6 +58,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
   final Widget? railLeading;
   final Widget? railTrailing;
   final Widget? railFooter;
+  final Widget? expandedRailNavigation;
   final Color? backgroundColor;
   final Color? navigationBackgroundColor;
   final Color? indicatorColor;
@@ -64,7 +66,8 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectiveBackground = backgroundColor ?? theme.scaffoldBackgroundColor;
+    final effectiveBackground =
+        backgroundColor ?? theme.scaffoldBackgroundColor;
     final effectiveNavigation =
         navigationBackgroundColor ?? theme.colorScheme.surface;
     final effectiveIndicator = indicatorColor ?? PipeBuyerColors.orangeSoft;
@@ -104,61 +107,65 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
                     child: Column(
                       children: [
                         Expanded(
-                          child: NavigationRailTheme(
-                            data: NavigationRailThemeData(
-                              backgroundColor: Colors.transparent,
-                              indicatorColor: effectiveIndicator,
-                              selectedIconTheme: const IconThemeData(
-                                color: PipeBuyerColors.orangePressed,
-                                size: 24,
-                              ),
-                              unselectedIconTheme: IconThemeData(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: .58),
-                                size: 22,
-                              ),
-                              selectedLabelTextStyle:
-                                  theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                              unselectedLabelTextStyle:
-                                  theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: .60),
-                              ),
-                            ),
-                            child: NavigationRail(
-                              selectedIndex: _selectedDestinationIndex(
-                                railDestinations,
-                              ),
-                              onDestinationSelected: (index) =>
-                                  onDestinationSelected(
-                                railDestinations[index].pageIndex,
-                              ),
-                              extended: extendRail,
-                              scrollable: true,
-                              groupAlignment: -1,
-                              minWidth: 82,
-                              minExtendedWidth: 268,
-                              backgroundColor: Colors.transparent,
-                              indicatorColor: effectiveIndicator,
-                              leading: railLeading ??
-                                  _RailBrand(extended: extendRail),
-                              trailing: railTrailing,
-                              destinations: railDestinations
-                                  .map(
-                                    (destination) => NavigationRailDestination(
-                                      icon: destination.icon,
-                                      selectedIcon: destination.selectedIcon ??
-                                          destination.icon,
-                                      label: Text(destination.label),
+                          child: extendRail && expandedRailNavigation != null
+                              ? expandedRailNavigation!
+                              : NavigationRailTheme(
+                                  data: NavigationRailThemeData(
+                                    backgroundColor: Colors.transparent,
+                                    indicatorColor: effectiveIndicator,
+                                    selectedIconTheme: const IconThemeData(
+                                      color: PipeBuyerColors.orangePressed,
+                                      size: 24,
                                     ),
-                                  )
-                                  .toList(growable: false),
-                            ),
-                          ),
+                                    unselectedIconTheme: IconThemeData(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: .58),
+                                      size: 22,
+                                    ),
+                                    selectedLabelTextStyle:
+                                        theme.textTheme.labelLarge?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                    unselectedLabelTextStyle:
+                                        theme.textTheme.labelMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: .60),
+                                    ),
+                                  ),
+                                  child: NavigationRail(
+                                    selectedIndex: _selectedDestinationIndex(
+                                      railDestinations,
+                                    ),
+                                    onDestinationSelected: (index) =>
+                                        onDestinationSelected(
+                                      railDestinations[index].pageIndex,
+                                    ),
+                                    extended: extendRail,
+                                    scrollable: true,
+                                    groupAlignment: -1,
+                                    minWidth: 82,
+                                    minExtendedWidth: 268,
+                                    backgroundColor: Colors.transparent,
+                                    indicatorColor: effectiveIndicator,
+                                    leading: railLeading ??
+                                        _RailBrand(extended: extendRail),
+                                    trailing: railTrailing,
+                                    destinations: railDestinations
+                                        .map(
+                                          (destination) =>
+                                              NavigationRailDestination(
+                                            icon: destination.icon,
+                                            selectedIcon:
+                                                destination.selectedIcon ??
+                                                    destination.icon,
+                                            label: Text(destination.label),
+                                          ),
+                                        )
+                                        .toList(growable: false),
+                                  ),
+                                ),
                         ),
                         if (railFooter != null)
                           SafeArea(
@@ -287,8 +294,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
     final theme = Theme.of(context);
     return AppBar(
       toolbarHeight: 64,
-      backgroundColor:
-          theme.appBarTheme.backgroundColor ?? PipeBuyerColors.ink,
+      backgroundColor: theme.appBarTheme.backgroundColor ?? PipeBuyerColors.ink,
       foregroundColor: theme.appBarTheme.foregroundColor ?? Colors.white,
       surfaceTintColor: Colors.transparent,
       elevation: 0,

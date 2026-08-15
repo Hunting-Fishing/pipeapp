@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_listing_lifecycle.dart';
 
 const Color _ownerBlue = PipeBuyerColors.industrialBlue;
 const Color _offerOrange = PipeBuyerColors.orange;
@@ -89,6 +90,9 @@ class MarketplaceListingPresentation {
         transactionType.contains('seeking');
     final boosted = '${data['boostStatus'] ?? ''}'.toLowerCase() == 'active';
     final verifiedSeller = data['sellerVerified'] == true;
+    final lifecycle = MarketplaceListingLifecycle.fromMap(data, now: clock);
+    final expired = !isAuction && lifecycle.expired;
+    final listingExpiresSoon = !isAuction && lifecycle.expiringSoon;
 
     // Ordering is intentional. On compact image cards only the first few
     // signals are visible, so transactional and trust state comes before
@@ -99,6 +103,20 @@ class MarketplaceListingPresentation {
           label: 'Your listing',
           icon: Icons.admin_panel_settings_outlined,
           color: _ownerBlue,
+        ),
+      if (expired)
+        const MarketplaceListingBadge(
+          label: 'Expired',
+          icon: Icons.event_busy_outlined,
+          color: _urgentRed,
+        )
+      else if (listingExpiresSoon)
+        MarketplaceListingBadge(
+          label: lifecycle.daysRemaining == 1
+              ? 'Expires tomorrow'
+              : 'Expires in ${lifecycle.daysRemaining} days',
+          icon: Icons.event_outlined,
+          color: _offerOrange,
         ),
       if (isWanted)
         const MarketplaceListingBadge(
@@ -153,23 +171,27 @@ class MarketplaceListingPresentation {
         ),
     ];
 
-    final primary = isOwner
-        ? _ownerBlue
-        : isWanted
-            ? _wantedPurple
-            : pendingSale
-                ? _offerOrange
-                : endsSoon
-                    ? _urgentRed
-                    : priceWasReduced
-                        ? _priceGreen
-                        : activityCount > 0 || boosted
-                            ? _offerOrange
-                            : verifiedSeller
-                                ? PipeBuyerColors.success
-                                : isNew
-                                    ? _newTeal
-                                    : _neutralBorder;
+    final primary = expired
+        ? _urgentRed
+        : listingExpiresSoon
+            ? _offerOrange
+            : isOwner
+                ? _ownerBlue
+                : isWanted
+                    ? _wantedPurple
+                    : pendingSale
+                        ? _offerOrange
+                        : endsSoon
+                            ? _urgentRed
+                            : priceWasReduced
+                                ? _priceGreen
+                                : activityCount > 0 || boosted
+                                    ? _offerOrange
+                                    : verifiedSeller
+                                        ? PipeBuyerColors.success
+                                        : isNew
+                                            ? _newTeal
+                                            : _neutralBorder;
     return MarketplaceListingPresentation(
       borderColor: primary,
       badges: badges,
@@ -224,9 +246,8 @@ class _BadgePill extends StatelessWidget {
         vertical: compact ? 4 : 5,
       ),
       decoration: BoxDecoration(
-        color: compact
-            ? _imageBadgeSurface
-            : badge.color.withValues(alpha: .085),
+        color:
+            compact ? _imageBadgeSurface : badge.color.withValues(alpha: .085),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: compact
