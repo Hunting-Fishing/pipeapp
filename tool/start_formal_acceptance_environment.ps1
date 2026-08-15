@@ -14,12 +14,16 @@ if ($branch -ne 'design/formal-beautification-foundation') {
 
 $formalLauncher = Join-Path $PSScriptRoot 'start_formal_test_sandbox.ps1'
 $reseedHelper = Join-Path $PSScriptRoot 'reseed_formal_test_data.ps1'
+$clientLauncher = Join-Path $PSScriptRoot 'launch_formal_flutter_client.ps1'
 $analyticsTest = Join-Path $repoRoot 'firebase\functions\test\marketplace_listing_insights.test.js'
 if (-not (Test-Path $formalLauncher)) {
   throw 'tool/start_formal_test_sandbox.ps1 is missing.'
 }
 if (-not (Test-Path $reseedHelper)) {
   throw 'tool/reseed_formal_test_data.ps1 is missing.'
+}
+if (-not (Test-Path $clientLauncher)) {
+  throw 'tool/launch_formal_flutter_client.ps1 is missing.'
 }
 if (-not (Test-Path $analyticsTest)) {
   throw 'Marketplace listing analytics test is missing.'
@@ -45,5 +49,6 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Step 'Launching Flutter against the already-running verified sandbox'
 Write-Host 'Keep the Firebase Emulator window open. Do not press Ctrl+C while testing.' -ForegroundColor Yellow
-& powershell -ExecutionPolicy Bypass -File $formalLauncher -SkipSeed
+Write-Host 'Pipe Buyer local app will use http://127.0.0.1:5050' -ForegroundColor Green
+& powershell -ExecutionPolicy Bypass -File $clientLauncher
 exit $LASTEXITCODE
