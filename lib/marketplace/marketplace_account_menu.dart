@@ -38,14 +38,19 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
         switch (action) {
           case _AccountMenuAction.account:
             onAccount();
+            return;
           case _AccountMenuAction.trust:
             onTrust();
+            return;
           case _AccountMenuAction.memberships:
             onMemberships();
+            return;
           case _AccountMenuAction.support:
             onSupport();
+            return;
           case _AccountMenuAction.signOut:
             onSignOut();
+            return;
         }
       },
       itemBuilder: (context) => [
