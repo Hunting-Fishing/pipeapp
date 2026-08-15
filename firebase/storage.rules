@@ -94,13 +94,27 @@ service firebase.storage {
             /databases/(default)/documents/conversations/$(conversationId)
           ).data.memberUids;
       }
+      function isSupportedChatImageOrPdf() {
+        return request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'image/png'
+          || request.resource.contentType == 'image/webp'
+          || request.resource.contentType == 'application/pdf';
+      }
+      function isSupportedChatVideo() {
+        return request.resource.contentType == 'video/mp4'
+          || request.resource.contentType == 'video/quicktime';
+      }
       allow read: if isConversationMember();
       allow create: if validUploadAuthorization(
           fileName, userId, 'chat_attachment', conversationId)
         && isConversationMember()
-        && request.resource.size <= 15 * 1024 * 1024
-        && (isImage() || isVideo()
-          || request.resource.contentType == 'application/pdf');
+        && (
+          (isSupportedChatImageOrPdf()
+            && request.resource.size <= 15 * 1024 * 1024)
+          ||
+          (isSupportedChatVideo()
+            && request.resource.size <= 25 * 1024 * 1024)
+        );
       allow update: if false;
       allow delete: if isOwner(userId) && isConversationMember();
     }
