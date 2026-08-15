@@ -92,4 +92,5 @@ function patchListingStatus() {
 patchMarketplaceCommands();
 patchListingStatus();
 await import("./apply_listing_lifecycle_nav_v1_relist.mjs");
+await import("./apply_listing_lifecycle_nav_v1_dartfix.mjs");
 console.log("Listing publication/lifecycle presentation hardening completed.");
