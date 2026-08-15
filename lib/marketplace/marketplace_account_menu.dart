@@ -29,7 +29,7 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
         ? user.displayName!.trim()
         : (user.email?.split('@').first ?? 'Account');
     final email = user.email ?? '';
-    final initial = name.isEmpty ? 'P' : name.characters.first.toUpperCase();
+    final initial = name.isEmpty ? 'P' : name.substring(0, 1).toUpperCase();
 
     return PopupMenuButton<_AccountMenuAction>(
       tooltip: 'Open account menu',
