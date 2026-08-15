@@ -55,6 +55,12 @@ $targets = @(
   'lib/marketplace/marketplace_dispatch_page.dart'
 ) | Where-Object { Test-Path $_ }
 
+$restoreTargets = @(
+  $targets
+  'lib/marketplace/marketplace_timed_buying_presentation.dart'
+  'test/marketplace_timed_buying_presentation_test.dart'
+) | Select-Object -Unique
+
 try {
   Write-Step 'Syntax-checking the Timed Buying migration helper'
   & node --check $patcher
@@ -113,7 +119,9 @@ try {
   if ($CommitAndPush) {
     Write-Step 'Committing verified Timed Buying source changes'
     git add -- $targets
-    if (-not (git diff --cached --quiet)) {
+    git diff --cached --quiet
+    $hasStagedChanges = $LASTEXITCODE -ne 0
+    if ($hasStagedChanges) {
       git commit -m 'Rebrand auction UI as Timed Buying'
       if ($LASTEXITCODE -ne 0) { throw 'Git commit failed.' }
       git push origin design/formal-beautification-foundation
@@ -131,7 +139,7 @@ try {
   }
 }
 catch {
-  Write-Host "`nTimed Buying migration failed; restoring only the source files this helper edits." -ForegroundColor Red
-  & git restore -- $targets
+  Write-Host "`nTimed Buying migration failed; restoring only the files this helper may format or edit." -ForegroundColor Red
+  & git restore -- $restoreTargets
   throw
 }
