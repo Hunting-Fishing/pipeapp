@@ -36,4 +36,19 @@ void main() {
     expect(presentation.badges.map((badge) => badge.label),
         containsAll(<String>['2 bids', 'Ends soon']));
   });
+
+  test('wanted, verified, and boosted listing signals are surfaced', () {
+    final presentation = MarketplaceListingPresentation.fromMap({
+      'sellerUid': 'seller-4',
+      'transactionType': 'Wanted / Seeking',
+      'sellerVerified': true,
+      'boostStatus': 'active',
+    }, currentUserUid: 'buyer-1', now: now);
+
+    expect(
+      presentation.badges.map((badge) => badge.label),
+      containsAll(<String>['Wanted', 'Verified seller', 'Boosted']),
+    );
+    expect(presentation.emphasized, isTrue);
+  });
 }

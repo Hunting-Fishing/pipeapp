@@ -41,6 +41,8 @@ import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
+import 'marketplace_offer_analysis.dart';
+import 'marketplace_offer_commerce_summary.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
@@ -4303,11 +4305,21 @@ class _ListingDetailsState extends State<_ListingDetails> {
                       quantity.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
                   0;
               final askingUnit = listing.numericPrice ?? 0;
-              final askingTotal = askingUnit * requestedQty;
-              final offeredTotal = offeredUnit * requestedQty;
-              final difference = offeredTotal - askingTotal;
-              final percent =
-                  askingTotal == 0 ? 0 : (difference / askingTotal * 100);
+              final listedQty =
+                  listing.quantity ?? (requestedQty > 0 ? requestedQty : 1);
+              final basisLower = listing.priceBasis.toLowerCase();
+              final unitLabel = basisLower.contains('joint')
+                  ? 'joints'
+                  : basisLower.contains('piece') || basisLower.contains('each')
+                      ? 'pieces'
+                      : 'units';
+              // PIPEBUYER_OFFER_SUMMARY_V4: original listing values remain static.
+              final analysis = MarketplaceOfferAnalysis(
+                listedQuantity: listedQty,
+                requestedQuantity: requestedQty,
+                askingUnitPrice: askingUnit,
+                offeredUnitPrice: offeredUnit,
+              );
               return AlertDialog(
                   insetPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -4335,16 +4347,17 @@ class _ListingDetailsState extends State<_ListingDetails> {
                                         '${listing.quantity} pieces available'),
                                 ])),
                         const SizedBox(height: 10),
-                        TextField(
-                            controller: quantity,
-                            onChanged: (_) => refresh(() {}),
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                                labelText: 'Quantity requested',
-                                hintText: 'e.g. 54',
-                                helperText:
-                                    'Enter the number of pieces or units you want.',
-                                suffixText: 'pieces')),
+                        MarketplaceOfferQuantityField(
+                          controller: quantity,
+                          availableQuantity: listedQty,
+                          unitLabel: unitLabel,
+                          errorText: requestedQty <= 0
+                              ? 'Enter at least 1 $unitLabel.'
+                              : requestedQty > listedQty
+                                  ? 'Only $listedQty $unitLabel are available.'
+                                  : null,
+                          onChanged: (_) => refresh(() {}),
+                        ),
                         const SizedBox(height: 10),
                         TextField(
                             controller: amount,
@@ -4360,40 +4373,10 @@ class _ListingDetailsState extends State<_ListingDetails> {
                                 prefixText: '\$ ')),
                         const SizedBox(height: 10),
                         if (requestedQty > 0 && offeredUnit > 0)
-                          Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                  color: difference < 0
-                                      ? const Color(0xFFFFF5E8)
-                                      : const Color(0xFFEAF8F1),
-                                  borderRadius: BorderRadius.circular(12)),
-                              child: Column(children: [
-                                _offerLine('Asking total', askingTotal),
-                                _offerLine('Offer total', offeredTotal),
-                                const Divider(),
-                                Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Expanded(
-                                          child: Text('Difference',
-                                              style: TextStyle(
-                                                  fontWeight:
-                                                      FontWeight.w800))),
-                                      const SizedBox(width: 10),
-                                      Flexible(
-                                          child: Text(
-                                              '${difference >= 0 ? '+' : '-'}\$${difference.abs().toStringAsFixed(2)} (${percent >= 0 ? '+' : ''}${percent.toStringAsFixed(1)}%)',
-                                              textAlign: TextAlign.right,
-                                              softWrap: true,
-                                              style: TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                  color: difference < 0
-                                                      ? Colors.deepOrange
-                                                      : Colors.green.shade700)))
-                                    ])
-                              ])),
+                          MarketplaceOfferCommerceSummary(
+                            analysis: analysis,
+                            unitLabel: unitLabel,
+                          ),
                         const SizedBox(height: 10),
                         TextField(
                             controller: note,
@@ -4595,16 +4578,6 @@ class _ListingDetailsState extends State<_ListingDetails> {
     await MarketplaceFreightQuote.show(context,
         listingId: id, listing: document.data()!);
   }
-
-  Widget _offerLine(String label, num amount) => Row(children: [
-        Expanded(child: Text(label)),
-        const SizedBox(width: 10),
-        Flexible(
-            child: Text('\$${amount.toStringAsFixed(2)}',
-                textAlign: TextAlign.right,
-                softWrap: true,
-                style: const TextStyle(fontWeight: FontWeight.w800)))
-      ]);
 
   Widget _listingOfferDateButton(
           {required String label,

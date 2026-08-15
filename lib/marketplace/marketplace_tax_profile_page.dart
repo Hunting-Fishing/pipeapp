@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_components.dart';
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_data_state.dart';
 
 class MarketplaceTaxProfilePage extends StatefulWidget {
   const MarketplaceTaxProfilePage({super.key});
@@ -72,7 +75,8 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final result = await _commands.execute('getMarketplaceTaxProfile', const {});
+      final result =
+          await _commands.execute('getMarketplaceTaxProfile', const {});
       final profile = _map(result['profile']);
       final types = result['exemptionTypes'];
       if (!mounted) return;
@@ -184,7 +188,8 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
       if (bytes.length > 15 * 1024 * 1024) {
         throw StateError('Tax evidence images must be smaller than 15 MB.');
       }
-      final safeName = picked.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      final safeName =
+          picked.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
       final fileName =
           'tax_${DateTime.now().millisecondsSinceEpoch}_${safeName.isEmpty ? 'evidence.jpg' : safeName}';
       final path = 'business_documents/${user.uid}/$fileName';
@@ -281,185 +286,406 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Business Tax & Exemptions')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const MarketplaceDataStateView.loading(
+              title: 'Loading private tax profile',
+              message: 'Retrieving registration and verification status…',
+            )
           : Form(
               key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(18),
-                children: [
-                  const Card(
-                    child: ListTile(
-                      leading: Icon(Icons.security_outlined),
-                      title: Text('Private tax profile'),
-                      subtitle: Text(
-                        'Tax IDs and exemption documents are private. A PST number does not automatically make a transaction PST-exempt; exemption claims require evidence and review.',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _field(_legalName, 'Legal business / entity name', required: true),
-                  Row(children: [
-                    Expanded(child: _field(_country, 'Country code', required: true)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _field(_region, 'Province / state', required: true)),
-                  ]),
-                  _taxField(
-                    controller: _businessNumber,
-                    label: 'Business Number (BN)',
-                    status: _businessNumberStatus,
-                  ),
-                  _taxField(
-                    controller: _gstHstNumber,
-                    label: 'GST/HST registration number',
-                    status: _gstHstStatus,
-                  ),
-                  _taxField(
-                    controller: _pstBcNumber,
-                    label: 'B.C. PST registration number',
-                    status: _pstBcStatus,
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: _sellerGstStatus,
-                    decoration: const InputDecoration(
-                      labelText: 'Registered under normal GST/HST regime?',
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'yes', child: Text('Yes')),
-                      DropdownMenuItem(value: 'no', child: Text('No')),
-                      DropdownMenuItem(value: 'pending', child: Text('Pending / unsure')),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _sellerGstStatus = value ?? 'pending'),
-                  ),
-                  const SizedBox(height: 14),
-                  Card(
-                    color: const Color(0xFFFFF7E6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Tax information responsibility',
-                            style: TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 7),
-                          Text(_responsibilitySummary),
-                          CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            value: _responsibilityAcknowledged,
-                            onChanged: (value) => setState(() =>
-                                _responsibilityAcknowledged = value == true),
-                            title: const Text(
-                              'I certify this tax information is complete and accurate and accept the tax responsibility terms.',
-                            ),
-                            controlAffinity: ListTileControlAffinity.leading,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1040),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
+                    children: [
+                      PipeBuyerPageHeader(
+                        eyebrow: 'Private Account Data',
+                        title: 'Tax & exemption center',
+                        subtitle:
+                            'Manage private business registration details and submit transaction-specific exemption evidence for review.',
+                        icon: Icons.account_balance_outlined,
+                        actions: const [
+                          PipeBuyerStatusBadge(
+                            label: 'PRIVATE',
+                            icon: Icons.lock_outline,
+                            tone: PipeBuyerStatusTone.success,
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  FilledButton.icon(
-                    onPressed: _saving ? null : _saveProfile,
-                    icon: const Icon(Icons.save_outlined),
-                    label: Text(_saving ? 'Saving…' : 'Save private tax profile'),
-                  ),
-                  const SizedBox(height: 26),
-                  const Divider(),
-                  const Text(
-                    'B.C. PST exemption claim',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Claims are reviewed per transaction/use. Pipe Buyer does not remove PST solely because a PST number was entered.',
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _exemptionType,
-                    decoration: const InputDecoration(labelText: 'Exemption type'),
-                    items: (_exemptionTypes.isEmpty
-                            ? const [
-                                {'value': 'resale', 'label': 'Purchase for resale'},
-                                {
-                                  'value': 'production_machinery_equipment',
-                                  'label': 'Production machinery and equipment'
-                                },
-                                {
-                                  'value': 'oil_gas_pme',
-                                  'label': 'Oil & gas qualifying PM&E'
-                                },
-                                {
-                                  'value': 'goods_shipped_out_of_bc',
-                                  'label': 'Goods shipped out of B.C.'
-                                },
-                              ]
-                            : _exemptionTypes)
-                        .map((item) => DropdownMenuItem<String>(
-                              value: '${item['value']}',
-                              child: Text('${item['label']}'),
-                            ))
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => _exemptionType = value ?? 'resale'),
-                  ),
-                  const SizedBox(height: 10),
-                  _field(
-                    _certificateReference,
-                    'Certificate / exemption reference',
-                    hint: 'Example: FIN 490, FIN 492, FIN 464 or certificate reference',
-                  ),
-                  _field(
-                    _intendedUse,
-                    'How will the goods be used?',
-                    required: true,
-                    maxLines: 4,
-                  ),
-                  _field(
-                    _transactionId,
-                    'Marketplace transaction ID (optional until checkout)',
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _uploadingEvidence ? null : _pickEvidence,
-                    icon: const Icon(Icons.upload_file_outlined),
-                    label: Text(_uploadingEvidence
-                        ? 'Uploading evidence…'
-                        : _evidenceStoragePath.isEmpty
-                            ? 'Upload certificate/evidence image'
-                            : 'Evidence uploaded • replace image'),
-                  ),
-                  if (_evidenceStoragePath.isNotEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Evidence is stored privately and can be read only by the account owner and MFA administrators.',
-                        style: TextStyle(color: Colors.green),
+                      const SizedBox(height: 16),
+                      PipeBuyerMetricGrid(
+                        children: [
+                          _verificationMetric(
+                            label: 'Business Number',
+                            status: _businessNumberStatus,
+                            icon: Icons.business_center_outlined,
+                          ),
+                          _verificationMetric(
+                            label: 'GST/HST',
+                            status: _gstHstStatus,
+                            icon: Icons.receipt_long_outlined,
+                          ),
+                          _verificationMetric(
+                            label: 'B.C. PST',
+                            status: _pstBcStatus,
+                            icon: Icons.location_city_outlined,
+                          ),
+                        ],
                       ),
-                    ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _claimAcknowledged,
-                    onChanged: (value) =>
-                        setState(() => _claimAcknowledged = value == true),
-                    title: const Text(
-                      'I certify the exemption claim, intended use, delivery facts and supporting evidence are accurate.',
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
+                      const SizedBox(height: 16),
+                      PipeBuyerSectionCard(
+                        title: 'Private tax identity',
+                        subtitle:
+                            'Tax IDs are private. New or changed registration numbers require verification.',
+                        leading: const _SectionIcon(
+                          Icons.badge_outlined,
+                          tone: PipeBuyerStatusTone.info,
+                        ),
+                        trailing: const PipeBuyerStatusBadge(
+                          label: 'ACCOUNT OWNER ONLY',
+                          icon: Icons.visibility_off_outlined,
+                          tone: PipeBuyerStatusTone.neutral,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _field(
+                              _legalName,
+                              'Legal business / entity name',
+                              required: true,
+                            ),
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                if (constraints.maxWidth < 620) {
+                                  return Column(
+                                    children: [
+                                      _field(
+                                        _country,
+                                        'Country code',
+                                        required: true,
+                                      ),
+                                      _field(
+                                        _region,
+                                        'Province / state',
+                                        required: true,
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _field(
+                                        _country,
+                                        'Country code',
+                                        required: true,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _field(
+                                        _region,
+                                        'Province / state',
+                                        required: true,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            _taxField(
+                              controller: _businessNumber,
+                              label: 'Business Number (BN)',
+                              status: _businessNumberStatus,
+                            ),
+                            _taxField(
+                              controller: _gstHstNumber,
+                              label: 'GST/HST registration number',
+                              status: _gstHstStatus,
+                            ),
+                            _taxField(
+                              controller: _pstBcNumber,
+                              label: 'B.C. PST registration number',
+                              status: _pstBcStatus,
+                            ),
+                            DropdownButtonFormField<String>(
+                              initialValue: _sellerGstStatus,
+                              decoration: const InputDecoration(
+                                labelText:
+                                    'Registered under normal GST/HST regime?',
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'yes',
+                                  child: Text('Yes'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'no',
+                                  child: Text('No'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'pending',
+                                  child: Text('Pending / unsure'),
+                                ),
+                              ],
+                              onChanged: (value) => setState(() =>
+                                  _sellerGstStatus = value ?? 'pending'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      PipeBuyerSectionCard(
+                        title: 'Tax information responsibility',
+                        subtitle:
+                            'Confirm the information supplied to Pipe Buyer is complete and accurate.',
+                        leading: const _SectionIcon(
+                          Icons.fact_check_outlined,
+                          tone: PipeBuyerStatusTone.warning,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: PipeBuyerColors.warning
+                                    .withValues(alpha: .08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: PipeBuyerColors.warning
+                                      .withValues(alpha: .20),
+                                ),
+                              ),
+                              child: Text(
+                                _responsibilitySummary.isEmpty
+                                    ? 'Review the tax responsibility terms before saving your profile.'
+                                    : _responsibilitySummary,
+                              ),
+                            ),
+                            CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              value: _responsibilityAcknowledged,
+                              onChanged: (value) => setState(() =>
+                                  _responsibilityAcknowledged = value == true),
+                              title: const Text(
+                                'I certify this tax information is complete and accurate and accept the tax responsibility terms.',
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                            ),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _saving ? null : _saveProfile,
+                                icon: _saving
+                                    ? const SizedBox.square(
+                                        dimension: 17,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.save_outlined),
+                                label: Text(_saving
+                                    ? 'Saving private tax profile…'
+                                    : 'Save private tax profile'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const PipeBuyerPageHeader(
+                        eyebrow: 'Transaction-Specific Review',
+                        title: 'B.C. PST exemption claim',
+                        subtitle:
+                            'A registration number alone does not remove PST. Submit the intended use and supporting evidence for review.',
+                        icon: Icons.request_quote_outlined,
+                      ),
+                      const SizedBox(height: 14),
+                      PipeBuyerSectionCard(
+                        title: 'Exemption details',
+                        subtitle:
+                            'Claims are reviewed per transaction and intended use. No tax is removed until a claim is approved.',
+                        leading: const _SectionIcon(
+                          Icons.description_outlined,
+                          tone: PipeBuyerStatusTone.premium,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            DropdownButtonFormField<String>(
+                              initialValue: _exemptionType,
+                              decoration: const InputDecoration(
+                                labelText: 'Exemption type',
+                              ),
+                              items: (_exemptionTypes.isEmpty
+                                      ? const [
+                                          {
+                                            'value': 'resale',
+                                            'label': 'Purchase for resale'
+                                          },
+                                          {
+                                            'value':
+                                                'production_machinery_equipment',
+                                            'label':
+                                                'Production machinery and equipment'
+                                          },
+                                          {
+                                            'value': 'oil_gas_pme',
+                                            'label':
+                                                'Oil & gas qualifying PM&E'
+                                          },
+                                          {
+                                            'value': 'goods_shipped_out_of_bc',
+                                            'label':
+                                                'Goods shipped out of B.C.'
+                                          },
+                                        ]
+                                      : _exemptionTypes)
+                                  .map((item) => DropdownMenuItem<String>(
+                                        value: '${item['value']}',
+                                        child: Text('${item['label']}'),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) => setState(
+                                () => _exemptionType = value ?? 'resale',
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _field(
+                              _certificateReference,
+                              'Certificate / exemption reference',
+                              hint:
+                                  'Example: FIN 490, FIN 492, FIN 464 or certificate reference',
+                            ),
+                            _field(
+                              _intendedUse,
+                              'How will the goods be used?',
+                              required: true,
+                              maxLines: 4,
+                            ),
+                            _field(
+                              _transactionId,
+                              'Marketplace transaction ID (optional until checkout)',
+                            ),
+                            OutlinedButton.icon(
+                              onPressed:
+                                  _uploadingEvidence ? null : _pickEvidence,
+                              icon: _uploadingEvidence
+                                  ? const SizedBox.square(
+                                      dimension: 17,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.upload_file_outlined),
+                              label: Text(_uploadingEvidence
+                                  ? 'Uploading evidence…'
+                                  : _evidenceStoragePath.isEmpty
+                                      ? 'Upload certificate/evidence image'
+                                      : 'Evidence uploaded • replace image'),
+                            ),
+                            if (_evidenceStoragePath.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: PipeBuyerColors.success
+                                      .withValues(alpha: .08),
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: const Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.lock_outline,
+                                      size: 20,
+                                      color: PipeBuyerColors.success,
+                                    ),
+                                    SizedBox(width: 9),
+                                    Expanded(
+                                      child: Text(
+                                        'Evidence is stored privately and can be read only by the account owner and MFA administrators.',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              value: _claimAcknowledged,
+                              onChanged: (value) => setState(
+                                () => _claimAcknowledged = value == true,
+                              ),
+                              title: const Text(
+                                'I certify the exemption claim, intended use, delivery facts and supporting evidence are accurate.',
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                            ),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _submittingClaim
+                                    ? null
+                                    : _submitExemption,
+                                icon: _submittingClaim
+                                    ? const SizedBox.square(
+                                        dimension: 17,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.fact_check_outlined),
+                                label: Text(_submittingClaim
+                                    ? 'Submitting exemption…'
+                                    : 'Submit exemption for review'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  FilledButton.icon(
-                    onPressed: _submittingClaim ? null : _submitExemption,
-                    icon: const Icon(Icons.fact_check_outlined),
-                    label: Text(_submittingClaim
-                        ? 'Submitting…'
-                        : 'Submit exemption for review'),
-                  ),
-                  const SizedBox(height: 28),
-                ],
+                ),
               ),
             ),
     );
   }
+
+  PipeBuyerMetricCard _verificationMetric({
+    required String label,
+    required String status,
+    required IconData icon,
+  }) {
+    final normalized = status.trim().toLowerCase();
+    final tone = _taxStatusTone(normalized);
+    return PipeBuyerMetricCard(
+      label: label,
+      value: _taxStatusLabel(normalized),
+      icon: icon,
+      caption: 'Registration verification',
+      tone: tone,
+    );
+  }
+
+  PipeBuyerStatusTone _taxStatusTone(String status) => switch (status) {
+        'verified' => PipeBuyerStatusTone.success,
+        'invalid' => PipeBuyerStatusTone.danger,
+        'pending' || 'under_review' => PipeBuyerStatusTone.warning,
+        _ => PipeBuyerStatusTone.neutral,
+      };
+
+  String _taxStatusLabel(String status) => switch (status) {
+        'verified' => 'Verified',
+        'invalid' => 'Needs correction',
+        'pending' => 'Pending',
+        'under_review' => 'Under review',
+        'not_provided' || '' => 'Not provided',
+        _ => status.replaceAll('_', ' '),
+      };
 
   Widget _field(
     TextEditingController controller,
@@ -475,7 +701,8 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
           maxLines: maxLines,
           decoration: InputDecoration(labelText: label, hintText: hint),
           validator: required
-              ? (value) => value == null || value.trim().isEmpty ? 'Required' : null
+              ? (value) =>
+                  value == null || value.trim().isEmpty ? 'Required' : null
               : null,
         ),
       );
@@ -484,30 +711,50 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
     required TextEditingController controller,
     required String label,
     required String status,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: TextFormField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: label,
-            suffixIcon: Tooltip(
-              message: status.replaceAll('_', ' '),
-              child: Icon(
-                status == 'verified'
-                    ? Icons.verified_outlined
-                    : status == 'invalid'
-                        ? Icons.error_outline
-                        : Icons.schedule_outlined,
-                color: status == 'verified'
-                    ? Colors.green
-                    : status == 'invalid'
-                        ? Colors.red
-                        : Colors.orange,
-              ),
+  }) {
+    final tone = _taxStatusTone(status.trim().toLowerCase());
+    final color = pipeBuyerToneColor(tone);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: Tooltip(
+            message: status.replaceAll('_', ' '),
+            child: Icon(
+              status == 'verified'
+                  ? Icons.verified_outlined
+                  : status == 'invalid'
+                      ? Icons.error_outline
+                      : Icons.schedule_outlined,
+              color: color,
             ),
-            helperText: 'Verification: ${status.replaceAll('_', ' ')}',
           ),
+          helperText: 'Verification: ${status.replaceAll('_', ' ')}',
         ),
-      );
+      ),
+    );
+  }
+}
+
+class _SectionIcon extends StatelessWidget {
+  const _SectionIcon(this.icon, {required this.tone});
+
+  final IconData icon;
+  final PipeBuyerStatusTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = pipeBuyerToneColor(tone);
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: color),
+    );
+  }
 }

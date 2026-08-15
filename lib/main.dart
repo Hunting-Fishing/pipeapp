@@ -14,6 +14,7 @@ import 'backend/firebase/firebase_config.dart';
 import 'core/accessibility/pipe_accessibility_theme.dart';
 import 'core/accessibility/pipe_status_feedback.dart';
 import 'core/config/public_release_config.dart';
+import 'core/design/pipe_buyer_theme.dart';
 import 'core/diagnostics/app_diagnostics.dart';
 import 'core/startup/pipe_startup_monitor.dart';
 import 'marketplace/marketplace_notification_service.dart';
@@ -38,8 +39,6 @@ Future<void> _bootstrapPipeBuyer(PipeStartupMonitor startupMonitor) async {
       progress: .99,
     );
     startupMonitor.complete();
-    // Allow the completed 100% milestone to render once before replacing the
-    // startup monitor with the marketplace application.
     await WidgetsBinding.instance.endOfFrame;
     runApp(ChangeNotifierProvider(
       create: (context) => appState,
@@ -123,7 +122,7 @@ Future<FFAppState> _initializePipeBuyer(
     label: 'Restoring your saved preferences',
     progress: .95,
   );
-  final appState = FFAppState(); // Initialize FFAppState
+  final appState = FFAppState();
   await appState.initializePersistedState();
   return appState;
 }
@@ -131,7 +130,6 @@ Future<FFAppState> _initializePipeBuyer(
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   State<MyApp> createState() => MyAppState();
 
@@ -150,11 +148,11 @@ class MyAppScrollBehavior extends MaterialScrollBehavior {
 
 class MyAppState extends State<MyApp> {
   Locale? _locale = FFLocalizations.getStoredLocale();
-
   ThemeMode _themeMode = FlutterFlowTheme.themeMode;
 
   late AppStateNotifier _appStateNotifier;
   late GoRouter _router;
+
   String getRoute([RouteMatch? routeMatch]) {
     final RouteMatch lastMatch =
         routeMatch ?? _router.routerDelegate.currentConfiguration.last;
@@ -168,14 +166,13 @@ class MyAppState extends State<MyApp> {
       _router.routerDelegate.currentConfiguration.matches
           .map((e) => getRoute(e))
           .toList();
-  late Stream<BaseAuthUser> userStream;
 
+  late Stream<BaseAuthUser> userStream;
   final authUserSub = authenticatedUserStream.listen((_) {});
 
   @override
   void initState() {
     super.initState();
-
     _appStateNotifier = AppStateNotifier.instance;
     _router = createRouter(_appStateNotifier);
     unawaited(MarketplaceNotificationService.instance.initializeNavigation());
@@ -193,7 +190,6 @@ class MyAppState extends State<MyApp> {
   @override
   void dispose() {
     authUserSub.cancel();
-
     super.dispose();
   }
 
@@ -240,14 +236,8 @@ class MyAppState extends State<MyApp> {
         Locale('nl'),
         Locale('ja'),
       ],
-      theme: PipeAccessibilityTheme.apply(ThemeData(
-        brightness: Brightness.light,
-        useMaterial3: false,
-      )),
-      darkTheme: PipeAccessibilityTheme.apply(ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: false,
-      )),
+      theme: PipeAccessibilityTheme.apply(PipeBuyerTheme.light()),
+      darkTheme: PipeAccessibilityTheme.apply(PipeBuyerTheme.dark()),
       themeMode: _themeMode,
       builder: (context, child) => PipeAccessibilityRoot(
         child: child ?? const SizedBox.shrink(),

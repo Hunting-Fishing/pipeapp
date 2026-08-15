@@ -43,14 +43,25 @@ class Phase1FeatureFlags {
       return value is bool ? value : fallback;
     }
 
+    // The local environment is the full PipeBuyer integration sandbox. Core
+    // marketplace transaction surfaces stay available there even if a seeded
+    // remote feature document is temporarily missing/stale. Production and
+    // staging still respect both the build policy and remote kill switches.
+    final localIntegration =
+        buildPolicy.environment.trim().toLowerCase() == 'local';
+
     return Phase1FeatureFlags(
-      marketplace: remoteValue('marketplace', safeDefaults.marketplace),
-      wantedAds: remoteValue('wantedAds', safeDefaults.wantedAds),
-      offers: remoteValue('offers', safeDefaults.offers),
-      auctions: remoteValue('auctions', safeDefaults.auctions) &&
-          buildPolicy.auctionsEnabledForBuild,
-      dispatch: remoteValue('dispatch', safeDefaults.dispatch) &&
-          buildPolicy.dispatchEnabledForBuild,
+      marketplace: localIntegration ||
+          remoteValue('marketplace', safeDefaults.marketplace),
+      wantedAds:
+          localIntegration || remoteValue('wantedAds', safeDefaults.wantedAds),
+      offers: localIntegration || remoteValue('offers', safeDefaults.offers),
+      auctions: localIntegration ||
+          (remoteValue('auctions', safeDefaults.auctions) &&
+              buildPolicy.auctionsEnabledForBuild),
+      dispatch: localIntegration ||
+          (remoteValue('dispatch', safeDefaults.dispatch) &&
+              buildPolicy.dispatchEnabledForBuild),
       paidFeatures: remoteValue(
             'paidFeatures',
             safeDefaults.paidFeatures,

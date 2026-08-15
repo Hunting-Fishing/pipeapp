@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
+import 'industrial_icon_assets.dart';
 import 'marketplace_location.dart';
 import 'marketplace_location_picker.dart';
 import 'marketplace_profile_community.dart';
@@ -37,7 +39,7 @@ class MarketplacePrimaryCommunitySelector extends StatelessWidget {
           onSelected: (address) =>
               onSelected(marketplaceCommunityFromOpenAddress(address)),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         if (location == null)
           const _CommunitySelectionNotice()
         else
@@ -56,20 +58,45 @@ class _CommunitySelectionNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF4E5),
-          border: Border.all(color: const Color(0xFFFFC46B)),
-          borderRadius: BorderRadius.circular(12),
+          color: PipeBuyerColors.orangeSoft,
+          border: Border.all(
+            color: PipeBuyerColors.orange.withValues(alpha: .28),
+          ),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.location_searching, color: Color(0xFFE56F00)),
-            SizedBox(width: 9),
+            SizedBox.square(
+              dimension: 42,
+              child: IndustrialAssetIcon(
+                label: 'Map location pin',
+                assetPath: IndustrialIconAssets.locationPin,
+                size: 42,
+                borderRadius: 10,
+                fallback: Icon(
+                  Icons.location_searching,
+                  color: PipeBuyerColors.orangePressed,
+                ),
+              ),
+            ),
+            SizedBox(width: 11),
             Expanded(
-              child: Text(
-                'Choose a prediction or confirm a pin on the map. Typed text alone is not stored as a marketplace location.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Confirm a marketplace location',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Choose an address prediction or confirm a pin on the map. Typed text alone is not stored as a marketplace location.',
+                    style: TextStyle(fontSize: 12.5, height: 1.35),
+                  ),
+                ],
               ),
             ),
           ],
@@ -89,41 +116,135 @@ class _SelectedCommunityCard extends StatelessWidget {
   final ValueChanged<MarketplaceLocation> onMapSelected;
 
   @override
-  Widget build(BuildContext context) => Card(
-        color: const Color(0xFFEAF4FD),
-        elevation: 0,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
+  Widget build(BuildContext context) {
+    final secondary = [location.region, location.country]
+        .where((part) => part.trim().isNotEmpty)
+        .join(' • ');
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: PipeBuyerColors.success.withValues(alpha: .30),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 14,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 560;
+          final artwork = Container(
+            width: compact ? 64 : 78,
+            height: compact ? 64 : 78,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: PipeBuyerColors.ink,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const IndustrialAssetIcon(
+              label: 'Primary community location',
+              assetPath: IndustrialIconAssets.routeMap,
+              size: 66,
+              borderRadius: 10,
+              fallback: Icon(
+                Icons.map_outlined,
+                color: Colors.white,
+                size: 34,
+              ),
+            ),
+          );
+          final details = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.location_on_outlined,
-                      color: Color(0xFF0878E8)),
-                  const SizedBox(width: 8),
-                  Expanded(
+                  const Expanded(
                     child: Text(
-                      primaryCommunityLabel(location),
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                      'PRIMARY MARKETPLACE AREA',
+                      style: TextStyle(
+                        color: PipeBuyerColors.orangePressed,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .65,
+                      ),
                     ),
                   ),
-                  const Icon(Icons.check_circle, color: Color(0xFF148A55)),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: PipeBuyerColors.success.withValues(alpha: .09),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: PipeBuyerColors.success,
+                          size: 14,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'PIN CONFIRMED',
+                          style: TextStyle(
+                            color: PipeBuyerColors.success,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
               Text(
-                [location.region, location.country]
-                    .where((part) => part.trim().isNotEmpty)
-                    .join(' • '),
-                style: const TextStyle(color: Color(0xFF58697E)),
+                primaryCommunityLabel(location),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Coordinates selected • exact pin private • approximate area used for nearby results and listing discovery',
-                style: TextStyle(fontSize: 12, color: Color(0xFF315A7D)),
-              ),
+              if (secondary.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  secondary,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: .62),
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
               const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: PipeBuyerColors.industrialBlue,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Exact coordinates stay private. Pipe Buyer uses the approximate community for nearby results, discovery, and service-area matching.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            height: 1.35,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: !enabled
                     ? null
@@ -143,7 +264,28 @@ class _SelectedCommunityCard extends StatelessWidget {
                 label: const Text('Check or adjust map pin'),
               ),
             ],
-          ),
-        ),
-      );
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                artwork,
+                const SizedBox(height: 12),
+                details,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              artwork,
+              const SizedBox(width: 14),
+              Expanded(child: details),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }

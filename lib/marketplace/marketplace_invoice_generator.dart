@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_components.dart';
+import '../core/design/pipe_buyer_theme.dart';
 
 class MarketplaceInvoice {
   const MarketplaceInvoice({
@@ -11,8 +14,8 @@ class MarketplaceInvoice {
     required this.quantity,
     required this.unitLabel,
     this.freightCharge = 0.0,
-    this.sellerFeeRate = 0.025, // 2.5% Platform Seller Fee
-    this.escrowFeeRate = 0.010, // 1.0% Escrow Protection Fee
+    this.sellerFeeRate = 0.025,
+    this.escrowFeeRate = 0.010,
     required this.issueDate,
     required this.dueDate,
     this.status = 'Unpaid',
@@ -61,207 +64,214 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
 
   final MarketplaceInvoice invoice;
 
+  bool get _paid => invoice.status.trim().toLowerCase() == 'paid';
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 540),
-        padding: const EdgeInsets.all(24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 22),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 820),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header Banner
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+              _invoiceHeader(context),
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 560;
+                  final seller = _MetaField(
+                    label: 'ISSUED BY (SELLER)',
+                    value: invoice.sellerName,
+                    icon: Icons.storefront_outlined,
+                  );
+                  final buyer = _MetaField(
+                    label: 'BILLED TO (BUYER)',
+                    value: invoice.buyerName,
+                    icon: Icons.person_outline,
+                  );
+                  if (compact) {
+                    return Column(
+                      children: [seller, const SizedBox(height: 8), buyer],
+                    );
+                  }
+                  return Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0878E8).withAlpha(25),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.receipt_long, color: Color(0xFF0878E8)),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'PIPE BUYER INVOICE',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                          Text(
-                            'ID: ${invoice.invoiceId}',
-                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
+                      Expanded(child: seller),
+                      const SizedBox(width: 8),
+                      Expanded(child: buyer),
                     ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: invoice.status == 'Paid' ? Colors.green.shade50 : Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: invoice.status == 'Paid' ? Colors.green.shade300 : Colors.amber.shade400,
-                      ),
-                    ),
-                    child: Text(
-                      invoice.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: invoice.status == 'Paid' ? Colors.green.shade800 : Colors.amber.shade900,
-                      ),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-              const Divider(height: 32),
-
-              // Seller & Buyer Details
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('ISSUED BY (SELLER)', style: _metaHeaderStyle),
-                        const SizedBox(height: 4),
-                        Text(invoice.sellerName, style: _metaBodyStyle),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('BILLED TO (BUYER)', style: _metaHeaderStyle),
-                        const SizedBox(height: 4),
-                        Text(invoice.buyerName, style: _metaBodyStyle),
-                      ],
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 560;
+                  final issue = _MetaField(
+                    label: 'ISSUE DATE',
+                    value: _formatDate(invoice.issueDate),
+                    icon: Icons.event_note_outlined,
+                  );
+                  final due = _MetaField(
+                    label: 'PAYMENT DUE DATE',
+                    value: _formatDate(invoice.dueDate),
+                    icon: Icons.event_busy_outlined,
+                  );
+                  if (compact) {
+                    return Column(
+                      children: [issue, const SizedBox(height: 8), due],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: issue),
+                      const SizedBox(width: 8),
+                      Expanded(child: due),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('ISSUE DATE', style: _metaHeaderStyle),
-                        const SizedBox(height: 4),
-                        Text(_formatDate(invoice.issueDate), style: _metaBodyStyle),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('PAYMENT DUE DATE', style: _metaHeaderStyle),
-                        const SizedBox(height: 4),
-                        Text(_formatDate(invoice.dueDate), style: _metaBodyStyle),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Itemized Breakdown Table
-              Text('ITEMIZED SUMMARY', style: _metaHeaderStyle),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+              PipeBuyerSectionCard(
+                title: 'Itemized summary',
+                subtitle:
+                    'Buyer-facing amount due for this marketplace transaction.',
+                leading: const _SectionIcon(
+                  Icons.receipt_long_outlined,
+                  tone: PipeBuyerStatusTone.info,
                 ),
-                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
                     _itemRow(
+                      context,
                       invoice.listingTitle,
                       '${invoice.quantity} ${invoice.unitLabel} × \$${invoice.unitPrice.toStringAsFixed(2)}',
                       '\$${invoice.subtotal.toStringAsFixed(2)}',
                       isBoldTitle: true,
                     ),
-                    const Divider(height: 20),
+                    const Divider(height: 24),
                     _itemRow(
-                      'Escrow Protection Fee (1.0%)',
+                      context,
+                      'Escrow Protection Fee (${(invoice.escrowFeeRate * 100).toStringAsFixed(1)}%)',
                       'Secure funds custody & inspection hold',
                       '\$${invoice.escrowProtectionFee.toStringAsFixed(2)}',
                     ),
                     if (invoice.freightCharge > 0) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       _itemRow(
+                        context,
                         'Freight & Delivery Dispatch',
                         'Carrier transit charge',
                         '\$${invoice.freightCharge.toStringAsFixed(2)}',
                       ),
                     ],
-                    const Divider(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'TOTAL AMOUNT DUE',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    const Divider(height: 26),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.orangeSoft,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color:
+                              PipeBuyerColors.orange.withValues(alpha: .18),
                         ),
-                        Text(
-                          '\$${invoice.totalDue.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
-                            color: Color(0xFF0878E8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'TOTAL AMOUNT DUE',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                          Text(
+                            '\$${invoice.totalDue.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 23,
+                              color: PipeBuyerColors.orangePressed,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Actions Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                      label: const Text('Close'),
-                    ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.industrialBlue.withValues(alpha: .06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: PipeBuyerColors.industrialBlue.withValues(alpha: .16),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        PipeFeedback.show(
-                          context,
-                          message: 'Redirecting to Instant Payment & Wire Transfer gateway…',
-                          tone: PipeStatusTone.success,
-                        );
-                      },
-                      icon: const Icon(Icons.payment),
-                      label: const Text('Pay Now'),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.shield_outlined,
+                      size: 20,
+                      color: PipeBuyerColors.industrialBlue,
                     ),
-                  ),
-                ],
+                    SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'Seller marketplace commission is accounted for separately from the buyer-facing amount due shown on this invoice.',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 480;
+                  final close = OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Close'),
+                  );
+                  final pay = FilledButton.icon(
+                    onPressed: _paid
+                        ? null
+                        : () {
+                            PipeFeedback.show(
+                              context,
+                              message:
+                                  'Redirecting to Instant Payment & Wire Transfer gateway…',
+                              tone: PipeStatusTone.success,
+                            );
+                          },
+                    icon: Icon(
+                      _paid ? Icons.check_circle_outline : Icons.payment,
+                    ),
+                    label: Text(_paid ? 'Paid' : 'Pay Now'),
+                  );
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [pay, const SizedBox(height: 8), close],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: close),
+                      const SizedBox(width: 10),
+                      Expanded(flex: 2, child: pay),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -270,21 +280,79 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
     );
   }
 
-  static const TextStyle _metaHeaderStyle = TextStyle(
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-    color: Colors.grey,
-    letterSpacing: 0.8,
-  );
+  Widget _invoiceHeader(BuildContext context) => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [PipeBuyerColors.ink, PipeBuyerColors.graphite],
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: PipeBuyerColors.orange.withValues(alpha: .13),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                color: PipeBuyerColors.orange,
+                size: 25,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'PIPE BUYER INVOICE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      letterSpacing: .7,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    'ID: ${invoice.invoiceId}',
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PipeBuyerStatusBadge(
+              label: invoice.status.toUpperCase(),
+              icon: _paid
+                  ? Icons.check_circle_outline
+                  : Icons.schedule_outlined,
+              tone: _paid
+                  ? PipeBuyerStatusTone.success
+                  : PipeBuyerStatusTone.warning,
+            ),
+          ],
+        ),
+      );
 
-  static const TextStyle _metaBodyStyle = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-    color: Colors.black87,
-  );
-
-  Widget _itemRow(String title, String subtitle, String price, {bool isBoldTitle = false}) {
+  Widget _itemRow(
+    BuildContext context,
+    String title,
+    String subtitle,
+    String price, {
+    bool isBoldTitle = false,
+  }) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
@@ -293,23 +361,33 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  fontWeight: isBoldTitle ? FontWeight.bold : FontWeight.w600,
+                  fontWeight:
+                      isBoldTitle ? FontWeight.w900 : FontWeight.w700,
                   fontSize: 13,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: .58),
+                    ),
               ),
             ],
           ),
         ),
+        const SizedBox(width: 12),
         Text(
           price,
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w900,
             fontSize: 14,
-            color: isBoldTitle ? Colors.black87 : Colors.grey.shade800,
+            color: isBoldTitle
+                ? Theme.of(context).colorScheme.onSurface
+                : PipeBuyerColors.slate,
           ),
         ),
       ],
@@ -318,4 +396,88 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
 
   String _formatDate(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+class _MetaField extends StatelessWidget {
+  const _MetaField({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: PipeBuyerColors.orangeSoft,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: PipeBuyerColors.orangePressed,
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: .52),
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .5,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _SectionIcon extends StatelessWidget {
+  const _SectionIcon(this.icon, {required this.tone});
+
+  final IconData icon;
+  final PipeBuyerStatusTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = pipeBuyerToneColor(tone);
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: color),
+    );
+  }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
+
 class PhoneRegion {
   const PhoneRegion(this.code, this.name, this.dialCode, this.flag,
       {this.nationalDigits});
@@ -12,11 +14,8 @@ class PhoneRegion {
 }
 
 const phoneRegions = <PhoneRegion>[
-  // Primary markets pinned at top
   PhoneRegion('US', 'United States', '+1', '🇺🇸', nationalDigits: 10),
   PhoneRegion('CA', 'Canada', '+1', '🇨🇦', nationalDigits: 10),
-
-  // World countries alphabetically
   PhoneRegion('AF', 'Afghanistan', '+93', '🇦🇫'),
   PhoneRegion('AL', 'Albania', '+355', '🇦🇱'),
   PhoneRegion('DZ', 'Algeria', '+213', '🇩🇿'),
@@ -171,7 +170,8 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
     super.initState();
     _region = _regionFor(widget.initialValue);
     _controller = TextEditingController(
-        text: _formatNational(_nationalDigits(widget.initialValue), _region));
+      text: _formatNational(_nationalDigits(widget.initialValue), _region),
+    );
   }
 
   @override
@@ -181,74 +181,166 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
   }
 
   @override
-  Widget build(BuildContext context) => TextFormField(
-        controller: _controller,
-        keyboardType: TextInputType.phone,
-        autofillHints: const [AutofillHints.telephoneNumber],
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9 ()-]'))
-        ],
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: _region.code == 'PH' ? '917 123 4567' : '(780) 555-1234',
-          prefixIconConstraints: const BoxConstraints(minWidth: 110),
-          prefixIcon: DropdownButtonHideUnderline(
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return TextFormField(
+      controller: _controller,
+      keyboardType: TextInputType.phone,
+      autofillHints: const [AutofillHints.telephoneNumber],
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9 ()-]')),
+      ],
+      decoration: InputDecoration(
+        labelText: widget.label,
+        hintText: _region.code == 'PH' ? '917 123 4567' : '(780) 555-1234',
+        helperText:
+            '${_region.flag} ${_region.name} • ${_region.dialCode} international format',
+        helperMaxLines: 2,
+        prefixIconConstraints: const BoxConstraints(minWidth: 128, maxWidth: 148),
+        prefixIcon: Container(
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(
+            color: dark
+                ? PipeBuyerColors.darkSurfaceMuted
+                : PipeBuyerColors.surfaceMuted,
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(11)),
+            border: Border(
+              right: BorderSide(
+                color: dark ? PipeBuyerColors.darkLine : PipeBuyerColors.line,
+              ),
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
             child: DropdownButton<PhoneRegion>(
               value: _region,
-              padding: const EdgeInsets.only(left: 12),
+              isDense: true,
+              borderRadius: BorderRadius.circular(14),
+              menuMaxHeight: 430,
+              padding: const EdgeInsets.only(left: 12, right: 5),
+              icon: const Icon(
+                Icons.expand_more,
+                size: 18,
+                color: PipeBuyerColors.muted,
+              ),
               selectedItemBuilder: (context) => phoneRegions
-                  .map((region) => Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('${region.flag} ${region.dialCode}'),
-                      ))
-                  .toList(),
+                  .map(
+                    (region) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            region.flag,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            region.dialCode,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
               items: phoneRegions
-                  .map((region) => DropdownMenuItem(
+                  .map(
+                    (region) => DropdownMenuItem<PhoneRegion>(
                       value: region,
-                      child: Text(
-                          '${region.flag} ${region.dialCode}  ${region.name}')))
-                  .toList(),
+                      child: Row(
+                        children: [
+                          Text(region.flag, style: const TextStyle(fontSize: 18)),
+                          const SizedBox(width: 9),
+                          SizedBox(
+                            width: 44,
+                            child: Text(
+                              region.dialCode,
+                              style: const TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              region.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
               onChanged: (region) {
                 if (region == null) return;
                 setState(() {
                   _region = region;
                   _controller.text =
                       _formatNational(_digits(_controller.text), region);
+                  _controller.selection = TextSelection.collapsed(
+                    offset: _controller.text.length,
+                  );
                 });
                 _emit();
               },
             ),
           ),
         ),
-        validator: (value) {
-          final digits = _digits(value ?? '');
-          if (digits.isEmpty) {
-            return widget.required ? 'Phone number required' : null;
+        suffixIcon: _controller.text.trim().isEmpty
+            ? const Icon(Icons.phone_outlined)
+            : Icon(
+                _looksComplete(_controller.text, _region)
+                    ? Icons.check_circle_outline
+                    : Icons.phone_in_talk_outlined,
+                color: _looksComplete(_controller.text, _region)
+                    ? PipeBuyerColors.success
+                    : PipeBuyerColors.muted,
+              ),
+      ),
+      validator: (value) {
+        final digits = _digits(value ?? '');
+        if (digits.isEmpty) {
+          return widget.required ? 'Phone number required' : null;
+        }
+        if (_region.nationalDigits case final length?) {
+          if (digits.length != length) {
+            return 'Enter a valid ${_region.name} number ($length digits)';
           }
-          if (_region.nationalDigits case final length?) {
-            if (digits.length != length) {
-              return 'Enter a valid ${_region.name} number ($length digits)';
-            }
-          } else if (digits.length < 7 || digits.length > 12) {
-            return 'Enter a valid phone number';
-          }
-          return null;
-        },
-        onChanged: (_) {
-          final digits = _digits(_controller.text);
-          final formatted = _formatNational(digits, _region);
-          if (_controller.text != formatted) {
-            _controller.value = TextEditingValue(
-                text: formatted,
-                selection: TextSelection.collapsed(offset: formatted.length));
-          }
-          _emit();
-        },
+        } else if (digits.length < 7 || digits.length > 12) {
+          return 'Enter a valid phone number';
+        }
+        return null;
+      },
+      onChanged: (_) {
+        final digits = _digits(_controller.text);
+        final formatted = _formatNational(digits, _region);
+        if (_controller.text != formatted) {
+          _controller.value = TextEditingValue(
+            text: formatted,
+            selection: TextSelection.collapsed(offset: formatted.length),
+          );
+        }
+        setState(() {});
+        _emit();
+      },
+    );
+  }
+
+  void _emit() => widget.onChanged(
+        _digits(_controller.text).isEmpty
+            ? ''
+            : '${_region.dialCode}${_digits(_controller.text)}',
       );
 
-  void _emit() => widget.onChanged(_digits(_controller.text).isEmpty
-      ? ''
-      : '${_region.dialCode}${_digits(_controller.text)}');
+  static bool _looksComplete(String value, PhoneRegion region) {
+    final digits = _digits(value);
+    if (digits.isEmpty) return false;
+    if (region.nationalDigits case final length?) {
+      return digits.length == length;
+    }
+    return digits.length >= 7 && digits.length <= 12;
+  }
 
   static PhoneRegion _regionFor(String value) {
     final clean = value.trim();

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../config/public_release_config.dart';
+import '../design/pipe_buyer_theme.dart';
 import '../diagnostics/app_diagnostics.dart';
 
 enum PipeStartupState { running, complete, failed }
@@ -220,9 +221,10 @@ class PipeStartupMonitorApp extends StatelessWidget {
         title: 'Pipe Buyer startup',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF0878E8),
+            seedColor: PipeBuyerColors.orange,
             brightness: Brightness.dark,
           ),
+          scaffoldBackgroundColor: PipeBuyerColors.ink,
           useMaterial3: true,
         ),
         home: _PipeStartupScreen(monitor: monitor),
@@ -249,10 +251,11 @@ class _PipeStartupScreenState extends State<_PipeStartupScreen> {
           final monitor = widget.monitor;
           final failed = monitor.state == PipeStartupState.failed;
           return Scaffold(
-            backgroundColor: const Color(0xFF061D49),
+            backgroundColor: PipeBuyerColors.ink,
             body: SafeArea(
               child: Stack(
                 children: [
+                  const Positioned.fill(child: _StartupBackdrop()),
                   Positioned(
                     top: 14,
                     right: 14,
@@ -262,43 +265,87 @@ class _PipeStartupScreenState extends State<_PipeStartupScreen> {
                   ),
                   Center(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(24, 76, 24, 32),
+                      padding: const EdgeInsets.fromLTRB(22, 70, 22, 30),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 520),
+                        constraints: const BoxConstraints(maxWidth: 580),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Image.asset(
-                              'assets/images/pipe_buyer_logo.png',
-                              width: 190,
-                              height: 150,
-                              fit: BoxFit.contain,
-                              semanticLabel: 'Pipe Buyer',
+                            Container(
+                              width: 206,
+                              height: 126,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: PipeBuyerColors.orange
+                                      .withValues(alpha: .38),
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x33000000),
+                                    blurRadius: 30,
+                                    offset: Offset(0, 14),
+                                  ),
+                                ],
+                              ),
+                              child: Image.asset(
+                                'assets/images/pipe_buyer_logo.png',
+                                fit: BoxFit.contain,
+                                semanticLabel: 'Pipe Buyer',
+                              ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 22),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: PipeBuyerColors.orange
+                                    .withValues(alpha: .10),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: PipeBuyerColors.orange
+                                      .withValues(alpha: .30),
+                                ),
+                              ),
+                              child: const Text(
+                                'INDUSTRIAL MARKETPLACE • DISPATCH • AUCTIONS',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: PipeBuyerColors.orange,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: .75,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 13),
                             Text(
                               failed
                                   ? 'Pipe Buyer could not start'
-                                  : 'Starting Pipe Buyer',
+                                  : 'Preparing Pipe Buyer',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 24,
+                                fontSize: 26,
                                 height: 1.15,
                                 fontWeight: FontWeight.w900,
+                                letterSpacing: -.3,
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 9),
                             Text(
                               failed
-                                  ? 'Your information has not been changed. '
-                                      'Close and reopen the app, then try again.'
+                                  ? 'Your information has not been changed. Close and reopen the app, then try again.'
                                   : monitor.stageLabel,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: Color(0xFFCBD5E1),
-                                fontSize: 15,
-                                height: 1.35,
+                                color: Color(0xFFB8C1CC),
+                                fontSize: 14.5,
+                                height: 1.4,
                               ),
                             ),
                             const SizedBox(height: 22),
@@ -307,7 +354,7 @@ class _PipeStartupScreenState extends State<_PipeStartupScreen> {
                               const SizedBox(height: 12),
                               _DelayedStageNotice(stage: monitor.stageLabel),
                             ],
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             TextButton.icon(
                               onPressed: () => setState(
                                 () => _showDetails = !_showDetails,
@@ -323,7 +370,7 @@ class _PipeStartupScreenState extends State<_PipeStartupScreen> {
                                     : 'Startup details',
                               ),
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFF93C5FD),
+                                foregroundColor: Colors.white70,
                               ),
                             ),
                             AnimatedCrossFade(
@@ -359,6 +406,81 @@ class _PipeStartupScreenState extends State<_PipeStartupScreen> {
   }
 }
 
+class _StartupBackdrop extends StatelessWidget {
+  const _StartupBackdrop();
+
+  @override
+  Widget build(BuildContext context) => Stack(
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0B0E12),
+                  PipeBuyerColors.ink,
+                  Color(0xFF171B20),
+                ],
+              ),
+            ),
+            child: SizedBox.expand(),
+          ),
+          Positioned(
+            right: -110,
+            top: -90,
+            child: Container(
+              width: 330,
+              height: 330,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: PipeBuyerColors.orange.withValues(alpha: .055),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -90,
+            bottom: -120,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: .025),
+                  width: 28,
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _IndustrialGridPainter()),
+            ),
+          ),
+        ],
+      );
+}
+
+class _IndustrialGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: .018)
+      ..strokeWidth = 1;
+    const spacing = 48.0;
+    for (double x = 0; x < size.width; x += spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += spacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _VersionBadge extends StatelessWidget {
   const _VersionBadge({required this.label});
 
@@ -368,15 +490,17 @@ class _VersionBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xCC03142F),
+          color: const Color(0xD911151A),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0x6648A8FF)),
+          border: Border.all(
+            color: PipeBuyerColors.orange.withValues(alpha: .28),
+          ),
         ),
         child: Text(
           label,
           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
+            color: Colors.white70,
+            fontSize: 10.5,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -394,16 +518,44 @@ class _ProgressCard extends StatelessWidget {
         value: '${monitor.progressPercent} percent',
         liveRegion: true,
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(17, 16, 17, 15),
           decoration: BoxDecoration(
-            color: const Color(0x1FFFFFFF),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0x3DFFFFFF)),
+            color: const Color(0xD9181D23),
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(color: const Color(0x26FFFFFF)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x26000000),
+                blurRadius: 22,
+                offset: Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             children: [
               Row(
                 children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: (monitor.state == PipeStartupState.failed
+                              ? PipeBuyerColors.danger
+                              : PipeBuyerColors.orange)
+                          .withValues(alpha: .11),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      monitor.state == PipeStartupState.failed
+                          ? Icons.error_outline
+                          : Icons.settings_suggest_outlined,
+                      color: monitor.state == PipeStartupState.failed
+                          ? PipeBuyerColors.danger
+                          : PipeBuyerColors.orange,
+                      size: 21,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
                   Expanded(
                     child: Text(
                       monitor.state == PipeStartupState.failed
@@ -413,7 +565,7 @@ class _ProgressCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
@@ -423,41 +575,145 @@ class _ProgressCard extends StatelessWidget {
                     style: TextStyle(
                       color: monitor.state == PipeStartupState.failed
                           ? const Color(0xFFFFB4AB)
-                          : const Color(0xFF55D9FF),
-                      fontSize: 18,
+                          : PipeBuyerColors.orange,
+                      fontSize: 19,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: monitor.progress,
-                  minHeight: 10,
-                  color: monitor.state == PipeStartupState.failed
-                      ? const Color(0xFFFF5449)
-                      : const Color(0xFF21C7E8),
-                  backgroundColor: const Color(0xFF243B64),
-                ),
+              const SizedBox(height: 15),
+              _IndustrialTransportProgress(
+                progress: monitor.progress,
+                failed: monitor.state == PipeStartupState.failed,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 11),
               Row(
                 children: [
                   Text(
                     'Stage ${monitor.history.length + 1}',
-                    style: const TextStyle(color: Color(0xFF94A3B8)),
+                    style: const TextStyle(
+                      color: Color(0xFF8D98A5),
+                      fontSize: 11.5,
+                    ),
                   ),
                   const Spacer(),
                   Text(
                     'Elapsed ${_durationLabel(monitor.elapsed)}',
-                    style: const TextStyle(color: Color(0xFF94A3B8)),
+                    style: const TextStyle(
+                      color: Color(0xFF8D98A5),
+                      fontSize: 11.5,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
+        ),
+      );
+}
+
+class _IndustrialTransportProgress extends StatelessWidget {
+  const _IndustrialTransportProgress({
+    required this.progress,
+    required this.failed,
+  });
+
+  final double progress;
+  final bool failed;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = progress.clamp(0.0, 1.0);
+    final accent = failed ? PipeBuyerColors.danger : PipeBuyerColors.orange;
+    return SizedBox(
+      height: 47,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 8,
+            child: Container(
+              height: 8,
+              decoration: BoxDecoration(
+                color: const Color(0xFF30363D),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment(-1 + (2 * value), -.12),
+            child: Transform.translate(
+              offset: Offset(value < .08 ? 17 : value > .92 ? -17 : 0, 0),
+              child: _PipeHaulTruck(accent: accent),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PipeHaulTruck extends StatelessWidget {
+  const _PipeHaulTruck({required this.accent});
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 58,
+        height: 34,
+        padding: const EdgeInsets.fromLTRB(5, 3, 3, 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFF11161C),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: accent.withValues(alpha: .52)),
+          boxShadow: const [
+            BoxShadow(color: Color(0x44000000), blurRadius: 6),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 2,
+              top: 3,
+              child: Column(
+                children: List.generate(
+                  3,
+                  (_) => Container(
+                    width: 29,
+                    height: 3,
+                    margin: const EdgeInsets.only(bottom: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB8C0C8),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 0,
+              bottom: 1,
+              child: Icon(
+                Icons.local_shipping_rounded,
+                color: accent,
+                size: 28,
+              ),
+            ),
+          ],
         ),
       );
 }
@@ -471,20 +727,24 @@ class _DelayedStageNotice extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0x26FFB020),
+          color: PipeBuyerColors.warning.withValues(alpha: .10),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x99FFB020)),
+          border: Border.all(
+            color: PipeBuyerColors.warning.withValues(alpha: .45),
+          ),
         ),
         child: Row(
           children: [
-            const Icon(Icons.schedule_outlined, color: Color(0xFFFFC55C)),
+            const Icon(
+              Icons.schedule_outlined,
+              color: PipeBuyerColors.warning,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                '$stage is taking longer than expected. The watchdog has '
-                'recorded this stage for diagnosis.',
+                '$stage is taking longer than expected. The watchdog has recorded this stage for diagnosis.',
                 style: const TextStyle(
-                  color: Color(0xFFFFE2A8),
+                  color: Color(0xFFFFDEA0),
                   height: 1.3,
                 ),
               ),
@@ -510,9 +770,11 @@ class _StartupDetails extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xCC03142F),
+          color: const Color(0xE511151A),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x3348A8FF)),
+          border: Border.all(
+            color: PipeBuyerColors.orange.withValues(alpha: .16),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,20 +790,45 @@ class _StartupDetails extends StatelessWidget {
             Text(
               'Stage time ${_durationLabel(monitor.currentStageElapsed)} • '
               '${monitor.history.length} completed',
-              style: const TextStyle(color: Color(0xFF94A3B8)),
+              style: const TextStyle(color: Color(0xFF8D98A5)),
             ),
             if (monitor.history.isNotEmpty) ...[
               const SizedBox(height: 10),
               ...monitor.history.reversed.take(5).map(
                     (record) => Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '${record.progressPercent}%  ${record.label}  '
-                        '${record.duration.inMilliseconds} ms',
-                        style: const TextStyle(
-                          color: Color(0xFFCBD5E1),
-                          fontSize: 12,
-                        ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: record.status == 'failed'
+                                  ? PipeBuyerColors.danger
+                                  : PipeBuyerColors.success,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${record.progressPercent}%  ${record.label}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFFC4CBD3),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${record.duration.inMilliseconds} ms',
+                            style: const TextStyle(
+                              color: Color(0xFF7F8995),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -552,9 +839,11 @@ class _StartupDetails extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0x33FF5449),
+                  color: PipeBuyerColors.danger.withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0x88FF5449)),
+                  border: Border.all(
+                    color: PipeBuyerColors.danger.withValues(alpha: .45),
+                  ),
                 ),
                 child: Text(
                   'Diagnostic type: ${monitor.failure.runtimeType}',
@@ -573,8 +862,10 @@ class _StartupDetails extends StatelessWidget {
               icon: Icon(copied ? Icons.check : Icons.copy_outlined),
               label: Text(copied ? 'Diagnostics copied' : 'Copy diagnostics'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF93C5FD),
-                side: const BorderSide(color: Color(0x6648A8FF)),
+                foregroundColor: PipeBuyerColors.orange,
+                side: BorderSide(
+                  color: PipeBuyerColors.orange.withValues(alpha: .35),
+                ),
               ),
             ),
           ],

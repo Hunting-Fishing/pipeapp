@@ -58,7 +58,7 @@ void main() {
 
     await tester.pumpWidget(PipeStartupMonitorApp(monitor: monitor));
 
-    expect(find.text('Starting Pipe Buyer'), findsOneWidget);
+    expect(find.text('Preparing Pipe Buyer'), findsOneWidget);
     expect(find.text('Connecting to Pipe Buyer services'), findsWidgets);
     expect(find.text('54%'), findsOneWidget);
     expect(

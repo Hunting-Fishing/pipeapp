@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
+
 enum MarketplaceDataStateKind {
   loading,
   empty,
@@ -141,74 +143,124 @@ class MarketplaceDataStateView extends StatelessWidget {
       };
 
   Color _accent(BuildContext context) => switch (kind) {
-        MarketplaceDataStateKind.loading ||
-        MarketplaceDataStateKind.empty =>
-          Theme.of(context).colorScheme.primary,
-        MarketplaceDataStateKind.offline => const Color(0xFFE46A1A),
-        MarketplaceDataStateKind.unavailable => const Color(0xFF6D5BD0),
+        MarketplaceDataStateKind.loading => PipeBuyerColors.orange,
+        MarketplaceDataStateKind.empty => PipeBuyerColors.industrialBlue,
+        MarketplaceDataStateKind.offline => PipeBuyerColors.warning,
+        MarketplaceDataStateKind.unavailable => PipeBuyerColors.slate,
         MarketplaceDataStateKind.error => Theme.of(context).colorScheme.error,
+      };
+
+  String get _eyebrow => switch (kind) {
+        MarketplaceDataStateKind.loading => 'SYNCING',
+        MarketplaceDataStateKind.empty => 'NOTHING HERE YET',
+        MarketplaceDataStateKind.offline => 'CONNECTION',
+        MarketplaceDataStateKind.unavailable => 'ACCESS',
+        MarketplaceDataStateKind.error => 'RETRY NEEDED',
       };
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final accent = _accent(context);
     final padding = compact ? 14.0 : 24.0;
-    final content = DecoratedBox(
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(accent.withValues(alpha: 0.07), Colors.white),
-        border: Border.all(color: accent.withValues(alpha: 0.32)),
-        borderRadius: BorderRadius.circular(compact ? 14 : 18),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(padding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (kind == MarketplaceDataStateKind.loading)
-              SizedBox.square(
-                dimension: compact ? 28 : 38,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: accent,
+    final iconSize = compact ? 42.0 : 58.0;
+
+    final content = Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(width: 4, color: accent),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              padding + 4,
+              padding,
+              padding,
+              padding,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: iconSize,
+                  height: iconSize,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(compact ? 13 : 17),
+                    border: Border.all(
+                      color: accent.withValues(alpha: .22),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: kind == MarketplaceDataStateKind.loading
+                      ? SizedBox.square(
+                          dimension: compact ? 24 : 30,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: accent,
+                          ),
+                        )
+                      : Icon(
+                          _resolvedIcon,
+                          size: compact ? 24 : 30,
+                          color: accent,
+                        ),
                 ),
-              )
-            else
-              Icon(_resolvedIcon, size: compact ? 34 : 48, color: accent),
-            SizedBox(height: compact ? 8 : 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: compact ? 15 : 18,
-                fontWeight: FontWeight.w900,
-              ),
+                SizedBox(height: compact ? 10 : 14),
+                Text(
+                  _eyebrow,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: accent,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .8,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: (compact
+                          ? theme.textTheme.titleMedium
+                          : theme.textTheme.titleLarge)
+                      ?.copyWith(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: .66),
+                    height: 1.42,
+                  ),
+                ),
+                if (onPrimary != null && primaryLabel != null) ...[
+                  SizedBox(height: compact ? 10 : 16),
+                  FilledButton.icon(
+                    onPressed: onPrimary,
+                    icon: Icon(primaryIcon ?? Icons.arrow_forward_rounded),
+                    label: Text(primaryLabel!),
+                  ),
+                ],
+                if (onSecondary != null && secondaryLabel != null) ...[
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: onSecondary,
+                    child: Text(secondaryLabel!),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 5),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.3,
-              ),
-            ),
-            if (onPrimary != null && primaryLabel != null) ...[
-              SizedBox(height: compact ? 8 : 14),
-              FilledButton.tonalIcon(
-                onPressed: onPrimary,
-                icon: Icon(primaryIcon ?? Icons.arrow_forward_rounded),
-                label: Text(primaryLabel!),
-              ),
-            ],
-            if (onSecondary != null && secondaryLabel != null)
-              TextButton(
-                onPressed: onSecondary,
-                child: Text(secondaryLabel!),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+
     return Semantics(
       container: true,
       liveRegion: _announce,
@@ -217,7 +269,7 @@ class MarketplaceDataStateView extends StatelessWidget {
         child: SingleChildScrollView(
           padding: EdgeInsets.all(compact ? 8 : 18),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: BoxConstraints(maxWidth: compact ? 480 : 540),
             child: content,
           ),
         ),

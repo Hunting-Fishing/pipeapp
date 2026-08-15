@@ -51,6 +51,45 @@ void main() {
     expect(configuration.storagePort, 9199);
   });
 
+  test('full integration sandbox can override every service port', () {
+    final configuration = resolveFirebaseEmulatorConfiguration(
+      environment: 'local',
+      isWeb: true,
+      platform: TargetPlatform.windows,
+      authPort: 19099,
+      firestorePort: 18080,
+      functionsPort: 15001,
+      storagePort: 19199,
+    );
+
+    expect(configuration.host, '127.0.0.1');
+    expect(configuration.authPort, 19099);
+    expect(configuration.firestorePort, 18080);
+    expect(configuration.functionsPort, 15001);
+    expect(configuration.storagePort, 19199);
+  });
+
+  test('emulator port overrides fail closed outside the TCP range', () {
+    expect(
+      () => resolveFirebaseEmulatorConfiguration(
+        environment: 'local',
+        isWeb: true,
+        platform: TargetPlatform.windows,
+        firestorePort: 0,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(
+      () => resolveFirebaseEmulatorConfiguration(
+        environment: 'local',
+        isWeb: true,
+        platform: TargetPlatform.windows,
+        functionsPort: 70000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test('a physical device can use an explicit development-machine host', () {
     final configuration = resolveFirebaseEmulatorConfiguration(
       environment: 'local',

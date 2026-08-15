@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
+
 const pipeBuyerGeocoderUrl = String.fromEnvironment(
   'GEOCODER_URL',
   defaultValue: 'https://photon.komoot.io/api/',
@@ -122,64 +124,219 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        TextFormField(
-          controller: _controller,
-          focusNode: widget.focusNode,
-          enabled: widget.enabled,
-          autofillHints: const [AutofillHints.fullStreetAddress],
-          decoration: InputDecoration(
-            labelText: widget.label,
-            hintText: widget.hint,
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _loading
-                ? const Padding(
-                    padding: EdgeInsets.all(14),
-                    child: SizedBox.square(
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            controller: _controller,
+            focusNode: widget.focusNode,
+            enabled: widget.enabled,
+            autofillHints: const [AutofillHints.fullStreetAddress],
+            decoration: InputDecoration(
+              labelText: widget.label,
+              hintText: widget.hint,
+              prefixIcon: const Icon(
+                Icons.travel_explore_outlined,
+                color: PipeBuyerColors.orangePressed,
+              ),
+              suffixIcon: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox.square(
                         dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2)))
-                : null,
-          ),
-          onChanged: (value) {
-            widget.onChanged?.call(value);
-            _changed(value);
-          },
-        ),
-        if (_results.isNotEmpty)
-          Container(
-            constraints: const BoxConstraints(maxHeight: 230),
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: const [
-                BoxShadow(color: Color(0x22000000), blurRadius: 10)
-              ],
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : _controller.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Clear location search',
+                          onPressed: !widget.enabled
+                              ? null
+                              : () {
+                                  _controller.clear();
+                                  widget.onChanged?.call('');
+                                  setState(() => _results = const []);
+                                },
+                          icon: const Icon(Icons.close_rounded),
+                        ),
             ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: _results.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (_, index) {
-                final address = _results[index];
-                return ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.location_on_outlined),
-                  title: Text(address.label, maxLines: 2),
-                  subtitle: Text([address.city, address.region, address.country]
-                      .where((part) => part.isNotEmpty)
-                      .join(', ')),
-                  onTap: () {
-                    _controller.text = address.label;
-                    setState(() => _results = const []);
-                    widget.onSelected(address);
-                  },
-                );
-              },
-            ),
+            onChanged: (value) {
+              setState(() {});
+              widget.onChanged?.call(value);
+              _changed(value);
+            },
           ),
-      ]);
+          if (_results.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 300),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                border: Border.all(color: Theme.of(context).dividerColor),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 18,
+                    offset: Offset(0, 7),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.map_outlined,
+                          size: 16,
+                          color: PipeBuyerColors.orangePressed,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'LOCATION RESULTS',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: PipeBuyerColors.orangePressed,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: .65,
+                              ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${_results.length}',
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.only(bottom: 6),
+                      itemCount: _results.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        indent: 64,
+                        color: Theme.of(context).dividerColor,
+                      ),
+                      itemBuilder: (_, index) {
+                        final address = _results[index];
+                        final secondary = [
+                          address.city,
+                          address.region,
+                          address.country,
+                        ].where((part) => part.isNotEmpty).toSet().join(', ');
+                        return InkWell(
+                          onTap: () {
+                            _controller.text = address.label;
+                            setState(() => _results = const []);
+                            widget.onSelected(address);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: PipeBuyerColors.orangeSoft,
+                                    borderRadius: BorderRadius.circular(11),
+                                  ),
+                                  child: Icon(
+                                    _placeTypeIcon(address.placeType),
+                                    color: PipeBuyerColors.orangePressed,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 11),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        address.label,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                      if (secondary.isNotEmpty) ...[
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          secondary,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: .58),
+                                              ),
+                                        ),
+                                      ],
+                                      if (address.placeType.isNotEmpty) ...[
+                                        const SizedBox(height: 5),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                          ),
+                                          child: Text(
+                                            _placeTypeLabel(address.placeType),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 8),
+                                  child: Icon(
+                                    Icons.north_west_rounded,
+                                    size: 18,
+                                    color: PipeBuyerColors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
 
   void _changed(String query) {
     _debounce?.cancel();
@@ -241,6 +398,25 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
       if (mounted && request == _request) setState(() => _loading = false);
     }
   }
+}
+
+IconData _placeTypeIcon(String value) => switch (value.toLowerCase()) {
+      'country' => Icons.public_outlined,
+      'state' || 'province' || 'region' => Icons.map_outlined,
+      'city' || 'town' || 'village' || 'hamlet' || 'locality' =>
+        Icons.location_city_outlined,
+      'district' || 'county' => Icons.hub_outlined,
+      _ => Icons.location_on_outlined,
+    };
+
+String _placeTypeLabel(String value) {
+  final normalized = value.trim().replaceAll('_', ' ');
+  if (normalized.isEmpty) return 'Place';
+  return normalized
+      .split(' ')
+      .where((part) => part.isNotEmpty)
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
 }
 
 OpenAddress _openAddressFromFeature(Map<String, dynamic> feature) {

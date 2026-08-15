@@ -45,6 +45,7 @@ void main() {
       }
       expect(MarketplaceAdaptiveLayout.constrainedContentWidth(-1), 0);
       expect(MarketplaceAdaptiveLayout.constrainedContentWidth(double.nan), 0);
+      expect(MarketplaceAdaptiveLayout.listingCardWidth(-1), 0);
     });
 
     test('uses a rail only when the content area is genuinely expanded', () {
@@ -76,6 +77,32 @@ void main() {
       expect(MarketplaceAdaptiveLayout.pagePadding(700).left, 24);
       expect(MarketplaceAdaptiveLayout.pagePadding(1000).left, 32);
       expect(MarketplaceAdaptiveLayout.pagePadding(1400).left, 40);
+    });
+
+    test('supports image-led hero and detail layouts', () {
+      expect(MarketplaceAdaptiveLayout.heroHeight(390), 230);
+      expect(MarketplaceAdaptiveLayout.heroHeight(700), 250);
+      expect(MarketplaceAdaptiveLayout.heroHeight(1000), 270);
+      expect(MarketplaceAdaptiveLayout.heroHeight(1400), 290);
+
+      expect(MarketplaceAdaptiveLayout.useDetailSidebar(900), isFalse);
+      expect(MarketplaceAdaptiveLayout.useDetailSidebar(1040), isTrue);
+      expect(MarketplaceAdaptiveLayout.detailSidebarWidth(900), 0);
+      expect(MarketplaceAdaptiveLayout.detailSidebarWidth(1200), 340);
+    });
+
+    test('calculates readable listing card widths', () {
+      expect(MarketplaceAdaptiveLayout.listingCardWidth(390), 390);
+      expect(MarketplaceAdaptiveLayout.listingCardWidth(700), 343);
+      expect(
+        MarketplaceAdaptiveLayout.listingCardWidth(1000),
+        closeTo(322.666, .01),
+      );
+      expect(MarketplaceAdaptiveLayout.listingCardWidth(1400), 336.5);
+      expect(
+        MarketplaceAdaptiveLayout.listingCardWidth(600, columns: 4),
+        MarketplaceAdaptiveLayout.minimumListingCardWidth,
+      );
     });
   });
 }

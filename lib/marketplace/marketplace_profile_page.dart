@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_profile_repository.dart';
 import 'marketplace_profile_community.dart';
 import 'marketplace_primary_community_selector.dart';
@@ -285,57 +286,134 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const Center(
+        child: SizedBox.square(
+          dimension: 38,
+          child: CircularProgressIndicator(strokeWidth: 3),
+        ),
+      );
+    }
     if (FirebaseAuth.instance.currentUser == null) {
       return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
           child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.lock_outline, size: 52),
-          const SizedBox(height: 12),
-          const Text('Sign in to create your seller profile.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 14),
-          FilledButton(
-              onPressed: () async {
-                await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const MarketplaceAuthPage()));
-                if (mounted) _load();
-              },
-              child: const Text('Sign in or create account')),
-        ]),
-      ));
+            padding: const EdgeInsets.all(24),
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: PipeBuyerColors.orangeSoft,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.lock_outline,
+                      size: 30,
+                      color: PipeBuyerColors.orange,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Build your marketplace profile',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Sign in to manage your seller identity, service area and business information.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      await Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const MarketplaceAuthPage()));
+                      if (mounted) _load();
+                    },
+                    icon: const Icon(Icons.login_rounded),
+                    label: const Text('Sign in or create account'),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      );
     }
     final business = _accountType == 'business';
     final activeScroll = business ? _businessScroll : _personalScroll;
     final content = Scrollbar(
-        controller: activeScroll,
-        child: ListView(
+      controller: activeScroll,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final desktop = constraints.maxWidth >= 940;
+          final identityPanel = Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                _accountTypeBanner(),
+                _avatarSection(),
+                const Divider(height: 1),
+                _completionCard(),
+              ],
+            ),
+          );
+          final detailsPanel = Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                _profileDetailsHeader(),
+                business ? _businessForm() : _personalForm(),
+              ],
+            ),
+          );
+          return ListView(
             controller: activeScroll,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
             children: [
-              const Text('Seller profile',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 12),
-              if (_loadIssues.isNotEmpty) _profileLoadWarning(),
-              Card(
-                  margin: EdgeInsets.zero,
-                  clipBehavior: Clip.antiAlias,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      side: const BorderSide(color: Color(0xFFDDE5EE)),
-                      borderRadius: BorderRadius.circular(18)),
-                  child: Column(children: [
-                    _accountTypeBanner(),
-                    _avatarSection(),
-                    const Divider(height: 1),
-                    _completionCard(),
-                    const Divider(height: 1),
-                    _profileDetailsHeader(),
-                    business ? _businessForm() : _personalForm(),
-                  ])),
-            ]));
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1180),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _profileHero(business),
+                      if (_loadIssues.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _profileLoadWarning(),
+                      ],
+                      const SizedBox(height: 14),
+                      if (desktop)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(width: 330, child: identityPanel),
+                            const SizedBox(width: 16),
+                            Expanded(child: detailsPanel),
+                          ],
+                        )
+                      else ...[
+                        identityPanel,
+                        const SizedBox(height: 14),
+                        detailsPanel,
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
     if (!widget.onboarding) return content;
     return Scaffold(
       appBar: AppBar(
@@ -346,8 +424,122 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     );
   }
 
+  Widget _profileHero(bool business) {
+    final name = (business ? _businessName.text : _displayName.text).trim();
+    final location = business
+        ? (_serviceAreaSelection?.summary ?? '').trim()
+        : (_primaryCommunityLocation == null
+            ? ''
+            : primaryCommunityLabel(_primaryCommunityLocation!));
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [PipeBuyerColors.ink, PipeBuyerColors.graphite],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1C000000),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 680;
+          final artwork = IndustrialAssetIcon(
+            label: business ? 'Business profile' : 'Seller profile',
+            assetPath: business
+                ? IndustrialIconAssets.industrialSite
+                : IndustrialIconAssets.workerId,
+            size: wide ? 122 : 88,
+            borderRadius: 16,
+            fallback: Icon(
+              business ? Icons.business_outlined : Icons.person_outline,
+              color: Colors.white70,
+              size: wide ? 58 : 42,
+            ),
+          );
+          final copy = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'PIPE BUYER PROFILE',
+                style: TextStyle(
+                  color: PipeBuyerColors.orange,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.15,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                name.isEmpty
+                    ? (business ? 'Build your company storefront' : 'Build your seller identity')
+                    : name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.35,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                business
+                    ? 'Manage the public information buyers see and the private business information used to operate your account.'
+                    : 'Manage the seller information buyers see while keeping private contact and account data protected.',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  height: 1.4,
+                ),
+              ),
+              if (location.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined,
+                        color: PipeBuyerColors.orange, size: 17),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        location,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          );
+          if (!wide) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [copy, const SizedBox(height: 16), artwork],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: copy),
+              const SizedBox(width: 24),
+              artwork,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _profileLoadWarning() => Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: EdgeInsets.zero,
       color: const Color(0xFFFFF4E5),
       child: ListTile(
           leading:
@@ -397,94 +589,127 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
   }
 
   Widget _avatarSection() {
-    final name =
-        (_accountType == 'business' ? _businessName.text : _displayName.text)
-            .trim();
+    final business = _accountType == 'business';
+    final name = (business ? _businessName.text : _displayName.text).trim();
+    final radius = BorderRadius.circular(17);
+    final photo = _avatarBytes != null
+        ? Image.memory(
+            _avatarBytes!,
+            key: ValueKey(_photoUrl),
+            width: 74,
+            height: 74,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+          )
+        : _photoUrl.isEmpty
+            ? Center(
+                child: Text(
+                  name.isEmpty ? '?' : name[0].toUpperCase(),
+                  style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
+                ),
+              )
+            : Image.network(
+                _photoUrl,
+                key: ValueKey(_photoUrl),
+                width: 74,
+                height: 74,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, __, ___) => Center(
+                  child: Text(name.isEmpty ? '?' : name[0].toUpperCase()),
+                ),
+              );
+    final framedPhoto = Container(
+      width: 80,
+      height: 80,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: business ? BoxShape.rectangle : BoxShape.circle,
+        borderRadius: business ? radius : null,
+        border: Border.all(color: PipeBuyerColors.orange, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x18000000),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: business
+          ? ClipRRect(borderRadius: BorderRadius.circular(13), child: photo)
+          : ClipOval(child: photo),
+    );
     return Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(children: [
-          InkWell(
-              customBorder: const CircleBorder(),
-              onTap: _photoUrl.isEmpty ? _chooseAvatar : _viewAvatar,
-              child: Hero(
-                  tag: 'my-marketplace-avatar',
-                  child: CircleAvatar(
-                      radius: 34,
-                      backgroundColor: const Color(0xFFE5F2FF),
-                      child: ClipOval(
-                          child: _avatarBytes != null
-                              ? Image.memory(_avatarBytes!,
-                                  key: ValueKey(_photoUrl),
-                                  width: 68,
-                                  height: 68,
-                                  fit: BoxFit.cover)
-                              : _photoUrl.isEmpty
-                                  ? Center(
-                                      child: Text(
-                                          name.isEmpty
-                                              ? '?'
-                                              : name[0].toUpperCase(),
-                                          style: const TextStyle(
-                                              fontSize: 25,
-                                              fontWeight: FontWeight.w900)))
-                                  : Image.network(_photoUrl,
-                                      key: ValueKey(_photoUrl),
-                                      width: 68,
-                                      height: 68,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Center(
-                                          child: Text(name.isEmpty
-                                              ? '?'
-                                              : name[0].toUpperCase()))))))),
-          const SizedBox(width: 14),
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                const Text('Profile photo',
-                    style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                const Text('Shown with your listings, offers and messages.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF66758A))),
-                const SizedBox(height: 7),
-                OutlinedButton.icon(
-                    onPressed: _uploadingAvatar ? null : _chooseAvatar,
-                    icon: _uploadingAvatar
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.add_a_photo_outlined),
-                    label: Text(_photoUrl.isEmpty
-                        ? 'Add profile photo'
-                        : 'Change photo')),
-                if (_uploadingAvatar) ...[
-                  const SizedBox(height: 8),
-                  if (_avatarTransferStarted) ...[
-                    LinearProgressIndicator(value: _avatarUploadProgress),
-                    const SizedBox(height: 3),
-                  ],
-                  Text(_avatarUploadStage,
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700)),
-                ]
-              ]))
-        ]));
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              InkWell(
+                  borderRadius: business ? radius : null,
+                  customBorder: business ? null : const CircleBorder(),
+                  onTap: _photoUrl.isEmpty ? _chooseAvatar : _viewAvatar,
+                  child: Hero(tag: 'my-marketplace-avatar', child: framedPhoto)),
+              const SizedBox(width: 14),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(business ? 'Company logo / photo' : 'Profile photo',
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w900)),
+                    Text(
+                        business
+                            ? 'Shown on your public company profile and marketplace identity.'
+                            : 'Shown with your listings, offers and messages.',
+                        style: const TextStyle(
+                            fontSize: 12, color: PipeBuyerColors.muted)),
+                    const SizedBox(height: 7),
+                    OutlinedButton.icon(
+                        onPressed: _uploadingAvatar ? null : _chooseAvatar,
+                        icon: _uploadingAvatar
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.add_a_photo_outlined),
+                        label: Text(_photoUrl.isEmpty
+                            ? (business ? 'Add company image' : 'Add profile photo')
+                            : 'Change image')),
+                  ]))
+            ]),
+            if (_uploadingAvatar) ...[
+              const SizedBox(height: 10),
+              if (_avatarTransferStarted) ...[
+                LinearProgressIndicator(value: _avatarUploadProgress),
+                const SizedBox(height: 4),
+              ],
+              Text(_avatarUploadStage,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700)),
+            ]
+          ],
+        ));
   }
 
   Widget _profileDetailsHeader() {
     final business = _accountType == 'business';
-    return Padding(
-        padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
+    return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: PipeBuyerColors.line)),
+        ),
         child: Row(children: [
           Container(
-              width: 38,
-              height: 38,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                  color: const Color(0xFFE8F3FF),
+                  color: PipeBuyerColors.orangeSoft,
                   borderRadius: BorderRadius.circular(12)),
               child: Icon(
                   business ? Icons.business_outlined : Icons.badge_outlined,
-                  color: const Color(0xFF087BEA))),
+                  color: PipeBuyerColors.orange)),
           const SizedBox(width: 11),
           Expanded(
               child: Column(
@@ -492,16 +717,16 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                   children: [
                 Text(
                     business
-                        ? 'Business profile details'
-                        : 'Personal profile details',
+                        ? 'Company & marketplace profile'
+                        : 'Seller profile details',
                     style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w900)),
+                        fontSize: 18, fontWeight: FontWeight.w900)),
                 Text(
                     business
-                        ? 'Manage the business information shown across the app'
-                        : 'Manage the personal information shown across the app',
+                        ? 'Public marketplace presence and protected business details'
+                        : 'Public seller identity and protected contact details',
                     style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF66758A))),
+                        fontSize: 12, color: PipeBuyerColors.muted)),
               ])),
         ]));
   }
@@ -728,49 +953,80 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       updateDialog(() => zoom = value);
     }
 
+    final business = _accountType == 'business';
     return showDialog<Uint8List>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
             builder: (context, updateDialog) => AlertDialog(
-                    title: const Text('Position your profile photo'),
+                    title: Text(business
+                        ? 'Position your company image'
+                        : 'Position your profile photo'),
                     content: SizedBox(
                         width: 380,
                         child:
                             Column(mainAxisSize: MainAxisSize.min, children: [
-                          const Text(
-                              'Drag the photo itself to position it. Pinch or use the slider to shrink and enlarge it. The circle below is exactly what will be saved.'),
+                          Text(business
+                              ? 'Drag and zoom the image to frame your company logo or yard photo. The rounded square below is exactly what will be saved.'
+                              : 'Drag the photo itself to position it. Pinch or use the slider to shrink and enlarge it. The circle below is exactly what will be saved.'),
                           const SizedBox(height: 16),
                           Container(
                               width: 244,
                               height: 244,
                               padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Color(0xFF0878E8)),
+                              decoration: BoxDecoration(
+                                  shape: business
+                                      ? BoxShape.rectangle
+                                      : BoxShape.circle,
+                                  borderRadius: business
+                                      ? BorderRadius.circular(28)
+                                      : null,
+                                  color: PipeBuyerColors.orange),
                               child: RepaintBoundary(
                                   key: previewKey,
-                                  child: ClipOval(
-                                      child: ColoredBox(
-                                          color: const Color(0xFFE5F2FF),
-                                          child: InteractiveViewer(
-                                              transformationController:
-                                                  transform,
-                                              minScale: .2,
-                                              maxScale: 4,
-                                              boundaryMargin:
-                                                  const EdgeInsets.all(260),
-                                              onInteractionUpdate: (_) {
-                                                final scale = transform.value
-                                                    .getMaxScaleOnAxis();
-                                                updateDialog(() =>
-                                                    zoom = scale.clamp(.2, 4));
-                                              },
-                                              child: SizedBox.square(
-                                                  dimension: 236,
-                                                  child: Image.memory(bytes,
-                                                      fit:
-                                                          BoxFit.contain))))))),
+                                  child: business
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                          child: ColoredBox(
+                                              color: const Color(0xFFFFF5ED),
+                                              child: InteractiveViewer(
+                                                  transformationController:
+                                                      transform,
+                                                  minScale: .2,
+                                                  maxScale: 4,
+                                                  boundaryMargin:
+                                                      const EdgeInsets.all(260),
+                                                  onInteractionUpdate: (_) {
+                                                    final scale = transform.value
+                                                        .getMaxScaleOnAxis();
+                                                    updateDialog(() => zoom =
+                                                        scale.clamp(.2, 4));
+                                                  },
+                                                  child: SizedBox.square(
+                                                      dimension: 236,
+                                                      child: Image.memory(bytes,
+                                                          fit: BoxFit.contain)))))
+                                      : ClipOval(
+                                          child: ColoredBox(
+                                              color: const Color(0xFFFFF5ED),
+                                              child: InteractiveViewer(
+                                                  transformationController:
+                                                      transform,
+                                                  minScale: .2,
+                                                  maxScale: 4,
+                                                  boundaryMargin:
+                                                      const EdgeInsets.all(260),
+                                                  onInteractionUpdate: (_) {
+                                                    final scale = transform.value
+                                                        .getMaxScaleOnAxis();
+                                                    updateDialog(() => zoom =
+                                                        scale.clamp(.2, 4));
+                                                  },
+                                                  child: SizedBox.square(
+                                                      dimension: 236,
+                                                      child: Image.memory(bytes,
+                                                          fit: BoxFit.contain))))))),
                           const SizedBox(height: 12),
                           Row(children: [
                             IconButton.filledTonal(
@@ -822,7 +1078,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                             }
                           },
                           icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Use this photo'))
+                          label: const Text('Use this image'))
                     ])));
   }
 
@@ -856,9 +1112,9 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
   Widget _completionCard() {
     if (!_profileSourceLoaded) {
       return const Padding(
-        padding: EdgeInsets.all(14),
+        padding: EdgeInsets.all(16),
         child: Row(children: [
-          Icon(Icons.cloud_off_outlined, size: 18, color: Colors.deepOrange),
+          Icon(Icons.cloud_off_outlined, size: 18, color: PipeBuyerColors.warning),
           SizedBox(width: 8),
           Expanded(
               child: Text(
@@ -869,43 +1125,59 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     }
     final completion = _profileCompletion;
     final missing = _missingProfileItems;
+    final complete = completion >= 100;
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Profile completion',
-              style: TextStyle(fontWeight: FontWeight.w800)),
-          const Spacer(),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: (complete ? PipeBuyerColors.success : PipeBuyerColors.orange)
+                  .withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              complete ? Icons.verified_outlined : Icons.fact_check_outlined,
+              color: complete ? PipeBuyerColors.success : PipeBuyerColors.orange,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Marketplace readiness',
+                    style: TextStyle(fontWeight: FontWeight.w900)),
+                Text('Complete information helps buyers understand who they are dealing with.',
+                    style: TextStyle(fontSize: 11, color: PipeBuyerColors.muted)),
+              ],
+            ),
+          ),
           Text('$completion%',
-              style: const TextStyle(fontWeight: FontWeight.w900)),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
         ]),
-        const SizedBox(height: 7),
-        LinearProgressIndicator(value: completion / 100, minHeight: 8),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(value: completion / 100, minHeight: 9),
+        ),
         if (missing.isNotEmpty) ...[
-          const SizedBox(height: 5),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Padding(
-                padding: EdgeInsets.only(top: 5),
-                child: Text('Missing:',
-                    style: TextStyle(fontSize: 11, color: Colors.red))),
-            const SizedBox(width: 3),
-            Expanded(
-                child: Wrap(
-                    spacing: 2,
-                    runSpacing: 0,
-                    children: missing
-                        .map((item) => TextButton(
-                            style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                visualDensity: VisualDensity.compact,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 5),
-                                minimumSize: const Size(0, 28),
-                                textStyle: const TextStyle(fontSize: 11)),
-                            onPressed: () => _goToMissing(item.$2),
-                            child: Text(item.$1)))
-                        .toList()))
-          ])
+          const SizedBox(height: 10),
+          const Text('Complete next',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: missing
+                  .map((item) => ActionChip(
+                      avatar: const Icon(Icons.arrow_forward_rounded, size: 14),
+                      label: Text(item.$1),
+                      onPressed: () => _goToMissing(item.$2)))
+                  .toList()),
         ],
       ]),
     );
@@ -950,12 +1222,24 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
 
   Widget _accountTypeBanner() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: const BoxDecoration(color: Color(0xFFF0F5FA)),
+        padding: const EdgeInsets.all(14),
+        decoration: const BoxDecoration(color: PipeBuyerColors.orangeSoft),
         child: Row(children: [
-          Icon(_accountType == 'business'
-              ? Icons.verified_user_outlined
-              : Icons.person_outline),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              _accountType == 'business'
+                  ? Icons.business_center_outlined
+                  : Icons.person_outline,
+              color: PipeBuyerColors.orange,
+              size: 20,
+            ),
+          ),
           const SizedBox(width: 10),
           Expanded(
               child: Column(
@@ -965,11 +1249,11 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                     _accountType == 'business'
                         ? 'Business account'
                         : 'Personal account',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                    style: const TextStyle(fontWeight: FontWeight.w900)),
                 Text(_accountEmail.isEmpty ? 'Account email' : _accountEmail,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF58697E))),
+                        fontSize: 11, color: PipeBuyerColors.muted)),
               ])),
           TextButton(
               onPressed: _saving
@@ -1028,7 +1312,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
   }
 
   Widget _personalForm() => Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
         child: Form(
           key: _personalKey,
           child:
@@ -1040,6 +1324,8 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             const _PrivacyNotice(
                 text:
                     'Your email, phone and legal identity remain private unless you choose to share them.'),
+            _sectionLabel(Icons.storefront_outlined, 'Public marketplace identity',
+                'Information buyers can use to understand your seller profile.'),
             _field(_displayName, 'Public display name',
                 required: true,
                 completionRequired: true,
@@ -1069,11 +1355,18 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                   .toList(),
               onChanged: (value) => _preferredContact = value!,
             ),
+            const SizedBox(height: 11),
             _field(_personalBio, 'About the seller',
                 maxLines: 4,
                 completionRequired: true,
                 fieldKey: _personalBioKey),
+            const SizedBox(height: 4),
+            _sectionLabel(Icons.sell_outlined, 'Marketplace specialties',
+                'Help buyers find you by the products and services you work with.'),
             MarketplaceProfileTags(accountType: _accountType),
+            const SizedBox(height: 10),
+            _sectionLabel(Icons.location_on_outlined, 'Saved locations',
+                'Private yards, sites and pickup areas used to make future listings faster.'),
             _savedLocationsSection(),
             _saveButton('Save personal profile', _savePersonal),
           ]),
@@ -1120,7 +1413,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
   }
 
   Widget _businessForm() => Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
         child: Form(
           key: _businessKey,
           child:
@@ -1132,12 +1425,12 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             const _PrivacyNotice(
                 text:
                     'Legal name, billing information and the private address are never shown on the public profile.'),
+            _sectionLabel(Icons.storefront_outlined, 'Public company profile',
+                'Business information buyers can see on your marketplace storefront.'),
             _field(_businessName, 'Public business name',
                 required: true,
                 completionRequired: true,
                 fieldKey: _businessNameKey),
-            _field(_legalBusinessName, 'Legal business name (private)',
-                completionRequired: true, fieldKey: _legalNameKey),
             Padding(
                 key: _businessPhoneKey,
                 padding: const EdgeInsets.only(bottom: 11),
@@ -1156,6 +1449,18 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                 fieldKey: _businessEmailKey),
             _field(_website, 'Website',
                 completionRequired: true, fieldKey: _websiteKey),
+            _field(_businessBio,
+                'Business description — what you sell, buy or service',
+                hint:
+                    'Example: Northern Alberta oilfield supplier specializing in used drill pipe, casing, hauling and yard pickup. Include equipment, industries, delivery area and what makes your business useful to buyers.',
+                maxLines: 6,
+                minLines: 4,
+                maxLength: 800,
+                completionRequired: true,
+                fieldKey: _businessBioKey),
+            const SizedBox(height: 4),
+            _sectionLabel(Icons.map_outlined, 'Marketplace coverage',
+                'Define where your company operates and where inventory can be serviced or collected.'),
             Container(
               key: _serviceAreaKey,
               decoration: _missingDecoration(_serviceAreaSelection == null),
@@ -1178,6 +1483,10 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                       alignment: Alignment.centerLeft)),
             ),
             const SizedBox(height: 11),
+            _sectionLabel(Icons.lock_outline, 'Private business information',
+                'Protected legal and yard information used to operate your account.'),
+            _field(_legalBusinessName, 'Legal business name (private)',
+                completionRequired: true, fieldKey: _legalNameKey),
             OutlinedButton.icon(
                 onPressed: () async {
                   final selected = await MarketplaceLocationPicker.show(
@@ -1216,19 +1525,48 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                     })),
             _field(_businessAddress, 'Formatted private address',
                 completionRequired: true, fieldKey: _businessAddressKey),
-            _field(_businessBio,
-                'Business description — what you sell, buy or service',
-                hint:
-                    'Example: Northern Alberta oilfield supplier specializing in used drill pipe, casing, hauling and yard pickup. Include equipment, industries, delivery area and what makes your business useful to buyers.',
-                maxLines: 6,
-                minLines: 4,
-                maxLength: 800,
-                completionRequired: true,
-                fieldKey: _businessBioKey),
+            const SizedBox(height: 4),
+            _sectionLabel(Icons.sell_outlined, 'Marketplace specialties',
+                'Help buyers find your company by the products and services you work with.'),
             MarketplaceProfileTags(accountType: _accountType),
+            const SizedBox(height: 10),
+            _sectionLabel(Icons.location_on_outlined, 'Saved locations',
+                'Private yards, sites and pickup locations for faster future listings.'),
             _savedLocationsSection(),
             _saveButton('Save business profile', _saveBusiness),
           ]),
+        ),
+      );
+
+  Widget _sectionLabel(IconData icon, String title, String subtitle) => Padding(
+        padding: const EdgeInsets.fromLTRB(0, 4, 0, 11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: PipeBuyerColors.orangeSoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: PipeBuyerColors.orange),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 11, color: PipeBuyerColors.muted)),
+                ],
+              ),
+            ),
+          ],
         ),
       );
 
@@ -1285,27 +1623,34 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
       child: child);
 
   Widget _saveButton(String label, Future<void> Function() action) => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 28),
-        child: FilledButton(
+        padding: const EdgeInsets.only(top: 12, bottom: 8),
+        child: FilledButton.icon(
             onPressed: _saving ? null : action,
-            child: Text(_saving ? 'Saving…' : label)),
+            icon: _saving
+                ? const SizedBox.square(
+                    dimension: 17,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.save_outlined),
+            label: Text(_saving ? 'Saving…' : label)),
       );
 
   Widget _savedLocationsSection() => Padding(
-        padding: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.only(top: 2),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             const Expanded(
                 child: Text('Saved yards, sites & locations',
                     style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w900))),
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w900))),
             IconButton(
                 tooltip: 'Add another location',
                 onPressed: _addSavedLocation,
                 icon: const Icon(Icons.add_location_alt_outlined)),
           ]),
           const Text(
-              'Keep multiple business yards, remote sites, storage areas, pipe locations, personal sale areas, or places of interest.'),
+              'Keep multiple business yards, remote sites, storage areas, pipe locations, personal sale areas, or places of interest.',
+              style: TextStyle(fontSize: 12, color: PipeBuyerColors.muted)),
           const SizedBox(height: 8),
           if (_savedLocations.isEmpty)
             OutlinedButton.icon(
@@ -1317,8 +1662,18 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             final purpose = '${data['purpose'] ?? 'saved_location'}';
             return Card(
                 child: ListTile(
-              leading: Icon(_locationPurposeIcon(purpose)),
-              title: Text(location.publicName),
+              leading: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.orangeSoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(_locationPurposeIcon(purpose),
+                    color: PipeBuyerColors.orange, size: 19),
+              ),
+              title: Text(location.publicName,
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
               subtitle: Text('${_purposeLabel(purpose)} • Private exact pin'),
               onTap: () => _editSavedLocation(data, location),
               trailing: IconButton(
@@ -1594,10 +1949,13 @@ class _PrivacyNotice extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: const Color(0xFFEAF4FD),
+            color: PipeBuyerColors.industrialBlue.withValues(alpha: .075),
+            border: Border.all(
+                color: PipeBuyerColors.industrialBlue.withValues(alpha: .16)),
             borderRadius: BorderRadius.circular(12)),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.verified_user_outlined, color: Color(0xFF0878E8)),
+          const Icon(Icons.verified_user_outlined,
+              color: PipeBuyerColors.industrialBlue),
           const SizedBox(width: 9),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 12))),
         ]),
