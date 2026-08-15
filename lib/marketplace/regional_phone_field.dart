@@ -196,14 +196,16 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
         helperText:
             '${_region.flag} ${_region.name} • ${_region.dialCode} international format',
         helperMaxLines: 2,
-        prefixIconConstraints: const BoxConstraints(minWidth: 128, maxWidth: 148),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 128, maxWidth: 148),
         prefixIcon: Container(
           margin: const EdgeInsets.only(right: 6),
           decoration: BoxDecoration(
             color: dark
                 ? PipeBuyerColors.darkSurfaceMuted
                 : PipeBuyerColors.surfaceMuted,
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(11)),
+            borderRadius:
+                const BorderRadius.horizontal(left: Radius.circular(11)),
             border: Border(
               right: BorderSide(
                 color: dark ? PipeBuyerColors.darkLine : PipeBuyerColors.line,
@@ -231,11 +233,13 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
                         children: [
                           Text(
                             region.flag,
+                            textScaler: TextScaler.noScaling,
                             style: const TextStyle(fontSize: 18),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             region.dialCode,
+                            textScaler: TextScaler.noScaling,
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w900,
@@ -252,13 +256,15 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
                       value: region,
                       child: Row(
                         children: [
-                          Text(region.flag, style: const TextStyle(fontSize: 18)),
+                          Text(region.flag,
+                              style: const TextStyle(fontSize: 18)),
                           const SizedBox(width: 9),
                           SizedBox(
                             width: 44,
                             child: Text(
                               region.dialCode,
-                              style: const TextStyle(fontWeight: FontWeight.w900),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w900),
                             ),
                           ),
                           Expanded(

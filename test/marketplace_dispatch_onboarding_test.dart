@@ -33,7 +33,7 @@ void main() {
       onJoinCarrier: () => signupCount += 1,
     ));
 
-    expect(find.text('Pipe Buyer Dispatch Network'), findsOneWidget);
+    expect(find.text('Choose how you use Dispatch'), findsOneWidget);
     expect(find.text('Request trucking service'), findsOneWidget);
     expect(find.text('Offer trucking services'), findsOneWidget);
 
@@ -50,7 +50,8 @@ void main() {
     expect(browseCount, 1);
   });
 
-  testWidgets('Dispatch onboarding discloses workflow pricing and notifications',
+  testWidgets(
+      'Dispatch onboarding discloses workflow pricing and notifications',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(700, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));

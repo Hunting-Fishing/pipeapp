@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
@@ -108,10 +109,12 @@ class MarketplaceVipEarlyAccessGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && '${listing['sellerUid'] ?? ''}' == user.uid)
-      return child;
     if (marketplaceVipEarlyAccessUntil(listing) == null) return child;
+    final user =
+        Firebase.apps.isEmpty ? null : FirebaseAuth.instance.currentUser;
+    if (user != null && '${listing['sellerUid'] ?? ''}' == user.uid) {
+      return child;
+    }
     if (user == null) {
       return _MarketplaceVipGateBody(
         listing: listing,

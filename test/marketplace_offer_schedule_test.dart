@@ -84,13 +84,17 @@ void main() {
     await tester.tap(find.text('Review offer'));
     await tester.pumpAndSettle();
 
-    expect(find.text(r'$3,942.00 for 54 units'), findsOneWidget);
+    expect(find.text(r'$3,942.00'), findsOneWidget);
+    expect(find.text('54 units'), findsOneWidget);
     expect(find.text('Make counter offer'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
     expect(find.text('Accept offer'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Make counter offer'));
+    final counterButton = find.text('Make counter offer');
+    await tester.ensureVisible(counterButton);
+    await tester.pumpAndSettle();
+    await tester.tap(counterButton);
     await tester.pumpAndSettle();
 
     expect(decision, MarketplaceOfferDecision.counter);

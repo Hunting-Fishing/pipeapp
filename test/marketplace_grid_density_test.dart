@@ -34,6 +34,8 @@ void main() {
 
     testWidgets('exposes accessible density labels and selection state',
         (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       var selected = 0;
       await tester.pumpWidget(
         MaterialApp(
@@ -58,18 +60,21 @@ void main() {
           .widgetList<Semantics>(semanticsWidgets)
           .singleWhere((widget) => widget.properties.label == label);
 
-      expect(option('Automatic grid density').properties.button, isTrue);
-      expect(option('Automatic grid density').properties.selected, isTrue);
+      expect(option('Automatic responsive grid density').properties.button,
+          isTrue);
+      expect(option('Automatic responsive grid density').properties.selected,
+          isTrue);
       expect(option('1 column').properties.button, isTrue);
       expect(option('2 columns').properties.button, isTrue);
       expect(option('3 columns').properties.button, isTrue);
       expect(option('4 columns').properties.button, isTrue);
 
-      await tester.tap(find.byTooltip('3 columns'));
+      await tester.tap(find.byTooltip('2 columns'));
       await tester.pumpAndSettle();
 
-      expect(option('Automatic grid density').properties.selected, isFalse);
-      expect(option('3 columns').properties.selected, isTrue);
+      expect(option('Automatic responsive grid density').properties.selected,
+          isFalse);
+      expect(option('2 columns').properties.selected, isTrue);
     });
   });
 }

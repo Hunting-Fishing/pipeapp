@@ -188,8 +188,7 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
       if (bytes.length > 15 * 1024 * 1024) {
         throw StateError('Tax evidence images must be smaller than 15 MB.');
       }
-      final safeName =
-          picked.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      final safeName = picked.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
       final fileName =
           'tax_${DateTime.now().millisecondsSinceEpoch}_${safeName.isEmpty ? 'evidence.jpg' : safeName}';
       final path = 'business_documents/${user.uid}/$fileName';
@@ -429,8 +428,8 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
                                   child: Text('Pending / unsure'),
                                 ),
                               ],
-                              onChanged: (value) => setState(() =>
-                                  _sellerGstStatus = value ?? 'pending'),
+                              onChanged: (value) => setState(
+                                  () => _sellerGstStatus = value ?? 'pending'),
                             ),
                           ],
                         ),
@@ -500,7 +499,7 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
                         eyebrow: 'Transaction-Specific Review',
                         title: 'B.C. PST exemption claim',
                         subtitle:
-                            'A registration number alone does not remove PST. Submit the intended use and supporting evidence for review.',
+                            'A PST number does not automatically remove PST. Submit the intended use and supporting evidence for transaction-specific review.',
                         icon: Icons.request_quote_outlined,
                       ),
                       const SizedBox(height: 14),
@@ -534,13 +533,11 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
                                           },
                                           {
                                             'value': 'oil_gas_pme',
-                                            'label':
-                                                'Oil & gas qualifying PM&E'
+                                            'label': 'Oil & gas qualifying PM&E'
                                           },
                                           {
                                             'value': 'goods_shipped_out_of_bc',
-                                            'label':
-                                                'Goods shipped out of B.C.'
+                                            'label': 'Goods shipped out of B.C.'
                                           },
                                         ]
                                       : _exemptionTypes)
@@ -628,9 +625,8 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
                             SizedBox(
                               width: double.infinity,
                               child: FilledButton.icon(
-                                onPressed: _submittingClaim
-                                    ? null
-                                    : _submitExemption,
+                                onPressed:
+                                    _submittingClaim ? null : _submitExemption,
                                 icon: _submittingClaim
                                     ? const SizedBox.square(
                                         dimension: 17,

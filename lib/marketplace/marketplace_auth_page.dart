@@ -47,26 +47,45 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final media = MediaQuery.of(context);
+    final largeText = media.textScaler.scale(12) >= 18;
+    final compactChrome = media.size.width < 420 || largeText;
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Pipe Buyer'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Center(
-              child: PipeBuyerStatusBadge(
-                label: 'SECURE ACCESS',
-                tone: PipeBuyerStatusTone.success,
-                icon: Icons.lock_outline_rounded,
+          if (compactChrome)
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Tooltip(
+                message: 'Secure access',
+                child: Center(
+                  child: Icon(
+                    Icons.lock_outline_rounded,
+                    color: PipeBuyerColors.success,
+                  ),
+                ),
+              ),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Center(
+                child: PipeBuyerStatusBadge(
+                  label: 'SECURE ACCESS',
+                  tone: PipeBuyerStatusTone.success,
+                  icon: Icons.lock_outline_rounded,
+                ),
               ),
             ),
-          ),
         ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 960;
+          final wide = constraints.maxWidth >= 1120 &&
+              constraints.maxHeight >= 640 &&
+              !largeText;
           if (wide) {
             return Row(
               children: [
@@ -139,31 +158,25 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
             children: [
               _wordmark(),
               const Spacer(),
-              const SizedBox(
-                width: 570,
-                child: Text(
-                  'Industrial commerce. Built for serious transactions.',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 42,
-                    height: 1.08,
-                    letterSpacing: -1.3,
-                    fontWeight: FontWeight.w800,
-                  ),
+              const Text(
+                'Industrial commerce. Built for serious transactions.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 42,
+                  height: 1.08,
+                  letterSpacing: -1.3,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: 540,
-                child: Text(
-                  _signup
-                      ? 'Create a verified marketplace identity for pipe, equipment, buildings, transport and energy inventory.'
-                      : 'Access listings, negotiations, timed auctions, secure payments and Pipe Buyer Dispatch from one account.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: .72),
-                    fontSize: 16,
-                    height: 1.5,
-                  ),
+              Text(
+                _signup
+                    ? 'Create a verified marketplace identity for pipe, equipment, buildings, transport and energy inventory.'
+                    : 'Access listings, negotiations, timed auctions, secure payments and Pipe Buyer Dispatch from one account.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .72),
+                  fontSize: 16,
+                  height: 1.5,
                 ),
               ),
               const SizedBox(height: 30),
@@ -198,11 +211,13 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Built for North America. Designed for global industry.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .66),
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      'Built for North America. Designed for global industry.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .66),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -216,18 +231,22 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
 
   Widget _formViewport(BuildContext context, {required bool compact}) {
     final theme = Theme.of(context);
+    final largeText = MediaQuery.textScalerOf(context).scale(12) >= 18;
+    final horizontalPadding = compact ? (largeText ? 10.0 : 18.0) : 40.0;
+    final verticalPadding = compact ? (largeText ? 12.0 : 22.0) : 34.0;
+    final cardPadding = compact ? (largeText ? 14.0 : 20.0) : 30.0;
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 18 : 40,
-          vertical: compact ? 22 : 34,
+          horizontal: horizontalPadding,
+          vertical: verticalPadding,
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: Card(
             clipBehavior: Clip.antiAlias,
             child: Padding(
-              padding: EdgeInsets.all(compact ? 20 : 30),
+              padding: EdgeInsets.all(cardPadding),
               child: Form(
                 key: _form,
                 child: Column(
@@ -238,7 +257,8 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                       const SizedBox(height: 22),
                     ],
                     PipeBuyerPageHeader(
-                      eyebrow: _signup ? 'Create your account' : 'Secure sign in',
+                      eyebrow:
+                          _signup ? 'Create your account' : 'Secure sign in',
                       title: _signup ? 'Join Pipe Buyer' : 'Welcome back',
                       subtitle: _signup
                           ? 'Choose how you will buy, sell and represent yourself in the marketplace.'
@@ -449,25 +469,49 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                     const SizedBox(height: 12),
                     const Divider(),
                     const SizedBox(height: 12),
-                    const Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 14,
-                      runSpacing: 8,
-                      children: [
-                        _CompactTrustItem(
-                          icon: Icons.verified_user_outlined,
-                          label: 'Verified accounts',
-                        ),
-                        _CompactTrustItem(
-                          icon: Icons.shield_outlined,
-                          label: 'Fraud protection',
-                        ),
-                        _CompactTrustItem(
-                          icon: Icons.lock_outline_rounded,
-                          label: 'Protected access',
-                        ),
-                      ],
-                    ),
+                    if (largeText)
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _CompactTrustItem(
+                            icon: Icons.verified_user_outlined,
+                            label: 'Verified accounts',
+                            expanded: true,
+                          ),
+                          SizedBox(height: 8),
+                          _CompactTrustItem(
+                            icon: Icons.shield_outlined,
+                            label: 'Fraud protection',
+                            expanded: true,
+                          ),
+                          SizedBox(height: 8),
+                          _CompactTrustItem(
+                            icon: Icons.lock_outline_rounded,
+                            label: 'Protected access',
+                            expanded: true,
+                          ),
+                        ],
+                      )
+                    else
+                      const Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 14,
+                        runSpacing: 8,
+                        children: [
+                          _CompactTrustItem(
+                            icon: Icons.verified_user_outlined,
+                            label: 'Verified accounts',
+                          ),
+                          _CompactTrustItem(
+                            icon: Icons.shield_outlined,
+                            label: 'Fraud protection',
+                          ),
+                          _CompactTrustItem(
+                            icon: Icons.lock_outline_rounded,
+                            label: 'Protected access',
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -480,28 +524,32 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
 
   Widget _wordmark({bool darkText = false}) {
     final primary = darkText ? PipeBuyerColors.ink : Colors.white;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'PIPE',
-          style: TextStyle(
-            color: primary,
-            fontWeight: FontWeight.w900,
-            fontSize: 25,
-            letterSpacing: -.7,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'PIPE',
+            style: TextStyle(
+              color: primary,
+              fontWeight: FontWeight.w900,
+              fontSize: 25,
+              letterSpacing: -.7,
+            ),
           ),
-        ),
-        const Text(
-          'BUYER',
-          style: TextStyle(
-            color: PipeBuyerColors.orange,
-            fontWeight: FontWeight.w900,
-            fontSize: 25,
-            letterSpacing: -.7,
+          const Text(
+            'BUYER',
+            style: TextStyle(
+              color: PipeBuyerColors.orange,
+              fontWeight: FontWeight.w900,
+              fontSize: 25,
+              letterSpacing: -.7,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -820,7 +868,9 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
         'wrong-password' || 'invalid-credential' => Icons.lock_outline,
         'invalid-email' => Icons.alternate_email,
         'network-request-failed' => Icons.wifi_off_outlined,
-        'invalid-verification-code' || 'mfa-timeout' => Icons.sms_failed_outlined,
+        'invalid-verification-code' ||
+        'mfa-timeout' =>
+          Icons.sms_failed_outlined,
         'user-disabled' => Icons.block_outlined,
         _ => Icons.error_outline,
       };
@@ -923,27 +973,34 @@ class _DarkTrustPill extends StatelessWidget {
 }
 
 class _CompactTrustItem extends StatelessWidget {
-  const _CompactTrustItem({required this.icon, required this.label});
+  const _CompactTrustItem({
+    required this.icon,
+    required this.label,
+    this.expanded = false,
+  });
 
   final IconData icon;
   final String label;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final labelText = Text(
+      label,
+      softWrap: true,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurface.withValues(alpha: .62),
+        fontWeight: FontWeight.w700,
+      ),
+    );
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
       children: [
         const SizedBox(width: 1),
         Icon(icon, size: 16, color: PipeBuyerColors.success),
         const SizedBox(width: 5),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: .62),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        if (expanded) Expanded(child: labelText) else labelText,
       ],
     );
   }

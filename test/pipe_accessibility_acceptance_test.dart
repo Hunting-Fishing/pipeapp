@@ -35,7 +35,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Welcome back'), findsOneWidget);
-      expect(find.text('Sign in'), findsWidgets);
+      expect(find.text('Sign in securely'), findsOneWidget);
       expect(find.byType(SingleChildScrollView), findsOneWidget);
       expect(
         tester.getSize(find.byType(FilledButton)).height,
@@ -110,7 +110,7 @@ void main() {
     await tester.tap(createAccount);
     await tester.pump();
 
-    expect(find.text('Join the marketplace'), findsOneWidget);
+    expect(find.text('Join Pipe Buyer'), findsOneWidget);
     expect(find.text('Personal'), findsOneWidget);
     expect(find.text('Business'), findsOneWidget);
     expect(find.text('Create personal account'), findsOneWidget);

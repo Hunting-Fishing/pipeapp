@@ -87,6 +87,7 @@ class MarketplaceAcceptOfferDialog extends StatelessWidget {
     final milestones = marketplaceOfferMilestones(offer);
     final total = offer['offeredTotal'] as num? ?? 0;
     final quantity = offer['requestedQuantity'] ?? 0;
+    final largeText = MediaQuery.textScalerOf(context).scale(12) >= 18;
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
       child: ConstrainedBox(
@@ -159,14 +160,28 @@ class MarketplaceAcceptOfferDialog extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+                          if (largeText)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 4),
+                              child: Text(
+                                'NEGOTIATED',
+                                style: TextStyle(
+                                  color: PipeBuyerColors.orange,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: .7,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                    const PipeBuyerStatusBadge(
-                      label: 'NEGOTIATED',
-                      icon: Icons.forum_outlined,
-                      tone: PipeBuyerStatusTone.premium,
-                    ),
+                    if (!largeText)
+                      const PipeBuyerStatusBadge(
+                        label: 'NEGOTIATED',
+                        icon: Icons.forum_outlined,
+                        tone: PipeBuyerStatusTone.premium,
+                      ),
                   ],
                 ),
               ),
@@ -546,8 +561,7 @@ class _MarketplaceOfferCalendarDialogState
                           IconButton(
                             tooltip: 'Previous month',
                             onPressed: () => setState(() => _visibleMonth =
-                                DateTime(
-                                    _visibleMonth.year,
+                                DateTime(_visibleMonth.year,
                                     _visibleMonth.month - 1)),
                             icon: const Icon(Icons.chevron_left),
                           ),
@@ -564,8 +578,7 @@ class _MarketplaceOfferCalendarDialogState
                           IconButton(
                             tooltip: 'Next month',
                             onPressed: () => setState(() => _visibleMonth =
-                                DateTime(
-                                    _visibleMonth.year,
+                                DateTime(_visibleMonth.year,
                                     _visibleMonth.month + 1)),
                             icon: const Icon(Icons.chevron_right),
                           ),
@@ -707,9 +720,8 @@ class _MarketplaceOfferCalendarDialogState
                     '$day',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: events.isNotEmpty
-                          ? FontWeight.w900
-                          : FontWeight.w500,
+                      fontWeight:
+                          events.isNotEmpty ? FontWeight.w900 : FontWeight.w500,
                     ),
                   ),
                   if (events.isNotEmpty)
