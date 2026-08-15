@@ -120,7 +120,7 @@ class PipeBuyerFormProgress extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 650) {
-          final index = currentStep.clamp(0, steps.length - 1);
+          final index = currentStep.clamp(0, steps.length - 1).toInt();
           final step = steps[index];
           return Card(
             margin: EdgeInsets.zero,
