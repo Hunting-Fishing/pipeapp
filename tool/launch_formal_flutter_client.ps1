@@ -10,6 +10,13 @@ function Require-Port([int]$Port, [string]$Label) {
   }
 }
 
+function Port-In-Use([int]$Port) {
+  return $null -ne (
+    Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue |
+      Select-Object -First 1
+  )
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
@@ -23,11 +30,17 @@ Require-Port 18080 'Firestore emulator'
 Require-Port 15001 'Functions emulator'
 Require-Port 19199 'Storage emulator'
 
+$webPort = 5050
+if (Port-In-Use $webPort) {
+  throw "Local Pipe Buyer web port $webPort is already in use. Close the older Flutter test process, then run this helper again."
+}
+
 Write-Host 'Launching Pipe Buyer Flutter client against the already-running local emulator suite.' -ForegroundColor Cyan
+Write-Host 'Pipe Buyer local app: http://127.0.0.1:5050' -ForegroundColor Green
 Write-Host 'Firebase Emulator UI: http://127.0.0.1:14000' -ForegroundColor DarkGray
-Write-Host 'Flutter will choose its own temporary local web port and open Chrome automatically.' -ForegroundColor DarkGray
 
 & flutter run -d chrome `
+  --web-port=$webPort `
   --dart-define=PIPE_ENV=local `
   --dart-define=PIPE_ENABLE_DISPATCH=true `
   --dart-define=PIPE_ENABLE_AUCTIONS=true `
