@@ -315,8 +315,8 @@ class _TimedBuyingBorderPainter extends CustomPainter {
     if (!sparkle) return;
     final sparklePaint = Paint()..color = Colors.white.withValues(alpha: .92);
     final center = rect.center;
-    final rx = math.max(0, size.width / 2 - 7);
-    final ry = math.max(0, size.height / 2 - 7);
+    final rx = math.max(0.0, size.width / 2 - 7).toDouble();
+    final ry = math.max(0.0, size.height / 2 - 7).toDouble();
     for (var index = 0; index < 3; index++) {
       final angle = progress * math.pi * 2 + index * (math.pi * 2 / 3);
       final point = Offset(
