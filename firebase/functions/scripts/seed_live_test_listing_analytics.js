@@ -20,62 +20,65 @@ const projectId = process.env.GCLOUD_PROJECT || "flutter-flow-pipe";
 const app = initializeApp({projectId}, `listing-analytics-${Date.now()}`);
 const db = getFirestore(app);
 
+// Engagement counters are intentionally deterministic for visual acceptance.
+// Message/offer totals align with the visible seeded conversation and offer
+// fixtures so seller analytics do not imply hidden mock deals.
 const fixtures = Object.freeze({
   "visual-pipe-drill": {
     viewCount: 184,
     saveCount: 21,
     shareCount: 8,
-    messageCount: 7,
-    offerCount: 3,
+    messageCount: 4,
+    offerCount: 2,
   },
   "visual-casing": {
     viewCount: 92,
     saveCount: 8,
     shareCount: 3,
-    messageCount: 2,
-    offerCount: 1,
+    messageCount: 0,
+    offerCount: 0,
   },
   "visual-excavator": {
     viewCount: 251,
     saveCount: 34,
     shareCount: 11,
-    messageCount: 12,
-    offerCount: 4,
+    messageCount: 2,
+    offerCount: 0,
   },
   "visual-loader": {
     viewCount: 143,
     saveCount: 16,
     shareCount: 7,
-    messageCount: 5,
-    offerCount: 2,
+    messageCount: 0,
+    offerCount: 0,
   },
   "visual-office": {
     viewCount: 78,
     saveCount: 11,
     shareCount: 2,
-    messageCount: 4,
-    offerCount: 1,
+    messageCount: 0,
+    offerCount: 0,
   },
   "visual-tank": {
     viewCount: 61,
     saveCount: 5,
     shareCount: 1,
-    messageCount: 1,
+    messageCount: 0,
     offerCount: 0,
   },
   "visual-semi": {
     viewCount: 116,
     saveCount: 10,
     shareCount: 6,
-    messageCount: 4,
-    offerCount: 1,
+    messageCount: 0,
+    offerCount: 0,
   },
   "visual-vip-early-tubing": {
     viewCount: 27,
     saveCount: 5,
     shareCount: 2,
-    messageCount: 2,
-    offerCount: 1,
+    messageCount: 0,
+    offerCount: 0,
   },
 });
 
