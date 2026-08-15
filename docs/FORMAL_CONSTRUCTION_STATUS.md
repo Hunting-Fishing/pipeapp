@@ -100,6 +100,25 @@ Existing private offer history, seller-only best-offer visibility, saved items a
 
 Widget contracts cover representative desktop and mobile layouts for the new formal components. Final release acceptance still requires the repository Quality gate, Flutter analyzer/tests, release build and rendered browser/device checks.
 
+### 9. Seller listing analytics — integrated and under acceptance testing
+
+The existing seller-only `getMarketplaceListingInsights` callable and listing-insights dialog now include a formal analytics experience without adding public scale claims or exposing other sellers' private activity.
+
+Implemented analytics include:
+
+- comparable median and comparable price range using normalized price basis
+- seller listing position relative to the comparable median
+- views, shares, saves, messages and offers from existing marketplace activity counters
+- view-to-save, view-to-message and view-to-offer rates
+- a clearly labelled engagement signal (`building`, `developing`, `strong`, or `limited`)
+- conversion-oriented recommendations for high views with no saves/offers and conversations with no offers
+- responsive KPI cards and buyer-engagement funnel presentation
+- deterministic emulator analytics fixtures for visual acceptance testing
+- unit tests for rate calculations, comparable pricing and engagement-signal logic
+- widget tests for the formal analytics metric grid, signal band and funnel
+
+The analytics UI explicitly states that activity counters are not unique-buyer counts and that comparable analytics are not an appraisal, valuation or guarantee of demand/sale price.
+
 ## Behavior-stack integration gate
 
 The live marketplace behavior is currently spread across stacked/open pull requests, including:
@@ -138,4 +157,4 @@ No design component may:
 
 ## Result
 
-The complete visual construction sequence now has reusable Flutter building blocks. The remaining work is controlled integration with the reconciled behavior stack, not another round of one-off page styling.
+The complete visual construction sequence now has reusable Flutter building blocks. Listing-level seller analytics are also implemented on the formal branch with deterministic local fixtures. The remaining large integration work is controlled wiring with the reconciled behavior stack, not another round of one-off page styling.
