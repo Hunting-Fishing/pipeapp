@@ -25,6 +25,28 @@ function Get-ProductionVariable {
   return (($value | Out-String).Trim())
 }
 
+function Assert-ProductionValue {
+  param(
+    [Parameter(Mandatory = $true)][string]$Name,
+    [AllowEmptyString()][string]$Value,
+    [Parameter(Mandatory = $true)][string]$Pattern,
+    [switch]$Optional
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    if ($Optional) { return }
+    throw "Production variable $Name is empty."
+  }
+
+  if ($Value -match '[\r\n\t]') {
+    throw "Production variable $Name contains a newline/tab. Re-copy only the public key/value and update the GitHub production variable."
+  }
+
+  if ($Value -notmatch $Pattern) {
+    throw "Production variable $Name contains unexpected characters. Re-copy only the intended public value before deploying."
+  }
+}
+
 $workspace = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $workspace
 
@@ -105,14 +127,19 @@ if ($env:PIPE_FIREBASE_PROJECT_ID -ne 'flutter-flow-pipe') {
 if ($env:PIPE_FIREBASE_AUTH_DOMAIN -ne 'pipebuyer.com') {
   Write-Host "Production auth domain is $env:PIPE_FIREBASE_AUTH_DOMAIN (expected intentional custom domain pipebuyer.com)." -ForegroundColor Yellow
 }
-if ([string]::IsNullOrWhiteSpace($env:PIPE_APP_CHECK_WEB_RECAPTCHA_KEY)) {
-  throw 'Production App Check reCAPTCHA key is missing.'
-}
-if ([string]::IsNullOrWhiteSpace($env:PIPE_FIREBASE_WEB_PUSH_VAPID_KEY)) {
-  throw 'Production Web Push VAPID key is missing.'
-}
 
-Write-Host 'Production configuration loaded.' -ForegroundColor Green
+Assert-ProductionValue 'PIPE_FIREBASE_API_KEY' $env:PIPE_FIREBASE_API_KEY '^[A-Za-z0-9_-]+$'
+Assert-ProductionValue 'PIPE_FIREBASE_AUTH_DOMAIN' $env:PIPE_FIREBASE_AUTH_DOMAIN '^[A-Za-z0-9.-]+$'
+Assert-ProductionValue 'PIPE_FIREBASE_PROJECT_ID' $env:PIPE_FIREBASE_PROJECT_ID '^[A-Za-z0-9-]+$'
+Assert-ProductionValue 'PIPE_FIREBASE_STORAGE_BUCKET' $env:PIPE_FIREBASE_STORAGE_BUCKET '^[A-Za-z0-9.-]+$'
+Assert-ProductionValue 'PIPE_FIREBASE_MESSAGING_SENDER_ID' $env:PIPE_FIREBASE_MESSAGING_SENDER_ID '^\d+$'
+Assert-ProductionValue 'PIPE_FIREBASE_WEB_APP_ID' $env:PIPE_FIREBASE_WEB_APP_ID '^[A-Za-z0-9:_-]+$'
+Assert-ProductionValue 'PIPE_FIREBASE_MEASUREMENT_ID' $env:PIPE_FIREBASE_MEASUREMENT_ID '^[A-Za-z0-9_-]+$' -Optional
+Assert-ProductionValue 'PIPE_PUBLIC_SUPPORT_EMAIL' $env:PIPE_PUBLIC_SUPPORT_EMAIL '^[^\s@]+@[^\s@]+$'
+Assert-ProductionValue 'PIPE_APP_CHECK_WEB_RECAPTCHA_KEY' $env:PIPE_APP_CHECK_WEB_RECAPTCHA_KEY '^[A-Za-z0-9_-]+$'
+Assert-ProductionValue 'PIPE_FIREBASE_WEB_PUSH_VAPID_KEY' $env:PIPE_FIREBASE_WEB_PUSH_VAPID_KEY '^[A-Za-z0-9_-]+$'
+
+Write-Host 'Production configuration loaded and validated.' -ForegroundColor Green
 Write-Host "Firebase project: $env:PIPE_FIREBASE_PROJECT_ID"
 Write-Host "Auth domain: $env:PIPE_FIREBASE_AUTH_DOMAIN"
 Write-Host 'App Check: enforce'
@@ -132,13 +159,34 @@ if (@(git status --porcelain).Count -gt 0) {
 
 New-Item -ItemType Directory -Force '.\build' | Out-Null
 
-$firebase = { npx --yes firebase-tools@15.25.0 @args }
-
 Write-Host "`n==> Recording current production inventory" -ForegroundColor Cyan
 & npx --yes firebase-tools@15.25.0 functions:list --project flutter-flow-pipe --json | Set-Content '.\build\predeploy-functions.json'
 if ($LASTEXITCODE -ne 0) { throw 'Could not read current production Functions inventory.' }
 
 $workerPath = 'web/firebase-messaging-sw.js'
+$definesPath = Join-Path $env:TEMP ("pipebuyer-production-defines-{0}.json" -f ([guid]::NewGuid().ToString('N')))
+
+$defineMap = [ordered]@{
+  PIPE_ENV = 'production'
+  PIPE_RELEASE_SHA = $releaseSha
+  PIPE_FIREBASE_API_KEY = $env:PIPE_FIREBASE_API_KEY
+  PIPE_FIREBASE_AUTH_DOMAIN = $env:PIPE_FIREBASE_AUTH_DOMAIN
+  PIPE_FIREBASE_PROJECT_ID = $env:PIPE_FIREBASE_PROJECT_ID
+  PIPE_FIREBASE_STORAGE_BUCKET = $env:PIPE_FIREBASE_STORAGE_BUCKET
+  PIPE_FIREBASE_MESSAGING_SENDER_ID = $env:PIPE_FIREBASE_MESSAGING_SENDER_ID
+  PIPE_FIREBASE_WEB_APP_ID = $env:PIPE_FIREBASE_WEB_APP_ID
+  PIPE_FIREBASE_MEASUREMENT_ID = $env:PIPE_FIREBASE_MEASUREMENT_ID
+  PIPE_PUBLIC_SUPPORT_EMAIL = $env:PIPE_PUBLIC_SUPPORT_EMAIL
+  PIPE_APP_CHECK_WEB_RECAPTCHA_KEY = $env:PIPE_APP_CHECK_WEB_RECAPTCHA_KEY
+  PIPE_APP_CHECK_REQUIRED = 'true'
+  PIPE_FIREBASE_WEB_PUSH_VAPID_KEY = $env:PIPE_FIREBASE_WEB_PUSH_VAPID_KEY
+  PIPE_REMOTE_DIAGNOSTICS_ENABLED = 'true'
+}
+
+$json = $defineMap | ConvertTo-Json -Compress
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($definesPath, $json, $utf8NoBom)
+
 try {
   Invoke-Checked 'Configuring production Firebase Messaging worker' {
     node tool/configure_firebase_messaging_worker.mjs `
@@ -151,30 +199,13 @@ try {
       --app-id $env:PIPE_FIREBASE_WEB_APP_ID
   }
 
-  $productionDefines = @(
-    '--release',
-    "--dart-define=PIPE_ENV=production",
-    "--dart-define=PIPE_RELEASE_SHA=$releaseSha",
-    "--dart-define=PIPE_FIREBASE_API_KEY=$env:PIPE_FIREBASE_API_KEY",
-    "--dart-define=PIPE_FIREBASE_AUTH_DOMAIN=$env:PIPE_FIREBASE_AUTH_DOMAIN",
-    "--dart-define=PIPE_FIREBASE_PROJECT_ID=$env:PIPE_FIREBASE_PROJECT_ID",
-    "--dart-define=PIPE_FIREBASE_STORAGE_BUCKET=$env:PIPE_FIREBASE_STORAGE_BUCKET",
-    "--dart-define=PIPE_FIREBASE_MESSAGING_SENDER_ID=$env:PIPE_FIREBASE_MESSAGING_SENDER_ID",
-    "--dart-define=PIPE_FIREBASE_WEB_APP_ID=$env:PIPE_FIREBASE_WEB_APP_ID",
-    "--dart-define=PIPE_FIREBASE_MEASUREMENT_ID=$env:PIPE_FIREBASE_MEASUREMENT_ID",
-    "--dart-define=PIPE_PUBLIC_SUPPORT_EMAIL=$env:PIPE_PUBLIC_SUPPORT_EMAIL",
-    "--dart-define=PIPE_APP_CHECK_WEB_RECAPTCHA_KEY=$env:PIPE_APP_CHECK_WEB_RECAPTCHA_KEY",
-    '--dart-define=PIPE_APP_CHECK_REQUIRED=true',
-    "--dart-define=PIPE_FIREBASE_WEB_PUSH_VAPID_KEY=$env:PIPE_FIREBASE_WEB_PUSH_VAPID_KEY",
-    '--dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED=true'
-  )
-
   Invoke-Checked 'Building exact production Flutter web release' {
-    flutter build web @productionDefines
+    flutter build web --release "--dart-define-from-file=$definesPath"
   }
 }
 finally {
   git restore -- $workerPath 2>$null
+  Remove-Item -LiteralPath $definesPath -Force -ErrorAction SilentlyContinue
 }
 
 foreach ($generated in $generatedFiles) {
