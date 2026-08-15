@@ -93,6 +93,21 @@ async function main() {
   }
   console.log("Listing analytics fixture verified: visual-pipe-drill");
 
+  const timedBuyingListing = await db.doc("public_listings/visual-auction-dozer").get();
+  if (!timedBuyingListing.exists) {
+    throw new Error("Timed Buying fixture source listing is missing.");
+  }
+  const timedBuying = timedBuyingListing.data() || {};
+  if (timedBuying.timedBuyingLabelVersion !== 1 ||
+      timedBuying.publicSaleFormatLabel !== "Timed Buying" ||
+      timedBuying.publicOfferActionLabel !== "Timed Offer" ||
+      !String(timedBuying.title || "").startsWith("Timed Buying")) {
+    throw new Error(
+        "Timed Buying public labels are missing or stale. Reseed the formal test data before acceptance testing.",
+    );
+  }
+  console.log("Timed Buying public fixture verified: visual-auction-dozer");
+
   console.log("Seeded Auth fixtures:");
   for (const email of expectedAccounts) {
     const user = await auth.getUserByEmail(email);
