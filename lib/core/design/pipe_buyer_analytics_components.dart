@@ -200,7 +200,9 @@ class PipeBuyerAnalyticsFunnel extends StatelessWidget {
             final step = entry.value;
             final ratio = maxValue <= 0 ? 0.0 : step.value / maxValue;
             return Padding(
-              padding: EdgeInsets.only(bottom: index == steps.length - 1 ? 0 : 11),
+              padding: EdgeInsets.only(
+                bottom: index == steps.length - 1 ? 0 : 11,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -234,7 +236,7 @@ class PipeBuyerAnalyticsFunnel extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: LinearProgressIndicator(
-                      value: ratio.clamp(0, 1),
+                      value: ratio.clamp(0.0, 1.0).toDouble(),
                       minHeight: 8,
                       backgroundColor: PipeBuyerColors.surfaceMuted,
                       valueColor: AlwaysStoppedAnimation<Color>(
