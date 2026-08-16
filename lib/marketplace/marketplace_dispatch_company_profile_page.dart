@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'marketplace_dispatch_company_profile.dart';
 import 'marketplace_dispatch_company_profile_repository.dart';
+import 'marketplace_dispatch_equipment_capability.dart';
 
 class MarketplaceDispatchCompanyProfilePage extends StatefulWidget {
   const MarketplaceDispatchCompanyProfilePage({super.key});
@@ -46,6 +47,12 @@ class _MarketplaceDispatchCompanyProfilePageState
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  Future<void> _openFleetCapabilities() => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const MarketplaceDispatchEquipmentCapabilitiesPage(),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -92,13 +99,54 @@ class _MarketplaceDispatchCompanyProfilePageState
           return const Center(child: Text('Company profile is unavailable.'));
         }
 
-        return MarketplaceDispatchCompanyProfileEditor(
-          key: ValueKey(
-            'dispatch-company-${draft.operatingName}-${draft.completionPercent}',
-          ),
-          initial: draft,
-          saving: _saving,
-          onSave: _save,
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.local_shipping_outlined),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Fleet & equipment capabilities',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Assign structured Dispatch services and capabilities to each truck, trailer, pilot vehicle, crane or field-service unit.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        onPressed: _openFleetCapabilities,
+                        icon: const Icon(Icons.tune_outlined),
+                        label: const Text('Manage fleet'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: MarketplaceDispatchCompanyProfileEditor(
+                key: ValueKey(
+                  'dispatch-company-${draft.operatingName}-${draft.completionPercent}',
+                ),
+                initial: draft,
+                saving: _saving,
+                onSave: _save,
+              ),
+            ),
+          ],
         );
       },
     );
