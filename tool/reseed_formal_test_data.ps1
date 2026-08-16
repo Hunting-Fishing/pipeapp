@@ -51,6 +51,9 @@ if (-not $SkipSeed) {
   & node (Join-Path $functionsDir 'scripts\seed_live_test_dispatch_access.js')
   if ($LASTEXITCODE -ne 0) { throw 'Dispatch access seed failed.' }
 
+  & node (Join-Path $functionsDir 'scripts\seed_live_test_weight_catalog.js')
+  if ($LASTEXITCODE -ne 0) { throw 'Dispatch weight/spec catalog seed failed.' }
+
   & node (Join-Path $functionsDir 'scripts\seed_live_test_listing_analytics.js')
   if ($LASTEXITCODE -ne 0) { throw 'Listing analytics seed failed.' }
 
@@ -80,5 +83,6 @@ Write-Host '  Carrier   : carrier.visual@pipebuyer.test' -ForegroundColor White
 Write-Host '  Password  : PipeBuyerDemo!2026' -ForegroundColor White
 Write-Host ''
 Write-Host 'Listing analytics fixtures are seeded for the seller inventory.' -ForegroundColor Green
+Write-Host 'Dispatch Spec Assist references are seeded for Caterpillar 320 and Bobcat S160.' -ForegroundColor Green
 Write-Host 'Timed Buying public labels and closing-time fixtures are seeded.' -ForegroundColor Green
 Write-Host 'Hard-refresh the Flutter Chrome tab after reseeding (Ctrl+Shift+R).' -ForegroundColor Green
