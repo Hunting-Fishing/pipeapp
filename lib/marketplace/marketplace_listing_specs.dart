@@ -175,7 +175,8 @@ class _ListingSpecsDisclosure extends StatefulWidget {
   State<_ListingSpecsDisclosure> createState() => _ListingSpecsDisclosureState();
 }
 
-class _ListingSpecsDisclosureState extends State<_ListingSpecsDisclosure> {
+class _ListingSpecsDisclosureState extends State<_ListingSpecsDisclosure>
+    with SingleTickerProviderStateMixin {
   bool _expanded = false;
 
   @override
@@ -197,7 +198,9 @@ class _ListingSpecsDisclosureState extends State<_ListingSpecsDisclosure> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'More specifications (${widget.specs.length})',
+                      _expanded
+                          ? 'Hide specifications'
+                          : 'More specifications (${widget.specs.length})',
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
@@ -207,24 +210,26 @@ class _ListingSpecsDisclosureState extends State<_ListingSpecsDisclosure> {
                   AnimatedRotation(
                     turns: _expanded ? .5 : 0,
                     duration: const Duration(milliseconds: 180),
-                    child: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ),
-        AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
-          secondChild: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: _ListingSpecsWrap(specs: widget.specs),
-          ),
-          crossFadeState: _expanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
+        AnimatedSize(
           duration: const Duration(milliseconds: 180),
-          sizeCurve: Curves.easeOutCubic,
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: _expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: _ListingSpecsWrap(specs: widget.specs),
+                )
+              : const SizedBox.shrink(),
         ),
       ],
     );
