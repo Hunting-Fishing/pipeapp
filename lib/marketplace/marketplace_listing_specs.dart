@@ -158,22 +158,31 @@ class MarketplaceListingSpecsGrid extends StatelessWidget {
           _ListingSpecsWrap(specs: visible),
           if (remaining.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: const EdgeInsets.only(top: 4),
-                dense: true,
-                visualDensity: const VisualDensity(vertical: -3),
-                leading: const Icon(Icons.tune_rounded, size: 18),
-                title: Text(
-                  'More specifications (${remaining.length})',
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
+            // ExpansionTile is implemented with ListTile. Give it its own
+            // Material surface so its ink/background is not hidden by this
+            // component's decorated card container (Flutter reports that as a
+            // test-time accessibility/painting error on newer SDKs).
+            Material(
+              color: Colors.transparent,
+              child: Theme(
+                data:
+                    Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  key: const ValueKey('marketplace-more-specifications'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(top: 4),
+                  dense: true,
+                  visualDensity: const VisualDensity(vertical: -3),
+                  leading: const Icon(Icons.tune_rounded, size: 18),
+                  title: Text(
+                    'More specifications (${remaining.length})',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
+                  children: [_ListingSpecsWrap(specs: remaining)],
                 ),
-                children: [_ListingSpecsWrap(specs: remaining)],
               ),
             ),
           ],
