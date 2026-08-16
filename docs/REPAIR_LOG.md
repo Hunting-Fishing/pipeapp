@@ -40,6 +40,32 @@ The developer supplied the exact local `marketplace_freight_quote.dart` that was
 - The explicit unknown-weight path must send both `estimatedWeightKg` and `catalogWeightKg` as null so payload suitability checks do not treat an unconfirmed catalog number as confirmed shipper weight.
 - Spec Assist may use reviewed catalog references immediately. A future AI equipment-spec service must be added behind a protected server endpoint and must never be presented as manufacturer-verified data unless a source actually supports that claim.
 
+## 2026-08-16 - Multiple visible startup surfaces consolidated
+
+### Symptom
+
+Web startup visibly moved through three different surfaces: a dark HTML bootstrap card, a brief static HTML marketing header, and the existing large Pipe Buyer logo splash inside Flutter. The transitions looked like separate pages loading instead of one application startup.
+
+### Root cause
+
+Three independent startup layers were active at the same time:
+
+1. `web/index.html` rendered a custom dark loading card and also contained a separate visible marketing header underneath it.
+2. `main.dart` immediately called `runApp(PipeStartupMonitorApp(...))`, creating a second Flutter startup application before the real app initialized.
+3. The router retained the existing Pipe Buyer logo splash while authentication state settled.
+
+The diagnostics zone was also entered after `WidgetsFlutterBinding.ensureInitialized()`, while the final `runApp()` occurred inside that zone. That split binding initialization and frame rendering across zones and contributed to the earlier zone-mismatch diagnostics.
+
+### Permanent repair
+
+- `web/index.html` owns the pre-Flutter startup surface and uses the same large Pipe Buyer logo presentation as the in-app splash.
+- The visible static marketing header and dark bootstrap card were removed from startup.
+- Normal startup no longer performs an initial `runApp` for `PipeStartupMonitorApp`; the monitor remains headless and is shown only if bootstrap fails.
+- `WidgetsFlutterBinding.ensureInitialized()`, diagnostics installation, bootstrap, and the successful `runApp()` now execute inside the same guarded zone.
+- The arbitrary three-second splash timer was removed. The in-app logo splash clears when the first authentication state is actually received.
+- `test/startup_single_surface_test.dart` locks these structural rules.
+- Do not add a second visible startup page to troubleshoot loading. Add diagnostics behind the single branded startup surface instead.
+
 ## Process rule going forward
 
 Avoid repeated V1/V2/V3-style repair chains when a stable integration path can be used. Prefer:
