@@ -14,9 +14,10 @@ if ($branch -ne $expectedBranch) {
   throw "This repair is for $expectedBranch. Current branch: $branch"
 }
 
-Write-Host 'Professional Asset Overview repair: v1-20260816' -ForegroundColor Green
+Write-Host 'Professional Asset Overview repair: v2-20260816' -ForegroundColor Green
 Write-Host 'Scope: only marketplace_listing_specs.dart + its compact widget test.' -ForegroundColor DarkGray
 Write-Host 'No emulator, Firebase, admin shell, or product-page reset is required.' -ForegroundColor DarkGray
+Write-Host 'Whitespace-only formatter changes are allowed; semantic local edits still stop the repair.' -ForegroundColor DarkGray
 
 Write-Step 'Fetching the latest formal branch without touching the working tree'
 & git fetch origin $expectedBranch
@@ -37,16 +38,33 @@ foreach ($relative in $files) {
   }
 }
 
-Write-Step 'Confirming the two professional files have no unique local edits'
+Write-Step 'Checking the two professional files for real local edits'
 $dirty = @(git status --porcelain -- $files)
 if ($dirty.Count -gt 0) {
-  Write-Host 'These two files contain local edits, so this repair will not replace them automatically:' -ForegroundColor Red
-  $dirty | ForEach-Object { Write-Host $_ -ForegroundColor Red }
-  Write-Host "`nDiff for review:" -ForegroundColor Yellow
-  git diff -- $files
-  throw 'STOP: professional Asset Overview files contain local edits. Preserve/reconcile those edits before this repair.'
+  $untracked = @($dirty | Where-Object { $_ -match '^\?\?' })
+  if ($untracked.Count -gt 0) {
+    Write-Host 'Untracked professional files were found; refusing to replace them automatically:' -ForegroundColor Red
+    $untracked | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+    throw 'STOP: untracked professional Asset Overview files require manual review.'
+  }
+
+  & git diff --quiet --ignore-all-space --ignore-blank-lines -- $files
+  $semanticDiffExit = $LASTEXITCODE
+  if ($semanticDiffExit -eq 0) {
+    Write-Host 'Only whitespace/formatter changes are present in the professional files.' -ForegroundColor Yellow
+    Write-Host 'Those formatting-only edits will be preserved in TEMP backup, then the repaired formal versions will be applied.' -ForegroundColor DarkGray
+  } elseif ($semanticDiffExit -eq 1) {
+    Write-Host 'These professional files contain semantic local edits, so this repair will not replace them automatically:' -ForegroundColor Red
+    $dirty | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+    Write-Host "`nSemantic diff for review:" -ForegroundColor Yellow
+    git diff --ignore-all-space --ignore-blank-lines -- $files
+    throw 'STOP: professional Asset Overview files contain semantic local edits. Preserve/reconcile those edits before this repair.'
+  } else {
+    throw "git diff failed while checking local professional edits (exit $semanticDiffExit)."
+  }
+} else {
+  Write-Host 'Professional Asset Overview files are clean relative to the current local HEAD.' -ForegroundColor Green
 }
-Write-Host 'Professional Asset Overview files are clean relative to the current local HEAD.' -ForegroundColor Green
 
 $changedFromRemote = @(git diff --name-only HEAD $remoteRef -- $files)
 if ($changedFromRemote.Count -eq 0) {
