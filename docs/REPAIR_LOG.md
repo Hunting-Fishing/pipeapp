@@ -107,6 +107,26 @@ This was a source-preparation/tooling failure, not a Dispatch runtime, Firebase,
 - New Dart files produced through repository text APIs must not be represented as formatter-clean until an actual Dart SDK formatter has run.
 - Analyzer, widget/server tests, Phase 0 preservation tests, and emulator acceptance remain blocked until formatting is stable.
 
+## 2026-08-17 - Dispatch could show signed-out content after sign-in
+
+### Symptom
+
+The account menu showed the authenticated visual buyer or carrier account, including a working Sign out action, while the Dispatch content area still displayed `Sign in to use Dispatch.`. The problem reproduced for more than one account after the local Auth fixtures were refreshed.
+
+### Root cause
+
+`MarketplaceDispatchPage` performed a synchronous one-time check of `FirebaseAuth.instance.currentUser` at the start of its `build()` method and returned the signed-out placeholder immediately when that value was null. The Dispatch page itself did not subscribe to Firebase Auth state changes. In the cached marketplace shell, authentication could complete after the Dispatch page had rendered, while other shell/account widgets rebuilt independently. That left Dispatch displaying a stale signed-out branch even though Firebase Auth later had a valid user.
+
+This was not a Phase 2 taxonomy failure and did not require changing Auth emulator users, passwords, Firestore data, Dispatch commands, or provider records.
+
+### Permanent repair
+
+- `MarketplaceDispatchPage` must listen to `FirebaseAuth.instance.authStateChanges()` and use `FirebaseAuth.instance.currentUser` only as initial stream data.
+- Authenticated Dispatch content is built only after the auth stream reports a user; sign-out returns to the signed-out placeholder reactively.
+- `test/dispatch_auth_reactivity_contract_test.dart` locks the structural requirement so the page cannot regress to a one-time `currentUser == null` guard.
+- `tool/repair_dispatch_auth_reactivity.mjs` is a narrow, idempotent repair for the current page shape; it does not alter provider/customer routing, service taxonomy, jobs, quotes, awards, or private-route behavior.
+- `tool/verify_dispatch_auth_reactivity.ps1` formats and analyzes the repaired page, runs the auth contract, and reruns the Phase 1 navigation and Phase 2 taxonomy regressions.
+
 ## Process rule going forward
 
 Avoid repeated V1/V2/V3-style repair chains when a stable integration path can be used. Prefer:
