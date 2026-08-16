@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_dispatch_service_taxonomy.dart';
 
 enum DispatchSection {
   dashboard,
@@ -359,15 +360,7 @@ class MarketplaceDispatchDirectoryFoundation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const servicePreview = [
-      'Pilot / Escort',
-      'Heavy Haul / Lowboy',
-      'Crane / Picker',
-      'Hotshot',
-      'Grading / Road Work',
-      'Mobile Mechanic',
-      'Oilfield Services',
-    ];
+    final featured = DispatchServiceTaxonomy.featuredDirectoryServices;
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
       children: [
@@ -375,23 +368,52 @@ class MarketplaceDispatchDirectoryFoundation extends StatelessWidget {
           eyebrow: 'PIPE BUYER SERVICE DIRECTORY',
           title: 'Industrial companies and owner/operators',
           subtitle:
-              'The Directory is the searchable company network for transportation and field services. Phase 1 establishes its permanent navigation entry while taxonomy, company profiles, filters and map search are built in the gated phases that follow.',
+              'The Directory is the searchable company network for transportation and field services. The verified Phase 2 taxonomy now supplies stable service categories and capability fields while company profiles, filters and map search are built in the gated phases that follow.',
           icon: Icons.business_outlined,
         ),
         const SizedBox(height: 14),
         PipeBuyerSectionCard(
-          title: 'Directory foundation active',
+          title: 'Service taxonomy active',
           subtitle:
-              'Search is intentionally not pretending to be complete before the service taxonomy and company profile model are verified.',
+              'These service labels are backed by stable machine codes so future filters, provider profiles and matching do not depend on free-text names.',
           leading: const Icon(
-            Icons.manage_search_outlined,
+            Icons.account_tree_outlined,
             color: PipeBuyerColors.orange,
           ),
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: servicePreview
-                .map((service) => Chip(label: Text(service)))
+            children: featured
+                .map(
+                  (service) => Tooltip(
+                    message: service.code,
+                    child: Chip(label: Text(service.label)),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        PipeBuyerSectionCard(
+          title: 'Four core service groups',
+          subtitle:
+              'Directory and Request Service will use this hierarchy consistently across North America and later international expansion.',
+          leading: const Icon(
+            Icons.category_outlined,
+            color: PipeBuyerColors.industrialBlue,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: DispatchServiceTaxonomy.categories
+                .map(
+                  (category) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '${category.label} - ${category.description}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ),
