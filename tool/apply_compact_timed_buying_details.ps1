@@ -61,15 +61,9 @@ try {
   & node $patcher
   if ($LASTEXITCODE -ne 0) { throw 'Compact Timed Buying detail migration failed.' }
 
-  Write-Step 'Formatting the locally modified Timed Buying detail page'
-  & dart format $page
-  if ($LASTEXITCODE -ne 0) { throw 'dart format failed for the Timed Buying detail page.' }
-
-  Write-Step 'Checking committed compact-spec component formatting'
-  & dart format --output=none --set-exit-if-changed $specs $specTest
-  if ($LASTEXITCODE -ne 0) {
-    throw 'The compact listing-spec component/test needs formatting. Send this output before proceeding.'
-  }
+  Write-Step 'Formatting compact detail sources'
+  & dart format $page $specs $specTest
+  if ($LASTEXITCODE -ne 0) { throw 'dart format failed for compact Timed Buying detail sources.' }
 
   Write-Step 'Analyzing compact Timed Buying detail surface'
   & dart analyze $page $specs $specTest $timedBuyingTest
