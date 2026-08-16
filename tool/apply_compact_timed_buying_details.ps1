@@ -27,6 +27,11 @@ $generatedFlutterFiles = @(
 # Buying source modifications currently under review.
 & git restore -- $generatedFlutterFiles 2>$null
 
+$pageRelative = 'lib/marketplace/marketplace_auctions_page.dart'
+$specsRelative = 'lib/marketplace/marketplace_listing_specs.dart'
+$specTestRelative = 'test/marketplace_listing_specs_compact_test.dart'
+$timedBuyingTestRelative = 'test/marketplace_timed_buying_presentation_test.dart'
+
 $page = Join-Path $repoRoot 'lib\marketplace\marketplace_auctions_page.dart'
 $specs = Join-Path $repoRoot 'lib\marketplace\marketplace_listing_specs.dart'
 $specTest = Join-Path $repoRoot 'test\marketplace_listing_specs_compact_test.dart'
@@ -38,6 +43,24 @@ foreach ($required in @($page, $specs, $specTest, $timedBuyingTest, $patcher)) {
     throw "Required compact-detail file is missing: $required. Pull the latest formal branch first."
   }
 }
+
+# These two files are branch-managed component/test contracts, not part of the
+# intentionally uncommitted Timed Buying page migration. Previous formatter or
+# failed-run residue can leave an older ExpansionTile implementation on disk.
+# Restore them from the current branch HEAD so the full runner uses exactly the
+# same Asset Overview implementation as the targeted test.
+Write-Step 'Synchronizing branch-managed Asset Overview component + test'
+& git restore --source=HEAD -- $specsRelative $specTestRelative
+if ($LASTEXITCODE -ne 0) {
+  throw 'Could not restore the branch-managed Asset Overview component/test from HEAD.'
+}
+
+$specsSource = Get-Content -LiteralPath $specs -Raw
+if (-not $specsSource.Contains('class _ListingSpecsDisclosure extends StatefulWidget') -or
+    $specsSource.Contains('ExpansionTile(')) {
+  throw 'Asset Overview component is stale. Pull the latest formal branch; expected the custom disclosure with no ExpansionTile/ListTile.'
+}
+Write-Host 'Asset Overview disclosure verified: custom InkWell/AnimatedCrossFade (no ExpansionTile).' -ForegroundColor Green
 
 $pageSource = Get-Content -LiteralPath $page -Raw
 if (-not $pageSource.Contains('Review & submit timed offer') -or
@@ -64,6 +87,12 @@ try {
   Write-Step 'Formatting compact detail sources'
   & dart format $page $specs $specTest
   if ($LASTEXITCODE -ne 0) { throw 'dart format failed for compact Timed Buying detail sources.' }
+
+  # Guard again after formatting so a stale disclosure can never reach flutter test.
+  $specsSource = Get-Content -LiteralPath $specs -Raw
+  if ($specsSource.Contains('ExpansionTile(')) {
+    throw 'ExpansionTile unexpectedly reappeared in Asset Overview before widget tests.'
+  }
 
   Write-Step 'Analyzing compact Timed Buying detail surface'
   & dart analyze $page $specs $specTest $timedBuyingTest
