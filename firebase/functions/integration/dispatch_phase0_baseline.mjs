@@ -5,6 +5,7 @@ const require = createRequire(import.meta.url);
 const {deleteApp, initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
 const {
+  FieldValue,
   GeoPoint,
   Timestamp,
   getFirestore,
@@ -39,12 +40,13 @@ if (projectId !== "flutter-flow-pipe") {
 }
 
 const runId = Date.now();
+const adminUid = `dispatch-phase0-admin-${runId}`;
 const app = initializeApp({projectId}, `dispatch-phase0-${runId}`);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const commandFirestore = Object.assign(
     () => db,
-    {GeoPoint, Timestamp, FieldValue: require("firebase-admin/firestore").FieldValue},
+    {GeoPoint, Timestamp, FieldValue},
 );
 const dispatchCommands = createDispatchCommands({
   firestore: commandFirestore,
@@ -131,6 +133,8 @@ let buyer;
 let carrier;
 let jobId;
 let bidId;
+let phase1Snapshot;
+const phase1Ref = db.doc("platform_configuration/phase1_features");
 
 try {
   console.log("Dispatch Phase 0 baseline: creating isolated Auth users");
@@ -139,7 +143,8 @@ try {
     signUp("carrier", "102"),
   ]);
 
-  await db.doc("platform_configuration/phase1_features").set({
+  phase1Snapshot = await phase1Ref.get();
+  await phase1Ref.set({
     marketplace: true,
     wantedAds: true,
     offers: true,
@@ -162,7 +167,7 @@ try {
       userScore: 95,
       profileCompletion: 100,
     }, {merge: true}),
-    db.doc("administrator_roles/dispatch-phase0-admin").set({
+    db.doc(`administrator_roles/${adminUid}`).set({
       active: true,
       role: "administrator",
     }, {merge: true}),
@@ -196,7 +201,7 @@ try {
 
   const approved = await dispatchCommands.reviewDispatchProvider({
     auth: {
-      uid: "dispatch-phase0-admin",
+      uid: adminUid,
       token: {
         admin: true,
         role: "administrator",
@@ -357,13 +362,21 @@ try {
     await deleteDocAndChildren(`users/${buyer.uid}`, ["notifications"]);
     await auth.deleteUser(buyer.uid).catch(() => {});
   }
-  await deleteDocAndChildren("administrator_roles/dispatch-phase0-admin");
-  const actors = [buyer?.uid, carrier?.uid, "dispatch-phase0-admin"].filter(Boolean);
+  await deleteDocAndChildren(`users/${adminUid}`, ["notifications"]);
+  await deleteDocAndChildren(`administrator_roles/${adminUid}`);
+  const actors = [buyer?.uid, carrier?.uid, adminUid].filter(Boolean);
   for (const actorUid of actors) {
     await deleteQuery(
         db.collection("marketplace_command_receipts")
             .where("actorUid", "==", actorUid),
     ).catch(() => {});
+  }
+  if (phase1Snapshot) {
+    if (phase1Snapshot.exists) {
+      await phase1Ref.set(phase1Snapshot.data());
+    } else {
+      await phase1Ref.delete().catch(() => {});
+    }
   }
   await deleteApp(app).catch(() => {});
 }
