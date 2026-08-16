@@ -25,11 +25,26 @@ This was a tooling defect, not a Flutter, Firebase, Dispatch, or marketplace-dat
 
 The parser failure occurred before `apply_carrier_quote_premium_v1.mjs` or the deferred-weight finalizer executed. The product form was therefore not partially migrated by that failed run.
 
+## 2026-08-16 - Carrier Quote moved from migration chain to exact-file replacement
+
+### Decision
+
+The developer supplied the exact local `marketplace_freight_quote.dart` that was running in the emulator. The formal branch now uses that exact source as the base for the Carrier Quote enhancement instead of applying V1/V2/V3 text migrations to an assumed layout.
+
+### Permanent integration rule
+
+- `lib/marketplace/marketplace_freight_quote.dart` is now a direct, complete branch file for this feature.
+- Local installation should use a targeted `git restore --source=origin/design/formal-beautification-foundation --worktree -- lib/marketplace/marketplace_freight_quote.dart` after making an exact backup.
+- Do not run the older Carrier Quote migration scripts against this file.
+- Validate the direct file with `dart format` and strict analyzer before visual acceptance.
+- The explicit unknown-weight path must send both `estimatedWeightKg` and `catalogWeightKg` as null so payload suitability checks do not treat an unconfirmed catalog number as confirmed shipper weight.
+- Spec Assist may use reviewed catalog references immediately. A future AI equipment-spec service must be added behind a protected server endpoint and must never be presented as manufacturer-verified data unless a source actually supports that claim.
+
 ## Process rule going forward
 
 Avoid repeated V1/V2/V3-style repair chains when a stable integration path can be used. Prefer:
 
-- one canonical runner per feature,
+- one canonical direct file or runner per feature,
 - additive components over large exact-text rewrites,
 - preflight syntax/parser checks before mutation,
 - exact file backups and hash-based rollback for any mutation,
