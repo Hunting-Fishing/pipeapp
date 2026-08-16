@@ -127,6 +127,26 @@ This was not a Phase 2 taxonomy failure and did not require changing Auth emulat
 - `tool/repair_dispatch_auth_reactivity.mjs` is a narrow, idempotent repair for the current page shape; it does not alter provider/customer routing, service taxonomy, jobs, quotes, awards, or private-route behavior.
 - `tool/verify_dispatch_auth_reactivity.ps1` formats and analyzes the repaired page, runs the auth contract, and reruns the Phase 1 navigation and Phase 2 taxonomy regressions.
 
+## 2026-08-17 - Dispatch Phase 3 widget tests assumed off-screen controls were hittable
+
+### Symptom
+
+The Phase 3 company-profile analyzer passed, but the widget suite failed in two tests. `Pilot / Escort Vehicle` existed in the render tree below the 1000 px test viewport, so `tap()` missed it. The later `Save company profile` control had not yet been lazily built by the `ListView`, causing `ensureVisible()` to throw `Bad state: No element`. A second test expected the lower `Availability` controls before scrolling them into the lazy viewport.
+
+### Root cause
+
+The product editor uses a vertically scrollable `ListView`, which is correct for the long mobile/desktop form. The tests treated all descendants as if they were simultaneously on-screen and built. Flutter widget tests only hit-test visible coordinates, and lazily-built list children may not exist until the test scrolls them into view.
+
+This was a test-harness failure, not a company-profile model, taxonomy, analyzer, or runtime UI failure.
+
+### Permanent repair
+
+- Widget tests for long Dispatch forms must explicitly scroll before tapping or asserting controls below the current viewport.
+- When a target already exists in the tree but is off-screen, use `tester.ensureVisible(...)` before interaction.
+- When a lazy `ListView` child may not yet exist, use `tester.dragUntilVisible(...)` against the form `Scrollable` so the finder can become available during scrolling.
+- Do not enlarge the test viewport to hide scrolling defects; keep representative viewport sizes and test the actual scroll behavior.
+- The product editor was not changed for this failure. Only `test/marketplace_dispatch_company_profile_test.dart` was hardened.
+
 ## Process rule going forward
 
 Avoid repeated V1/V2/V3-style repair chains when a stable integration path can be used. Prefer:
