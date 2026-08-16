@@ -22,15 +22,10 @@ $generatedFlutterFiles = @(
   'windows/flutter/generated_plugins.cmake'
 )
 
-# Flutter test/pub tooling rewrites these generated files on Windows. They are
-# not product work and can be restored without touching the verified Timed
-# Buying source modifications currently under review.
+# Flutter test/pub tooling rewrites these generated files on Windows. These are
+# the only files this helper may git-restore automatically. Product source and
+# professional listing/test files are never restored from HEAD by this runner.
 & git restore -- $generatedFlutterFiles 2>$null
-
-$pageRelative = 'lib/marketplace/marketplace_auctions_page.dart'
-$specsRelative = 'lib/marketplace/marketplace_listing_specs.dart'
-$specTestRelative = 'test/marketplace_listing_specs_compact_test.dart'
-$timedBuyingTestRelative = 'test/marketplace_timed_buying_presentation_test.dart'
 
 $page = Join-Path $repoRoot 'lib\marketplace\marketplace_auctions_page.dart'
 $specs = Join-Path $repoRoot 'lib\marketplace\marketplace_listing_specs.dart'
@@ -44,23 +39,18 @@ foreach ($required in @($page, $specs, $specTest, $timedBuyingTest, $patcher)) {
   }
 }
 
-# These two files are branch-managed component/test contracts, not part of the
-# intentionally uncommitted Timed Buying page migration. Previous formatter or
-# failed-run residue can leave an older ExpansionTile implementation on disk.
-# Restore them from the current branch HEAD so the full runner uses exactly the
-# same Asset Overview implementation as the targeted test.
-Write-Step 'Synchronizing branch-managed Asset Overview component + test'
-& git restore --source=HEAD -- $specsRelative $specTestRelative
-if ($LASTEXITCODE -ne 0) {
-  throw 'Could not restore the branch-managed Asset Overview component/test from HEAD.'
-}
-
+Write-Step 'Verifying professional Asset Overview source without replacing local work'
 $specsSource = Get-Content -LiteralPath $specs -Raw
-if (-not $specsSource.Contains('class _ListingSpecsDisclosure extends StatefulWidget') -or
-    $specsSource.Contains('ExpansionTile(')) {
-  throw 'Asset Overview component is stale. Pull the latest formal branch; expected the custom disclosure with no ExpansionTile/ListTile.'
+if (-not $specsSource.Contains('class _ListingSpecsDisclosure extends StatefulWidget')) {
+  throw 'Professional Asset Overview disclosure is missing. Pull the latest formal branch and stop here.'
 }
-Write-Host 'Asset Overview disclosure verified: custom InkWell/AnimatedCrossFade (no ExpansionTile).' -ForegroundColor Green
+if ($specsSource.Contains('ExpansionTile(') -or $specsSource.Contains('AnimatedCrossFade(')) {
+  throw 'Professional Asset Overview is on an older disclosure implementation. Pull the latest branch; expected InkWell + AnimatedSize.'
+}
+if (-not $specsSource.Contains('AnimatedSize(')) {
+  throw 'Professional Asset Overview AnimatedSize disclosure is missing. Refusing to replace product source automatically.'
+}
+Write-Host 'Professional Asset Overview verified: local source preserved; InkWell + AnimatedSize disclosure active.' -ForegroundColor Green
 
 $pageSource = Get-Content -LiteralPath $page -Raw
 if (-not $pageSource.Contains('Review & submit timed offer') -or
@@ -71,8 +61,19 @@ if (-not $pageSource.Contains('Review & submit timed offer') -or
 Write-Step 'Current reviewed Timed Buying changes before compact-detail pass'
 git status --short
 
-$backup = Join-Path $env:TEMP "pipebuyer-auction-detail-$([guid]::NewGuid().ToString('N')).dart"
-Copy-Item -LiteralPath $page -Destination $backup -Force
+# Back up every source file this helper can format/edit. On failure we restore
+# these exact pre-run bytes from TEMP, never from git HEAD, so professional work
+# cannot be silently removed by a verification failure.
+$backupRoot = Join-Path $env:TEMP "pipebuyer-compact-details-$([guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
+$backups = @{
+  $page = Join-Path $backupRoot 'marketplace_auctions_page.dart'
+  $specs = Join-Path $backupRoot 'marketplace_listing_specs.dart'
+  $specTest = Join-Path $backupRoot 'marketplace_listing_specs_compact_test.dart'
+}
+foreach ($entry in $backups.GetEnumerator()) {
+  Copy-Item -LiteralPath $entry.Key -Destination $entry.Value -Force
+}
 $completed = $false
 
 try {
@@ -88,10 +89,9 @@ try {
   & dart format $page $specs $specTest
   if ($LASTEXITCODE -ne 0) { throw 'dart format failed for compact Timed Buying detail sources.' }
 
-  # Guard again after formatting so a stale disclosure can never reach flutter test.
   $specsSource = Get-Content -LiteralPath $specs -Raw
-  if ($specsSource.Contains('ExpansionTile(')) {
-    throw 'ExpansionTile unexpectedly reappeared in Asset Overview before widget tests.'
+  if ($specsSource.Contains('ExpansionTile(') -or $specsSource.Contains('AnimatedCrossFade(')) {
+    throw 'An obsolete listing-spec disclosure reappeared before widget tests.'
   }
 
   Write-Step 'Analyzing compact Timed Buying detail surface'
@@ -117,14 +117,18 @@ try {
   git status --short
   Write-Host ''
   Write-Host 'Visual review next: refresh http://127.0.0.1:5050 and inspect the Timed Buying detail page.' -ForegroundColor Green
-  Write-Host 'The Timed Buying source changes remain uncommitted until visual acceptance.' -ForegroundColor DarkGray
+  Write-Host 'Professional Asset Overview and Timed Buying source changes remain in your working tree for review.' -ForegroundColor DarkGray
   $completed = $true
 }
 finally {
-  if (-not $completed -and (Test-Path -LiteralPath $backup)) {
-    Write-Host "`nCompact-detail verification failed; restoring the Timed Buying page to exactly the pre-run local version." -ForegroundColor Red
-    Copy-Item -LiteralPath $backup -Destination $page -Force
+  if (-not $completed) {
+    Write-Host "`nCompact-detail verification failed; restoring only exact pre-run TEMP backups (never git HEAD)." -ForegroundColor Red
+    foreach ($entry in $backups.GetEnumerator()) {
+      if (Test-Path -LiteralPath $entry.Value) {
+        Copy-Item -LiteralPath $entry.Value -Destination $entry.Key -Force
+      }
+    }
   }
-  Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $backupRoot -Recurse -Force -ErrorAction SilentlyContinue
   & git restore -- $generatedFlutterFiles 2>$null
 }
