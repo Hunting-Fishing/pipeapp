@@ -25,7 +25,6 @@ $authTest = '.\test\dispatch_auth_reactivity_contract_test.dart'
 $rulesFile = '.\firebase\firestore.rules'
 $masterPlan = '.\docs\DISPATCH_NETWORK_MASTER_PLAN.md'
 $finalizer = '.\tool\finalize_dispatch_phase3_profile_acceptance.mjs'
-$analyzerRepair = '.\tool\repair_dispatch_phase3_equipment_analyzer.mjs'
 
 foreach ($required in @(
   $equipmentFile,
@@ -40,8 +39,7 @@ foreach ($required in @(
   $authTest,
   $rulesFile,
   $masterPlan,
-  $finalizer,
-  $analyzerRepair
+  $finalizer
 )) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Required Phase 3 equipment file is missing: $required"
@@ -68,10 +66,18 @@ foreach ($requiredText in @(
   }
 }
 
-Write-Step 'Applying narrow Phase 3 equipment analyzer repair'
-& node $analyzerRepair
-if ($LASTEXITCODE -ne 0) {
-  throw 'Phase 3 equipment analyzer repair failed.'
+Write-Step 'Checking the already-repaired equipment source before formatter/analyzer'
+$preflightSource = Get-Content -LiteralPath $equipmentFile -Raw
+foreach ($requiredText in @(
+  'if (!mounted || !dialogContext.mounted) return;',
+  'final Object? numberValue = value;',
+  'final num? canonical = numberValue is num ? numberValue : null;',
+  'final Object? multiValue = value;',
+  "multiValue.join(', ')"
+)) {
+  if (-not $preflightSource.Contains($requiredText)) {
+    throw "Equipment source repair marker missing before verification: $requiredText"
+  }
 }
 
 Write-Step 'Formatting Phase 3 equipment capability source'
@@ -135,6 +141,7 @@ foreach ($requiredText in @(
   "'maximumPayloadKg'",
   'if (!mounted || !dialogContext.mounted) return;',
   'final Object? numberValue = value;',
+  'final num? canonical = numberValue is num ? numberValue : null;',
   'final Object? multiValue = value;'
 )) {
   if (-not $equipmentSource.Contains($requiredText)) {
@@ -170,6 +177,7 @@ Write-Host '============================================================' -Foreg
 Write-Host 'DISPATCH PHASE 3 EQUIPMENT CAPABILITY GATE PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Accepted profile progress recorded at 48%: PASS' -ForegroundColor Green
+Write-Host 'Equipment source preflight: PASS' -ForegroundColor Green
 Write-Host 'Stable equipment type codes: PASS' -ForegroundColor Green
 Write-Host 'Structured equipment service codes: PASS' -ForegroundColor Green
 Write-Host 'Known capability normalization: PASS' -ForegroundColor Green
