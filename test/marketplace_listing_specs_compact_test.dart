@@ -64,27 +64,41 @@ void main() {
 
   testWidgets('secondary specs collapse behind More specifications',
       (tester) async {
+    tester.view.physicalSize = const Size(760, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: MarketplaceListingSpecsGrid(
-            listing: const {
-              'brand': 'CAT',
-              'model': '352',
-              'modelYear': 2023,
-              'machineHours': 4375,
-              'serialNumber': 'SERIAL-1',
-              'category': 'Heavy Equipment',
-              'productType': 'Excavator',
-              'condition': 'Good',
-              'publicLocationName': 'Grande Prairie, AB',
-              'operatingStatus': 'Operational',
-            },
+          body: SingleChildScrollView(
+            child: MarketplaceListingSpecsGrid(
+              listing: const {
+                'brand': 'CAT',
+                'model': '352',
+                'modelYear': 2023,
+                'machineHours': 4375,
+                'serialNumber': 'SERIAL-1',
+                'category': 'Heavy Equipment',
+                'productType': 'Excavator',
+                'condition': 'Good',
+                'publicLocationName': 'Grande Prairie, AB',
+                'operatingStatus': 'Operational',
+              },
+            ),
           ),
         ),
       ),
     );
 
     expect(find.textContaining('More specifications'), findsOneWidget);
+    expect(find.text('Operational'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('marketplace-more-specifications')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Operational'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
