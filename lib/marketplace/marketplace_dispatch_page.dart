@@ -16,6 +16,7 @@ import 'marketplace_money.dart';
 import 'marketplace_service_area.dart';
 import 'marketplace_freight_quote.dart';
 import 'marketplace_dispatch_dashboard.dart';
+import 'marketplace_dispatch_navigation.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_dispatch_transaction.dart';
@@ -354,110 +355,164 @@ class MarketplaceDispatchPage extends StatefulWidget {
 
 class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
   final repo = MarketplaceDispatchRepository();
-  int section = 0;
+  DispatchSection section = DispatchSection.dashboard;
+
+  Future<void> _openProviderAccount(
+    DispatchAccountState accountState,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(
+              accountState.providerRegistered
+                  ? 'Dispatch company profile'
+                  : 'Join Pipe Buyer Dispatch',
+            ),
+          ),
+          body: _CarrierEnrollment(repo: repo),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => section = DispatchSection.dashboard);
+  }
 
   @override
   Widget build(BuildContext context) {
     if (FirebaseAuth.instance.currentUser == null) {
       return const Center(child: Text('Sign in to use Dispatch.'));
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: repo.carrierProfile(),
+      builder: (context, profile) {
+        if (profile.connectionState == ConnectionState.waiting &&
+            !profile.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (profile.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Dispatch',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Text(
-                          'Professional trucking services, load opportunities and carrier bids.',
-                        ),
-                      ],
-                    ),
+                  const Icon(
+                    Icons.cloud_off_outlined,
+                    size: 42,
+                    color: Color(0xFFB42318),
                   ),
-                  SizedBox(width: 12),
-                  IndustrialAssetIcon(
-                    label: 'Dispatch load board',
-                    assetPath: IndustrialIconAssets.dispatchLoadBoard,
-                    size: 62,
-                    borderRadius: 12,
-                    fallback: Icon(
-                      Icons.local_shipping_outlined,
-                      size: 42,
-                      color: Color(0xFF0878E8),
-                    ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Dispatch account state could not be loaded.',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Check the connection and reload Dispatch before changing provider settings.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() {}),
+                    icon: const Icon(Icons.refresh_outlined),
+                    label: const Text('Reload Dispatch'),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SegmentedButton<int>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: 0,
-                      icon: Icon(Icons.dashboard_outlined),
-                      label: Text('Dashboard'),
-                    ),
-                    ButtonSegment(
-                      value: 1,
-                      icon: Icon(Icons.local_shipping_outlined),
-                      label: Text('Jobs'),
-                    ),
-                    ButtonSegment(
-                      value: 2,
-                      icon: Icon(Icons.add_road_outlined),
-                      label: Text('Post'),
-                    ),
-                    ButtonSegment(
-                      value: 3,
-                      icon: Icon(Icons.local_shipping_outlined),
-                      label: Text('Signup'),
-                    ),
-                    ButtonSegment(
-                      value: 4,
-                      icon: Icon(Icons.assistant_direction_outlined),
-                      label: Text('Pilot'),
-                    ),
-                  ],
-                  selected: {section},
-                  onSelectionChanged: (value) =>
-                      setState(() => section = value.first),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: section == 0
+            ),
+          );
+        }
+
+        final accountState = DispatchAccountState.fromCarrierProfile(
+          exists: profile.data?.exists == true,
+          data: profile.data?.data(),
+        );
+
+        final content = switch (section) {
+          DispatchSection.dashboard => accountState.providerRegistered
               ? MarketplaceDispatchDashboard(
                   repo: repo,
-                  onPostLoad: () => setState(() => section = 2),
-                  onBrowseJobs: () => setState(() => section = 1),
-                  onJoinCarrier: () => setState(() => section = 3),
+                  onPostLoad: () =>
+                      setState(() => section = DispatchSection.requestService),
+                  onBrowseJobs: () =>
+                      setState(() => section = DispatchSection.jobs),
+                  onJoinCarrier: () => _openProviderAccount(accountState),
                 )
-              : section == 1
-                  ? _JobBoard(repo: repo)
-                  : section == 2
-                      ? _PostJob(repo: repo)
-                      : section == 3
-                          ? _CarrierEnrollment(repo: repo)
-                          : _PilotTruckSection(repo: repo),
-        ),
-      ],
+              : MarketplaceDispatchCustomerHome(
+                  onRequestService: () =>
+                      setState(() => section = DispatchSection.requestService),
+                  onBrowseDirectory: () =>
+                      setState(() => section = DispatchSection.directory),
+                  onBrowseJobs: () =>
+                      setState(() => section = DispatchSection.jobs),
+                  onListBusiness: () => _openProviderAccount(accountState),
+                ),
+          DispatchSection.requestService => _PostJob(repo: repo),
+          DispatchSection.directory => MarketplaceDispatchDirectoryFoundation(
+              accountState: accountState,
+              legacyProviderTools: accountState.providerRegistered
+                  ? _PilotTruckSection(repo: repo)
+                  : null,
+            ),
+          DispatchSection.jobs => _JobBoard(repo: repo),
+        };
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Dispatch',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              'Industrial service requests, provider network and job opportunities.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      IndustrialAssetIcon(
+                        label: 'Dispatch load board',
+                        assetPath: IndustrialIconAssets.dispatchLoadBoard,
+                        size: 62,
+                        borderRadius: 12,
+                        fallback: Icon(
+                          Icons.local_shipping_outlined,
+                          size: 42,
+                          color: Color(0xFF0878E8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  MarketplaceDispatchNavigation(
+                    selected: section,
+                    accountState: accountState,
+                    onSelected: (value) => setState(() => section = value),
+                    onProviderAction: () =>
+                        _openProviderAccount(accountState),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: content),
+          ],
+        );
+      },
     );
   }
 }
@@ -530,7 +585,7 @@ class _PilotTruckSection extends StatelessWidget {
                                 style: TextStyle(fontWeight: FontWeight.w900),
                               ),
                               Text(
-                                'Open Signup, add a truck, and enable Pilot / escort services.',
+                                'Open Company Profile, add a truck, and enable Pilot / escort services.',
                               ),
                             ],
                           ),
@@ -2157,8 +2212,8 @@ class _PostJobState extends State<_PostJob> {
                 ),
                 subtitle: Text(
                   result.docs.length == 50
-                      ? 'Showing the 50 newest active Marketplace and Auction listings'
-                      : 'Choose any active Marketplace or Auction listing',
+                      ? 'Showing the 50 newest active Marketplace and Timed Buying listings'
+                      : 'Choose any active Marketplace or Timed Buying listing',
                 ),
               ),
               Expanded(
@@ -2294,7 +2349,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
             padding: const EdgeInsets.all(18),
             children: [
               Text(
-                signedUp ? 'Dispatch account' : 'Dispatch Signup',
+                signedUp ? 'Dispatch account' : 'List your business',
                 style:
                     const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
               ),
@@ -2306,7 +2361,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                 color: Color(0xFFEAF4FD),
                 child: ListTile(
                   leading: Icon(Icons.privacy_tip_outlined),
-                  title: Text('Privacy-minimal signup'),
+                  title: Text('Privacy-minimal provider setup'),
                   subtitle: Text(
                     'Pipe does not request insurance policy details or personal identity documents here.',
                   ),
@@ -2435,7 +2490,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                       if (!form.currentState!.validate() || area == null) {
                         PipeFeedback.show(
                           context,
-                          message: 'Complete the signup and service area.',
+                          message: 'Complete the business profile and service area.',
                           tone: PipeStatusTone.warning,
                         );
                         return;
@@ -2496,7 +2551,7 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                 color: const Color(0xFFFFE9E7),
                 child: ListTile(
                   leading: const Icon(Icons.error_outline, color: Colors.red),
-                  title: const Text('Dispatch signup was not completed'),
+                  title: const Text('Dispatch provider setup was not completed'),
                   subtitle: SelectableText(signupError!),
                   trailing: IconButton(
                     tooltip: 'Dismiss',
