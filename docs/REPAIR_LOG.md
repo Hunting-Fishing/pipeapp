@@ -83,9 +83,29 @@ This was not a Flutter, Firebase, emulator, or Dispatch backend failure. The pro
 - The exact local Dispatch page was uploaded and reviewed as the source of truth for Phase 1.
 - Phase 1 was rebuilt as a complete direct `marketplace_dispatch_page.dart` based on that uploaded file instead of forcing the old patcher.
 - The reviewed pre-Phase-1 local blob is `b7cfbf585a63f8bb5d0b27331316710710c6a70a`.
-- The reviewed direct Phase 1 page blob is `9ba9e7c0fd8ff274bf7bf16628213fff24687641`.
-- `tool/verify_dispatch_phase1.ps1` is now non-mutating. It verifies the exact reviewed Phase 1 blob, checks formatting without writing, then runs strict analyzer, widget/server regressions, and the isolated emulator preservation journey.
+- The reviewed direct Phase 1 page blob before local formatter normalization is `9ba9e7c0fd8ff274bf7bf16628213fff24687641`.
 - Do not run `apply_dispatch_phase1_navigation.mjs` against the current product file. Install the direct reviewed page with a targeted restore after making a local backup.
+
+## 2026-08-16 - Dispatch Phase 1 formatting gate failed on unformatted generated Dart
+
+### Symptom
+
+The direct Phase 1 file passed its exact reviewed hash check and the Windows PowerShell parser check, but `dart format --output=none --set-exit-if-changed` reported all three new Phase 1 Dart files as `Changed` and stopped the gate before analyzer or tests ran.
+
+### Root cause
+
+The Phase 1 Dart files were authored and committed through repository text tooling without an actual Dart SDK formatter pass. The verifier was incorrectly described as fully non-mutating while simultaneously requiring formatter-clean source. The formatter therefore correctly rejected repository source that had never been normalized by the developer's installed Dart formatter.
+
+This was a source-preparation/tooling failure, not a Dispatch runtime, Firebase, Firestore, emulator, or application logic failure. The outer installer restored the exact uploaded pre-Phase-1 Dispatch page after the gate stopped.
+
+### Permanent repair
+
+- The exact reviewed pre-format Phase 1 page hash remains the guard before any normalization occurs.
+- `tool/verify_dispatch_phase1.ps1` now runs `dart format` deliberately as the first controlled source normalization step after the exact hash check.
+- It immediately reruns `dart format --output=none --set-exit-if-changed` to prove the files are stable before analyzer/tests.
+- Formatting is treated as deterministic source normalization, not as a product repair.
+- New Dart files produced through repository text APIs must not be represented as formatter-clean until an actual Dart SDK formatter has run.
+- Analyzer, widget/server tests, Phase 0 preservation tests, and emulator acceptance remain blocked until formatting is stable.
 
 ## Process rule going forward
 
@@ -95,5 +115,6 @@ Avoid repeated V1/V2/V3-style repair chains when a stable integration path can b
 - additive components over large exact-text rewrites,
 - preflight syntax/parser checks before mutation,
 - exact file backups and hash-based rollback for any mutation,
+- actual formatter execution before calling generated Dart source formatter-clean,
 - strict analyzer/tests after mutation,
 - recording the root cause and successful fix here.
