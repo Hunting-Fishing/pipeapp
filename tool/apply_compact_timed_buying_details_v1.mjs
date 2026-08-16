@@ -30,7 +30,7 @@ const replacement = `class _AuctionListingDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final description = '\${data['description'] ?? ''}'.trim();
+    final description = timedBuyingPublicMessage('\${data['description'] ?? ''}');
     final hasSpecs = marketplaceListingSpecs(data).isNotEmpty;
     if (!hasSpecs && description.isEmpty) return const SizedBox.shrink();
 
@@ -66,18 +66,25 @@ const replacement = `class _AuctionListingDetails extends StatelessWidget {
       ],
     );
   }
+}`;
+
+function replaceTopLevelClass(className, nextSource) {
+  const marker = `class ${className} `;
+  const start = nextSource.indexOf(marker);
+  if (start < 0) {
+    throw new Error(`Could not find ${className} for safe replacement.`);
+  }
+  const nextClass = nextSource.indexOf('\nclass ', start + marker.length);
+  if (nextClass < 0) {
+    throw new Error(`Could not find the class boundary after ${className}.`);
+  }
+  return nextSource.slice(0, start) + replacement + '\n\n' + nextSource.slice(nextClass + 1);
 }
 
-class _BidActionPanel`;
-
-const classPattern = /class _AuctionListingDetails extends StatelessWidget \{[\s\S]*?\n\}\n\nclass _BidActionPanel/;
 if (source.includes("title: 'Asset overview'") && source.includes(specsImport)) {
   console.log('Compact Asset overview is already applied.');
 } else {
-  if (!classPattern.test(source)) {
-    throw new Error('Could not isolate _AuctionListingDetails for safe replacement.');
-  }
-  source = source.replace(classPattern, replacement);
+  source = replaceTopLevelClass('_AuctionListingDetails', source);
 }
 
 // Keep offer history readable but reduce the large vertical card rhythm. The
@@ -94,6 +101,25 @@ const historyAfter = `                return Card(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10),`;
 if (source.includes(historyBefore)) {
   source = source.replace(historyBefore, historyAfter);
+}
+
+// A previous Timed Buying pass may already have reduced the card margin while
+// leaving the ListTile at default density. Upgrade that shape too.
+const compactHistoryBefore = `                return Card(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  child: ListTile(`;
+if (source.includes(compactHistoryBefore) &&
+    !source.includes('visualDensity: const VisualDensity(vertical: -3)')) {
+  source = source.replace(
+    compactHistoryBefore,
+    `                return Card(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  child: ListTile(
+                    dense: true,
+                    visualDensity: const VisualDensity(vertical: -3),
+                    minLeadingWidth: 32,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),`,
+  );
 }
 
 if (!source.includes('MarketplaceListingSpecsGrid(') ||
