@@ -17,6 +17,26 @@ function Port-In-Use([int]$Port) {
   )
 }
 
+function Test-CarrierFixture {
+  $body = @{
+    email = 'carrier.visual@pipebuyer.test'
+    password = 'PipeBuyerDemo!2026'
+    returnSecureToken = $true
+  } | ConvertTo-Json
+
+  try {
+    $result = Invoke-RestMethod `
+      -Method Post `
+      -Uri 'http://127.0.0.1:19099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=pipebuyer-local' `
+      -ContentType 'application/json' `
+      -Body $body
+    return $result.localId -eq 'visual-carrier' -and -not [string]::IsNullOrWhiteSpace($result.idToken)
+  }
+  catch {
+    return $false
+  }
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
@@ -29,6 +49,25 @@ Require-Port 19099 'Auth emulator'
 Require-Port 18080 'Firestore emulator'
 Require-Port 15001 'Functions emulator'
 Require-Port 19199 'Storage emulator'
+
+Write-Host 'Checking the approved Dispatch carrier fixture before opening Flutter...' -ForegroundColor DarkGray
+if (-not (Test-CarrierFixture)) {
+  Write-Host 'The local Auth fixture is missing or stale. Reseeding the deterministic formal sandbox now.' -ForegroundColor Yellow
+  $reseedHelper = Join-Path $PSScriptRoot 'reseed_formal_test_data.ps1'
+  if (-not (Test-Path -LiteralPath $reseedHelper)) {
+    throw 'tool/reseed_formal_test_data.ps1 is missing. Pull the latest formal branch.'
+  }
+  & powershell -ExecutionPolicy Bypass -File $reseedHelper
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Formal sandbox reseed failed. Read the first failing section above.'
+  }
+  if (-not (Test-CarrierFixture)) {
+    throw 'The carrier fixture still cannot authenticate after reseeding. Do not start Flutter; inspect the Auth emulator first.'
+  }
+  Write-Host 'Carrier fixture restored and verified.' -ForegroundColor Green
+} else {
+  Write-Host 'Carrier fixture authentication verified.' -ForegroundColor Green
+}
 
 $webPort = 5050
 if (Port-In-Use $webPort) {
