@@ -213,7 +213,7 @@ class _TimedBuyingAttentionPainter extends CustomPainter {
     if (critical) {
       final inner = RRect.fromRectAndRadius(
         rect.deflate(strokeWidth + 4),
-        Radius.circular(math.max(2, radius - 4)),
+        Radius.circular(math.max(2.0, radius - 4).toDouble()),
       );
       final innerPaint = Paint()
         ..style = PaintingStyle.stroke
