@@ -59,11 +59,21 @@ trust = trust.replaceAll(
   'TimedBuyingParticipationData',
 );
 
+// Public widgets must expose a named key. The inherited participation data is
+// public after the cleanup above, so make its constructor fully lint-clean.
+trust = trust.replace(
+  '  const TimedBuyingParticipationData({\n    required this.viewerUid,',
+  '  const TimedBuyingParticipationData({\n    super.key,\n    required this.viewerUid,',
+);
+
 if (trust.includes('_TimedBuyingParticipationData')) {
   throw new Error('Private participation data type remains after analyzer cleanup.');
 }
 if (!trust.includes('class TimedBuyingParticipationData extends InheritedWidget')) {
   throw new Error('Public participation data type was not produced.');
+}
+if (!trust.includes('const TimedBuyingParticipationData({\n    super.key,')) {
+  throw new Error('Public participation widget key cleanup did not apply.');
 }
 
 fs.writeFileSync(pagePath, page, 'utf8');
@@ -71,4 +81,4 @@ fs.writeFileSync(trustPath, trust, 'utf8');
 
 console.log(`analyzer cleanup updated ${pageRelative}`);
 console.log(`analyzer cleanup updated ${trustRelative}`);
-console.log('Removed unused viewer state, normalized Dart interpolation, and removed private-type public API lint.');
+console.log('Removed unused viewer state, normalized Dart interpolation, publicized the participation data type, and added its widget key.');
