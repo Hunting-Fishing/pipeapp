@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'marketplace_dispatch_company_profile.dart';
+import 'marketplace_dispatch_geography.dart';
 import 'marketplace_dispatch_service_taxonomy.dart';
+import 'marketplace_service_area.dart';
 
 class MarketplaceDispatchCompanyProfileRepository {
   MarketplaceDispatchCompanyProfileRepository({
@@ -45,6 +47,13 @@ class MarketplaceDispatchCompanyProfileRepository {
             .toList()
         : _legacyServiceCodes(carrier['services']);
 
+    final serviceArea = _firstServiceArea([
+      privateDispatch['serviceArea'],
+      publicDispatch['serviceArea'],
+      publicBusiness['serviceArea'],
+      carrier['serviceArea'],
+    ]);
+
     return DispatchCompanyProfileDraft(
       companyName: _firstText([
         privateDispatch['companyName'],
@@ -70,10 +79,12 @@ class MarketplaceDispatchCompanyProfileRepository {
         publicDispatch['serviceAreaLabel'],
         publicBusiness['serviceAreaLabel'],
         carrier['serviceAreaLabel'],
+        serviceArea?.summary,
       ]),
       availability: _availability(publicDispatch['availability']),
       emergencyCallout: publicDispatch['emergencyCallout'] == true,
       remoteSiteCapable: publicDispatch['remoteSiteCapable'] == true,
+      serviceArea: serviceArea,
     );
   }
 
@@ -83,6 +94,7 @@ class MarketplaceDispatchCompanyProfileRepository {
     final publicRef =
         _firestore.collection('public_business_profiles').doc(uid);
     final privateRef = _firestore.collection('business_private').doc(uid);
+    final serviceArea = draft.serviceArea;
 
     await _firestore.runTransaction((transaction) async {
       final carrierSnapshot = await transaction.get(carrierRef);
@@ -93,21 +105,30 @@ class MarketplaceDispatchCompanyProfileRepository {
       }
 
       final publicProfile = <String, dynamic>{
-        'schemaVersion': 1,
+        'schemaVersion': 2,
         'operatingName': draft.operatingName.trim(),
         'businessType': draft.businessType.code,
         'description': draft.description.trim(),
         'website': draft.website.trim(),
         'serviceCodes': draft.normalizedServiceCodes,
-        'serviceAreaLabel': draft.serviceAreaLabel.trim(),
+        'serviceAreaLabel': draft.effectiveServiceAreaLabel,
+        if (serviceArea != null)
+          'homeLocation': DispatchPublicGeographyProjection.homeLocation(
+            serviceArea,
+          ),
+        if (serviceArea != null)
+          'serviceArea': DispatchPublicGeographyProjection.serviceArea(
+            serviceArea,
+          ),
         'availability': draft.availability.code,
         'emergencyCallout': draft.emergencyCallout,
         'remoteSiteCapable': draft.remoteSiteCapable,
         'profileCompleteness': draft.completionPercent,
       };
       final privateProfile = <String, dynamic>{
-        'schemaVersion': 1,
+        'schemaVersion': 2,
         'companyName': draft.companyName.trim(),
+        if (serviceArea != null) 'serviceArea': serviceArea.toMap(),
       };
 
       transaction.set(
@@ -117,7 +138,7 @@ class MarketplaceDispatchCompanyProfileRepository {
           'publicName': draft.operatingName.trim(),
           'website': draft.website.trim(),
           'description': draft.description.trim(),
-          'serviceAreaLabel': draft.serviceAreaLabel.trim(),
+          'serviceAreaLabel': draft.effectiveServiceAreaLabel,
           'dispatchProfile': publicProfile,
           'dispatchProfileUpdatedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -153,6 +174,20 @@ class MarketplaceDispatchCompanyProfileRepository {
       if (text.isNotEmpty) return text;
     }
     return '';
+  }
+
+  static MarketplaceServiceArea? _firstServiceArea(Iterable<Object?> values) {
+    for (final value in values) {
+      if (value is Map<String, dynamic>) {
+        return MarketplaceServiceArea.fromMap(value);
+      }
+      if (value is Map) {
+        return MarketplaceServiceArea.fromMap(
+          Map<String, dynamic>.from(value),
+        );
+      }
+    }
+    return null;
   }
 
   static List<String> _legacyServiceCodes(Object? value) {
