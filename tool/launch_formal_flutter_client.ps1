@@ -32,14 +32,20 @@ Require-Port 19199 'Storage emulator'
 
 $webPort = 5050
 if (Port-In-Use $webPort) {
-  throw "Local Pipe Buyer web port $webPort is already in use. Close the older Flutter test process, then run this helper again."
+  $owner = Get-NetTCPConnection -State Listen -LocalPort $webPort -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+  $pidText = if ($null -ne $owner) { " (PID $($owner.OwningProcess))" } else { '' }
+  throw "Local Pipe Buyer web port $webPort is already in use$pidText. Stop the older Flutter client before starting another one."
 }
 
 Write-Host 'Launching Pipe Buyer Flutter client against the already-running local emulator suite.' -ForegroundColor Cyan
 Write-Host 'Pipe Buyer local app: http://127.0.0.1:5050' -ForegroundColor Green
 Write-Host 'Firebase Emulator UI: http://127.0.0.1:14000' -ForegroundColor DarkGray
+Write-Host 'Stable debug mode: Flutter web experimental hot reload is disabled for this large app.' -ForegroundColor Yellow
+Write-Host 'Use R in this terminal for a hot restart after code changes.' -ForegroundColor DarkGray
 
 & flutter run -d chrome `
+  --no-web-experimental-hot-reload `
   --web-port=$webPort `
   --dart-define=PIPE_ENV=local `
   --dart-define=PIPE_ENABLE_DISPATCH=true `
