@@ -22,7 +22,9 @@ const db = getFirestore(app);
 
 async function main() {
   const now = Timestamp.now();
-  await db.collection("weight_catalog").doc("equipment_bobcat_s160").set({
+  const batch = db.batch();
+
+  batch.set(db.collection("weight_catalog").doc("equipment_bobcat_s160"), {
     kind: "equipment",
     category: "Heavy Equipment",
     productType: "Skid Steer",
@@ -51,7 +53,42 @@ async function main() {
     updatedAt: now,
     updatedByUid: "visual-sandbox-admin",
   }, {merge: true});
-  console.log("Seeded reviewed weight catalog example: Bobcat S160 (range)");
+
+  batch.set(db.collection("weight_catalog").doc("equipment_caterpillar_320"), {
+    kind: "equipment",
+    category: "Heavy Equipment",
+    productType: "Excavator",
+    manufacturer: "Caterpillar",
+    model: "320",
+    variant:
+      "Reference configuration: Reach 5.7 m boom, R2.9 m stick, 1.19 m3 HD bucket, 790 mm shoes and 4,200 kg counterweight",
+    // Caterpillar publishes this configuration at 22,600 kg operating weight,
+    // 9.53 m shipping length, 2.98 m transport width and 2.96 m cab height.
+    // These values are planning references only; actual machine configuration,
+    // attachments, fluids and transport preparation must be confirmed.
+    operatingWeightKg: 22600,
+    transportLengthM: 9.53,
+    transportWidthM: 2.98,
+    transportHeightM: 2.96,
+    sourceName: "Caterpillar Inc.",
+    sourceLabel: "Caterpillar 320 manufacturer reference configuration",
+    sourceUrl:
+      "https://www.cat.com/en_US/products/new/equipment/excavators/medium-excavators/126532.html",
+    sourceReference: "320 → Weights and Dimensions",
+    verificationStatus: "manufacturer source",
+    active: true,
+    revision: 1,
+    legalUse: false,
+    visualSandbox: true,
+    createdAt: now,
+    updatedAt: now,
+    updatedByUid: "visual-sandbox-admin",
+  }, {merge: true});
+
+  await batch.commit();
+  console.log("Seeded reviewed weight/spec references:");
+  console.log("  Bobcat S160 — configuration weight range");
+  console.log("  Caterpillar 320 — planning weight + transport dimensions");
 }
 
 main()
