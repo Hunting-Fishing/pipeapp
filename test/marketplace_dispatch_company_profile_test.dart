@@ -93,11 +93,20 @@ void main() {
     expect(find.text('Crane & Lifting'), findsOneWidget);
     expect(find.text('Oilfield & Industrial Field Services'), findsOneWidget);
 
-    await tester.tap(find.text('Pilot / Escort Vehicle'));
+    final pilotService = find.text('Pilot / Escort Vehicle');
+    await tester.ensureVisible(pilotService);
+    await tester.pumpAndSettle();
+    await tester.tap(pilotService);
     await tester.pump();
 
+    final scrollable = find.byType(Scrollable).first;
     final saveButton = find.text('Save company profile');
-    await tester.ensureVisible(saveButton);
+    await tester.dragUntilVisible(
+      saveButton,
+      scrollable,
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(saveButton);
     await tester.pump();
 
@@ -123,6 +132,16 @@ void main() {
 
     expect(find.text('Business type'), findsOneWidget);
     expect(find.text('Corporation / company'), findsOneWidget);
+
+    final scrollable = find.byType(Scrollable).first;
+    final serviceAreaHeading = find.text('Service area & availability');
+    await tester.dragUntilVisible(
+      serviceAreaHeading,
+      scrollable,
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Availability'), findsOneWidget);
     expect(find.text('Available now'), findsOneWidget);
     expect(find.text('Emergency callout available'), findsOneWidget);
