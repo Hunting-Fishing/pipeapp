@@ -44,6 +44,13 @@ Write-Host 'Firebase Emulator UI: http://127.0.0.1:14000' -ForegroundColor DarkG
 Write-Host 'Stable debug mode: Flutter web experimental hot reload is disabled for this large app.' -ForegroundColor Yellow
 Write-Host 'Use R in this terminal for a hot restart after code changes.' -ForegroundColor DarkGray
 
+$loginReference = Join-Path $PSScriptRoot 'show_formal_test_logins.ps1'
+if (Test-Path -LiteralPath $loginReference) {
+  & powershell -ExecutionPolicy Bypass -File $loginReference
+} else {
+  Write-Host 'Test login reference helper is missing; pull the latest formal branch.' -ForegroundColor Yellow
+}
+
 & flutter run -d chrome `
   --no-web-experimental-hot-reload `
   --web-port=$webPort `
