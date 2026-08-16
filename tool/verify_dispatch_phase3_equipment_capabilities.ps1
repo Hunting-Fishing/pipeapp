@@ -25,6 +25,7 @@ $authTest = '.\test\dispatch_auth_reactivity_contract_test.dart'
 $rulesFile = '.\firebase\firestore.rules'
 $masterPlan = '.\docs\DISPATCH_NETWORK_MASTER_PLAN.md'
 $finalizer = '.\tool\finalize_dispatch_phase3_profile_acceptance.mjs'
+$analyzerRepair = '.\tool\repair_dispatch_phase3_equipment_analyzer.mjs'
 
 foreach ($required in @(
   $equipmentFile,
@@ -39,7 +40,8 @@ foreach ($required in @(
   $authTest,
   $rulesFile,
   $masterPlan,
-  $finalizer
+  $finalizer,
+  $analyzerRepair
 )) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Required Phase 3 equipment file is missing: $required"
@@ -64,6 +66,12 @@ foreach ($requiredText in @(
   if (-not $planSource.Contains($requiredText)) {
     throw "Master plan did not record accepted Phase 3 profile progress: $requiredText"
   }
+}
+
+Write-Step 'Applying narrow Phase 3 equipment analyzer repair'
+& node $analyzerRepair
+if ($LASTEXITCODE -ne 0) {
+  throw 'Phase 3 equipment analyzer repair failed.'
 }
 
 Write-Step 'Formatting Phase 3 equipment capability source'
@@ -124,7 +132,10 @@ foreach ($requiredText in @(
   "'provider_declared'",
   "'services'",
   "'pilotTruck'",
-  "'maximumPayloadKg'"
+  "'maximumPayloadKg'",
+  'if (!mounted || !dialogContext.mounted) return;',
+  'final Object? numberValue = value;',
+  'final Object? multiValue = value;'
 )) {
   if (-not $equipmentSource.Contains($requiredText)) {
     throw "Phase 3 equipment source contract missing: $requiredText"
