@@ -1,49 +1,38 @@
-<!DOCTYPE html><html><head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    Alternatively, build your application passing the --base-href parameter
-    specifying the new root path of your web app.
-
-    Fore more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-  -->
+<!DOCTYPE html>
+<html>
+<head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 
-  <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Pipe Buyer">
-
   <meta name="google-signin-client_id" content="426221783223-07jigk5gpa3qb7i9d0dcr1rp8uuc75ee.apps.googleusercontent.com">
-  <meta name="google-site-verification" content="googled8be046fc034f0b2" />
+  <meta name="google-site-verification" content="googled8be046fc034f0b2">
   <meta name="robots" content="index, follow">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png">
-
-  <meta property="og:title" content="Pipe Buyer">
-  <meta property="og:description" content="Pipe Buyer is an online low-fee B2B industrial marketplace, timed auctions platform, and freight trucking dispatch network for oil & gas equipment, OCTG casing, tubing, line pipe, valves, and heavy machinery across the United States and Canada.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://www.pipebuyer.com/">
-  <meta property="og:image" content="https://www.pipebuyer.com/splash/img/light-4x.png">
-  <meta name="twitter:title" content="Pipe Buyer">
-  <meta name="twitter:description" content="Pipe Buyer is an online low-fee B2B industrial marketplace, timed auctions platform, and freight trucking dispatch network for oil & gas equipment, OCTG casing, tubing, line pipe, valves, and heavy machinery across the United States and Canada.">
-  <meta name="twitter:image" content="https://www.pipebuyer.com/splash/img/light-4x.png">
-  <meta name="twitter:card" content="summary_large_image">
+  <link rel="manifest" href="manifest.json">
 
   <title>Pipe Buyer</title>
-  <meta name="description" content="Pipe Buyer is a B2B marketplace, timed auctions platform, and trucking dispatch network for oil & gas pipe, OCTG casing, line pipe, valves, and heavy machinery across the United States and Canada.">
+  <meta name="description" content="Pipe Buyer is a B2B industrial marketplace, Timed Buying platform, and trucking dispatch network for oil and gas pipe, OCTG, equipment, buildings, vehicles, and heavy machinery across the United States and Canada.">
+  <meta property="og:title" content="Pipe Buyer">
+  <meta property="og:description" content="Buy and sell industrial pipe, OCTG, equipment, buildings and heavy machinery with Timed Buying and freight Dispatch across the United States and Canada.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.pipebuyer.com/">
+  <meta property="og:image" content="https://www.pipebuyer.com/assets/assets/images/pipe_buyer_logo.png">
+  <meta name="twitter:title" content="Pipe Buyer">
+  <meta name="twitter:description" content="Industrial marketplace, Timed Buying and freight Dispatch for pipe, OCTG, equipment and heavy machinery.">
+  <meta name="twitter:image" content="https://www.pipebuyer.com/assets/assets/images/pipe_buyer_logo.png">
+  <meta name="twitter:card" content="summary_large_image">
 
-  <!-- Schema.org Application & Business Definition for Google Branding Verification -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#ffffff">
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -51,489 +40,182 @@
     "name": "Pipe Buyer",
     "alternateName": "Pipe Buyer Marketplace",
     "url": "https://www.pipebuyer.com",
-    "description": "Pipe Buyer is a B2B industrial marketplace, timed auctions platform, and trucking freight dispatch network for oil & gas products, OCTG casing, tubing, line pipe, valves, and heavy equipment, serving the United States and Canada.",
+    "description": "Pipe Buyer is a B2B industrial marketplace, Timed Buying platform, and trucking freight Dispatch network serving the United States and Canada.",
     "applicationCategory": "BusinessApplication",
-    "operatingSystem": "All",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    }
+    "operatingSystem": "All"
   }
   </script>
 
-  <!-- Status Bar color in Safari browser (iOS) and PWA -->
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f1f4f8">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#11151a">
-
-  <link rel="manifest" href="manifest.json">
-
-  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
-  <style id="splash-screen-style">
+  <style>
     :root {
-      --pipe-orange: #f36a21;
-      --pipe-orange-deep: #c94e0c;
-      --pipe-ink: #11151a;
-      --pipe-graphite: #1b2026;
-      --pipe-muted: #929ca8;
+      --pipe-orange: #ff5a00;
+      --pipe-ink: #061d49;
+      --pipe-muted: #64748b;
+      --pipe-line: #e2e8f0;
     }
-    html, body {
-      height: 100%;
-      margin: 0;
-      background: var(--pipe-ink);
-      color: #ffffff;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
-    }
-    #splash {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 28px;
-      box-sizing: border-box;
-      background:
-        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
-        radial-gradient(circle at 78% 12%, rgba(243, 106, 33, .12), transparent 28%),
-        radial-gradient(circle at 10% 90%, rgba(255, 255, 255, .035), transparent 30%),
-        linear-gradient(135deg, #0b0e12 0%, #11151a 55%, #1b2026 100%);
-      background-size: 48px 48px, 48px 48px, auto, auto, auto;
-    }
-    .splash-card {
-      width: min(540px, 100%);
-      padding: 24px 24px 20px;
-      box-sizing: border-box;
-      text-align: center;
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 24px;
-      background: rgba(24, 29, 35, .92);
-      box-shadow: 0 28px 70px rgba(0,0,0,.34);
-      backdrop-filter: blur(8px);
-    }
-    .splash-logo-frame {
-      width: min(210px, 58vw);
-      height: min(128px, 34vw);
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px;
-      box-sizing: border-box;
-      background: #fff;
-      border: 1px solid rgba(243, 106, 33, .38);
-      border-radius: 18px;
-      box-shadow: 0 18px 34px rgba(0,0,0,.24);
-    }
-    .splash-logo {
+
+    html,
+    body {
       width: 100%;
       height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #ffffff;
+      color: var(--pipe-ink);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
+    }
+
+    #pipe-startup {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      padding: 28px;
+      background: #ffffff;
+    }
+
+    .pipe-startup-content {
+      width: min(760px, 92vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .pipe-startup-logo {
+      display: block;
+      width: min(680px, 84vw);
+      max-height: 52vh;
       object-fit: contain;
     }
-    .splash-kicker {
-      display: inline-block;
-      margin-top: 18px;
-      padding: 5px 9px;
-      border: 1px solid rgba(243, 106, 33, .30);
-      border-radius: 999px;
-      background: rgba(243, 106, 33, .09);
-      color: var(--pipe-orange);
-      font-size: 9px;
-      font-weight: 900;
-      letter-spacing: .75px;
-      text-transform: uppercase;
-    }
-    .splash-title {
-      margin: 13px 0 6px;
-      font-size: clamp(24px, 5vw, 29px);
-      line-height: 1.12;
-      font-weight: 900;
-      letter-spacing: -.35px;
-    }
-    .splash-description {
-      max-width: 440px;
-      margin: 0 auto 12px;
-      color: #aeb8c3;
-      font-size: 12.5px;
-      line-height: 1.45;
-    }
-    #splash-status {
-      min-height: 22px;
-      margin: 0 0 14px;
-      color: #c9d0d8;
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .splash-progress-card {
-      padding: 14px 14px 12px;
-      border: 1px solid rgba(255,255,255,.08);
-      border-radius: 16px;
-      background: rgba(12,16,20,.56);
-    }
-    .splash-progress-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 32px;
-      color: #d9dee4;
-      font-size: 12px;
+
+    #pipe-startup-status {
+      margin-top: 24px;
+      color: var(--pipe-ink);
+      font-size: 15px;
       font-weight: 800;
+      letter-spacing: .1px;
     }
-    #splash-percent {
-      color: var(--pipe-orange);
-      font-size: 17px;
-      font-weight: 900;
-    }
-    .splash-track {
-      position: relative;
-      height: 8px;
-      overflow: visible;
-      border: 1px solid rgba(255,255,255,.12);
+
+    .pipe-startup-track {
+      width: min(360px, 68vw);
+      height: 5px;
+      margin-top: 13px;
+      overflow: hidden;
       border-radius: 999px;
-      background: #30363d;
+      background: #edf1f5;
     }
-    #splash-progress {
-      width: 0%;
+
+    #pipe-startup-progress {
+      width: 4%;
       height: 100%;
       border-radius: inherit;
       background: var(--pipe-orange);
-      transition: width 280ms ease-out;
-      box-shadow: 0 0 14px rgba(243, 106, 33, .22);
+      transition: width 240ms ease-out;
     }
-    #splash-truck {
-      position: absolute;
-      left: 6%;
-      top: -31px;
-      width: 58px;
-      height: 31px;
-      transform: translateX(-50%);
-      transition: left 280ms ease-out;
-      filter: drop-shadow(0 4px 5px rgba(0,0,0,.42));
-      pointer-events: none;
-    }
-    .truck-bed {
-      position: absolute;
-      left: 2px;
-      bottom: 7px;
-      width: 34px;
-      height: 5px;
-      border-radius: 3px;
-      background: #6d7782;
-    }
-    .truck-pipe {
-      position: absolute;
-      left: 4px;
-      width: 32px;
-      height: 3px;
-      border-radius: 999px;
-      background: #c1c8cf;
-    }
-    .truck-pipe.p1 { top: 5px; }
-    .truck-pipe.p2 { top: 10px; }
-    .truck-pipe.p3 { top: 15px; }
-    .truck-cab {
-      position: absolute;
-      right: 1px;
-      bottom: 7px;
-      width: 20px;
-      height: 17px;
-      border-radius: 4px 6px 2px 2px;
-      background: var(--pipe-orange);
-    }
-    .truck-window {
-      position: absolute;
-      right: 5px;
-      bottom: 17px;
-      width: 8px;
-      height: 6px;
-      border-radius: 2px;
-      background: #222930;
-    }
-    .truck-wheel {
-      position: absolute;
-      bottom: 2px;
-      width: 8px;
-      height: 8px;
-      border: 2px solid #868f99;
-      border-radius: 50%;
-      background: #11151a;
-    }
-    .truck-wheel.w1 { left: 10px; }
-    .truck-wheel.w2 { right: 6px; }
-    .splash-meta {
-      display: flex;
-      justify-content: space-between;
+
+    .pipe-startup-label {
       margin-top: 10px;
-      color: #828d99;
+      color: var(--pipe-muted);
       font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .25px;
+      text-transform: uppercase;
     }
-    #splash-details {
-      margin-top: 14px;
-      color: #b6bec7;
-      font-size: 11.5px;
-    }
-    #splash-details summary {
-      cursor: pointer;
-      font-weight: 800;
-    }
-    #splash-debug-status {
-      margin-top: 10px;
-      padding: 10px;
-      border: 1px solid rgba(243, 106, 33, .16);
-      border-radius: 10px;
-      background: rgba(10, 13, 17, .70);
-      color: #c7ced6;
-      text-align: left;
-      line-height: 1.45;
-    }
-    #splash-warning {
+
+    #pipe-startup-error {
       display: none;
+      max-width: 520px;
       margin-top: 14px;
-      padding: 10px;
-      border: 1px solid rgba(255, 176, 32, .55);
+      padding: 10px 12px;
+      box-sizing: border-box;
+      border: 1px solid #fecaca;
       border-radius: 10px;
-      background: rgba(255, 176, 32, .12);
-      color: #ffe2a8;
+      background: #fff1f2;
+      color: #991b1b;
       font-size: 12px;
       line-height: 1.4;
     }
-    #splash-repair,
-    #splash-reload {
-      display: none;
-      margin-top: 12px;
-      padding: 9px 16px;
-      border: 1px solid rgba(243, 106, 33, .62);
-      border-radius: 999px;
-      background: transparent;
-      color: #ffd8c2;
-      cursor: pointer;
-      font-weight: 800;
-    }
-    #splash-repair {
-      margin-right: 8px;
-      border-color: var(--pipe-orange);
-      color: #fff;
-    }
-    #splash-version {
-      position: fixed;
-      top: 14px;
-      right: 14px;
-      padding: 6px 10px;
-      border: 1px solid rgba(243, 106, 33, .28);
-      border-radius: 999px;
-      background: rgba(17, 21, 26, .88);
-      color: #c5ccd4;
-      font-size: 10.5px;
-      font-weight: 800;
-    }
+
     @media (max-width: 600px) {
-      #splash { padding: 16px; }
-      .splash-card { padding: 20px 16px 17px; border-radius: 20px; }
-      .splash-description { font-size: 11.5px; }
-      .splash-progress-header { margin-bottom: 30px; }
+      #pipe-startup { padding: 18px; }
+      .pipe-startup-logo { width: min(94vw, 620px); }
+      #pipe-startup-status { margin-top: 18px; font-size: 14px; }
     }
   </style>
-  <script id="splash-screen-script">
-    const pipeStartupStartedAt = performance.now();
-    let pipeStartupStage = "Preparing application shell";
-    let pipeStartupPercent = 0;
 
-    function updatePipeStartup(percent, status, technicalStatus) {
-      pipeStartupPercent = Math.max(pipeStartupPercent, Math.min(100, percent));
-      pipeStartupStage = status;
-      const progress = document.getElementById("splash-progress");
-      const progressTrack = document.querySelector(".splash-track");
-      const truck = document.getElementById("splash-truck");
-      const percentLabel = document.getElementById("splash-percent");
-      const statusLabel = document.getElementById("splash-status");
-      const debugStatus = document.getElementById("splash-debug-status");
-      if (progress) progress.style.width = `${pipeStartupPercent}%`;
-      if (truck) {
-        const visualPercent = Math.max(6, Math.min(94, pipeStartupPercent));
-        truck.style.left = `${visualPercent}%`;
-      }
-      if (progressTrack) {
-        progressTrack.setAttribute("aria-valuenow", `${pipeStartupPercent}`);
-      }
-      if (percentLabel) percentLabel.textContent = `${pipeStartupPercent}%`;
-      if (statusLabel) statusLabel.textContent = status;
-      if (debugStatus) {
-        debugStatus.textContent = technicalStatus || status;
-      }
-      console.info(JSON.stringify({
-        type: "pipe_buyer_web_startup",
-        status,
-        progressPercent: pipeStartupPercent,
-        elapsedMs: Math.round(performance.now() - pipeStartupStartedAt)
-      }));
+  <script>
+    let pipeStartupProgress = 4;
+
+    function updatePipeStartup(percent, status) {
+      pipeStartupProgress = Math.max(pipeStartupProgress, Math.min(96, percent));
+      const bar = document.getElementById('pipe-startup-progress');
+      const label = document.getElementById('pipe-startup-status');
+      if (bar) bar.style.width = `${pipeStartupProgress}%`;
+      if (label && status) label.textContent = status;
     }
 
-    function removeSplashFromWeb() {
-      document.getElementById("splash")?.remove();
-      document.getElementById("splash-branding")?.remove();
-      document.body.style.background = "transparent";
+    function removePipeStartup() {
+      const startup = document.getElementById('pipe-startup');
+      if (startup) startup.remove();
+      document.body.style.overflow = '';
     }
 
-    // Flutter paints into its own scene. Remove the HTML bootstrap as soon as
-    // that first frame exists so assistive technology and smoke tests do not
-    // continue reading stale startup content behind the live application.
-    window.addEventListener("flutter-first-frame", () => {
-      updatePipeStartup(100, "Application frame ready", "Flutter first frame rendered");
-      removeSplashFromWeb();
+    window.addEventListener('flutter-first-frame', () => {
+      updatePipeStartup(96, 'Opening Pipe Buyer');
+      requestAnimationFrame(removePipeStartup);
     }, { once: true });
-
-    async function repairPipeStartup() {
-      updatePipeStartup(
-        pipeStartupPercent,
-        "Repairing the cached application runtime",
-        "Removing the Flutter runtime cache before a clean reload"
-      );
-      try {
-        if ("serviceWorker" in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(registration => registration.unregister()));
-        }
-        if ("caches" in window) {
-          const cacheNames = await caches.keys();
-          await Promise.all(
-            cacheNames
-              .filter(name => name.toLowerCase().includes("flutter"))
-              .map(name => caches.delete(name))
-          );
-        }
-      } finally {
-        const retryUrl = new URL(location.href);
-        retryUrl.searchParams.set("startup-repair", Date.now().toString());
-        location.replace(retryUrl.toString());
-      }
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for (const registration of registrations) {
-            registration.unregister();
-          }
-        });
-      }
-      if ("caches" in window) {
-        caches.keys().then(keys => {
-          for (const key of keys) {
-            if (key.toLowerCase().includes("flutter")) {
-              caches.delete(key);
-            }
-          }
-        });
-      }
-      if (pipeStartupPercent < 5) {
-        updatePipeStartup(5, "Loading application shell", "HTML shell ready");
-      }
-      const elapsedLabel = document.getElementById("splash-elapsed");
-      const warning = document.getElementById("splash-warning");
-      const repair = document.getElementById("splash-repair");
-      const reload = document.getElementById("splash-reload");
-      window.setInterval(() => {
-        const seconds = Math.floor((performance.now() - pipeStartupStartedAt) / 1000);
-        if (elapsedLabel) elapsedLabel.textContent = `${seconds}s elapsed`;
-        if (seconds >= 12 && warning) {
-          warning.style.display = "block";
-          warning.textContent = `${pipeStartupStage} is taking longer than expected. Startup diagnostics are recording this delay.`;
-        }
-        if (seconds >= 20 && repair) repair.style.display = "inline-block";
-        if (seconds >= 30 && reload) reload.style.display = "inline-block";
-      }, 1000);
-    });
   </script>
 </head>
 <body>
-  <header style="padding: 16px; background: #11151A; color: #FFFFFF; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; border-bottom: 2px solid #F36A21;">
-    <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #FFFFFF;">Pipe Buyer</h1>
-    <h2 style="margin: 6px 0 0 0; font-size: 16px; font-weight: 800; color: #F36A21;">Buy & Sell Marketplace for Oil & Gas Products</h2>
-    <p style="max-width: 800px; margin: 10px auto 0 auto; font-size: 14px; line-height: 1.5; color: #E2E8F0;">
-      <strong>Application Purpose & Identity:</strong> Pipe Buyer is an online B2B industrial marketplace, timed auctions platform, and freight trucking dispatch network for buying and selling oil & gas equipment, OCTG casing, tubing, line pipe, valves, and heavy machinery across the United States and Canada, with low seller fees. Pipe Buyer is a venue and is not a party to transactions between users.
-    </p>
-    <nav style="margin-top: 10px; display: flex; justify-content: center; gap: 20px;">
-      <a href="https://www.pipebuyer.com/privacy" target="_blank" style="color: #F36A21; font-size: 13px; font-weight: 700; text-decoration: underline;">Privacy Policy</a>
-      <a href="https://www.pipebuyer.com/terms" target="_blank" style="color: #F36A21; font-size: 13px; font-weight: 700; text-decoration: underline;">Terms of Service</a>
-    </nav>
-  </header>
-  <div id="splash" role="status" aria-live="polite">
-    <div id="splash-version">v1.0.5+6 • web bootstrap</div>
-    <div class="splash-card">
-      <div class="splash-logo-frame">
-        <picture>
-          <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
-          <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
-          <img class="splash-logo" src="splash/img/light-1x.png" alt="Pipe Buyer">
-        </picture>
+  <div id="pipe-startup" role="status" aria-live="polite" aria-label="Pipe Buyer is starting">
+    <div class="pipe-startup-content">
+      <img
+        class="pipe-startup-logo"
+        src="assets/assets/images/pipe_buyer_logo.png"
+        alt="Pipe Buyer"
+        onerror="this.onerror=null;this.src='splash/img/light-4x.png';">
+      <div id="pipe-startup-status">Preparing Pipe Buyer</div>
+      <div class="pipe-startup-track" role="progressbar" aria-label="Application startup progress" aria-valuemin="0" aria-valuemax="100">
+        <div id="pipe-startup-progress"></div>
       </div>
-      <div class="splash-kicker">Industrial Marketplace • Dispatch • Auctions</div>
-      <h1 class="splash-title" itemprop="name">Preparing Pipe Buyer</h1>
-      <p itemprop="description" class="splash-description">
-        Pipe Buyer connects industrial buyers and sellers across the United States and Canada for pipe, OCTG, equipment, timed auctions, and freight dispatch.
-      </p>
-      <div id="splash-status">Preparing application shell</div>
-      <div class="splash-progress-card">
-        <div class="splash-progress-header">
-          <span>Application startup</span>
-          <span id="splash-percent">0%</span>
-        </div>
-        <div class="splash-track" role="progressbar" aria-label="Application startup progress" aria-valuemin="0" aria-valuemax="100">
-          <div id="splash-progress"></div>
-          <div id="splash-truck" aria-hidden="true">
-            <div class="truck-pipe p1"></div>
-            <div class="truck-pipe p2"></div>
-            <div class="truck-pipe p3"></div>
-            <div class="truck-bed"></div>
-            <div class="truck-cab"></div>
-            <div class="truck-window"></div>
-            <div class="truck-wheel w1"></div>
-            <div class="truck-wheel w2"></div>
-          </div>
-        </div>
-        <div class="splash-meta">
-          <span>PipeBuyer startup</span>
-          <span id="splash-elapsed">0s elapsed</span>
-        </div>
-      </div>
-      <div id="splash-warning"></div>
-      <details id="splash-details">
-        <summary>Startup details</summary>
-        <div id="splash-debug-status">Waiting for Flutter loader</div>
-      </details>
-      <button id="splash-repair" type="button" onclick="repairPipeStartup()">Repair cache and reload</button>
-      <button id="splash-reload" type="button" onclick="location.reload()">Reload application</button>
+      <div class="pipe-startup-label">Industrial Marketplace · Dispatch · Timed Buying</div>
+      <div id="pipe-startup-error"></div>
     </div>
   </div>
 
   <script>
-    // Local App Check uses a per-browser debug token. Register the token printed
-    // in the browser console in Firebase Console before testing protected APIs.
-    if (location.hostname === 'localhost' ||
-        location.hostname === '127.0.0.1') {
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
       self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
     }
   </script>
+
   <script>
     {{flutter_js}}
     {{flutter_build_config}}
-    updatePipeStartup(8, "Downloading application runtime", "Flutter loader started");
+
+    updatePipeStartup(10, 'Loading Pipe Buyer');
+
     _flutter.loader.load({
       onEntrypointLoaded: async function(engineInitializer) {
-        updatePipeStartup(18, "Preparing graphics and accessibility", "Dart entrypoint downloaded");
+        updatePipeStartup(34, 'Preparing application services');
         const appRunner = await engineInitializer.initializeEngine();
-        updatePipeStartup(28, "Starting application engine", "Flutter engine initialized");
+        updatePipeStartup(62, 'Starting secure services');
         await appRunner.runApp();
-        updatePipeStartup(32, "Starting secure services", "Flutter application requested first frame");
+        updatePipeStartup(90, 'Opening marketplace');
       }
     }).catch(function(error) {
-      updatePipeStartup(pipeStartupPercent, "Application engine could not start", `Loader failure: ${error?.name || "UnknownError"}`);
-      document.getElementById("splash-warning").style.display = "block";
-      document.getElementById("splash-warning").textContent = "The application engine could not start. Reload the app or copy the startup status for support.";
-      document.getElementById("splash-repair").style.display = "inline-block";
-      document.getElementById("splash-reload").style.display = "inline-block";
+      const failure = document.getElementById('pipe-startup-error');
+      updatePipeStartup(pipeStartupProgress, 'Pipe Buyer could not start');
+      if (failure) {
+        failure.style.display = 'block';
+        failure.textContent = 'The application could not start. Refresh the page and try again. If the problem continues, copy the browser console error for support.';
+      }
+      console.error('Pipe Buyer Flutter loader failed', error);
     });
   </script>
-
-</body></html>
+</body>
+</html>
