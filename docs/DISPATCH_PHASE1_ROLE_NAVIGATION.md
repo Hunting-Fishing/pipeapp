@@ -101,7 +101,9 @@ The generalized dynamic forms for Pilot, crane/picker, grading, mobile mechanic,
 
 Engineering gate:
 
-- guarded integration only against the verified Phase 0 `marketplace_dispatch_page.dart` blob;
+- direct Phase 1 `marketplace_dispatch_page.dart` is built from the exact uploaded local source blob `b7cfbf585a63f8bb5d0b27331316710710c6a70a`;
+- installed Phase 1 page must match reviewed blob `9ba9e7c0fd8ff274bf7bf16628213fff24687641`;
+- formatting is checked without modifying the product file;
 - strict analyzer clean;
 - role-state unit coverage;
 - desktop navigation widget coverage;
@@ -139,8 +141,10 @@ Next permitted phase: Phase 2 - service taxonomy and structured capability model
 
 ## 7. Repair/change-control boundary
 
-Phase 1 uses a guarded integrator that verifies the exact Git blob of the Phase 0 Dispatch page before making the localized navigation change. If the local file differs, the integrator stops before mutation and requires inspection of the actual file.
+The first Phase 1 attempt correctly stopped because the local Dispatch page did not match the older Phase 0 branch blob. Inspection showed the local file contained accepted later changes and therefore must be treated as the source of truth rather than overwritten.
 
-The verifier backs up the exact local page and restores it if formatting, analyzer, widget tests, server tests, emulator behavior, or fixture cleanup fails.
+Phase 1 now uses a direct complete page built from that exact uploaded local source. The verifier does not patch or format the product file. It checks the reviewed Git blob, verifies formatting in read-only mode, and then runs analyzer, widget/server regressions, and the isolated emulator preservation journey.
+
+Do not run `tool/apply_dispatch_phase1_navigation.mjs` against the current Dispatch page. Install the direct reviewed branch file with a targeted restore after making an exact backup.
 
 No speculative V1/V2/V3 repair chain is permitted for this phase.
