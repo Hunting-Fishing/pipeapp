@@ -78,23 +78,6 @@ class DispatchEquipmentCapabilityDraft {
     return result;
   }
 
-  DispatchEquipmentCapabilityDraft copyWith({
-    String? id,
-    String? name,
-    DispatchEquipmentType? equipmentType,
-    bool? available,
-    List<String>? serviceCodes,
-    Map<String, Object?>? capabilityValues,
-  }) =>
-      DispatchEquipmentCapabilityDraft(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        equipmentType: equipmentType ?? this.equipmentType,
-        available: available ?? this.available,
-        serviceCodes: serviceCodes ?? this.serviceCodes,
-        capabilityValues: capabilityValues ?? this.capabilityValues,
-      );
-
   static Object? _normalizeCapabilityValue(
     DispatchCapabilityFieldDefinition definition,
     Object? value,
@@ -107,7 +90,8 @@ class DispatchEquipmentCapabilityDraft {
         return number != null && number.isFinite && number > 0 ? number : null;
       case DispatchCapabilityValueType.shortText:
         final text = '${value ?? ''}'.trim();
-        return text.isEmpty ? null : text.substring(0, text.length.clamp(0, 240));
+        if (text.isEmpty) return null;
+        return text.length > 240 ? text.substring(0, 240) : text;
       case DispatchCapabilityValueType.singleChoice:
         final text = '${value ?? ''}'.trim();
         if (text.isEmpty) return null;
@@ -136,8 +120,9 @@ class DispatchEquipmentCapabilityDraft {
     final serviceCodes = rawCodes is Iterable
         ? rawCodes.map((value) => '$value').toList()
         : _legacyServiceCodes(data['services']);
-    final capabilities = _nestedMap(profile['capabilities'])
-        .map<String, Object?>((key, value) => MapEntry(key, value));
+    final capabilities = <String, Object?>{
+      ..._nestedMap(profile['capabilities']),
+    };
     if (!capabilities.containsKey('max_payload')) {
       final payload = data['maximumPayloadKg'];
       if (payload is num && payload > 0) {
@@ -241,26 +226,30 @@ class DispatchCapabilityDisplayUnits {
   static double toDisplay(
     DispatchCapabilityFieldDefinition field,
     num canonicalValue,
-  ) =>
-      switch (field.canonicalUnit) {
-        DispatchCapabilityUnit.kilogram => canonicalValue * 2.2046226218,
-        DispatchCapabilityUnit.metre => canonicalValue * 3.280839895,
-        DispatchCapabilityUnit.kilometre => canonicalValue * 0.6213711922,
-        DispatchCapabilityUnit.litre => canonicalValue * 0.2641720524,
-        _ => canonicalValue.toDouble(),
-      };
+  ) {
+    final value = canonicalValue.toDouble();
+    return switch (field.canonicalUnit) {
+      DispatchCapabilityUnit.kilogram => value * 2.2046226218,
+      DispatchCapabilityUnit.metre => value * 3.280839895,
+      DispatchCapabilityUnit.kilometre => value * 0.6213711922,
+      DispatchCapabilityUnit.litre => value * 0.2641720524,
+      _ => value,
+    };
+  }
 
   static double toCanonical(
     DispatchCapabilityFieldDefinition field,
     num displayValue,
-  ) =>
-      switch (field.canonicalUnit) {
-        DispatchCapabilityUnit.kilogram => displayValue / 2.2046226218,
-        DispatchCapabilityUnit.metre => displayValue / 3.280839895,
-        DispatchCapabilityUnit.kilometre => displayValue / 0.6213711922,
-        DispatchCapabilityUnit.litre => displayValue / 0.2641720524,
-        _ => displayValue.toDouble(),
-      };
+  ) {
+    final value = displayValue.toDouble();
+    return switch (field.canonicalUnit) {
+      DispatchCapabilityUnit.kilogram => value / 2.2046226218,
+      DispatchCapabilityUnit.metre => value / 3.280839895,
+      DispatchCapabilityUnit.kilometre => value / 0.6213711922,
+      DispatchCapabilityUnit.litre => value / 0.2641720524,
+      _ => value,
+    };
+  }
 }
 
 class MarketplaceDispatchEquipmentCapabilityRepository {
@@ -287,38 +276,41 @@ class MarketplaceDispatchEquipmentCapabilityRepository {
       .collection('vehicles');
 
   Stream<List<DispatchEquipmentCapabilityDraft>> watchFleet() =>
-      _fleet.limit(100).snapshots().map(
-            (snapshot) => snapshot.docs
-                .map(
-                  (doc) => DispatchEquipmentCapabilityDraft.fromVehicle(
-                    doc.id,
-                    doc.data(),
-                  ),
-                )
-                .toList()
-              ..sort((a, b) => a.name.compareTo(b.name)),
-          );
+      _fleet.limit(100).snapshots().map((snapshot) {
+        final result = snapshot.docs
+            .map(
+              (doc) => DispatchEquipmentCapabilityDraft.fromVehicle(
+                doc.id,
+                doc.data(),
+              ),
+            )
+            .toList();
+        result.sort((a, b) => a.name.compareTo(b.name));
+        return result;
+      });
 
   Future<void> save(DispatchEquipmentCapabilityDraft draft) async {
     final uid = _uid;
     final name = draft.name.trim();
     if (name.isEmpty || name.length > 160) {
-      throw ArgumentError('Equipment name is required and must be 160 characters or fewer.');
+      throw ArgumentError(
+        'Equipment name is required and must be 160 characters or fewer.',
+      );
     }
 
     final reference = draft.id == null ? _fleet.doc() : _fleet.doc(draft.id);
-    final services = draft.normalizedServiceCodes
+    final serviceDefinitions = draft.normalizedServiceCodes
         .map(DispatchServiceTaxonomy.findByCode)
         .whereType<DispatchServiceDefinition>()
-        .map((service) => service.label)
         .toList();
+    final services = serviceDefinitions.map((service) => service.label).toList();
     final capabilities = draft.normalizedCapabilityValues;
     final maxPayload = capabilities['max_payload'];
     final pilotTruck = draft.equipmentType == DispatchEquipmentType.pilotEscort ||
-        draft.normalizedServiceCodes.any((code) {
-          final service = DispatchServiceTaxonomy.findByCode(code);
-          return service?.category == DispatchServiceCategoryCode.pilotOversizeSupport;
-        });
+        serviceDefinitions.any(
+          (service) =>
+              service.category == DispatchServiceCategoryCode.pilotOversizeSupport,
+        );
 
     final values = <String, dynamic>{
       'ownerUid': uid,
@@ -379,7 +371,6 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
 
     await showDialog<void>(
       context: context,
-      barrierDismissible: !saving,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           final capabilityFields = _capabilityFields(serviceCodes);
@@ -666,7 +657,8 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                 ),
               );
             }
-            final equipment = snapshot.data ?? const <DispatchEquipmentCapabilityDraft>[];
+            final equipment =
+                snapshot.data ?? const <DispatchEquipmentCapabilityDraft>[];
             if (equipment.isEmpty) {
               return const Center(
                 child: Padding(
@@ -698,9 +690,11 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                         Row(
                           children: [
                             Icon(
-                              item.equipmentType == DispatchEquipmentType.pilotEscort
+                              item.equipmentType ==
+                                      DispatchEquipmentType.pilotEscort
                                   ? Icons.assistant_direction_outlined
-                                  : item.equipmentType == DispatchEquipmentType.cranePicker
+                                  : item.equipmentType ==
+                                          DispatchEquipmentType.cranePicker
                                       ? Icons.construction_outlined
                                       : Icons.local_shipping_outlined,
                             ),
@@ -721,7 +715,9 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                               ),
                             ),
                             Chip(
-                              label: Text(item.available ? 'Available' : 'Unavailable'),
+                              label: Text(
+                                item.available ? 'Available' : 'Unavailable',
+                              ),
                             ),
                           ],
                         ),
@@ -796,7 +792,8 @@ class _CapabilityFieldEditor extends StatelessWidget {
             enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: unit.isEmpty ? definition.label : '${definition.label} ($unit)',
+              labelText:
+                  unit.isEmpty ? definition.label : '${definition.label} ($unit)',
               helperText: definition.helpText.isEmpty ? null : definition.helpText,
             ),
             onChanged: (text) {
@@ -822,7 +819,9 @@ class _CapabilityFieldEditor extends StatelessWidget {
               labelText: definition.label,
               helperText: definition.helpText.isEmpty ? null : definition.helpText,
             ),
-            onChanged: (text) => onChanged(text.trim().isEmpty ? null : text.trim()),
+            onChanged: (text) => onChanged(
+              text.trim().isEmpty ? null : text.trim(),
+            ),
           ),
         );
       case DispatchCapabilityValueType.multiChoice:
