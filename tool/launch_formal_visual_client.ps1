@@ -44,6 +44,13 @@ Write-Host 'Pipe Buyer local app: http://127.0.0.1:5050' -ForegroundColor Green
 Write-Host 'Firebase Emulator UI: http://127.0.0.1:14000' -ForegroundColor DarkGray
 Write-Host 'Profile mode does not support Flutter hot reload; stop/relaunch after source changes.' -ForegroundColor DarkGray
 
+$loginReference = Join-Path $PSScriptRoot 'show_formal_test_logins.ps1'
+if (Test-Path -LiteralPath $loginReference) {
+  & powershell -ExecutionPolicy Bypass -File $loginReference
+} else {
+  Write-Host 'Test login reference helper is missing; pull the latest formal branch.' -ForegroundColor Yellow
+}
+
 & flutter run --profile -d chrome `
   --web-port=$webPort `
   --dart-define=PIPE_ENV=local `
