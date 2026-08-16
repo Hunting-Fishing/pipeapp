@@ -121,7 +121,7 @@ class MarketplaceListingSpecsGrid extends StatelessWidget {
     if (specs.isEmpty) return const SizedBox.shrink();
     final visibleCount = maxVisibleSpecs <= 0
         ? specs.length
-        : maxVisibleSpecs.clamp(1, specs.length);
+        : maxVisibleSpecs.clamp(1, specs.length).toInt();
     final visible = specs.take(visibleCount).toList(growable: false);
     final remaining = specs.skip(visibleCount).toList(growable: false);
 
