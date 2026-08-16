@@ -14,11 +14,20 @@ source = source.replace(
   "            MarketplaceListingFormSectionHeader(\n              step: 4,",
 );
 
+// Public Timed Buying surfaces should not retain auction/gavel imagery. Keep the
+// internal Auction transaction value and Firebase fields unchanged.
+source = source.replaceAll('Icons.gavel_outlined', 'Icons.timer_outlined');
+source = source.replaceAll(
+  "IndustrialIconAssets.forLabel('Auctions')",
+  "IndustrialIconAssets.forLabel('Timed Buying')",
+);
+
 if (!source.includes("MarketplaceListingFormSectionHeader(\n              step: 4,") ||
-    !source.includes("title: 'Listing terms'")) {
-  throw new Error('Could not verify the dynamic Listing terms section header.');
+    !source.includes("title: 'Listing terms'") ||
+    source.includes("label: 'Timed auctions'")) {
+  throw new Error('Could not verify the professional Timed Buying listing form surface.');
 }
 
 fs.writeFileSync(target, source, 'utf8');
 console.log(`updated ${relative}`);
-console.log('Professional listing-form post-migration analyzer fixes applied.');
+console.log('Professional listing-form post-migration analyzer/public-language fixes applied.');
