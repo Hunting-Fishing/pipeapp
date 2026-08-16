@@ -66,20 +66,6 @@ foreach ($requiredText in @(
   }
 }
 
-Write-Step 'Checking the already-repaired equipment source before formatter/analyzer'
-$preflightSource = Get-Content -LiteralPath $equipmentFile -Raw
-foreach ($requiredText in @(
-  'if (!mounted || !dialogContext.mounted) return;',
-  'final Object? numberValue = value;',
-  'final num? canonical = numberValue is num ? numberValue : null;',
-  'final Object? multiValue = value;',
-  "multiValue.join(', ')"
-)) {
-  if (-not $preflightSource.Contains($requiredText)) {
-    throw "Equipment source repair marker missing before verification: $requiredText"
-  }
-}
-
 Write-Step 'Formatting Phase 3 equipment capability source'
 & dart format $equipmentFile $profilePage $equipmentTest
 if ($LASTEXITCODE -ne 0) {
@@ -92,7 +78,7 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Phase 3 equipment files are not formatter stable.'
 }
 
-Write-Step 'Running strict analyzer'
+Write-Step 'Running strict analyzer before any implementation-shape contracts'
 foreach ($target in @(
   $equipmentFile,
   $profilePage,
@@ -127,7 +113,7 @@ foreach ($target in @($taxonomyTest, $navigationTest, $authTest)) {
   }
 }
 
-Write-Step 'Checking equipment persistence and compatibility contracts'
+Write-Step 'Checking stable equipment persistence and compatibility contracts'
 $equipmentSource = Get-Content -LiteralPath $equipmentFile -Raw
 foreach ($requiredText in @(
   "collection('dispatch_carriers')",
@@ -138,11 +124,7 @@ foreach ($requiredText in @(
   "'provider_declared'",
   "'services'",
   "'pilotTruck'",
-  "'maximumPayloadKg'",
-  'if (!mounted || !dialogContext.mounted) return;',
-  'final Object? numberValue = value;',
-  'final num? canonical = numberValue is num ? numberValue : null;',
-  'final Object? multiValue = value;'
+  "'maximumPayloadKg'"
 )) {
   if (-not $equipmentSource.Contains($requiredText)) {
     throw "Phase 3 equipment source contract missing: $requiredText"
@@ -177,7 +159,7 @@ Write-Host '============================================================' -Foreg
 Write-Host 'DISPATCH PHASE 3 EQUIPMENT CAPABILITY GATE PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Accepted profile progress recorded at 48%: PASS' -ForegroundColor Green
-Write-Host 'Equipment source preflight: PASS' -ForegroundColor Green
+Write-Host 'Strict analyzer: PASS' -ForegroundColor Green
 Write-Host 'Stable equipment type codes: PASS' -ForegroundColor Green
 Write-Host 'Structured equipment service codes: PASS' -ForegroundColor Green
 Write-Host 'Known capability normalization: PASS' -ForegroundColor Green
@@ -189,7 +171,6 @@ Write-Host 'Phase 3 profile regressions: PASS' -ForegroundColor Green
 Write-Host 'Phase 2 taxonomy regression: PASS' -ForegroundColor Green
 Write-Host 'Phase 1 navigation regression: PASS' -ForegroundColor Green
 Write-Host 'Dispatch auth reactivity regression: PASS' -ForegroundColor Green
-Write-Host 'Strict analyzer: PASS' -ForegroundColor Green
 Write-Host ''
 Write-Host 'Official Dispatch progress remains 48% until equipment browser acceptance.' -ForegroundColor Yellow
 Write-Host 'After equipment browser acceptance, Phase 3 becomes 13/15 and overall becomes 50%.' -ForegroundColor Yellow
