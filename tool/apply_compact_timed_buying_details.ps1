@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$runnerVersion = 'compact-details-v4-preserve-local-20260816'
 
 function Write-Step([string]$Message) {
   Write-Host "`n==> $Message" -ForegroundColor Cyan
@@ -6,6 +7,9 @@ function Write-Step([string]$Message) {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
+
+Write-Host "Compact detail runner: $runnerVersion" -ForegroundColor Green
+Write-Host 'Safety: product/professional files are never restored from git HEAD by this runner.' -ForegroundColor DarkGray
 
 $branch = (git branch --show-current).Trim()
 if ($branch -ne 'design/formal-beautification-foundation') {
