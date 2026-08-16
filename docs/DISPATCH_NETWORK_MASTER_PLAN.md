@@ -1,9 +1,9 @@
 # Pipe Buyer Dispatch Network Master Plan
 
-**Status:** ACTIVE BUILD PLAN  
-**Branch:** `design/formal-beautification-foundation`  
-**Current verified completion:** **41%**  
-**Last updated:** 2026-08-17  
+**Status:** ACTIVE BUILD PLAN
+**Branch:** `design/formal-beautification-foundation`
+**Current verified completion:** **48%**
+**Last updated:** 2026-08-17
 **Rule:** **Do not move to the next Dispatch phase until the current phase exit gate is 100% complete and all required tests are green.**
 
 ---
@@ -53,12 +53,12 @@ The UX must remain simple enough for non-technical field users while still colle
 | 0 | Existing Dispatch foundation verified | 10 | 10 | GREEN |
 | 1 | Role-aware entry and navigation | 10 | 10 | GREEN |
 | 2 | Service taxonomy and capability model | 10 | 10 | GREEN |
-| 3 | Provider/company profile system | 15 | 4 | IN PROGRESS |
+| 3 | Provider/company profile system | 15 | 11 | IN PROGRESS |
 | 4 | Dispatch Service Directory + map | 20 | 0 | BLOCKED |
 | 5 | Standalone Request Service workflow | 15 | 3 | BLOCKED |
 | 6 | Matching, direct requests, quotes, messaging, award | 10 | 2 | BLOCKED |
 | 7 | Security, fixtures, acceptance, release | 10 | 2 | BLOCKED |
-| **TOTAL** |  | **100** | **41** | **41% COMPLETE** |
+| **TOTAL** |  | **100** | **48** | **48% COMPLETE** |
 
 Points are awarded only after the corresponding implementation and acceptance criteria pass. Work prepared in the current phase does not unlock the next phase early.
 
@@ -66,8 +66,8 @@ Points are awarded only after the corresponding implementation and acceptance cr
 
 # PHASE 0 - Verify and freeze existing Dispatch foundation
 
-**Weight:** 10%  
-**Current:** 10/10  
+**Weight:** 10%
+**Current:** 10/10
 **Status:** GREEN
 
 Completed:
@@ -90,8 +90,8 @@ Reference: `docs/DISPATCH_PHASE0_FOUNDATION_INVENTORY.md`.
 
 # PHASE 1 - Role-aware entry and navigation
 
-**Weight:** 10%  
-**Current:** 10/10  
+**Weight:** 10%
+**Current:** 10/10
 **Status:** GREEN
 
 Permanent top-level Dispatch navigation:
@@ -117,8 +117,8 @@ Reference: `docs/DISPATCH_PHASE1_ROLE_NAVIGATION.md` and `docs/REPAIR_LOG.md`.
 
 # PHASE 2 - Service taxonomy and structured capability model
 
-**Weight:** 10%  
-**Current:** 10/10  
+**Weight:** 10%
+**Current:** 10/10
 **Status:** GREEN
 
 Completed and browser accepted:
@@ -146,8 +146,8 @@ Reference: `docs/DISPATCH_PHASE2_SERVICE_TAXONOMY.md`.
 
 # PHASE 3 - Provider and company profile system
 
-**Weight:** 15%  
-**Current verified:** 4/15  
+**Weight:** 15%
+**Current verified:** 11/15
 **Status:** IN PROGRESS
 
 The purpose of Phase 3 is to turn the legacy provider record into a structured industrial company profile that can safely power the future Directory.
@@ -185,14 +185,14 @@ Existing `dispatch_carriers` behavior remains live and must be bridged carefully
 
 - [x] Current provider signup captures company/operating name and service area. **2 pts**
 - [x] Current provider fleet records provide an equipment foundation. **2 pts**
-- [ ] Company identity/public profile model. **2 pts**
-- [ ] Multi-service structured selection. **2 pts**
+- [x] Company identity/public profile model. **2 pts**
+- [x] Multi-service structured selection. **2 pts**
 - [ ] Equipment/fleet capability profiles. **2 pts**
 - [ ] Service area and home-base map setup. **1 pt**
-- [ ] Availability: now/today/this week/unavailable. **1 pt**
+- [x] Availability: now/today/this week/unavailable. **1 pt**
 - [ ] Credential/insurance metadata with private document separation. **1 pt**
-- [ ] Owner/operator and corporation/business-type support. **1 pt**
-- [ ] Profile completeness + edit experience. **1 pt**
+- [x] Owner/operator and corporation/business-type support. **1 pt**
+- [x] Profile completeness + edit experience. **1 pt**
 
 ## Current Phase 3 engineering slice prepared
 
@@ -214,7 +214,9 @@ This slice establishes:
 - profile completeness;
 - responsive profile editor.
 
-**These prepared items do not earn additional official points until the local Phase 3 foundation gate passes.**
+**Phase 3 foundation gate passed locally on 2026-08-17. Company identity and structured multi-service selection are now verified.**
+
+Phase 3 company-profile persistence browser acceptance passed on 2026-08-17. Saved profile fields survive leaving and reopening the page, and the Dispatch navigation remained healthy.
 
 ## Phase 3 remaining after the foundation gate
 
@@ -235,8 +237,8 @@ Reference: `docs/DISPATCH_PHASE3_COMPANY_PROFILE.md`.
 
 # PHASE 4 - Dispatch Service Directory + map
 
-**Weight:** 20%  
-**Current:** 0/20  
+**Weight:** 20%
+**Current:** 0/20
 **Status:** BLOCKED BY PHASE 3
 
 This is the industrial Yellow Pages layer.
@@ -296,8 +298,8 @@ No fabricated ratings, job counts, or trust metrics.
 
 # PHASE 5 - Standalone Request Service workflow
 
-**Weight:** 15%  
-**Current:** 3/15  
+**Weight:** 15%
+**Current:** 3/15
 **Status:** BLOCKED
 
 Required request sources:
@@ -345,8 +347,8 @@ Remaining checklist:
 
 # PHASE 6 - Matching, direct requests, quotes, messaging, award
 
-**Weight:** 10%  
-**Current:** 2/10  
+**Weight:** 10%
+**Current:** 2/10
 **Status:** BLOCKED
 
 Remaining:
@@ -364,8 +366,8 @@ Matching begins deterministic and explainable. AI may rank later but must never 
 
 # PHASE 7 - Security, fixtures, acceptance, release
 
-**Weight:** 10%  
-**Current:** 2/10  
+**Weight:** 10%
+**Current:** 2/10
 **Status:** BLOCKED
 
 Required emulator provider fixtures:

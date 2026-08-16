@@ -49,10 +49,10 @@ class _MarketplaceDispatchCompanyProfilePageState
   }
 
   Future<void> _openFleetCapabilities() => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const MarketplaceDispatchEquipmentCapabilitiesPage(),
-        ),
-      );
+    MaterialPageRoute<void>(
+      builder: (_) => const MarketplaceDispatchEquipmentCapabilitiesPage(),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -76,10 +76,7 @@ class _MarketplaceDispatchCompanyProfilePageState
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '${snapshot.error}',
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('${snapshot.error}', textAlign: TextAlign.center),
                   const SizedBox(height: 14),
                   OutlinedButton.icon(
                     onPressed: () => setState(() {

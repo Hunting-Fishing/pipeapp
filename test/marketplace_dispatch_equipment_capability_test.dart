@@ -37,7 +37,10 @@ void main() {
 
     expect(draft.normalizedCapabilityValues['max_payload'], 42000.0);
     expect(draft.normalizedCapabilityValues['oversize_capable'], isTrue);
-    expect(draft.normalizedCapabilityValues.containsKey('deck_length'), isFalse);
+    expect(
+      draft.normalizedCapabilityValues.containsKey('deck_length'),
+      isFalse,
+    );
     expect(
       draft.normalizedCapabilityValues.containsKey('not_a_real_capability'),
       isFalse,
@@ -49,7 +52,10 @@ void main() {
     final deckLength = DispatchServiceTaxonomy.capabilityByCode('deck_length')!;
 
     final pounds = DispatchCapabilityDisplayUnits.toDisplay(payload, 1000);
-    final kilograms = DispatchCapabilityDisplayUnits.toCanonical(payload, pounds);
+    final kilograms = DispatchCapabilityDisplayUnits.toCanonical(
+      payload,
+      pounds,
+    );
     expect(kilograms, closeTo(1000, 0.001));
     expect(DispatchCapabilityDisplayUnits.label(payload), 'lb');
 
@@ -73,9 +79,9 @@ void main() {
       capabilityValues: <String, Object?>{},
     );
 
-    expect(
-      draft.normalizedServiceCodes,
-      const <String>['crane_picker_truck', 'crane_rigging'],
-    );
+    expect(draft.normalizedServiceCodes, const <String>[
+      'crane_picker_truck',
+      'crane_rigging',
+    ]);
   });
 }
