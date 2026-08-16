@@ -147,6 +147,28 @@ This was a test-harness failure, not a company-profile model, taxonomy, analyzer
 - Do not enlarge the test viewport to hide scrolling defects; keep representative viewport sizes and test the actual scroll behavior.
 - The product editor was not changed for this failure. Only `test/marketplace_dispatch_company_profile_test.dart` was hardened.
 
+## 2026-08-17 - Dispatch Phase 3 equipment source failed strict analyzer on type promotion and dialog context
+
+### Symptom
+
+The Phase 3 equipment gate reached strict analysis after the accepted profile progress had correctly advanced to 48%. `marketplace_dispatch_equipment_capability.dart` then failed with exactly three analyzer findings: an `Object` value passed to a `num` parameter, a nullable/public-field `Iterable.join()` promotion failure, and `use_build_context_synchronously` for `dialogContext` after awaiting the fleet save.
+
+### Root cause
+
+The equipment editor relied on promotion of the public widget field `value` inside switch cases. The local Dart/Flutter toolchain does not promote that public field strongly enough for the numeric and iterable branches. Separately, the save path checked the owning `State.mounted` flag but used the dialog's own `BuildContext` after the async save without checking `dialogContext.mounted`.
+
+This was a compile-time compatibility defect in the newly prepared Phase 3 equipment source. It was not a Firebase, Firestore, fleet-data, Dispatch-auth, quote-flow, service-taxonomy, or persisted-company-profile failure.
+
+### Permanent repair
+
+- Copy public/nullable editor values into local variables before type checks so Dart can promote the local value safely.
+- Numeric capability rendering uses a local `numberValue` before passing the promoted `num` to unit conversion.
+- Multi-choice rendering uses a local `multiValue` before invoking `join()`.
+- After awaiting the fleet save, both the owning `State` and `dialogContext` must still be mounted before using the dialog context.
+- `tool/repair_dispatch_phase3_equipment_analyzer.mjs` applies only these three idempotent source corrections.
+- `tool/verify_dispatch_phase3_equipment_capabilities.ps1` now runs that narrow repair before formatter/analyzer and locks the repaired markers in its source contract.
+- The 48% master-plan progress remains valid because it records the previously accepted company-profile slice; the failed equipment analyzer did not award the later equipment points.
+
 ## Process rule going forward
 
 Avoid repeated V1/V2/V3-style repair chains when a stable integration path can be used. Prefer:
