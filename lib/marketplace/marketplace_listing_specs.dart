@@ -158,36 +158,75 @@ class MarketplaceListingSpecsGrid extends StatelessWidget {
           _ListingSpecsWrap(specs: visible),
           if (remaining.isNotEmpty) ...[
             const SizedBox(height: 6),
-            // ExpansionTile is implemented with ListTile. Give it its own
-            // Material surface so its ink/background is not hidden by this
-            // component's decorated card container (Flutter reports that as a
-            // test-time accessibility/painting error on newer SDKs).
-            Material(
-              color: Colors.transparent,
-              child: Theme(
-                data:
-                    Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  key: const ValueKey('marketplace-more-specifications'),
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(top: 4),
-                  dense: true,
-                  visualDensity: const VisualDensity(vertical: -3),
-                  leading: const Icon(Icons.tune_rounded, size: 18),
-                  title: Text(
-                    'More specifications (${remaining.length})',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  children: [_ListingSpecsWrap(specs: remaining)],
-                ),
-              ),
-            ),
+            _ListingSpecsDisclosure(specs: remaining),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ListingSpecsDisclosure extends StatefulWidget {
+  const _ListingSpecsDisclosure({required this.specs});
+
+  final List<MarketplaceListingSpec> specs;
+
+  @override
+  State<_ListingSpecsDisclosure> createState() => _ListingSpecsDisclosureState();
+}
+
+class _ListingSpecsDisclosureState extends State<_ListingSpecsDisclosure> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: const ValueKey('marketplace-more-specifications'),
+            borderRadius: BorderRadius.circular(9),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
+              child: Row(
+                children: [
+                  const Icon(Icons.tune_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'More specifications (${widget.specs.length})',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _expanded ? .5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: _ListingSpecsWrap(specs: widget.specs),
+          ),
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 180),
+          sizeCurve: Curves.easeOutCubic,
+        ),
+      ],
     );
   }
 }
