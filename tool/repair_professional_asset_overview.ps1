@@ -4,6 +4,39 @@ function Write-Step([string]$Message) {
   Write-Host "`n==> $Message" -ForegroundColor Cyan
 }
 
+function Test-DartFormattingEquivalent {
+  param(
+    [Parameter(Mandatory = $true)][string]$RepoRoot,
+    [Parameter(Mandatory = $true)][string]$RelativePath
+  )
+
+  $comparisonRoot = Join-Path $env:TEMP "pipebuyer-format-equivalence-$([guid]::NewGuid().ToString('N'))"
+  New-Item -ItemType Directory -Path $comparisonRoot -Force | Out-Null
+  $headCopy = Join-Path $comparisonRoot 'head.dart'
+  $workCopy = Join-Path $comparisonRoot 'work.dart'
+
+  try {
+    $headLines = @(& git show "HEAD:$RelativePath")
+    if ($LASTEXITCODE -ne 0) {
+      throw "Could not read HEAD:$RelativePath for formatter-equivalence comparison."
+    }
+    [IO.File]::WriteAllText($headCopy, (($headLines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
+    Copy-Item -LiteralPath (Join-Path $RepoRoot $RelativePath) -Destination $workCopy -Force
+
+    & dart format $headCopy $workCopy *> $null
+    if ($LASTEXITCODE -ne 0) {
+      throw "dart format could not normalize $RelativePath for safe comparison."
+    }
+
+    $headFormatted = (Get-Content -LiteralPath $headCopy -Raw) -replace "`r`n", "`n"
+    $workFormatted = (Get-Content -LiteralPath $workCopy -Raw) -replace "`r`n", "`n"
+    return $headFormatted -ceq $workFormatted
+  }
+  finally {
+    Remove-Item -LiteralPath $comparisonRoot -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
@@ -14,10 +47,10 @@ if ($branch -ne $expectedBranch) {
   throw "This repair is for $expectedBranch. Current branch: $branch"
 }
 
-Write-Host 'Professional Asset Overview repair: v2-20260816' -ForegroundColor Green
+Write-Host 'Professional Asset Overview repair: v3-20260816' -ForegroundColor Green
 Write-Host 'Scope: only marketplace_listing_specs.dart + its compact widget test.' -ForegroundColor DarkGray
 Write-Host 'No emulator, Firebase, admin shell, or product-page reset is required.' -ForegroundColor DarkGray
-Write-Host 'Whitespace-only formatter changes are allowed; semantic local edits still stop the repair.' -ForegroundColor DarkGray
+Write-Host 'Safety: local edits are compared after running the Dart formatter on both HEAD and the working copy.' -ForegroundColor DarkGray
 
 Write-Step 'Fetching the latest formal branch without touching the working tree'
 & git fetch origin $expectedBranch
@@ -48,20 +81,29 @@ if ($dirty.Count -gt 0) {
     throw 'STOP: untracked professional Asset Overview files require manual review.'
   }
 
-  & git diff --quiet --ignore-all-space --ignore-blank-lines -- $files
-  $semanticDiffExit = $LASTEXITCODE
-  if ($semanticDiffExit -eq 0) {
-    Write-Host 'Only whitespace/formatter changes are present in the professional files.' -ForegroundColor Yellow
-    Write-Host 'Those formatting-only edits will be preserved in TEMP backup, then the repaired formal versions will be applied.' -ForegroundColor DarkGray
-  } elseif ($semanticDiffExit -eq 1) {
-    Write-Host 'These professional files contain semantic local edits, so this repair will not replace them automatically:' -ForegroundColor Red
-    $dirty | ForEach-Object { Write-Host $_ -ForegroundColor Red }
-    Write-Host "`nSemantic diff for review:" -ForegroundColor Yellow
-    git diff --ignore-all-space --ignore-blank-lines -- $files
-    throw 'STOP: professional Asset Overview files contain semantic local edits. Preserve/reconcile those edits before this repair.'
-  } else {
-    throw "git diff failed while checking local professional edits (exit $semanticDiffExit)."
+  $semanticEdits = @()
+  foreach ($relative in $files) {
+    $isDirty = @(git status --porcelain -- $relative).Count -gt 0
+    if (-not $isDirty) { continue }
+
+    $equivalent = Test-DartFormattingEquivalent -RepoRoot $repoRoot -RelativePath $relative
+    if ($equivalent) {
+      Write-Host "Formatting-only local difference confirmed: $relative" -ForegroundColor Yellow
+    } else {
+      $semanticEdits += $relative
+    }
   }
+
+  if ($semanticEdits.Count -gt 0) {
+    Write-Host 'These professional files contain real local code/content edits, so this repair will not replace them automatically:' -ForegroundColor Red
+    $semanticEdits | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host "`nDiff for review:" -ForegroundColor Yellow
+    git diff -- $semanticEdits
+    throw 'STOP: professional Asset Overview files contain semantic local edits. Preserve/reconcile those edits before this repair.'
+  }
+
+  Write-Host 'All local differences in the professional files normalize to the same Dart-formatted source as local HEAD.' -ForegroundColor Green
+  Write-Host 'They are formatter-only, so the repaired formal versions can be applied safely after exact TEMP backup.' -ForegroundColor DarkGray
 } else {
   Write-Host 'Professional Asset Overview files are clean relative to the current local HEAD.' -ForegroundColor Green
 }
