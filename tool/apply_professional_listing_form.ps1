@@ -51,6 +51,7 @@ $timedBuyingTest = Join-Path $repoRoot 'test\marketplace_timed_buying_presentati
 $backendTest = Join-Path $repoRoot 'firebase\functions\test\marketplace_listing_form_contract.test.js'
 $timedBuyingSmoke = Join-Path $repoRoot 'firebase\functions\integration\timed_buying_sandbox.mjs'
 $patcher = Join-Path $PSScriptRoot 'apply_professional_listing_form_v1.mjs'
+$fixer = Join-Path $PSScriptRoot 'fix_professional_listing_form_v1.mjs'
 
 foreach ($required in @(
   $page,
@@ -60,7 +61,8 @@ foreach ($required in @(
   $specsTest,
   $timedBuyingTest,
   $backendTest,
-  $patcher
+  $patcher,
+  $fixer
 )) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Required professional listing-form file is missing: $required. Pull the latest formal branch first."
@@ -80,11 +82,19 @@ try {
   if ($LASTEXITCODE -ne 0) {
     throw 'Professional listing-form migration helper has a JavaScript syntax error.'
   }
+  & node --check $fixer
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Professional listing-form post-migration fixer has a JavaScript syntax error.'
+  }
 
   Write-Step 'Applying professional category-aware listing form + Timed Buying terms'
   & node $patcher
   if ($LASTEXITCODE -ne 0) {
     throw 'Professional listing-form migration failed.'
+  }
+  & node $fixer
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Professional listing-form post-migration fix failed.'
   }
 
   Write-Step 'Formatting listing-form sources'
