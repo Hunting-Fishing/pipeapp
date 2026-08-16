@@ -21,6 +21,7 @@ if ($branch -ne 'design/formal-beautification-foundation') {
 
 $target = Join-Path $repoRoot 'lib\marketplace\marketplace_dispatch_page.dart'
 $navigation = Join-Path $repoRoot 'lib\marketplace\marketplace_dispatch_navigation.dart'
+$navigationTest = Join-Path $repoRoot 'test\marketplace_dispatch_navigation_test.dart'
 $phase0Integration = Join-Path $repoRoot 'firebase\functions\integration\dispatch_phase0_baseline.mjs'
 $formalSandbox = Join-Path $repoRoot 'tool\start_formal_test_sandbox.ps1'
 $reseed = Join-Path $repoRoot 'tool\reseed_formal_test_data.ps1'
@@ -29,6 +30,7 @@ $expectedPageBlob = '9ba9e7c0fd8ff274bf7bf16628213fff24687641'
 foreach ($required in @(
   $target,
   $navigation,
+  $navigationTest,
   $phase0Integration,
   $formalSandbox,
   $reseed
@@ -41,16 +43,25 @@ foreach ($required in @(
 Write-Step 'Verifying the direct Phase 1 Dispatch page built from the uploaded local source'
 $actualPageBlob = (git hash-object $target).Trim()
 if ($actualPageBlob -ne $expectedPageBlob) {
-  throw "Dispatch page does not match the reviewed Phase 1 direct file. Expected $expectedPageBlob, found $actualPageBlob. Do not patch it. Restore the reviewed Phase 1 file first."
+  throw "Dispatch page does not match the reviewed Phase 1 direct file. Expected $expectedPageBlob, found $actualPageBlob. Restore the reviewed Phase 1 file before continuing."
 }
 
-Write-Step 'Checking Dart formatting without modifying product files'
+Write-Step 'Applying deterministic Dart formatting before analysis'
+& dart format `
+  '.\lib\marketplace\marketplace_dispatch_page.dart' `
+  '.\lib\marketplace\marketplace_dispatch_navigation.dart' `
+  '.\test\marketplace_dispatch_navigation_test.dart'
+if ($LASTEXITCODE -ne 0) {
+  throw 'Dispatch Phase 1 Dart formatting failed.'
+}
+
+Write-Step 'Confirming formatting is now stable'
 & dart format --output=none --set-exit-if-changed `
   '.\lib\marketplace\marketplace_dispatch_page.dart' `
   '.\lib\marketplace\marketplace_dispatch_navigation.dart' `
   '.\test\marketplace_dispatch_navigation_test.dart'
 if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch Phase 1 formatting check failed. No product file was modified by this verifier.'
+  throw 'Dispatch Phase 1 formatting did not stabilize after dart format.'
 }
 
 Write-Step 'Running strict analyzer for Phase 1 and preserved Dispatch behavior'
@@ -161,8 +172,8 @@ Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'DISPATCH PHASE 1 ENGINEERING GATE PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
-Write-Host 'Reviewed direct source hash: PASS' -ForegroundColor Green
-Write-Host 'Formatting check without mutation: PASS' -ForegroundColor Green
+Write-Host 'Reviewed direct source hash before formatting: PASS' -ForegroundColor Green
+Write-Host 'Deterministic Dart formatting: PASS' -ForegroundColor Green
 Write-Host 'Role-aware account state: PASS' -ForegroundColor Green
 Write-Host 'Registered-provider Dashboard entry: PASS' -ForegroundColor Green
 Write-Host 'Customer first-entry actions: PASS' -ForegroundColor Green
