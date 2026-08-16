@@ -27,9 +27,72 @@ $newGuard = "if (`$branch -notin @('pipebuyer-premium-ui', 'design/formal-beauti
 if (-not $source.Contains($oldGuard)) {
   throw 'The integration sandbox launcher guard changed. Review it before running the formal wrapper.'
 }
+$source = $source.Replace($oldGuard, $newGuard)
+
+# Force the discovery timeout into the generated launcher process so the
+# separate Firebase emulator PowerShell inherits it reliably on Windows.
+$oldErrorPreference = "`$ErrorActionPreference = 'Stop'"
+$newErrorPreference = "`$ErrorActionPreference = 'Stop'`r`n`$env:FUNCTIONS_DISCOVERY_TIMEOUT = '60'"
+if (-not $source.Contains($oldErrorPreference)) {
+  throw 'The integration launcher error-preference header changed. Review it before running the formal wrapper.'
+}
+$source = $source.Replace($oldErrorPreference, $newErrorPreference)
+
+# A Functions emulator can bind its TCP port before every callable has finished
+# discovery/registration. Retry the known marketplace callable instead of
+# treating a transient "does not exist" response as a failed sandbox.
+$oldCallableBlock = @'
+  $headers = @{ Authorization = "Bearer $($signIn.idToken)" }
+  $callable = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://127.0.0.1:$functionsPort/$projectId/us-central1/syncAccountVerification" `
+    -Headers $headers `
+    -ContentType 'application/json' `
+    -Body '{"data":{}}'
+
+  if ($null -eq $callable.result) {
+    throw 'The Functions emulator answered, but syncAccountVerification did not return a callable result.'
+  }
+'@
+$newCallableBlock = @'
+  $headers = @{ Authorization = "Bearer $($signIn.idToken)" }
+  $callable = $null
+  $callableDeadline = (Get-Date).AddSeconds(90)
+  Write-Host 'Waiting for marketplace Functions callables to finish registering...' -ForegroundColor DarkGray
+  do {
+    try {
+      $callable = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://127.0.0.1:$functionsPort/$projectId/us-central1/syncAccountVerification" `
+        -Headers $headers `
+        -ContentType 'application/json' `
+        -Body '{"data":{}}'
+      break
+    }
+    catch {
+      $details = ""
+      if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+        $details = [string]$_.ErrorDetails.Message
+      }
+      $message = [string]$_.Exception.Message
+      $missingCallable = $details -match 'does not exist' -or $message -match 'does not exist'
+      if (-not $missingCallable) {
+        throw
+      }
+      Start-Sleep -Seconds 2
+    }
+  } while ((Get-Date) -lt $callableDeadline)
+
+  if ($null -eq $callable -or $null -eq $callable.result) {
+    throw 'syncAccountVerification did not register within 90 seconds. Read the SECOND PowerShell emulator window and send the first Functions error.'
+  }
+'@
+if (-not $source.Contains($oldCallableBlock)) {
+  throw 'The integration launcher callable smoke-test block changed. Review it before running the formal wrapper.'
+}
+$source = $source.Replace($oldCallableBlock, $newCallableBlock)
 
 $generatedLauncher = Join-Path $PSScriptRoot '.start_live_test_sandbox.formal.generated.ps1'
-$source = $source.Replace($oldGuard, $newGuard)
 Set-Content -LiteralPath $generatedLauncher -Value $source -Encoding UTF8
 
 $arguments = @()
@@ -37,15 +100,11 @@ if ($SeedOnly) { $arguments += '-SeedOnly' }
 if ($SkipSeed) { $arguments += '-SkipSeed' }
 if ($SkipSmokeTest) { $arguments += '-SkipSmokeTest' }
 
-# Firebase CLI uses a 10-second default discovery window for Functions source
-# analysis. The isolated administrative agent can exceed that on Windows even
-# though its source is valid, which can prevent the whole Functions emulator
-# from becoming callable. Use Firebase's documented discovery-timeout override
-# for this local integration sandbox only.
+# Firebase CLI uses a short default discovery window for Functions source
+# analysis. The administrative agent and marketplace codebase can take longer
+# on Windows even when their source is valid. This override is local only.
 $previousDiscoveryTimeout = $env:FUNCTIONS_DISCOVERY_TIMEOUT
-if ([string]::IsNullOrWhiteSpace($previousDiscoveryTimeout)) {
-  $env:FUNCTIONS_DISCOVERY_TIMEOUT = '30'
-}
+$env:FUNCTIONS_DISCOVERY_TIMEOUT = '60'
 
 try {
   Write-Host "Firebase Functions discovery timeout: $env:FUNCTIONS_DISCOVERY_TIMEOUT seconds" -ForegroundColor DarkGray
