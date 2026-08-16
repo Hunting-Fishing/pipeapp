@@ -13,34 +13,43 @@ for (const file of [indexPath, acceptancePath]) {
 let index = fs.readFileSync(indexPath, 'utf8').replace(/\r\n/g, '\n');
 let acceptance = fs.readFileSync(acceptancePath, 'utf8').replace(/\r\n/g, '\n');
 
-function addVisualSandboxAggregationGuard(exportName, endMarker) {
+function functionBlock(exportName, endMarker) {
   const startMarker = `exports.${exportName} = onDocumentCreated`;
   const start = index.indexOf(startMarker);
   if (start < 0) throw new Error(`Could not find ${exportName}.`);
   const end = index.indexOf(endMarker, start);
   if (end < 0) throw new Error(`Could not bound ${exportName}.`);
+  return {start, end, block: index.slice(start, end)};
+}
 
-  const block = index.slice(start, end);
+function addVisualSandboxAggregationGuard(exportName, endMarker) {
+  const {start, block} = functionBlock(exportName, endMarker);
   if (block.includes('if (data.visualSandbox === true) return null;')) return;
 
-  const dataLine = '    const data = event.data.data();\n';
-  const dataOffset = block.indexOf(dataLine);
-  if (dataOffset < 0) {
-    throw new Error(`Could not find event data line in ${exportName}.`);
+  // These handlers intentionally use different indentation styles today:
+  // onConversationCreated is multiline while onOfferCreated has a compact
+  // callback declaration. Match the statement structurally and preserve the
+  // indentation actually present in each handler instead of assuming spaces.
+  const dataMatch = block.match(/^([ \t]*)const data = event\.data\.data\(\);\n/m);
+  if (!dataMatch || dataMatch.index == null) {
+    throw new Error(`Could not find event data statement in ${exportName}.`);
   }
 
-  const replacement =
-    dataLine +
-    '    // Visual-sandbox conversations/offers already receive deterministic\n' +
-    '    // analytics counters from seed_live_test_listing_analytics.js. Skip\n' +
-    '    // asynchronous aggregate increments so fixture verification cannot\n' +
-    '    // race delayed emulator onCreate deliveries. Production documents do\n' +
-    '    // not carry visualSandbox=true and keep the normal aggregation path.\n' +
-    '    if (data.visualSandbox === true) return null;\n';
+  const indent = dataMatch[1];
+  const dataLine = dataMatch[0];
+  const guard = [
+    `${indent}// Visual-sandbox conversations/offers already receive deterministic`,
+    `${indent}// analytics counters from seed_live_test_listing_analytics.js. Skip`,
+    `${indent}// asynchronous aggregate increments so fixture verification cannot`,
+    `${indent}// race delayed emulator onCreate deliveries. Production documents do`,
+    `${indent}// not carry visualSandbox=true and keep the normal aggregation path.`,
+    `${indent}if (data.visualSandbox === true) return null;`,
+    '',
+  ].join('\n');
 
-  const absolute = start + dataOffset;
+  const absolute = start + dataMatch.index;
   index = index.slice(0, absolute) +
-    replacement +
+    dataLine + guard +
     index.slice(absolute + dataLine.length);
 }
 
@@ -78,15 +87,23 @@ if (acceptance.includes(oldPostSmoke)) {
   throw new Error('Acceptance post-smoke verification block changed; review before patching.');
 }
 
+for (const [exportName, endMarker] of [
+  ['onConversationCreated', 'exports.onOfferCreated'],
+  ['onOfferCreated', 'exports.onListingMediaModeration'],
+]) {
+  const {block} = functionBlock(exportName, endMarker);
+  if (!block.includes('if (data.visualSandbox === true) return null;')) {
+    throw new Error(`Missing visual-sandbox aggregation guard in ${exportName}.`);
+  }
+}
+
 for (const required of [
-  'if (data.visualSandbox === true) return null;',
   "Write-Step 'Re-normalizing deterministic fixtures after Timed Buying smoke cleanup'",
   '& powershell -ExecutionPolicy Bypass -File $reseedHelper\n',
 ]) {
-  const source = required.startsWith('Write-Step') || required.startsWith('& powershell')
-    ? acceptance
-    : index;
-  if (!source.includes(required)) throw new Error(`Missing repair marker: ${required}`);
+  if (!acceptance.includes(required)) {
+    throw new Error(`Missing acceptance repair marker: ${required}`);
+  }
 }
 
 fs.writeFileSync(indexPath, index, 'utf8');
@@ -95,3 +112,4 @@ fs.writeFileSync(acceptancePath, acceptance, 'utf8');
 console.log('Formal emulator fixture-race repair applied.');
 console.log('  - visualSandbox conversation/offer creates no longer race analytics counters');
 console.log('  - post-smoke acceptance now re-normalizes the deterministic fixture');
+console.log('  - patcher tolerates compact or multiline function indentation');
