@@ -23,11 +23,12 @@ import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/internationalization.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  AppDiagnostics.install();
-  final startupMonitor = PipeStartupMonitor();
-  runApp(PipeStartupMonitorApp(monitor: startupMonitor));
-  AppDiagnostics.run(() => _bootstrapPipeBuyer(startupMonitor));
+  AppDiagnostics.run(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    AppDiagnostics.install();
+    final startupMonitor = PipeStartupMonitor();
+    await _bootstrapPipeBuyer(startupMonitor);
+  });
 }
 
 Future<void> _bootstrapPipeBuyer(PipeStartupMonitor startupMonitor) async {
@@ -39,7 +40,6 @@ Future<void> _bootstrapPipeBuyer(PipeStartupMonitor startupMonitor) async {
       progress: .99,
     );
     startupMonitor.complete();
-    await WidgetsBinding.instance.endOfFrame;
     runApp(ChangeNotifierProvider(
       create: (context) => appState,
       child: const MyApp(),
@@ -53,6 +53,7 @@ Future<void> _bootstrapPipeBuyer(PipeStartupMonitor startupMonitor) async {
       fatal: true,
     );
     startupMonitor.fail(error);
+    runApp(PipeStartupMonitorApp(monitor: startupMonitor));
   }
 }
 
@@ -179,12 +180,11 @@ class MyAppState extends State<MyApp> {
     userStream = pipeAppFirebaseUserStream()
       ..listen((user) {
         _appStateNotifier.update(user);
+        if (_appStateNotifier.showSplashImage) {
+          _appStateNotifier.stopShowingSplashImage();
+        }
       });
     jwtTokenStream.listen((_) {});
-    Future.delayed(
-      const Duration(milliseconds: 3000),
-      () => _appStateNotifier.stopShowingSplashImage(),
-    );
   }
 
   @override
