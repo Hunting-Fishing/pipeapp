@@ -19,7 +19,7 @@ let hardened = original;
 // Dart ${...} interpolation inside a JavaScript template literal, which makes
 // Node try to parse Dart as JavaScript. Replace only that unreachable template
 // body with a harmless placeholder while this wrapper executes.
-const legacyWidgetTemplate = /  const widgetClass = `class _TimedBuyingBuyerTrustPosition extends StatelessWidget \{[\s\S]*?\n`;\n  page = insertBeforeIndex\(page, index, widgetClass\);/;
+const legacyWidgetTemplate = /  const widgetClass = `class _TimedBuyingBuyerTrustPosition extends StatelessWidget \{[\s\S]*?`;\s*page = insertBeforeIndex\(page, index, widgetClass\);/;
 if (legacyWidgetTemplate.test(hardened)) {
   hardened = hardened.replace(
     legacyWidgetTemplate,
