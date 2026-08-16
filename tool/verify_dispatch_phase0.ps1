@@ -37,15 +37,20 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Step 'Running strict Dart analyzer for the existing Dispatch foundation'
-& dart analyze --fatal-infos --fatal-warnings `
-  '.\lib\marketplace\marketplace_dispatch_page.dart' `
-  '.\lib\marketplace\marketplace_dispatch_dashboard.dart' `
-  '.\lib\marketplace\marketplace_dispatch_repository.dart' `
-  '.\lib\marketplace\marketplace_dispatch_onboarding.dart' `
-  '.\lib\marketplace\marketplace_dispatch_transaction.dart' `
+$dispatchAnalyzeTargets = @(
+  '.\lib\marketplace\marketplace_dispatch_page.dart',
+  '.\lib\marketplace\marketplace_dispatch_dashboard.dart',
+  '.\lib\marketplace\marketplace_dispatch_repository.dart',
+  '.\lib\marketplace\marketplace_dispatch_onboarding.dart',
+  '.\lib\marketplace\marketplace_dispatch_transaction.dart',
   '.\lib\marketplace\marketplace_dispatch_distance.dart'
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch Phase 0 strict analyzer failed.'
+)
+foreach ($target in $dispatchAnalyzeTargets) {
+  Write-Host "Analyzing $target" -ForegroundColor DarkGray
+  & dart analyze --fatal-infos --fatal-warnings $target
+  if ($LASTEXITCODE -ne 0) {
+    throw "Dispatch Phase 0 strict analyzer failed for $target"
+  }
 }
 
 Write-Step 'Running focused Flutter Dispatch regression tests'
