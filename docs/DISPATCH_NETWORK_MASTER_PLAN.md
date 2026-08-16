@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE BUILD PLAN  
 **Branch:** `design/formal-beautification-foundation`  
-**Current engineering completion:** **24%**  
+**Current engineering completion:** **33%**  
 **Last updated:** 2026-08-16  
 **Rule:** **Do not move to the next Dispatch phase until the current phase exit gate is 100% complete and all required tests are green.**
 
@@ -52,29 +52,29 @@ Completion is tracked with a fixed **100-point ledger**. One point equals one pe
 
 | Phase | Scope | Total points | Current earned | Status |
 |---|---|---:|---:|---|
-| 0 | Existing Dispatch foundation verified | 10 | 8 | IN PROGRESS |
-| 1 | Role-aware entry and navigation architecture | 10 | 3 | BLOCKED BY PHASE 0 |
-| 2 | Service taxonomy and structured capability model | 10 | 2 | BLOCKED |
-| 3 | Provider/company profile system | 15 | 4 | BLOCKED |
+| 0 | Existing Dispatch foundation verified | 10 | 10 | GREEN |
+| 1 | Role-aware entry and navigation architecture | 10 | 10 | GREEN |
+| 2 | Service taxonomy and structured capability model | 10 | 2 | IN PROGRESS |
+| 3 | Provider/company profile system | 15 | 4 | BLOCKED BY PHASE 2 |
 | 4 | Dispatch Service Directory + map | 20 | 0 | BLOCKED |
 | 5 | Standalone Request Service workflow | 15 | 3 | BLOCKED |
 | 6 | Matching, direct requests, quotes, messaging and award | 10 | 2 | BLOCKED |
 | 7 | Security, emulator fixtures, acceptance and release gate | 10 | 2 | BLOCKED |
-| **TOTAL** |  | **100** | **24** | **24% COMPLETE** |
+| **TOTAL** |  | **100** | **33** | **33% COMPLETE** |
 
-### Why the baseline is 24%
+### Why the current score is 33%
 
-The repository already contains useful Dispatch infrastructure: shared Pipe Buyer authentication, a `dispatch_carriers/{uid}` provider profile lookup, provider onboarding/dashboard switching, Dispatch jobs and bids, optional listing-linked job creation, fleet records, service tags, saved quotes, and Dispatch transaction records. These existing capabilities earn baseline points.
+The repository now has a verified Dispatch foundation plus role-aware entry/navigation accepted in the browser. Existing Pipe Buyer authentication, provider onboarding, jobs, bids, fleet records, saved quotes, private route protection, and transaction behavior remain preserved.
 
-The new network is still early because the service directory, normalized company model, full taxonomy, generic non-freight service request model, direct multi-provider requests, directory search/map, and complete role-aware navigation do not yet exist.
+The new network is still early because the normalized company model, complete searchable directory, generic non-freight request model, direct multi-provider requests, directory map/search, and complete provider capability workflow are not yet finished.
 
 ---
 
 # PHASE 0 - Verify and freeze the existing Dispatch foundation
 
 **Weight:** 10%  
-**Current:** 8/10  
-**Exit gate:** 100% required before Phase 1 earns additional points.
+**Current:** 10/10  
+**Status:** GREEN
 
 ## Existing capability checklist
 
@@ -85,27 +85,31 @@ The new network is still early because the service directory, normalized company
 - [x] Dispatch jobs and carrier bids exist. **1 pt**
 - [x] Fleet/equipment subcollection exists for provider vehicles. **1 pt**
 - [x] Existing service tags include trucking, pilot/escort, route survey, traffic control, picker/crane, towing/recovery, and oilfield service. **1 pt**
-- [ ] Document the exact current Firestore collections, server commands, rules, indexes, and production behavior that must be preserved. **1 pt**
-- [ ] Add a focused baseline Dispatch regression test bundle before restructuring navigation/data. **1 pt**
+- [x] Document the exact current Firestore collections, server commands, rules, indexes, and production behavior that must be preserved. **1 pt**
+- [x] Add a focused baseline Dispatch regression test bundle before restructuring navigation/data. **1 pt**
 
 ## Phase 0 exit evidence
 
-Required evidence:
+Passed:
 
-- strict Dart analyzer clean for current Dispatch files;
-- existing Dispatch repository tests green;
-- Auth/emulator provider lookup proven;
-- existing post -> quote -> award behavior proven before new schema is introduced;
-- baseline schema/rules inventory committed to this plan or linked documentation.
+- strict Dart analyzer for the existing Dispatch foundation;
+- provider signup/approval emulator journey;
+- job create + retry/idempotency;
+- carrier quote + retry/idempotency;
+- customer award + transaction;
+- private route hidden before award and available to the awarded carrier after award;
+- server policy/index contracts;
+- deterministic fixture cleanup verification.
 
-**STOP CONDITION:** No Phase 1 product restructuring until the two unchecked items above are complete.
+See `docs/DISPATCH_PHASE0_FOUNDATION_INVENTORY.md`.
 
 ---
 
 # PHASE 1 - Role-aware Dispatch entry and navigation
 
 **Weight:** 10%  
-**Current:** 3/10
+**Current:** 10/10  
+**Status:** GREEN
 
 ## Target navigation
 
@@ -123,23 +127,37 @@ Provider/account action area:
 ## Checklist
 
 - [x] Existing dashboard/onboarding profile decision provides a reusable starting point. **3 pts**
-- [ ] Introduce explicit Dispatch account state: customer only / provider / both. **1 pt**
-- [ ] Auto-open provider dashboard for a registered provider. **1 pt**
-- [ ] Build first-entry customer/provider choice for users without provider setup. **1 pt**
-- [ ] Replace current five-tab navigation with the four core sections. **2 pts**
-- [ ] Hide signup after provider registration and expose Company Profile instead. **1 pt**
-- [ ] Mobile/desktop navigation tests and browser acceptance. **1 pt**
+- [x] Introduce explicit Dispatch account state: customer only / provider / both. **1 pt**
+- [x] Auto-open provider dashboard for a registered provider. **1 pt**
+- [x] Build first-entry customer/provider choice for users without provider setup. **1 pt**
+- [x] Replace current five-tab navigation with the four core sections. **2 pts**
+- [x] Hide signup after provider registration and expose Company Profile instead. **1 pt**
+- [x] Mobile/desktop navigation tests and browser acceptance. **1 pt**
 
-## Phase 1 exit gate
+## Phase 1 exit evidence
 
-A new Pipe Buyer user, a customer-only user, a registered provider, and a dual-role user must each land in the correct Dispatch experience without a second login or confusing signup tab.
+Passed:
+
+- role-aware account state tests;
+- customer first-entry actions;
+- registered-provider automatic dashboard entry;
+- four-section navigation;
+- Signup and Pilot removed from permanent primary navigation;
+- Company Profile / List your business action behavior;
+- desktop/mobile widget contracts;
+- strict analyzer;
+- preserved Phase 0 provider/job/quote/award behavior;
+- browser visual acceptance confirmed 2026-08-16.
+
+See `docs/DISPATCH_PHASE1_ROLE_NAVIGATION.md`.
 
 ---
 
 # PHASE 2 - Dispatch service taxonomy and capability model
 
 **Weight:** 10%  
-**Current:** 2/10
+**Current:** 2/10  
+**Status:** IN PROGRESS
 
 ## Required top-level taxonomy
 
@@ -169,6 +187,18 @@ The taxonomy must be designed to expand internationally without changing existin
 - [ ] Define structured capability fields per service type. **2 pts**
 - [ ] Define equipment/capacity fields and units. **1 pt**
 - [ ] Add taxonomy tests ensuring codes are unique/stable and public labels contain no obsolete terminology. **1 pt**
+
+## Work prepared for Phase 2 gate
+
+The branch now contains:
+
+- `lib/marketplace/marketplace_dispatch_service_taxonomy.dart`;
+- `test/marketplace_dispatch_service_taxonomy_test.dart`;
+- Directory foundation integration driven by taxonomy featured services and category definitions;
+- `docs/DISPATCH_PHASE2_SERVICE_TAXONOMY.md`;
+- `tool/verify_dispatch_phase2.ps1`.
+
+These items do not earn the remaining Phase 2 points until the local engineering gate and browser acceptance pass.
 
 ## Examples of structured capability fields
 
@@ -534,17 +564,17 @@ Next permitted task: <one task from current phase>
 
 ```text
 DISPATCH NETWORK STATUS
-Overall: 24/100 = 24%
-Current phase: Phase 0 - Verify and freeze existing Dispatch foundation
-Phase completion: 8/10 points
+Overall: 33/100 = 33%
+Current phase: Phase 2 - Service taxonomy and structured capability model
+Phase completion: 2/10 points
 Gate: IN PROGRESS
 Last verified: 2026-08-16
-Analyzer: NOT RUN FOR THIS PLAN BASELINE
-Targeted tests: NOT RUN FOR THIS PLAN BASELINE
-Emulator journey: EXISTING DISPATCH FIXTURES ONLY
-Visual acceptance: CURRENT LEGACY DISPATCH SCREEN OBSERVED
-Blockers: baseline schema/rules inventory and focused Dispatch regression bundle still required
-Next permitted task: complete Phase 0 inventory and baseline regression tests
+Analyzer: PASS THROUGH PHASE 1
+Targeted tests: PASS THROUGH PHASE 1
+Emulator journey: PASS THROUGH PHASE 1 PROVIDER/JOB/QUOTE/AWARD
+Visual acceptance: PHASE 1 PASS
+Blockers: Phase 2 engineering gate and Directory taxonomy browser acceptance not yet run locally
+Next permitted task: run tool/verify_dispatch_phase2.ps1, inspect Directory taxonomy on desktop/mobile, then update Phase 2 to 10/10 only if green
 ```
 
 ---
@@ -568,6 +598,6 @@ When a checklist item is completed:
 
 # Current next action
 
-**Complete Phase 0.**
+**Complete Phase 2.**
 
-Do not redesign the Dispatch tabs yet. First inventory the current Dispatch Firestore collections/commands/rules/indexes and create a focused regression bundle proving the existing provider signup/dashboard, job post, quote, and award behavior. Once Phase 0 reaches **10/10**, update this document to **26%** and begin Phase 1 role-aware navigation.
+Run the Phase 2 taxonomy engineering gate, then visually inspect the taxonomy-driven Directory at desktop and mobile widths. If both are green, advance the plan to **41%** and begin Phase 3 provider/company profiles. Do not start Phase 3 writes before the Phase 2 gate is complete.
