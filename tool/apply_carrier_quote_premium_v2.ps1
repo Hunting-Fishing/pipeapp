@@ -1,3 +1,7 @@
+# Windows PowerShell 5.1 compatibility rule:
+# Keep this file ASCII-only. UTF-8 punctuation without a BOM can be misread by
+# Windows PowerShell 5.1 and can turn multi-byte characters into quote tokens.
+
 $ErrorActionPreference = 'Stop'
 
 function Step([string]$Message) {
@@ -82,11 +86,13 @@ try {
   foreach ($marker in @(
     'PIPEBUYER_CARRIER_QUOTE_PREMIUM_V1',
     'MarketplaceDispatchSpecAssistPanel(',
-    "I don't know — add later",
+    "I don't know",
+    'add later',
     'weightUnknown: _weightUnknown',
     'weightSource: draft.weightSource',
     'draft.weightUnknown ? null : estimate.kg',
-    'TO CONFIRM — add before final dispatch planning',
+    'TO CONFIRM',
+    'add before final dispatch planning',
     'marketplaceWeightDisclaimer'
   )) {
     if (-not $text.Contains($marker)) {
