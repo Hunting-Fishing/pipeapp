@@ -5,12 +5,8 @@ const path = 'lib/marketplace/marketplace_dispatch_equipment_capability.dart';
 function repairEquipmentAnalyzerSource(input) {
   let source = input;
 
-  const dialogAfter = [
-    'if (!mounted || !dialogContext.mounted) return;',
-    '                                    Navigator.of(dialogContext).pop();',
-  ].join('\n');
-
-  if (!source.includes(dialogAfter)) {
+  const dialogMarker = 'if (!mounted || !dialogContext.mounted) return;';
+  if (!source.includes(dialogMarker)) {
     const dialogPattern =
       /if \(!mounted\) return;\s+Navigator\.of\(dialogContext\)\.pop\(\);/;
     if (!dialogPattern.test(source)) {
@@ -18,46 +14,53 @@ function repairEquipmentAnalyzerSource(input) {
         'Equipment analyzer repair anchor missing: dialog context guard',
       );
     }
-    source = source.replace(dialogPattern, dialogAfter);
+    source = source.replace(
+      dialogPattern,
+      [dialogMarker, 'Navigator.of(dialogContext).pop();'].join('\n'),
+    );
   }
 
-  const numberBefore = 'final canonical = value is num ? value : null;';
-  const numberAfter = [
-    'final Object? numberValue = value;',
-    '        final num? canonical = numberValue is num ? numberValue : null;',
-  ].join('\n');
-  if (!source.includes(numberAfter)) {
+  const numberMarker = 'final Object? numberValue = value;';
+  const canonicalMarker =
+    'final num? canonical = numberValue is num ? numberValue : null;';
+  if (!source.includes(numberMarker) || !source.includes(canonicalMarker)) {
+    const numberBefore = 'final canonical = value is num ? value : null;';
     if (!source.includes(numberBefore)) {
       throw new Error(
         'Equipment analyzer repair anchor missing: numeric capability promotion',
       );
     }
-    source = source.replace(numberBefore, numberAfter);
+    source = source.replace(
+      numberBefore,
+      [numberMarker, canonicalMarker].join('\n'),
+    );
   }
 
-  const multiBefore =
-    "final text = value is Iterable ? value.join(', ') : '${value ?? ''}';";
-  const multiAfter = [
-    'final Object? multiValue = value;',
-    '        final text = multiValue is Iterable',
-    "            ? multiValue.join(', ')",
-    "            : '${multiValue ?? ''}';",
-  ].join('\n');
-  if (!source.includes(multiAfter)) {
+  const multiMarker = 'final Object? multiValue = value;';
+  const joinMarker = "multiValue.join(', ')";
+  if (!source.includes(multiMarker) || !source.includes(joinMarker)) {
+    const multiBefore =
+      "final text = value is Iterable ? value.join(', ') : '${value ?? ''}';";
     if (!source.includes(multiBefore)) {
       throw new Error(
         'Equipment analyzer repair anchor missing: multi-choice capability promotion',
       );
     }
+    const multiAfter = [
+      multiMarker,
+      'final text = multiValue is Iterable',
+      "    ? multiValue.join(', ')",
+      "    : '${multiValue ?? ''}';",
+    ].join('\n');
     source = source.replace(multiBefore, multiAfter);
   }
 
   const required = [
-    'if (!mounted || !dialogContext.mounted) return;',
-    'final Object? numberValue = value;',
-    'final num? canonical = numberValue is num ? numberValue : null;',
-    'final Object? multiValue = value;',
-    "multiValue.join(', ')",
+    dialogMarker,
+    numberMarker,
+    canonicalMarker,
+    multiMarker,
+    joinMarker,
   ];
 
   for (const marker of required) {
@@ -78,9 +81,15 @@ function selfTest() {
   ].join('\n');
 
   const repaired = repairEquipmentAnalyzerSource(fixture);
-  const repairedAgain = repairEquipmentAnalyzerSource(repaired);
-  if (repaired !== repairedAgain) {
-    throw new Error('Equipment analyzer repair is not idempotent.');
+  const formatterLike = repaired
+    .replace('\nNavigator.of(dialogContext).pop();', '\n    Navigator.of(dialogContext).pop();')
+    .replace('\nfinal num? canonical', '\n        final num? canonical')
+    .replace('\nfinal text = multiValue', '\n        final text = multiValue');
+  const repairedAgain = repairEquipmentAnalyzerSource(formatterLike);
+  if (formatterLike !== repairedAgain) {
+    throw new Error(
+      'Equipment analyzer repair is not idempotent after formatter whitespace changes.',
+    );
   }
 }
 
