@@ -34,6 +34,8 @@ try {
     'test/pipe_buyer_commerce_components_test.dart',
     'test/pipe_buyer_browse_components_test.dart',
     'test/pipe_buyer_analytics_components_test.dart',
+    'test/marketplace_listing_form_presentation_test.dart',
+    'test/marketplace_listing_specs_compact_test.dart',
     'test/marketplace_timed_buying_presentation_test.dart',
     'test/pipe_buyer_formal_sequence_test.dart',
     'test/pipe_buyer_theme_test.dart'
