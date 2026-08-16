@@ -21,19 +21,22 @@ if ($branch -ne 'design/formal-beautification-foundation') {
 
 $inventory = Join-Path $repoRoot 'docs\DISPATCH_PHASE0_FOUNDATION_INVENTORY.md'
 $integration = Join-Path $repoRoot 'firebase\functions\integration\dispatch_phase0_baseline.mjs'
+$finalizer = Join-Path $repoRoot 'tool\finalize_dispatch_phase0_plan.mjs'
 $reseed = Join-Path $repoRoot 'tool\reseed_formal_test_data.ps1'
 $formalSandbox = Join-Path $repoRoot 'tool\start_formal_test_sandbox.ps1'
 
-foreach ($required in @($inventory, $integration, $reseed, $formalSandbox)) {
+foreach ($required in @($inventory, $integration, $finalizer, $reseed, $formalSandbox)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Required Dispatch Phase 0 file is missing: $required"
   }
 }
 
-Write-Step 'Checking focused Dispatch baseline JavaScript syntax'
-& node --check $integration
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch Phase 0 integration syntax check failed.'
+Write-Step 'Checking Dispatch Phase 0 JavaScript syntax'
+foreach ($script in @($integration, $finalizer)) {
+  & node --check $script
+  if ($LASTEXITCODE -ne 0) {
+    throw "Dispatch Phase 0 JavaScript syntax check failed for $script"
+  }
 }
 
 Write-Step 'Running strict Dart analyzer for the existing Dispatch foundation'
@@ -54,20 +57,30 @@ foreach ($target in $dispatchAnalyzeTargets) {
 }
 
 Write-Step 'Running focused Flutter Dispatch regression tests'
-& flutter test `
-  '.\test\marketplace_dispatch_onboarding_test.dart' `
-  '.\test\marketplace_dispatch_distance_test.dart' `
+$dispatchFlutterTests = @(
+  '.\test\marketplace_dispatch_onboarding_test.dart',
+  '.\test\marketplace_dispatch_distance_test.dart',
   '.\test\dispatch_route_privacy_contract_test.dart'
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch Phase 0 Flutter regression tests failed.'
+)
+foreach ($testFile in $dispatchFlutterTests) {
+  Write-Host "Testing $testFile" -ForegroundColor DarkGray
+  & flutter test $testFile
+  if ($LASTEXITCODE -ne 0) {
+    throw "Dispatch Phase 0 Flutter regression failed for $testFile"
+  }
 }
 
 Write-Step 'Running Dispatch server policy and query-index contracts'
-& node --test `
-  '.\firebase\functions\test\dispatch_command_policy.test.js' `
+$dispatchNodeTests = @(
+  '.\firebase\functions\test\dispatch_command_policy.test.js',
   '.\firebase\functions\test\dispatch_query_index.test.js'
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch Phase 0 server contract tests failed.'
+)
+foreach ($testFile in $dispatchNodeTests) {
+  Write-Host "Testing $testFile" -ForegroundColor DarkGray
+  & node --test $testFile
+  if ($LASTEXITCODE -ne 0) {
+    throw "Dispatch Phase 0 server contract failed for $testFile"
+  }
 }
 
 $requiredPorts = @(19099, 18080, 15001, 19199, 14000)
@@ -102,6 +115,12 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Formal emulator fixtures changed during the Dispatch Phase 0 baseline.'
 }
 
+Write-Step 'Advancing the Dispatch master plan only after the gate is green'
+& node $finalizer
+if ($LASTEXITCODE -ne 0) {
+  throw 'Dispatch Phase 0 passed, but the master-plan finalizer failed. Do not begin Phase 1 until the plan is corrected.'
+}
+
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'DISPATCH PHASE 0 BASELINE GATE PASSED' -ForegroundColor Green
@@ -116,5 +135,6 @@ Write-Host 'Carrier quote + idempotent retry: PASS' -ForegroundColor Green
 Write-Host 'Customer award + transaction: PASS' -ForegroundColor Green
 Write-Host 'Private route before/after award rules: PASS' -ForegroundColor Green
 Write-Host 'Formal fixture cleanup verification: PASS' -ForegroundColor Green
+Write-Host 'Master plan advanced to Phase 0 = 10/10 and overall = 26%: PASS' -ForegroundColor Green
 Write-Host ''
-Write-Host 'Phase 0 may be marked 10/10 only after this complete block is observed locally.' -ForegroundColor Yellow
+Write-Host 'Next permitted work: Phase 1 role-aware Dispatch entry and navigation.' -ForegroundColor Yellow
