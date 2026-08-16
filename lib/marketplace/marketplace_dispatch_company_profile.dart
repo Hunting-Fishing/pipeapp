@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_service_taxonomy.dart';
+import 'marketplace_service_area.dart';
 
 enum DispatchBusinessType {
   ownerOperator,
@@ -65,6 +66,7 @@ class DispatchCompanyProfileDraft {
     required this.availability,
     required this.emergencyCallout,
     required this.remoteSiteCapable,
+    this.serviceArea,
   });
 
   final String companyName;
@@ -77,6 +79,7 @@ class DispatchCompanyProfileDraft {
   final DispatchAvailability availability;
   final bool emergencyCallout;
   final bool remoteSiteCapable;
+  final MarketplaceServiceArea? serviceArea;
 
   List<String> get normalizedServiceCodes {
     final known = DispatchServiceTaxonomy.services.map((item) => item.code).toSet();
@@ -89,15 +92,26 @@ class DispatchCompanyProfileDraft {
     return values;
   }
 
+  String get effectiveServiceAreaLabel {
+    final structuredSummary = serviceArea?.summary.trim() ?? '';
+    if (structuredSummary.isNotEmpty) return structuredSummary;
+    return serviceAreaLabel.trim();
+  }
+
+  String get homeBaseLabel {
+    final label = serviceArea?.centerLabel.trim() ?? '';
+    return label.isNotEmpty ? label : effectiveServiceAreaLabel;
+  }
+
   int get completionPercent {
     final checks = <bool>[
       operatingName.trim().isNotEmpty,
       companyName.trim().isNotEmpty,
       description.trim().length >= 40,
       normalizedServiceCodes.isNotEmpty,
-      serviceAreaLabel.trim().isNotEmpty,
-      true, // business type is always explicit in the editor
-      true, // availability is always explicit in the editor
+      effectiveServiceAreaLabel.isNotEmpty,
+      true,
+      true,
       website.trim().isNotEmpty,
     ];
     final completed = checks.where((value) => value).length;
@@ -108,16 +122,15 @@ class DispatchCompanyProfileDraft {
       operatingName.trim().isNotEmpty &&
       companyName.trim().isNotEmpty &&
       normalizedServiceCodes.isNotEmpty &&
-      serviceAreaLabel.trim().isNotEmpty;
+      effectiveServiceAreaLabel.isNotEmpty;
 
   Map<String, dynamic> toPublicProfileMap() => {
-        'companyName': companyName.trim(),
         'operatingName': operatingName.trim(),
         'businessType': businessType.code,
         'description': description.trim(),
         'website': website.trim(),
         'serviceCodes': normalizedServiceCodes,
-        'serviceAreaLabel': serviceAreaLabel.trim(),
+        'serviceAreaLabel': effectiveServiceAreaLabel,
         'availability': availability.code,
         'emergencyCallout': emergencyCallout,
         'remoteSiteCapable': remoteSiteCapable,
@@ -148,12 +161,13 @@ class _MarketplaceDispatchCompanyProfileEditorState
   late final TextEditingController _operatingName;
   late final TextEditingController _description;
   late final TextEditingController _website;
-  late final TextEditingController _serviceArea;
+  late final TextEditingController _serviceAreaLabel;
   late DispatchBusinessType _businessType;
   late DispatchAvailability _availability;
   late Set<String> _serviceCodes;
   late bool _emergencyCallout;
   late bool _remoteSiteCapable;
+  MarketplaceServiceArea? _serviceArea;
 
   @override
   void initState() {
@@ -163,12 +177,15 @@ class _MarketplaceDispatchCompanyProfileEditorState
     _operatingName = TextEditingController(text: initial.operatingName);
     _description = TextEditingController(text: initial.description);
     _website = TextEditingController(text: initial.website);
-    _serviceArea = TextEditingController(text: initial.serviceAreaLabel);
+    _serviceAreaLabel = TextEditingController(
+      text: initial.effectiveServiceAreaLabel,
+    );
     _businessType = initial.businessType;
     _availability = initial.availability;
     _serviceCodes = initial.normalizedServiceCodes.toSet();
     _emergencyCallout = initial.emergencyCallout;
     _remoteSiteCapable = initial.remoteSiteCapable;
+    _serviceArea = initial.serviceArea;
   }
 
   @override
@@ -177,7 +194,7 @@ class _MarketplaceDispatchCompanyProfileEditorState
     _operatingName.dispose();
     _description.dispose();
     _website.dispose();
-    _serviceArea.dispose();
+    _serviceAreaLabel.dispose();
     super.dispose();
   }
 
@@ -188,13 +205,26 @@ class _MarketplaceDispatchCompanyProfileEditorState
         description: _description.text,
         website: _website.text,
         serviceCodes: _serviceCodes.toList(),
-        serviceAreaLabel: _serviceArea.text,
+        serviceAreaLabel: _serviceAreaLabel.text,
         availability: _availability,
         emergencyCallout: _emergencyCallout,
         remoteSiteCapable: _remoteSiteCapable,
+        serviceArea: _serviceArea,
       );
 
   void _refresh() => setState(() {});
+
+  Future<void> _editServiceArea() async {
+    final selected = await MarketplaceServiceAreaPicker.show(
+      context,
+      _serviceArea,
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _serviceArea = selected;
+      _serviceAreaLabel.text = selected.summary;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -348,18 +378,48 @@ class _MarketplaceDispatchCompanyProfileEditorState
         PipeBuyerSectionCard(
           title: 'Service area & availability',
           subtitle:
-              'Phase 3 keeps the existing service-area model intact while preparing structured Directory availability.',
+              'Set your operating area on the existing Pipe Buyer open map. The public profile receives only an approximate home-base point; exact private location data stays protected.',
           leading: const Icon(Icons.location_on_outlined),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
-                controller: _serviceArea,
-                onChanged: (_) => _refresh(),
-                decoration: const InputDecoration(
-                  labelText: 'Service area summary',
-                  hintText: 'Example: Grande Prairie + 300 km / Northern Alberta',
+                controller: _serviceAreaLabel,
+                readOnly: true,
+                onTap: _editServiceArea,
+                decoration: InputDecoration(
+                  labelText: 'Service area',
+                  hintText: 'Choose your service area on the map',
+                  suffixIcon: IconButton(
+                    tooltip: 'Edit service area map',
+                    onPressed: _editServiceArea,
+                    icon: const Icon(Icons.map_outlined),
+                  ),
                 ),
               ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: widget.saving ? null : _editServiceArea,
+                icon: const Icon(Icons.add_location_alt_outlined),
+                label: Text(
+                  _serviceArea == null
+                      ? 'Set service area on map'
+                      : 'Edit service area on map',
+                ),
+              ),
+              if (_serviceArea != null) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Approximate home base: ${draft.homeBaseLabel}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: PipeBuyerColors.muted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
               DropdownButtonFormField<DispatchAvailability>(
                 initialValue: _availability,
