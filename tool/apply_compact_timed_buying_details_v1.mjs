@@ -122,6 +122,31 @@ if (source.includes(compactHistoryBefore) &&
   );
 }
 
+// The compact Asset overview replaces the legacy property-detail renderer,
+// which was the only consumer of marketplace_property_details.dart on this
+// page. Remove that import only when none of that module's public symbols are
+// still referenced, so the generated Dart remains analyzer-clean without
+// weakening the migration/rollback gate.
+const propertyDetailsImport = "import 'marketplace_property_details.dart';";
+const propertyDetailsSymbols = [
+  'propertyAreaUnits',
+  'propertyBuildingAreaUnits',
+  'propertyInterestOptions',
+  'propertyOfferingOptions',
+  'propertyFeatureOptions',
+  'propertyProductTypeDescriptions',
+  'propertyNumber',
+  'PropertyAreaConversion',
+  'convertPropertyArea',
+  'propertyMeasure',
+];
+if (
+  source.includes(propertyDetailsImport) &&
+  !propertyDetailsSymbols.some((symbol) => source.includes(symbol))
+) {
+  source = source.replace(`${propertyDetailsImport}\n`, '');
+}
+
 if (!source.includes('MarketplaceListingSpecsGrid(') ||
     !source.includes("title: 'Asset overview'")) {
   throw new Error('Compact asset-detail migration did not produce required markers.');
