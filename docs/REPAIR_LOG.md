@@ -66,6 +66,27 @@ The diagnostics zone was also entered after `WidgetsFlutterBinding.ensureInitial
 - `test/startup_single_surface_test.dart` locks these structural rules.
 - Do not add a second visible startup page to troubleshoot loading. Add diagnostics behind the single branded startup surface instead.
 
+## 2026-08-16 - Dispatch Phase 1 local-source mismatch stopped before mutation
+
+### Symptom
+
+The first Phase 1 Dispatch navigation gate stopped because the local `marketplace_dispatch_page.dart` Git blob was `b7cfbf585a63f8bb5d0b27331316710710c6a70a`, while the guarded integrator had been prepared against the earlier verified Phase 0 branch blob `f79998e4cfe41eea2d348ae91e12099dd7afc630`.
+
+### Root cause
+
+The local Dispatch page legitimately contained later accepted changes, including updated public Timed Buying wording, that were not byte-identical to the older Phase 0 branch copy. A hash guard designed to prevent accidental overwrite correctly rejected the mismatch.
+
+This was not a Flutter, Firebase, emulator, or Dispatch backend failure. The product file was not changed by the failed attempt.
+
+### Permanent repair
+
+- The exact local Dispatch page was uploaded and reviewed as the source of truth for Phase 1.
+- Phase 1 was rebuilt as a complete direct `marketplace_dispatch_page.dart` based on that uploaded file instead of forcing the old patcher.
+- The reviewed pre-Phase-1 local blob is `b7cfbf585a63f8bb5d0b27331316710710c6a70a`.
+- The reviewed direct Phase 1 page blob is `9ba9e7c0fd8ff274bf7bf16628213fff24687641`.
+- `tool/verify_dispatch_phase1.ps1` is now non-mutating. It verifies the exact reviewed Phase 1 blob, checks formatting without writing, then runs strict analyzer, widget/server regressions, and the isolated emulator preservation journey.
+- Do not run `apply_dispatch_phase1_navigation.mjs` against the current product file. Install the direct reviewed page with a targeted restore after making a local backup.
+
 ## Process rule going forward
 
 Avoid repeated V1/V2/V3-style repair chains when a stable integration path can be used. Prefer:
