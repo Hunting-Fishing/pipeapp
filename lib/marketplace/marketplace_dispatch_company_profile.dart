@@ -257,7 +257,7 @@ class _MarketplaceDispatchCompanyProfileEditorState
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<DispatchBusinessType>(
-                value: _businessType,
+                initialValue: _businessType,
                 decoration: const InputDecoration(labelText: 'Business type'),
                 items: DispatchBusinessType.values
                     .map(
@@ -362,7 +362,7 @@ class _MarketplaceDispatchCompanyProfileEditorState
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<DispatchAvailability>(
-                value: _availability,
+                initialValue: _availability,
                 decoration: const InputDecoration(labelText: 'Availability'),
                 items: DispatchAvailability.values
                     .map(
