@@ -39,7 +39,8 @@ if (Port-In-Use $webPort) {
 }
 
 Write-Host 'Launching Pipe Buyer Flutter client against the already-running local emulator suite.' -ForegroundColor Cyan
-Write-Host 'Pipe Buyer local app: http://127.0.0.1:5050' -ForegroundColor Green
+Write-Host 'Pipe Buyer canonical local app: http://127.0.0.1:5050' -ForegroundColor Green
+Write-Host 'Do not use http://localhost:5050 for formal acceptance; browser persistence is origin-scoped.' -ForegroundColor Yellow
 Write-Host 'Firebase Emulator UI: http://127.0.0.1:14000' -ForegroundColor DarkGray
 Write-Host 'Stable debug mode: Flutter web experimental hot reload is disabled for this large app.' -ForegroundColor Yellow
 Write-Host 'Use R in this terminal for a hot restart after code changes.' -ForegroundColor DarkGray
@@ -53,6 +54,7 @@ if (Test-Path -LiteralPath $loginReference) {
 
 & flutter run -d chrome `
   --no-web-experimental-hot-reload `
+  --web-hostname=127.0.0.1 `
   --web-port=$webPort `
   --dart-define=PIPE_ENV=local `
   --dart-define=PIPE_ENABLE_DISPATCH=true `
