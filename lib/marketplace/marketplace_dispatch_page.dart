@@ -11,6 +11,7 @@ import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_repository.dart';
+import 'marketplace_dispatch_company_profile_page.dart';
 import 'marketplace_dispatch_distance.dart';
 import 'marketplace_money.dart';
 import 'marketplace_service_area.dart';
@@ -370,7 +371,9 @@ class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
                   : 'Join Pipe Buyer Dispatch',
             ),
           ),
-          body: _CarrierEnrollment(repo: repo),
+          body: accountState.providerRegistered
+              ? const MarketplaceDispatchCompanyProfilePage()
+              : _CarrierEnrollment(repo: repo),
         ),
       ),
     );
@@ -379,10 +382,22 @@ class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (FirebaseAuth.instance.currentUser == null) {
-      return const Center(child: Text('Sign in to use Dispatch.'));
-    }
+  Widget build(BuildContext context) => StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        initialData: FirebaseAuth.instance.currentUser,
+        builder: (context, authSnapshot) {
+          if (authSnapshot.connectionState == ConnectionState.waiting &&
+              !authSnapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (authSnapshot.data == null) {
+            return const Center(child: Text('Sign in to use Dispatch.'));
+          }
+          return _buildAuthenticatedDispatch(context);
+        },
+      );
+
+  Widget _buildAuthenticatedDispatch(BuildContext context) {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: repo.carrierProfile(),
       builder: (context, profile) {
@@ -503,8 +518,7 @@ class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
                     selected: section,
                     accountState: accountState,
                     onSelected: (value) => setState(() => section = value),
-                    onProviderAction: () =>
-                        _openProviderAccount(accountState),
+                    onProviderAction: () => _openProviderAccount(accountState),
                   ),
                 ],
               ),
@@ -2490,7 +2504,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                       if (!form.currentState!.validate() || area == null) {
                         PipeFeedback.show(
                           context,
-                          message: 'Complete the business profile and service area.',
+                          message:
+                              'Complete the business profile and service area.',
                           tone: PipeStatusTone.warning,
                         );
                         return;
@@ -2551,7 +2566,8 @@ class _CarrierEnrollmentState extends State<_CarrierEnrollment> {
                 color: const Color(0xFFFFE9E7),
                 child: ListTile(
                   leading: const Icon(Icons.error_outline, color: Colors.red),
-                  title: const Text('Dispatch provider setup was not completed'),
+                  title:
+                      const Text('Dispatch provider setup was not completed'),
                   subtitle: SelectableText(signupError!),
                   trailing: IconButton(
                     tooltip: 'Dismiss',
