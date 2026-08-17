@@ -19,7 +19,7 @@ if ([string]::IsNullOrWhiteSpace($currentBranch)) {
     throw "Detached Phase 4 verification worktree must exactly match origin/$expectedBranch."
   }
 }
-elif ($currentBranch -ne $expectedBranch) {
+elseif ($currentBranch -ne $expectedBranch) {
   throw "Dispatch Phase 4 verification requires $expectedBranch. Current branch: $currentBranch"
 }
 
