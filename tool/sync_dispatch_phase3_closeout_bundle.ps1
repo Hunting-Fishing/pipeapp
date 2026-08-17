@@ -14,6 +14,7 @@ if ($LASTEXITCODE -ne 0) {
 # Support/control files only. Production Dart/Functions source and the Dispatch
 # progress tracker are intentionally excluded from this synchronization step.
 $supportFiles = @(
+  'tool/pipebuyer_doctor.ps1',
   'tool/fix_service_area_geocoder_classification.ps1',
   'tool/verify_service_area_geocoder_classification.ps1',
   'test/service_area_geocoder_classification_test.dart',
@@ -54,6 +55,42 @@ if ($missing.Count -gt 0) {
   throw "STOP: Phase 3 support/control bundle is incomplete ($($missing.Count) file(s) missing)."
 }
 
+Write-Host "`n==> Preflighting synchronized PowerShell controls before they can run" -ForegroundColor Cyan
+$foreignControlPattern = '(?mi)^\s*(elif|fi|then)\b'
+foreach ($relative in ($supportFiles | Where-Object { $_ -like '*.ps1' })) {
+  $absolute = Join-Path $script:PipeBuyerRepoRoot ($relative.Replace('/', '\'))
+  $tokens = $null
+  $parseErrors = $null
+  $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+    $absolute,
+    [ref]$tokens,
+    [ref]$parseErrors
+  )
+  if ($parseErrors.Count -gt 0) {
+    $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+    throw "STOP: Synchronized PowerShell control has parse errors in $relative`: $details"
+  }
+
+  $raw = Get-Content -LiteralPath $absolute -Raw
+  $foreignMatch = [regex]::Match($raw, $foreignControlPattern)
+  if ($foreignMatch.Success) {
+    throw "STOP: Synchronized PowerShell control contains foreign shell keyword '$($foreignMatch.Groups[1].Value)' in $relative."
+  }
+
+  $badCommands = @(
+    $ast.FindAll({
+      param($node)
+      if ($node -isnot [System.Management.Automation.Language.CommandAst]) { return $false }
+      $name = $node.GetCommandName()
+      return $name -in @('elif', 'fi')
+    }, $true)
+  )
+  if ($badCommands.Count -gt 0) {
+    throw "STOP: Synchronized PowerShell control would execute invalid shell command '$($badCommands[0].GetCommandName())' in $relative."
+  }
+}
+Write-Host 'Synchronized PowerShell control preflight: PASS' -ForegroundColor Green
+
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'PIPE BUYER DISPATCH PHASE 3 CONTROL BUNDLE READY' -ForegroundColor Green
@@ -62,6 +99,7 @@ Write-Host 'Towns/Regions regression support: READY' -ForegroundColor Green
 Write-Host 'Credential intelligence tests: READY' -ForegroundColor Green
 Write-Host 'Known reminder-engine updater: READY' -ForegroundColor Green
 Write-Host 'Credential verifier: SOURCE-READ-ONLY' -ForegroundColor Green
+Write-Host 'PowerShell control runtime-token preflight: PASS' -ForegroundColor Green
 Write-Host 'Production Dart/Functions overwritten by sync: NO' -ForegroundColor Green
 Write-Host 'Dispatch tracker touched by sync: NO' -ForegroundColor Green
 Write-Host 'Support files staged by sync: NO' -ForegroundColor Green
