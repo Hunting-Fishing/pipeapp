@@ -27,6 +27,38 @@ Before considering a local source change ready for browser acceptance:
 
 The fast gate is read-only. It checks the formal branch, pinned Node version, critical Node generator syntax, PowerShell syntax, Dart formatting, and strict analyzer status for changed files.
 
+## Proven fast build loop
+
+The accepted working loop for formal development is now:
+
+```text
+Pipe Buyer Doctor
+    -> bounded source change
+    -> subsystem read-only verifier / formal fast gate
+    -> formal emulator readiness + direct demo-password proof
+    -> Flutter launch
+    -> browser acceptance
+    -> record the accepted result once
+```
+
+Rules for this loop:
+
+- `tool/pipebuyer_context.ps1` is the canonical PowerShell/.NET repository context. Direct .NET file operations must use absolute paths rooted there; do not trust a relative path merely because the PowerShell prompt displays the right directory.
+- Prefer direct Dart/source edits plus read-only verification over repeatedly executing source generators after a feature has been materialized.
+- Once a repair has produced accepted application source, that source becomes the source of truth. Keep the repair only as history/recovery unless there is a specific reason to rerun it.
+- A verifier must not silently rewrite application source or advance a Dispatch score. Browser-acceptance/finalizer actions are separate and explicit.
+- If a gate fails, stop at the first failing layer and fix that layer only. Do not stack speculative patches or repeatedly reseed data.
+- Existing emulator data is verified before repair. Healthy Firestore data plus failed demo passwords triggers Auth-only repair, not a full reseed.
+
+## PowerShell command communication standard
+
+Whenever a build, repair, verifier, or launcher command is handed to the operator, the accompanying instructions must state both:
+
+1. **Changes being applied** — exactly which source, control, fixture, or documentation behavior the command may modify.
+2. **What to test** — the exact browser/UI/functional behavior that proves the change after the command passes.
+
+Commands should be short and use permanent repo tools whenever one exists rather than embedding large ad-hoc repair programs in the terminal.
+
 ## Formal demo Auth control
 
 The formal Flutter client must never open Chrome merely because emulator ports are listening. A listening Auth emulator can still have missing, stale, or unusable deterministic credentials.
@@ -108,7 +140,8 @@ This specifically prevents Windows CRLF from changing `.mjs` generator matching 
 - PowerShell syntax checks for the formal demo Auth/readiness/reseed/launcher chain;
 - strict Dart analysis with infos and warnings fatal;
 - Dispatch quote-planner contract when present;
-- startup/auth and Dispatch navigation regression contracts when present.
+- Phase 3 Dispatch profile/geography/credential persistence and privacy contracts;
+- startup/auth and Dispatch navigation regression contracts.
 
 For strongest control, GitHub branch protection should require the **Formal Fast Gate** status before merging into `design/formal-beautification-foundation`.
 
