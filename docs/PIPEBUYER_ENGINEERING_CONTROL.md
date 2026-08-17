@@ -51,6 +51,7 @@ The accepted working loop for formal development is now:
 Scoped Pipe Buyer Doctor
     -> subsystem dependency preflight
     -> bounded source change
+    -> deterministic formatter/normalizer for touched source
     -> subsystem read-only verifier / formal fast gate
     -> formal emulator readiness + direct demo-password proof
     -> Flutter launch
@@ -67,6 +68,8 @@ Rules for this loop:
 - A source verifier must not require a particular documentation/progress score in order to prove source behavior. Tracker state is informational during engineering verification.
 - Support-bundle synchronization must not blindly overwrite production Dart, Functions, rules, or progress-tracker files.
 - If production source must be normalized to a known revision, the updater must recognize both the exact known-old state and exact new state; unknown local source must be preserved and cause a safety stop.
+- **Any bounded change that creates or rewrites Dart must run the pinned Dart formatter on the exact touched files before handing control to a read-only verifier.** Formatter drift is preparation debt, not something the verifier should repair.
+- **A formatter normalizer must be explicitly scoped, back up the exact files it may change, and prove formatter stability immediately afterward.**
 - Verifiers for active subsystems should fingerprint protected production files before and after running and fail if the verifier itself changes them.
 - **Scoped gates validate only core controls plus their declared dependency bundle. Unrelated local helper scripts cannot block an active subsystem build.**
 - **Repository-wide PowerShell quality is enforced separately in CI and through the batch auditor.** This prevents cross-subsystem coupling while still exposing all malformed tools in one report.
@@ -89,6 +92,7 @@ That gate performs:
 Scoped Pipe Buyer Doctor
     -> recognize/update only the one known broken reminder-engine revision
     -> focused reminder regression
+    -> bounded credential Dart formatter normalization
     -> source-read-only credential verifier
 ```
 
@@ -158,6 +162,7 @@ If a generator is unavoidable:
 - run syntax validation before file writes;
 - write through deterministic exact anchors;
 - keep the generator idempotent;
+- format generated Dart before declaring the migration complete;
 - verify markers after modification;
 - never let a generator bypass analyzer or focused tests.
 
