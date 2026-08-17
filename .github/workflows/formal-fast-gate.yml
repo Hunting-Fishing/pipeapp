@@ -39,13 +39,39 @@ jobs:
       - name: Restore Flutter dependencies
         run: flutter pub get
 
-      - name: Validate JavaScript generator syntax
+      - name: Validate JavaScript and demo-auth control syntax
         shell: bash
         run: |
           set -euo pipefail
           while IFS= read -r -d '' file; do
             node --check "$file"
           done < <(find tool -maxdepth 1 -type f \( -name '*.mjs' -o -name '*.cjs' \) -print0)
+          node --check firebase/functions/scripts/verify_formal_demo_auth_passwords.mjs
+          node --check firebase/functions/scripts/ensure_formal_demo_auth.js
+
+      - name: Validate formal PowerShell launch controls
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scripts = @(
+            'tool/verify_formal_demo_auth.ps1',
+            'tool/ensure_formal_acceptance_ready.ps1',
+            'tool/reseed_formal_test_data.ps1',
+            'tool/launch_formal_flutter_client.ps1'
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script),
+              [ref]$tokens,
+              [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+              throw "PowerShell syntax failed for $script`: $details"
+            }
+          }
 
       - name: Strict Dart analyzer
         run: dart analyze --fatal-infos --fatal-warnings lib test
