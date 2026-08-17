@@ -69,7 +69,6 @@ Set-Location -LiteralPath $repoRoot
 
 $branch = 'design/formal-beautification-foundation'
 $projectId = 'flutter-flow-pipe'
-$releaseMarkerName = 'pipe-release.json'
 $generatedFiles = @(
   'linux/flutter/generated_plugin_registrant.cc',
   'linux/flutter/generated_plugin_registrant.h',
@@ -107,7 +106,7 @@ Invoke-Checked 'Fetching current formal branch' {
   git fetch origin $branch
 }
 
-$remoteHead = (git rev-parse "origin/$branch").Trim()
+$remoteHead = ((git rev-parse "origin/$branch" | Out-String).Trim())
 if ([string]::IsNullOrWhiteSpace($remoteHead)) {
   throw 'Could not resolve the current formal branch head.'
 }
@@ -154,6 +153,11 @@ try {
       throw 'Dispatch service-area release gate failed. Production hosting was not changed.'
     }
 
+    $lockHashAfterTests = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash
+    if ($lockHashAfterTests -ne $lockHashBefore) {
+      throw 'SAFETY STOP: verification changed pubspec.lock.'
+    }
+
     foreach ($generated in $generatedFiles) {
       git restore -- $generated 2>$null
     }
@@ -181,7 +185,7 @@ try {
         throw 'Could not commit the exact verified release state.'
       }
 
-      $verifiedCommit = (git rev-parse HEAD).Trim()
+      $verifiedCommit = ((git rev-parse HEAD | Out-String).Trim())
       git push origin "HEAD:$branch"
       if ($LASTEXITCODE -ne 0) {
         throw 'Could not fast-forward the formal branch with the verified release state. Do not force push.'
@@ -189,11 +193,11 @@ try {
       $releaseSha = $verifiedCommit
     }
     else {
-      $releaseSha = (git rev-parse HEAD).Trim()
+      $releaseSha = ((git rev-parse HEAD | Out-String).Trim())
     }
 
     git fetch origin $branch
-    $confirmedRemote = (git rev-parse "origin/$branch").Trim()
+    $confirmedRemote = ((git rev-parse "origin/$branch" | Out-String).Trim())
     if ($confirmedRemote -ne $releaseSha) {
       throw "GitHub branch verification failed. Expected $releaseSha but found $confirmedRemote."
     }
@@ -283,19 +287,9 @@ try {
     if (-not (Test-Path '.\build\web\firebase-messaging-sw.js')) {
       throw 'Production Firebase Messaging worker is missing from build/web.'
     }
-
-    $releaseMarker = [ordered]@{
-      releaseSha = $releaseSha
-      sourceBranch = $branch
-      firebaseProject = $projectId
-      deploymentScope = 'hosting-only'
-      deployedAtUtc = [DateTime]::UtcNow.ToString('o')
-    } | ConvertTo-Json -Compress
-    [System.IO.File]::WriteAllText(
-      (Join-Path '.\build\web' $releaseMarkerName),
-      $releaseMarker,
-      $utf8NoBom
-    )
+    if (-not (Test-Path '.\build\web\main.dart.js')) {
+      throw 'Production build/web/main.dart.js is missing.'
+    }
 
     Write-Host "`n======================================================" -ForegroundColor Yellow
     Write-Host ' DEPLOYING VERIFIED FORMAL WEB BUILD TO PRODUCTION' -ForegroundColor Yellow
@@ -313,22 +307,12 @@ try {
         --non-interactive
     }
 
-    Write-Step 'Proving exact deployed release marker on www.pipebuyer.com'
-    $markerUrl = "https://www.pipebuyer.com/$releaseMarkerName?sha=$releaseSha"
-    $markerResponse = Invoke-RestMethod -Uri $markerUrl -Method Get
-    if ($markerResponse.releaseSha -ne $releaseSha) {
-      throw "Production marker mismatch. Expected $releaseSha but received $($markerResponse.releaseSha)."
-    }
-    if ($markerResponse.deploymentScope -ne 'hosting-only') {
-      throw 'Production marker did not report hosting-only deployment scope.'
-    }
-
-    foreach ($path in @('/', '/about', '/privacy', '/terms')) {
-      $url = "https://www.pipebuyer.com$path"
-      $response = Invoke-WebRequest -Uri $url -UseBasicParsing
-      if ($response.StatusCode -ne 200) {
-        throw "Production HTTP verification failed for $url with status $($response.StatusCode)."
-      }
+    Write-Step 'Proving the live release on Firebase default and custom domains'
+    powershell -ExecutionPolicy Bypass `
+      -File .\tool\verify_live_pipebuyer_release.ps1 `
+      -ReleaseSha $releaseSha
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Firebase Hosting reported a completed deploy, but live release proof failed. Do not redeploy automatically; inspect the live proof layer first.'
     }
 
     Write-Host ''
