@@ -7,6 +7,22 @@ function Write-Step([string]$Message) {
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
+$generatedFiles = @(
+  'linux/flutter/generated_plugin_registrant.cc',
+  'linux/flutter/generated_plugin_registrant.h',
+  'linux/flutter/generated_plugins.cmake',
+  'macos/Flutter/GeneratedPluginRegistrant.swift',
+  'windows/flutter/generated_plugin_registrant.cc',
+  'windows/flutter/generated_plugin_registrant.h',
+  'windows/flutter/generated_plugins.cmake'
+)
+
+function Restore-GeneratedPluginFiles {
+  foreach ($generated in $generatedFiles) {
+    git restore -- $generated 2>$null
+  }
+}
+
 $expectedBranch = 'design/formal-beautification-foundation'
 $currentBranch = ((git branch --show-current | Out-String).Trim())
 
@@ -73,12 +89,15 @@ if (-not (Test-Path -LiteralPath $packageConfig)) {
   Write-Step 'Resolving Flutter dependencies because package_config.json is missing'
   flutter pub get
   if ($LASTEXITCODE -ne 0) {
+    Restore-GeneratedPluginFiles
     throw 'flutter pub get failed.'
   }
   if (-not (Test-Path -LiteralPath $packageConfig)) {
+    Restore-GeneratedPluginFiles
     throw 'flutter pub get did not create .dart_tool/package_config.json.'
   }
   $lockHashAfter = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash
+  Restore-GeneratedPluginFiles
   if ($lockHashAfter -ne $lockHashBefore) {
     throw 'SAFETY STOP: dependency bootstrap changed pubspec.lock.'
   }
@@ -121,9 +140,11 @@ Write-Step 'Running credential model and privacy tests'
 foreach ($target in @($credentialTest, $privacyTest)) {
   flutter test $target
   if ($LASTEXITCODE -ne 0) {
+    Restore-GeneratedPluginFiles
     throw "Phase 3 credential test failed for $target"
   }
 }
+Restore-GeneratedPluginFiles
 
 Write-Step 'Re-running Phase 3 profile, equipment, and geography regressions'
 foreach ($target in @(
@@ -135,17 +156,21 @@ foreach ($target in @(
 )) {
   flutter test $target
   if ($LASTEXITCODE -ne 0) {
+    Restore-GeneratedPluginFiles
     throw "Phase 3 regression failed for $target"
   }
 }
+Restore-GeneratedPluginFiles
 
 Write-Step 'Re-running Phase 2, Phase 1, and auth regressions'
 foreach ($target in @($taxonomyTest, $navigationTest, $authTest)) {
   flutter test $target
   if ($LASTEXITCODE -ne 0) {
+    Restore-GeneratedPluginFiles
     throw "Dispatch regression failed for $target"
   }
 }
+Restore-GeneratedPluginFiles
 
 Write-Step 'Running credential Firestore and Storage rules tests'
 $rulesNodeModules = '.\firebase\rules-tests\node_modules'
