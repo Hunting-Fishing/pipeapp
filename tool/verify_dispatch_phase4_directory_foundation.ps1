@@ -89,7 +89,7 @@ $phase3Baseline =
 if ($phase3AlreadyFinalized) {
   Write-Host 'Phase 3 browser acceptance is already recorded at 52 percent. No tracker mutation needed.' -ForegroundColor Green
 }
-elif ($phase3Baseline) {
+elseif ($phase3Baseline) {
   Write-Step 'Recording accepted Phase 3 browser completion at 52 percent'
   node $phase3Finalizer
   if ($LASTEXITCODE -ne 0) {
