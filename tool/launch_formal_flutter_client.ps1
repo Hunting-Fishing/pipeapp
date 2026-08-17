@@ -1,4 +1,6 @@
-param()
+param(
+  [switch]$NoFixtureRepair
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -19,6 +21,7 @@ function Port-In-Use([int]$Port) {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
+[Environment]::CurrentDirectory = $repoRoot
 
 $branch = (git branch --show-current).Trim()
 if ($branch -ne 'design/formal-beautification-foundation') {
@@ -38,7 +41,23 @@ if (Port-In-Use $webPort) {
   throw "Local Pipe Buyer web port $webPort is already in use$pidText. Stop the older Flutter client before starting another one."
 }
 
-Write-Host 'Launching Pipe Buyer Flutter client against the already-running local emulator suite.' -ForegroundColor Cyan
+$readinessGate = Join-Path $PSScriptRoot 'ensure_formal_acceptance_ready.ps1'
+if (-not (Test-Path -LiteralPath $readinessGate)) {
+  throw 'tool/ensure_formal_acceptance_ready.ps1 is missing. Fetch the latest formal control files before launching.'
+}
+
+Write-Host ''
+Write-Host 'Checking deterministic emulator data and demo credentials before opening Chrome...' -ForegroundColor Cyan
+if ($NoFixtureRepair) {
+  & powershell -ExecutionPolicy Bypass -File $readinessGate -NoRepair
+} else {
+  & powershell -ExecutionPolicy Bypass -File $readinessGate
+}
+if ($LASTEXITCODE -ne 0) {
+  throw 'Formal acceptance readiness failed. Flutter was not launched.'
+}
+
+Write-Host 'Launching Pipe Buyer Flutter client against the verified local emulator suite.' -ForegroundColor Cyan
 Write-Host 'Pipe Buyer canonical local app: http://127.0.0.1:5050' -ForegroundColor Green
 Write-Host 'Do not use http://localhost:5050 for formal acceptance; browser persistence is origin-scoped.' -ForegroundColor Yellow
 Write-Host 'Firebase Emulator UI: http://127.0.0.1:14000' -ForegroundColor DarkGray
@@ -49,7 +68,7 @@ $loginReference = Join-Path $PSScriptRoot 'show_formal_test_logins.ps1'
 if (Test-Path -LiteralPath $loginReference) {
   & powershell -ExecutionPolicy Bypass -File $loginReference
 } else {
-  Write-Host 'Test login reference helper is missing; pull the latest formal branch.' -ForegroundColor Yellow
+  Write-Host 'Test login reference helper is missing; fetch the latest formal branch.' -ForegroundColor Yellow
 }
 
 & flutter run -d chrome `
