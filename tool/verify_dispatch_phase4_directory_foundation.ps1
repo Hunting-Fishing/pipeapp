@@ -38,6 +38,7 @@ $authTest = '.\test\dispatch_auth_reactivity_contract_test.dart'
 $firestoreRules = '.\firebase\firestore.rules'
 $masterPlan = '.\docs\DISPATCH_NETWORK_MASTER_PLAN.md'
 $phase3Finalizer = '.\tool\finalize_dispatch_phase3_browser_acceptance.mjs'
+$phase3FinalizerTest = '.\tool\finalize_dispatch_phase3_browser_acceptance_test.mjs'
 $directoryIntegrator = '.\tool\integrate_dispatch_phase4_directory.mjs'
 
 foreach ($required in @(
@@ -56,6 +57,7 @@ foreach ($required in @(
   $firestoreRules,
   $masterPlan,
   $phase3Finalizer,
+  $phase3FinalizerTest,
   $directoryIntegrator
 )) {
   if (-not (Test-Path -LiteralPath $required)) {
@@ -63,10 +65,39 @@ foreach ($required in @(
   }
 }
 
-Write-Step 'Recording accepted Phase 3 browser completion at 52 percent'
-node $phase3Finalizer
+Write-Step 'Proving the Phase 3 browser finalizer can be rerun safely'
+node --test --test-concurrency=1 $phase3FinalizerTest
 if ($LASTEXITCODE -ne 0) {
-  throw 'Phase 3 browser acceptance finalizer failed.'
+  throw 'Phase 3 browser finalizer idempotency regression failed.'
+}
+
+Write-Step 'Checking Phase 3 tracker transition state'
+$planBefore = Get-Content -LiteralPath $masterPlan -Raw
+$phase3AlreadyFinalized =
+  $planBefore.Contains('**Current verified completion:** **52%**') -and
+  $planBefore.Contains('| 3 | Provider/company profile system | 15 | 15 | GREEN |') -and
+  $planBefore.Contains('| 4 | Dispatch Service Directory + map | 20 | 0 | IN PROGRESS |') -and
+  $planBefore.Contains('**Current verified:** 15/15') -and
+  $planBefore.Contains('Overall: 52/100 = 52%')
+
+$phase3Baseline =
+  $planBefore.Contains('**Current verified completion:** **50%**') -and
+  $planBefore.Contains('| 3 | Provider/company profile system | 15 | 13 | IN PROGRESS |') -and
+  $planBefore.Contains('| 4 | Dispatch Service Directory + map | 20 | 0 | BLOCKED |') -and
+  $planBefore.Contains('**Current verified:** 13/15')
+
+if ($phase3AlreadyFinalized) {
+  Write-Host 'Phase 3 browser acceptance is already recorded at 52 percent. No tracker mutation needed.' -ForegroundColor Green
+}
+elif ($phase3Baseline) {
+  Write-Step 'Recording accepted Phase 3 browser completion at 52 percent'
+  node $phase3Finalizer
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Phase 3 browser acceptance finalizer failed.'
+  }
+}
+else {
+  throw 'Phase 3 tracker is in a mixed state: it is neither the accepted 50 percent baseline nor the complete 52 percent Phase 4 entry state. Inspect docs/DISPATCH_NETWORK_MASTER_PLAN.md before continuing.'
 }
 
 Write-Step 'Wiring the new Directory page into Dispatch'
@@ -215,6 +246,7 @@ Write-Host '============================================================' -Foreg
 Write-Host 'DISPATCH PHASE 4 DIRECTORY FOUNDATION GATE PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Phase 3 browser completion recorded at 52 percent: PASS' -ForegroundColor Green
+Write-Host 'Phase 3 finalizer rerun safety: PASS' -ForegroundColor Green
 Write-Host 'Bounded public Directory query: PASS' -ForegroundColor Green
 Write-Host 'Structured service filter: PASS' -ForegroundColor Green
 Write-Host 'Availability and business-type filters: PASS' -ForegroundColor Green
