@@ -79,7 +79,8 @@ if (Port-In-Use $webPort) {
 
 Write-Host 'Launching Pipe Buyer in PROFILE mode for stable visual acceptance.' -ForegroundColor Cyan
 Write-Host 'This avoids the large DDC debug-module startup path that can stall before the Dart entrypoint loads.' -ForegroundColor Yellow
-Write-Host 'Pipe Buyer local app: http://127.0.0.1:5050' -ForegroundColor Green
+Write-Host 'Pipe Buyer canonical local app: http://127.0.0.1:5050' -ForegroundColor Green
+Write-Host 'Do not use http://localhost:5050 for formal acceptance; browser persistence is origin-scoped.' -ForegroundColor Yellow
 Write-Host 'Firebase Emulator UI: http://127.0.0.1:14000' -ForegroundColor DarkGray
 Write-Host 'Profile mode does not support Flutter hot reload; stop/relaunch after source changes.' -ForegroundColor DarkGray
 
@@ -91,6 +92,7 @@ if (Test-Path -LiteralPath $loginReference) {
 }
 
 & flutter run --profile -d chrome `
+  --web-hostname=127.0.0.1 `
   --web-port=$webPort `
   --dart-define=PIPE_ENV=local `
   --dart-define=PIPE_ENABLE_DISPATCH=true `
