@@ -7,7 +7,6 @@ function Write-Step([string]$Message) {
   Write-Host "`n==> $Message" -ForegroundColor Cyan
 }
 
-$apply = Join-Path $PSScriptRoot 'apply_dispatch_credential_intelligence.ps1'
 $credentialSource = Join-Path $script:PipeBuyerRepoRoot 'lib\marketplace\marketplace_dispatch_credentials.dart'
 $credentialTest = Join-Path $script:PipeBuyerRepoRoot 'test\marketplace_dispatch_credentials_test.dart'
 $privacyTest = Join-Path $script:PipeBuyerRepoRoot 'test\marketplace_dispatch_credentials_privacy_contract_test.dart'
@@ -17,12 +16,24 @@ $monitorTest = Join-Path $script:PipeBuyerRepoRoot 'firebase\functions\test\disp
 $functionsIndex = Join-Path $script:PipeBuyerRepoRoot 'firebase\functions\index.js'
 $notificationPolicy = Join-Path $script:PipeBuyerRepoRoot 'firebase\functions\notification_delivery_policy.js'
 $notificationPolicyTest = Join-Path $script:PipeBuyerRepoRoot 'firebase\functions\test\notification_delivery_policy.test.js'
-$legacyCredentialGate = Join-Path $PSScriptRoot 'verify_dispatch_phase3_credentials.ps1'
 $serviceAreaClassification = Join-Path $script:PipeBuyerRepoRoot 'test\service_area_geocoder_classification_test.dart'
 $masterPlan = Join-Path $script:PipeBuyerRepoRoot 'docs\DISPATCH_NETWORK_MASTER_PLAN.md'
+$credentialRulesTest = Join-Path $script:PipeBuyerRepoRoot 'firebase\rules-tests\dispatch_credentials_rules.test.js'
+$storageRules = Join-Path $script:PipeBuyerRepoRoot 'firebase\storage.rules'
+$firestoreRules = Join-Path $script:PipeBuyerRepoRoot 'firebase\firestore.rules'
+
+$regressionTests = @(
+  'test\marketplace_dispatch_company_profile_test.dart',
+  'test\marketplace_dispatch_company_profile_persistence_contract_test.dart',
+  'test\marketplace_dispatch_equipment_capability_test.dart',
+  'test\marketplace_dispatch_geography_test.dart',
+  'test\marketplace_dispatch_service_area_persistence_contract_test.dart',
+  'test\marketplace_dispatch_service_taxonomy_test.dart',
+  'test\marketplace_dispatch_navigation_test.dart',
+  'test\dispatch_auth_reactivity_contract_test.dart'
+) | ForEach-Object { Join-Path $script:PipeBuyerRepoRoot $_ }
 
 foreach ($required in @(
-  $apply,
   $credentialSource,
   $credentialTest,
   $privacyTest,
@@ -32,22 +43,39 @@ foreach ($required in @(
   $functionsIndex,
   $notificationPolicy,
   $notificationPolicyTest,
-  $legacyCredentialGate,
   $serviceAreaClassification,
-  $masterPlan
-)) {
+  $masterPlan,
+  $credentialRulesTest,
+  $storageRules,
+  $firestoreRules
+) + $regressionTests) {
   if (-not (Test-Path -LiteralPath $required)) {
-    throw "STOP: Required credential intelligence file is missing: $required"
+    throw "STOP: Required credential intelligence verification file is missing: $required"
   }
 }
 
-Write-Step 'Applying the guarded credential intelligence source migration'
-& powershell -ExecutionPolicy Bypass -File $apply
-if ($LASTEXITCODE -ne 0) {
-  throw 'Credential intelligence source migration failed. Stop at the first error above.'
+Write-Step 'Confirming the credential intelligence implementation is already installed'
+$credentialText = Get-Content -LiteralPath $credentialSource -Raw
+foreach ($marker in @(
+  'final double? coverageLimit;',
+  'final double? aggregateLimit;',
+  'bool meetsMinimumCoverage(',
+  'class DispatchCredentialReminderSettings',
+  "'dispatchCredentialReminderSettings': settings.toPrivateMap()",
+  "_commands.execute('syncDispatchCredentialReminderSchedule'",
+  "text: 'Analytics & alerts'",
+  'Insurance matching readiness',
+  'Credential analytics & alerts',
+  'Exact policy numbers and coverage amounts remain private.'
+)) {
+  if (-not $credentialText.Contains($marker)) {
+    throw "STOP: Credential intelligence implementation marker is missing: $marker. Run apply_dispatch_credential_intelligence.ps1 once before verifying."
+  }
 }
+Write-Host 'Implementation markers: PASS' -ForegroundColor Green
+Write-Host 'Verifier source mutation: NONE' -ForegroundColor Green
 
-Write-Step 'Checking Node.js syntax before running any credential reminder tests'
+Write-Step 'Checking Node.js syntax'
 foreach ($target in @($monitor, $functionsIndex, $notificationPolicy)) {
   & node --check $target
   if ($LASTEXITCODE -ne 0) {
@@ -67,29 +95,18 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Notification delivery policy regression failed.'
 }
 
-Write-Step 'Formatting the credential intelligence Dart source and focused tests'
-& dart format $credentialSource $credentialTest $privacyTest $intelligenceTest
-if ($LASTEXITCODE -ne 0) {
-  throw 'Credential intelligence Dart formatting failed.'
-}
-
-Write-Step 'Confirming formatter stability'
+Write-Step 'Confirming Dart formatter stability without changing source'
 & dart format --output=none --set-exit-if-changed `
   $credentialSource `
   $credentialTest `
   $privacyTest `
   $intelligenceTest
 if ($LASTEXITCODE -ne 0) {
-  throw 'Credential intelligence Dart source is not formatter stable.'
+  throw 'Credential intelligence Dart source is not formatter stable. Format the reported file once, then rerun.'
 }
 
 Write-Step 'Running strict analyzer on credential intelligence source and tests'
-foreach ($target in @(
-  $credentialSource,
-  $credentialTest,
-  $privacyTest,
-  $intelligenceTest
-)) {
+foreach ($target in @($credentialSource, $credentialTest, $privacyTest, $intelligenceTest)) {
   & dart analyze --fatal-infos --fatal-warnings $target
   if ($LASTEXITCODE -ne 0) {
     throw "Credential intelligence strict analyzer failed for $target"
@@ -104,37 +121,67 @@ foreach ($target in @($credentialTest, $privacyTest, $intelligenceTest)) {
   }
 }
 
-Write-Step 'Re-proving the Towns/Regions map classification accepted immediately before this slice'
+Write-Step 'Re-proving the accepted Towns/Regions map classification'
 & flutter test $serviceAreaClassification
 if ($LASTEXITCODE -ne 0) {
   throw 'Service-area Towns/Regions classification regression failed.'
 }
 
-Write-Step 'Running the complete existing Phase 3 credential privacy/rules regression gate at the new 51% baseline'
-& powershell -ExecutionPolicy Bypass -File $legacyCredentialGate
-if ($LASTEXITCODE -ne 0) {
-  throw 'Existing Phase 3 credential privacy/rules gate failed.'
-}
-
-Write-Step 'Checking source-level intelligence contracts'
-$credentialText = Get-Content -LiteralPath $credentialSource -Raw
-foreach ($marker in @(
-  'final double? coverageLimit;',
-  'final double? aggregateLimit;',
-  'bool meetsMinimumCoverage(',
-  'class DispatchCredentialReminderSettings',
-  "'dispatchCredentialReminderSettings': settings.toPrivateMap()",
-  "_commands.execute('syncDispatchCredentialReminderSchedule'",
-  "text: 'Analytics & alerts'",
-  'Insurance matching readiness',
-  'Credential analytics & alerts',
-  'Exact policy numbers and coverage amounts remain private.'
-)) {
-  if (-not $credentialText.Contains($marker)) {
-    throw "Credential intelligence contract missing: $marker"
+Write-Step 'Running Phase 3 / Phase 2 / Phase 1 / auth regressions'
+foreach ($target in $regressionTests) {
+  & flutter test $target
+  if ($LASTEXITCODE -ne 0) {
+    throw "Dispatch regression failed for $target"
   }
 }
 
+Write-Step 'Running credential Firestore and Storage rules tests on isolated emulator ports'
+$rulesNodeModules = Join-Path $script:PipeBuyerRepoRoot 'firebase\rules-tests\node_modules'
+if (-not (Test-Path -LiteralPath $rulesNodeModules)) {
+  Push-Location (Join-Path $script:PipeBuyerRepoRoot 'firebase\rules-tests')
+  try {
+    npm ci
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Credential rules-test dependency restore failed.'
+    }
+  }
+  finally {
+    Pop-Location
+  }
+}
+
+$java = Get-Command java -ErrorAction SilentlyContinue
+if (-not $java) {
+  $androidStudioJdk = 'C:\Program Files\Android\Android Studio\jbr'
+  if (Test-Path (Join-Path $androidStudioJdk 'bin\java.exe')) {
+    $env:JAVA_HOME = $androidStudioJdk
+    $env:Path = "$androidStudioJdk\bin;$env:Path"
+    $java = Get-Command java -ErrorAction SilentlyContinue
+  }
+}
+if (-not $java) {
+  throw 'Credential rules tests require Java. Android Studio JBR or a JDK must be available.'
+}
+
+Push-Location $script:PipeBuyerRepoRoot
+try {
+  $rulesCommand = 'node --test --test-concurrency=1 firebase/rules-tests/dispatch_credentials_rules.test.js'
+  $firebaseCli = Get-Command firebase -ErrorAction SilentlyContinue
+  if ($firebaseCli) {
+    & firebase emulators:exec --project demo-pipe-buyer-dispatch-credential-rules --config firebase.json --only firestore,storage $rulesCommand
+  }
+  else {
+    & npx --yes firebase-tools@15.25.0 emulators:exec --project demo-pipe-buyer-dispatch-credential-rules --config firebase.json --only firestore,storage $rulesCommand
+  }
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Dispatch credential Firestore/Storage rules test failed.'
+  }
+}
+finally {
+  Pop-Location
+}
+
+Write-Step 'Checking privacy, reminder, and acceptance-state contracts'
 if ($credentialText.Contains("collection('public_business_profiles')") -or
     $credentialText.Contains("collection('dispatch_carriers')")) {
   throw 'Credential intelligence must not write private coverage or reminder data into public/legacy provider records.'
@@ -165,6 +212,15 @@ foreach ($marker in @(
   }
 }
 
+$storageText = Get-Content -LiteralPath $storageRules -Raw
+if (-not $storageText.Contains('match /business_documents/{userId}/{fileName}')) {
+  throw 'Private business document Storage rule is missing.'
+}
+$firestoreText = Get-Content -LiteralPath $firestoreRules -Raw
+if (-not $firestoreText.Contains('match /business_private/{businessId}')) {
+  throw 'Private business Firestore rule is missing.'
+}
+
 $planText = Get-Content -LiteralPath $masterPlan -Raw
 foreach ($marker in @(
   '**Current verified completion:** **51%**',
@@ -173,7 +229,7 @@ foreach ($marker in @(
   '- [ ] Credential/insurance metadata with private document separation. **1 pt**'
 )) {
   if (-not $planText.Contains($marker)) {
-    throw "Dispatch master plan acceptance state missing: $marker"
+    throw "Dispatch master plan pre-credential-acceptance state missing: $marker. Run reconcile_dispatch_phase3_precredential_acceptance.ps1 once, then rerun this read-only verifier."
   }
 }
 
@@ -181,6 +237,7 @@ Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'DISPATCH CREDENTIAL INTELLIGENCE ENGINEERING GATE PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
+Write-Host 'Verifier is read-only: PASS' -ForegroundColor Green
 Write-Host 'Service-area browser acceptance recorded: PASS (Phase 3 = 14/15)' -ForegroundColor Green
 Write-Host 'Primary insurance coverage amount + currency: PASS' -ForegroundColor Green
 Write-Host 'Optional aggregate coverage amount: PASS' -ForegroundColor Green
