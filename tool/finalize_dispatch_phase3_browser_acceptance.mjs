@@ -1,16 +1,15 @@
 import fs from 'node:fs';
 
-const planPath = 'docs/DISPATCH_NETWORK_MASTER_PLAN.md';
-let text = fs.readFileSync(planPath, 'utf8');
-
-if (text.includes('**Current verified completion:** **52%**') &&
-    text.includes('**Current verified:** 15/15') &&
-    text.includes('Phase 4 - Dispatch Service Directory + map\n\n**Weight:** 20%\n**Current:** 0/20\n**Status:** IN PROGRESS')) {
-  console.log('Dispatch Phase 3 browser acceptance is already recorded at 52%.');
-  process.exit(0);
+function argumentValue(name) {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return '';
+  return process.argv[index + 1] ?? '';
 }
 
-const required = [
+const planPath = argumentValue('--plan') || 'docs/DISPATCH_NETWORK_MASTER_PLAN.md';
+let text = fs.readFileSync(planPath, 'utf8');
+
+const baselineMarkers = [
   '**Current verified completion:** **50%**',
   '| 3 | Provider/company profile system | 15 | 13 | IN PROGRESS |',
   '| 4 | Dispatch Service Directory + map | 20 | 0 | BLOCKED |',
@@ -21,10 +20,36 @@ const required = [
   '**Status:** BLOCKED BY PHASE 3',
 ];
 
-for (const marker of required) {
-  if (!text.includes(marker)) {
-    throw new Error(`Phase 3 finalizer expected marker was not found: ${marker}`);
-  }
+const finalizedMarkers = [
+  '**Current verified completion:** **52%**',
+  '| 3 | Provider/company profile system | 15 | 15 | GREEN |',
+  '| 4 | Dispatch Service Directory + map | 20 | 0 | IN PROGRESS |',
+  '| **TOTAL** |  | **100** | **52** | **52% COMPLETE** |',
+  '**Current verified:** 15/15',
+  '- [x] Service area and home-base map setup. **1 pt**',
+  '- [x] Credential/insurance metadata with private document separation. **1 pt**',
+  'Overall: 52/100 = 52%',
+];
+
+function missingMarkers(markers, source) {
+  return markers.filter((marker) => !source.includes(marker));
+}
+
+const missingFinalized = missingMarkers(finalizedMarkers, text);
+if (missingFinalized.length === 0) {
+  console.log('Dispatch Phase 3 browser acceptance is already recorded at 52%.');
+  process.exit(0);
+}
+
+const missingBaseline = missingMarkers(baselineMarkers, text);
+if (missingBaseline.length > 0) {
+  const details = [
+    'Phase 3 finalizer found neither the accepted 50% baseline nor the complete 52% finalized state.',
+    `Missing baseline markers: ${missingBaseline.join(' | ')}`,
+    `Missing finalized markers: ${missingFinalized.join(' | ')}`,
+    'Do not rewrite the tracker automatically from this mixed state. Inspect the master plan first.',
+  ].join('\n');
+  throw new Error(details);
 }
 
 text = text
@@ -78,6 +103,13 @@ if (!reportPattern.test(text)) {
   throw new Error('Current Dispatch status report block was not found.');
 }
 text = text.replace(reportPattern, report);
+
+const verificationMissing = missingMarkers(finalizedMarkers, text);
+if (verificationMissing.length > 0) {
+  throw new Error(
+    `Phase 3 finalizer did not produce the full 52% state: ${verificationMissing.join(' | ')}`,
+  );
+}
 
 fs.writeFileSync(planPath, text, 'utf8');
 console.log('Dispatch Phase 3 browser acceptance recorded: 15/15 GREEN, overall 52%.');
