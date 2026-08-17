@@ -82,29 +82,47 @@ foreach ($tool in $criticalNodeTools) {
 }
 Write-Host 'Critical Node tooling syntax: PASS' -ForegroundColor Green
 
-Write-Step 'Checking critical formal-launch PowerShell syntax'
-$criticalPowerShellTools = @(
-  'tool/verify_formal_demo_auth.ps1',
-  'tool/ensure_formal_acceptance_ready.ps1',
-  'tool/reseed_formal_test_data.ps1',
-  'tool/launch_formal_flutter_client.ps1'
-)
-foreach ($tool in $criticalPowerShellTools) {
-  $absoluteTool = Join-Path $repoRoot $tool
-  if (-not (Test-Path -LiteralPath $absoluteTool)) { continue }
+Write-Step 'Checking all Pipe Buyer PowerShell tool controls before execution'
+$toolRoot = Join-Path $repoRoot 'tool'
+$powerShellTools = @(Get-ChildItem -LiteralPath $toolRoot -Filter '*.ps1' -File -Recurse)
+if ($powerShellTools.Count -eq 0) {
+  throw 'STOP: No Pipe Buyer PowerShell control scripts were found under tool/.'
+}
+$foreignControlPattern = '(?mi)^\s*(elif|fi|then)\b'
+foreach ($toolFile in $powerShellTools) {
   $tokens = $null
   $parseErrors = $null
-  [System.Management.Automation.Language.Parser]::ParseFile(
-    $absoluteTool,
+  $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+    $toolFile.FullName,
     [ref]$tokens,
     [ref]$parseErrors
-  ) | Out-Null
+  )
   if ($parseErrors.Count -gt 0) {
     $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
-    throw "STOP: PowerShell syntax failed for $tool`: $details"
+    throw "STOP: PowerShell parse failed for $($toolFile.FullName): $details"
+  }
+
+  $raw = Get-Content -LiteralPath $toolFile.FullName -Raw
+  $foreignMatch = [regex]::Match($raw, $foreignControlPattern)
+  if ($foreignMatch.Success) {
+    throw "STOP: PowerShell control contains a foreign shell keyword '$($foreignMatch.Groups[1].Value)' in $($toolFile.FullName)."
+  }
+
+  $badCommands = @(
+    $ast.FindAll({
+      param($node)
+      if ($node -isnot [System.Management.Automation.Language.CommandAst]) { return $false }
+      $name = $node.GetCommandName()
+      return $name -in @('elif', 'fi')
+    }, $true)
+  )
+  if ($badCommands.Count -gt 0) {
+    $name = $badCommands[0].GetCommandName()
+    throw "STOP: PowerShell control would execute invalid shell command '$name' in $($toolFile.FullName)."
   }
 }
-Write-Host 'Critical formal-launch PowerShell syntax: PASS' -ForegroundColor Green
+Write-Host "PowerShell tool controls checked: $($powerShellTools.Count)" -ForegroundColor Green
+Write-Host 'PowerShell parse/runtime-token preflight: PASS' -ForegroundColor Green
 
 Write-Step 'Reporting local working-tree state without changing it'
 $status = @(git status --short)
@@ -126,4 +144,4 @@ Write-Host 'Pinned Node major: PASS' -ForegroundColor Green
 Write-Host 'Flutter/Dart available: PASS' -ForegroundColor Green
 Write-Host 'Line-ending controls: PASS' -ForegroundColor Green
 Write-Host 'Critical Node syntax: PASS' -ForegroundColor Green
-Write-Host 'Critical formal-launch PowerShell syntax: PASS' -ForegroundColor Green
+Write-Host 'All tool PowerShell parse/runtime-token checks: PASS' -ForegroundColor Green
