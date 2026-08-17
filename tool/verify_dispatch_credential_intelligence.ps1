@@ -11,6 +11,18 @@ function File-Hash([string]$Path) {
   return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
 }
 
+function Assert-Contains([string]$Text, [string]$Marker, [string]$Label) {
+  if (-not $Text.Contains($Marker)) {
+    throw "STOP: $Label is missing: $Marker"
+  }
+}
+
+function Assert-Regex([string]$Text, [string]$Pattern, [string]$Label) {
+  if (-not [regex]::IsMatch($Text, $Pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+    throw "STOP: $Label is missing. Pattern: $Pattern"
+  }
+}
+
 $credentialSource = Join-Path $script:PipeBuyerRepoRoot 'lib\marketplace\marketplace_dispatch_credentials.dart'
 $credentialTest = Join-Path $script:PipeBuyerRepoRoot 'test\marketplace_dispatch_credentials_test.dart'
 $privacyTest = Join-Path $script:PipeBuyerRepoRoot 'test\marketplace_dispatch_credentials_privacy_contract_test.dart'
@@ -76,29 +88,35 @@ foreach ($path in $protectedSources) {
   $beforeHashes[$path] = File-Hash $path
 }
 
-Write-Step 'Confirming credential intelligence implementation markers'
+Write-Step 'Confirming credential intelligence implementation contracts'
 $credentialText = Get-Content -LiteralPath $credentialSource -Raw
+
+# Exact semantic/text markers that Dart formatting cannot legitimately split.
 foreach ($marker in @(
   'final double? coverageLimit;',
   'final double? aggregateLimit;',
   'bool meetsMinimumCoverage(',
   'class DispatchCredentialReminderSettings',
-  "'dispatchCredentialReminderSettings': settings.toPrivateMap()",
-  "_commands.execute('syncDispatchCredentialReminderSchedule'",
   "text: 'Analytics & alerts'",
   'Insurance matching readiness',
   'Credential analytics & alerts',
   'Exact policy numbers and coverage amounts remain private.'
 )) {
-  if (-not $credentialText.Contains($marker)) {
-    throw "STOP: Credential intelligence implementation marker is missing: $marker"
-  }
+  Assert-Contains $credentialText $marker 'Credential intelligence implementation marker'
 }
+
+# Formatter-tolerant structural contracts. dart format is allowed to insert
+# line breaks/indentation inside these expressions, so verifier checks must not
+# depend on one physical-line layout.
+Assert-Regex $credentialText "'dispatchCredentialReminderSettings'\s*:\s*settings\.toPrivateMap\s*\(\s*\)" 'Private reminder-settings persistence contract'
+Assert-Regex $credentialText "_commands\s*\.\s*execute\s*\(\s*'syncDispatchCredentialReminderSchedule'" 'Credential reminder schedule command contract'
+
 if ($credentialText.Contains("collection('public_business_profiles')") -or
     $credentialText.Contains("collection('dispatch_carriers')")) {
   throw 'Credential intelligence must not write private coverage/reminder data into public or legacy provider records.'
 }
-Write-Host 'Implementation markers: PASS' -ForegroundColor Green
+Write-Host 'Implementation contracts: PASS' -ForegroundColor Green
+Write-Host 'Formatter-tolerant structural marker checks: PASS' -ForegroundColor Green
 Write-Host 'Verifier source mutation: NONE' -ForegroundColor Green
 
 Write-Step 'Checking Node.js syntax'
@@ -269,6 +287,7 @@ Write-Host '============================================================' -Foreg
 Write-Host 'DISPATCH CREDENTIAL INTELLIGENCE ENGINEERING GATE PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Verifier is source-read-only: PASS' -ForegroundColor Green
+Write-Host 'Formatter-tolerant implementation contracts: PASS' -ForegroundColor Green
 Write-Host 'Reminder next-due scheduling: PASS' -ForegroundColor Green
 Write-Host 'Primary insurance coverage amount + currency: PASS' -ForegroundColor Green
 Write-Host 'Optional aggregate coverage amount: PASS' -ForegroundColor Green
