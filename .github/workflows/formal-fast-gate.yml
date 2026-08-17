@@ -48,6 +48,9 @@ jobs:
           done < <(find tool -maxdepth 1 -type f \( -name '*.mjs' -o -name '*.cjs' \) -print0)
           node --check firebase/functions/scripts/verify_formal_demo_auth_passwords.mjs
           node --check firebase/functions/scripts/ensure_formal_demo_auth.js
+          node --check firebase/functions/dispatch_credential_monitor.js
+          node --check firebase/functions/index.js
+          node --check firebase/functions/notification_delivery_policy.js
 
       - name: Validate formal PowerShell launch controls
         shell: pwsh
@@ -57,7 +60,9 @@ jobs:
             'tool/verify_formal_demo_auth.ps1',
             'tool/ensure_formal_acceptance_ready.ps1',
             'tool/reseed_formal_test_data.ps1',
-            'tool/launch_formal_flutter_client.ps1'
+            'tool/launch_formal_flutter_client.ps1',
+            'tool/apply_dispatch_credential_intelligence.ps1',
+            'tool/verify_dispatch_credential_intelligence.ps1'
           )
           foreach ($script in $scripts) {
             $tokens = $null
@@ -72,6 +77,11 @@ jobs:
               throw "PowerShell syntax failed for $script`: $details"
             }
           }
+
+      - name: Dispatch credential reminder policy
+        run: |
+          node --test firebase/functions/test/dispatch_credential_monitor.test.js
+          node --test firebase/functions/test/notification_delivery_policy.test.js
 
       - name: Strict Dart analyzer
         run: dart analyze --fatal-infos --fatal-warnings lib test
@@ -94,8 +104,10 @@ jobs:
             test/marketplace_dispatch_company_profile_persistence_contract_test.dart \
             test/marketplace_dispatch_geography_test.dart \
             test/marketplace_dispatch_service_area_persistence_contract_test.dart \
+            test/service_area_geocoder_classification_test.dart \
             test/marketplace_dispatch_credentials_test.dart \
-            test/marketplace_dispatch_credentials_privacy_contract_test.dart
+            test/marketplace_dispatch_credentials_privacy_contract_test.dart \
+            test/marketplace_dispatch_credential_intelligence_test.dart
           do
             if [ -f "$file" ]; then tests+=("$file"); fi
           done
