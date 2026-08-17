@@ -1,14 +1,15 @@
 $ErrorActionPreference = 'Stop'
 
+. "$PSScriptRoot\pipebuyer_context.ps1"
+
 function Write-Step([string]$Message) {
   Write-Host "`n==> $Message" -ForegroundColor Cyan
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-Set-Location -LiteralPath $repoRoot
+$repoRoot = $script:PipeBuyerRepoRoot
 
 Write-Step 'Running Pipe Buyer environment doctor'
-powershell -ExecutionPolicy Bypass -File '.\tool\pipebuyer_doctor.ps1'
+powershell -ExecutionPolicy Bypass -File (Join-Path $repoRoot 'tool\pipebuyer_doctor.ps1')
 if ($LASTEXITCODE -ne 0) {
   throw 'Pipe Buyer doctor failed.'
 }
@@ -20,8 +21,9 @@ $changed = @($tracked + $untracked | Where-Object { -not [string]::IsNullOrWhite
 Write-Step 'Checking changed Node generator syntax'
 $nodeFiles = @($changed | Where-Object { $_ -match '\.(mjs|cjs|js)$' })
 foreach ($file in $nodeFiles) {
-  if (Test-Path -LiteralPath $file) {
-    node --check $file
+  $absoluteFile = Join-Path $repoRoot $file
+  if (Test-Path -LiteralPath $absoluteFile) {
+    node --check $absoluteFile
     if ($LASTEXITCODE -ne 0) {
       throw "Node syntax failed: $file"
     }
@@ -32,11 +34,12 @@ Write-Host "Node files checked: $($nodeFiles.Count)" -ForegroundColor Green
 Write-Step 'Checking changed PowerShell syntax'
 $powerShellFiles = @($changed | Where-Object { $_ -match '\.ps1$' })
 foreach ($file in $powerShellFiles) {
-  if (-not (Test-Path -LiteralPath $file)) { continue }
+  $absoluteFile = Join-Path $repoRoot $file
+  if (-not (Test-Path -LiteralPath $absoluteFile)) { continue }
   $tokens = $null
   $parseErrors = $null
   [System.Management.Automation.Language.Parser]::ParseFile(
-    (Resolve-Path -LiteralPath $file),
+    $absoluteFile,
     [ref]$tokens,
     [ref]$parseErrors
   ) | Out-Null
@@ -48,7 +51,11 @@ foreach ($file in $powerShellFiles) {
 Write-Host "PowerShell files checked: $($powerShellFiles.Count)" -ForegroundColor Green
 
 Write-Step 'Checking changed Dart formatting and analyzer health'
-$dartFiles = @($changed | Where-Object { $_ -match '\.dart$' -and (Test-Path -LiteralPath $_) })
+$dartFiles = @(
+  $changed |
+    Where-Object { $_ -match '\.dart$' -and (Test-Path -LiteralPath (Join-Path $repoRoot $_)) } |
+    ForEach-Object { Join-Path $repoRoot $_ }
+)
 if ($dartFiles.Count -gt 0) {
   dart format --output=none --set-exit-if-changed @dartFiles
   if ($LASTEXITCODE -ne 0) {
