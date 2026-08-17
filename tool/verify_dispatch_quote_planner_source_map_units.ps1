@@ -13,16 +13,23 @@ if ($currentBranch -ne $expectedBranch) {
   throw "Dispatch quote planner verification requires $expectedBranch. Current branch: $currentBranch"
 }
 
+$preflight = '.\tool\repair_dispatch_quote_planner_matchall.mjs'
 $repair = '.\tool\apply_dispatch_quote_planner_source_map_units.mjs'
 $source = '.\lib\marketplace\marketplace_dispatch_dashboard.dart'
 $contract = '.\test\dispatch_quote_planner_source_map_units_contract_test.dart'
 $plan = '.\docs\DISPATCH_NETWORK_MASTER_PLAN.md'
 $spec = '.\docs\DISPATCH_QUOTE_PLANNER_SOURCE_MAP_UNITS.md'
 
-foreach ($required in @($repair, $source, $contract, $plan, $spec)) {
+foreach ($required in @($preflight, $repair, $source, $contract, $plan, $spec)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Required Dispatch quote planner file is missing: $required"
   }
+}
+
+Write-Step 'Repairing the quote-planner RegExp helper for Node.js 22 if required'
+node $preflight
+if ($LASTEXITCODE -ne 0) {
+  throw 'Dispatch quote planner Node.js RegExp preflight failed.'
 }
 
 Write-Step 'Applying the idempotent quote source/map/multi-unit repair'
@@ -74,6 +81,7 @@ Write-Host '============================================================' -Foreg
 Write-Host 'DISPATCH QUOTE PLANNER SOURCE + MAP + UNITS PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Current formal branch lock: PASS' -ForegroundColor Green
+Write-Host 'Node.js RegExp preflight: PASS' -ForegroundColor Green
 Write-Host 'Marketplace listing / standalone selector: PASS' -ForegroundColor Green
 Write-Host 'Mapped origin selector: PASS' -ForegroundColor Green
 Write-Host 'Mapped destination selector: PASS' -ForegroundColor Green
