@@ -118,19 +118,54 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Prairie Hotshot'), findsOneWidget);
-    expect(find.text('Northern Pilot Cars'), findsOneWidget);
+    final directoryScroll = find.byType(Scrollable).first;
+
+    await tester.dragUntilVisible(
+      find.text('2 companies shown'),
+      directoryScroll,
+      const Offset(0, -240),
+    );
     expect(find.text('2 companies shown'), findsOneWidget);
 
+    await tester.dragUntilVisible(
+      find.text('Prairie Hotshot'),
+      directoryScroll,
+      const Offset(0, -240),
+    );
+    expect(find.text('Prairie Hotshot'), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('Northern Pilot Cars'),
+      directoryScroll,
+      const Offset(0, -240),
+    );
+    expect(find.text('Northern Pilot Cars'), findsOneWidget);
+
     final serviceDropdown = find.byType(DropdownButtonFormField<String>).first;
+    await tester.dragUntilVisible(
+      serviceDropdown,
+      directoryScroll,
+      const Offset(0, 240),
+    );
     await tester.tap(serviceDropdown);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hotshot').last);
     await tester.pumpAndSettle();
 
+    await tester.dragUntilVisible(
+      find.text('1 company shown'),
+      directoryScroll,
+      const Offset(0, -240),
+    );
+    expect(find.text('1 company shown'), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('Prairie Hotshot'),
+      directoryScroll,
+      const Offset(0, -240),
+    );
     expect(find.text('Prairie Hotshot'), findsOneWidget);
     expect(find.text('Northern Pilot Cars'), findsNothing);
-    expect(find.text('1 company shown'), findsOneWidget);
   });
 
   testWidgets('directory has an explicit empty state', (tester) async {
@@ -142,6 +177,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    final directoryScroll = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(
+      find.text('No companies are listed yet'),
+      directoryScroll,
+      const Offset(0, -240),
+    );
 
     expect(find.text('No companies are listed yet'), findsOneWidget);
   });
