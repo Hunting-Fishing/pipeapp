@@ -89,6 +89,17 @@ else {
   Write-Host 'Installed credential coverage, analytics, reminders and matching-readiness source.' -ForegroundColor Green
 }
 
+Write-Host "`n==> Formatting the credential Dart source before verification" -ForegroundColor Cyan
+& dart format $credentialSource
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Credential Dart source formatting failed.'
+}
+& dart format --output=none --set-exit-if-changed $credentialSource
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Credential Dart source is not formatter stable after migration.'
+}
+Write-Host 'Credential Dart source formatter stability: PASS' -ForegroundColor Green
+
 Write-Host "`n==> Wiring the scalable credential reminder function" -ForegroundColor Cyan
 $index = Normalize-Lf ([System.IO.File]::ReadAllText($indexPath))
 $index = Replace-ExactlyOnce $index @'
@@ -162,6 +173,7 @@ Write-Host 'Records / Analytics & alerts tabs: INSTALLED' -ForegroundColor Green
 Write-Host 'Credential readiness and expiry analytics: INSTALLED' -ForegroundColor Green
 Write-Host 'Private reminder settings: INSTALLED' -ForegroundColor Green
 Write-Host 'Scheduled credential notification monitor wiring: INSTALLED' -ForegroundColor Green
+Write-Host 'Credential Dart formatter stability: PASS' -ForegroundColor Green
 Write-Host 'Dispatch acceptance tracker modified by this migration: NO' -ForegroundColor Green
 Write-Host ''
 Write-Host 'Run tool/verify_dispatch_credential_intelligence.ps1 next. Acceptance scoring is handled separately.' -ForegroundColor Yellow
