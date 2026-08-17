@@ -25,10 +25,12 @@ $supportFiles = @(
   'tool/templates/marketplace_dispatch_credentials_intelligence.dart.txt',
   'tool/apply_dispatch_credential_intelligence.ps1',
   'tool/update_dispatch_credential_reminder_engine.ps1',
+  'tool/normalize_dispatch_credential_dart_format.ps1',
   'tool/verify_dispatch_credential_intelligence.ps1',
   'tool/run_dispatch_phase3_credential_gate.ps1',
   'docs/DISPATCH_PHASE3_CREDENTIAL_INTELLIGENCE.md',
-  'docs/repairs/DISPATCH_CREDENTIAL_REMINDER_NEXT_DUE.md'
+  'docs/repairs/DISPATCH_CREDENTIAL_REMINDER_NEXT_DUE.md',
+  'docs/repairs/DISPATCH_CREDENTIAL_DART_FORMAT_NORMALIZATION.md'
 )
 
 Write-Host "`n==> Synchronizing the complete Phase 3 support/control bundle" -ForegroundColor Cyan
@@ -99,6 +101,7 @@ Write-Host '============================================================' -Foreg
 Write-Host 'Towns/Regions regression support: READY' -ForegroundColor Green
 Write-Host 'Credential intelligence tests: READY' -ForegroundColor Green
 Write-Host 'Known reminder-engine updater: READY' -ForegroundColor Green
+Write-Host 'Credential Dart formatter normalizer: READY' -ForegroundColor Green
 Write-Host 'Credential verifier: SOURCE-READ-ONLY' -ForegroundColor Green
 Write-Host 'Scoped Doctor: READY' -ForegroundColor Green
 Write-Host 'Batch repository PowerShell auditor: READY' -ForegroundColor Green
