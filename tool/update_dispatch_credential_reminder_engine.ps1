@@ -42,7 +42,7 @@ $backupDir = Join-Path $script:PipeBuyerRepoRoot "_local_backups\dispatch-remind
 if ($local -eq $remoteMonitor) {
   Write-Host 'Credential reminder engine already matches the current formal revision.' -ForegroundColor DarkGray
 }
-elif ($local -eq $knownBroken) {
+elseif ($local -eq $knownBroken) {
   New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
   Copy-Item -LiteralPath $monitorPath -Destination (Join-Path $backupDir 'dispatch_credential_monitor.js')
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
