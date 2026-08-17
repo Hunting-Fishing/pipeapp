@@ -67,6 +67,22 @@ test("already-sent threshold does not repeat and next future threshold remains s
   );
 });
 
+test("after the final threshold is sent the post-expiry checkpoint remains scheduled", () => {
+  const now = Date.UTC(2026, 7, 19);
+  const sent = {
+    "general_liability_insurance|2026-08-20|1": "2026-08-19T00:00:00.000Z",
+  };
+  const state = computeCredentialReminderState(
+      data({expiryDate: "2026-08-20", reminderDays: [1], sent}),
+      now,
+  );
+  assert.equal(state.due.length, 0);
+  assert.equal(
+      new Date(state.nextDueMs).toISOString().slice(0, 10),
+      "2026-08-21",
+  );
+});
+
 test("expired credential generates a single expired reminder", () => {
   const now = Date.UTC(2026, 7, 18);
   const state = computeCredentialReminderState(
