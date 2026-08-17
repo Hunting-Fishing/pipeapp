@@ -36,6 +36,15 @@ Set-Location -LiteralPath $repoRoot
 
 $branch = 'design/formal-beautification-foundation'
 $target = 'lib/marketplace/marketplace_dispatch_page.dart'
+$generatedFiles = @(
+  'linux/flutter/generated_plugin_registrant.cc',
+  'linux/flutter/generated_plugin_registrant.h',
+  'linux/flutter/generated_plugins.cmake',
+  'macos/Flutter/GeneratedPluginRegistrant.swift',
+  'windows/flutter/generated_plugin_registrant.cc',
+  'windows/flutter/generated_plugin_registrant.h',
+  'windows/flutter/generated_plugins.cmake'
+)
 $tests = @(
   'test/dispatch_auth_reactivity_contract_test.dart',
   'test/marketplace_dispatch_navigation_test.dart',
@@ -134,6 +143,16 @@ try {
       Invoke-Checked "Running $test" {
         flutter test $test
       }
+    }
+
+    $lockHashAfterTests = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash
+    if ($lockHashAfterTests -ne $lockHashBefore) {
+      throw 'SAFETY STOP: verification changed pubspec.lock.'
+    }
+
+    Write-Step 'Restoring deterministic Flutter generated plugin files'
+    foreach ($generated in $generatedFiles) {
+      git restore -- $generated 2>$null
     }
 
     $changed = @(git status --porcelain | ForEach-Object {
