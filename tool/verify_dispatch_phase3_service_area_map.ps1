@@ -7,9 +7,25 @@ function Write-Step([string]$Message) {
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
-$branch = (git branch --show-current).Trim()
-if ($branch -ne 'design/formal-beautification-foundation') {
-  throw "Dispatch Phase 3 service-area verification requires design/formal-beautification-foundation. Current branch: $branch"
+$expectedBranch = 'design/formal-beautification-foundation'
+$currentBranchOutput = git branch --show-current
+$currentBranch = (($currentBranchOutput | Out-String).Trim())
+
+if ([string]::IsNullOrWhiteSpace($currentBranch)) {
+  $headSha = ((git rev-parse HEAD | Out-String).Trim())
+  $expectedRef = "origin/$expectedBranch"
+  $expectedSha = ((git rev-parse $expectedRef 2>$null | Out-String).Trim())
+
+  if ([string]::IsNullOrWhiteSpace($headSha) -or
+      [string]::IsNullOrWhiteSpace($expectedSha) -or
+      $headSha -ne $expectedSha) {
+    throw "Dispatch Phase 3 service-area verification detached HEAD must exactly match $expectedRef. HEAD: $headSha Expected: $expectedSha"
+  }
+
+  Write-Host "Detached release worktree verified at $expectedRef ($headSha)." -ForegroundColor DarkGray
+}
+elseif ($currentBranch -ne $expectedBranch) {
+  throw "Dispatch Phase 3 service-area verification requires $expectedBranch. Current branch: $currentBranch"
 }
 
 $profileModel = '.\lib\marketplace\marketplace_dispatch_company_profile.dart'
