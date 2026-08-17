@@ -19,6 +19,22 @@ Set-Location "D:\Game Development\pipeapp"
 .\tool\pipebuyer_doctor.ps1
 ```
 
+The default Doctor is intentionally **scoped to core formal-development controls**. It must not block a Dispatch credential gate because an unrelated historical carrier-quote helper is locally malformed. Subsystem gates preflight their own dependency scripts separately.
+
+When intentionally auditing every PowerShell tool in the repository, use either:
+
+```powershell
+.\tool\pipebuyer_doctor.ps1 -AuditAllPowerShellTools
+```
+
+or the batch-oriented report:
+
+```powershell
+.\tool\audit_powershell_tools.ps1
+```
+
+The batch auditor reports all malformed PowerShell controls together so they can be repaired as one maintenance task rather than being discovered one at a time during unrelated feature work.
+
 Before considering a local source change ready for browser acceptance:
 
 ```powershell
@@ -32,7 +48,8 @@ The fast gate is read-only. It checks the formal branch, pinned Node version, cr
 The accepted working loop for formal development is now:
 
 ```text
-Pipe Buyer Doctor
+Scoped Pipe Buyer Doctor
+    -> subsystem dependency preflight
     -> bounded source change
     -> subsystem read-only verifier / formal fast gate
     -> formal emulator readiness + direct demo-password proof
@@ -51,6 +68,8 @@ Rules for this loop:
 - Support-bundle synchronization must not blindly overwrite production Dart, Functions, rules, or progress-tracker files.
 - If production source must be normalized to a known revision, the updater must recognize both the exact known-old state and exact new state; unknown local source must be preserved and cause a safety stop.
 - Verifiers for active subsystems should fingerprint protected production files before and after running and fail if the verifier itself changes them.
+- **Scoped gates validate only core controls plus their declared dependency bundle. Unrelated local helper scripts cannot block an active subsystem build.**
+- **Repository-wide PowerShell quality is enforced separately in CI and through the batch auditor.** This prevents cross-subsystem coupling while still exposing all malformed tools in one report.
 - If a gate fails, stop at the first failing layer and fix that layer only. Do not stack speculative patches or repeatedly reseed data.
 - Existing emulator data is verified before repair. Healthy Firestore data plus failed demo passwords triggers Auth-only repair, not a full reseed.
 
@@ -67,7 +86,7 @@ For the current Dispatch Phase 3 credential slice:
 That gate performs:
 
 ```text
-Pipe Buyer Doctor
+Scoped Pipe Buyer Doctor
     -> recognize/update only the one known broken reminder-engine revision
     -> focused reminder regression
     -> source-read-only credential verifier
@@ -162,11 +181,13 @@ This specifically prevents Windows CRLF from changing `.mjs` generator matching 
 `.github/workflows/formal-fast-gate.yml` runs on pushes and pull requests targeting the formal development branch. It performs:
 
 - Node/MJS syntax checks including the formal demo Auth verifier/repair scripts;
-- PowerShell syntax checks for the formal demo Auth/readiness/reseed/launcher chain;
+- **repository-wide PowerShell parsing/runtime-token validation** for every committed `tool/*.ps1` file;
 - strict Dart analysis with infos and warnings fatal;
 - Dispatch quote-planner contract when present;
 - Phase 3 Dispatch profile/geography/credential persistence and privacy contracts;
 - startup/auth and Dispatch navigation regression contracts.
+
+This separation is intentional: local subsystem gates stay scoped and fast, while CI remains repository-wide so malformed helper scripts cannot be merged unnoticed.
 
 For strongest control, GitHub branch protection should require the **Formal Fast Gate** status before merging into `design/formal-beautification-foundation`.
 
@@ -184,7 +205,8 @@ When a gate fails:
 
 1. stop at the first failing stage;
 2. do not rerun repeatedly hoping for a different result;
-3. identify whether the failure is environment, generator syntax, formatter, analyzer, contract test, emulator, Auth credential, or browser acceptance;
-4. fix only that layer;
-5. rerun from the nearest deterministic gate;
-6. record the proven fix once it passes.
+3. identify whether the failure is environment, generator syntax, formatter, analyzer, contract test, emulator, Auth credential, browser acceptance, or an **unrelated repository-maintenance issue**;
+4. fix only the active subsystem layer unless running an explicit repository-wide maintenance audit;
+5. use `tool/audit_powershell_tools.ps1` to collect all PowerShell maintenance problems in one batch rather than discovering them sequentially;
+6. rerun from the nearest deterministic gate;
+7. record the proven fix once it passes.
