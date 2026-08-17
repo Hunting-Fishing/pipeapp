@@ -169,6 +169,95 @@ This was a compile-time compatibility defect in the newly prepared Phase 3 equip
 - `tool/verify_dispatch_phase3_equipment_capabilities.ps1` now runs that narrow repair before formatter/analyzer and locks the repaired markers in its source contract.
 - The 48% master-plan progress remains valid because it records the previously accepted company-profile slice; the failed equipment analyzer did not award the later equipment points.
 
+## 2026-08-17 - Dirty development worktree made direct release publishing unsafe
+
+### Symptom
+
+A direct attempt to stage the verified Dispatch equipment files stopped on `git diff --cached --check` because the master plan contained trailing whitespace. The same development worktree also contained many unrelated modified and untracked files.
+
+### Root cause
+
+The verified Dispatch files were being prepared for release from a worktree that intentionally contained other in-progress work. Even after fixing whitespace, committing directly from that worktree risked staging unrelated files or pushing from stale local ancestry.
+
+### Permanent repair
+
+- Production/source synchronization uses a temporary clean Git worktree based on the current `origin/design/formal-beautification-foundation` head.
+- Only explicit approved files are copied or changed in that clean worktree.
+- `git diff --check`, an allowlisted staged-file check, and a non-force fast-forward push run before the temporary worktree is removed.
+- The original dirty development worktree is not reset, stashed, bulk-restored, or used as the production build directory.
+
+## 2026-08-17 - Clean release worktree had no Flutter package configuration
+
+### Symptom
+
+The first clean production release worktree produced a cascade of analyzer errors including unresolved `package:flutter/material.dart` and `package:flutter_lints/flutter.yaml`.
+
+### Root cause
+
+`.dart_tool/package_config.json` is generated local state and is intentionally not committed. The clean worktree went directly into analyzer/tests before package resolution.
+
+### Permanent repair
+
+- Every clean Flutter verification/release worktree runs `flutter pub get` before analyzer/tests/build.
+- `pubspec.lock` is SHA-256 hashed before and after dependency resolution.
+- The release stops if `pubspec.lock` changes.
+- `.dart_tool/package_config.json` must exist before verification continues.
+- Package update notices are informational; lockfile drift is the real safety condition.
+
+## 2026-08-17 - Accepted Dispatch auth/profile behavior was local but not canonical on GitHub
+
+### Symptom
+
+The service-area release gate passed new Phase 3 analysis/tests but later failed `dispatch_auth_reactivity_contract_test.dart` in the clean release worktree. The branch copy of `marketplace_dispatch_page.dart` still contained the obsolete synchronous `currentUser == null` guard.
+
+### Root cause
+
+The accepted auth-reactivity repair and registered-provider Company Profile wiring had been proven in the local product file, while GitHub contained the repair tools/tests but not the final canonical product source. A clean production build correctly exposed that drift.
+
+### Permanent repair
+
+- Accepted product behavior must be canonical in the actual GitHub product file before production release.
+- `tool/canonicalize_dispatch_page_for_release.ps1` applies the already-reviewed auth/profile integrations in a clean worktree, formats and analyzes the page, runs regressions, allowlists the product file, and fast-forwards it to GitHub.
+- Tests and repair scripts being present on the branch are not sufficient evidence that the product source itself is current.
+- Production releases continue to build from GitHub so local-only fixes cannot silently ship.
+
+## 2026-08-17 - Flutter verification regenerated tracked plugin registrants
+
+### Symptom
+
+All canonical Dispatch tests passed, but the publish gate stopped because `linux/flutter/generated_plugin_registrant.cc` had changed.
+
+### Root cause
+
+Flutter dependency/test commands can regenerate tracked Linux/macOS/Windows plugin registrant files even when the intended product change is web-only.
+
+### Permanent repair
+
+- After Flutter dependency/test/build commands and before the final Git status allowlist, restore only the known deterministic generated plugin files.
+- Continue to stop on any other unexpected tracked file.
+- Recheck `pubspec.lock` after tests to ensure verification did not change dependency state.
+- Generated plugin churn is tooling output, not a Dispatch product defect.
+
+## 2026-08-17 - Firebase Hosting deploy succeeded but the auxiliary JSON proof failed
+
+### Symptom
+
+Firebase reported `Deploy complete!`, but the post-deploy request for `/pipe-release.json` returned the Flutter `index.html` fallback on both the Firebase default host and `www.pipebuyer.com`. The deploy script therefore reported a marker mismatch after Hosting had already released the new version.
+
+### Root cause
+
+The exact reason the auxiliary JSON marker was not served was not proven. What was proven is that the failure occurred after Firebase Hosting completed the release, so it was a release-proof defect rather than a failed product deployment.
+
+The live `main.dart.js` on both hosts had the same byte length and contained the accepted new Dispatch feature strings, proving the new web bundle was live.
+
+### Permanent repair
+
+- Treat `Deploy complete!` and post-deploy proof as separate states. A later proof failure does not mean Firebase rolled the release back.
+- Do not redeploy a successful build solely because one secondary proof file failed.
+- `tool/verify_live_pipebuyer_release.ps1` verifies the Firebase default host and custom domain using the live JavaScript bundle, compiled `PIPE_RELEASE_SHA`, stable Dispatch feature markers, matching bundle hashes, and public-route HTTP checks.
+- `docs/PIPE_BUYER_RELEASE_TEST_PLAYBOOK.md` is the canonical push/test/release procedure.
+- The auxiliary JSON marker can remain diagnostic, but it is no longer the only release proof.
+
 ## Process rule going forward
 
 Avoid repeated V1/V2/V3-style repair chains when a stable integration path can be used. Prefer:
@@ -179,4 +268,8 @@ Avoid repeated V1/V2/V3-style repair chains when a stable integration path can b
 - exact file backups and hash-based rollback for any mutation,
 - actual formatter execution before calling generated Dart source formatter-clean,
 - strict analyzer/tests after mutation,
+- clean-worktree publishing with explicit file allowlists,
+- dependency bootstrap with lockfile drift detection in clean Flutter worktrees,
+- restoration of deterministic generated plugin files before release Git checks,
+- separate production deployment status from post-deploy proof status,
 - recording the root cause and successful fix here.
