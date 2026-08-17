@@ -124,6 +124,30 @@ try {
 
   Push-Location $tempRoot
   try {
+    $lockPath = '.\pubspec.lock'
+    $packageConfigPath = '.\.dart_tool\package_config.json'
+
+    if (-not (Test-Path -LiteralPath $lockPath)) {
+      throw 'Clean release worktree is missing pubspec.lock.'
+    }
+
+    $lockHashBefore = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash
+
+    Invoke-Checked 'Resolving Flutter dependencies in clean release worktree' {
+      flutter pub get
+    }
+
+    if (-not (Test-Path -LiteralPath $packageConfigPath)) {
+      throw 'Flutter dependency resolution completed without creating .dart_tool/package_config.json.'
+    }
+
+    $lockHashAfter = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash
+    if ($lockHashAfter -ne $lockHashBefore) {
+      throw 'SAFETY STOP: flutter pub get changed pubspec.lock in the clean release worktree. Review dependency drift before production deployment.'
+    }
+
+    Write-Host 'Flutter package configuration is ready and pubspec.lock is unchanged.' -ForegroundColor Green
+
     Write-Step 'Running the accepted Dispatch Phase 3 service-area gate in the clean release tree'
     powershell -ExecutionPolicy Bypass -File .\tool\verify_dispatch_phase3_service_area_map.ps1
     if ($LASTEXITCODE -ne 0) {
