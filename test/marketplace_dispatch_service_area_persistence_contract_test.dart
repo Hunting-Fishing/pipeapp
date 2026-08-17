@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('company profile editor uses the existing open-map service area picker', () {
+  test('company profile editor uses the existing open-map service area picker',
+      () {
     final source = File(
       'lib/marketplace/marketplace_dispatch_company_profile.dart',
     ).readAsStringSync();
@@ -14,7 +15,8 @@ void main() {
     expect(source, contains('Approximate home base:'));
   });
 
-  test('public geography is approximate while exact service area stays private', () {
+  test('public geography is approximate while exact service area stays private',
+      () {
     final repository = File(
       'lib/marketplace/marketplace_dispatch_company_profile_repository.dart',
     ).readAsStringSync();
@@ -48,7 +50,8 @@ void main() {
     expect(publicBlock, isNot(contains("'companyName'")));
   });
 
-  test('public service-area projection omits exact place points and boundaries', () {
+  test('public service-area projection omits exact place points and boundaries',
+      () {
     final source = File(
       'lib/marketplace/marketplace_dispatch_geography.dart',
     ).readAsStringSync();

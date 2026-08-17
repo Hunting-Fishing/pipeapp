@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE BUILD PLAN
 **Branch:** `design/formal-beautification-foundation`
-**Current verified completion:** **48%**
+**Current verified completion:** **50%**
 **Last updated:** 2026-08-17
 **Rule:** **Do not move to the next Dispatch phase until the current phase exit gate is 100% complete and all required tests are green.**
 
@@ -53,12 +53,12 @@ The UX must remain simple enough for non-technical field users while still colle
 | 0 | Existing Dispatch foundation verified | 10 | 10 | GREEN |
 | 1 | Role-aware entry and navigation | 10 | 10 | GREEN |
 | 2 | Service taxonomy and capability model | 10 | 10 | GREEN |
-| 3 | Provider/company profile system | 15 | 11 | IN PROGRESS |
+| 3 | Provider/company profile system | 15 | 13 | IN PROGRESS |
 | 4 | Dispatch Service Directory + map | 20 | 0 | BLOCKED |
 | 5 | Standalone Request Service workflow | 15 | 3 | BLOCKED |
 | 6 | Matching, direct requests, quotes, messaging, award | 10 | 2 | BLOCKED |
 | 7 | Security, fixtures, acceptance, release | 10 | 2 | BLOCKED |
-| **TOTAL** |  | **100** | **48** | **48% COMPLETE** |
+| **TOTAL** |  | **100** | **50** | **50% COMPLETE** |
 
 Points are awarded only after the corresponding implementation and acceptance criteria pass. Work prepared in the current phase does not unlock the next phase early.
 
@@ -147,7 +147,7 @@ Reference: `docs/DISPATCH_PHASE2_SERVICE_TAXONOMY.md`.
 # PHASE 3 - Provider and company profile system
 
 **Weight:** 15%
-**Current verified:** 11/15
+**Current verified:** 13/15
 **Status:** IN PROGRESS
 
 The purpose of Phase 3 is to turn the legacy provider record into a structured industrial company profile that can safely power the future Directory.
@@ -187,7 +187,7 @@ Existing `dispatch_carriers` behavior remains live and must be bridged carefully
 - [x] Current provider fleet records provide an equipment foundation. **2 pts**
 - [x] Company identity/public profile model. **2 pts**
 - [x] Multi-service structured selection. **2 pts**
-- [ ] Equipment/fleet capability profiles. **2 pts**
+- [x] Equipment/fleet capability profiles. **2 pts**
 - [ ] Service area and home-base map setup. **1 pt**
 - [x] Availability: now/today/this week/unavailable. **1 pt**
 - [ ] Credential/insurance metadata with private document separation. **1 pt**
@@ -217,6 +217,8 @@ This slice establishes:
 **Phase 3 foundation gate passed locally on 2026-08-17. Company identity and structured multi-service selection are now verified.**
 
 Phase 3 company-profile persistence browser acceptance passed on 2026-08-17. Saved profile fields survive leaving and reopening the page, and the Dispatch navigation remained healthy.
+
+Phase 3 equipment/fleet capability browser acceptance passed on 2026-08-17. Existing and newly created fleet capability records remain available through Company Profile -> Manage fleet.
 
 ## Phase 3 remaining after the foundation gate
 
@@ -506,17 +508,17 @@ Next permitted task: <one current-phase task>
 
 ```text
 DISPATCH NETWORK STATUS
-Overall: 41/100 = 41%
+Overall: 50/100 = 50%
 Current phase: Phase 3 - Provider/company profile system
-Phase completion: 4/15 points verified; profile-foundation slice prepared
+Phase completion: 13/15 points verified
 Gate: IN PROGRESS
 Last verified: 2026-08-17
-Analyzer: Phase 2 PASS; Phase 3 foundation NOT RUN LOCALLY YET
-Targeted tests: Phase 2 PASS; Phase 3 foundation NOT RUN LOCALLY YET
-Emulator journey: Phase 2 preserved behavior PASS
-Visual acceptance: Phase 2 PASS
-Blockers: Phase 3 protected persistence and compatibility bridge not built yet
-Next permitted task: run the Phase 3 company-profile foundation gate, then build protected persistence
+Analyzer: Phase 3 equipment PASS
+Targeted tests: Phase 3 equipment + Phase 2 + Phase 1 regressions PASS
+Emulator journey: provider profile/fleet persistence preserved
+Visual acceptance: company profile + equipment/fleet PASS
+Blockers: mapped service area/home base and credential metadata remain
+Next permitted task: build mapped service area/home-base persistence with privacy projection
 ```
 
 ---

@@ -31,7 +31,8 @@ MarketplaceServiceArea _area() => const MarketplaceServiceArea(
     );
 
 void main() {
-  test('structured service area drives profile summary and home-base label', () {
+  test('structured service area drives profile summary and home-base label',
+      () {
     final profile = DispatchCompanyProfileDraft(
       companyName: 'Northline Heavy Haul Ltd.',
       operatingName: 'Northline Heavy Haul',
@@ -67,7 +68,8 @@ void main() {
     expect(point.longitude, isNot(-118.794712));
   });
 
-  test('public service area strips exact place points and boundary geometry', () {
+  test('public service area strips exact place points and boundary geometry',
+      () {
     final projected = DispatchPublicGeographyProjection.serviceArea(_area());
     final places = projected['places'] as List<dynamic>;
     final place = Map<String, dynamic>.from(places.single as Map);

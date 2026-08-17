@@ -82,7 +82,8 @@ class DispatchCompanyProfileDraft {
   final MarketplaceServiceArea? serviceArea;
 
   List<String> get normalizedServiceCodes {
-    final known = DispatchServiceTaxonomy.services.map((item) => item.code).toSet();
+    final known =
+        DispatchServiceTaxonomy.services.map((item) => item.code).toSet();
     final values = serviceCodes
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty && known.contains(value))
