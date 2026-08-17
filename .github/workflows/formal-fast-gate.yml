@@ -65,7 +65,10 @@ jobs:
             'tool/reseed_formal_test_data.ps1',
             'tool/launch_formal_flutter_client.ps1',
             'tool/apply_dispatch_credential_intelligence.ps1',
-            'tool/verify_dispatch_credential_intelligence.ps1'
+            'tool/update_dispatch_credential_reminder_engine.ps1',
+            'tool/verify_dispatch_credential_intelligence.ps1',
+            'tool/run_dispatch_phase3_credential_gate.ps1',
+            'tool/sync_dispatch_phase3_closeout_bundle.ps1'
           )
           foreach ($script in $scripts) {
             $tokens = $null
