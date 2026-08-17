@@ -19,7 +19,7 @@ function Replace-ExactlyOnce {
   $beforeLf = Normalize-Lf $Before
   $afterLf = Normalize-Lf $After
 
-  if ($sourceLf.Contains($afterLf) -and -not $sourceLf.Contains($beforeLf)) {
+  if ($sourceLf.Contains($afterLf)) {
     Write-Host "Already applied: $Label" -ForegroundColor DarkGray
     return $sourceLf
   }
