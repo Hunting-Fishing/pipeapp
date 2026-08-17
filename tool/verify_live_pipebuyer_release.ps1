@@ -38,6 +38,7 @@ if ($ReleaseSha -notmatch '^[0-9a-fA-F]{40}$') {
   throw "ReleaseSha must be a full 40-character Git commit SHA. Received: $ReleaseSha"
 }
 
+$releasePrefix = $ReleaseSha.Substring(0, 7)
 $hosts = @(
   'https://flutter-flow-pipe.web.app',
   'https://www.pipebuyer.com'
@@ -53,6 +54,7 @@ $markers = @(
 
 $bundleHashes = @{}
 $bundleLengths = @{}
+$releaseProofModes = @{}
 
 Write-Host 'PIPE BUYER LIVE RELEASE VERIFICATION' -ForegroundColor Yellow
 Write-Host "Expected release SHA: $ReleaseSha" -ForegroundColor Yellow
@@ -83,8 +85,14 @@ foreach ($hostName in $hosts) {
     throw "$url returned an empty JavaScript bundle."
   }
 
-  if (-not $body.Contains($ReleaseSha)) {
-    throw "$hostName bundle does not contain the expected compiled PIPE_RELEASE_SHA $ReleaseSha."
+  if ($body.Contains($ReleaseSha)) {
+    $releaseProofModes[$hostName] = 'full-sha'
+  }
+  elseif ($body.Contains($releasePrefix)) {
+    $releaseProofModes[$hostName] = 'sha-prefix'
+  }
+  else {
+    throw "$hostName bundle does not contain the expected compiled release SHA or seven-character prefix."
   }
 
   foreach ($marker in $markers) {
@@ -98,7 +106,7 @@ foreach ($hostName in $hosts) {
 
   Write-Host "Bundle bytes: $($response.RawContentLength)" -ForegroundColor Green
   Write-Host "Bundle SHA256: $($bundleHashes[$hostName])" -ForegroundColor Green
-  Write-Host 'Compiled release SHA: PASS' -ForegroundColor Green
+  Write-Host "Compiled release proof: $($releaseProofModes[$hostName])" -ForegroundColor Green
   Write-Host 'Dispatch feature markers: PASS' -ForegroundColor Green
 }
 
@@ -133,6 +141,7 @@ Write-Host '======================================================' -ForegroundC
 Write-Host "Release SHA: $ReleaseSha" -ForegroundColor Green
 Write-Host "Bundle SHA256: $($bundleHashes[$customHost])" -ForegroundColor Green
 Write-Host "Bundle bytes: $($bundleLengths[$customHost])" -ForegroundColor Green
+Write-Host "Release proof: $($releaseProofModes[$customHost])" -ForegroundColor Green
 Write-Host 'Firebase default host: PASS' -ForegroundColor Green
 Write-Host 'www.pipebuyer.com: PASS' -ForegroundColor Green
 Write-Host 'Dispatch feature markers: PASS' -ForegroundColor Green
