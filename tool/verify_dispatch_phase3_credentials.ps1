@@ -35,7 +35,9 @@ $serviceAreaTest = '.\test\marketplace_dispatch_service_area_persistence_contrac
 $taxonomyTest = '.\test\marketplace_dispatch_service_taxonomy_test.dart'
 $navigationTest = '.\test\marketplace_dispatch_navigation_test.dart'
 $authTest = '.\test\dispatch_auth_reactivity_contract_test.dart'
+$credentialRulesTest = '.\firebase\rules-tests\dispatch_credentials_rules.test.js'
 $storageRules = '.\firebase\storage.rules'
+$firestoreRules = '.\firebase\firestore.rules'
 $masterPlan = '.\docs\DISPATCH_NETWORK_MASTER_PLAN.md'
 
 foreach ($required in @(
@@ -51,7 +53,9 @@ foreach ($required in @(
   $taxonomyTest,
   $navigationTest,
   $authTest,
+  $credentialRulesTest,
   $storageRules,
+  $firestoreRules,
   $masterPlan
 )) {
   if (-not (Test-Path -LiteralPath $required)) {
@@ -143,6 +147,54 @@ foreach ($target in @($taxonomyTest, $navigationTest, $authTest)) {
   }
 }
 
+Write-Step 'Running credential Firestore and Storage rules tests'
+$rulesNodeModules = '.\firebase\rules-tests\node_modules'
+if (-not (Test-Path -LiteralPath $rulesNodeModules)) {
+  Push-Location '.\firebase\rules-tests'
+  try {
+    npm ci
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Credential rules-test dependency restore failed.'
+    }
+  }
+  finally {
+    Pop-Location
+  }
+}
+
+$java = Get-Command java -ErrorAction SilentlyContinue
+if (-not $java) {
+  $androidStudioJdk = 'C:\Program Files\Android\Android Studio\jbr'
+  if (Test-Path (Join-Path $androidStudioJdk 'bin\java.exe')) {
+    $env:JAVA_HOME = $androidStudioJdk
+    $env:Path = "$androidStudioJdk\bin;$env:Path"
+    $java = Get-Command java -ErrorAction SilentlyContinue
+  }
+}
+if (-not $java) {
+  throw 'Credential rules tests require Java. Android Studio JBR or a JDK must be available.'
+}
+
+$rulesCommand = 'node --test --test-concurrency=1 firebase/rules-tests/dispatch_credentials_rules.test.js'
+$firebaseCli = Get-Command firebase -ErrorAction SilentlyContinue
+if ($firebaseCli) {
+  firebase emulators:exec `
+    --project demo-pipe-buyer-dispatch-credential-rules `
+    --config firebase.json `
+    --only firestore,storage `
+    $rulesCommand
+}
+else {
+  npx --yes firebase-tools@15.25.0 emulators:exec `
+    --project demo-pipe-buyer-dispatch-credential-rules `
+    --config firebase.json `
+    --only firestore,storage `
+    $rulesCommand
+}
+if ($LASTEXITCODE -ne 0) {
+  throw 'Dispatch credential Firestore/Storage rules test failed.'
+}
+
 Write-Step 'Checking credential privacy contracts'
 $credentialText = Get-Content -LiteralPath $credentialSource -Raw
 foreach ($requiredText in @(
@@ -182,6 +234,16 @@ foreach ($requiredText in @(
   }
 }
 
+$firestoreText = Get-Content -LiteralPath $firestoreRules -Raw
+foreach ($requiredText in @(
+  'match /business_private/{businessId}',
+  'allow create, read, update, delete: if owns(businessId);'
+)) {
+  if (-not $firestoreText.Contains($requiredText)) {
+    throw "Private business Firestore rule is missing: $requiredText"
+  }
+}
+
 $planText = Get-Content -LiteralPath $masterPlan -Raw
 if (-not $planText.Contains('**Current verified completion:** **50%**')) {
   throw 'Master plan moved beyond the verified 50% baseline before remaining browser acceptance.'
@@ -195,6 +257,7 @@ Write-Host 'Stable credential codes: PASS' -ForegroundColor Green
 Write-Host 'Self-reported status model: PASS' -ForegroundColor Green
 Write-Host 'Private Firestore metadata boundary: PASS' -ForegroundColor Green
 Write-Host 'Private Storage evidence boundary: PASS' -ForegroundColor Green
+Write-Host 'Credential emulator rules tests: PASS' -ForegroundColor Green
 Write-Host 'No public verification claim: PASS' -ForegroundColor Green
 Write-Host 'Company Profile credential wiring: PASS' -ForegroundColor Green
 Write-Host 'Phase 3 regressions: PASS' -ForegroundColor Green
