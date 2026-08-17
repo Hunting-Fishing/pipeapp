@@ -36,6 +36,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Restore Firebase Functions dependencies
+        run: npm ci --prefix firebase/functions
+
       - name: Restore Flutter dependencies
         run: flutter pub get
 
