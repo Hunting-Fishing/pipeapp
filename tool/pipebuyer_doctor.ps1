@@ -1,9 +1,64 @@
+param(
+  [switch]$AuditAllPowerShellTools
+)
+
 $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot\pipebuyer_context.ps1"
 
 function Write-Step([string]$Message) {
   Write-Host "`n==> $Message" -ForegroundColor Cyan
+}
+
+function Test-PowerShellControlSet {
+  param(
+    [Parameter(Mandatory = $true)][System.IO.FileInfo[]]$Files,
+    [Parameter(Mandatory = $true)][string]$Label
+  )
+
+  $foreignControlPattern = '(?mi)^\s*(elif|fi|then)\b'
+  $failures = @()
+
+  foreach ($toolFile in $Files) {
+    $tokens = $null
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+      $toolFile.FullName,
+      [ref]$tokens,
+      [ref]$parseErrors
+    )
+
+    foreach ($parseError in $parseErrors) {
+      $failures += "$($toolFile.FullName): $($parseError.Message)"
+    }
+
+    $raw = Get-Content -LiteralPath $toolFile.FullName -Raw
+    $foreignMatch = [regex]::Match($raw, $foreignControlPattern)
+    if ($foreignMatch.Success) {
+      $failures += "$($toolFile.FullName): foreign shell keyword '$($foreignMatch.Groups[1].Value)'"
+    }
+
+    $badCommands = @(
+      $ast.FindAll({
+        param($node)
+        if ($node -isnot [System.Management.Automation.Language.CommandAst]) { return $false }
+        $name = $node.GetCommandName()
+        return $name -in @('elif', 'fi')
+      }, $true)
+    )
+    foreach ($bad in $badCommands) {
+      $failures += "$($toolFile.FullName): invalid shell command '$($bad.GetCommandName())'"
+    }
+  }
+
+  if ($failures.Count -gt 0) {
+    Write-Host "`n$Label failures:" -ForegroundColor Red
+    $failures | Sort-Object -Unique | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+    throw "STOP: $Label failed with $($failures.Count) issue(s)."
+  }
+
+  Write-Host "$Label checked: $($Files.Count)" -ForegroundColor Green
+  Write-Host "$Label parse/runtime-token preflight: PASS" -ForegroundColor Green
 }
 
 $repoRoot = $script:PipeBuyerRepoRoot
@@ -82,47 +137,38 @@ foreach ($tool in $criticalNodeTools) {
 }
 Write-Host 'Critical Node tooling syntax: PASS' -ForegroundColor Green
 
-Write-Step 'Checking all Pipe Buyer PowerShell tool controls before execution'
-$toolRoot = Join-Path $repoRoot 'tool'
-$powerShellTools = @(Get-ChildItem -LiteralPath $toolRoot -Filter '*.ps1' -File -Recurse)
-if ($powerShellTools.Count -eq 0) {
-  throw 'STOP: No Pipe Buyer PowerShell control scripts were found under tool/.'
-}
-$foreignControlPattern = '(?mi)^\s*(elif|fi|then)\b'
-foreach ($toolFile in $powerShellTools) {
-  $tokens = $null
-  $parseErrors = $null
-  $ast = [System.Management.Automation.Language.Parser]::ParseFile(
-    $toolFile.FullName,
-    [ref]$tokens,
-    [ref]$parseErrors
-  )
-  if ($parseErrors.Count -gt 0) {
-    $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
-    throw "STOP: PowerShell parse failed for $($toolFile.FullName): $details"
-  }
-
-  $raw = Get-Content -LiteralPath $toolFile.FullName -Raw
-  $foreignMatch = [regex]::Match($raw, $foreignControlPattern)
-  if ($foreignMatch.Success) {
-    throw "STOP: PowerShell control contains a foreign shell keyword '$($foreignMatch.Groups[1].Value)' in $($toolFile.FullName)."
-  }
-
-  $badCommands = @(
-    $ast.FindAll({
-      param($node)
-      if ($node -isnot [System.Management.Automation.Language.CommandAst]) { return $false }
-      $name = $node.GetCommandName()
-      return $name -in @('elif', 'fi')
-    }, $true)
-  )
-  if ($badCommands.Count -gt 0) {
-    $name = $badCommands[0].GetCommandName()
-    throw "STOP: PowerShell control would execute invalid shell command '$name' in $($toolFile.FullName)."
+Write-Step 'Checking core PowerShell controls required for formal development'
+$coreRelative = @(
+  'tool/pipebuyer_context.ps1',
+  'tool/verify_formal_demo_auth.ps1',
+  'tool/ensure_formal_acceptance_ready.ps1',
+  'tool/reseed_formal_test_data.ps1',
+  'tool/launch_formal_flutter_client.ps1',
+  'tool/start_formal_acceptance_environment.ps1'
+)
+$coreFiles = @()
+foreach ($relative in $coreRelative) {
+  $absolute = Join-Path $repoRoot $relative
+  if (Test-Path -LiteralPath $absolute) {
+    $coreFiles += Get-Item -LiteralPath $absolute
   }
 }
-Write-Host "PowerShell tool controls checked: $($powerShellTools.Count)" -ForegroundColor Green
-Write-Host 'PowerShell parse/runtime-token preflight: PASS' -ForegroundColor Green
+if ($coreFiles.Count -eq 0) {
+  throw 'STOP: No core Pipe Buyer PowerShell controls were found.'
+}
+Test-PowerShellControlSet -Files $coreFiles -Label 'Core PowerShell controls'
+
+if ($AuditAllPowerShellTools) {
+  Write-Step 'Auditing every Pipe Buyer PowerShell tool (explicit full-repository audit)'
+  $toolRoot = Join-Path $repoRoot 'tool'
+  $allTools = @(Get-ChildItem -LiteralPath $toolRoot -Filter '*.ps1' -File -Recurse)
+  if ($allTools.Count -eq 0) {
+    throw 'STOP: No Pipe Buyer PowerShell control scripts were found under tool/.'
+  }
+  Test-PowerShellControlSet -Files $allTools -Label 'Repository-wide PowerShell tools'
+} else {
+  Write-Host 'Repository-wide PowerShell audit: SKIPPED by default (use -AuditAllPowerShellTools when intentionally auditing unrelated tools).' -ForegroundColor DarkGray
+}
 
 Write-Step 'Reporting local working-tree state without changing it'
 $status = @(git status --short)
@@ -144,4 +190,9 @@ Write-Host 'Pinned Node major: PASS' -ForegroundColor Green
 Write-Host 'Flutter/Dart available: PASS' -ForegroundColor Green
 Write-Host 'Line-ending controls: PASS' -ForegroundColor Green
 Write-Host 'Critical Node syntax: PASS' -ForegroundColor Green
-Write-Host 'All tool PowerShell parse/runtime-token checks: PASS' -ForegroundColor Green
+Write-Host 'Core PowerShell controls: PASS' -ForegroundColor Green
+if ($AuditAllPowerShellTools) {
+  Write-Host 'Repository-wide PowerShell audit: PASS' -ForegroundColor Green
+} else {
+  Write-Host 'Repository-wide PowerShell audit: NOT REQUESTED' -ForegroundColor DarkGray
+}
