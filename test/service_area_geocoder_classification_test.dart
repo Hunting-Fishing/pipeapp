@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pipeapp/marketplace/marketplace_service_area.dart';
-import 'package:pipeapp/marketplace/open_address_autocomplete.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:pipe_app/marketplace/marketplace_service_area.dart';
+import 'package:pipe_app/marketplace/open_address_autocomplete.dart';
 
 void main() {
   group('Photon settlement classification', () {
