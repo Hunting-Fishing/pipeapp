@@ -15,6 +15,7 @@ if ($LASTEXITCODE -ne 0) {
 # progress tracker are intentionally excluded from this synchronization step.
 $supportFiles = @(
   'tool/pipebuyer_doctor.ps1',
+  'tool/audit_powershell_tools.ps1',
   'tool/fix_service_area_geocoder_classification.ps1',
   'tool/verify_service_area_geocoder_classification.ps1',
   'test/service_area_geocoder_classification_test.dart',
@@ -99,6 +100,8 @@ Write-Host 'Towns/Regions regression support: READY' -ForegroundColor Green
 Write-Host 'Credential intelligence tests: READY' -ForegroundColor Green
 Write-Host 'Known reminder-engine updater: READY' -ForegroundColor Green
 Write-Host 'Credential verifier: SOURCE-READ-ONLY' -ForegroundColor Green
+Write-Host 'Scoped Doctor: READY' -ForegroundColor Green
+Write-Host 'Batch repository PowerShell auditor: READY' -ForegroundColor Green
 Write-Host 'PowerShell control runtime-token preflight: PASS' -ForegroundColor Green
 Write-Host 'Production Dart/Functions overwritten by sync: NO' -ForegroundColor Green
 Write-Host 'Dispatch tracker touched by sync: NO' -ForegroundColor Green
