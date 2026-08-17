@@ -13,47 +13,43 @@ if ($currentBranch -ne $expectedBranch) {
   throw "Dispatch quote planner verification requires $expectedBranch. Current branch: $currentBranch"
 }
 
-$preflight = '.\tool\repair_dispatch_quote_planner_matchall.mjs'
-$repair = '.\tool\apply_dispatch_quote_planner_source_map_units.mjs'
 $source = '.\lib\marketplace\marketplace_dispatch_dashboard.dart'
 $contract = '.\test\dispatch_quote_planner_source_map_units_contract_test.dart'
 $plan = '.\docs\DISPATCH_NETWORK_MASTER_PLAN.md'
 $spec = '.\docs\DISPATCH_QUOTE_PLANNER_SOURCE_MAP_UNITS.md'
 
-foreach ($required in @($preflight, $repair, $source, $contract, $plan, $spec)) {
+foreach ($required in @($source, $contract, $plan, $spec)) {
   if (-not (Test-Path -LiteralPath $required)) {
-    throw "Required Dispatch quote planner file is missing: $required"
+    throw "Required Dispatch quote planner verification file is missing: $required"
   }
 }
 
-Write-Step 'Repairing quote-planner generator compatibility for Node.js 22 if required'
-node $preflight
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch quote planner generator compatibility preflight failed.'
+Write-Step 'Confirming the quote-planner implementation markers are present'
+$sourceText = Get-Content -LiteralPath $source -Raw
+$requiredMarkers = @(
+  'Select Marketplace listing',
+  'Custom / standalone job',
+  'MarketplaceLocation? originLocation',
+  'MarketplaceLocation? destinationLocation',
+  'MarketplaceLocationPicker.show(',
+  'MarketplaceLocationPicker.showDelivery(',
+  "collection('public_listings')",
+  "'requestedUnits'",
+  "'requirementsVersion': 1",
+  'minQuantity',
+  'maxQuantity'
+)
+foreach ($marker in $requiredMarkers) {
+  if (-not $sourceText.Contains($marker)) {
+    throw "Dispatch quote planner implementation marker is missing: $marker"
+  }
 }
+Write-Host 'Implementation markers: PASS' -ForegroundColor Green
 
-Write-Step 'Checking the repaired Node.js generator syntax before it can touch Dart files'
-node --check $repair
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch quote planner generator syntax check failed. No Dart repair was attempted.'
-}
-
-Write-Step 'Applying the idempotent quote source/map/multi-unit repair'
-node $repair
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch quote planner repair failed.'
-}
-
-Write-Step 'Formatting the Dispatch dashboard and contract test'
-dart format $source $contract
-if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch quote planner formatter failed.'
-}
-
-Write-Step 'Confirming formatter stability'
+Write-Step 'Confirming formatter stability without changing source'
 dart format --output=none --set-exit-if-changed $source $contract
 if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch quote planner files are not formatter stable.'
+  throw 'Dispatch quote planner files are not formatter stable. Run dart format on the reported files, review the diff, then rerun.'
 }
 
 Write-Step 'Running strict analyzer'
@@ -87,8 +83,8 @@ Write-Host '============================================================' -Foreg
 Write-Host 'DISPATCH QUOTE PLANNER SOURCE + MAP + UNITS PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Current formal branch lock: PASS' -ForegroundColor Green
-Write-Host 'Node.js generator compatibility preflight: PASS' -ForegroundColor Green
-Write-Host 'Node.js generator syntax check: PASS' -ForegroundColor Green
+Write-Host 'Verifier is read-only: PASS' -ForegroundColor Green
+Write-Host 'Implementation markers: PASS' -ForegroundColor Green
 Write-Host 'Marketplace listing / standalone selector: PASS' -ForegroundColor Green
 Write-Host 'Mapped origin selector: PASS' -ForegroundColor Green
 Write-Host 'Mapped destination selector: PASS' -ForegroundColor Green
