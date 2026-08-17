@@ -33,10 +33,36 @@ foreach ($required in @(
   }
 }
 
-Write-Step 'Applying the guarded town/region geocoder correction'
-& powershell -ExecutionPolicy Bypass -File $fixer
-if ($LASTEXITCODE -ne 0) {
-  throw 'Service-area geocoder correction failed. Stop at the first error above.'
+Write-Step 'Checking repair-helper PowerShell syntax before source modification'
+$tokens = $null
+$parseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  $fixer,
+  [ref]$tokens,
+  [ref]$parseErrors
+) | Out-Null
+if ($parseErrors.Count -gt 0) {
+  $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+  throw "Service-area repair helper has invalid PowerShell syntax: $details"
+}
+
+$openBefore = Get-Content -LiteralPath $openAddress -Raw
+$serviceBefore = Get-Content -LiteralPath $serviceArea -Raw
+$alreadyApplied =
+  $openBefore.Contains('openAddressFromPhotonFeature') -and
+  $openBefore.Contains('final String district;') -and
+  $serviceBefore.Contains('selectServiceAreaBoundaryCandidate') -and
+  $serviceBefore.Contains("'city': requestedName") -and
+  $serviceBefore.Contains('_regionName(address)')
+
+if ($alreadyApplied) {
+  Write-Step 'Town/region geocoder correction is already present; skipping migration helper'
+} else {
+  Write-Step 'Applying the guarded town/region geocoder correction'
+  & powershell -ExecutionPolicy Bypass -File $fixer
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Service-area geocoder correction failed. Stop at the first error above.'
+  }
 }
 
 Write-Step 'Formatting only the affected Dart source and regression test'
