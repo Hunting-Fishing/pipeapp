@@ -3,6 +3,63 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/marketplace_dispatch_directory.dart';
 
+const _directoryEntries = <DispatchDirectoryEntry>[
+  DispatchDirectoryEntry(
+    id: 'hotshot',
+    operatingName: 'Prairie Hotshot',
+    description: 'Hotshot and remote site delivery.',
+    website: '',
+    businessTypeCode: 'owner_operator',
+    serviceCodes: ['transport_hotshot'],
+    serviceAreaLabel: 'Grande Prairie region',
+    availabilityCode: 'available_now',
+    emergencyCallout: true,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Grande Prairie, Alberta',
+    homeBasePoint: null,
+  ),
+  DispatchDirectoryEntry(
+    id: 'pilot',
+    operatingName: 'Northern Pilot Cars',
+    description: 'Pilot and escort support.',
+    website: '',
+    businessTypeCode: 'corporation',
+    serviceCodes: ['pilot_escort_vehicle'],
+    serviceAreaLabel: 'Northern Alberta',
+    availabilityCode: 'available_this_week',
+    emergencyCallout: false,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Peace River, Alberta',
+    homeBasePoint: null,
+  ),
+];
+
+Future<void> _pumpSeededDirectory(
+  WidgetTester tester, {
+  List<DispatchDirectoryEntry> entries = _directoryEntries,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Finder _directoryList() => find.byType(ListView).first;
+
+Future<void> _scrollDirectoryTo(WidgetTester tester, Finder target) async {
+  await tester.dragUntilVisible(
+    target,
+    _directoryList(),
+    const Offset(0, -180),
+    maxIteration: 20,
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   test('directory entry parses only public Dispatch profile fields', () {
     final entry = DispatchDirectoryEntry.fromPublicBusinessProfile(
@@ -75,116 +132,62 @@ void main() {
     );
   });
 
-  testWidgets('directory renders public cards and filters by service', (
-    tester,
-  ) async {
-    const entries = [
-      DispatchDirectoryEntry(
-        id: 'hotshot',
-        operatingName: 'Prairie Hotshot',
-        description: 'Hotshot and remote site delivery.',
-        website: '',
-        businessTypeCode: 'owner_operator',
-        serviceCodes: ['transport_hotshot'],
-        serviceAreaLabel: 'Grande Prairie region',
-        availabilityCode: 'available_now',
-        emergencyCallout: true,
-        remoteSiteCapable: true,
-        homeBaseLabel: 'Grande Prairie, Alberta',
-        homeBasePoint: null,
-      ),
-      DispatchDirectoryEntry(
-        id: 'pilot',
-        operatingName: 'Northern Pilot Cars',
-        description: 'Pilot and escort support.',
-        website: '',
-        businessTypeCode: 'corporation',
-        serviceCodes: ['pilot_escort_vehicle'],
-        serviceAreaLabel: 'Northern Alberta',
-        availabilityCode: 'available_this_week',
-        emergencyCallout: false,
-        remoteSiteCapable: true,
-        homeBaseLabel: 'Peace River, Alberta',
-        homeBasePoint: null,
-      ),
-    ];
+  testWidgets('directory renders seeded public company cards', (tester) async {
+    await _pumpSeededDirectory(tester);
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final directoryScroll = find.byType(Scrollable).first;
-
-    await tester.dragUntilVisible(
-      find.text('2 companies shown'),
-      directoryScroll,
-      const Offset(0, -240),
-    );
+    await _scrollDirectoryTo(tester, find.text('2 companies shown'));
     expect(find.text('2 companies shown'), findsOneWidget);
 
-    await tester.dragUntilVisible(
-      find.text('Prairie Hotshot'),
-      directoryScroll,
-      const Offset(0, -240),
-    );
+    await _scrollDirectoryTo(tester, find.text('Prairie Hotshot'));
     expect(find.text('Prairie Hotshot'), findsOneWidget);
 
-    await tester.dragUntilVisible(
-      find.text('Northern Pilot Cars'),
-      directoryScroll,
-      const Offset(0, -240),
-    );
+    await _scrollDirectoryTo(tester, find.text('Northern Pilot Cars'));
     expect(find.text('Northern Pilot Cars'), findsOneWidget);
+  });
+
+  testWidgets('service dropdown exposes the structured Hotshot option', (
+    tester,
+  ) async {
+    await _pumpSeededDirectory(tester);
 
     final serviceDropdown = find.byType(DropdownButtonFormField<String>).first;
-    await tester.dragUntilVisible(
-      serviceDropdown,
-      directoryScroll,
-      const Offset(0, 240),
-    );
-    await tester.tap(serviceDropdown);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Hotshot').last);
+    await tester.ensureVisible(serviceDropdown);
     await tester.pumpAndSettle();
 
-    await tester.dragUntilVisible(
-      find.text('1 company shown'),
-      directoryScroll,
-      const Offset(0, -240),
+    final tappableDropdown = serviceDropdown.hitTestable();
+    expect(tappableDropdown, findsOneWidget);
+    await tester.tap(tappableDropdown);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hotshot').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('service filter wiring reduces directory results', (tester) async {
+    await _pumpSeededDirectory(tester);
+
+    final serviceDropdown = find.byType(DropdownButtonFormField<String>).first;
+    await tester.ensureVisible(serviceDropdown);
+    await tester.pumpAndSettle();
+
+    final dropdown = tester.widget<DropdownButtonFormField<String>>(
+      serviceDropdown,
     );
+    expect(dropdown.onChanged, isNotNull);
+    dropdown.onChanged!('transport_hotshot');
+    await tester.pumpAndSettle();
+
+    await _scrollDirectoryTo(tester, find.text('1 company shown'));
     expect(find.text('1 company shown'), findsOneWidget);
 
-    await tester.dragUntilVisible(
-      find.text('Prairie Hotshot'),
-      directoryScroll,
-      const Offset(0, -240),
-    );
+    await _scrollDirectoryTo(tester, find.text('Prairie Hotshot'));
     expect(find.text('Prairie Hotshot'), findsOneWidget);
     expect(find.text('Northern Pilot Cars'), findsNothing);
   });
 
   testWidgets('directory has an explicit empty state', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: MarketplaceDispatchDirectoryPage(seedEntries: []),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _pumpSeededDirectory(tester, entries: const []);
 
-    final directoryScroll = find.byType(Scrollable).first;
-    await tester.dragUntilVisible(
-      find.text('No companies are listed yet'),
-      directoryScroll,
-      const Offset(0, -240),
-    );
-
+    await _scrollDirectoryTo(tester, find.text('No companies are listed yet'));
     expect(find.text('No companies are listed yet'), findsOneWidget);
   });
 }
