@@ -22,6 +22,7 @@ $supportFiles = @(
   'docs/repairs/SERVICE_AREA_TOWN_REGION_BOUNDARY_CLASSIFICATION.md',
   'firebase/functions/test/dispatch_credential_monitor.test.js',
   'test/marketplace_dispatch_credential_intelligence_test.dart',
+  'test/dispatch_credential_verifier_formatter_contract_test.dart',
   'tool/templates/marketplace_dispatch_credentials_intelligence.dart.txt',
   'tool/apply_dispatch_credential_intelligence.ps1',
   'tool/update_dispatch_credential_reminder_engine.ps1',
@@ -100,6 +101,7 @@ Write-Host 'PIPE BUYER DISPATCH PHASE 3 CONTROL BUNDLE READY' -ForegroundColor G
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Towns/Regions regression support: READY' -ForegroundColor Green
 Write-Host 'Credential intelligence tests: READY' -ForegroundColor Green
+Write-Host 'Credential verifier formatter contract: READY' -ForegroundColor Green
 Write-Host 'Known reminder-engine updater: READY' -ForegroundColor Green
 Write-Host 'Credential Dart formatter normalizer: READY' -ForegroundColor Green
 Write-Host 'Credential verifier: SOURCE-READ-ONLY' -ForegroundColor Green
