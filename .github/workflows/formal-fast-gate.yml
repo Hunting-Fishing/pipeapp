@@ -84,6 +84,25 @@ jobs:
             flutter test test/dispatch_quote_planner_source_map_units_contract_test.dart
           fi
 
+      - name: Dispatch Phase 3 profile privacy and persistence contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests=()
+          for file in \
+            test/marketplace_dispatch_company_profile_test.dart \
+            test/marketplace_dispatch_company_profile_persistence_contract_test.dart \
+            test/marketplace_dispatch_geography_test.dart \
+            test/marketplace_dispatch_service_area_persistence_contract_test.dart \
+            test/marketplace_dispatch_credentials_test.dart \
+            test/marketplace_dispatch_credentials_privacy_contract_test.dart
+          do
+            if [ -f "$file" ]; then tests+=("$file"); fi
+          done
+          if [ ${#tests[@]} -gt 0 ]; then
+            flutter test "${tests[@]}"
+          fi
+
       - name: Startup/auth control contracts
         shell: bash
         run: |
