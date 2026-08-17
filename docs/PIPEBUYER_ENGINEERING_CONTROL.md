@@ -47,8 +47,33 @@ Rules for this loop:
 - Prefer direct Dart/source edits plus read-only verification over repeatedly executing source generators after a feature has been materialized.
 - Once a repair has produced accepted application source, that source becomes the source of truth. Keep the repair only as history/recovery unless there is a specific reason to rerun it.
 - A verifier must not silently rewrite application source or advance a Dispatch score. Browser-acceptance/finalizer actions are separate and explicit.
+- A source verifier must not require a particular documentation/progress score in order to prove source behavior. Tracker state is informational during engineering verification.
+- Support-bundle synchronization must not blindly overwrite production Dart, Functions, rules, or progress-tracker files.
+- If production source must be normalized to a known revision, the updater must recognize both the exact known-old state and exact new state; unknown local source must be preserved and cause a safety stop.
+- Verifiers for active subsystems should fingerprint protected production files before and after running and fail if the verifier itself changes them.
 - If a gate fails, stop at the first failing layer and fix that layer only. Do not stack speculative patches or repeatedly reseed data.
 - Existing emulator data is verified before repair. Healthy Firestore data plus failed demo passwords triggers Auth-only repair, not a full reseed.
+
+## Subsystem single-entry gates
+
+When a subsystem has a dedicated gate, operators should run that gate rather than manually chaining several repair and verification commands.
+
+For the current Dispatch Phase 3 credential slice:
+
+```powershell
+.\tool\run_dispatch_phase3_credential_gate.ps1
+```
+
+That gate performs:
+
+```text
+Pipe Buyer Doctor
+    -> recognize/update only the one known broken reminder-engine revision
+    -> focused reminder regression
+    -> source-read-only credential verifier
+```
+
+It does not edit the Dispatch progress tracker. Browser acceptance and progress finalization remain separate.
 
 ## PowerShell command communication standard
 
