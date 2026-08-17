@@ -43,13 +43,14 @@ void main() {
     final authSource = File(
       'lib/marketplace/marketplace_auth_page.dart',
     ).readAsStringSync();
+    final compactAuthSource = authSource.replaceAll(RegExp(r'\s+'), '');
 
     expect(
-      authSource,
+      compactAuthSource,
       contains('FirebaseAuth.instance.signInWithEmailAndPassword'),
     );
     expect(
-      authSource,
+      compactAuthSource,
       contains('FirebaseAuth.instance.createUserWithEmailAndPassword'),
     );
     expect(
