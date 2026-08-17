@@ -67,7 +67,9 @@ Write-Host '.gitattributes policy: PASS' -ForegroundColor Green
 Write-Step 'Checking critical JavaScript/MJS tool syntax'
 $criticalNodeTools = @(
   'tool/apply_dispatch_quote_planner_source_map_units.mjs',
-  'tool/repair_dispatch_quote_planner_matchall.mjs'
+  'tool/repair_dispatch_quote_planner_matchall.mjs',
+  'firebase/functions/scripts/verify_formal_demo_auth_passwords.mjs',
+  'firebase/functions/scripts/ensure_formal_demo_auth.js'
 )
 foreach ($tool in $criticalNodeTools) {
   $absoluteTool = Join-Path $repoRoot $tool
@@ -79,6 +81,30 @@ foreach ($tool in $criticalNodeTools) {
   }
 }
 Write-Host 'Critical Node tooling syntax: PASS' -ForegroundColor Green
+
+Write-Step 'Checking critical formal-launch PowerShell syntax'
+$criticalPowerShellTools = @(
+  'tool/verify_formal_demo_auth.ps1',
+  'tool/ensure_formal_acceptance_ready.ps1',
+  'tool/reseed_formal_test_data.ps1',
+  'tool/launch_formal_flutter_client.ps1'
+)
+foreach ($tool in $criticalPowerShellTools) {
+  $absoluteTool = Join-Path $repoRoot $tool
+  if (-not (Test-Path -LiteralPath $absoluteTool)) { continue }
+  $tokens = $null
+  $parseErrors = $null
+  [System.Management.Automation.Language.Parser]::ParseFile(
+    $absoluteTool,
+    [ref]$tokens,
+    [ref]$parseErrors
+  ) | Out-Null
+  if ($parseErrors.Count -gt 0) {
+    $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+    throw "STOP: PowerShell syntax failed for $tool`: $details"
+  }
+}
+Write-Host 'Critical formal-launch PowerShell syntax: PASS' -ForegroundColor Green
 
 Write-Step 'Reporting local working-tree state without changing it'
 $status = @(git status --short)
@@ -99,4 +125,5 @@ Write-Host '.NET/PowerShell working directory sync: PASS' -ForegroundColor Green
 Write-Host 'Pinned Node major: PASS' -ForegroundColor Green
 Write-Host 'Flutter/Dart available: PASS' -ForegroundColor Green
 Write-Host 'Line-ending controls: PASS' -ForegroundColor Green
-Write-Host 'Critical generator syntax: PASS' -ForegroundColor Green
+Write-Host 'Critical Node syntax: PASS' -ForegroundColor Green
+Write-Host 'Critical formal-launch PowerShell syntax: PASS' -ForegroundColor Green
