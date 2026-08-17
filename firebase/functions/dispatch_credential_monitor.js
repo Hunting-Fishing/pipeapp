@@ -143,12 +143,26 @@ function computeCredentialReminderState(data = {}, nowMs = Date.now(), sentOverr
       continue;
     }
 
+    // Schedule only reminder thresholds that are still in the future. Older
+    // thresholds are intentionally not replayed after a more-specific due
+    // threshold has already been sent. This prevents a sent 30-day reminder
+    // from immediately re-queuing an overdue 60/90-day threshold.
     for (const threshold of reminderDays) {
       const key = reminderKey(typeCode, expiryDate, threshold);
       if (sent[key]) continue;
       const dueMs = expiryMs - (threshold * DAY_MS);
-      const candidate = dueMs <= nowMs ? nowMs : dueMs;
-      if (nextDueMs == null || candidate < nextDueMs) nextDueMs = candidate;
+      if (dueMs <= nowMs) continue;
+      if (nextDueMs == null || dueMs < nextDueMs) nextDueMs = dueMs;
+    }
+
+    // Once all remaining threshold reminders are exhausted, schedule one
+    // post-expiry checkpoint so the single "expired" reminder can fire on the
+    // first UTC day after the expiry date.
+    const expiredKey = reminderKey(typeCode, expiryDate, "expired");
+    const expiredDueMs = expiryMs + DAY_MS;
+    if (!sent[expiredKey] && expiredDueMs > nowMs &&
+        (nextDueMs == null || expiredDueMs < nextDueMs)) {
+      nextDueMs = expiredDueMs;
     }
   }
 
