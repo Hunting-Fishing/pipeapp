@@ -27,6 +27,36 @@ Before considering a local source change ready for browser acceptance:
 
 The fast gate is read-only. It checks the formal branch, pinned Node version, critical Node generator syntax, PowerShell syntax, Dart formatting, and strict analyzer status for changed files.
 
+## Formal demo Auth control
+
+The formal Flutter client must never open Chrome merely because emulator ports are listening. A listening Auth emulator can still have missing, stale, or unusable deterministic credentials.
+
+Canonical fast launch:
+
+```powershell
+.\tool\launch_formal_flutter_client.ps1
+```
+
+That launcher now calls `tool/ensure_formal_acceptance_ready.ps1` before Flutter starts. The readiness gate:
+
+1. verifies all formal emulator ports;
+2. checks the deterministic Firestore/Auth fixture set without changing it;
+3. proves the published password against the real Auth emulator `signInWithPassword` endpoint for VIP Buyer, Standard Buyer, Seller, and Carrier;
+4. if Firestore fixtures are healthy but demo passwords fail, performs one Auth-only deterministic repair and re-proves all four passwords;
+5. if the fixture set is missing or stale, performs one full deterministic reseed and verification;
+6. stops before Flutter if the one controlled repair attempt does not pass.
+
+`tool/reseed_formal_test_data.ps1` also runs the direct password verifier after seeding. Admin-SDK account existence alone is not accepted as proof that the login screen can authenticate.
+
+For diagnosis without repair:
+
+```powershell
+.\tool\verify_formal_demo_auth.ps1
+.\tool\ensure_formal_acceptance_ready.ps1 -NoRepair
+```
+
+This prevents the recurring failure mode where Chrome opens successfully but every published demo account fails at the sign-in screen.
+
 ## Repair standard
 
 A repair is allowed only when all of the following are true:
@@ -74,7 +104,8 @@ This specifically prevents Windows CRLF from changing `.mjs` generator matching 
 
 `.github/workflows/formal-fast-gate.yml` runs on pushes and pull requests targeting the formal development branch. It performs:
 
-- Node/MJS syntax checks;
+- Node/MJS syntax checks including the formal demo Auth verifier/repair scripts;
+- PowerShell syntax checks for the formal demo Auth/readiness/reseed/launcher chain;
 - strict Dart analysis with infos and warnings fatal;
 - Dispatch quote-planner contract when present;
 - startup/auth and Dispatch navigation regression contracts when present.
@@ -85,13 +116,17 @@ For strongest control, GitHub branch protection should require the **Formal Fast
 
 For formal acceptance/emulator work use the formal launchers only. Do not directly invoke the legacy `start_live_test_sandbox.ps1` from the active formal branch.
 
+If the emulator suite is already running, use `tool/launch_formal_flutter_client.ps1`; it now proves/repairs deterministic readiness before opening Flutter.
+
+If the emulator suite is not running, use `tool/start_formal_acceptance_environment.ps1`; it starts the suite, reseeds deterministic fixtures, verifies them, and then delegates to the guarded client launcher.
+
 ## Failure handling
 
 When a gate fails:
 
 1. stop at the first failing stage;
 2. do not rerun repeatedly hoping for a different result;
-3. identify whether the failure is environment, generator syntax, formatter, analyzer, contract test, emulator, or browser acceptance;
+3. identify whether the failure is environment, generator syntax, formatter, analyzer, contract test, emulator, Auth credential, or browser acceptance;
 4. fix only that layer;
 5. rerun from the nearest deterministic gate;
 6. record the proven fix once it passes.
