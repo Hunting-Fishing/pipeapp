@@ -11,8 +11,8 @@ if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Could not fetch the formal branch.'
 }
 
-# Support files only. Production Dart/Functions source is intentionally excluded.
-# Guarded verifiers/fixers remain responsible for modifying source.
+# Support/control files only. Production Dart/Functions source is intentionally
+# excluded. Guarded apply scripts remain responsible for production changes.
 $supportFiles = @(
   'tool/fix_service_area_geocoder_classification.ps1',
   'tool/verify_service_area_geocoder_classification.ps1',
@@ -24,7 +24,9 @@ $supportFiles = @(
   'tool/templates/marketplace_dispatch_credentials_intelligence.dart.txt',
   'tool/apply_dispatch_credential_intelligence.ps1',
   'tool/verify_dispatch_credential_intelligence.ps1',
-  'docs/DISPATCH_PHASE3_CREDENTIAL_INTELLIGENCE.md'
+  'tool/reconcile_dispatch_phase3_precredential_acceptance.ps1',
+  'docs/DISPATCH_PHASE3_CREDENTIAL_INTELLIGENCE.md',
+  'docs/repairs/DISPATCH_PHASE3_TRACKER_OVERAWARD_RECONCILIATION.md'
 )
 
 Write-Host "`n==> Synchronizing the complete Phase 3 closeout support bundle" -ForegroundColor Cyan
@@ -33,7 +35,6 @@ if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Could not synchronize the Phase 3 closeout support bundle.'
 }
 
-# Keep fetched support files unstaged until local engineering/browser acceptance is complete.
 git reset -q HEAD -- $supportFiles
 if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Could not unstage the synchronized Phase 3 support files.'
@@ -59,7 +60,9 @@ Write-Host 'PIPE BUYER DISPATCH PHASE 3 CLOSEOUT BUNDLE READY' -ForegroundColor 
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Towns/Regions map regression support: READY' -ForegroundColor Green
 Write-Host 'Credential intelligence support: READY' -ForegroundColor Green
+Write-Host 'Acceptance tracker reconciler: READY' -ForegroundColor Green
+Write-Host 'Credential verifier mutation behavior: READ-ONLY' -ForegroundColor Green
 Write-Host 'Production source overwritten by this sync: NO' -ForegroundColor Green
 Write-Host 'Support files staged by this sync: NO' -ForegroundColor Green
 Write-Host ''
-Write-Host 'Next: run verify_service_area_geocoder_classification.ps1, then verify_dispatch_credential_intelligence.ps1.' -ForegroundColor Yellow
+Write-Host 'For current closeout: reconcile tracker once, then run the read-only credential verifier.' -ForegroundColor Yellow
