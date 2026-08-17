@@ -1,30 +1,31 @@
 $ErrorActionPreference = 'Stop'
 
+. "$PSScriptRoot\pipebuyer_context.ps1"
+
 function Write-Step([string]$Message) {
   Write-Host "`n==> $Message" -ForegroundColor Cyan
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-Set-Location -LiteralPath $repoRoot
-
+$repoRoot = $script:PipeBuyerRepoRoot
 $expectedBranch = 'design/formal-beautification-foundation'
 
 Write-Step 'Checking Pipe Buyer repository and branch'
-if (-not (Test-Path -LiteralPath '.git')) {
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot '.git'))) {
   throw "STOP: $repoRoot is not the Pipe Buyer Git repository root."
 }
-if (-not (Test-Path -LiteralPath 'pubspec.yaml')) {
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'pubspec.yaml'))) {
   throw 'STOP: pubspec.yaml is missing from the repository root.'
 }
-$currentBranch = ((git branch --show-current | Out-String).Trim())
-if ($currentBranch -ne $expectedBranch) {
-  throw "STOP: Expected branch $expectedBranch but found $currentBranch"
-}
+$currentBranch = Assert-PipeBuyerFormalBranch -ExpectedBranch $expectedBranch
 Write-Host "Repository: $repoRoot" -ForegroundColor Green
 Write-Host "Branch:     $currentBranch" -ForegroundColor Green
+Write-Host "Process CWD: $([Environment]::CurrentDirectory)" -ForegroundColor Green
+if ([Environment]::CurrentDirectory -ne $repoRoot) {
+  throw 'STOP: PowerShell and .NET process working directories are not synchronized.'
+}
 
 Write-Step 'Checking pinned Node runtime'
-$expectedNodeMajor = ((Get-Content -LiteralPath '.nvmrc' -Raw).Trim())
+$expectedNodeMajor = ((Get-Content -LiteralPath (Join-Path $repoRoot '.nvmrc') -Raw).Trim())
 $nodeVersion = ((node --version | Out-String).Trim())
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($nodeVersion)) {
   throw 'STOP: Node.js is unavailable.'
@@ -55,7 +56,7 @@ $requiredAttributes = @(
   '*.yaml text eol=lf',
   '*.ps1 text eol=crlf'
 )
-$attributes = Get-Content -LiteralPath '.gitattributes' -Raw
+$attributes = Get-Content -LiteralPath (Join-Path $repoRoot '.gitattributes') -Raw
 foreach ($required in $requiredAttributes) {
   if (-not $attributes.Contains($required)) {
     throw "STOP: .gitattributes is missing required rule: $required"
@@ -69,8 +70,9 @@ $criticalNodeTools = @(
   'tool/repair_dispatch_quote_planner_matchall.mjs'
 )
 foreach ($tool in $criticalNodeTools) {
-  if (Test-Path -LiteralPath $tool) {
-    node --check $tool
+  $absoluteTool = Join-Path $repoRoot $tool
+  if (Test-Path -LiteralPath $absoluteTool) {
+    node --check $absoluteTool
     if ($LASTEXITCODE -ne 0) {
       throw "STOP: Node syntax failed for $tool"
     }
@@ -93,6 +95,7 @@ Write-Host 'PIPE BUYER DOCTOR PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Correct repository: PASS' -ForegroundColor Green
 Write-Host 'Formal development branch: PASS' -ForegroundColor Green
+Write-Host '.NET/PowerShell working directory sync: PASS' -ForegroundColor Green
 Write-Host 'Pinned Node major: PASS' -ForegroundColor Green
 Write-Host 'Flutter/Dart available: PASS' -ForegroundColor Green
 Write-Host 'Line-ending controls: PASS' -ForegroundColor Green
