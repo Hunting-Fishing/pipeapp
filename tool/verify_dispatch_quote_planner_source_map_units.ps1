@@ -26,10 +26,16 @@ foreach ($required in @($preflight, $repair, $source, $contract, $plan, $spec)) 
   }
 }
 
-Write-Step 'Repairing the quote-planner RegExp helper for Node.js 22 if required'
+Write-Step 'Repairing quote-planner generator compatibility for Node.js 22 if required'
 node $preflight
 if ($LASTEXITCODE -ne 0) {
-  throw 'Dispatch quote planner Node.js RegExp preflight failed.'
+  throw 'Dispatch quote planner generator compatibility preflight failed.'
+}
+
+Write-Step 'Checking the repaired Node.js generator syntax before it can touch Dart files'
+node --check $repair
+if ($LASTEXITCODE -ne 0) {
+  throw 'Dispatch quote planner generator syntax check failed. No Dart repair was attempted.'
 }
 
 Write-Step 'Applying the idempotent quote source/map/multi-unit repair'
@@ -81,7 +87,8 @@ Write-Host '============================================================' -Foreg
 Write-Host 'DISPATCH QUOTE PLANNER SOURCE + MAP + UNITS PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Current formal branch lock: PASS' -ForegroundColor Green
-Write-Host 'Node.js RegExp preflight: PASS' -ForegroundColor Green
+Write-Host 'Node.js generator compatibility preflight: PASS' -ForegroundColor Green
+Write-Host 'Node.js generator syntax check: PASS' -ForegroundColor Green
 Write-Host 'Marketplace listing / standalone selector: PASS' -ForegroundColor Green
 Write-Host 'Mapped origin selector: PASS' -ForegroundColor Green
 Write-Host 'Mapped destination selector: PASS' -ForegroundColor Green
