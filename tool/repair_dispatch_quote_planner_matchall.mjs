@@ -1,8 +1,13 @@
 import fs from 'node:fs';
 
 const repairPath = 'tool/apply_dispatch_quote_planner_source_map_units.mjs';
-let source = fs.readFileSync(repairPath, 'utf8');
-let changed = false;
+const rawSource = fs.readFileSync(repairPath, 'utf8');
+let source = rawSource.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+let changed = source !== rawSource;
+
+if (changed) {
+  console.log('Normalized Dispatch quote planner generator line endings for deterministic matching.');
+}
 
 const brokenMatchAll = "  const matches = [...source.matchAll(pattern)];";
 const fixedMatchAll = [
@@ -29,21 +34,25 @@ if (source.includes(brokenMatchAll)) {
   console.log('Dispatch quote planner matchAll helper already repaired.');
 }
 
-function escapeDartInterpolationBlock(name, startMarker, endMarker) {
+function escapeDartInterpolationBlock(name, startMarker) {
   const start = source.indexOf(startMarker);
   if (start < 0) {
     throw new Error(`Missing ${name} template start marker. Stop instead of guessing.`);
   }
+
   const bodyStart = start + startMarker.length;
-  const end = source.indexOf(endMarker, bodyStart);
-  if (end < 0) {
-    throw new Error(`Missing ${name} template end marker. Stop instead of guessing.`);
+  const tail = source.slice(bodyStart);
+  const boundary = /\n[ \t]*`;\n[ \t]*source = replaceOne\(/.exec(tail);
+  if (!boundary) {
+    throw new Error(`Missing ${name} template end boundary. Stop instead of guessing.`);
   }
 
-  const body = source.slice(bodyStart, end);
+  const bodyEnd = bodyStart + boundary.index;
+  const body = source.slice(bodyStart, bodyEnd);
   const repaired = body.replace(/(?<!\\)\$\{/g, '\\${');
+
   if (repaired !== body) {
-    source = source.slice(0, bodyStart) + repaired + source.slice(end);
+    source = source.slice(0, bodyStart) + repaired + source.slice(bodyEnd);
     changed = true;
     console.log(`Escaped embedded Dart interpolation in ${name} generator template.`);
   } else {
@@ -51,10 +60,9 @@ function escapeDartInterpolationBlock(name, startMarker, endMarker) {
   }
 }
 
-const templateEnd = '`;\n    source = replaceOne(';
-escapeDartInterpolationBlock('models', '    const models = `', templateEnd);
-escapeDartInterpolationBlock('restore', '    const restore = `', templateEnd);
-escapeDartInterpolationBlock('helpers', '    const helpers = `', templateEnd);
+escapeDartInterpolationBlock('models', '    const models = `');
+escapeDartInterpolationBlock('restore', '    const restore = `');
+escapeDartInterpolationBlock('helpers', '    const helpers = `');
 
 for (const marker of [
   "final type = '\\${data['unitTypeCode'] ?? 'hauling_tractor'}';",
