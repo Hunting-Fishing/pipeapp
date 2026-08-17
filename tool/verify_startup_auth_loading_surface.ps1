@@ -39,6 +39,18 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Marketplace root auth control verification failed.'
 }
 
+Write-Step 'Normalizing web startup line endings for deterministic repair matching'
+$webPath = (Resolve-Path -LiteralPath $webSource).Path
+$webContent = [System.IO.File]::ReadAllText($webPath)
+if ($webContent.Contains("`r`n")) {
+  $webContent = $webContent.Replace("`r`n", "`n")
+  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($webPath, $webContent, $utf8NoBom)
+  Write-Host 'Normalized web/index.html CRLF to LF for the exact startup repair anchors.' -ForegroundColor DarkGray
+} else {
+  Write-Host 'web/index.html already uses LF line endings.' -ForegroundColor DarkGray
+}
+
 Write-Step 'Applying the single service-truck startup surface repair'
 node $startupRepair
 if ($LASTEXITCODE -ne 0) {
