@@ -18,6 +18,7 @@ function Require-Port([int]$Port, [string]$Label) {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
+[Environment]::CurrentDirectory = $repoRoot
 
 $branch = (git branch --show-current).Trim()
 if ($branch -ne 'design/formal-beautification-foundation') {
@@ -72,6 +73,16 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Formal test-data verification failed.'
 }
 
+Write-Step 'Verifying that every published demo password really signs in'
+$authVerifier = Join-Path $PSScriptRoot 'verify_formal_demo_auth.ps1'
+if (-not (Test-Path -LiteralPath $authVerifier)) {
+  throw 'tool/verify_formal_demo_auth.ps1 is missing. Pull the latest formal branch.'
+}
+& powershell -ExecutionPolicy Bypass -File $authVerifier
+if ($LASTEXITCODE -ne 0) {
+  throw 'Formal demo Auth password verification failed after reseed.'
+}
+
 Write-Step 'Pipe Buyer formal test data is ready'
 Write-Host 'Emulator UI: http://127.0.0.1:14000' -ForegroundColor Yellow
 Write-Host ''
@@ -85,4 +96,5 @@ Write-Host ''
 Write-Host 'Listing analytics fixtures are seeded for the seller inventory.' -ForegroundColor Green
 Write-Host 'Dispatch Spec Assist references are seeded for Caterpillar 320 and Bobcat S160.' -ForegroundColor Green
 Write-Host 'Timed Buying public labels and closing-time fixtures are seeded.' -ForegroundColor Green
+Write-Host 'Direct password login was proven for all four demo accounts.' -ForegroundColor Green
 Write-Host 'Hard-refresh the Flutter Chrome tab after reseeding (Ctrl+Shift+R).' -ForegroundColor Green
