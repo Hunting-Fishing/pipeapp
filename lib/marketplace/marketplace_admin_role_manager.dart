@@ -70,7 +70,8 @@ class _MarketplaceAdminRoleManagerState
     if (email.isEmpty || !email.contains('@')) {
       PipeFeedback.show(
         context,
-        message: 'Enter the Pipe Buyer account email to grant administrator access.',
+        message:
+            'Enter the Pipe Buyer account email to grant administrator access.',
         tone: PipeStatusTone.error,
       );
       return;
@@ -180,8 +181,10 @@ class _MarketplaceAdminRoleManagerState
               tone: PipeStatusTone.error,
               title: 'Roster management unavailable',
               message: _error!,
-              actionLabel: 'Retry',
-              onAction: _reload,
+              action: TextButton(
+                onPressed: _reload,
+                child: const Text('Retry'),
+              ),
             )
           else ...[
             PipeBuyerSectionCard(
@@ -199,13 +202,16 @@ class _MarketplaceAdminRoleManagerState
                       labelText: 'Pipe Buyer account email',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
-                    onSubmitted: (_) => _busy ? null : _grant(),
+                    onSubmitted: (_) {
+                      if (!_busy) _grant();
+                    },
                   ),
                   const SizedBox(height: 10),
                   FilledButton.icon(
                     onPressed: _busy ? null : _grant,
                     icon: const Icon(Icons.verified_user_outlined),
-                    label: Text(_busy ? 'Working...' : 'Grant administrator access'),
+                    label:
+                        Text(_busy ? 'Working...' : 'Grant administrator access'),
                   ),
                 ],
               ),
@@ -222,8 +228,10 @@ class _MarketplaceAdminRoleManagerState
                       children: _administrators.map((administrator) {
                         final email = '${administrator['email'] ?? ''}'.trim();
                         final primary = administrator['primaryManager'] == true;
-                        final factors =
-                            int.tryParse('${administrator['enrolledFactorCount'] ?? 0}') ?? 0;
+                        final factors = int.tryParse(
+                              '${administrator['enrolledFactorCount'] ?? 0}',
+                            ) ??
+                            0;
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(
@@ -232,11 +240,12 @@ class _MarketplaceAdminRoleManagerState
                                 : Icons.admin_panel_settings_outlined,
                             color: primary ? PipeBuyerColors.orange : null,
                           ),
-                          title: Text(email.isEmpty ? 'Missing Auth account' : email),
+                          title:
+                              Text(email.isEmpty ? 'Missing Auth account' : email),
                           subtitle: Text(
                             primary
-                                ? 'Primary administrator manager • MFA factors: $factors'
-                                : 'Administrator • MFA factors: $factors',
+                                ? 'Primary administrator manager - MFA factors: $factors'
+                                : 'Administrator - MFA factors: $factors',
                           ),
                           trailing: primary
                               ? const Chip(label: Text('Protected'))
@@ -244,7 +253,8 @@ class _MarketplaceAdminRoleManagerState
                                   onPressed: _busy
                                       ? null
                                       : () => _revoke(administrator),
-                                  icon: const Icon(Icons.person_remove_outlined),
+                                  icon:
+                                      const Icon(Icons.person_remove_outlined),
                                   label: const Text('Remove'),
                                 ),
                         );
