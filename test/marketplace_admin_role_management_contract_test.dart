@@ -16,7 +16,9 @@ void main() {
     expect(dashboard.contains('MarketplaceAdminRoleManager'), isTrue);
   });
 
-  test('Flutter administrator manager does not hard-code approved identities', () {
+  test('Flutter administrator surfaces do not hard-code approved identities', () {
+    expect(dashboard.contains('jordilwbailey@gmail.com'), isFalse);
+    expect(dashboard.contains('goldcity4u@icloud.com'), isFalse);
     expect(manager.contains('jordilwbailey@gmail.com'), isFalse);
     expect(manager.contains('goldcity4u@icloud.com'), isFalse);
     expect(manager.contains("'listAdministratorRoles'"), isTrue);
