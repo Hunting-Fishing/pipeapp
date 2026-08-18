@@ -30,6 +30,7 @@ $supportFiles = @(
   'tool/templates/marketplace_dispatch_credentials_intelligence.dart.txt',
   'test/marketplace_dispatch_credential_intelligence_test.dart',
   'test/marketplace_dispatch_credential_persistence_discoverability_test.dart',
+  'test/marketplace_admin_role_management_contract_test.dart',
   'firebase/functions/test/dispatch_credential_monitor.test.js',
   'firebase/functions/test/administrator_role_commands.test.js',
   'docs/ADMIN_ROLE_PROVISIONING.md'
@@ -102,11 +103,18 @@ if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Administrator role command contract failed.'
 }
 
+Write-Host "`n==> Running administrator UI authorization-boundary contract" -ForegroundColor Cyan
+& flutter test '.\test\marketplace_admin_role_management_contract_test.dart'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Administrator UI authorization-boundary contract failed.'
+}
+
 Write-Host "`n==> Final strict analyzer on the bounded acceptance UI" -ForegroundColor Cyan
 foreach ($target in @(
   '.\lib\marketplace\marketplace_dispatch_credentials.dart',
   '.\lib\marketplace\marketplace_admin_role_manager.dart',
-  '.\test\marketplace_dispatch_credential_persistence_discoverability_test.dart'
+  '.\test\marketplace_dispatch_credential_persistence_discoverability_test.dart',
+  '.\test\marketplace_admin_role_management_contract_test.dart'
 )) {
   & dart analyze --fatal-infos --fatal-warnings $target
   if ($LASTEXITCODE -ne 0) {
@@ -125,5 +133,6 @@ Write-Host 'Credential reminder engine: PASS' -ForegroundColor Green
 Write-Host 'Private credential boundary: PASS' -ForegroundColor Green
 Write-Host 'Primary-admin roster management: PASS' -ForegroundColor Green
 Write-Host 'Generic profile role cannot grant Administrator claims: PASS' -ForegroundColor Green
+Write-Host 'Flutter admin UI contains no administrator email allowlist: PASS' -ForegroundColor Green
 Write-Host 'Dispatch tracker modified by this gate: NO' -ForegroundColor Green
 Write-Host 'Ready for browser acceptance: YES' -ForegroundColor Green
