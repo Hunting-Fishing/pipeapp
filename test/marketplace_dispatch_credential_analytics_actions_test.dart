@@ -20,11 +20,11 @@ void main() {
     expect(source.contains('Select any status tile below'), isTrue);
     expect(source.contains('Future<void> _showCredentialMetricDetails'), isTrue);
     expect(source.contains('Future<void> _showCredentialQuickActions'), isTrue);
-    expect(
-      RegExp(r"const\s+Text\s*\(\s*'View details'\s*\)").hasMatch(source),
-      isTrue,
-    );
+    expect(source.contains("'View details'"), isTrue);
+    expect(source.contains('Semantics('), isTrue);
     expect(source.contains('button: true'), isTrue);
+    expect(source.contains('InkWell('), isTrue);
+    expect(source.contains('onTap: ()'), isTrue);
   });
 
   test('analytics tiles retain the records behind each displayed number', () {
