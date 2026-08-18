@@ -47,6 +47,39 @@ if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Could not unstage the synchronized support bundle.'
 }
 
+Write-Host "`n==> Parsing every declared Phase 3 PowerShell control before any production edit" -ForegroundColor Cyan
+$phasePowerShellControls = @(
+  'tool\pipebuyer_context.ps1',
+  'tool\pipebuyer_doctor.ps1',
+  'tool\apply_dispatch_credential_intelligence.ps1',
+  'tool\apply_dispatch_credential_acceptance_v2.ps1',
+  'tool\apply_administrator_role_management.ps1',
+  'tool\update_dispatch_credential_reminder_engine.ps1',
+  'tool\normalize_dispatch_credential_dart_format.ps1',
+  'tool\verify_dispatch_credential_intelligence.ps1',
+  'tool\run_dispatch_phase3_credential_gate.ps1'
+)
+foreach ($relative in $phasePowerShellControls) {
+  $target = Join-Path $repoRoot $relative
+  if (-not (Test-Path -LiteralPath $target)) {
+    throw "STOP: Declared Phase 3 PowerShell control is missing: $relative"
+  }
+  $tokens = $null
+  $parseErrors = $null
+  [void][System.Management.Automation.Language.Parser]::ParseFile(
+    $target,
+    [ref]$tokens,
+    [ref]$parseErrors
+  )
+  if ($parseErrors.Count -gt 0) {
+    $details = ($parseErrors | ForEach-Object {
+      "line $($_.Extent.StartLineNumber): $($_.Message)"
+    }) -join '; '
+    throw "STOP: PowerShell parse preflight failed for $relative - $details"
+  }
+}
+Write-Host 'Declared Phase 3 PowerShell parse preflight: PASS' -ForegroundColor Green
+
 Write-Host "`n==> Preflighting credential migration idempotency before any production edit" -ForegroundColor Cyan
 & flutter test '.\test\dispatch_credential_migration_idempotency_contract_test.dart'
 if ($LASTEXITCODE -ne 0) {
@@ -134,6 +167,7 @@ Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'PIPE BUYER DISPATCH PHASE 3 ACCEPTANCE REPAIR PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
+Write-Host 'Declared PowerShell controls parse before mutation: PASS' -ForegroundColor Green
 Write-Host 'Credential migration formatter/idempotency preflight: PASS' -ForegroundColor Green
 Write-Host 'Credential dialog immediate persistence: PASS' -ForegroundColor Green
 Write-Host 'Insurance coverage fields: PASS' -ForegroundColor Green
