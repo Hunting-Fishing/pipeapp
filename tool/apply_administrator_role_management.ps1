@@ -112,7 +112,7 @@ if ($dashboard.Contains((Normalize-Lf $administratorMenu))) {
 
 $dashboard = $dashboard.Replace(
   'Search all Pipe Buyer members, view email/phone verification status, change user roles (Personal, Business, Hotshot Carrier, Admin), or suspend accounts.',
-  'Search Pipe Buyer members and maintain ordinary account-type metadata. Administrator access is managed separately through protected Firebase claims and MFA.',
+  'Search Pipe Buyer members and maintain ordinary account-type metadata. Administrator access is managed separately through protected Firebase claims and MFA.'
 )
 
 $dashboard = Replace-ExactlyOnce $dashboard @'
