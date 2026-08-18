@@ -20,7 +20,10 @@ void main() {
     expect(source.contains('Select any status tile below'), isTrue);
     expect(source.contains('Future<void> _showCredentialMetricDetails'), isTrue);
     expect(source.contains('Future<void> _showCredentialQuickActions'), isTrue);
-    expect(source.contains("const Text('View details')"), isTrue);
+    expect(
+      RegExp(r"const\s+Text\s*\(\s*'View details'\s*\)").hasMatch(source),
+      isTrue,
+    );
     expect(source.contains('button: true'), isTrue);
   });
 
