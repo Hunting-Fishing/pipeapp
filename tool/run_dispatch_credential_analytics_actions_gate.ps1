@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 Assert-PipeBuyerFormalBranch | Out-Null
 
 $repoRoot = $script:PipeBuyerRepoRoot
-$applyScript = Join-Path $PSScriptRoot 'apply_dispatch_credential_analytics_actions_v4.mjs'
+$applyScript = Join-Path $PSScriptRoot 'apply_dispatch_credential_analytics_actions_v5.mjs'
 $sourcePath = Join-Path $repoRoot 'lib\marketplace\marketplace_dispatch_credentials.dart'
 $analyticsTest = Join-Path $repoRoot 'test\marketplace_dispatch_credential_analytics_actions_test.dart'
 $persistenceTest = Join-Path $repoRoot 'test\marketplace_dispatch_credential_persistence_discoverability_test.dart'
@@ -78,6 +78,7 @@ Write-Host 'PIPE BUYER CREDENTIAL ANALYTICS ACTIONS GATE PASSED' -ForegroundColo
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'PowerShell + Node preflight: PASS' -ForegroundColor Green
 Write-Host 'Atomic semantic migration before write: PASS' -ForegroundColor Green
+Write-Host 'Formatter-tolerant V5 self-validation: PASS' -ForegroundColor Green
 Write-Host 'Duplicate Analytics shortcut cards removed: PASS' -ForegroundColor Green
 Write-Host 'Top Records / Analytics & alerts tabs retained: PASS' -ForegroundColor Green
 Write-Host 'Current / Expired / Not provided drill-down: PASS' -ForegroundColor Green
