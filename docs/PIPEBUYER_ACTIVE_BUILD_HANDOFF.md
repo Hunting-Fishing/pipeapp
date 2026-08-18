@@ -20,6 +20,12 @@ Use these controls instead of rebuilding ad-hoc terminal repair blocks:
 
 `launch_formal_flutter_client.ps1` is the normal fast launch when the Firebase emulator suite is already running. Before opening Chrome it runs the formal readiness gate and proves the published email/password credentials directly against the Auth emulator.
 
+If emulators are not running, or Functions wiring changed and the emulator must reload it, use:
+
+```powershell
+.\tool\start_formal_acceptance_environment.ps1
+```
+
 Formal emulator ports:
 
 ```text
@@ -29,12 +35,6 @@ Functions   15001
 Storage     19199
 Emulator UI 14000
 Web app      5050
-```
-
-If emulators are not running, use:
-
-```powershell
-.\tool\start_formal_acceptance_environment.ps1
 ```
 
 Never switch to `pipebuyer-premium-ui` merely to launch or test current work. Never run broad `git reset --hard`, `git restore .`, `git clean`, or branch switching against the active dirty working tree.
@@ -52,6 +52,16 @@ Password         PipeBuyerDemo!2026
 ```
 
 When Firestore fixtures are healthy but these passwords fail, the accepted repair is Auth-only. Do not immediately perform a full reseed.
+
+### Browser stale-client rule
+
+A Firebase/Flutter restart does not force an already-open Chrome tab to reload the new compiled client. If direct demo Auth passes but the browser reports an incorrect password after a restart, first use:
+
+```text
+Ctrl + Shift + R
+```
+
+This exact condition was reproduced and the hard refresh restored the correct Auth-emulator connection. Do not reseed or change credentials until the direct Auth verifier fails.
 
 ## Accepted startup/auth behavior
 
@@ -94,77 +104,105 @@ Accepted UX requirements:
 
 This foundation correction does **not** award Phase 5 points early.
 
-## Dispatch master-plan position
+## Dispatch Phase 3 current evidence
 
-The authoritative tracker remains `docs/DISPATCH_NETWORK_MASTER_PLAN.md`.
+The authoritative tracker remains `docs/DISPATCH_NETWORK_MASTER_PLAN.md`. Its ledger remains unchanged until Phase 3 browser acceptance is complete and the dedicated finalizer is run.
 
-Current verified score before Phase 3 closeout browser acceptance:
+Current authoritative ledger:
 
 ```text
 Overall: 50/100 = 50%
-Phase 0: 5/5
-Phase 1: 10/10
-Phase 2: 15/15
+Phase 0: GREEN
+Phase 1: GREEN
+Phase 2: GREEN
 Phase 3: 13/15 - IN PROGRESS
-Phase 4: early foundation work exists but Phase 3 gate still controls entry
+Phase 4: BLOCKED
 ```
 
-The two uncredited Phase 3 points are:
+### Service area / home-base browser acceptance
 
-1. Service area and home-base map setup — 1 point.
-2. Credential/insurance metadata with private document separation — 1 point.
+**Browser acceptance: PASS.**
 
-Engineering implementations and focused verifiers already exist for both. Do not award the points merely because code or tests exist. Browser acceptance must prove them first.
+Accepted behavior includes:
 
-## Next permitted Dispatch work: Phase 3 closeout
+- Towns and Regions are classified separately;
+- Fort St. John and Dawson Creek do not become Peace River Regional District town selections;
+- larger regional polygons belong under Regions;
+- Region selection requires region geometry rather than silently substituting a pin;
+- service-area state persists after leaving and reopening Company Profile;
+- exact service-area geometry remains private while public discovery uses approximate geography.
 
-### A. Service area / home-base acceptance
+This accepted browser evidence is preserved for the Phase 3 finalizer. Do not re-diagnose the service-area system unless a new runtime symptom contradicts it.
+
+### Credentials & insurance engineering gate
+
+**Engineering gate: PASS on 2026-08-18. Browser acceptance still required.**
+
+The accepted engineering gate proved:
+
+```text
+Declared PowerShell controls parse before mutation: PASS
+Credential migration formatter/idempotency preflight: PASS
+Credential dialog immediate persistence: PASS
+Insurance coverage fields: PASS
+Analytics & alerts discoverability: PASS
+Credential reminder engine: PASS
+Private credential boundary: PASS
+Primary-admin roster management: PASS
+Generic profile role cannot grant Administrator claims: PASS
+Flutter admin UI contains no administrator email allowlist: PASS
+Dispatch tracker modified by this gate: NO
+Ready for browser acceptance: YES
+```
+
+Root cause of the prior credential persistence defect: the dialog's old **Save metadata** action changed only Flutter in-memory state; durable Firestore persistence happened only through the later page-level Save All action. The repair makes dialog **Save & close** persist immediately and roll back the displayed record if the Firestore write fails.
+
+Analytics is now intentionally discoverable in two places:
+
+- the **Analytics & alerts** tab;
+- a visible **Analytics & alerts** shortcut card on the Records page.
+
+Credential coverage supports primary amount, optional aggregate amount, and currency while keeping exact private policy data in the private business record.
+
+### Administrator policy
+
+Initial approved administrator accounts are:
+
+- `jordilwbailey@gmail.com` — administrator and sole in-app administrator roster manager;
+- `goldcity4u@icloud.com` — administrator but cannot add/remove administrators.
+
+Email alone never grants authority. Real administrator access requires trusted Firebase custom claims plus MFA. The generic users/profile role menu must never grant Administrator access by editing a Firestore role field.
+
+The protected administrator roster manager:
+
+- lists active administrator-role records;
+- lets only the primary administrator manager grant/revoke admin access;
+- requires the target account to have verified email and enrolled MFA;
+- prevents the primary manager from removing itself in-app;
+- revokes refresh tokens after role changes;
+- records an administrator-role audit event.
+
+The Carrier demo account correctly shows **Administrator role not assigned**.
+
+## Immediate next browser acceptance
+
+Because the credential/admin repair changed Flutter source and Functions wiring, restart the full formal environment once before browser acceptance.
 
 Using the Carrier demo account:
 
-1. Open Dispatch -> Company Profile.
-2. Set or edit the mapped service area/home base using the existing Pipe Buyer map picker.
-3. Save.
-4. Leave Company Profile completely.
-5. Reopen Company Profile.
-6. Confirm the service-area label/map state survived.
-7. Confirm public-facing geography is approximate while the exact service-area geometry remains owner-private.
+1. Open Dispatch -> Company Profile -> Credentials & insurance.
+2. Confirm both `Records` and `Analytics & alerts` are visible.
+3. Confirm the Records screen also has the visible Analytics & alerts shortcut card.
+4. Edit General liability insurance with fake test data, including a primary coverage amount, currency, aggregate amount, and expiry date.
+5. Press **Save & close**.
+6. Leave Credentials & insurance completely without relying on the page-level Save All button.
+7. Reopen Credentials & insurance and prove the saved values persisted.
+8. Open Analytics & alerts and confirm readiness, insurance-limit, expiry, and reminder sections are present.
+9. Enable/select reminder windows, save them, leave the page, reopen it, and confirm persistence.
+10. Confirm the UI continues to state that credential information is self-reported and is not Pipe Buyer verification.
+11. If evidence upload is tested, use only a harmless test image and confirm upload does not imply verification.
 
-Engineering gate:
-
-```powershell
-.\tool\verify_dispatch_phase3_service_area_map.ps1
-```
-
-Passing engineering tests alone does not award the point; browser acceptance is still required.
-
-### B. Credentials / insurance acceptance
-
-Using the Carrier demo account:
-
-1. Open Dispatch -> Company Profile -> Manage credentials.
-2. Enter representative metadata for at least one insurance/authority credential.
-3. Save.
-4. Leave the credential screen completely.
-5. Reopen it.
-6. Confirm the metadata survived.
-7. If evidence upload is exercised, use a non-sensitive test image only.
-8. Confirm credential references/evidence are not displayed in the public business profile or Directory.
-9. Confirm the UI does not claim a credential is platform-verified merely because the provider entered metadata or uploaded evidence.
-
-Engineering gate:
-
-```powershell
-.\tool\verify_dispatch_phase3_credentials.ps1
-```
-
-Passing engineering tests alone does not award the point; browser acceptance is still required.
-
-### C. Phase 3 finalization
-
-Only after both browser acceptance paths are explicitly confirmed should the Phase 3 finalizer be run. It is allowed to change `docs/DISPATCH_NETWORK_MASTER_PLAN.md` from 13/15 at 50% to 15/15 at 52% and open Phase 4 as the current phase.
-
-Do not run the finalizer before that evidence exists.
+Only after this browser acceptance passes should Phase 3 be finalized to 15/15 and Phase 4 be formally opened.
 
 ## Operator command standard
 
@@ -173,4 +211,18 @@ Every PowerShell instruction supplied during future Pipe Buyer work must state:
 - **Changes being applied** — what the command can modify.
 - **What to test** — the exact UI/functional acceptance after it passes.
 
-If a command fails, capture the first failing stage and the nearby error. Do not repeatedly rerun or layer new repairs before the first failure is understood.
+If a command fails, capture the first failing stage and nearby error. Do not repeatedly rerun or layer new repairs before the first failure is understood.
+
+Normal subsystem flow:
+
+```text
+scoped control sync
+-> parse/preflight declared controls
+-> bounded source change
+-> focused formatter/analyzer/tests
+-> source-read-only verifier
+-> browser acceptance
+-> separate acceptance recorder/finalizer
+```
+
+Do not couple feature migrations to Dispatch completion scoring.
