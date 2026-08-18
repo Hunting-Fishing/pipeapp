@@ -30,6 +30,7 @@ $supportFiles = @(
   'tool/templates/marketplace_dispatch_credentials_intelligence.dart.txt',
   'test/marketplace_dispatch_credential_intelligence_test.dart',
   'test/marketplace_dispatch_credential_persistence_discoverability_test.dart',
+  'test/dispatch_credential_migration_idempotency_contract_test.dart',
   'test/marketplace_admin_role_management_contract_test.dart',
   'firebase/functions/test/dispatch_credential_monitor.test.js',
   'firebase/functions/test/administrator_role_commands.test.js',
@@ -44,6 +45,12 @@ if ($LASTEXITCODE -ne 0) {
 & git reset -q HEAD -- $supportFiles
 if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Could not unstage the synchronized support bundle.'
+}
+
+Write-Host "`n==> Preflighting credential migration idempotency before any production edit" -ForegroundColor Cyan
+& flutter test '.\test\dispatch_credential_migration_idempotency_contract_test.dart'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Credential migration idempotency contract failed before production edits.'
 }
 
 $newProductionFiles = @(
@@ -114,6 +121,7 @@ foreach ($target in @(
   '.\lib\marketplace\marketplace_dispatch_credentials.dart',
   '.\lib\marketplace\marketplace_admin_role_manager.dart',
   '.\test\marketplace_dispatch_credential_persistence_discoverability_test.dart',
+  '.\test\dispatch_credential_migration_idempotency_contract_test.dart',
   '.\test\marketplace_admin_role_management_contract_test.dart'
 )) {
   & dart analyze --fatal-infos --fatal-warnings $target
@@ -126,6 +134,7 @@ Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'PIPE BUYER DISPATCH PHASE 3 ACCEPTANCE REPAIR PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
+Write-Host 'Credential migration formatter/idempotency preflight: PASS' -ForegroundColor Green
 Write-Host 'Credential dialog immediate persistence: PASS' -ForegroundColor Green
 Write-Host 'Insurance coverage fields: PASS' -ForegroundColor Green
 Write-Host 'Analytics & alerts discoverability: PASS' -ForegroundColor Green
