@@ -22,6 +22,7 @@ $supportFiles = @(
   'tool/pipebuyer_doctor.ps1',
   'tool/apply_dispatch_credential_intelligence.ps1',
   'tool/apply_dispatch_credential_acceptance_v2.ps1',
+  'tool/apply_dispatch_credential_analytics_actions_v3.ps1',
   'tool/apply_administrator_role_management.ps1',
   'tool/update_dispatch_credential_reminder_engine.ps1',
   'tool/normalize_dispatch_credential_dart_format.ps1',
@@ -30,6 +31,7 @@ $supportFiles = @(
   'tool/templates/marketplace_dispatch_credentials_intelligence.dart.txt',
   'test/marketplace_dispatch_credential_intelligence_test.dart',
   'test/marketplace_dispatch_credential_persistence_discoverability_test.dart',
+  'test/marketplace_dispatch_credential_analytics_actions_test.dart',
   'test/dispatch_credential_migration_idempotency_contract_test.dart',
   'test/marketplace_admin_role_management_contract_test.dart',
   'firebase/functions/test/dispatch_credential_monitor.test.js',
@@ -53,6 +55,7 @@ $phasePowerShellControls = @(
   'tool\pipebuyer_doctor.ps1',
   'tool\apply_dispatch_credential_intelligence.ps1',
   'tool\apply_dispatch_credential_acceptance_v2.ps1',
+  'tool\apply_dispatch_credential_analytics_actions_v3.ps1',
   'tool\apply_administrator_role_management.ps1',
   'tool\update_dispatch_credential_reminder_engine.ps1',
   'tool\normalize_dispatch_credential_dart_format.ps1',
@@ -128,6 +131,7 @@ function Run-CheckedPowerShell {
 
 Run-CheckedPowerShell '.\tool\pipebuyer_doctor.ps1' 'Running scoped Pipe Buyer Doctor'
 Run-CheckedPowerShell '.\tool\apply_dispatch_credential_acceptance_v2.ps1' 'Applying credential persistence and analytics acceptance repair'
+Run-CheckedPowerShell '.\tool\apply_dispatch_credential_analytics_actions_v3.ps1' 'Applying interactive credential analytics actions and duplicate cleanup'
 Run-CheckedPowerShell '.\tool\apply_administrator_role_management.ps1' 'Applying protected administrator roster management'
 Run-CheckedPowerShell '.\tool\run_dispatch_phase3_credential_gate.ps1' 'Running complete credential engineering gate'
 
@@ -135,6 +139,12 @@ Write-Host "`n==> Running immediate-save and analytics discoverability contract"
 & flutter test '.\test\marketplace_dispatch_credential_persistence_discoverability_test.dart'
 if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Credential persistence/discoverability contract failed.'
+}
+
+Write-Host "`n==> Running credential analytics interaction contract" -ForegroundColor Cyan
+& flutter test '.\test\marketplace_dispatch_credential_analytics_actions_test.dart'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Credential analytics interaction contract failed.'
 }
 
 Write-Host "`n==> Re-running administrator role command contract" -ForegroundColor Cyan
@@ -154,6 +164,7 @@ foreach ($target in @(
   '.\lib\marketplace\marketplace_dispatch_credentials.dart',
   '.\lib\marketplace\marketplace_admin_role_manager.dart',
   '.\test\marketplace_dispatch_credential_persistence_discoverability_test.dart',
+  '.\test\marketplace_dispatch_credential_analytics_actions_test.dart',
   '.\test\dispatch_credential_migration_idempotency_contract_test.dart',
   '.\test\marketplace_admin_role_management_contract_test.dart'
 )) {
@@ -171,7 +182,9 @@ Write-Host 'Declared PowerShell controls parse before mutation: PASS' -Foregroun
 Write-Host 'Credential migration formatter/idempotency preflight: PASS' -ForegroundColor Green
 Write-Host 'Credential dialog immediate persistence: PASS' -ForegroundColor Green
 Write-Host 'Insurance coverage fields: PASS' -ForegroundColor Green
-Write-Host 'Analytics & alerts discoverability: PASS' -ForegroundColor Green
+Write-Host 'Top-tab Analytics & alerts navigation: PASS' -ForegroundColor Green
+Write-Host 'Duplicate analytics shortcut cards removed: PASS' -ForegroundColor Green
+Write-Host 'Interactive credential analytics drill-down: PASS' -ForegroundColor Green
 Write-Host 'Credential reminder engine: PASS' -ForegroundColor Green
 Write-Host 'Private credential boundary: PASS' -ForegroundColor Green
 Write-Host 'Primary-admin roster management: PASS' -ForegroundColor Green
