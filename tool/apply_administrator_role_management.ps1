@@ -115,6 +115,15 @@ $dashboard = $dashboard.Replace(
   'Search Pipe Buyer members and maintain ordinary account-type metadata. Administrator access is managed separately through protected Firebase claims and MFA.',
 )
 
+$dashboard = Replace-ExactlyOnce $dashboard @'
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final masterEmail = currentUser?.email ?? 'jordilwbailey@gmail.com';
+'@ @'
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final accountEmail = currentUser?.email ?? 'Administrator';
+'@ 'remove hard-coded administrator identity fallback'
+$dashboard = $dashboard.Replace('title: Text(masterEmail,', 'title: Text(accountEmail,')
+
 $configBefore = @'
         const SizedBox(height: 16),
         SwitchListTile(
@@ -188,5 +197,6 @@ Write-Host 'Primary administrator roster manager restriction: PASS' -ForegroundC
 Write-Host 'Goldcity administrator cannot change roster: PASS' -ForegroundColor Green
 Write-Host 'Primary administrator cannot remove itself in-app: PASS' -ForegroundColor Green
 Write-Host 'Generic user role menu cannot fake Administrator access: PASS' -ForegroundColor Green
+Write-Host 'Admin dashboard identity fallback removed: PASS' -ForegroundColor Green
 Write-Host 'Role changes revoke existing sessions: PASS' -ForegroundColor Green
 Write-Host 'Dispatch tracker modified: NO' -ForegroundColor Green
