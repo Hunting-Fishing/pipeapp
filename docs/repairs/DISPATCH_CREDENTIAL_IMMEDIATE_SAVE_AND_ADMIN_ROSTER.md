@@ -6,6 +6,7 @@
 2. The credential intelligence build was not discoverable enough; users did not know where **Analytics & alerts** lived.
 3. The generic Admin Portal user-role menu included an `Administrator` profile-field option even though real administrator authorization correctly uses Firebase custom claims plus MFA.
 4. The platform needs an initial two-account administrator roster, with only the primary administrator permitted to add or remove administrators.
+5. Earlier credential migration detection depended on the exact one-line formatting of the Analytics tab and could misclassify already-installed, Dart-formatted source as a partial migration.
 
 ## Root causes
 
@@ -21,17 +22,27 @@ The intelligence design used an app-bar tab. When an older credential source was
 
 The generic user directory edited `users/{uid}.role`, but `administrator_authorization.js` intentionally ignores that client/profile field and requires trusted custom claims plus second-factor evidence. The UI therefore exposed a misleading action that could never correctly provision administrator authority.
 
+The legacy Admin Dashboard also contained a hard-coded administrator-email fallback for an empty users-list display. It did not grant authorization, but it violated the rule that administrator identities belong in trusted server policy/provisioning rather than Flutter UI source.
+
+### Migration idempotency
+
+`apply_dispatch_credential_intelligence.ps1` originally recognized the installed intelligence source using the exact text `Tab(icon: Icon(...), text: 'Analytics & alerts')`. `dart format` can split that widget across lines. Installation detection must use semantic feature markers rather than physical source layout.
+
 ## Permanent repair
 
 - `tool/apply_dispatch_credential_acceptance_v2.ps1` first materializes the complete credential-intelligence foundation, then makes dialog Save durable by writing the private business record before the action completes.
 - Failed credential writes roll the local record back instead of leaving the UI looking saved.
 - The Records page includes a visible **Analytics & alerts** card/button in addition to the app-bar tab.
 - `test/marketplace_dispatch_credential_persistence_discoverability_test.dart` protects the immediate-save and discoverability contracts.
+- `tool/apply_dispatch_credential_intelligence.ps1` now detects installed intelligence through semantic markers that survive Dart formatting.
+- `test/dispatch_credential_migration_idempotency_contract_test.dart` prevents a return to exact one-line Tab matching.
 - `firebase/functions/administrator_role_commands.js` provides protected administrator roster list/grant/revoke callables.
 - The trusted server requires normal administrator claims, current MFA evidence, verified email, and the primary manager account before any roster mutation.
 - New administrator targets must have verified email and enrolled MFA; successful changes revoke refresh tokens and append an audit record.
 - The generic Admin Portal user-role menu no longer offers a fake `Administrator` profile-field action.
-- `lib/marketplace/marketplace_admin_role_manager.dart` is the dedicated roster UI.
+- The Admin Dashboard no longer carries a hard-coded administrator identity fallback.
+- `lib/marketplace/marketplace_admin_role_manager.dart` is the dedicated roster UI and contains no approved-email allowlist.
+- `test/marketplace_admin_role_management_contract_test.dart` protects the Flutter authorization boundary.
 - `tool/run_dispatch_phase3_acceptance_repair.ps1` is the single-entry bounded repair/gate for this acceptance slice.
 
 ## Initial administrator policy
