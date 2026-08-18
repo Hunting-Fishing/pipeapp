@@ -157,17 +157,25 @@ function transform(source, label) {
       const end = text.indexOf('final upcoming', start);
       if (end <= start) fail(`${label}: could not bound analytics collection variables.`);
       const lineStart = text.lastIndexOf('\n', start) + 1;
-      text = text.slice(0, lineStart) + variableReplacement + text.slice(end - 4);
+      const endLineStart = text.lastIndexOf('\n', end) + 1;
+      text = text.slice(0, lineStart) + variableReplacement + text.slice(endLineStart);
     }
 
     if (!text.includes('records: current')) {
-      const currentMarker = "_metricTile('Current'";
-      const currentIndex = text.indexOf(currentMarker);
-      if (currentIndex < 0) fail(`${label}: old Current metric call not found and new metric call is absent.`);
-      const wrapIndex = text.lastIndexOf('Wrap(', currentIndex);
-      if (wrapIndex < 0) fail(`${label}: could not locate readiness metric Wrap.`);
+      const readinessTitle = text.indexOf("title: 'Credential readiness'");
+      const expiryTitle = text.indexOf("title: 'Expiry reminders'", readinessTitle);
+      if (readinessTitle < 0 || expiryTitle < 0) {
+        fail(`${label}: could not bound Credential readiness before Expiry reminders.`);
+      }
+      const currentMetricIndex = text.indexOf('_metricTile', readinessTitle);
+      if (currentMetricIndex < 0 || currentMetricIndex > expiryTitle) {
+        fail(`${label}: old readiness metric calls were not found inside Credential readiness.`);
+      }
+      const wrapIndex = text.lastIndexOf('Wrap(', currentMetricIndex);
+      if (wrapIndex < readinessTitle) fail(`${label}: could not locate readiness metric Wrap.`);
       const openParen = wrapIndex + 'Wrap'.length;
       const closeParen = findMatchingParen(text, openParen);
+      if (closeParen > expiryTitle) fail(`${label}: readiness metric Wrap escaped its section boundary.`);
       text = text.slice(0, wrapIndex) + helperText + readinessReplacement + text.slice(closeParen + 1);
     }
 
@@ -210,8 +218,9 @@ function transform(source, label) {
   return { text, removedShortcuts: cleanup.removed, alreadyInteractive: fullyInteractive };
 }
 
-if (currentBranch() !== expectedBranch) {
-  fail(`Wrong branch. Expected ${expectedBranch}, found ${currentBranch()}.`);
+const branch = currentBranch();
+if (branch !== expectedBranch) {
+  fail(`Wrong branch. Expected ${expectedBranch}, found ${branch}.`);
 }
 
 const targets = [
@@ -222,6 +231,9 @@ for (const target of targets) {
   if (!fs.existsSync(target)) fail(`Required credential analytics file is missing: ${target}`);
 }
 
+// Preflight every transformation entirely in memory. Nothing is written unless
+// both the live Dart source and its canonical template reach the same required
+// semantic contract.
 const planned = targets.map((target) => ({
   target,
   result: transform(fs.readFileSync(target, 'utf8'), path.basename(target)),
