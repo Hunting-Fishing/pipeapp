@@ -61,9 +61,13 @@ Write-Host "`n==> Installing the bounded credential records + analytics source" 
 $currentCredential = Normalize-Lf ([System.IO.File]::ReadAllText($credentialSource))
 $templateCredential = Normalize-Lf ([System.IO.File]::ReadAllText($templatePath))
 
-$alreadyIntelligence = $currentCredential.Contains("Tab(icon: Icon(Icons.insights_outlined), text: 'Analytics & alerts')") -and
+# Detect the materialized feature using semantic markers that survive dart format.
+# Do not depend on a particular one-line Tab(...) layout.
+$alreadyIntelligence =
+  $currentCredential.Contains('class DispatchCredentialReminderSettings') -and
   $currentCredential.Contains('syncDispatchCredentialReminderSchedule') -and
-  $currentCredential.Contains('coverageLimit')
+  $currentCredential.Contains('coverageLimit') -and
+  $currentCredential.Contains('Analytics & alerts')
 
 if ($alreadyIntelligence) {
   Write-Host 'Credential intelligence source already installed.' -ForegroundColor DarkGray
