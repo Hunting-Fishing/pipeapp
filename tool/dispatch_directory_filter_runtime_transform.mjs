@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 function fail(message) {
   throw new Error(`STOP: ${message}`);
 }
@@ -19,6 +17,7 @@ function replaceBetween(text, startMarker, endMarker, replacement, label) {
 }
 
 function validate(source) {
+  const compact = source.replace(/\s+/g, ' ');
   const required = [
     "import 'dart:async';",
     'DispatchDirectoryPageData? _lastSuccessfulData;',
@@ -27,17 +26,18 @@ function validate(source) {
     'final generation = ++_loadGeneration;',
     'initialData: _lastSuccessfulData,',
     'final retainedData = snapshot.data ?? _lastSuccessfulData;',
-    'snapshot.connectionState == ConnectionState.waiting &&\n            retainedData == null',
+    'snapshot.connectionState == ConnectionState.waiting && retainedData == null',
     'snapshot.hasError && retainedData == null',
     'Timer(const Duration(milliseconds: 180), () {',
     "'Updating Directory results...'",
     "'Could not refresh these filters. Showing the last loaded Directory results.'",
   ];
   for (const marker of required) {
-    if (!source.includes(marker)) fail(`Runtime-stability transform is missing: ${marker}`);
+    if (!compact.includes(marker.replace(/\s+/g, ' '))) {
+      fail(`Runtime-stability transform is missing: ${marker}`);
+    }
   }
-  const forbidden = `  void _setFilters(DispatchDirectoryFilters value) {\n    setState(() {\n      _filters = value;\n      _loadFuture = _load();\n    });\n  }`;
-  if (source.includes(forbidden)) {
+  if (compact.includes('_filters = value; _loadFuture = _load();')) {
     fail('Filter controls still replace the Directory future immediately.');
   }
 }
@@ -117,8 +117,4 @@ export function stabilizeDirectoryFilterRuntime(input) {
 
   validate(source);
   return source;
-}
-
-export function directoryFilterRuntimeTransformName() {
-  return path.basename(new URL(import.meta.url).pathname);
 }
