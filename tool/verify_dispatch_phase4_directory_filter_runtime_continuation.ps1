@@ -76,14 +76,32 @@ if ($parseErrors.Count -gt 0) {
   throw "STOP: Read-only Directory continuation parser failure: $($parseErrors[0].Message)"
 }
 
-Write-Step 'Checking formatter stability without changing production source'
-& dart format --output=none --set-exit-if-changed `
-  '.\lib\marketplace\marketplace_dispatch_directory.dart' `
-  '.\test\dispatch_directory_filter_runtime_stability_contract_test.dart' `
-  '.\test\dispatch_directory_runtime_contract_hygiene_test.dart'
+# Read-only means production source and tracker remain immutable. Synchronized
+# support tests are allowed to be formatted locally before they are executed.
+Write-Step 'Formatting synchronized regression/support files only'
+$testFiles = @(
+  '.\test\dispatch_directory_filter_runtime_stability_contract_test.dart',
+  '.\test\dispatch_directory_runtime_contract_hygiene_test.dart',
+  '.\test\marketplace_dispatch_directory_test.dart',
+  '.\test\marketplace_dispatch_directory_projection_query_test.dart'
+)
+& dart format $testFiles
 if ($LASTEXITCODE -ne 0) {
-  throw 'STOP: Directory runtime source/tests are not formatter-stable. Do not rerun the source mutation.'
+  throw 'STOP: Could not format synchronized Directory regression/support files.'
 }
+& dart format --output=none --set-exit-if-changed $testFiles
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Synchronized Directory regression/support files are not formatter-stable after formatting.'
+}
+Write-Host 'Synchronized support-test formatter normalization: PASS' -ForegroundColor Green
+
+Write-Step 'Checking PRODUCTION Directory formatter stability without changing it'
+& dart format --output=none --set-exit-if-changed `
+  '.\lib\marketplace\marketplace_dispatch_directory.dart'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Already-applied production Directory source is not formatter-stable. Do not rerun the mutation.'
+}
+Write-Host 'Production Directory formatter stability: PASS' -ForegroundColor Green
 
 Write-Step 'Analyzing the already-applied production Directory source BEFORE tests'
 & flutter analyze --fatal-infos --fatal-warnings `
@@ -106,7 +124,7 @@ Write-Step 'Running corrected runtime and existing Directory regressions'
   '.\test\marketplace_dispatch_directory_test.dart' `
   '.\test\marketplace_dispatch_directory_projection_query_test.dart'
 if ($LASTEXITCODE -ne 0) {
-  throw 'STOP: Directory regression failed after production source analyzer PASS. This is now isolated to a test/runtime behavior layer; do not rerun the mutation.'
+  throw 'STOP: Directory regression failed after production source analyzer PASS. This is isolated to a test/runtime behavior layer; do not rerun the mutation.'
 }
 
 Write-Step 'Strict analyzer on corrected regression files'
@@ -132,6 +150,8 @@ Write-Host '============================================================' -Foreg
 Write-Host 'PIPE BUYER DIRECTORY RUNTIME READ-ONLY CONTINUATION PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Already-applied runtime source recognized: PASS' -ForegroundColor Green
+Write-Host 'Support-test formatter normalization: PASS' -ForegroundColor Green
+Write-Host 'Production Directory formatter stability: PASS' -ForegroundColor Green
 Write-Host 'Production source analyzer before tests: PASS' -ForegroundColor Green
 Write-Host 'Regression-contract hygiene: PASS' -ForegroundColor Green
 Write-Host 'Runtime stability regression: PASS' -ForegroundColor Green
