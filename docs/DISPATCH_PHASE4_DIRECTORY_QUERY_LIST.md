@@ -26,7 +26,11 @@ The Flutter Directory must not query `public_business_profiles` directly for cus
 - explicit loading, error and empty states;
 - retained provider legacy tools below the customer Directory results;
 - deterministic six-company local Directory fixture set;
-- formal acceptance launcher integration for the Directory fixtures.
+- formal acceptance launcher integration for the Directory fixtures;
+- retained last-successful results during filter refreshes;
+- 180 ms debounce for rapid filter/search changes;
+- generation protection so stale async results cannot replace newer filter results;
+- inline refresh/error feedback instead of a blank full-page loading replacement.
 
 ## Deterministic local Directory fixtures
 
@@ -55,6 +59,30 @@ service code
 
 The remaining selected filters are applied to the bounded returned entries in Flutter. This keeps the first Directory slice deterministic and avoids silently adding unreviewed indexes. Geography/radius query strategy is deliberately left to the next Phase 4 slice.
 
+## Runtime filter lifecycle
+
+Browser acceptance exposed an important lifecycle requirement that seeded widget tests did not originally reproduce: selecting a real Firestore-backed filter must not replace a usable Directory page with a blank/full-page loading state while the query refreshes.
+
+The accepted pattern is:
+
+```text
+last successful Directory page
+-> user changes filter
+-> visible results refine immediately
+-> debounce bounded remote refresh
+-> keep prior results while waiting
+-> accept only newest async completion
+-> inline updating/error state
+```
+
+The permanent root-cause record is:
+
+```text
+docs/repairs/DISPATCH_DIRECTORY_FILTER_RUNTIME_STABILITY.md
+```
+
+The main Phase 4 query/list gate now installs and verifies this lifecycle automatically.
+
 ## Privacy rules
 
 Provider list cards may show only information that exists in the Directory projection. Do not re-fetch private provider/business records to enrich the card.
@@ -69,6 +97,7 @@ Browser acceptance should prove:
 - six deterministic provider cards appear in the formal local environment;
 - Lowboy service filter reduces results to Northline Heavy Haul;
 - Pilot / Escort filter returns the Peace Country pilot provider and Northline where applicable;
+- Hotshot selection keeps the Directory visible and updates results without a blank page;
 - `Available now` reduces results correctly;
 - Emergency callout and Remote-site filters work in combination;
 - company/service/location text search works for exact indexed words such as `Fort`, `Grande`, `Northline`, `hotshot`;
