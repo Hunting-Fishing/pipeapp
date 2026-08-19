@@ -18,24 +18,19 @@ Phase 3: 15/15 GREEN
 Phase 4: IN PROGRESS
 ```
 
-Phase 3 browser acceptance is complete. The Phase 4 Directory projection/security foundation is installed and its continuation verifier passed without modifying production source.
+Phase 3 browser acceptance is complete.
 
-Accepted Phase 4 continuation proof:
+Phase 4 has these accepted engineering foundations:
 
 ```text
-PIPE BUYER PHASE 4 DIRECTORY PROJECTION CONTINUATION PASSED
-Previously applied Directory source: PASS
-Projection/privacy contracts: PASS
-Functions syntax: PASS
-Firebase CLI global-or-npx fallback: PASS
-Firestore Rules emulator proof: PASS
-Phase 3: 15/15 GREEN
-Phase 4: IN PROGRESS
-Production source modified by continuation: NO
-Ready for next Phase 4 slice: YES
+Directory projection/schema/security foundation: PASS
+Directory projection continuation verifier: PASS
+Directory repository/query + provider-list engineering gate: PASS
 ```
 
-**Next permitted Dispatch task:** Directory repository/query layer, followed by real provider list cards, service/availability/geography filters, and synchronized OpenStreetMap pins.
+The query/list slice is still in browser acceptance because a real Firestore-backed Hotshot filter exposed a runtime loading-lifecycle defect after the engineering gate passed. That defect is now isolated behind a focused repair; do not proceed to geography/map work until the Hotshot browser re-test passes.
+
+**Current next permitted Dispatch task:** run the focused Directory filter runtime repair, then re-test Directory -> Hotshot in the browser. After that passes, proceed to geography/radius + synchronized OpenStreetMap pins.
 
 ## Permanent local controls
 
@@ -191,17 +186,17 @@ Email alone never grants authority. Real administrator access requires trusted F
 
 The Carrier demo account correctly shows `Administrator role not assigned`.
 
-## Phase 4 Directory foundation already installed
+## Phase 4 Directory foundation
 
-Phase 4 introduces the server-owned searchable projection:
+Phase 4 uses the server-owned searchable projection:
 
 ```text
 dispatch_directory_entries/{companyId}
 ```
 
-The projection is designed to publish only bounded Directory/search information for eligible active providers. Client writes are blocked. Private email, phone, Auth UID, exact private address data, credentials, policy/evidence data and unsupported verification claims are excluded.
+The projection publishes only bounded Directory/search information for eligible active providers. Client writes are blocked. Private email, phone, Auth UID, exact private address data, credentials, policy/evidence data and unsupported verification claims are excluded.
 
-The accepted continuation gate proved:
+Accepted projection proof includes:
 
 - projection/privacy contracts;
 - Functions syntax;
@@ -209,15 +204,70 @@ The accepted continuation gate proved:
 - dedicated Firestore Rules emulator proof;
 - no production source mutation by the continuation verifier.
 
-## Next Phase 4 build shape
+## Phase 4 query/list slice
 
-Build Phase 4 in bounded slices:
+The repository/query + provider-list engineering gate passed with:
 
 ```text
-Directory repository/query layer
-    -> provider list cards
-    -> service + availability filters
-    -> geography/location filters
+PIPE BUYER DISPATCH PHASE 4 DIRECTORY QUERY + LIST GATE PASSED
+Server-owned Directory repository/query layer: PASS
+Service filter wiring: PASS
+Availability/business/capability filters: PASS
+Real provider list cards: PASS
+Loading/error/empty states: PASS
+Deterministic six-provider Directory fixture: PASS
+Server projection/privacy regression: PASS
+Strict analyzer: PASS
+Dispatch tracker modified by this gate: NO
+Ready for browser acceptance: YES
+```
+
+The formal local acceptance environment seeds six representative Directory providers:
+
+1. Northline Heavy Haul;
+2. Peace Country Pilot & Escort;
+3. Grande Prairie Picker & Crane;
+4. Dawson Creek Road & Site Services;
+5. Prairie Hotshot Services;
+6. Northern Mobile Mechanical.
+
+### Directory filter runtime browser defect and repair
+
+Browser acceptance found that selecting Hotshot could replace the entire Directory body with a white/loading surface while Firestore refreshed. The root cause is not projection/privacy or provider data. The page was replacing `_loadFuture` immediately on every filter change, and `FutureBuilder` discarded the usable Directory whenever the new future entered `waiting`.
+
+Permanent repair record:
+
+```text
+docs/repairs/DISPATCH_DIRECTORY_FILTER_RUNTIME_STABILITY.md
+```
+
+Focused current-worktree repair gate:
+
+```powershell
+.\tool\run_dispatch_phase4_directory_filter_runtime_repair.ps1
+```
+
+The repaired lifecycle is:
+
+```text
+last successful Directory data
+    -> filter changes immediately
+    -> visible results refine immediately
+    -> debounce remote refresh
+    -> keep prior results while waiting
+    -> generation guard rejects stale async completion
+    -> inline updating/error state instead of blank page
+```
+
+The main `run_dispatch_phase4_directory_query_list_gate.ps1` now includes this runtime-stability control so a fresh checkout does not recreate the bug.
+
+## Next Phase 4 build shape
+
+After the Directory filter browser re-test passes:
+
+```text
+geography/location filters
+    -> radius search
     -> synchronized list/map selection
     -> OpenStreetMap provider pins
     -> provider detail surface
@@ -225,7 +275,7 @@ Directory repository/query layer
     -> separate tracker finalization
 ```
 
-The first visible Directory UX should remain simple for non-technical users:
+The first visible Directory UX remains simple for non-technical users:
 
 ```text
 Search service/location
