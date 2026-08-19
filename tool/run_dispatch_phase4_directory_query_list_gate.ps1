@@ -30,13 +30,17 @@ if ($LASTEXITCODE -ne 0) {
 
 $supportFiles = @(
   'tool/apply_dispatch_phase4_directory_query_ui.mjs',
+  'tool/dispatch_directory_filter_runtime_transform.mjs',
+  'tool/apply_dispatch_phase4_directory_filter_stability.mjs',
   'firebase/functions/scripts/seed_dispatch_directory_visual.js',
   'test/marketplace_dispatch_directory_test.dart',
   'test/marketplace_dispatch_directory_projection_query_test.dart',
   'test/dispatch_directory_projection_source_contract_test.dart',
+  'test/dispatch_directory_filter_runtime_stability_contract_test.dart',
   'firebase/functions/test/dispatch_directory_projection.test.js',
   'firebase/functions/test/dispatch_directory_security_contract.test.js',
-  'docs/DISPATCH_PHASE4_DIRECTORY_QUERY_LIST.md'
+  'docs/DISPATCH_PHASE4_DIRECTORY_QUERY_LIST.md',
+  'docs/repairs/DISPATCH_DIRECTORY_FILTER_RUNTIME_STABILITY.md'
 )
 
 Write-Step 'Synchronizing the declared Phase 4 query/list support bundle'
@@ -85,6 +89,8 @@ foreach ($file in $requiredLocalFiles) {
 Write-Step 'Preflighting every declared control before mutation'
 $nodeControls = @(
   'tool/apply_dispatch_phase4_directory_query_ui.mjs',
+  'tool/dispatch_directory_filter_runtime_transform.mjs',
+  'tool/apply_dispatch_phase4_directory_filter_stability.mjs',
   'firebase/functions/scripts/seed_dispatch_directory_visual.js',
   'firebase/functions/dispatch_directory_projection.js',
   'firebase/functions/test/dispatch_directory_projection.test.js',
@@ -129,13 +135,20 @@ if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Phase 4 Directory query/list integration failed.'
 }
 
+Write-Step 'Applying the permanent non-blank filter refresh lifecycle'
+& node '.\tool\apply_dispatch_phase4_directory_filter_stability.mjs'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Phase 4 Directory filter runtime stability integration failed.'
+}
+
 Write-Step 'Formatting only the touched Directory Dart source and tests'
 $dartFiles = @(
   'lib/marketplace/marketplace_dispatch_directory.dart',
   'lib/marketplace/marketplace_dispatch_navigation.dart',
   'test/marketplace_dispatch_directory_test.dart',
   'test/marketplace_dispatch_directory_projection_query_test.dart',
-  'test/dispatch_directory_projection_source_contract_test.dart'
+  'test/dispatch_directory_projection_source_contract_test.dart',
+  'test/dispatch_directory_filter_runtime_stability_contract_test.dart'
 )
 & dart format $dartFiles
 if ($LASTEXITCODE -ne 0) {
@@ -159,11 +172,12 @@ if ($launcherErrors.Count -gt 0) {
 }
 Write-Host 'Formal acceptance launcher parse: PASS' -ForegroundColor Green
 
-Write-Step 'Running Directory projection/query/widget contracts'
+Write-Step 'Running Directory projection/query/widget/runtime contracts'
 & flutter test `
   '.\test\marketplace_dispatch_directory_test.dart' `
   '.\test\marketplace_dispatch_directory_projection_query_test.dart' `
-  '.\test\dispatch_directory_projection_source_contract_test.dart'
+  '.\test\dispatch_directory_projection_source_contract_test.dart' `
+  '.\test\dispatch_directory_filter_runtime_stability_contract_test.dart'
 if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Phase 4 Directory Flutter contracts failed.'
 }
@@ -182,7 +196,8 @@ $analyzeFiles = @(
   'lib/marketplace/marketplace_dispatch_navigation.dart',
   'test/marketplace_dispatch_directory_test.dart',
   'test/marketplace_dispatch_directory_projection_query_test.dart',
-  'test/dispatch_directory_projection_source_contract_test.dart'
+  'test/dispatch_directory_projection_source_contract_test.dart',
+  'test/dispatch_directory_filter_runtime_stability_contract_test.dart'
 )
 foreach ($target in $analyzeFiles) {
   & flutter analyze --fatal-infos --fatal-warnings $target
@@ -206,6 +221,8 @@ Write-Host 'Service filter wiring: PASS' -ForegroundColor Green
 Write-Host 'Availability/business/capability filters: PASS' -ForegroundColor Green
 Write-Host 'Real provider list cards: PASS' -ForegroundColor Green
 Write-Host 'Loading/error/empty states: PASS' -ForegroundColor Green
+Write-Host 'Filter refresh retains usable results: PASS' -ForegroundColor Green
+Write-Host 'Rapid filter/search refresh debounce: PASS' -ForegroundColor Green
 Write-Host 'Deterministic six-provider Directory fixture: PASS' -ForegroundColor Green
 Write-Host 'Server projection/privacy regression: PASS' -ForegroundColor Green
 Write-Host 'Strict analyzer: PASS' -ForegroundColor Green
