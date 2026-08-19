@@ -17,6 +17,7 @@ $reseedHelper = Join-Path $PSScriptRoot 'reseed_formal_test_data.ps1'
 $clientLauncher = Join-Path $PSScriptRoot 'launch_formal_flutter_client.ps1'
 $analyticsTest = Join-Path $repoRoot 'firebase\functions\test\marketplace_listing_insights.test.js'
 $timedBuyingSmoke = Join-Path $repoRoot 'firebase\functions\integration\timed_buying_sandbox.mjs'
+$directorySeed = Join-Path $repoRoot 'firebase\functions\scripts\seed_dispatch_directory_visual.js'
 if (-not (Test-Path $formalLauncher)) {
   throw 'tool/start_formal_test_sandbox.ps1 is missing.'
 }
@@ -31,6 +32,9 @@ if (-not (Test-Path $analyticsTest)) {
 }
 if (-not (Test-Path $timedBuyingSmoke)) {
   throw 'Timed Buying sandbox callable smoke test is missing.'
+}
+if (-not (Test-Path $directorySeed)) {
+  throw 'Dispatch Directory visual seed is missing.'
 }
 
 Write-Step 'Starting Pipe Buyer emulators, deterministic fixtures and smoke tests'
@@ -61,6 +65,12 @@ Write-Step 'Confirming deterministic fixtures after Timed Buying smoke cleanup'
 & powershell -ExecutionPolicy Bypass -File $reseedHelper -SkipSeed
 if ($LASTEXITCODE -ne 0) {
   throw 'Formal test-data verification failed after Timed Buying smoke cleanup.'
+}
+
+Write-Step 'Seeding deterministic Dispatch Directory provider fixtures'
+& node $directorySeed
+if ($LASTEXITCODE -ne 0) {
+  throw 'Dispatch Directory visual fixture seed failed.'
 }
 
 Write-Step 'Running seller listing analytics function contracts'
