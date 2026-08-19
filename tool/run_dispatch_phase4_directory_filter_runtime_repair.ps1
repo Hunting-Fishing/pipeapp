@@ -24,6 +24,7 @@ if (-not (Test-Path -LiteralPath $directoryPath)) {
   throw 'STOP: Dispatch Directory source is missing.'
 }
 $trackerHashBefore = (Get-FileHash -Algorithm SHA256 -LiteralPath $trackerPath).Hash
+$directoryHashBefore = (Get-FileHash -Algorithm SHA256 -LiteralPath $directoryPath).Hash
 
 $directoryText = Get-Content -LiteralPath $directoryPath -Raw
 if (-not $directoryText.Contains("_firestore.collection('dispatch_directory_entries')")) {
@@ -42,6 +43,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $supportFiles = @(
   'tool/dispatch_directory_filter_runtime_transform.mjs',
+  'tool/verify_dispatch_directory_filter_runtime_transform_dryrun.mjs',
   'tool/apply_dispatch_phase4_directory_filter_stability.mjs',
   'test/dispatch_directory_filter_runtime_stability_contract_test.dart',
   'docs/repairs/DISPATCH_DIRECTORY_FILTER_RUNTIME_STABILITY.md'
@@ -58,6 +60,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Step 'Parsing all focused controls before production mutation'
 $nodeControls = @(
   'tool/dispatch_directory_filter_runtime_transform.mjs',
+  'tool/verify_dispatch_directory_filter_runtime_transform_dryrun.mjs',
   'tool/apply_dispatch_phase4_directory_filter_stability.mjs'
 )
 foreach ($target in $nodeControls) {
@@ -76,12 +79,23 @@ $parseTokens = $null
 if ($parseErrors.Count -gt 0) {
   throw "STOP: Directory runtime repair PowerShell parse failed: $($parseErrors[0].Message)"
 }
-Write-Host 'Focused Directory runtime control preflight: PASS' -ForegroundColor Green
+Write-Host 'Focused Directory runtime control parse preflight: PASS' -ForegroundColor Green
 
-Write-Step 'Applying only the filter/loading lifecycle repair'
+Write-Step 'Dry-running the complete runtime transform against the exact current local Directory source'
+& node '.\tool\verify_dispatch_directory_filter_runtime_transform_dryrun.mjs'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Directory runtime transform dry-run failed. Production source was not mutated by this stage.'
+}
+$directoryHashAfterDryRun = (Get-FileHash -Algorithm SHA256 -LiteralPath $directoryPath).Hash
+if ($directoryHashAfterDryRun -ne $directoryHashBefore) {
+  throw 'STOP: Directory runtime dry-run changed production source. Do not continue.'
+}
+Write-Host 'Exact local-source runtime transform dry-run: PASS' -ForegroundColor Green
+
+Write-Step 'Applying only the already-proven filter/loading lifecycle repair'
 & node '.\tool\apply_dispatch_phase4_directory_filter_stability.mjs'
 if ($LASTEXITCODE -ne 0) {
-  throw 'STOP: Directory filter runtime stability repair failed.'
+  throw 'STOP: Directory filter runtime stability repair failed after a successful dry-run.'
 }
 
 Write-Step 'Formatting only the repaired Directory source and its regression contract'
@@ -128,6 +142,9 @@ Write-Host ''
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'PIPE BUYER PHASE 4 DIRECTORY FILTER RUNTIME REPAIR PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
+Write-Host 'Control parse before mutation: PASS' -ForegroundColor Green
+Write-Host 'Exact current local-source transform dry-run: PASS' -ForegroundColor Green
+Write-Host 'Dry-run production mutation: NO' -ForegroundColor Green
 Write-Host 'Previously accepted Directory projection/query layer preserved: PASS' -ForegroundColor Green
 Write-Host 'Last successful results retained during refresh: PASS' -ForegroundColor Green
 Write-Host 'Rapid filter/search refresh debounce: PASS' -ForegroundColor Green
