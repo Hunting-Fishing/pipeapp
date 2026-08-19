@@ -1,87 +1,148 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 
-function argumentValue(name) {
-  const index = process.argv.indexOf(name);
-  if (index < 0) return '';
-  return process.argv[index + 1] ?? '';
+const __filename = fileURLToPath(import.meta.url);
+const repoRoot = path.resolve(path.dirname(__filename), '..');
+const expectedBranch = 'design/formal-beautification-foundation';
+const planPath = path.join(repoRoot, 'docs', 'DISPATCH_NETWORK_MASTER_PLAN.md');
+
+function fail(message) {
+  throw new Error(`STOP: ${message}`);
 }
 
-const planPath = argumentValue('--plan') || 'docs/DISPATCH_NETWORK_MASTER_PLAN.md';
-let text = fs.readFileSync(planPath, 'utf8');
-
-const baselineMarkers = [
-  '**Current verified completion:** **50%**',
-  '| 3 | Provider/company profile system | 15 | 13 | IN PROGRESS |',
-  '| 4 | Dispatch Service Directory + map | 20 | 0 | BLOCKED |',
-  '| **TOTAL** |  | **100** | **50** | **50% COMPLETE** |',
-  '**Current verified:** 13/15',
-  '- [ ] Service area and home-base map setup. **1 pt**',
-  '- [ ] Credential/insurance metadata with private document separation. **1 pt**',
-  '**Status:** BLOCKED BY PHASE 3',
-];
-
-const finalizedMarkers = [
-  '**Current verified completion:** **52%**',
-  '| 3 | Provider/company profile system | 15 | 15 | GREEN |',
-  '| 4 | Dispatch Service Directory + map | 20 | 0 | IN PROGRESS |',
-  '| **TOTAL** |  | **100** | **52** | **52% COMPLETE** |',
-  '**Current verified:** 15/15',
-  '- [x] Service area and home-base map setup. **1 pt**',
-  '- [x] Credential/insurance metadata with private document separation. **1 pt**',
-  'Overall: 52/100 = 52%',
-];
-
-function missingMarkers(markers, source) {
-  return markers.filter((marker) => !source.includes(marker));
+function currentBranch() {
+  return execFileSync('git', ['branch', '--show-current'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  }).trim();
 }
 
-const missingFinalized = missingMarkers(finalizedMarkers, text);
-if (missingFinalized.length === 0) {
-  console.log('Dispatch Phase 3 browser acceptance is already recorded at 52%.');
-  process.exit(0);
+function replaceOne(text, regex, replacement, label) {
+  const matches = [...text.matchAll(regex)];
+  if (matches.length !== 1) {
+    fail(`${label}: expected exactly one match, found ${matches.length}.`);
+  }
+  return text.replace(regex, replacement);
 }
 
-const missingBaseline = missingMarkers(baselineMarkers, text);
-if (missingBaseline.length > 0) {
-  const details = [
-    'Phase 3 finalizer found neither the accepted 50% baseline nor the complete 52% finalized state.',
-    `Missing baseline markers: ${missingBaseline.join(' | ')}`,
-    `Missing finalized markers: ${missingFinalized.join(' | ')}`,
-    'Do not rewrite the tracker automatically from this mixed state. Inspect the master plan first.',
-  ].join('\n');
-  throw new Error(details);
+if (currentBranch() !== expectedBranch) {
+  fail(`Wrong branch. Expected ${expectedBranch}, found ${currentBranch()}.`);
+}
+if (!fs.existsSync(planPath)) fail('Dispatch master plan is missing.');
+
+let text = fs.readFileSync(planPath, 'utf8').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+for (const marker of [
+  '# Pipe Buyer Dispatch Network Master Plan',
+  '# PHASE 3 - Provider and company profile system',
+  '# PHASE 4 - Dispatch Service Directory + map',
+  '## Phase 3 checklist',
+  '### Current report',
+]) {
+  if (!text.includes(marker)) fail(`Master plan is missing required marker: ${marker}`);
 }
 
-text = text
-  .replace('**Current verified completion:** **50%**', '**Current verified completion:** **52%**')
-  .replace('| 3 | Provider/company profile system | 15 | 13 | IN PROGRESS |', '| 3 | Provider/company profile system | 15 | 15 | GREEN |')
-  .replace('| 4 | Dispatch Service Directory + map | 20 | 0 | BLOCKED |', '| 4 | Dispatch Service Directory + map | 20 | 0 | IN PROGRESS |')
-  .replace('| **TOTAL** |  | **100** | **50** | **50% COMPLETE** |', '| **TOTAL** |  | **100** | **52** | **52% COMPLETE** |')
-  .replace('**Current verified:** 13/15', '**Current verified:** 15/15')
-  .replace('**Status:** IN PROGRESS\n\nThe purpose of Phase 3', '**Status:** GREEN\n\nThe purpose of Phase 3')
-  .replace('- [ ] Service area and home-base map setup. **1 pt**', '- [x] Service area and home-base map setup. **1 pt**')
-  .replace('- [ ] Credential/insurance metadata with private document separation. **1 pt**', '- [x] Credential/insurance metadata with private document separation. **1 pt**')
-  .replace('**Status:** BLOCKED BY PHASE 3', '**Status:** IN PROGRESS');
+const overall = [...text.matchAll(/\*\*Current verified completion:\*\* \*\*(\d+)%\*\*/g)]
+    .map((match) => Number(match[1]));
+if (overall.length !== 1 || ![50, 51, 52].includes(overall[0])) {
+  fail(`Unexpected overall completion state: ${overall.join(', ') || 'missing'}.`);
+}
 
-const remainingPattern = /## Phase 3 remaining after the foundation gate[\s\S]*?Public profiles must never expose private email, phone, Auth UID, insurance files, exact private addresses, or internal moderation data\./;
+text = replaceOne(
+    text,
+    /\*\*Current verified completion:\*\* \*\*\d+%\*\*/g,
+    '**Current verified completion:** **52%**',
+    'overall completion',
+);
+text = replaceOne(
+    text,
+    /\*\*Last updated:\*\* \d{4}-\d{2}-\d{2}/g,
+    '**Last updated:** 2026-08-19',
+    'last updated date',
+);
+text = replaceOne(
+    text,
+    /^\| 3 \| Provider\/company profile system \| 15 \| \d+ \| .* \|$/m,
+    '| 3 | Provider/company profile system | 15 | 15 | GREEN |',
+    'Phase 3 ledger row',
+);
+text = replaceOne(
+    text,
+    /^\| 4 \| Dispatch Service Directory \+ map \| 20 \| \d+ \| .* \|$/m,
+    '| 4 | Dispatch Service Directory + map | 20 | 0 | IN PROGRESS |',
+    'Phase 4 ledger row',
+);
+text = replaceOne(
+    text,
+    /^\| \*\*TOTAL\*\* \|  \| \*\*100\*\* \| \*\*\d+\*\* \| \*\*\d+% COMPLETE\*\* \|$/m,
+    '| **TOTAL** |  | **100** | **52** | **52% COMPLETE** |',
+    'total ledger row',
+);
+
+const phase3Start = text.indexOf('# PHASE 3 - Provider and company profile system');
+const phase4Start = text.indexOf('# PHASE 4 - Dispatch Service Directory + map');
+if (phase3Start < 0 || phase4Start <= phase3Start) fail('Could not bound Phase 3 section.');
+let phase3 = text.slice(phase3Start, phase4Start);
+phase3 = replaceOne(
+    phase3,
+    /\*\*Current verified:\*\* \d+\/15/,
+    '**Current verified:** 15/15',
+    'Phase 3 verified points',
+);
+phase3 = replaceOne(
+    phase3,
+    /\*\*Status:\*\* (?:IN PROGRESS|GREEN)/,
+    '**Status:** GREEN',
+    'Phase 3 status',
+);
+phase3 = replaceOne(
+    phase3,
+    /- \[[ x]\] Service area and home-base map setup\. \*\*1 pt\*\*/,
+    '- [x] Service area and home-base map setup. **1 pt**',
+    'service-area acceptance point',
+);
+phase3 = replaceOne(
+    phase3,
+    /- \[[ x]\] Credential\/insurance metadata with private document separation\. \*\*1 pt\*\*/,
+    '- [x] Credential/insurance metadata with private document separation. **1 pt**',
+    'credential acceptance point',
+);
+
 const completionBlock = `## Phase 3 completion evidence
 
-Phase 3 reached 15/15 after the final browser acceptance on 2026-08-17:
+Phase 3 reached 15/15 after browser acceptance completed on 2026-08-19:
 
 - mapped service area survives save, leaving Company Profile, and reopening;
+- Town/Region selection preserves municipality versus regional identity;
 - approximate public home-base projection remains separate from exact private service-area data;
-- credential/insurance metadata survives save, leaving the credential screen, and reopening;
-- credential evidence remains in the private business document area and does not create a public verification claim;
-- Phase 3 credential engineering gate passed strict analyzer, regressions, and Firestore/Storage emulator privacy tests.
+- credential/insurance metadata survives immediate Save & close, leaving the screen, and reopening;
+- insurance coverage limits remain private and self-reported;
+- Credential Analytics & alerts exposes actionable Current / Expired / Not provided / Evidence / Insurance drill-down;
+- reminder settings remain private and are backed by the credential reminder engine;
+- credential evidence remains private and never creates a public Pipe Buyer verification claim.
 
 Public profiles must never expose private email, phone, Auth UID, insurance files, exact private addresses, or internal moderation data.`;
 
-if (!remainingPattern.test(text)) {
-  throw new Error('Phase 3 completion section anchor was not found.');
+const remainingPattern = /## Phase 3 (?:remaining after the foundation gate|completion evidence|completion boundary)[\s\S]*?Public profiles must never expose private email, phone, Auth UID, insurance files, exact private addresses, or internal moderation data\./;
+if (!remainingPattern.test(phase3)) {
+  fail('Could not locate the bounded Phase 3 completion/remaining section.');
 }
-text = text.replace(remainingPattern, completionBlock);
+phase3 = phase3.replace(remainingPattern, completionBlock);
+text = text.slice(0, phase3Start) + phase3 + text.slice(phase4Start);
 
-const reportPattern = /### Current report\n\n```text\nDISPATCH NETWORK STATUS[\s\S]*?```/;
+const phase4SectionStart = text.indexOf('# PHASE 4 - Dispatch Service Directory + map');
+const phase5SectionStart = text.indexOf('# PHASE 5 - Standalone Request Service workflow');
+if (phase4SectionStart < 0 || phase5SectionStart <= phase4SectionStart) fail('Could not bound Phase 4 section.');
+let phase4 = text.slice(phase4SectionStart, phase5SectionStart);
+phase4 = replaceOne(
+    phase4,
+    /\*\*Status:\*\* (?:BLOCKED BY PHASE 3|IN PROGRESS)/,
+    '**Status:** IN PROGRESS',
+    'Phase 4 status',
+);
+text = text.slice(0, phase4SectionStart) + phase4 + text.slice(phase5SectionStart);
+
 const report = `### Current report
 
 \`\`\`text
@@ -90,26 +151,45 @@ Overall: 52/100 = 52%
 Current phase: Phase 4 - Dispatch Service Directory + map
 Phase completion: 0/20 points verified
 Gate: IN PROGRESS
-Last verified: 2026-08-17
-Analyzer: Phase 3 credential PASS
-Targeted tests: Phase 3 + Phase 2 + Phase 1/auth regressions PASS
-Emulator journey: credential Firestore/Storage privacy PASS
-Visual acceptance: Phase 3 profile + fleet + service area + credentials PASS
-Blockers: none for Phase 4 entry
-Next permitted task: build the bounded Directory repository, list cards, and service/availability filters
+Last verified: 2026-08-19
+Analyzer: Phase 3 credential analytics PASS
+Targeted tests: Phase 3 service-area + credentials + analytics regressions PASS
+Emulator journey: provider profile/service-area/credential persistence preserved
+Visual acceptance: Phase 3 company profile + fleet + service area + credentials PASS
+Blockers: none; Phase 4 unlocked
+Next permitted task: build server-owned Directory projection/schema + security rules
 \`\`\``;
+text = replaceOne(
+    text,
+    /### Current report\n\n```text[\s\S]*?```/,
+    report,
+    'current status report',
+);
 
-if (!reportPattern.test(text)) {
-  throw new Error('Current Dispatch status report block was not found.');
+const requiredFinal = [
+  '**Current verified completion:** **52%**',
+  '| 3 | Provider/company profile system | 15 | 15 | GREEN |',
+  '| 4 | Dispatch Service Directory + map | 20 | 0 | IN PROGRESS |',
+  '| **TOTAL** |  | **100** | **52** | **52% COMPLETE** |',
+  '**Current verified:** 15/15',
+  '- [x] Service area and home-base map setup. **1 pt**',
+  '- [x] Credential/insurance metadata with private document separation. **1 pt**',
+  'Overall: 52/100 = 52%',
+  'Next permitted task: build server-owned Directory projection/schema + security rules',
+];
+for (const marker of requiredFinal) {
+  if (!text.includes(marker)) fail(`Finalized master plan is missing: ${marker}`);
 }
-text = text.replace(reportPattern, report);
 
-const verificationMissing = missingMarkers(finalizedMarkers, text);
-if (verificationMissing.length > 0) {
-  throw new Error(
-    `Phase 3 finalizer did not produce the full 52% state: ${verificationMissing.join(' | ')}`,
-  );
-}
-
+const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+const backupDir = path.join(repoRoot, '_local_backups', `dispatch-phase3-finalizer-${stamp}`);
+fs.mkdirSync(backupDir, {recursive: true});
+fs.copyFileSync(planPath, path.join(backupDir, 'DISPATCH_NETWORK_MASTER_PLAN.md'));
 fs.writeFileSync(planPath, text, 'utf8');
-console.log('Dispatch Phase 3 browser acceptance recorded: 15/15 GREEN, overall 52%.');
+
+console.log(`Backup created: ${backupDir}`);
+console.log('DISPATCH PHASE 3 BROWSER ACCEPTANCE FINALIZED');
+console.log('Overall: 52/100 = 52%');
+console.log('Phase 3: 15/15 GREEN');
+console.log('Phase 4: 0/20 IN PROGRESS');
+console.log('Phase 4 points awarded by finalizer: 0');
