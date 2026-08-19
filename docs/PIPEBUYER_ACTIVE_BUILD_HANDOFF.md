@@ -30,7 +30,7 @@ Directory repository/query + provider-list engineering gate: PASS
 
 The query/list slice is still in browser acceptance because a real Firestore-backed Hotshot filter exposed a runtime loading-lifecycle defect after the engineering gate passed. That defect is now isolated behind a focused repair; do not proceed to geography/map work until the Hotshot browser re-test passes.
 
-**Current next permitted Dispatch task:** run the focused Directory filter runtime repair, then re-test Directory -> Hotshot in the browser. After that passes, proceed to geography/radius + synchronized OpenStreetMap pins.
+**Current next permitted Dispatch task:** complete the read-only Directory runtime continuation, then re-test Directory -> Hotshot in the browser. After that passes, proceed to geography/radius + synchronized OpenStreetMap pins.
 
 ## Permanent local controls
 
@@ -115,6 +115,43 @@ For the accepted Phase 4 Directory projection, the continuation verifier is:
 ```
 
 Do not rerun the Phase 4 projection installer merely because a later Firebase CLI or rules-emulator step failed.
+
+### Read-only formatter boundary - proven rule
+
+A read-only continuation protects **production/source-of-record files**. Freshly synchronized test/support files are not production artifacts and may be normalized before execution.
+
+Use this separation:
+
+```text
+production source
+    -> hash
+    -> dart format --output=none --set-exit-if-changed
+    -> analyzer
+    -> never rewrite
+
+synchronized tests/support
+    -> dart format is allowed
+    -> formatter-stability check
+    -> hygiene/tests/analyzer
+
+final
+    -> production hash unchanged
+    -> tracker hash unchanged
+```
+
+Do not combine production source and freshly fetched support tests into one read-only formatter-stability command. That can misreport an unformatted helper test as a production regression.
+
+The Directory runtime continuation implementing this rule is:
+
+```powershell
+.\tool\verify_dispatch_phase4_directory_filter_runtime_continuation.ps1
+```
+
+The permanent repair record is:
+
+```text
+docs/repairs/DISPATCH_DIRECTORY_FILTER_RUNTIME_STABILITY.md
+```
 
 ## Deterministic local demo accounts
 
@@ -245,6 +282,12 @@ Focused current-worktree repair gate:
 
 ```powershell
 .\tool\run_dispatch_phase4_directory_filter_runtime_repair.ps1
+```
+
+Read-only continuation after the source mutation is already applied:
+
+```powershell
+.\tool\verify_dispatch_phase4_directory_filter_runtime_continuation.ps1
 ```
 
 The repaired lifecycle is:
