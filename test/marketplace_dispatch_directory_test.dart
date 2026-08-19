@@ -34,10 +34,16 @@ const _directoryEntries = <DispatchDirectoryEntry>[
   ),
 ];
 
+Future<void> _useDirectoryDesktopTestSurface(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(const Size(1200, 1000));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+}
+
 Future<void> _pumpSeededDirectory(
   WidgetTester tester, {
   List<DispatchDirectoryEntry> entries = _directoryEntries,
 }) async {
+  await _useDirectoryDesktopTestSurface(tester);
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -48,15 +54,21 @@ Future<void> _pumpSeededDirectory(
   await tester.pumpAndSettle();
 }
 
-Finder _directoryList() => find.byType(ListView).first;
-
 Future<void> _scrollDirectoryTo(WidgetTester tester, Finder target) async {
-  await tester.dragUntilVisible(
+  await tester.scrollUntilVisible(
     target,
-    _directoryList(),
-    const Offset(0, -180),
-    maxIteration: 20,
+    400,
+    scrollable: find.byType(Scrollable).first,
   );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _settleDirectoryFilterRefresh(WidgetTester tester) async {
+  // The accepted runtime lifecycle debounces remote refreshes for 180 ms.
+  // Pump past that boundary deterministically instead of depending on an
+  // unconstrained pumpAndSettle loop.
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 220));
   await tester.pumpAndSettle();
 }
 
@@ -174,7 +186,7 @@ void main() {
     );
     expect(dropdown.onChanged, isNotNull);
     dropdown.onChanged!('transport_hotshot');
-    await tester.pumpAndSettle();
+    await _settleDirectoryFilterRefresh(tester);
 
     await _scrollDirectoryTo(tester, find.text('1 company shown'));
     expect(find.text('1 company shown'), findsOneWidget);
