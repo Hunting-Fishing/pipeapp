@@ -50,7 +50,7 @@ let directory = fs.readFileSync(directoryPath, 'utf8').replace(/\r\n/g, '\n');
 let navigation = fs.readFileSync(navigationPath, 'utf8').replace(/\r\n/g, '\n');
 let launcher = fs.readFileSync(launcherPath, 'utf8').replace(/\r\n/g, '\n');
 
-const projectionFactory = `  factory DispatchDirectoryEntry.fromDirectoryProjection(\n    String id,\n    Map<String, dynamic> data,\n  ) {\n    final publicLocation = _map(data['publicLocation']);\n    final serviceCodes = data['serviceCodes'] is Iterable\n        ? (data['serviceCodes'] as Iterable)\n            .map((value) => '$value'.trim())\n            .where((value) => value.isNotEmpty)\n            .toSet()\n            .toList()\n        : <String>[];\n    serviceCodes.sort();\n    final point = data['mapPoint'];\n\n    return DispatchDirectoryEntry(\n      id: id,\n      operatingName: _firstText([data['companyName'], data['operatingName']]),\n      description: '${data['publicSummary'] ?? ''}'.trim(),\n      website: '${data['website'] ?? ''}'.trim(),\n      businessTypeCode: '${data['businessType'] ?? ''}'.trim(),\n      serviceCodes: serviceCodes,\n      serviceAreaLabel: '${data['serviceAreaSummary'] ?? ''}'.trim(),\n      availabilityCode: '${data['availability'] ?? ''}'.trim(),\n      emergencyCallout: data['emergencyCallout'] == true,\n      remoteSiteCapable: data['remoteSiteCapable'] == true,\n      homeBaseLabel: '${publicLocation['label'] ?? ''}'.trim(),\n      homeBasePoint: point is GeoPoint ? point : null,\n    );\n  }\n\n`;
+const projectionFactory = `  factory DispatchDirectoryEntry.fromDirectoryProjection(\n    String id,\n    Map<String, dynamic> data,\n  ) {\n    final publicLocation = _map(data['publicLocation']);\n    final serviceCodes = data['serviceCodes'] is Iterable\n        ? (data['serviceCodes'] as Iterable)\n            .map((value) => '$value'.trim())\n            .where((value) => value.isNotEmpty)\n            .toSet()\n            .toList()\n        : <String>[];\n    serviceCodes.sort();\n    final point = data['mapPoint'];\n\n    return DispatchDirectoryEntry(\n      id: id,\n      operatingName: _firstText([data['companyName'], data['operatingName']]),\n      description: '\${data['publicSummary'] ?? ''}'.trim(),\n      website: '\${data['website'] ?? ''}'.trim(),\n      businessTypeCode: '\${data['businessType'] ?? ''}'.trim(),\n      serviceCodes: serviceCodes,\n      serviceAreaLabel: '\${data['serviceAreaSummary'] ?? ''}'.trim(),\n      availabilityCode: '\${data['availability'] ?? ''}'.trim(),\n      emergencyCallout: data['emergencyCallout'] == true,\n      remoteSiteCapable: data['remoteSiteCapable'] == true,\n      homeBaseLabel: '\${publicLocation['label'] ?? ''}'.trim(),\n      homeBasePoint: point is GeoPoint ? point : null,\n    );\n  }\n\n`;
 
 if (!directory.includes('factory DispatchDirectoryEntry.fromDirectoryProjection(')) {
   const legacyFactory = '  factory DispatchDirectoryEntry.fromPublicBusinessProfile(\n';
@@ -138,7 +138,7 @@ if (!launcher.includes(directorySeedDeclaration)) {
 }
 
 for (const marker of [
-  "factory DispatchDirectoryEntry.fromDirectoryProjection(",
+  'factory DispatchDirectoryEntry.fromDirectoryProjection(',
   "_firestore.collection('dispatch_directory_entries')",
   "query.where('serviceCodes', arrayContains: filters.serviceCode)",
   'entry.matches(filters)',
@@ -153,7 +153,7 @@ for (const marker of [
 }
 for (const marker of [
   'seed_dispatch_directory_visual.js',
-  "Seeding deterministic Dispatch Directory provider fixtures",
+  'Seeding deterministic Dispatch Directory provider fixtures',
 ]) {
   if (!launcher.includes(marker)) fail(`Transformed formal launcher is missing: ${marker}`);
 }
