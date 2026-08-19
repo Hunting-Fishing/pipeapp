@@ -8,8 +8,9 @@ $repoRoot = $script:PipeBuyerRepoRoot
 $sourcePath = Join-Path $repoRoot 'lib\marketplace\marketplace_dispatch_credentials.dart'
 $analyticsTest = Join-Path $repoRoot 'test\marketplace_dispatch_credential_analytics_actions_test.dart'
 $persistenceTest = Join-Path $repoRoot 'test\marketplace_dispatch_credential_persistence_discoverability_test.dart'
+$hygieneTest = Join-Path $repoRoot 'test\marketplace_dispatch_credential_contract_hygiene_test.dart'
 
-foreach ($required in @($sourcePath, $analyticsTest, $persistenceTest)) {
+foreach ($required in @($sourcePath, $analyticsTest, $persistenceTest, $hygieneTest)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "STOP: Required read-only credential analytics verification file is missing: $required"
   }
@@ -46,6 +47,13 @@ Write-Host 'Already-applied analytics interaction source: PASS' -ForegroundColor
 
 $sourceHashBefore = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
 
+Write-Host "`n==> Preflighting credential source-contract hygiene" -ForegroundColor Cyan
+& flutter test $hygieneTest
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Credential source-contract hygiene failed. Fix brittle test layout assumptions before running feature regressions.'
+}
+Write-Host 'Credential source-contract hygiene: PASS' -ForegroundColor Green
+
 Write-Host "`n==> Running semantic credential analytics interaction contract" -ForegroundColor Cyan
 & flutter test $analyticsTest
 if ($LASTEXITCODE -ne 0) {
@@ -80,6 +88,7 @@ Write-Host '============================================================' -Foreg
 Write-Host 'PIPE BUYER CREDENTIAL ANALYTICS READ-ONLY VERIFIER PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Already-applied analytics interaction source: PASS' -ForegroundColor Green
+Write-Host 'Credential source-contract hygiene: PASS' -ForegroundColor Green
 Write-Host 'Semantic action contract: PASS' -ForegroundColor Green
 Write-Host 'Credential persistence regression: PASS' -ForegroundColor Green
 Write-Host 'Formatter stability: PASS' -ForegroundColor Green
