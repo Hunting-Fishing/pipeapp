@@ -18,13 +18,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $supportFiles = @(
+  'tool/pipebuyer_firebase_cli.ps1',
   'tool/finalize_dispatch_phase3_browser_acceptance.mjs',
   'tool/apply_dispatch_phase4_directory_projection.mjs',
   'firebase/functions/test/dispatch_directory_projection.test.js',
   'firebase/functions/test/dispatch_directory_security_contract.test.js',
   'firebase/rules-tests/dispatch_directory_rules.test.js',
   'firebase/rules-tests/package.json',
-  'docs/DISPATCH_PHASE4_DIRECTORY_PROJECTION.md'
+  'docs/DISPATCH_PHASE4_DIRECTORY_PROJECTION.md',
+  'docs/repairs/FIREBASE_CLI_WINDOWS_FALLBACK.md'
 )
 
 Write-Host "`n==> Synchronizing Phase 4 support/test controls" -ForegroundColor Cyan
@@ -36,6 +38,21 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Could not unstage Phase 4 support/test controls.'
 }
+
+Write-Host "`n==> Preflighting Windows Firebase CLI before any Phase 4 mutation" -ForegroundColor Cyan
+$firebaseHelperPath = Join-Path $repoRoot 'tool\pipebuyer_firebase_cli.ps1'
+$parseTokens = $null
+$parseErrors = $null
+[void][System.Management.Automation.Language.Parser]::ParseFile(
+  $firebaseHelperPath,
+  [ref]$parseTokens,
+  [ref]$parseErrors
+)
+if ($parseErrors.Count -gt 0) {
+  throw "STOP: Firebase CLI helper PowerShell parse failed: $($parseErrors[0].Message)"
+}
+. $firebaseHelperPath
+Assert-PipeBuyerFirebaseCli
 
 $productionModule = 'firebase/functions/dispatch_directory_projection.js'
 $productionModulePath = Join-Path $repoRoot ($productionModule.Replace('/', '\'))
@@ -125,13 +142,14 @@ if ($port8080) {
 }
 
 Write-Host "`n==> Running dedicated Firestore Rules emulator proof on port 8080" -ForegroundColor Cyan
-& firebase emulators:exec `
-  --only firestore `
-  --project demo-pipe-buyer-dispatch-directory-rules `
-  "node --test firebase/rules-tests/dispatch_directory_rules.test.js"
-if ($LASTEXITCODE -ne 0) {
-  throw 'STOP: Dispatch Directory Firestore Rules emulator proof failed.'
-}
+Invoke-PipeBuyerFirebaseCli `
+  -Arguments @(
+    'emulators:exec',
+    '--only', 'firestore',
+    '--project', 'demo-pipe-buyer-dispatch-directory-rules',
+    'node --test firebase/rules-tests/dispatch_directory_rules.test.js'
+  ) `
+  -FailureMessage 'Dispatch Directory Firestore Rules emulator proof failed.'
 
 Write-Host "`n==> Confirming Phase 3 completion and Phase 4 gate state" -ForegroundColor Cyan
 $plan = Get-Content -LiteralPath '.\docs\DISPATCH_NETWORK_MASTER_PLAN.md' -Raw
@@ -162,5 +180,6 @@ Write-Host 'Approximate map point + geohash projection: PASS' -ForegroundColor G
 Write-Host 'Client Directory writes blocked by rules: PASS' -ForegroundColor Green
 Write-Host 'Signed-in Directory reads with Dispatch gate: PASS' -ForegroundColor Green
 Write-Host 'Functions syntax: PASS' -ForegroundColor Green
+Write-Host 'Firebase CLI global-or-npx fallback: PASS' -ForegroundColor Green
 Write-Host 'Phase 4 points awarded by this engineering gate: 0' -ForegroundColor Green
 Write-Host 'Next permitted task: Directory repository/query layer' -ForegroundColor Green
