@@ -40,6 +40,21 @@ if (secondPass !== transformed) {
   fail('Directory runtime transform is not idempotent in memory.');
 }
 
+const candidateEnv = String(
+  process.env.PIPEBUYER_DIRECTORY_RUNTIME_CANDIDATE || '',
+).trim();
+if (candidateEnv) {
+  const candidate = path.resolve(repoRoot, candidateEnv);
+  if (candidate === target) {
+    fail('Candidate path must never be the production Directory source.');
+  }
+  if (path.dirname(candidate) !== path.dirname(target)) {
+    fail('Candidate must be beside the Directory source so relative imports resolve identically.');
+  }
+  fs.writeFileSync(candidate, transformed, 'utf8');
+  console.log(`Compile-preflight candidate written: ${path.relative(repoRoot, candidate)}`);
+}
+
 const afterBytes = fs.readFileSync(target);
 if (!beforeBytes.equals(afterBytes)) {
   fail('Dry-run verifier modified the production Directory file.');
