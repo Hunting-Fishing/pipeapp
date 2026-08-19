@@ -32,7 +32,7 @@ This is the same class of failure previously seen in credential tooling: a repai
 
 A later attempt successfully passed the text-level dry-run and applied the runtime transform, but the post-mutation Flutter test stage failed while loading Directory tests.
 
-Two control gaps were found:
+Three control gaps were found:
 
 1. the dry-run proved that the transform could target and validate the exact local source text, but it did **not compile/analyze the transformed candidate before production mutation**;
 2. the post-mutation gate ran Flutter tests before strict analyzer, so a source load/compile problem surfaced as a less useful `loading <test file>` test failure;
@@ -48,6 +48,46 @@ bounded source change
 ```
 
 and repeated the same stale-test-contract class already encountered in credential analytics.
+
+## Third continuation-control failure
+
+After the source mutation had already succeeded, the first read-only continuation synchronized corrected test files and then ran one formatter-stability command across **both production source and freshly fetched support tests**.
+
+A fetched support test was not yet in canonical `dart format` layout, so the continuation stopped with:
+
+```text
+Changed .\test\dispatch_directory_filter_runtime_stability_contract_test.dart
+STOP: Directory runtime source/tests are not formatter-stable.
+```
+
+This was not a production-source failure. It was a verifier-boundary mistake.
+
+The project had already established the correct pattern in the credential analytics read-only verifier: production source formatter stability is checked read-only, while support/test files are not treated as immutable production artifacts.
+
+### Permanent correction
+
+For read-only continuation gates:
+
+```text
+production source
+    -> hash
+    -> formatter stability check with --output=none
+    -> analyzer
+    -> never rewrite
+
+synchronized support/test files
+    -> may be normalized with dart format
+    -> then formatter-stability checked
+    -> run hygiene/tests/analyzer
+
+final
+    -> production hash unchanged
+    -> tracker hash unchanged
+```
+
+**Read-only means production/source-of-record immutability, not that freshly synchronized test/support files can never be normalized.**
+
+The canonical continuation now separates these two classes explicitly.
 
 ## Accepted repair design
 
@@ -87,7 +127,7 @@ The dry-run must:
 - prove the production Directory file was not changed;
 - optionally emit a same-directory temporary transformed candidate so relative imports resolve exactly as production does.
 
-Before production mutation, the focused gate must now format and strict-analyze that transformed candidate. A text-valid transform is not sufficient if the candidate does not compile.
+Before production mutation, the focused gate must format and strict-analyze that transformed candidate. A text-valid transform is not sufficient if the candidate does not compile.
 
 Regression contract:
 
@@ -109,7 +149,7 @@ Read-only continuation after a successful mutation followed by a later failure:
 tool/verify_dispatch_phase4_directory_filter_runtime_continuation.ps1
 ```
 
-That continuation hashes the production Directory source, runs strict analyzer **before** tests, runs the corrected regression suite, and proves the production Directory source and Dispatch tracker remain unchanged.
+That continuation hashes the production Directory source, normalizes only synchronized support tests, checks production formatter stability read-only, runs strict analyzer **before** tests, runs the corrected regression suite, and proves the production Directory source and Dispatch tracker remain unchanged.
 
 ## Required focused gate order
 
@@ -132,6 +172,8 @@ If mutation has already succeeded and a later stage fails:
 ```text
 DO NOT rerun mutation
 -> use read-only continuation
+-> normalize synchronized support tests if needed
+-> check production formatter stability read-only
 -> analyze production source first
 -> if analyzer passes, repair/continue only at test/runtime layer
 -> if analyzer fails, repair only the concrete source diagnostic
@@ -156,5 +198,7 @@ last successful data
 ```
 
 A source-transform repair must validate against the exact current local source **and compile the transformed candidate before it writes anything**. Parse-only and text-only preflight are not enough.
+
+Read-only continuation gates must distinguish immutable production files from synchronized support/test files so formatting of a helper test can never be misreported as a production regression.
 
 The canonical Phase 4 query/list installer must carry this lifecycle and preflight discipline automatically so a fresh checkout does not recreate the browser defect or the repair-loop failure.
