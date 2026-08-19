@@ -20,7 +20,9 @@ function currentBranch() {
 }
 
 function replaceOne(text, regex, replacement, label) {
-  const matches = [...text.matchAll(regex)];
+  const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+  const matcher = new RegExp(regex.source, flags);
+  const matches = text.match(matcher) || [];
   if (matches.length !== 1) {
     fail(`${label}: expected exactly one match, found ${matches.length}.`);
   }
