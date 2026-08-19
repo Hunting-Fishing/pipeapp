@@ -36,7 +36,12 @@ void main() {
   test('analytics totals can drill into the credential records they summarize', () {
     expect(source.contains('Future<void> _showCredentialMetricDetails'), isTrue);
     expect(source.contains('Future<void> _showCredentialQuickActions'), isTrue);
-    expect(source.contains("const Text('View details')"), isTrue);
+    expect(
+      RegExp(r"const\s+Text\s*\(\s*'View details'").hasMatch(source),
+      isTrue,
+    );
+    expect(source.contains('button: true'), isTrue);
+    expect(source.contains('InkWell('), isTrue);
     expect(source.contains('records: evidenceRecords'), isTrue);
     expect(source.contains('records: insuranceWithLimits'), isTrue);
   });
