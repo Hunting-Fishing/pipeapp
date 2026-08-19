@@ -41,7 +41,7 @@ void main() {
     );
   });
 
-  test('filter changes do not synchronously replace the visible Directory', () {
+  test('filter changes invalidate stale work and debounce the remote refresh', () {
     final source = File(
       'lib/marketplace/marketplace_dispatch_directory.dart',
     ).readAsStringSync();
@@ -58,8 +58,11 @@ void main() {
     final segment = source.substring(start, end);
     final compact = segment.replaceAll(RegExp(r'\s+'), ' ');
 
-    expect(compact, contains('setState(() => _filters = value);'));
+    expect(compact, contains('_filters = value;'));
+    expect(compact, contains('_loadGeneration++;'));
+    expect(compact, contains('_filterDebounce?.cancel();'));
     expect(compact, contains('Timer(const Duration(milliseconds: 180), () {'));
+    expect(compact, contains('setState(() => _loadFuture = _load());'));
     expect(
       compact,
       isNot(contains('_filters = value; _loadFuture = _load();')),
