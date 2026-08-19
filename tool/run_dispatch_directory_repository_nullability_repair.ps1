@@ -40,9 +40,11 @@ $supportFiles = @(
   'test/dispatch_directory_repository_nullability_contract_test.dart',
   'test/dispatch_directory_filter_runtime_stability_contract_test.dart',
   'test/dispatch_directory_runtime_contract_hygiene_test.dart',
+  'test/dispatch_directory_widget_test_harness_hygiene_test.dart',
   'test/marketplace_dispatch_directory_test.dart',
   'test/marketplace_dispatch_directory_projection_query_test.dart',
-  'docs/repairs/DISPATCH_DIRECTORY_REPOSITORY_NULLABILITY.md'
+  'docs/repairs/DISPATCH_DIRECTORY_REPOSITORY_NULLABILITY.md',
+  'docs/repairs/DISPATCH_DIRECTORY_WIDGET_TEST_HARNESS.md'
 )
 & git checkout $remote -- $supportFiles
 if ($LASTEXITCODE -ne 0) {
@@ -82,6 +84,7 @@ $testFiles = @(
   '.\test\dispatch_directory_repository_nullability_contract_test.dart',
   '.\test\dispatch_directory_filter_runtime_stability_contract_test.dart',
   '.\test\dispatch_directory_runtime_contract_hygiene_test.dart',
+  '.\test\dispatch_directory_widget_test_harness_hygiene_test.dart',
   '.\test\marketplace_dispatch_directory_test.dart',
   '.\test\marketplace_dispatch_directory_projection_query_test.dart'
 )
@@ -90,10 +93,17 @@ if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Could not normalize synchronized Directory regression/support tests.'
 }
 
+Write-Step 'Preflighting Directory widget-test harness hygiene before source mutation'
+& flutter test '.\test\dispatch_directory_widget_test_harness_hygiene_test.dart'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Directory widget-test harness is stale. Production source was not mutated.'
+}
+Write-Host 'Directory widget-test harness hygiene: PASS' -ForegroundColor Green
+
 $candidateRelative = 'lib/marketplace/pipebuyer_directory_repository_nullability_preflight.dart'
 $candidatePath = Join-Path $repoRoot 'lib\marketplace\pipebuyer_directory_repository_nullability_preflight.dart'
 try {
-  Write-Step 'Building and compiling the exact local one-field repair candidate before source mutation'
+  Write-Step 'Building and compiling the exact local repository-invariant repair candidate before source mutation'
   $env:PIPEBUYER_DIRECTORY_REPOSITORY_CANDIDATE = $candidateRelative
   & node '.\tool\verify_dispatch_directory_repository_nullability_candidate.mjs'
   if ($LASTEXITCODE -ne 0) {
@@ -114,7 +124,7 @@ try {
   if ($directoryHashAfterCandidate -ne $directoryHashBefore) {
     throw 'STOP: Candidate preflight modified production Directory source.'
   }
-  Write-Host 'Exact local one-field candidate compile/analyzer: PASS' -ForegroundColor Green
+  Write-Host 'Exact local repository-invariant candidate compile/analyzer: PASS' -ForegroundColor Green
 }
 finally {
   Remove-Item Env:PIPEBUYER_DIRECTORY_REPOSITORY_CANDIDATE -ErrorAction SilentlyContinue
@@ -147,10 +157,11 @@ Write-Step 'Running repository-nullability and retained-runtime regressions'
   '.\test\dispatch_directory_repository_nullability_contract_test.dart' `
   '.\test\dispatch_directory_runtime_contract_hygiene_test.dart' `
   '.\test\dispatch_directory_filter_runtime_stability_contract_test.dart' `
+  '.\test\dispatch_directory_widget_test_harness_hygiene_test.dart' `
   '.\test\marketplace_dispatch_directory_test.dart' `
   '.\test\marketplace_dispatch_directory_projection_query_test.dart'
 if ($LASTEXITCODE -ne 0) {
-  throw 'STOP: Directory regression failed after production analyzer PASS. Do not rerun this source repair.'
+  throw 'STOP: Directory regression failed after production analyzer PASS. Do not rerun this source repair; continue at the test/runtime layer.'
 }
 
 Write-Step 'Strict analyzer on bounded regression files'
@@ -171,12 +182,14 @@ Write-Host '============================================================' -Foreg
 Write-Host 'PIPE BUYER DIRECTORY REPOSITORY NULLABILITY REPAIR PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Control parse before mutation: PASS' -ForegroundColor Green
+Write-Host 'Widget-test harness hygiene before mutation: PASS' -ForegroundColor Green
 Write-Host 'Exact local repaired candidate analyzer before mutation: PASS' -ForegroundColor Green
 Write-Host 'Candidate production mutation: NO' -ForegroundColor Green
 Write-Host 'Repository field non-null late-final: PASS' -ForegroundColor Green
 Write-Host 'initState repository assignment preserved: PASS' -ForegroundColor Green
 Write-Host 'Production source analyzer before tests: PASS' -ForegroundColor Green
 Write-Host 'Runtime stability regression preserved: PASS' -ForegroundColor Green
+Write-Host 'Directory widget acceptance regression: PASS' -ForegroundColor Green
 Write-Host 'Existing Directory regressions: PASS' -ForegroundColor Green
 Write-Host 'Dispatch tracker modified by repair: NO' -ForegroundColor Green
 Write-Host 'Ready for browser Hotshot re-test: YES' -ForegroundColor Green
