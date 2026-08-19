@@ -1,7 +1,7 @@
 "use strict";
 
 const {initializeApp, deleteApp} = require("firebase-admin/app");
-const {GeoPoint, getFirestore} = require("firebase-admin/firestore");
+const {FieldValue, GeoPoint, getFirestore} = require("firebase-admin/firestore");
 const {createDispatchDirectoryProjection} = require("../dispatch_directory_projection");
 
 function localHost(value, label) {
@@ -204,8 +204,10 @@ const fixtures = [
 ];
 
 async function main() {
+  const firestoreAccessor = () => db;
+  firestoreAccessor.FieldValue = FieldValue;
   const projection = createDispatchDirectoryProjection({
-    firestore: () => db,
+    firestore: firestoreAccessor,
   });
 
   for (const fixture of fixtures) {
