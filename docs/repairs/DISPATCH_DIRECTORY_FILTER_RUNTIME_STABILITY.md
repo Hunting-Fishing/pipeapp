@@ -28,6 +28,27 @@ The attempt stopped inside the transform because the transform still depended on
 
 This is the same class of failure previously seen in credential tooling: a repair that claims formatter tolerance cannot keep formatter-sensitive self-targeting or validation.
 
+## Second repair-control failure
+
+A later attempt successfully passed the text-level dry-run and applied the runtime transform, but the post-mutation Flutter test stage failed while loading Directory tests.
+
+Two control gaps were found:
+
+1. the dry-run proved that the transform could target and validate the exact local source text, but it did **not compile/analyze the transformed candidate before production mutation**;
+2. the post-mutation gate ran Flutter tests before strict analyzer, so a source load/compile problem surfaced as a less useful `loading <test file>` test failure;
+3. the runtime regression itself still contained a stale implementation-shape assertion for `setState(() => _filters = value);` even though the accepted lifecycle intentionally changed that block to invalidate `_loadGeneration` before the debounced refresh.
+
+This violated the project's saved sequence:
+
+```text
+bounded source change
+-> formatter
+-> analyzer
+-> tests
+```
+
+and repeated the same stale-test-contract class already encountered in credential analytics.
+
 ## Accepted repair design
 
 Filter interaction and remote refresh are separated:
@@ -50,7 +71,7 @@ Canonical formatter-tolerant transform:
 tool/dispatch_directory_filter_runtime_transform.mjs
 ```
 
-The transform now uses semantic method/field boundaries and whitespace-tolerant regular expressions for formatted Dart rather than a generic exact multiline result-header anchor.
+The transform uses semantic method/field boundaries and whitespace-tolerant regular expressions for formatted Dart rather than a generic exact multiline result-header anchor.
 
 Pre-mutation dry-run against the **exact current local Directory source**:
 
@@ -63,13 +84,10 @@ The dry-run must:
 - recognize the accepted `dispatch_directory_entries` query layer;
 - execute the complete runtime transform in memory;
 - execute a second in-memory pass and prove idempotency;
-- prove the production Directory file was not changed.
+- prove the production Directory file was not changed;
+- optionally emit a same-directory temporary transformed candidate so relative imports resolve exactly as production does.
 
-Focused continuation repair for an already-installed Phase 4 query/list source:
-
-```text
-tool/apply_dispatch_phase4_directory_filter_stability.mjs
-```
+Before production mutation, the focused gate must now format and strict-analyze that transformed candidate. A text-valid transform is not sufficient if the candidate does not compile.
 
 Regression contract:
 
@@ -77,17 +95,47 @@ Regression contract:
 test/dispatch_directory_filter_runtime_stability_contract_test.dart
 ```
 
-Focused gate order:
+Regression-contract hygiene:
+
+```text
+test/dispatch_directory_runtime_contract_hygiene_test.dart
+```
+
+The hygiene test prevents the known stale implementation-shape assertion from returning and requires the regression to follow the accepted semantic lifecycle markers.
+
+Read-only continuation after a successful mutation followed by a later failure:
+
+```text
+tool/verify_dispatch_phase4_directory_filter_runtime_continuation.ps1
+```
+
+That continuation hashes the production Directory source, runs strict analyzer **before** tests, runs the corrected regression suite, and proves the production Directory source and Dispatch tracker remain unchanged.
+
+## Required focused gate order
 
 ```text
 parse controls
--> dry-run complete transform against exact local source
--> prove dry-run changed no production bytes
+-> regression-contract hygiene
+-> transform exact local source in memory
+-> emit temporary same-directory candidate
+-> format + strict-analyze candidate
+-> prove production bytes unchanged
 -> apply already-proven transform
--> format
+-> format production source
+-> strict analyzer BEFORE tests
 -> runtime + existing Directory regressions
--> strict analyzer
 -> browser acceptance
+```
+
+If mutation has already succeeded and a later stage fails:
+
+```text
+DO NOT rerun mutation
+-> use read-only continuation
+-> analyze production source first
+-> if analyzer passes, repair/continue only at test/runtime layer
+-> if analyzer fails, repair only the concrete source diagnostic
+-> prove production hash discipline throughout
 ```
 
 ## Future build rule
@@ -107,6 +155,6 @@ last successful data
     -> inline refresh/error status
 ```
 
-A source-transform repair must also validate against the exact current local source before it writes anything. Parse-only preflight is not enough to prove that a semantic migration can target formatted source.
+A source-transform repair must validate against the exact current local source **and compile the transformed candidate before it writes anything**. Parse-only and text-only preflight are not enough.
 
-The canonical Phase 4 query/list installer must carry this lifecycle automatically so a fresh checkout does not recreate the browser defect.
+The canonical Phase 4 query/list installer must carry this lifecycle and preflight discipline automatically so a fresh checkout does not recreate the browser defect or the repair-loop failure.
