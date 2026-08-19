@@ -78,7 +78,9 @@ function validate(source) {
     fail('Legacy full-page loading replacement is still present.');
   }
 
-  const synchronousFilterReload = /void\s+_setFilters\s*\([^)]*\)\s*\{[\s\S]*?setState\s*\(\s*\(\)\s*\{[\s\S]*?_loadFuture\s*=\s*_load\(\)/m;
+  // Only reject the old immediate assignment in the same filter-state block.
+  // A delayed `_loadFuture = _load()` inside the debounce Timer is required.
+  const synchronousFilterReload = /_filters\s*=\s*value\s*;\s*_loadFuture\s*=\s*_load\(\)\s*;/m;
   if (synchronousFilterReload.test(source)) {
     fail('Filter controls still replace the Directory future synchronously.');
   }
