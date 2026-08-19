@@ -31,12 +31,14 @@ if ($LASTEXITCODE -ne 0) {
 $supportFiles = @(
   'tool/apply_dispatch_phase4_directory_query_ui.mjs',
   'tool/dispatch_directory_filter_runtime_transform.mjs',
+  'tool/verify_dispatch_directory_filter_runtime_transform_dryrun.mjs',
   'tool/apply_dispatch_phase4_directory_filter_stability.mjs',
   'firebase/functions/scripts/seed_dispatch_directory_visual.js',
   'test/marketplace_dispatch_directory_test.dart',
   'test/marketplace_dispatch_directory_projection_query_test.dart',
   'test/dispatch_directory_projection_source_contract_test.dart',
   'test/dispatch_directory_filter_runtime_stability_contract_test.dart',
+  'test/dispatch_directory_runtime_contract_hygiene_test.dart',
   'firebase/functions/test/dispatch_directory_projection.test.js',
   'firebase/functions/test/dispatch_directory_security_contract.test.js',
   'docs/DISPATCH_PHASE4_DIRECTORY_QUERY_LIST.md',
@@ -90,6 +92,7 @@ Write-Step 'Preflighting every declared control before mutation'
 $nodeControls = @(
   'tool/apply_dispatch_phase4_directory_query_ui.mjs',
   'tool/dispatch_directory_filter_runtime_transform.mjs',
+  'tool/verify_dispatch_directory_filter_runtime_transform_dryrun.mjs',
   'tool/apply_dispatch_phase4_directory_filter_stability.mjs',
   'firebase/functions/scripts/seed_dispatch_directory_visual.js',
   'firebase/functions/dispatch_directory_projection.js',
@@ -114,6 +117,12 @@ if ($parseErrors.Count -gt 0) {
   throw "STOP: Phase 4 query/list gate PowerShell parse failed: $($parseErrors[0].Message)"
 }
 
+Write-Step 'Preflighting Directory runtime regression-contract hygiene'
+& flutter test '.\test\dispatch_directory_runtime_contract_hygiene_test.dart'
+if ($LASTEXITCODE -ne 0) {
+  throw 'STOP: Directory runtime regression contract is stale. No Directory source mutation has occurred.'
+}
+
 $navigationText = Get-Content -LiteralPath '.\lib\marketplace\marketplace_dispatch_navigation.dart' -Raw
 $foundationMarker = 'class MarketplaceDispatchDirectoryFoundation extends StatelessWidget {'
 $foundationIndex = $navigationText.IndexOf($foundationMarker)
@@ -135,6 +144,35 @@ if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Phase 4 Directory query/list integration failed.'
 }
 
+$directoryHashBeforeRuntime = (Get-FileHash -Algorithm SHA256 -LiteralPath $directoryPath).Hash
+$candidateRelative = 'lib/marketplace/pipebuyer_directory_runtime_preflight.dart'
+$candidatePath = Join-Path $repoRoot 'lib\marketplace\pipebuyer_directory_runtime_preflight.dart'
+try {
+  Write-Step 'Dry-running and compiling the runtime lifecycle against the exact post-query Directory source'
+  $env:PIPEBUYER_DIRECTORY_RUNTIME_CANDIDATE = $candidateRelative
+  & node '.\tool\verify_dispatch_directory_filter_runtime_transform_dryrun.mjs'
+  if ($LASTEXITCODE -ne 0) {
+    throw 'STOP: Directory runtime transform dry-run failed before runtime source mutation.'
+  }
+  $directoryHashAfterRuntimeDryRun = (Get-FileHash -Algorithm SHA256 -LiteralPath $directoryPath).Hash
+  if ($directoryHashAfterRuntimeDryRun -ne $directoryHashBeforeRuntime) {
+    throw 'STOP: Runtime dry-run modified the post-query production Directory source.'
+  }
+  & dart format $candidatePath
+  if ($LASTEXITCODE -ne 0) {
+    throw 'STOP: Formatter rejected the Directory runtime candidate before runtime mutation.'
+  }
+  & flutter analyze --fatal-infos --fatal-warnings $candidatePath
+  if ($LASTEXITCODE -ne 0) {
+    throw 'STOP: Compile/analyzer preflight rejected the Directory runtime candidate before runtime mutation.'
+  }
+  Write-Host 'Exact post-query runtime transform + compile preflight: PASS' -ForegroundColor Green
+}
+finally {
+  Remove-Item Env:PIPEBUYER_DIRECTORY_RUNTIME_CANDIDATE -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $candidatePath -Force -ErrorAction SilentlyContinue
+}
+
 Write-Step 'Applying the permanent non-blank filter refresh lifecycle'
 & node '.\tool\apply_dispatch_phase4_directory_filter_stability.mjs'
 if ($LASTEXITCODE -ne 0) {
@@ -148,7 +186,8 @@ $dartFiles = @(
   'test/marketplace_dispatch_directory_test.dart',
   'test/marketplace_dispatch_directory_projection_query_test.dart',
   'test/dispatch_directory_projection_source_contract_test.dart',
-  'test/dispatch_directory_filter_runtime_stability_contract_test.dart'
+  'test/dispatch_directory_filter_runtime_stability_contract_test.dart',
+  'test/dispatch_directory_runtime_contract_hygiene_test.dart'
 )
 & dart format $dartFiles
 if ($LASTEXITCODE -ne 0) {
@@ -172,14 +211,33 @@ if ($launcherErrors.Count -gt 0) {
 }
 Write-Host 'Formal acceptance launcher parse: PASS' -ForegroundColor Green
 
+Write-Step 'Running strict analyzer before post-mutation Flutter tests'
+$analyzeFiles = @(
+  'lib/marketplace/marketplace_dispatch_directory.dart',
+  'lib/marketplace/marketplace_dispatch_navigation.dart',
+  'test/marketplace_dispatch_directory_test.dart',
+  'test/marketplace_dispatch_directory_projection_query_test.dart',
+  'test/dispatch_directory_projection_source_contract_test.dart',
+  'test/dispatch_directory_filter_runtime_stability_contract_test.dart',
+  'test/dispatch_directory_runtime_contract_hygiene_test.dart'
+)
+foreach ($target in $analyzeFiles) {
+  & flutter analyze --fatal-infos --fatal-warnings $target
+  if ($LASTEXITCODE -ne 0) {
+    throw "STOP: Strict analyzer failed for $target. Do not rerun the mutation; continue from the failed layer."
+  }
+}
+Write-Host 'Post-mutation strict analyzer: PASS' -ForegroundColor Green
+
 Write-Step 'Running Directory projection/query/widget/runtime contracts'
 & flutter test `
+  '.\test\dispatch_directory_runtime_contract_hygiene_test.dart' `
   '.\test\marketplace_dispatch_directory_test.dart' `
   '.\test\marketplace_dispatch_directory_projection_query_test.dart' `
   '.\test\dispatch_directory_projection_source_contract_test.dart' `
   '.\test\dispatch_directory_filter_runtime_stability_contract_test.dart'
 if ($LASTEXITCODE -ne 0) {
-  throw 'STOP: Phase 4 Directory Flutter contracts failed.'
+  throw 'STOP: Phase 4 Directory Flutter contracts failed after analyzer PASS. Do not rerun the mutation; repair/continue at the test/runtime layer.'
 }
 
 Write-Step 'Re-running server projection and privacy contracts'
@@ -188,22 +246,6 @@ Write-Step 'Re-running server projection and privacy contracts'
   '.\firebase\functions\test\dispatch_directory_security_contract.test.js'
 if ($LASTEXITCODE -ne 0) {
   throw 'STOP: Phase 4 server Directory projection/privacy regressions failed.'
-}
-
-Write-Step 'Running strict analyzer on the bounded Directory integration'
-$analyzeFiles = @(
-  'lib/marketplace/marketplace_dispatch_directory.dart',
-  'lib/marketplace/marketplace_dispatch_navigation.dart',
-  'test/marketplace_dispatch_directory_test.dart',
-  'test/marketplace_dispatch_directory_projection_query_test.dart',
-  'test/dispatch_directory_projection_source_contract_test.dart',
-  'test/dispatch_directory_filter_runtime_stability_contract_test.dart'
-)
-foreach ($target in $analyzeFiles) {
-  & flutter analyze --fatal-infos --fatal-warnings $target
-  if ($LASTEXITCODE -ne 0) {
-    throw "STOP: Strict analyzer failed for $target"
-  }
 }
 
 $trackerHashAfter = (Get-FileHash -Algorithm SHA256 -LiteralPath $trackerPath).Hash
@@ -216,7 +258,9 @@ Write-Host '============================================================' -Foreg
 Write-Host 'PIPE BUYER DISPATCH PHASE 4 DIRECTORY QUERY + LIST GATE PASSED' -ForegroundColor Green
 Write-Host '============================================================' -ForegroundColor Green
 Write-Host 'Control parse before mutation: PASS' -ForegroundColor Green
+Write-Host 'Runtime regression-contract hygiene: PASS' -ForegroundColor Green
 Write-Host 'Server-owned Directory repository/query layer: PASS' -ForegroundColor Green
+Write-Host 'Runtime candidate compile/analyzer before runtime mutation: PASS' -ForegroundColor Green
 Write-Host 'Service filter wiring: PASS' -ForegroundColor Green
 Write-Host 'Availability/business/capability filters: PASS' -ForegroundColor Green
 Write-Host 'Real provider list cards: PASS' -ForegroundColor Green
@@ -224,8 +268,8 @@ Write-Host 'Loading/error/empty states: PASS' -ForegroundColor Green
 Write-Host 'Filter refresh retains usable results: PASS' -ForegroundColor Green
 Write-Host 'Rapid filter/search refresh debounce: PASS' -ForegroundColor Green
 Write-Host 'Deterministic six-provider Directory fixture: PASS' -ForegroundColor Green
+Write-Host 'Post-mutation strict analyzer before tests: PASS' -ForegroundColor Green
 Write-Host 'Server projection/privacy regression: PASS' -ForegroundColor Green
-Write-Host 'Strict analyzer: PASS' -ForegroundColor Green
 Write-Host 'Dispatch tracker modified by this gate: NO' -ForegroundColor Green
 Write-Host 'Ready for browser acceptance: YES' -ForegroundColor Green
 Write-Host 'Next after acceptance: geography/radius + synchronized OpenStreetMap pins' -ForegroundColor Green
