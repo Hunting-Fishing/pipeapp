@@ -5,18 +5,26 @@ import {fileURLToPath} from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..');
-const candidateDashboard = path.join(
-  repoRoot,
-  'lib',
-  'marketplace',
-  'pipebuyer_dispatch_dashboard_quote_v2_preflight.dart',
-);
-const candidatePage = path.join(
-  repoRoot,
-  'lib',
-  'marketplace',
-  'pipebuyer_dispatch_page_quote_v2_preflight.dart',
-);
+const candidates = [
+  {
+    label: 'Dashboard',
+    filePath: path.join(
+      repoRoot,
+      'lib',
+      'marketplace',
+      'pipebuyer_dispatch_dashboard_quote_v2_preflight.dart',
+    ),
+  },
+  {
+    label: 'Jobs page',
+    filePath: path.join(
+      repoRoot,
+      'lib',
+      'marketplace',
+      'pipebuyer_dispatch_page_quote_v2_preflight.dart',
+    ),
+  },
+];
 
 function fail(message) {
   throw new Error(`STOP: ${message}`);
@@ -28,45 +36,6 @@ function escapeRegex(value) {
 
 function countSymbol(source, symbol) {
   return (source.match(new RegExp(`\\b${escapeRegex(symbol)}\\b`, 'g')) || []).length;
-}
-
-function nextTopLevelDeclaration(source, from) {
-  const markers = [
-    '\nclass ',
-    '\nenum ',
-    '\nmixin ',
-    '\nextension ',
-    '\ntypedef ',
-    '\nconst ',
-    '\nfinal ',
-  ];
-  let next = -1;
-  for (const marker of markers) {
-    const index = source.indexOf(marker, from);
-    if (index >= 0 && (next < 0 || index < next)) next = index + 1;
-  }
-  return next < 0 ? source.length : next;
-}
-
-function removeUnreferencedTopLevelClass(source, className) {
-  const marker = `class ${className}`;
-  const classIndex = source.indexOf(marker);
-  if (classIndex < 0) return {source, removed: false};
-  if (source.indexOf(marker, classIndex + marker.length) >= 0) {
-    fail(`${className} is declared more than once in the candidate.`);
-  }
-
-  const lineStart = source.lastIndexOf('\n', classIndex) + 1;
-  const classEnd = nextTopLevelDeclaration(source, classIndex + marker.length);
-  const outside = source.slice(0, lineStart) + source.slice(classEnd);
-  if (outside.includes(className)) {
-    fail(`${className} is still referenced outside its declaration; refusing to prune it.`);
-  }
-
-  const cleaned = `${source.slice(0, lineStart).trimEnd()}\n\n${source
-    .slice(classEnd)
-    .replace(/^\s+/, '')}`;
-  return {source: cleaned, removed: true};
 }
 
 function scanBalancedBlockEnd(source, openBraceIndex) {
@@ -113,6 +82,7 @@ function scanBalancedBlockEnd(source, openBraceIndex) {
       }
       continue;
     }
+
     if (char === '/' && next === '/') {
       lineComment = true;
       index += 1;
@@ -155,6 +125,7 @@ function findTopLevelValueEnd(source, start) {
     const char = source[index];
     const next = source[index + 1] ?? '';
     const next2 = source[index + 2] ?? '';
+
     if (lineComment) {
       if (char === '\n') lineComment = false;
       continue;
@@ -181,9 +152,12 @@ function findTopLevelValueEnd(source, start) {
           triple = false;
           index += 2;
         }
-      } else if (char === quote) quote = null;
+      } else if (char === quote) {
+        quote = null;
+      }
       continue;
     }
+
     if (char === '/' && next === '/') {
       lineComment = true;
       index += 1;
@@ -202,64 +176,92 @@ function findTopLevelValueEnd(source, start) {
       }
       continue;
     }
+
     if (char === '(') paren += 1;
     else if (char === ')') paren -= 1;
     else if (char === '[') bracket += 1;
     else if (char === ']') bracket -= 1;
     else if (char === '{') brace += 1;
     else if (char === '}') brace -= 1;
-    else if (char === ';' && paren === 0 && bracket === 0 && brace === 0) return index + 1;
+    else if (char === ';' && paren === 0 && bracket === 0 && brace === 0) {
+      return index + 1;
+    }
   }
   return -1;
 }
 
-function removeUnreferencedTopLevelValue(source, symbol) {
-  const occurrences = countSymbol(source, symbol);
-  if (occurrences === 0) return {source, removed: false};
-  if (occurrences !== 1) {
-    fail(`${symbol} still has ${occurrences - 1} reference(s); refusing to prune it.`);
+function lineBounds(source, lineNumber) {
+  const lines = source.split('\n');
+  const index = lineNumber - 1;
+  if (!Number.isInteger(lineNumber) || index < 0 || index >= lines.length) {
+    fail(`Analyzer line ${lineNumber} is outside the candidate source.`);
   }
-
-  const symbolIndex = source.indexOf(symbol);
-  const lineStart = source.lastIndexOf('\n', symbolIndex) + 1;
-  const lineEnd = source.indexOf('\n', symbolIndex);
-  const declarationLine = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd);
-  if (/^\s/.test(declarationLine) || !/^(?:const|final)\b/.test(declarationLine.trim())) {
-    fail(`${symbol} is not a bounded top-level const/final declaration.`);
-  }
-  const declarationEnd = findTopLevelValueEnd(source, lineStart);
-  if (declarationEnd < 0 || declarationEnd <= symbolIndex) fail(`Could not determine the end of ${symbol}.`);
-  let suffixStart = declarationEnd;
-  while (source[suffixStart] === '\r' || source[suffixStart] === '\n') suffixStart += 1;
-  return {
-    source: `${source.slice(0, lineStart).trimEnd()}\n\n${source.slice(suffixStart)}`,
-    removed: true,
-  };
+  let start = 0;
+  for (let i = 0; i < index; i += 1) start += lines[i].length + 1;
+  return {line: lines[index], start, lines, index};
 }
 
-function removeUnreferencedTopLevelFunction(source, symbol) {
+function normalizeGap(source, start, end) {
+  let suffixStart = end;
+  while (source[suffixStart] === '\r' || source[suffixStart] === '\n') {
+    suffixStart += 1;
+  }
+  return `${source.slice(0, start).trimEnd()}\n\n${source.slice(suffixStart)}`;
+}
+
+function removeUnusedImport(source, lineNumber) {
+  const {line, lines, index} = lineBounds(source, lineNumber);
+  if (!/^\s*import\s+["'][^"']+["'];\s*$/.test(line)) {
+    fail(`Analyzer identified a non-plain import for cleanup: ${line}`);
+  }
+  lines.splice(index, 1);
+  return {source: lines.join('\n'), description: line.trim()};
+}
+
+function removeTopLevelClassLike(source, symbol, lineNumber) {
+  const {line, start} = lineBounds(source, lineNumber);
+  if (/^\s/.test(line)) fail(`${symbol} is not top-level; refusing cleanup.`);
+  if (!/^(?:class|enum|mixin|extension)\b/.test(line.trim())) {
+    fail(`${symbol} is not a supported class-like declaration.`);
+  }
   const occurrences = countSymbol(source, symbol);
-  if (occurrences === 0) return {source, removed: false};
   if (occurrences !== 1) {
-    fail(`${symbol} still has ${occurrences - 1} reference(s); refusing to prune it.`);
+    fail(`${symbol} still has ${Math.max(0, occurrences - 1)} reference(s); refusing cleanup.`);
   }
-  const symbolIndex = source.indexOf(symbol);
-  const lineStart = source.lastIndexOf('\n', symbolIndex) + 1;
-  const lineEnd = source.indexOf('\n', symbolIndex);
-  const declarationLine = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd);
-  if (/^\s/.test(declarationLine)) fail(`${symbol} is not top-level; refusing to prune it.`);
-  const openBrace = source.indexOf('{', symbolIndex);
-  if (openBrace < 0 || (lineEnd >= 0 && openBrace > lineEnd + 300)) {
-    fail(`Could not locate a bounded function body for ${symbol}.`);
-  }
+  const openBrace = source.indexOf('{', start);
+  if (openBrace < 0) fail(`Could not locate the body for ${symbol}.`);
   const end = scanBalancedBlockEnd(source, openBrace);
   if (end < 0) fail(`Could not determine the end of ${symbol}.`);
-  let suffixStart = end;
-  while (source[suffixStart] === '\r' || source[suffixStart] === '\n') suffixStart += 1;
-  return {
-    source: `${source.slice(0, lineStart).trimEnd()}\n\n${source.slice(suffixStart)}`,
-    removed: true,
-  };
+  return normalizeGap(source, start, end);
+}
+
+function removeTopLevelValue(source, symbol, lineNumber) {
+  const {line, start} = lineBounds(source, lineNumber);
+  if (/^\s/.test(line)) fail(`${symbol} is not top-level; refusing cleanup.`);
+  if (!/^(?:const|final)\b/.test(line.trim())) {
+    fail(`${symbol} is not a supported top-level value declaration.`);
+  }
+  const occurrences = countSymbol(source, symbol);
+  if (occurrences !== 1) {
+    fail(`${symbol} still has ${Math.max(0, occurrences - 1)} reference(s); refusing cleanup.`);
+  }
+  const end = findTopLevelValueEnd(source, start);
+  if (end < 0) fail(`Could not determine the end of ${symbol}.`);
+  return normalizeGap(source, start, end);
+}
+
+function removeTopLevelFunction(source, symbol, lineNumber) {
+  const {line, start} = lineBounds(source, lineNumber);
+  if (/^\s/.test(line)) fail(`${symbol} is not top-level; refusing cleanup.`);
+  const occurrences = countSymbol(source, symbol);
+  if (occurrences !== 1) {
+    fail(`${symbol} still has ${Math.max(0, occurrences - 1)} reference(s); refusing cleanup.`);
+  }
+  const openBrace = source.indexOf('{', start);
+  if (openBrace < 0) fail(`Could not locate a bounded function body for ${symbol}.`);
+  const end = scanBalancedBlockEnd(source, openBrace);
+  if (end < 0) fail(`Could not determine the end of ${symbol}.`);
+  return normalizeGap(source, start, end);
 }
 
 function runMachineAnalyzer(filePath) {
@@ -268,6 +270,7 @@ function runMachineAnalyzer(filePath) {
     encoding: 'utf8',
     shell: process.platform === 'win32',
   });
+  if (result.error) fail(`Could not start Dart analyzer: ${result.error.message}`);
   const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -275,127 +278,102 @@ function runMachineAnalyzer(filePath) {
   return output.filter((line) => /^(INFO|WARNING|ERROR)\|/.test(line));
 }
 
-function removeAnalyzerUnusedImport(source, diagnostic) {
-  const parts = diagnostic.split('|');
-  if (parts.length < 8) fail(`Could not parse analyzer diagnostic: ${diagnostic}`);
-  const lineNumber = Number(parts[4]);
-  const lines = source.split('\n');
-  const index = lineNumber - 1;
-  if (!Number.isInteger(lineNumber) || index < 0 || index >= lines.length) {
-    fail(`Analyzer unused-import line is outside candidate source: ${diagnostic}`);
-  }
-  const importLine = lines[index];
-  if (!/^\s*import\s+["'][^"']+["'];\s*$/.test(importLine)) {
-    fail(`Analyzer identified a non-plain import for cleanup: ${importLine}`);
-  }
-  lines.splice(index, 1);
-  return {source: lines.join('\n'), description: importLine.trim()};
+function parseDiagnostic(line) {
+  const parts = line.split('|');
+  if (parts.length < 8) fail(`Could not parse analyzer diagnostic: ${line}`);
+  return {
+    raw: line,
+    severity: parts[0],
+    code: parts[2] ?? '',
+    lineNumber: Number(parts[4]),
+    message: parts.slice(7).join('|'),
+  };
 }
 
-function cleanupAnalyzerDeadCode(filePath, label) {
+function chooseBoundedDiagnostic(source, diagnostics, label) {
+  const parsed = diagnostics.map(parseDiagnostic);
+  const unsupported = parsed.filter(
+    (item) => item.code !== 'UNUSED_IMPORT' && item.code !== 'UNUSED_ELEMENT',
+  );
+  if (unsupported.length > 0) {
+    console.error(`${label} candidate has non-hygiene diagnostics:`);
+    for (const item of parsed) console.error(item.raw);
+    fail(`${label} candidate has diagnostics other than bounded unused imports/elements.`);
+  }
+
+  const importDiagnostic = parsed.find((item) => item.code === 'UNUSED_IMPORT');
+  if (importDiagnostic) return importDiagnostic;
+
+  for (const item of parsed) {
+    const match = item.message.match(/declaration '([^']+)' isn't referenced/);
+    if (!match) continue;
+    const symbol = match[1];
+    if (!symbol.startsWith('_')) continue;
+    const {line} = lineBounds(source, item.lineNumber);
+    if (!/^\s/.test(line)) return {...item, symbol};
+  }
+
+  console.error(`${label} candidate has only non-top-level unused elements:`);
+  for (const item of parsed) console.error(item.raw);
+  fail(`${label} candidate requires a semantic source repair, not automatic hygiene cleanup.`);
+}
+
+function cleanupCandidate(filePath, label) {
+  if (!fs.existsSync(filePath)) fail(`Quote V2 candidate is missing: ${filePath}`);
   let source = fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
   const actions = [];
 
-  for (let pass = 0; pass < 12; pass += 1) {
+  if (source.includes('class _DispatchQuoteDialog extends StatefulWidget')) {
+    fail(`${label} candidate still contains the retired Dashboard quote editor.`);
+  }
+  if (source.includes("labelText: 'All-in transport price'")) {
+    fail(`${label} candidate still contains the retired Jobs all-in quote editor.`);
+  }
+
+  for (let pass = 0; pass < 30; pass += 1) {
     fs.writeFileSync(filePath, source, 'utf8');
     const diagnostics = runMachineAnalyzer(filePath);
     if (diagnostics.length === 0) return {source, actions};
 
-    const unsupported = diagnostics.filter((line) => {
-      const code = line.split('|')[2] ?? '';
-      return code !== 'UNUSED_IMPORT' && code !== 'UNUSED_ELEMENT';
-    });
-    if (unsupported.length > 0) {
-      console.error(`${label} candidate has non-hygiene diagnostics:`);
-      for (const line of diagnostics) console.error(line);
-      fail(`${label} candidate has diagnostics other than bounded unused imports/elements.`);
-    }
-
-    const diagnostic = diagnostics[0];
-    const parts = diagnostic.split('|');
-    const code = parts[2] ?? '';
-    if (code === 'UNUSED_IMPORT') {
-      const result = removeAnalyzerUnusedImport(source, diagnostic);
+    const selected = chooseBoundedDiagnostic(source, diagnostics, label);
+    if (selected.code === 'UNUSED_IMPORT') {
+      const result = removeUnusedImport(source, selected.lineNumber);
       source = result.source;
       actions.push(`unused import: ${result.description}`);
       continue;
     }
 
-    const message = parts.slice(7).join('|');
-    const match = message.match(/declaration '([^']+)' isn't referenced/);
-    if (!match) {
-      console.error(diagnostic);
-      fail(`${label} UNUSED_ELEMENT diagnostic did not identify a declaration.`);
-    }
-    const symbol = match[1];
-    if (!symbol.startsWith('_')) {
-      console.error(diagnostic);
-      fail(`${label} analyzer identified a non-private unused element; refusing cleanup.`);
-    }
-    const lineNumber = Number(parts[4]);
-    const lines = source.split('\n');
-    const declarationLine = lines[lineNumber - 1] ?? '';
-    if (/^\s/.test(declarationLine)) {
-      console.error(diagnostic);
-      fail(`${label} unused element ${symbol} is not top-level; refusing cleanup.`);
-    }
-
-    let result;
-    if (/^(?:class|enum|mixin|extension)\b/.test(declarationLine.trim())) {
-      result = removeUnreferencedTopLevelClass(source, symbol);
-    } else if (/^(?:const|final)\b/.test(declarationLine.trim())) {
-      result = removeUnreferencedTopLevelValue(source, symbol);
+    const symbol = selected.symbol;
+    const {line} = lineBounds(source, selected.lineNumber);
+    if (/^(?:class|enum|mixin|extension)\b/.test(line.trim())) {
+      source = removeTopLevelClassLike(source, symbol, selected.lineNumber);
+    } else if (/^(?:const|final)\b/.test(line.trim())) {
+      source = removeTopLevelValue(source, symbol, selected.lineNumber);
     } else {
-      result = removeUnreferencedTopLevelFunction(source, symbol);
+      source = removeTopLevelFunction(source, symbol, selected.lineNumber);
     }
-    if (!result.removed) fail(`${label} analyzer identified ${symbol}, but bounded cleanup did not remove it.`);
-    source = result.source;
     actions.push(`unused top-level element: ${symbol}`);
   }
 
   fail(`${label} candidate hygiene exceeded the bounded cleanup pass limit.`);
 }
 
-for (const filePath of [candidateDashboard, candidatePage]) {
-  if (!fs.existsSync(filePath)) fail(`Quote V2 candidate is missing: ${filePath}`);
+const results = [];
+for (const candidate of candidates) {
+  const result = cleanupCandidate(candidate.filePath, candidate.label);
+  fs.writeFileSync(candidate.filePath, result.source, 'utf8');
+  results.push({...candidate, ...result});
 }
-
-let dashboardSource = fs.readFileSync(candidateDashboard, 'utf8').replace(/\r\n/g, '\n');
-if (dashboardSource.includes('class _DispatchQuoteDialog extends StatefulWidget')) {
-  fail('Retired Dashboard quote editor still exists before candidate hygiene cleanup.');
-}
-
-const draftResult = removeUnreferencedTopLevelClass(
-  dashboardSource,
-  '_DispatchUnitRequirementDraft',
-);
-dashboardSource = draftResult.source;
-const unitTypesResult = removeUnreferencedTopLevelValue(
-  dashboardSource,
-  '_dispatchQuoteUnitTypes',
-);
-dashboardSource = unitTypesResult.source;
-fs.writeFileSync(candidateDashboard, dashboardSource, 'utf8');
-
-let pageSource = fs.readFileSync(candidatePage, 'utf8').replace(/\r\n/g, '\n');
-const vehicleIconResult = removeUnreferencedTopLevelFunction(
-  pageSource,
-  '_vehicleTypeFallbackIcon',
-);
-pageSource = vehicleIconResult.source;
-fs.writeFileSync(candidatePage, pageSource, 'utf8');
-
-const dashboardAnalyzer = cleanupAnalyzerDeadCode(candidateDashboard, 'Dashboard');
-fs.writeFileSync(candidateDashboard, dashboardAnalyzer.source, 'utf8');
-const pageAnalyzer = cleanupAnalyzerDeadCode(candidatePage, 'Jobs page');
-fs.writeFileSync(candidatePage, pageAnalyzer.source, 'utf8');
 
 console.log('PIPE BUYER QUOTE V2 CANDIDATE HYGIENE CLEANUP PASSED');
-console.log(`Unreferenced _DispatchUnitRequirementDraft removed: ${draftResult.removed ? 'YES' : 'NOT PRESENT'}`);
-console.log(`Cascading _dispatchQuoteUnitTypes removed: ${unitTypesResult.removed ? 'YES' : 'NOT PRESENT'}`);
-console.log(`Legacy _vehicleTypeFallbackIcon removed after bid-form replacement: ${vehicleIconResult.removed ? 'YES' : 'NOT PRESENT'}`);
-for (const action of dashboardAnalyzer.actions) console.log(`Dashboard analyzer cleanup: ${action}`);
-for (const action of pageAnalyzer.actions) console.log(`Jobs analyzer cleanup: ${action}`);
-console.log('Dashboard candidate hygiene analyzer: PASS');
-console.log('Jobs candidate hygiene analyzer: PASS');
+for (const result of results) {
+  if (result.actions.length === 0) {
+    console.log(`${result.label} analyzer cleanup: NOT NEEDED`);
+  } else {
+    for (const action of result.actions) {
+      console.log(`${result.label} analyzer cleanup: ${action}`);
+    }
+  }
+  console.log(`${result.label} candidate hygiene analyzer: PASS`);
+}
 console.log('Production source modified by hygiene cleanup: NO');
