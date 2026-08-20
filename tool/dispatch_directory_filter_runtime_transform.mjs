@@ -1,7 +1,56 @@
-import {normalizeDirectoryFilterSetStateCallbacks} from './dispatch_directory_filter_setstate_transform.mjs';
-
 function fail(message) {
   throw new Error(`STOP: ${message}`);
+}
+
+function compact(text) {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function normalizeDirectoryFilterSetStateCallbacks(input) {
+  let source = input.replace(/\r\n/g, '\n');
+  const pattern = /^([ \t]*)setState\(\(\)\s*=>\s*_loadFuture\s*=\s*_load\(\)\s*\);[ \t]*$/gm;
+  source = source.replace(pattern, (_, indent) =>
+    `${indent}final nextLoad = _load();\n` +
+    `${indent}setState(() {\n` +
+    `${indent}  _loadFuture = nextLoad;\n` +
+    `${indent}});`,
+  );
+
+  if (/setState\(\s*\(\)\s*=>\s*_loadFuture\s*=\s*_load\(\)\s*\)/m.test(source)) {
+    fail('A setState callback still returns the Future assigned by _load().');
+  }
+
+  const reloadStart = source.indexOf('  void _reload() {');
+  const filtersStart = source.indexOf('  void _setFilters(', reloadStart);
+  if (reloadStart < 0 || filtersStart <= reloadStart) {
+    fail('Directory _reload lifecycle boundaries were not found.');
+  }
+  const reload = compact(source.slice(reloadStart, filtersStart));
+  if (!reload.includes(
+    'void _reload() { _filterDebounce?.cancel(); final nextLoad = _load(); setState(() { _loadFuture = nextLoad; }); }',
+  )) {
+    fail('Directory _reload does not install the next Future through a void-returning setState callback.');
+  }
+
+  const clearStart = source.indexOf('  void _clearFilters()', filtersStart);
+  if (clearStart <= filtersStart) {
+    fail('Directory _setFilters lifecycle boundary was not found.');
+  }
+  const filter = compact(source.slice(filtersStart, clearStart));
+  for (const marker of [
+    '_filters = value;',
+    '_loadGeneration++;',
+    '_filterDebounce?.cancel();',
+    'Timer(const Duration(milliseconds: 180), () {',
+    'if (!mounted) return;',
+    'final nextLoad = _load();',
+    'setState(() { _loadFuture = nextLoad; });',
+  ]) {
+    if (!filter.includes(marker)) {
+      fail(`Directory debounced filter lifecycle is missing: ${marker}`);
+    }
+  }
+  return source;
 }
 
 function countLiteral(text, marker) {
