@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Directory filter dropdowns are width-bounded for responsive layouts', () {
+  test('Directory filter controls remain responsive without overlay dropdowns', () {
     final source = File(
       'lib/marketplace/marketplace_dispatch_directory.dart',
     ).readAsStringSync();
@@ -17,20 +17,17 @@ void main() {
     expect(filterStart, greaterThanOrEqualTo(0));
     expect(companyStart, greaterThan(filterStart));
     final filterSection = source.substring(filterStart, companyStart);
-    final compact = filterSection.replaceAll(RegExp(r'\s+'), ' ');
 
-    for (final variableName in ['service', 'availability', 'businessType']) {
-      expect(
-        compact,
-        contains(
-          'final $variableName = DropdownButtonFormField<String>( isExpanded: true,',
-        ),
-      );
-    }
+    expect(filterSection, contains('class _DirectoryInlineSelect extends StatefulWidget'));
+    expect(filterSection, contains("id: 'directory-service-filter'"));
+    expect(filterSection, contains("id: 'directory-availability-filter'"));
+    expect(filterSection, contains("id: 'directory-business-type-filter'"));
+    expect(filterSection, contains('Expanded(child: service)'));
+    expect(filterSection, contains('Expanded(child: availability)'));
+    expect(filterSection, contains('Expanded(child: businessType)'));
 
-    expect(
-      RegExp(r'isExpanded:\s*true,').allMatches(filterSection).length,
-      3,
-    );
+    expect(filterSection, isNot(contains('DropdownButtonFormField<')));
+    expect(filterSection, isNot(contains('DropdownMenu<')));
+    expect(filterSection, isNot(contains('PopupMenuButton<')));
   });
 }
