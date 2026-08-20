@@ -20,6 +20,12 @@ void main() {
     expect(dashboard, contains('MarketplaceDispatchQuoteForm.show('));
     expect(page, isNot(contains("labelText: 'All-in transport price'")));
     expect(
+      page,
+      isNot(contains('IconData _vehicleTypeFallbackIcon(')),
+      reason:
+          'The legacy vehicle-icon helper was only used by the retired Jobs quote dialog and must not survive Quote V2 migration.',
+    );
+    expect(
       dashboard,
       isNot(contains('class _DispatchQuoteDialog extends StatefulWidget')),
       reason:
