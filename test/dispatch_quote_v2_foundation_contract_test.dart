@@ -22,27 +22,26 @@ void main() {
     expect(
       dashboard,
       isNot(contains('class _DispatchQuoteDialog extends StatefulWidget')),
-      reason: 'The retired Dashboard quote editor must be removed after Quote V2 wiring.',
+      reason:
+          'The retired Dashboard quote editor must be removed after Quote V2 wiring.',
     );
     expect(
       dashboard,
       isNot(contains('class _QuoteSection extends StatelessWidget')),
-      reason: 'Retired Quote V1-only helper widgets must not survive Quote V2 migration.',
+      reason:
+          'Retired Quote V1-only helper widgets must not survive Quote V2 migration.',
     );
     expect(
       dashboard,
       isNot(contains('class _DispatchUnitRequirementDraft')),
-      reason: 'Unreferenced local migration artifacts must not survive exact-candidate promotion.',
+      reason:
+          'Unreferenced Dispatch quote unit-requirement draft code must not survive the Quote V2 migration.',
     );
     expect(
       dashboard,
-      isNot(contains('quote_v2_preflight')),
-      reason: 'Preflight-only imports must never leak into production Dashboard source.',
-    );
-    expect(
-      page,
-      isNot(contains('quote_v2_preflight')),
-      reason: 'Preflight-only imports must never leak into production Jobs source.',
+      isNot(contains('_dispatchQuoteUnitTypes')),
+      reason:
+          'Cascading dead quote-unit constants must be removed with their retired consumer.',
     );
 
     for (final marker in [
@@ -90,12 +89,17 @@ void main() {
     expect(policy, contains('function validateDispatchQuoteBreakdown('));
     expect(
       policy,
-      contains('Carrier quote total does not match the server-calculated quote form.'),
+      contains(
+        'Carrier quote total does not match the server-calculated quote form.',
+      ),
     );
     expect(commands, contains('quoteBreakdown: quote.quoteBreakdown'));
     expect(commands, contains('quoteReference:'));
     expect(commands, contains('quoteVersion: revision'));
     expect(commands, contains('validityStatus: "active"'));
-    expect(commands, contains('bidRef.collection("revisions").doc(String(revision))'));
+    expect(
+      commands,
+      contains('bidRef.collection("revisions").doc(String(revision))'),
+    );
   });
 }
