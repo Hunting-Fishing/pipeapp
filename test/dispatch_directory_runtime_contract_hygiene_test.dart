@@ -12,13 +12,20 @@ void main() {
     expect(source, contains("contains('_filters = value;')"));
     expect(source, contains("contains('_loadGeneration++;')"));
     expect(source, contains("contains('_filterDebounce?.cancel();')"));
+    expect(source, contains("contains('final nextLoad = _load();')"));
     expect(
       source,
-      contains("contains('setState(() => _loadFuture = _load());')"),
+      contains("contains('setState(() { _loadFuture = nextLoad; });')"),
     );
 
-    // This was the stale implementation-shape assertion that survived the
-    // lifecycle redesign and caused an avoidable regression failure.
+    // Never codify the runtime-invalid arrow assignment again. Because the
+    // assignment expression evaluates to the Future returned by _load(),
+    // Flutter rejects it at runtime as a non-void setState callback.
+    expect(
+      source,
+      isNot(contains("contains('setState(() => _loadFuture = _load());')")),
+    );
+
     expect(
       source,
       isNot(contains("contains('setState(() => _filters = value);')")),
