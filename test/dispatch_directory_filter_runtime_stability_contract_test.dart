@@ -41,7 +41,7 @@ void main() {
     );
   });
 
-  test('filter changes invalidate stale work and debounce the remote refresh', () {
+  test('filter changes invalidate stale work and debounce with void setState callbacks', () {
     final source = File(
       'lib/marketplace/marketplace_dispatch_directory.dart',
     ).readAsStringSync();
@@ -62,7 +62,12 @@ void main() {
     expect(compact, contains('_loadGeneration++;'));
     expect(compact, contains('_filterDebounce?.cancel();'));
     expect(compact, contains('Timer(const Duration(milliseconds: 180), () {'));
-    expect(compact, contains('setState(() => _loadFuture = _load());'));
+    expect(compact, contains('final nextLoad = _load();'));
+    expect(compact, contains('setState(() { _loadFuture = nextLoad; });'));
+    expect(
+      compact,
+      isNot(contains('setState(() => _loadFuture = _load());')),
+    );
     expect(
       compact,
       isNot(contains('_filters = value; _loadFuture = _load();')),
