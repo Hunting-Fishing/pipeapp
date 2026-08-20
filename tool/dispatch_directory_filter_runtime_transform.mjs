@@ -1,3 +1,5 @@
+import {normalizeDirectoryFilterSetStateCallbacks} from './dispatch_directory_filter_setstate_transform.mjs';
+
 function fail(message) {
   throw new Error(`STOP: ${message}`);
 }
@@ -72,14 +74,15 @@ function validate(source) {
   if (!/_filters\s*=\s*value\s*;[\s\S]*?_loadGeneration\+\+/m.test(source)) {
     fail('Changing filters does not invalidate an older in-flight Directory refresh.');
   }
+  if (/setState\(\s*\(\)\s*=>\s*_loadFuture\s*=\s*_load\(\)\s*\)/m.test(source)) {
+    fail('Directory runtime still contains a Future-returning setState callback.');
+  }
 
   const oldBlankLoading = /if\s*\(\s*snapshot\.connectionState\s*==\s*ConnectionState\.waiting\s*\)\s*\{\s*return\s+const\s+Center\s*\(\s*child:\s*CircularProgressIndicator\(\)\s*\)\s*;/m;
   if (oldBlankLoading.test(source)) {
     fail('Legacy full-page loading replacement is still present.');
   }
 
-  // Only reject the old immediate assignment in the same filter-state block.
-  // A delayed `_loadFuture = _load()` inside the debounce Timer is required.
   const synchronousFilterReload = /_filters\s*=\s*value\s*;\s*_loadFuture\s*=\s*_load\(\)\s*;/m;
   if (synchronousFilterReload.test(source)) {
     fail('Filter controls still replace the Directory future synchronously.');
@@ -96,9 +99,8 @@ export function stabilizeDirectoryFilterRuntime(input) {
     fail('Dispatch Directory page state was not found.');
   }
 
-  // Idempotent continuation: if the retained-results state already exists,
-  // validate the complete contract instead of applying another mutation.
   if (source.includes('DispatchDirectoryPageData? _lastSuccessfulData;')) {
+    source = normalizeDirectoryFilterSetStateCallbacks(source);
     validate(source);
     return source;
   }
@@ -129,7 +131,7 @@ export function stabilizeDirectoryFilterRuntime(input) {
     source,
     '  @override\n  void dispose() {',
     '  @override\n  Widget build(BuildContext context) {',
-    `  @override\n  void dispose() {\n    _filterDebounce?.cancel();\n    _search.dispose();\n    super.dispose();\n  }\n\n  void _reload() {\n    _filterDebounce?.cancel();\n    setState(() => _loadFuture = _load());\n  }\n\n  void _setFilters(DispatchDirectoryFilters value) {\n    setState(() {\n      _filters = value;\n      _loadGeneration++;\n    });\n    _filterDebounce?.cancel();\n    _filterDebounce = Timer(const Duration(milliseconds: 180), () {\n      if (!mounted) return;\n      setState(() => _loadFuture = _load());\n    });\n  }\n\n  void _clearFilters() {\n    _search.clear();\n    _setFilters(const DispatchDirectoryFilters());\n  }\n\n`,
+    `  @override\n  void dispose() {\n    _filterDebounce?.cancel();\n    _search.dispose();\n    super.dispose();\n  }\n\n  void _reload() {\n    _filterDebounce?.cancel();\n    final nextLoad = _load();\n    setState(() {\n      _loadFuture = nextLoad;\n    });\n  }\n\n  void _setFilters(DispatchDirectoryFilters value) {\n    setState(() {\n      _filters = value;\n      _loadGeneration++;\n    });\n    _filterDebounce?.cancel();\n    _filterDebounce = Timer(const Duration(milliseconds: 180), () {\n      if (!mounted) return;\n      final nextLoad = _load();\n      setState(() {\n        _loadFuture = nextLoad;\n      });\n    });\n  }\n\n  void _clearFilters() {\n    _search.clear();\n    _setFilters(const DispatchDirectoryFilters());\n  }\n\n`,
     'Directory filter refresh lifecycle',
   );
 
@@ -186,6 +188,7 @@ export function stabilizeDirectoryFilterRuntime(input) {
     );
   }
 
+  source = normalizeDirectoryFilterSetStateCallbacks(source);
   validate(source);
   return source;
 }
