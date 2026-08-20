@@ -1,0 +1,115 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/marketplace/pipebuyer_directory_seed_safe_preflight.dart';
+
+String _classify(Object error) {
+  final text = '$error';
+  if (text.contains('[core/no-app]') || text.contains('No Firebase App')) {
+    return 'FIREBASE_NO_APP';
+  }
+  if (text.contains('RenderFlex') && text.contains('overflow')) {
+    return 'LAYOUT_OVERFLOW';
+  }
+  if (text.contains('DropdownButton') && text.contains('exactly one item')) {
+    return 'DROPDOWN_VALUE_ASSERTION';
+  }
+  if (text.contains('setState() called after dispose')) {
+    return 'SETSTATE_AFTER_DISPOSE';
+  }
+  if (text.contains('LateInitializationError')) {
+    return 'LATE_INITIALIZATION';
+  }
+  return 'UNCLASSIFIED';
+}
+
+void main() {
+  testWidgets('diagnose first seeded Directory candidate exception', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final frameworkErrors = <FlutterErrorDetails>[];
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      frameworkErrors.add(details);
+      previousOnError?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = previousOnError);
+
+    const entries = <DispatchDirectoryEntry>[
+      DispatchDirectoryEntry(
+        id: 'seed-safe-hotshot',
+        operatingName: 'Seed Safe Hotshot',
+        description: 'Seed-only widget candidate.',
+        website: '',
+        businessTypeCode: 'owner_operator',
+        serviceCodes: ['transport_hotshot'],
+        serviceAreaLabel: 'Grande Prairie region',
+        availabilityCode: 'available_now',
+        emergencyCallout: true,
+        remoteSiteCapable: true,
+        homeBaseLabel: 'Grande Prairie, Alberta',
+        homeBasePoint: null,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
+        ),
+      ),
+    );
+
+    Object? firstException;
+    if (frameworkErrors.isNotEmpty) {
+      firstException = frameworkErrors.first.exception;
+    }
+    firstException ??= tester.takeException();
+
+    if (firstException != null) {
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_PHASE=pumpWidget');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_CLASS=${_classify(firstException)}');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_TYPE=${firstException.runtimeType}');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_BEGIN');
+      debugPrint('$firstException');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_END');
+      fail('Seed-safe candidate first exception captured during pumpWidget.');
+    }
+
+    await tester.pump();
+    if (frameworkErrors.isNotEmpty) {
+      firstException = frameworkErrors.first.exception;
+    }
+    firstException ??= tester.takeException();
+    if (firstException != null) {
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_PHASE=firstPump');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_CLASS=${_classify(firstException)}');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_TYPE=${firstException.runtimeType}');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_BEGIN');
+      debugPrint('$firstException');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_END');
+      fail('Seed-safe candidate first exception captured during first pump.');
+    }
+
+    await tester.pump(const Duration(milliseconds: 250));
+    if (frameworkErrors.isNotEmpty) {
+      firstException = frameworkErrors.first.exception;
+    }
+    firstException ??= tester.takeException();
+    if (firstException != null) {
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_PHASE=timedPump');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_CLASS=${_classify(firstException)}');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_TYPE=${firstException.runtimeType}');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_BEGIN');
+      debugPrint('$firstException');
+      debugPrint('PIPEBUYER_FIRST_EXCEPTION_END');
+      fail('Seed-safe candidate first exception captured during timed pump.');
+    }
+
+    debugPrint('PIPEBUYER_FIRST_EXCEPTION_CLASS=NONE');
+    expect(find.text('Seed Safe Hotshot'), findsOneWidget);
+  });
+}
