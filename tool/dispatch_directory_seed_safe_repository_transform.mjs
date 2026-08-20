@@ -9,11 +9,13 @@ function matches(text, regex) {
 
 const fieldLine = '  MarketplaceDispatchDirectoryRepository? _repository;';
 const initAssignment = '    _repository = widget.repository;';
+const lazyRepositoryPattern =
+  /final\s+repository\s*=\s*_repository\s*\?\?=\s*MarketplaceDispatchDirectoryRepository\s*\(\s*\)\s*;/m;
 
 function normalizeField(source) {
   const patterns = [
-    /^\s*late\s+final\s+MarketplaceDispatchDirectoryRepository\s+_repository\s*;\s*$/gm,
-    /^\s*(?:(?:late\s+final|late|final)\s+)?MarketplaceDispatchDirectoryRepository\?\s+_repository\s*;\s*$/gm,
+    /^[ \t]*late[ \t]+final[ \t]+MarketplaceDispatchDirectoryRepository[ \t]+_repository[ \t]*;[ \t]*$/gm,
+    /^[ \t]*(?:(?:late[ \t]+final|late|final)[ \t]+)?MarketplaceDispatchDirectoryRepository\?[ \t]+_repository[ \t]*;[ \t]*$/gm,
   ];
   const hits = patterns.flatMap((pattern) => matches(source, pattern));
   if (hits.length !== 1) {
@@ -29,7 +31,7 @@ function normalizeInitState(source) {
   }
   const initStart = initMatch.index;
   const suffix = source.slice(initStart);
-  const loadMatch = suffix.match(/\n\s*Future<DispatchDirectoryPageData>\s+_load\s*\(\s*\)\s*\{/m);
+  const loadMatch = suffix.match(/\n[ \t]*Future<DispatchDirectoryPageData>\s+_load\s*\(\s*\)\s*\{/m);
   if (!loadMatch || loadMatch.index == null) {
     fail('Directory _load method boundary was not found after initState.');
   }
@@ -57,10 +59,12 @@ function normalizeInitState(source) {
 }
 
 function normalizeLoadCall(source) {
-  if (source.includes('final repository =\n')) {
-    if (/repository\.loadPage\s*\(/m.test(source) && !/_repository\.loadPage\s*\(/m.test(source)) {
-      return source;
-    }
+  if (
+    lazyRepositoryPattern.test(source) &&
+    /repository\.loadPage\s*\(/m.test(source) &&
+    !/_repository\.loadPage\s*\(/m.test(source)
+  ) {
+    return source;
   }
 
   const callPattern = /^([ \t]*)(request\s*=\s*|return\s+)_repository\.loadPage\s*\(/gm;
@@ -79,7 +83,7 @@ function normalizeLoadCall(source) {
 function validate(source) {
   const fields = matches(
     source,
-    /^\s*MarketplaceDispatchDirectoryRepository\?\s+_repository\s*;\s*$/m,
+    /^[ \t]*MarketplaceDispatchDirectoryRepository\?[ \t]+_repository[ \t]*;[ \t]*$/m,
   );
   if (fields.length !== 1) {
     fail(`Expected exactly one lazy nullable Directory repository field, found ${fields.length}.`);
@@ -94,19 +98,24 @@ function validate(source) {
   if (/_repository\.loadPage\s*\(/m.test(source)) {
     fail('Direct nullable _repository.loadPage invocation is still present.');
   }
-  if (!/final\s+repository\s*=\s*_repository\s*\?\?=\s*MarketplaceDispatchDirectoryRepository\s*\(\s*\)\s*;/m.test(source)) {
+  if (!lazyRepositoryPattern.test(source)) {
     fail('Directory live repository is not lazily created after the seeded-data branch.');
   }
   if (!/repository\.loadPage\s*\(/m.test(source)) {
     fail('Directory live repository loadPage call is missing.');
   }
 
-  const loadStart = source.search(/Future<DispatchDirectoryPageData>\s+_load\s*\(\s*\)\s*\{/m);
-  const disposeStart = source.indexOf('@override\n  void dispose()', loadStart);
-  if (loadStart < 0 || disposeStart < 0) {
-    fail('Directory _load lifecycle boundaries could not be validated.');
+  const loadMatch = source.match(/Future<DispatchDirectoryPageData>\s+_load\s*\(\s*\)\s*\{/m);
+  if (!loadMatch || loadMatch.index == null) {
+    fail('Directory _load method start could not be validated.');
   }
-  const load = source.slice(loadStart, disposeStart);
+  const loadStart = loadMatch.index;
+  const suffix = source.slice(loadStart);
+  const disposeMatch = suffix.match(/\n[ \t]*@override\s+void\s+dispose\s*\(\s*\)\s*\{/m);
+  if (!disposeMatch || disposeMatch.index == null) {
+    fail('Directory _load method end could not be validated.');
+  }
+  const load = suffix.slice(0, disposeMatch.index);
   const seedIndex = load.indexOf('final seed = widget.seedEntries;');
   const seedBranchIndex = load.indexOf('if (seed != null)');
   const repositoryConstructionIndex = load.indexOf('MarketplaceDispatchDirectoryRepository()');
