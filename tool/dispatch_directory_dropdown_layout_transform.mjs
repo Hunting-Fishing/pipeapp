@@ -6,6 +6,35 @@ function count(text, marker) {
   return text.split(marker).length - 1;
 }
 
+function pointerStableInstalled(source) {
+  const filterStart = source.indexOf('class _DirectoryFilterCard extends StatelessWidget');
+  const companyStart = source.indexOf('class _DirectoryCompanyCard extends StatelessWidget');
+  if (filterStart < 0 || companyStart <= filterStart) return false;
+  const section = source.slice(filterStart, companyStart);
+  return section.includes('class _DirectoryInlineSelect extends StatefulWidget');
+}
+
+function validatePointerStable(source) {
+  const filterStart = source.indexOf('class _DirectoryFilterCard extends StatelessWidget');
+  const companyStart = source.indexOf('class _DirectoryCompanyCard extends StatelessWidget');
+  if (filterStart < 0 || companyStart <= filterStart) {
+    fail('Directory filter-card boundaries were not found.');
+  }
+  const section = source.slice(filterStart, companyStart);
+  for (const marker of [
+    "id: 'directory-service-filter'",
+    "id: 'directory-availability-filter'",
+    "id: 'directory-business-type-filter'",
+  ]) {
+    if (!section.includes(marker)) {
+      fail(`Pointer-stable Directory filter is missing: ${marker}`);
+    }
+  }
+  if (section.includes('DropdownButtonFormField<')) {
+    fail('Legacy DropdownButtonFormField was reintroduced after pointer-stable repair.');
+  }
+}
+
 function normalizeDropdown(source, variableName) {
   const pattern = new RegExp(
     `^(\\s*)final\\s+${variableName}\\s*=\\s*DropdownButtonFormField<String>\\(\\s*$`,
@@ -38,7 +67,7 @@ function normalizeDropdown(source, variableName) {
   return source.slice(0, start) + replacement + source.slice(start + declaration.length);
 }
 
-function validate(source) {
+function validateLegacyDropdown(source) {
   const filterStart = source.indexOf('class _DirectoryFilterCard extends StatelessWidget');
   const companyStart = source.indexOf('class _DirectoryCompanyCard extends StatelessWidget');
   if (filterStart < 0 || companyStart <= filterStart) {
@@ -60,16 +89,6 @@ function validate(source) {
   if (expandedCount !== 3) {
     fail(`Expected exactly three expanded Directory filter dropdowns, found ${expandedCount}.`);
   }
-
-  if (!filterSection.includes("labelText: 'Service'")) {
-    fail('Directory Service filter is missing.');
-  }
-  if (!filterSection.includes("labelText: 'Availability'")) {
-    fail('Directory Availability filter is missing.');
-  }
-  if (!filterSection.includes("labelText: 'Business type'")) {
-    fail('Directory Business type filter is missing.');
-  }
 }
 
 export function stabilizeDirectoryDropdownLayout(input) {
@@ -82,10 +101,17 @@ export function stabilizeDirectoryDropdownLayout(input) {
     fail('Dispatch Directory filter card was not found.');
   }
 
+  // Pointer-stable inline selectors supersede the legacy dropdown layout fix.
+  // Never reintroduce DropdownButtonFormField after the mouse-tracker repair.
+  if (pointerStableInstalled(source)) {
+    validatePointerStable(source);
+    return source;
+  }
+
   for (const variableName of ['service', 'availability', 'businessType']) {
     source = normalizeDropdown(source, variableName);
   }
 
-  validate(source);
+  validateLegacyDropdown(source);
   return source;
 }
