@@ -1,51 +1,74 @@
 # Dispatch Quote V2 Candidate Hygiene
 
-## Symptom
+## Symptoms
 
-The Quote V2 V2 gate stopped before production mutation while analyzing the exact transformed Dashboard candidate. The analyzer reported three strict-warning failures:
+The Quote V2 migration correctly stopped before production mutation several times while strict-analyzing exact transformed candidates.
 
-1. one `unused_import` in the transformed Dashboard candidate;
+The first failures were in the Dashboard candidate:
+
+1. an `unused_import` exposed by the migration;
 2. `_DispatchUnitRequirementDraft` was no longer referenced;
-3. `_DispatchUnitRequirementDraft.fromMap` was no longer referenced.
+3. `_DispatchUnitRequirementDraft.fromMap` was no longer referenced;
+4. after removing that dead class, its supporting `_dispatchQuoteUnitTypes` declaration also became unreferenced.
 
-The gate correctly reported that production source was not changed.
+After those Dashboard diagnostics were removed, the exact Jobs-page candidate surfaced its own strict analyzer diagnostics. The old Jobs quote editor had been replaced by `MarketplaceDispatchQuoteForm`, so private helpers and imports used only by the retired all-in quote dialog could become unreachable. The known example is `_vehicleTypeFallbackIcon`, which was only needed by the retired fleet dropdown inside the old bid editor.
+
+In every case the gate correctly reported that production source was not changed.
 
 ## Root cause
 
-The local Dashboard contains additional private support code that is not present in the formal remote baseline. After Quote V2 replaces the old Dashboard quote-authoring path and removes the retired Quote V1 dialog, some local-only support declarations and an associated import become unreachable.
+Quote V2 replaces two independent legacy authoring surfaces: the Dashboard saved-quote editor and the Jobs carrier quote editor. Removing those surfaces can expose a dependency chain of local private declarations and imports that were only referenced by the retired implementations.
 
-The previous Quote V2 migration validated the shared quote form and removed the retired quote dialog, but it still assumed that all other local private Dashboard declarations would remain referenced. That assumption was false for the exact local source.
+The earlier gates handled one discovered declaration at a time. That was too narrow. Candidate hygiene must cover the complete transformed candidate graph, not only the first file that reports a warning.
 
-This is a migration-hygiene issue, not a Quote V2 pricing, Firebase, Firestore, or Functions defect.
+This remains a migration-hygiene issue, not a pricing, Firebase, Firestore, Functions, or quote-versioning defect.
 
 ## Permanent control
 
-Quote V2 now uses an exact-candidate promotion gate:
+Quote V2 uses exact-candidate promotion plus bounded analyzer-driven hygiene:
 
-1. fingerprint the existing production sources;
+1. fingerprint all existing production sources;
 2. build the Quote V2 candidate from the exact local source;
-3. remove `_DispatchUnitRequirementDraft` only when the class has no references outside its own top-level declaration;
-4. run the Dart analyzer in machine format against the candidate Dashboard;
-5. permit at most one remaining `UNUSED_IMPORT` diagnostic and remove exactly the analyzer-identified import line from the candidate only;
-6. reject any other analyzer diagnostic before production mutation;
-7. format and strictly analyze repository, Dashboard, and Jobs candidate files;
-8. run the candidate server quote-calculation tests;
-9. prove production hashes are unchanged;
-10. promote the exact analyzed candidate instead of rerunning a separate mutation transform;
-11. strictly analyze promoted production before regressions;
-12. restore all pre-existing production sources automatically if a post-promotion gate fails;
-13. prove the Dispatch master tracker was not modified.
+3. remove `_DispatchUnitRequirementDraft` only when it has no references outside its own top-level declaration;
+4. then remove `_dispatchQuoteUnitTypes` only when the prior removal leaves that top-level const/final declaration with zero consumers;
+5. remove `_vehicleTypeFallbackIcon` only when the transformed Jobs candidate leaves that top-level helper with zero consumers;
+6. run `dart analyze --format=machine` against both the Dashboard and Jobs candidates;
+7. permit automatic cleanup only for analyzer-confirmed `UNUSED_IMPORT` and `UNUSED_ELEMENT` diagnostics;
+8. for `UNUSED_IMPORT`, remove exactly the analyzer-identified plain import line;
+9. for `UNUSED_ELEMENT`, remove only a private top-level declaration whose identifier occurs exactly once in the candidate; never automatically remove class members, public declarations, or referenced declarations;
+10. rerun the analyzer after every cleanup because removing one dead declaration can expose a second dead dependency;
+11. reject any other analyzer diagnostic before production mutation;
+12. format and strictly analyze repository, Dashboard, and Jobs candidates;
+13. run the candidate server quote-calculation tests;
+14. prove production hashes are still unchanged;
+15. promote the exact analyzed candidate instead of rerunning a separate transform;
+16. strictly analyze promoted production before regressions;
+17. restore every pre-existing production source automatically if a post-promotion gate fails;
+18. prove the Dispatch master tracker was not modified.
+
+## Why dependency-ordered cleanup matters
+
+Dead migration artifacts can form a small dependency island:
+
+```text
+retired quote UI
+  -> private draft/model
+  -> supporting constant/helper
+  -> import used only by that helper
+```
+
+Removing only the first node produces a new analyzer warning for the second node. Repeating manual repairs one warning at a time is unnecessary and error-prone. The permanent control now walks only analyzer-proven dead top-level dependencies until the candidate is clean or until it reaches a diagnostic outside the safe cleanup boundary.
 
 ## Why exact-candidate promotion matters
 
 A migration can be structurally correct against the remote baseline yet expose dead private code in a user's exact local source. Re-running another generic transform after the candidate has passed analysis can reintroduce a mismatch between what was proven and what was written.
 
-For migrations with local-source divergence, the preferred pattern is:
+For migrations with local-source divergence, use:
 
 ```text
 exact local source
   -> temporary transformed candidate
-  -> candidate-specific hygiene
+  -> bounded candidate-specific hygiene
   -> formatter/analyzer/runtime or policy proof
   -> production hash still unchanged
   -> promote that exact proven candidate
@@ -61,4 +84,4 @@ Use:
 
 `tool/run_dispatch_quote_v2_foundation_gate_v3.ps1`
 
-Do not rerun the earlier Quote V2 foundation or V2 gate once this exact-candidate gate is available.
+The V3 gate synchronizes the current candidate-hygiene helper before building the candidate, so a failed pre-mutation V3 attempt may be rerun after the helper is corrected. Do not rerun the older Quote V2 foundation or V2 gates.
