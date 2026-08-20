@@ -3,9 +3,9 @@
 Date: 2026-08-20
 Branch: `design/formal-beautification-foundation`
 
-## Symptom
+## Original symptom
 
-After the Directory filter runtime mutation had already been applied, the read-only continuation correctly stopped at strict analyzer with:
+The Directory runtime continuation correctly stopped at strict analyzer with:
 
 ```text
 The method 'loadPage' can't be unconditionally invoked because the receiver can be 'null'.
@@ -13,115 +13,69 @@ lib/marketplace/marketplace_dispatch_directory.dart:325:29
 unchecked_use_of_nullable_value
 ```
 
-## Root cause
+The read-only continuation did the correct thing: it hashed production source, checked formatter stability, ran production analyzer before tests, and stopped on the concrete source diagnostic instead of rerunning earlier mutations.
 
-The active local Directory candidate carried a nullable state field for the repository even though `initState` is required to resolve either the injected repository or a new `MarketplaceDispatchDirectoryRepository()` before `_load()` is used.
+## Earlier conclusion - now superseded
 
-The accepted Directory invariant is therefore:
+The first repair concluded that the State repository should always be non-null `late final` and eagerly initialized in `initState`:
 
 ```dart
 late final MarketplaceDispatchDirectoryRepository _repository;
+_repository = widget.repository ?? MarketplaceDispatchDirectoryRepository();
+```
+
+That conclusion was incomplete.
+
+Later widget acceptance proved that `seedEntries` is a real lifecycle where repository absence is meaningful. `MarketplaceDispatchDirectoryRepository()` eagerly resolves `FirebaseFirestore.instance`, so constructing it in `initState` forces Firebase initialization even when the widget is intentionally using deterministic seed data and `_load()` never needs Firestore.
+
+All seeded Directory widget tests then failed together despite production analyzer PASS.
+
+## Current accepted invariant
+
+The repository is nullable **until live Firestore data is actually requested**:
+
+```dart
+MarketplaceDispatchDirectoryRepository? _repository;
 
 @override
 void initState() {
   super.initState();
-  _repository =
-      widget.repository ?? MarketplaceDispatchDirectoryRepository();
+  _repository = widget.repository;
   _loadFuture = _load();
+}
+
+Future<DispatchDirectoryPageData> _load() {
+  final seed = widget.seedEntries;
+  if (seed != null) {
+    return Future.value(...);
+  }
+
+  final repository =
+      _repository ??= MarketplaceDispatchDirectoryRepository();
+  return repository.loadPage(...);
 }
 ```
 
-The State repository must not remain nullable merely because the widget injection point is nullable.
+This keeps the analyzer safe without using an unsafe unconditional nullable call, while also preserving the dependency-free seeded widget path.
 
-## Why the saved controls mattered
+## Canonical permanent repair
 
-The read-only continuation did the correct thing at this stage:
-
-```text
-production source hash
--> production formatter check
--> production analyzer BEFORE tests
--> STOP on the first concrete source diagnostic
-```
-
-It did not rerun the Directory mutation and it exposed the exact source defect instead of another vague test-load failure.
-
-The missing earlier protection was candidate compilation before the original runtime mutation. That has already been added to the canonical runtime repair gate.
-
-## Candidate-control failure and correction
-
-The first repository-nullability candidate repair stopped safely before changing production source. The stack trace terminated in the transform validator at the deterministic `initState` assignment check.
-
-The problem was in the repair control: it normalized only the repository field declaration, then assumed the existing local `initState` assignment was already in canonical form. The local source carried a different/partial repository assignment shape, so validation rejected the candidate.
-
-This is the same principle already learned elsewhere in Pipe Buyer repairs: a repair must normalize the **whole invariant it owns**, not mutate one side and merely assume the other side is already canonical.
-
-Permanent correction:
+The current authoritative repair record is:
 
 ```text
-repository invariant
-    -> non-null late-final State field
-    -> exactly one repository assignment inside initState
-    -> assignment normalized to injected repository ?? concrete default
-    -> assignment occurs before _loadFuture = _load()
-    -> repository loadPage use remains non-null
+docs/repairs/DISPATCH_DIRECTORY_SEEDED_REPOSITORY_LIFECYCLE.md
 ```
 
-The transform now semantically finds `initState`, normalizes or inserts the repository assignment, validates initialization order, and remains idempotent. It still refuses ambiguous multiple assignments instead of guessing.
-
-## Permanent repair control
-
-Semantic transform:
-
-```text
-tool/dispatch_directory_repository_nullability_transform.mjs
-```
-
-Candidate verifier:
-
-```text
-tool/verify_dispatch_directory_repository_nullability_candidate.mjs
-```
-
-Bounded source repair:
-
-```text
-tool/apply_dispatch_directory_repository_nullability_fix.mjs
-```
-
-Focused gate:
+Use:
 
 ```powershell
-.\tool\run_dispatch_directory_repository_nullability_repair.ps1
+.\tool\run_dispatch_directory_seed_safe_repository_repair.ps1
 ```
 
-Regression:
-
-```text
-test/dispatch_directory_repository_nullability_contract_test.dart
-```
-
-## Required gate behavior
-
-```text
-sync focused controls
--> parse controls
--> format support tests only
--> transform exact local source into temporary candidate
--> normalize the full repository field + initState invariant
--> format + strict-analyze candidate BEFORE production write
--> prove production source unchanged by candidate preflight
--> apply only repository invariant correction
--> format production source
--> strict-analyze production source BEFORE tests
--> run nullability + runtime + existing Directory regressions
--> prove Dispatch tracker unchanged
-```
+The gate must compile the exact local candidate **and run a seeded widget runtime proof without Firebase initialization before production mutation**. Analyzer-only candidate validation is insufficient for eager dependency-construction defects.
 
 ## Future rule
 
-If a widget accepts a nullable dependency injection parameter but `initState` always resolves a concrete implementation, the corresponding State field should be non-null and `late final` unless there is a real lifecycle state where absence is meaningful.
+If a widget has `seedEntries`, fixture data, offline preview data, or another deterministic local-data mode, do not eagerly construct network/Firebase dependencies before that local-data branch is evaluated.
 
-Do not use `?.` or `!` to silence this analyzer error when the stronger invariant is already guaranteed by initialization. Encode the invariant in the field type and initialization order and protect it with a regression contract.
-
-A repair that owns this invariant must normalize both the field declaration and the `initState` assignment before validating; it must not assume either half is already canonical.
+The stronger invariant is not always “make nullable state non-null.” The stronger invariant is “represent the real lifecycle accurately and prove every mode.”
