@@ -26,6 +26,22 @@ In Dart an assignment expression evaluates to the assigned value. `_load()` retu
 
 This explains why strict analyzer passed while the widget interaction failed: the code is valid Dart, but violates Flutter's runtime `setState` callback contract.
 
+## Why this kept surviving earlier controls
+
+The saved runtime regression layer had accidentally codified the same invalid implementation shape. `dispatch_directory_filter_runtime_stability_contract_test.dart` expected the arrow assignment, and `dispatch_directory_runtime_contract_hygiene_test.dart` in turn expected that stale assertion to remain present.
+
+That meant the project had two contradictory controls:
+
+```text
+Flutter runtime
+  -> rejects Future-returning setState callback
+
+saved source regression
+  -> required the Future-returning setState callback
+```
+
+Both regressions have now been corrected so they require the void-safe block form and explicitly reject the old arrow assignment. This is the key prevention fix: a source regression must protect valid behavior, not a known-bad implementation shape.
+
 ## Correct lifecycle
 
 Compute the next Future outside `setState`, then synchronously install it:
@@ -52,6 +68,8 @@ The combined seed-safe/layout candidate runtime proof rendered the Directory at 
 - no initial dropdown overflow;
 
 but it did not exercise the delayed filter callback.
+
+The seed-safe/layout candidate runtime template has now also been extended to change the service filter and pump past the 180 ms debounce before production mutation.
 
 A candidate runtime test must exercise the interaction/lifecycle being changed, not only initial rendering.
 
@@ -87,11 +105,25 @@ Static regression:
 test/dispatch_directory_filter_setstate_void_contract_test.dart
 ```
 
+Corrected retained-runtime regression:
+
+```text
+test/dispatch_directory_filter_runtime_stability_contract_test.dart
+```
+
+Corrected regression hygiene:
+
+```text
+test/dispatch_directory_runtime_contract_hygiene_test.dart
+```
+
 Interactive candidate runtime proof:
 
 ```text
 tool/templates/dispatch_directory_filter_setstate_candidate_widget_test.dart.txt
 ```
+
+The canonical retained-results runtime transform also generates the void-safe callback form directly, so future Phase 4 Directory builds do not recreate the defect.
 
 ## Required gate order
 
