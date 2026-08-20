@@ -11,7 +11,9 @@ The first failures were in the Dashboard candidate:
 3. `_DispatchUnitRequirementDraft.fromMap` was no longer referenced;
 4. after removing that dead class, its supporting `_dispatchQuoteUnitTypes` declaration also became unreferenced.
 
-After those Dashboard diagnostics were removed, the exact Jobs-page candidate surfaced its own strict analyzer diagnostics. The old Jobs quote editor had been replaced by `MarketplaceDispatchQuoteForm`, so private helpers and imports used only by the retired all-in quote dialog could become unreachable. The known example is `_vehicleTypeFallbackIcon`, which was only needed by the retired fleet dropdown inside the old bid editor.
+After those Dashboard diagnostics were removed, the exact Jobs-page candidate surfaced its own strict analyzer diagnostics because the old Jobs quote editor had been replaced by `MarketplaceDispatchQuoteForm`.
+
+A later V3 attempt then failed inside the candidate-hygiene helper itself before the formatter/analyzer stage. The helper had started to pre-delete named helpers such as `_vehicleTypeFallbackIcon` before asking the analyzer whether they were actually unused in the exact transformed file. That made the hygiene tool itself too opinionated: a named helper may still have another valid consumer in a user's local source.
 
 In every case the gate correctly reported that production source was not changed.
 
@@ -19,34 +21,34 @@ In every case the gate correctly reported that production source was not changed
 
 Quote V2 replaces two independent legacy authoring surfaces: the Dashboard saved-quote editor and the Jobs carrier quote editor. Removing those surfaces can expose a dependency chain of local private declarations and imports that were only referenced by the retired implementations.
 
-The earlier gates handled one discovered declaration at a time. That was too narrow. Candidate hygiene must cover the complete transformed candidate graph, not only the first file that reports a warning.
+The earlier gates handled one discovered declaration at a time, and the first V3 hygiene helper still contained hard-coded eager removals. Both approaches were too narrow. Candidate hygiene must follow the analyzer across the complete transformed candidate graph and must not assume that a named helper is dead merely because one known consumer was removed.
 
-This remains a migration-hygiene issue, not a pricing, Firebase, Firestore, Functions, or quote-versioning defect.
+This remains a migration-hygiene/tooling issue, not a pricing, Firebase, Firestore, Functions, browser-session, or quote-versioning defect.
 
 ## Permanent control
 
-Quote V2 uses exact-candidate promotion plus bounded analyzer-driven hygiene:
+Quote V2 now uses exact-candidate promotion plus bounded analyzer-driven hygiene:
 
 1. fingerprint all existing production sources;
 2. build the Quote V2 candidate from the exact local source;
-3. remove `_DispatchUnitRequirementDraft` only when it has no references outside its own top-level declaration;
-4. then remove `_dispatchQuoteUnitTypes` only when the prior removal leaves that top-level const/final declaration with zero consumers;
-5. remove `_vehicleTypeFallbackIcon` only when the transformed Jobs candidate leaves that top-level helper with zero consumers;
-6. run `dart analyze --format=machine` against both the Dashboard and Jobs candidates;
-7. permit automatic cleanup only for analyzer-confirmed `UNUSED_IMPORT` and `UNUSED_ELEMENT` diagnostics;
-8. for `UNUSED_IMPORT`, remove exactly the analyzer-identified plain import line;
-9. for `UNUSED_ELEMENT`, remove only a private top-level declaration whose identifier occurs exactly once in the candidate; never automatically remove class members, public declarations, or referenced declarations;
-10. rerun the analyzer after every cleanup because removing one dead declaration can expose a second dead dependency;
-11. reject any other analyzer diagnostic before production mutation;
+3. reject the candidate immediately if the retired Dashboard quote dialog or Jobs all-in quote editor still exists;
+4. run `dart analyze --format=machine` against both the Dashboard and Jobs candidates;
+5. permit automatic cleanup only for analyzer-confirmed `UNUSED_IMPORT` and `UNUSED_ELEMENT` diagnostics;
+6. for `UNUSED_IMPORT`, remove exactly the analyzer-identified plain import line;
+7. for `UNUSED_ELEMENT`, prefer a private top-level declaration over an unused member diagnostic so removing an unused class also removes its now-irrelevant members such as `fromMap`;
+8. remove only a private top-level declaration whose identifier occurs exactly once in the candidate; never automatically remove class members, public declarations, or referenced declarations;
+9. rerun the analyzer after every cleanup because removing one dead declaration can expose another dead constant/helper/import;
+10. never pre-delete a named helper before the analyzer proves it unused in the exact candidate;
+11. reject any diagnostic outside the bounded unused-code set before production mutation;
 12. format and strictly analyze repository, Dashboard, and Jobs candidates;
-13. run the candidate server quote-calculation tests;
+13. run candidate server quote-calculation tests;
 14. prove production hashes are still unchanged;
 15. promote the exact analyzed candidate instead of rerunning a separate transform;
 16. strictly analyze promoted production before regressions;
 17. restore every pre-existing production source automatically if a post-promotion gate fails;
 18. prove the Dispatch master tracker was not modified.
 
-## Why dependency-ordered cleanup matters
+## Why analyzer-driven cleanup matters
 
 Dead migration artifacts can form a small dependency island:
 
@@ -57,7 +59,12 @@ retired quote UI
   -> import used only by that helper
 ```
 
-Removing only the first node produces a new analyzer warning for the second node. Repeating manual repairs one warning at a time is unnecessary and error-prone. The permanent control now walks only analyzer-proven dead top-level dependencies until the candidate is clean or until it reaches a diagnostic outside the safe cleanup boundary.
+The correct control is not to maintain a growing list of identifiers to delete. The analyzer already knows which declarations are unused after each transformation step. The hygiene pass therefore removes only what the analyzer proves dead, reruns analysis, and stops if the next diagnostic requires semantic engineering rather than mechanical cleanup.
+
+This avoids both failure modes:
+
+- leaving cascading dead code behind; and
+- deleting a helper that still has a valid consumer elsewhere in the local source.
 
 ## Why exact-candidate promotion matters
 
@@ -68,7 +75,7 @@ For migrations with local-source divergence, use:
 ```text
 exact local source
   -> temporary transformed candidate
-  -> bounded candidate-specific hygiene
+  -> analyzer-driven bounded hygiene
   -> formatter/analyzer/runtime or policy proof
   -> production hash still unchanged
   -> promote that exact proven candidate
@@ -76,7 +83,7 @@ exact local source
   -> rollback on any post-promotion failure
 ```
 
-Do not suppress `unused_import` or `unused_element` warnings merely to get a green gate. Remove dead migration artifacts only when their unreferenced status is proven.
+Do not suppress `unused_import` or `unused_element` warnings merely to get a green gate. Do not pre-delete named helpers just because a known consumer was retired.
 
 ## Current focused gate
 
