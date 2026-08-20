@@ -1,0 +1,98 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/marketplace/pipebuyer_directory_pointer_stable_preflight.dart';
+
+const entries = <DispatchDirectoryEntry>[
+  DispatchDirectoryEntry(
+    id: 'hotshot',
+    operatingName: 'Prairie Hotshot',
+    description: 'Hotshot and remote site delivery.',
+    website: '',
+    businessTypeCode: 'owner_operator',
+    serviceCodes: ['transport_hotshot'],
+    serviceAreaLabel: 'Grande Prairie region',
+    availabilityCode: 'available_now',
+    emergencyCallout: true,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Grande Prairie, Alberta',
+    homeBasePoint: null,
+  ),
+  DispatchDirectoryEntry(
+    id: 'pilot',
+    operatingName: 'Northern Pilot Cars',
+    description: 'Pilot and escort support.',
+    website: '',
+    businessTypeCode: 'corporation',
+    serviceCodes: ['pilot_escort_vehicle'],
+    serviceAreaLabel: 'Northern Alberta',
+    availabilityCode: 'available_this_week',
+    emergencyCallout: false,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Peace River, Alberta',
+    homeBasePoint: null,
+  ),
+];
+
+Future<void> settlePointerSelection(WidgetTester tester) async {
+  // Frame 1: same-tree selector geometry closes.
+  await tester.pump();
+  // Frame 2: parent filter state applies after pointer geometry settles.
+  await tester.pump();
+  // Then fire the accepted 180 ms Directory refresh debounce.
+  await tester.pump(const Duration(milliseconds: 220));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets('Directory inline filters survive repeated mouse selection without overlay churn', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final serviceButton = find.byKey(
+      const ValueKey('directory-service-filter-button'),
+    );
+    expect(serviceButton, findsOneWidget);
+
+    for (var i = 0; i < 12; i++) {
+      await tester.ensureVisible(serviceButton);
+      await tester.tap(serviceButton, kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+
+      final targetValue = i.isEven ? 'transport_hotshot' : '';
+      final option = find.byKey(
+        ValueKey('directory-service-filter-option-$targetValue'),
+      );
+      expect(option, findsOneWidget);
+      await tester.tap(option, kind: PointerDeviceKind.mouse);
+      await settlePointerSelection(tester);
+      expect(tester.takeException(), isNull);
+    }
+
+    await tester.tap(serviceButton, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    final hotshot = find.byKey(
+      const ValueKey('directory-service-filter-option-transport_hotshot'),
+    );
+    await tester.tap(hotshot, kind: PointerDeviceKind.mouse);
+    await settlePointerSelection(tester);
+
+    expect(find.text('1 company shown'), findsOneWidget);
+    expect(find.text('Prairie Hotshot'), findsOneWidget);
+    expect(find.text('Northern Pilot Cars'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+}
