@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/marketplace_dispatch_directory.dart';
@@ -64,12 +65,32 @@ Future<void> _scrollDirectoryTo(WidgetTester tester, Finder target) async {
 }
 
 Future<void> _settleDirectoryFilterRefresh(WidgetTester tester) async {
-  // The accepted runtime lifecycle debounces remote refreshes for 180 ms.
-  // Pump past that boundary deterministically instead of depending on an
-  // unconstrained pumpAndSettle loop.
+  // Frame 1 closes the same-tree selector after the mouse event.
   await tester.pump();
+  // Frame 2 applies parent filter state after selector geometry has settled.
+  await tester.pump();
+  // Then fire the accepted 180 ms Directory refresh debounce.
   await tester.pump(const Duration(milliseconds: 220));
   await tester.pumpAndSettle();
+}
+
+Future<void> _selectService(
+  WidgetTester tester,
+  String value,
+) async {
+  final button = find.byKey(
+    const ValueKey('directory-service-filter-button'),
+  );
+  await tester.ensureVisible(button);
+  await tester.tap(button, kind: PointerDeviceKind.mouse);
+  await tester.pump();
+
+  final option = find.byKey(
+    ValueKey('directory-service-filter-option-$value'),
+  );
+  expect(option, findsOneWidget);
+  await tester.tap(option, kind: PointerDeviceKind.mouse);
+  await _settleDirectoryFilterRefresh(tester);
 }
 
 void main() {
@@ -157,36 +178,34 @@ void main() {
     expect(find.text('Northern Pilot Cars'), findsOneWidget);
   });
 
-  testWidgets('service dropdown exposes the structured Hotshot option', (
+  testWidgets('service selector exposes the structured Hotshot option', (
     tester,
   ) async {
     await _pumpSeededDirectory(tester);
 
-    final serviceDropdown = find.byType(DropdownButtonFormField<String>).first;
-    await tester.ensureVisible(serviceDropdown);
-    await tester.pumpAndSettle();
+    final button = find.byKey(
+      const ValueKey('directory-service-filter-button'),
+    );
+    await tester.ensureVisible(button);
+    await tester.tap(button, kind: PointerDeviceKind.mouse);
+    await tester.pump();
 
-    final tappableDropdown = serviceDropdown.hitTestable();
-    expect(tappableDropdown, findsOneWidget);
-    await tester.tap(tappableDropdown);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Hotshot').hitTestable(), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'directory-service-filter-option-transport_hotshot',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Hotshot'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('service filter wiring reduces directory results', (tester) async {
     await _pumpSeededDirectory(tester);
 
-    final serviceDropdown = find.byType(DropdownButtonFormField<String>).first;
-    await tester.ensureVisible(serviceDropdown);
-    await tester.pumpAndSettle();
-
-    final dropdown = tester.widget<DropdownButtonFormField<String>>(
-      serviceDropdown,
-    );
-    expect(dropdown.onChanged, isNotNull);
-    dropdown.onChanged!('transport_hotshot');
-    await _settleDirectoryFilterRefresh(tester);
+    await _selectService(tester, 'transport_hotshot');
 
     await _scrollDirectoryTo(tester, find.text('1 company shown'));
     expect(find.text('1 company shown'), findsOneWidget);
@@ -194,6 +213,7 @@ void main() {
     await _scrollDirectoryTo(tester, find.text('Prairie Hotshot'));
     expect(find.text('Prairie Hotshot'), findsOneWidget);
     expect(find.text('Northern Pilot Cars'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('directory has an explicit empty state', (tester) async {
