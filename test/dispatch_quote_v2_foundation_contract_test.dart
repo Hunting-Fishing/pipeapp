@@ -29,6 +29,21 @@ void main() {
       isNot(contains('class _QuoteSection extends StatelessWidget')),
       reason: 'Retired Quote V1-only helper widgets must not survive Quote V2 migration.',
     );
+    expect(
+      dashboard,
+      isNot(contains('class _DispatchUnitRequirementDraft')),
+      reason: 'Unreferenced local migration artifacts must not survive exact-candidate promotion.',
+    );
+    expect(
+      dashboard,
+      isNot(contains('quote_v2_preflight')),
+      reason: 'Preflight-only imports must never leak into production Dashboard source.',
+    );
+    expect(
+      page,
+      isNot(contains('quote_v2_preflight')),
+      reason: 'Preflight-only imports must never leak into production Jobs source.',
+    );
 
     for (final marker in [
       "'distanceKm'",
