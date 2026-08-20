@@ -17,6 +17,20 @@ const entries = <DispatchDirectoryEntry>[
     homeBaseLabel: 'Grande Prairie, Alberta',
     homeBasePoint: null,
   ),
+  DispatchDirectoryEntry(
+    id: 'seed-safe-pilot',
+    operatingName: 'Seed Safe Pilot',
+    description: 'Seed-only pilot candidate.',
+    website: '',
+    businessTypeCode: 'corporation',
+    serviceCodes: ['pilot_escort_vehicle'],
+    serviceAreaLabel: 'Peace River region',
+    availabilityCode: 'available_this_week',
+    emergencyCallout: false,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Peace River, Alberta',
+    homeBasePoint: null,
+  ),
 ];
 
 Future<void> verifyDirectoryAtWidth(WidgetTester tester, Size size) async {
@@ -35,6 +49,31 @@ Future<void> verifyDirectoryAtWidth(WidgetTester tester, Size size) async {
   expect(find.text('Seed Safe Hotshot'), findsOneWidget);
 }
 
+Future<void> exerciseFilterDebounce(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(const Size(1200, 1000));
+  await tester.pumpWidget(
+    const MaterialApp(
+      home: Scaffold(
+        body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  final serviceDropdown = find.byType(DropdownButtonFormField<String>).first;
+  final dropdown = tester.widget<DropdownButtonFormField<String>>(serviceDropdown);
+  expect(dropdown.onChanged, isNotNull);
+  dropdown.onChanged!('transport_hotshot');
+
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 220));
+  await tester.pumpAndSettle();
+
+  expect(tester.takeException(), isNull);
+  expect(find.text('Seed Safe Hotshot'), findsOneWidget);
+  expect(find.text('Seed Safe Pilot'), findsNothing);
+}
+
 void main() {
   testWidgets('seeded Directory candidate has no Firebase or dropdown overflow', (
     tester,
@@ -44,5 +83,6 @@ void main() {
     await verifyDirectoryAtWidth(tester, const Size(1400, 1200));
     await verifyDirectoryAtWidth(tester, const Size(1000, 1000));
     await verifyDirectoryAtWidth(tester, const Size(820, 1000));
+    await exerciseFilterDebounce(tester);
   });
 }
