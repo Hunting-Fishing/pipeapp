@@ -1,0 +1,48 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/marketplace/pipebuyer_directory_seed_safe_layout_preflight.dart';
+
+const entries = <DispatchDirectoryEntry>[
+  DispatchDirectoryEntry(
+    id: 'seed-safe-hotshot',
+    operatingName: 'Seed Safe Hotshot',
+    description: 'Seed-only widget candidate.',
+    website: '',
+    businessTypeCode: 'owner_operator',
+    serviceCodes: ['transport_hotshot'],
+    serviceAreaLabel: 'Grande Prairie region',
+    availabilityCode: 'available_now',
+    emergencyCallout: true,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Grande Prairie, Alberta',
+    homeBasePoint: null,
+  ),
+];
+
+Future<void> verifyDirectoryAtWidth(WidgetTester tester, Size size) async {
+  await tester.binding.setSurfaceSize(size);
+  await tester.pumpWidget(
+    const MaterialApp(
+      home: Scaffold(
+        body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
+      ),
+    ),
+  );
+  await tester.pump();
+  expect(tester.takeException(), isNull);
+  await tester.pump(const Duration(milliseconds: 250));
+  expect(tester.takeException(), isNull);
+  expect(find.text('Seed Safe Hotshot'), findsOneWidget);
+}
+
+void main() {
+  testWidgets('seeded Directory candidate has no Firebase or dropdown overflow', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await verifyDirectoryAtWidth(tester, const Size(1400, 1200));
+    await verifyDirectoryAtWidth(tester, const Size(1000, 1000));
+    await verifyDirectoryAtWidth(tester, const Size(820, 1000));
+  });
+}
