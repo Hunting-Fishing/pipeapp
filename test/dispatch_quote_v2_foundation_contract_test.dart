@@ -19,6 +19,16 @@ void main() {
     expect(page, contains('MarketplaceDispatchQuoteForm.show('));
     expect(dashboard, contains('MarketplaceDispatchQuoteForm.show('));
     expect(page, isNot(contains("labelText: 'All-in transport price'")));
+    expect(
+      dashboard,
+      isNot(contains('class _DispatchQuoteDialog extends StatefulWidget')),
+      reason: 'The retired Dashboard quote editor must be removed after Quote V2 wiring.',
+    );
+    expect(
+      dashboard,
+      isNot(contains('class _QuoteSection extends StatelessWidget')),
+      reason: 'Retired Quote V1-only helper widgets must not survive Quote V2 migration.',
+    );
 
     for (final marker in [
       "'distanceKm'",
