@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const {
   invoiceCommissionBaseMinor,
   invoicePeriodBounds,
+  stripeCustomerIdFromInvoice,
   subscriptionIdentityFromInvoice,
 } = require("../subscription_monetization");
 const {
@@ -48,6 +49,18 @@ test("reads immutable subscription metadata from invoice parent", () => {
   });
   assert.equal(identity.subscriptionId, "sub_123");
   assert.equal(identity.metadata.pipeBuyerUid, "user_123");
+});
+
+test("extracts only a valid Stripe Customer id from an invoice", () => {
+  assert.equal(
+      stripeCustomerIdFromInvoice({customer: "cus_123"}),
+      "cus_123",
+  );
+  assert.equal(
+      stripeCustomerIdFromInvoice({customer: {id: "cus_456"}}),
+      "cus_456",
+  );
+  assert.equal(stripeCustomerIdFromInvoice({customer: "acct_123"}), "");
 });
 
 test("invoice period bounds use the widest provider-confirmed paid period", () => {
