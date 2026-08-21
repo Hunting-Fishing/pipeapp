@@ -153,7 +153,7 @@ test("private status payload never reports an expired membership active", () => 
     currentPeriodEnd: {toMillis: () => now - 1},
   }, now), {
     active: false,
-    status: "active",
+    status: "expired",
     plan: "yearly",
     currentPeriodStartMillis: now - 5000,
     currentPeriodEndMillis: now - 1,
