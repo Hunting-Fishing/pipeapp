@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,6 +9,8 @@ import 'marketplace_command_client.dart';
 
 bool dispatchMembershipStatusActive(Map<String, dynamic>? data) =>
     data != null && data['active'] == true;
+
+bool dispatchHostedStripeSurfaceAllowed({required bool isWeb}) => isWeb;
 
 String dispatchMembershipPaidThrough(Map<String, dynamic>? data) {
   final millis = (data?['currentPeriodEndMillis'] as num?)?.toInt();
@@ -63,7 +66,9 @@ class _MarketplaceDispatchMembershipPageState
   void initState() {
     super.initState();
     _status = _loadStatus();
-    _catalog = _loadCatalog();
+    _catalog = dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb)
+        ? _loadCatalog()
+        : Future.value(const {});
   }
 
   Future<Map<String, dynamic>> _loadStatus() =>
@@ -75,12 +80,18 @@ class _MarketplaceDispatchMembershipPageState
   void _refresh() {
     setState(() {
       _status = _loadStatus();
-      _catalog = _loadCatalog();
+      if (dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb)) {
+        _catalog = _loadCatalog();
+      }
     });
   }
 
   Future<void> _checkout(String plan) async {
-    if (_busyPlan != null || _portalBusy) return;
+    if (!dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb) ||
+        _busyPlan != null ||
+        _portalBusy) {
+      return;
+    }
     setState(() => _busyPlan = plan);
     try {
       final result = await _commands.execute(
@@ -113,7 +124,11 @@ class _MarketplaceDispatchMembershipPageState
   }
 
   Future<void> _openPortal() async {
-    if (_portalBusy || _busyPlan != null) return;
+    if (!dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb) ||
+        _portalBusy ||
+        _busyPlan != null) {
+      return;
+    }
     setState(() => _portalBusy = true);
     try {
       final result = await _commands.execute(
@@ -155,6 +170,7 @@ class _MarketplaceDispatchMembershipPageState
         body: Center(child: Text('Sign in to manage Dispatch membership.')),
       );
     }
+    final hostedStripeAllowed = dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dispatch membership'),
@@ -174,7 +190,8 @@ class _MarketplaceDispatchMembershipPageState
           final paidThrough = dispatchMembershipPaidThrough(data);
           final paymentIssue = data?['paymentIssue'] == true;
           final cancelAtPeriodEnd = data?['cancelAtPeriodEnd'] == true;
-          final managementAvailable = data?['managementAvailable'] == true;
+          final managementAvailable = hostedStripeAllowed &&
+              data?['managementAvailable'] == true;
           return ListView(
             padding: const EdgeInsets.all(18),
             children: [
@@ -192,114 +209,144 @@ class _MarketplaceDispatchMembershipPageState
                 onManage: _openPortal,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Choose your Dispatch membership',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Joining Dispatch is free. A paid membership is required before a carrier submits bids. Stripe securely handles recurring billing.',
-              ),
-              const SizedBox(height: 16),
-              FutureBuilder<Map<String, dynamic>>(
-                future: _catalog,
-                builder: (context, catalogSnapshot) {
-                  final catalog = catalogSnapshot.data;
-                  final checkoutAvailable = catalog?['checkoutAvailable'] == true;
-                  final catalogUnavailable = catalogSnapshot.hasError ||
-                      catalogSnapshot.connectionState == ConnectionState.waiting;
-                  final statusUnavailable = snapshot.hasError ||
-                      snapshot.connectionState == ConnectionState.waiting;
-                  final checkoutDisabled = active ||
-                      _busyPlan != null ||
-                      _portalBusy ||
-                      statusUnavailable ||
-                      catalogUnavailable ||
-                      !checkoutAvailable;
-                  final cards = [
-                    _PlanCard(
-                      title: 'Dispatch Monthly',
-                      price: dispatchSubscriptionPriceLabel(catalog, 'monthly'),
-                      description:
-                          'Flexible recurring Dispatch carrier bidding access.',
-                      icon: Icons.calendar_month_outlined,
-                      busy: _busyPlan == 'monthly',
-                      disabled: checkoutDisabled,
-                      onPressed: () => _checkout('monthly'),
-                    ),
-                    _PlanCard(
-                      title: 'Dispatch Yearly',
-                      price: dispatchSubscriptionPriceLabel(catalog, 'yearly'),
-                      description:
-                          'Annual recurring Dispatch carrier bidding access.',
-                      icon: Icons.calendar_today_outlined,
-                      busy: _busyPlan == 'yearly',
-                      disabled: checkoutDisabled,
-                      onPressed: () => _checkout('yearly'),
-                    ),
-                  ];
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (catalogSnapshot.hasError)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            'Current subscription pricing could not be verified from the server. Payment is disabled until pricing is available.',
-                          ),
-                        )
-                      else if (!catalogUnavailable && !checkoutAvailable && !active)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            'Dispatch subscription checkout is currently held by Pipe Buyer payment-readiness controls.',
+              if (!hostedStripeAllowed)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(18),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.shield_outlined),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Subscription purchasing is unavailable in this app build',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Existing active Dispatch memberships continue to work. New purchases and Stripe billing-management controls stay disabled here until the required native-store billing path is implemented.',
+                              ),
+                            ],
                           ),
                         ),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth >= 720) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                const Text(
+                  'Choose your Dispatch membership',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Joining Dispatch is free. A paid membership is required before a carrier submits bids. Stripe securely handles recurring billing.',
+                ),
+                const SizedBox(height: 16),
+                FutureBuilder<Map<String, dynamic>>(
+                  future: _catalog,
+                  builder: (context, catalogSnapshot) {
+                    final catalog = catalogSnapshot.data;
+                    final checkoutAvailable = catalog?['checkoutAvailable'] == true;
+                    final catalogUnavailable = catalogSnapshot.hasError ||
+                        catalogSnapshot.connectionState == ConnectionState.waiting;
+                    final statusUnavailable = snapshot.hasError ||
+                        snapshot.connectionState == ConnectionState.waiting;
+                    final checkoutDisabled = active ||
+                        _busyPlan != null ||
+                        _portalBusy ||
+                        statusUnavailable ||
+                        catalogUnavailable ||
+                        !checkoutAvailable;
+                    final cards = [
+                      _PlanCard(
+                        title: 'Dispatch Monthly',
+                        price: dispatchSubscriptionPriceLabel(catalog, 'monthly'),
+                        description:
+                            'Flexible recurring Dispatch carrier bidding access.',
+                        icon: Icons.calendar_month_outlined,
+                        busy: _busyPlan == 'monthly',
+                        disabled: checkoutDisabled,
+                        onPressed: () => _checkout('monthly'),
+                      ),
+                      _PlanCard(
+                        title: 'Dispatch Yearly',
+                        price: dispatchSubscriptionPriceLabel(catalog, 'yearly'),
+                        description:
+                            'Annual recurring Dispatch carrier bidding access.',
+                        icon: Icons.calendar_today_outlined,
+                        busy: _busyPlan == 'yearly',
+                        disabled: checkoutDisabled,
+                        onPressed: () => _checkout('yearly'),
+                      ),
+                    ];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (catalogSnapshot.hasError)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'Current subscription pricing could not be verified from the server. Payment is disabled until pricing is available.',
+                            ),
+                          )
+                        else if (!catalogUnavailable && !checkoutAvailable && !active)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'Dispatch subscription checkout is currently held by Pipe Buyer payment-readiness controls.',
+                            ),
+                          ),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            if (constraints.maxWidth >= 720) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: cards[0]),
+                                  const SizedBox(width: 14),
+                                  Expanded(child: cards[1]),
+                                ],
+                              );
+                            }
+                            return Column(
                               children: [
-                                Expanded(child: cards[0]),
-                                const SizedBox(width: 14),
-                                Expanded(child: cards[1]),
+                                cards[0],
+                                const SizedBox(height: 12),
+                                cards[1],
                               ],
                             );
-                          }
-                          return Column(
-                            children: [
-                              cards[0],
-                              const SizedBox(height: 12),
-                              cards[1],
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              Card(
-                color: const Color(0xFFEAF4FD),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.lock_outline),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Pipe Buyer never accepts a subscription amount from the app. The server selects the approved Stripe Price ID and Stripe confirms payment by signed webhook before membership is treated as paid.',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  color: const Color(0xFFEAF4FD),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.lock_outline),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Pipe Buyer never accepts a subscription amount from the app. The server selects the approved Stripe Price ID and Stripe confirms payment by signed webhook before membership is treated as paid.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           );
         },
