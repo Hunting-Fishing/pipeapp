@@ -14,6 +14,7 @@ const base = normalizeReadiness({
   connectRefreshUrl: "https://pipebuyer.com/payments/connect/refresh",
   checkoutSuccessUrl: "https://pipebuyer.com/payments/success",
   checkoutCancelUrl: "https://pipebuyer.com/payments/cancel",
+  dispatchPortalReturnUrl: "https://pipebuyer.com/payments/dispatch",
 });
 
 test("production mode requires explicit confirmation", () => {
@@ -66,6 +67,41 @@ test("Dispatch subscriptions can launch while tax registration is pending", () =
   assert.equal(ready.stripeSubscriptionsEnabled, true);
   assert.equal(ready.stripeTaxReady, false);
   assert.equal(ready.stripeTaxRegistrationPending, true);
+});
+
+test("Dispatch Customer Portal is independent from new subscription checkout", () => {
+  const ready = applyPatch(
+      base,
+      {
+        stripeMode: "production",
+        stripeWebhookVerified: true,
+        stripeDispatchPortalEnabled: true,
+        stripeDispatchPortalConfigurationId: "bpc_123ABC",
+        dispatchPortalReturnUrl: "https://pipebuyer.com/payments/dispatch",
+      },
+      {confirmProduction: true},
+  );
+  assert.equal(ready.stripeDispatchPortalEnabled, true);
+  assert.equal(ready.stripeSubscriptionsEnabled, false);
+});
+
+test("Dispatch Customer Portal requires an approved Stripe configuration", () => {
+  assert.throws(
+      () => applyPatch(
+          base,
+          {
+            stripeMode: "production",
+            stripeWebhookVerified: true,
+            stripeDispatchPortalEnabled: true,
+          },
+          {confirmProduction: true},
+      ),
+      /approved Stripe portal configuration/i,
+  );
+  assert.throws(
+      () => applyPatch(base, {stripeDispatchPortalConfigurationId: "pc_bad"}),
+      /billing portal configuration ID/i,
+  );
 });
 
 test("Pipe Buyer marketplace fee billing can launch while tax registration is pending", () => {
