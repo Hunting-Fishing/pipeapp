@@ -41,6 +41,9 @@ const {
   createDispatchSubscriptionLifecycle,
 } = require("./dispatch_subscription_lifecycle");
 const {
+  createDispatchSubscriptionProviderAccess,
+} = require("./dispatch_subscription_provider_access");
+const {
   createDispatchSubscriptionStatus,
 } = require("./dispatch_subscription_status");
 const {
@@ -70,6 +73,8 @@ const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const dispatchSubscriptionLifecycle = createDispatchSubscriptionLifecycle(admin);
+const dispatchSubscriptionProviderAccess =
+  createDispatchSubscriptionProviderAccess(admin);
 const dispatchSubscriptionStatus = createDispatchSubscriptionStatus(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
@@ -110,6 +115,12 @@ async function updateMarketplaceTransactionWithFinancialGuard(request) {
 async function submitDispatchQuoteWithMembershipGuard(request) {
   await dispatchMembershipAccess.requireCurrentDispatchMembership(request);
   return dispatchCommands.submitDispatchQuote(request);
+}
+
+async function createDispatchSubscriptionCheckoutWithProviderGuard(request) {
+  await dispatchSubscriptionProviderAccess
+      .requireNoBlockingProviderSubscription(request);
+  return dispatchSubscriptionCommands.createDispatchSubscriptionCheckout(request);
 }
 
 async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
@@ -208,7 +219,7 @@ exports.createExternalSettlementFeeCheckout = onCall(
 );
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
-    dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+    createDispatchSubscriptionCheckoutWithProviderGuard,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,
