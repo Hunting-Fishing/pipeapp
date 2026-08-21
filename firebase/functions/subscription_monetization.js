@@ -68,16 +68,48 @@ function sourceChargeFromInvoice(invoice) {
   return "";
 }
 
+function dispatchSubscriptionLifecyclePatch(subscription, eventType) {
+  const metadata = subscription && subscription.metadata || {};
+  if (metadata.billingType !== "dispatch_subscription") return null;
+  const uid = String(metadata.pipeBuyerUid || "").trim();
+  const subscriptionId = String(subscription && subscription.id || "").trim();
+  if (!uid || !subscriptionId.startsWith("sub_")) return null;
+  const rawStatus = eventType === "customer.subscription.deleted" ?
+    "canceled" : String(subscription.status || "unknown").trim().toLowerCase();
+  const terminal = new Set([
+    "canceled",
+    "unpaid",
+    "incomplete_expired",
+    "paused",
+  ]).has(rawStatus);
+  const paymentProblem = new Set(["past_due", "unpaid"]).has(rawStatus);
+  const currentPeriodEndSeconds = Number(subscription.current_period_end);
+  return Object.freeze({
+    uid,
+    subscriptionId,
+    plan: String(metadata.dispatchPlan || "").trim(),
+    status: rawStatus,
+    activeUpdate: terminal ? false : null,
+    paymentProblem,
+    willCancelAtPeriodEnd: subscription.cancel_at_period_end === true,
+    currentPeriodEndSeconds:
+      Number.isSafeInteger(currentPeriodEndSeconds) && currentPeriodEndSeconds > 0 ?
+        currentPeriodEndSeconds : null,
+  });
+}
+
 function createSubscriptionMonetization(admin, stripeConfig) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
 
-  async function handleDispatchInvoicePaid(invoice, secretKey) {
+  async function resolveDispatchInvoiceIdentity(invoice, secretKey) {
     const invoiceId = String(invoice && invoice.id || "");
     const identity = subscriptionIdentityFromInvoice(invoice);
     const subscriptionId = String(identity.subscriptionId || "");
-    if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) return;
+    if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) {
+      return null;
+    }
     let metadata = identity.metadata;
     if (!metadata) {
       const subscription = await retrieveStripeSubscription({
@@ -87,11 +119,29 @@ function createSubscriptionMonetization(admin, stripeConfig) {
       });
       metadata = subscription.metadata || {};
     }
-    if (metadata.billingType !== "dispatch_subscription") return;
-    const uid = String(metadata.pipeBuyerUid || "").trim();
-    const plan = String(metadata.dispatchPlan || "").trim();
+    if (metadata.billingType !== "dispatch_subscription") return null;
+    return {
+      invoiceId,
+      subscriptionId,
+      metadata,
+      uid: String(metadata.pipeBuyerUid || "").trim(),
+      plan: String(metadata.dispatchPlan || "").trim(),
+      taxStatus: String(metadata.taxCollectionStatus || "registered").trim(),
+    };
+  }
+
+  async function handleDispatchInvoicePaid(invoice, secretKey) {
+    const identity = await resolveDispatchInvoiceIdentity(invoice, secretKey);
+    if (!identity) return;
+    const {
+      invoiceId,
+      subscriptionId,
+      metadata,
+      uid,
+      plan,
+      taxStatus,
+    } = identity;
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
-    const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
     const reserveMinor = provisionalTaxReserveMinor(baseMinor, taxStatus);
     const commissionMinor = Math.floor(
@@ -137,6 +187,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           dispatchSubscriptionStatus: "active",
           dispatchSubscriptionActive: true,
           dispatchSubscriptionPaymentStatus: "paid",
+          dispatchSubscriptionPaymentProblem: false,
           dispatchSubscriptionPlan: plan || null,
           stripeDispatchSubscriptionId: subscriptionId,
           dispatchSubscriptionLastInvoiceId: invoiceId,
@@ -171,6 +222,63 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     });
   }
 
+  async function handleDispatchInvoicePaymentFailed(invoice, secretKey) {
+    const identity = await resolveDispatchInvoiceIdentity(invoice, secretKey);
+    if (!identity) return;
+    const {invoiceId, subscriptionId, uid, plan} = identity;
+    await db.collection("dispatch_subscription_invoices").doc(invoiceId).set({
+      invoiceId,
+      subscriptionId,
+      uid: uid || null,
+      plan,
+      currency: String(invoice.currency || "cad").toUpperCase(),
+      amountDueMinor: Number(invoice.amount_due || 0),
+      amountPaidMinor: Number(invoice.amount_paid || 0),
+      status: "payment_failed",
+      paymentFailedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, {merge: true});
+    if (uid) {
+      await db.collection("users").doc(uid).set({
+        dispatchSubscriptionPaymentStatus: "payment_failed",
+        dispatchSubscriptionPaymentProblem: true,
+        dispatchSubscriptionLastFailedInvoiceId: invoiceId,
+        stripeDispatchSubscriptionId: subscriptionId,
+        dispatchSubscriptionPlan: plan || null,
+        dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+    }
+  }
+
+  async function handleDispatchSubscriptionChanged(subscription, eventType) {
+    const lifecycle = dispatchSubscriptionLifecyclePatch(subscription, eventType);
+    if (!lifecycle) return;
+    const patch = {
+      dispatchSubscriptionStatus: lifecycle.status,
+      dispatchSubscriptionPlan: lifecycle.plan || null,
+      stripeDispatchSubscriptionId: lifecycle.subscriptionId,
+      dispatchSubscriptionWillCancelAtPeriodEnd:
+        lifecycle.willCancelAtPeriodEnd,
+      dispatchSubscriptionPaymentProblem: lifecycle.paymentProblem,
+      dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+      ...(lifecycle.currentPeriodEndSeconds == null ? {} : {
+        dispatchSubscriptionCurrentPeriodEnd: Timestamp.fromMillis(
+            lifecycle.currentPeriodEndSeconds * 1000,
+        ),
+      }),
+      ...(lifecycle.activeUpdate == null ? {} : {
+        dispatchSubscriptionActive: lifecycle.activeUpdate,
+      }),
+      ...(lifecycle.paymentProblem ? {
+        dispatchSubscriptionPaymentStatus: "payment_failed",
+      } : {}),
+      ...(eventType === "customer.subscription.deleted" ? {
+        dispatchSubscriptionEndedAt: FieldValue.serverTimestamp(),
+      } : {}),
+    };
+    await db.collection("users").doc(lifecycle.uid).set(patch, {merge: true});
+  }
+
   async function voidPendingCommissionForRefund(charge) {
     const chargeId = String(charge && charge.id || "");
     if (!chargeId.startsWith("ch_") || charge.refunded !== true) return;
@@ -195,6 +303,8 @@ function createSubscriptionMonetization(admin, stripeConfig) {
 
   return {
     handleDispatchInvoicePaid,
+    handleDispatchInvoicePaymentFailed,
+    handleDispatchSubscriptionChanged,
     voidPendingCommissionForRefund,
   };
 }
@@ -204,6 +314,7 @@ module.exports = {
   SUBSCRIPTION_AFFILIATE_SHARE_BPS,
   SUBSCRIPTION_REFUND_WINDOW_DAYS,
   createSubscriptionMonetization,
+  dispatchSubscriptionLifecyclePatch,
   invoiceCommissionBaseMinor,
   retrieveStripeSubscription,
   sourceChargeFromInvoice,
