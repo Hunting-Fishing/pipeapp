@@ -35,6 +35,9 @@ const {
   createExternalSettlementCommands,
 } = require("./external_settlement_commands");
 const {
+  createDispatchSubscriptionCatalog,
+} = require("./dispatch_subscription_catalog");
+const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
@@ -71,6 +74,7 @@ const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
+const dispatchSubscriptionCatalog = createDispatchSubscriptionCatalog(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const dispatchSubscriptionLifecycle = createDispatchSubscriptionLifecycle(admin);
 const dispatchSubscriptionProviderAccess =
@@ -186,6 +190,10 @@ exports.requestMarketplaceRefund = onCall(
 exports.cancelMarketplaceRefundRequest = onCall(
     protectedCallableOptions,
     marketplaceFinancialResolution.cancelMarketplaceRefundRequest,
+);
+exports.getDispatchSubscriptionCatalog = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionCatalog.getDispatchSubscriptionCatalog,
 );
 exports.getDispatchSubscriptionStatus = onCall(
     protectedCallableOptions,
