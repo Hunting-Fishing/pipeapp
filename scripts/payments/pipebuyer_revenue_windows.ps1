@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Prepare','Validate','Deploy','Probe','WebLegal','SyncWebhook','CreatePortal','Status')]
+    [ValidateSet('Prepare','Validate','Deploy','Probe','WebLegal','VerifyPolicies','SyncWebhook','CreatePortal','Status')]
     [string]$Action = 'Status',
 
     [string]$RepoRoot = 'D:\Game Development\pipeapp',
@@ -199,7 +199,7 @@ function Probe-Stripe {
 
 function Deploy-WebLegal {
     if (-not $ConfirmWebLegalDeploy) {
-        Fail 'Hosting/legal deployment requires -ConfirmWebLegalDeploy after reviewing the current Terms and Privacy changes.'
+        Fail 'Hosting/legal deployment requires -ConfirmWebLegalDeploy after reviewing the current five public policy pages.'
     }
     Assert-CleanForMutation
     $env:PIPEBUYER_DEPLOY_WEB_LEGAL = 'YES'
@@ -210,6 +210,17 @@ function Deploy-WebLegal {
         Remove-Item Env:PIPEBUYER_DEPLOY_WEB_LEGAL -ErrorAction SilentlyContinue
         Remove-Item Env:PIPEBUYER_ALLOW_DIRTY_DEPLOY -ErrorAction SilentlyContinue
     }
+}
+
+function Verify-PublicPolicies {
+    Enter-Repo
+    Assert-RepoIdentity
+    Assert-ReleaseBranch
+    $script = Join-Path $RepoRoot 'scripts\payments\verify_public_policies_windows.ps1'
+    if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+        Fail "Public policy verification script is missing: $script"
+    }
+    & $script -RepoRoot $RepoRoot
 }
 
 function Sync-Webhook {
@@ -241,14 +252,15 @@ Enter-Repo
 Assert-RepoIdentity
 
 switch ($Action) {
-    'Prepare'      { Prepare-Repo }
-    'Validate'     { Validate-Release }
-    'Deploy'       { Deploy-Functions }
-    'Probe'        { Probe-Stripe }
-    'WebLegal'     { Deploy-WebLegal }
-    'SyncWebhook'  { Sync-Webhook }
-    'CreatePortal' { Create-Portal }
-    'Status'       { Show-Status }
+    'Prepare'        { Prepare-Repo }
+    'Validate'       { Validate-Release }
+    'Deploy'         { Deploy-Functions }
+    'Probe'          { Probe-Stripe }
+    'WebLegal'       { Deploy-WebLegal }
+    'VerifyPolicies' { Verify-PublicPolicies }
+    'SyncWebhook'    { Sync-Webhook }
+    'CreatePortal'   { Create-Portal }
+    'Status'         { Show-Status }
 }
 
 Write-Host "Completed action: $Action" -ForegroundColor Green
