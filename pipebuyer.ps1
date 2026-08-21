@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Prepare','Validate','Deploy','Probe','WebLegal','SyncWebhook','CreatePortal','Status')]
+    [ValidateSet('Prepare','Validate','Deploy','Probe','WebLegal','VerifyPolicies','SyncWebhook','CreatePortal','Status')]
     [string]$Action = 'Status',
 
     [switch]$AllowDirty,
