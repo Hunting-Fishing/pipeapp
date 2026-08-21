@@ -24,6 +24,8 @@ const {
   taxCollectionStatus,
 } = require("./pending_tax_policy");
 
+const CHECKOUT_IDEMPOTENCY_WINDOW_MS = 5 * 60 * 1000;
+
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
 }
@@ -79,6 +81,11 @@ function subscriptionPlanCatalog() {
     monthly: plan(products.dispatchMonthlyCad),
     yearly: plan(products.dispatchYearlyCad),
   });
+}
+
+function checkoutIdempotencyKey(uid, plan, nowMs = Date.now()) {
+  const bucket = Math.floor(Number(nowMs) / CHECKOUT_IDEMPOTENCY_WINDOW_MS);
+  return `pipebuyer-dispatch-${uid}-${plan}-${bucket}`;
 }
 
 function createDispatchSubscriptionCommands(admin) {
@@ -147,10 +154,20 @@ function createDispatchSubscriptionCommands(admin) {
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
-      const [entitlementSnapshot, relationshipSnapshot] = await Promise.all([
-        db.collection("promotion_entitlements").doc(uid).get(),
-        db.collection("affiliate_relationships").doc(uid).get(),
-      ]);
+      const [entitlementSnapshot, relationshipSnapshot, userSnapshot] =
+        await Promise.all([
+          db.collection("promotion_entitlements").doc(uid).get(),
+          db.collection("affiliate_relationships").doc(uid).get(),
+          db.collection("users").doc(uid).get(),
+        ]);
+      const user = userSnapshot.exists ? userSnapshot.data() : {};
+      if (user.dispatchSubscriptionActive === true &&
+          String(user.dispatchSubscriptionStatus || "") === "active") {
+        throw new HttpsError(
+            "already-exists",
+            "Your Dispatch subscription is already active.",
+        );
+      }
       const entitlement = entitlementSnapshot.exists ? entitlementSnapshot.data() : null;
       const couponId = couponFromEntitlement(entitlement);
       const referrerUid = relationshipSnapshot.exists ?
@@ -158,7 +175,7 @@ function createDispatchSubscriptionCommands(admin) {
       const checkout = await stripeFormRequest({
         secretKey: stripeSecretKey.value(),
         path: "/v1/checkout/sessions",
-        idempotencyKey: `pipebuyer-dispatch-${uid}-${plan}-${Date.now()}`,
+        idempotencyKey: checkoutIdempotencyKey(uid, plan),
         fields: {
           mode: "subscription",
           success_url: successUrl,
@@ -202,7 +219,7 @@ function createDispatchSubscriptionCommands(admin) {
         status: "created",
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      }, {merge: true});
       return {
         checkoutSessionId: sessionId,
         checkoutUrl,
@@ -227,6 +244,8 @@ function createDispatchSubscriptionCommands(admin) {
 }
 
 module.exports = {
+  CHECKOUT_IDEMPOTENCY_WINDOW_MS,
+  checkoutIdempotencyKey,
   couponFromEntitlement,
   createDispatchSubscriptionCommands,
   requireSubscriptionReady,
