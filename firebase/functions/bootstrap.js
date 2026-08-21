@@ -34,6 +34,9 @@ const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
+  createDispatchSubscriptionStatus,
+} = require("./dispatch_subscription_status");
+const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
 const {
@@ -54,6 +57,7 @@ const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const dispatchSubscriptionStatus = createDispatchSubscriptionStatus(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
 const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
@@ -137,6 +141,10 @@ exports.requestMarketplaceRefund = onCall(
 exports.cancelMarketplaceRefundRequest = onCall(
     protectedCallableOptions,
     marketplaceFinancialResolution.cancelMarketplaceRefundRequest,
+);
+exports.getDispatchSubscriptionStatus = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionStatus.getDispatchSubscriptionStatus,
 );
 
 const stripeCallableOptions = Object.freeze({
