@@ -3,6 +3,7 @@
 const {verifyStripeSignature} = require("./stripe_webhook");
 
 const DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS = new Set([
+  "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
 ]);
@@ -63,7 +64,10 @@ function createStripeWebhookDispatchLifecycleWrapper({
 
     try {
       const subscription = event.data.object;
-      if (event.type === "customer.subscription.updated") {
+      if (event.type === "customer.subscription.created") {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionCreated(subscription);
+      } else if (event.type === "customer.subscription.updated") {
         await dispatchSubscriptionLifecycle
             .handleDispatchSubscriptionUpdated(subscription);
       } else if (event.type === "customer.subscription.deleted") {
