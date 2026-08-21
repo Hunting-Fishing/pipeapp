@@ -13,6 +13,7 @@ import '/marketplace/oil_gas_marketplace.dart';
 import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
 import '/marketplace/marketplace_dispatch_page.dart';
+import '/marketplace/marketplace_dispatch_membership_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
 import '/marketplace/marketplace_public_information.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
@@ -53,9 +54,8 @@ class AppStateNotifier extends ChangeNotifier {
   void setRedirectLocationIfUnset(String loc) => _redirectLocation ??= loc;
   void clearRedirectLocation() => _redirectLocation = null;
 
-  /// Mark as not needing to notify on a sign in / out when we intend
-  /// to perform subsequent actions (such as navigation) afterwards.
-  /// Otherwise, this will trigger a refresh and interrupt the action(s).
+  /// Mark as not needing to notify on auth change when we intend
+  /// to perform subsequent actions afterwards.
   void updateNotifyOnAuthChange(bool notify) => notifyOnAuthChange = notify;
 
   void update(BaseAuthUser newUser) {
@@ -63,13 +63,9 @@ class AppStateNotifier extends ChangeNotifier {
         user?.uid == null || newUser.uid == null || user?.uid != newUser.uid;
     initialUser ??= newUser;
     user = newUser;
-    // Refresh the app on auth change unless explicitly marked otherwise.
-    // No need to update unless the user has changed.
     if (notifyOnAuthChange && shouldUpdate) {
       notifyListeners();
     }
-    // Once again mark the notifier as needing to notify on auth change
-    // (in order to catch any future updates).
     updateNotifyOnAuthChange(true);
   }
 
@@ -133,6 +129,25 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => MarketplaceDispatchJobRoutePage(
             jobId: params.getParam<String>('jobId', ParamType.string) ?? '',
           ),
+        ),
+        FFRoute(
+          name: 'dispatchMembership',
+          path: '/payments/dispatch',
+          requireAuth: true,
+          builder: (context, params) =>
+              const MarketplaceDispatchMembershipPage(),
+        ),
+        FFRoute(
+          name: 'paymentSuccess',
+          path: '/payments/success',
+          builder: (context, params) =>
+              const MarketplacePaymentReturnPage(success: true),
+        ),
+        FFRoute(
+          name: 'paymentCancel',
+          path: '/payments/cancel',
+          builder: (context, params) =>
+              const MarketplacePaymentReturnPage(success: false),
         ),
         FFRoute(
           name: 'marketplaceTaxProfile',
@@ -222,8 +237,6 @@ extension NavigationExtensions on BuildContext {
             );
 
   void safePop() {
-    // If there is only one route on the stack, navigate to the initial
-    // page instead of popping.
     if (canPop()) {
       pop();
     } else {
@@ -265,8 +278,6 @@ class FFParameters {
 
   Map<String, dynamic> futureParamValues = {};
 
-  // Parameters are empty if the params map is empty or if the only parameter
-  // present is the special extra parameter reserved for the transition info.
   bool get isEmpty =>
       state.allParams.isEmpty ||
       (state.allParams.length == 1 &&
@@ -302,11 +313,9 @@ class FFParameters {
       return null;
     }
     final param = state.allParams[paramName];
-    // Got parameter from `extras`, so just directly return it.
     if (param is! String) {
       return param;
     }
-    // Return serialized value.
     return deserializeParam<T>(
       param,
       type,
