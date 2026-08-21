@@ -36,14 +36,18 @@ function selectedPlan(value) {
   return plan;
 }
 
-function requireSubscriptionReady(readiness) {
+function subscriptionReady(readiness) {
   const taxPrepared = readiness.stripeTaxReady === true ||
     readiness.stripeTaxRegistrationPending === true;
-  if (!readiness.stripeSubscriptionsEnabled ||
-      readiness.stripeMode !== "production" ||
-      readiness.stripeWebhookVerified !== true ||
-      readiness.stripeReconciliationReady !== true ||
-      !taxPrepared) {
+  return readiness.stripeSubscriptionsEnabled === true &&
+    readiness.stripeMode === "production" &&
+    readiness.stripeWebhookVerified === true &&
+    readiness.stripeReconciliationReady === true &&
+    taxPrepared;
+}
+
+function requireSubscriptionReady(readiness) {
+  if (!subscriptionReady(readiness)) {
     throw new HttpsError(
         "failed-precondition",
         "Dispatch subscription checkout is not enabled yet.",
@@ -63,9 +67,53 @@ function couponFromEntitlement(entitlement) {
   return null;
 }
 
+function subscriptionPlanCatalog() {
+  const products = stripeMarketplaceConfig.products;
+  const plan = (product) => Object.freeze({
+    currency: String(product.currency),
+    amountMinor: Number(product.unitAmountMinor),
+    amount: Number((Number(product.unitAmountMinor) / 100).toFixed(2)),
+    interval: String(product.billingInterval),
+  });
+  return Object.freeze({
+    monthly: plan(products.dispatchMonthlyCad),
+    yearly: plan(products.dispatchYearlyCad),
+  });
+}
+
 function createDispatchSubscriptionCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+
+  const getDispatchSubscriptionCatalog = async (request) => {
+    try {
+      requireAuth(request);
+      await enforceUserRateLimit({db, admin, request, scope: "account"});
+      const flags = await loadPhase1FeatureFlags(db);
+      requirePhase1Feature(flags, "dispatch");
+      const readinessSnapshot = await db.collection("platform_configuration")
+          .doc("payment_provider_readiness").get();
+      const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
+      const readiness = {
+        ...(await loadProviderReadiness(db)),
+        stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
+        stripeTaxRegistrationPending:
+          readinessData.stripeTaxRegistrationPending === true,
+      };
+      return {
+        plans: subscriptionPlanCatalog(),
+        checkoutAvailable: subscriptionReady(readiness),
+        taxCollectionStatus: taxCollectionStatus(readiness),
+      };
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error instanceof AccountSecurityError) {
+        throw new HttpsError(error.code, error.message);
+      }
+      console.error("Dispatch subscription catalog failed", error);
+      throw new HttpsError("internal", "Dispatch subscription pricing could not be loaded.");
+    }
+  };
 
   const createDispatchSubscriptionCheckout = async (request) => {
     try {
@@ -172,7 +220,10 @@ function createDispatchSubscriptionCommands(admin) {
     }
   };
 
-  return {createDispatchSubscriptionCheckout};
+  return {
+    createDispatchSubscriptionCheckout,
+    getDispatchSubscriptionCatalog,
+  };
 }
 
 module.exports = {
@@ -180,4 +231,6 @@ module.exports = {
   createDispatchSubscriptionCommands,
   requireSubscriptionReady,
   selectedPlan,
+  subscriptionPlanCatalog,
+  subscriptionReady,
 };
