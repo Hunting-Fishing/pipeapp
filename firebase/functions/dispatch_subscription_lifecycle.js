@@ -1,5 +1,10 @@
 "use strict";
 
+const TERMINAL_PROVIDER_STATUSES = new Set([
+  "canceled",
+  "incomplete_expired",
+]);
+
 function timestampMillis(value) {
   if (value && typeof value.toMillis === "function") return value.toMillis();
   if (value instanceof Date) return value.getTime();
@@ -24,6 +29,13 @@ function dispatchSubscriptionIdentity(subscription) {
   return {subscriptionId, uid, metadata};
 }
 
+function subscriptionCustomerId(subscription) {
+  const customerId = typeof (subscription && subscription.customer) === "string" ?
+    subscription.customer :
+    String(subscription && subscription.customer && subscription.customer.id || "");
+  return customerId.startsWith("cus_") ? customerId : "";
+}
+
 function subscriptionPeriodEndMillis(subscription) {
   const candidates = [
     stripeSecondsMillis(subscription && subscription.current_period_end),
@@ -38,21 +50,33 @@ function subscriptionPeriodEndMillis(subscription) {
   return Math.max(0, ...candidates);
 }
 
+function providerSubscriptionState(subscription, {deleted = false} = {}) {
+  const providerStatus = deleted ?
+    "canceled" : String(subscription && subscription.status || "unknown").trim();
+  return {
+    providerStatus,
+    blocksNewCheckout: !TERMINAL_PROVIDER_STATUSES.has(providerStatus),
+    cancelAtPeriodEnd: !deleted &&
+      subscription && subscription.cancel_at_period_end === true,
+    providerPeriodEndMillis: subscriptionPeriodEndMillis(subscription) || null,
+    stripeCustomerId: subscriptionCustomerId(subscription) || null,
+  };
+}
+
 function lifecycleStatePatch({
   subscription,
   existingMembership,
   deleted = false,
   nowMillis = Date.now(),
 }) {
-  const providerStatus = deleted ?
-    "canceled" : String(subscription && subscription.status || "unknown").trim();
+  const provider = providerSubscriptionState(subscription, {deleted});
+  const providerStatus = provider.providerStatus;
   const paidThroughMillis = timestampMillis(
       existingMembership && existingMembership.currentPeriodEnd,
   );
   const stillPaid = paidThroughMillis > nowMillis;
-  const cancelAtPeriodEnd = !deleted &&
-    subscription && subscription.cancel_at_period_end === true;
-  const providerEndMillis = subscriptionPeriodEndMillis(subscription);
+  const cancelAtPeriodEnd = provider.cancelAtPeriodEnd;
+  const providerEndMillis = provider.providerPeriodEndMillis || 0;
   const cancellationEffectiveMillis = cancelAtPeriodEnd ?
     (stripeSecondsMillis(subscription && subscription.cancel_at) ||
       providerEndMillis || paidThroughMillis) :
@@ -93,14 +117,31 @@ function createDispatchSubscriptionLifecycle(admin) {
     const identity = dispatchSubscriptionIdentity(subscription);
     if (!identity) return;
     const membershipRef = db.collection("dispatch_memberships").doc(identity.uid);
+    const providerStateRef = db.collection("dispatch_subscription_provider_state")
+        .doc(identity.uid);
     await db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(membershipRef);
-      if (!snapshot.exists) {
-        // Never create a paid entitlement from subscription lifecycle events.
+      const membershipSnapshot = await transaction.get(membershipRef);
+      const provider = providerSubscriptionState(subscription, {deleted});
+      transaction.set(providerStateRef, {
+        ownerUid: identity.uid,
+        subscriptionId: identity.subscriptionId,
+        stripeCustomerId: provider.stripeCustomerId,
+        providerStatus: provider.providerStatus,
+        blocksNewCheckout: provider.blocksNewCheckout,
+        cancelAtPeriodEnd: provider.cancelAtPeriodEnd,
+        providerPeriodEnd: provider.providerPeriodEndMillis ?
+          Timestamp.fromMillis(provider.providerPeriodEndMillis) : null,
+        ...(deleted ? {deletedAt: FieldValue.serverTimestamp()} : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+
+      if (!membershipSnapshot.exists) {
+        // Provider state is tracked even before payment, but paid access is not.
         // invoice.paid remains the only authority that establishes/extends access.
         return;
       }
-      const existing = snapshot.data();
+      const existing = membershipSnapshot.data();
       const existingSubscriptionId = String(existing.subscriptionId || "").trim();
       if (existingSubscriptionId &&
           existingSubscriptionId !== identity.subscriptionId) {
@@ -128,6 +169,8 @@ function createDispatchSubscriptionLifecycle(admin) {
   }
 
   return {
+    handleDispatchSubscriptionCreated: (subscription) =>
+      applySubscriptionLifecycle(subscription, {deleted: false}),
     handleDispatchSubscriptionDeleted: (subscription) =>
       applySubscriptionLifecycle(subscription, {deleted: true}),
     handleDispatchSubscriptionUpdated: (subscription) =>
@@ -136,10 +179,13 @@ function createDispatchSubscriptionLifecycle(admin) {
 }
 
 module.exports = {
+  TERMINAL_PROVIDER_STATUSES,
   createDispatchSubscriptionLifecycle,
   dispatchSubscriptionIdentity,
   lifecycleStatePatch,
+  providerSubscriptionState,
   stripeSecondsMillis,
+  subscriptionCustomerId,
   subscriptionPeriodEndMillis,
   timestampMillis,
 };
