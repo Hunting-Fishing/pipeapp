@@ -31,6 +31,7 @@ function createStripeWebhookDispatchLifecycleWrapper({
   stripeWebhookSecret,
 }) {
   const db = admin.firestore();
+  const FieldValue = admin.firestore.FieldValue;
 
   return async (request, response) => {
     const rawBody = request.rawBody;
@@ -51,22 +52,40 @@ function createStripeWebhookDispatchLifecycleWrapper({
     }
 
     const eventId = String(event.id || "");
-    if (eventId.startsWith("evt_")) {
-      const existing = await db.collection("stripe_webhook_events")
-          .doc(eventId)
-          .get();
+    const eventRef = eventId.startsWith("evt_") ?
+      db.collection("stripe_webhook_events").doc(eventId) : null;
+    if (eventRef) {
+      const existing = await eventRef.get();
       if (existing.exists && existing.data().status === "processed") {
         return baseHandler(request, response);
       }
     }
 
-    const subscription = event.data.object;
-    if (event.type === "customer.subscription.updated") {
-      await dispatchSubscriptionLifecycle
-          .handleDispatchSubscriptionUpdated(subscription);
-    } else if (event.type === "customer.subscription.deleted") {
-      await dispatchSubscriptionLifecycle
-          .handleDispatchSubscriptionDeleted(subscription);
+    try {
+      const subscription = event.data.object;
+      if (event.type === "customer.subscription.updated") {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionUpdated(subscription);
+      } else if (event.type === "customer.subscription.deleted") {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionDeleted(subscription);
+      }
+    } catch (error) {
+      console.error("Dispatch subscription lifecycle webhook failed", {
+        eventId,
+        type: event.type,
+        error,
+      });
+      if (eventRef) {
+        await eventRef.set({
+          eventId,
+          type: String(event.type || ""),
+          status: "failed",
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+      response.status(500).send("Webhook processing failed");
+      return;
     }
 
     // The established handler intentionally ignores unknown event types but
