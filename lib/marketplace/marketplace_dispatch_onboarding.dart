@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_dispatch_subscription_billing.dart';
 
 class MarketplaceDispatchOnboarding extends StatelessWidget {
   const MarketplaceDispatchOnboarding({
@@ -375,52 +376,7 @@ class MarketplaceDispatchOnboarding extends StatelessWidget {
   }
 
   Widget _pricingCard(BuildContext context) {
-    return PipeBuyerSectionCard(
-      title: 'Pilot network pricing',
-      subtitle:
-          'Current planning values shown in the application. Billing remains inactive until separately approved and accepted.',
-      leading: const _SectionIcon(
-        Icons.sell_outlined,
-        tone: PipeBuyerStatusTone.premium,
-      ),
-      trailing: const PipeBuyerStatusBadge(
-        label: 'NOT BILLING YET',
-        icon: Icons.info_outline,
-        tone: PipeBuyerStatusTone.warning,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _PriceChip(
-                title: r'$25 per year',
-                subtitle: 'Dispatch network membership',
-                icon: Icons.badge_outlined,
-              ),
-              _PriceChip(
-                title: r'$10 per dispatched job',
-                subtitle: 'Paid to Pipe Buyer',
-                icon: Icons.receipt_long_outlined,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            r'The $10 Dispatch fee is paid to Pipe Buyer for each dispatched job. Pricing is displayed for pilot planning only. Billing and fee collection are not active in this release. No charge is collected until payment and fee features receive separate approval, final terms are published, and the user explicitly accepts them.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: .62),
-                  height: 1.45,
-                ),
-          ),
-        ],
-      ),
-    );
+    return const MarketplaceDispatchSubscriptionBilling();
   }
 
   Widget _notificationsCard(BuildContext context) {
@@ -714,52 +670,6 @@ class _SectionIcon extends StatelessWidget {
       child: Icon(icon, color: accent),
     );
   }
-}
-
-class _PriceChip extends StatelessWidget {
-  const _PriceChip({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        constraints: const BoxConstraints(minWidth: 230),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: PipeBuyerColors.orangeSoft,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: PipeBuyerColors.orange.withValues(alpha: .24),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 2),
-            Icon(icon, color: PipeBuyerColors.orangePressed),
-            const SizedBox(width: 11),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(subtitle, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-          ],
-        ),
-      );
 }
 
 class _TrustPoint extends StatelessWidget {
