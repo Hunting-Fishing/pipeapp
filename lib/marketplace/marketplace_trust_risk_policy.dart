@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 /// Versioned, deterministic Trust & Safety review-priority policy.
 ///
 /// This policy is intentionally non-enforcing. A score only helps an
@@ -15,6 +13,7 @@ class MarketplaceTrustRiskPolicy {
   static const Map<String, int> _reasonWeights = {
     'fraud_or_scam': 55,
     'reused_photos': 45,
+    'duplicate_listing_media': 45,
     'duplicate_listing': 35,
     'misleading_information': 35,
     'prohibited_or_unsafe_item': 35,
@@ -40,49 +39,83 @@ class MarketplaceTrustRiskPolicy {
 
     final reason = '${report['reason'] ?? ''}'.trim().toLowerCase();
     final reasonWeight = _reasonWeights[reason] ?? 10;
-    add(
-      reasonWeight,
-      'report_reason_$reason',
-      _reasonLabel(reason),
-    );
+    add(reasonWeight, 'report_reason_$reason', _reasonLabel(reason));
 
     final source = '${report['source'] ?? 'user'}'.trim().toLowerCase();
     final priority = '${report['priority'] ?? ''}'.trim().toLowerCase();
     if (source == 'automated' && priority == 'high') {
-      add(15, 'automated_high_priority', 'Automated pre-screen marked this case high priority.');
+      add(
+        15,
+        'automated_high_priority',
+        'Automated pre-screen marked this case high priority.',
+      );
     }
 
     final moderationSignals = _stringList(report['moderationSignals']);
     if (moderationSignals.contains('possible_payment_fraud')) {
-      add(30, 'possible_payment_fraud', 'Payment language matched the existing conservative fraud pre-screen.');
+      add(
+        30,
+        'possible_payment_fraud',
+        'Payment language matched the existing conservative fraud pre-screen.',
+      );
     }
     if (moderationSignals.contains('possible_threat')) {
-      add(20, 'possible_threat', 'The existing safety pre-screen detected possible threatening language.');
+      add(
+        20,
+        'possible_threat',
+        'The existing safety pre-screen detected possible threatening language.',
+      );
     }
     if (moderationSignals.contains('possible_hate_or_racist_content')) {
-      add(15, 'possible_hate_or_racist_content', 'The existing safety pre-screen detected possible hateful content.');
+      add(
+        15,
+        'possible_hate_or_racist_content',
+        'The existing safety pre-screen detected possible hateful content.',
+      );
     }
     if (moderationSignals.contains('vulgar_or_harassing_content')) {
-      add(8, 'vulgar_or_harassing_content', 'The existing safety pre-screen detected possible harassment or vulgar abuse.');
+      add(
+        8,
+        'vulgar_or_harassing_content',
+        'The existing safety pre-screen detected possible harassment or vulgar abuse.',
+      );
     }
 
     final duplicateListingIds = <String>{
+      ..._stringList(report['relatedListingIds']),
       ..._stringList(report['duplicateListingIds']),
-      ..._stringList(_nested(report, 'duplicateMediaEvidence', 'duplicateListingIds')),
+      ..._stringList(
+        _nested(report, 'duplicateMediaEvidence', 'duplicateListingIds'),
+      ),
       ..._stringList(_nested(report, 'duplicateEvidence', 'duplicateListingIds')),
     };
     final matchedHashes = <String>{
       ..._stringList(report['matchedImageHashes']),
-      ..._stringList(_nested(report, 'duplicateMediaEvidence', 'matchedImageHashes')),
+      ..._stringList(
+        _nested(report, 'duplicateMediaEvidence', 'matchedImageHashes'),
+      ),
       ..._stringList(_nested(report, 'duplicateEvidence', 'matchedImageHashes')),
     };
-    final reviewMediaItems = _objectList(report['reviewMediaItems']);
+    final reviewMediaItems = <Map<String, dynamic>>[
+      ..._objectList(report['mediaEvidence']),
+      ..._objectList(report['reviewMediaItems']),
+    ];
 
     if (duplicateListingIds.isNotEmpty || matchedHashes.isNotEmpty) {
-      add(20, 'exact_duplicate_media', 'Exact image-hash evidence links this case to another listing.');
+      add(
+        20,
+        'exact_duplicate_media',
+        'Exact image-hash evidence links this case to another listing.',
+      );
     }
-    if (duplicateListingIds.length >= 2 || matchedHashes.length >= 2 || reviewMediaItems.length >= 2) {
-      add(8, 'multiple_duplicate_matches', 'More than one duplicate-media match is available for human review.');
+    if (duplicateListingIds.length >= 2 ||
+        matchedHashes.length >= 2 ||
+        reviewMediaItems.length >= 2) {
+      add(
+        8,
+        'multiple_duplicate_matches',
+        'More than one duplicate-media match is available for human review.',
+      );
     }
 
     final listingUnitPrice = listing == null ? null : normalizedUnitPrice(listing);
@@ -148,15 +181,18 @@ class MarketplaceTrustRiskPolicy {
     if (!_priceComparisonAllowed(candidate) || !_priceComparisonAllowed(subject)) {
       return false;
     }
-    final candidatePrice = normalizedUnitPrice(candidate);
-    final subjectPrice = normalizedUnitPrice(subject);
-    if (candidatePrice == null || subjectPrice == null) return false;
+    if (normalizedUnitPrice(candidate) == null || normalizedUnitPrice(subject) == null) {
+      return false;
+    }
 
     final candidateCategory = _comparisonCategory(candidate);
     final subjectCategory = _comparisonCategory(subject);
-    if (candidateCategory.isEmpty || candidateCategory != subjectCategory) return false;
+    if (candidateCategory.isEmpty || candidateCategory != subjectCategory) {
+      return false;
+    }
 
-    final candidateCurrency = '${candidate['currency'] ?? 'CAD'}'.trim().toUpperCase();
+    final candidateCurrency =
+        '${candidate['currency'] ?? 'CAD'}'.trim().toUpperCase();
     final subjectCurrency = '${subject['currency'] ?? 'CAD'}'.trim().toUpperCase();
     return candidateCurrency == subjectCurrency;
   }
@@ -213,13 +249,21 @@ class MarketplaceTrustRiskPolicy {
   }
 
   static String _reasonLabel(String reason) => switch (reason) {
-        'fraud_or_scam' => 'A user explicitly reported fraud, scam, or impersonation.',
-        'reused_photos' => 'A user reported photos reused from another listing.',
+        'fraud_or_scam' =>
+          'A user explicitly reported fraud, scam, or impersonation.',
+        'reused_photos' =>
+          'A user reported photos reused from another listing.',
+        'duplicate_listing_media' =>
+          'The existing exact-file detector found listing photos reused elsewhere.',
         'duplicate_listing' => 'A user reported a duplicate listing.',
-        'misleading_information' => 'A user reported false or misleading listing information.',
-        'prohibited_or_unsafe_item' => 'A user reported a prohibited or unsafe item.',
-        'hate_or_racist_content' => 'A user reported racist or hateful content.',
-        'vulgar_or_harassing_content' => 'A user reported threatening, vulgar, or harassing content.',
+        'misleading_information' =>
+          'A user reported false or misleading listing information.',
+        'prohibited_or_unsafe_item' =>
+          'A user reported a prohibited or unsafe item.',
+        'hate_or_racist_content' =>
+          'A user reported racist or hateful content.',
+        'vulgar_or_harassing_content' =>
+          'A user reported threatening, vulgar, or harassing content.',
         'spam' => 'A user reported spam or commercial abuse.',
         _ => 'A Trust & Safety report requires administrator review.',
       };
