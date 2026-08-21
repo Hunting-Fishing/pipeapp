@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_components.dart';
@@ -21,13 +22,14 @@ class _MarketplaceDispatchSubscriptionBillingState
   @override
   void initState() {
     super.initState();
-    _catalog = _loadCatalog();
+    _catalog = kIsWeb ? _loadCatalog() : Future.value(const {});
   }
 
   Future<Map<String, dynamic>> _loadCatalog() =>
       _commands.execute('getDispatchSubscriptionCatalog', const {});
 
   void _retry() {
+    if (!kIsWeb) return;
     setState(() => _catalog = _loadCatalog());
   }
 
@@ -51,6 +53,7 @@ class _MarketplaceDispatchSubscriptionBillingState
   }
 
   void _openMembership() {
+    if (!kIsWeb) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const MarketplaceDispatchMembershipPage(),
@@ -59,128 +62,145 @@ class _MarketplaceDispatchSubscriptionBillingState
   }
 
   @override
-  Widget build(BuildContext context) =>
-      FutureBuilder<Map<String, dynamic>>(
-        future: _catalog,
-        builder: (context, snapshot) {
-          final loading = snapshot.connectionState == ConnectionState.waiting;
-          final catalog = snapshot.data ?? const <String, dynamic>{};
-          final plans = _map(catalog['plans']);
-          final monthly = _map(plans['monthly']);
-          final yearly = _map(plans['yearly']);
-          final checkoutAvailable = catalog['checkoutAvailable'] == true;
-          final taxStatus = '${catalog['taxCollectionStatus'] ?? ''}'.trim();
-
-          return PipeBuyerSectionCard(
-            title: 'Dispatch membership',
-            subtitle: loading
-                ? 'Loading the current Pipe Buyer subscription catalog…'
-                : 'Current recurring Dispatch pricing comes from the same server-owned configuration used to create Stripe Checkout.',
-            leading: const _BillingIcon(),
-            trailing: PipeBuyerStatusBadge(
-              label: loading
-                  ? 'CHECKING'
-                  : snapshot.hasError
-                      ? 'UNAVAILABLE'
-                      : checkoutAvailable
-                          ? 'SECURE CHECKOUT'
-                          : 'CHECKOUT HELD',
-              icon: loading
-                  ? Icons.sync_outlined
-                  : snapshot.hasError
-                      ? Icons.cloud_off_outlined
-                      : checkoutAvailable
-                          ? Icons.lock_outline
-                          : Icons.shield_outlined,
-              tone: snapshot.hasError || !checkoutAvailable
-                  ? PipeBuyerStatusTone.warning
-                  : PipeBuyerStatusTone.premium,
-            ),
-            child: loading
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : snapshot.hasError
-                    ? Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Dispatch pricing could not be verified from the server. No fallback price is shown.',
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          OutlinedButton.icon(
-                            onPressed: _retry,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final wide = constraints.maxWidth >= 700;
-                              final width = wide
-                                  ? (constraints.maxWidth - 12) / 2
-                                  : constraints.maxWidth;
-                              return Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  SizedBox(
-                                    width: width,
-                                    child: _SubscriptionPriceCard(
-                                      title: 'Dispatch Monthly',
-                                      price: _priceLabel(monthly, 'month'),
-                                      description:
-                                          'Recurring carrier bidding access billed monthly.',
-                                      icon: Icons.calendar_month_outlined,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: width,
-                                    child: _SubscriptionPriceCard(
-                                      title: 'Dispatch Yearly',
-                                      price: _priceLabel(yearly, 'year'),
-                                      description:
-                                          'Recurring carrier bidding access billed annually.',
-                                      icon: Icons.calendar_today_outlined,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            checkoutAvailable
-                                ? 'Stripe-hosted Checkout opens only after the server confirms payment readiness. A browser return never grants paid access; signed Stripe provider evidence does.'
-                                : 'Subscription checkout is currently held by server readiness controls. Viewing the plans does not start a charge.',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  height: 1.45,
-                                ),
-                          ),
-                          if (taxStatus.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              'Billing tax status: ${taxStatus.replaceAll('_', ' ')}.',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                          const SizedBox(height: 14),
-                          FilledButton.icon(
-                            onPressed: _openMembership,
-                            icon: const Icon(Icons.workspace_premium_outlined),
-                            label: const Text('View membership options'),
-                          ),
-                        ],
-                      ),
-          );
-        },
+  Widget build(BuildContext context) {
+    if (!kIsWeb) {
+      return const PipeBuyerSectionCard(
+        title: 'Dispatch membership',
+        subtitle: 'Native app billing is held for store-policy integration.',
+        leading: _BillingIcon(),
+        trailing: PipeBuyerStatusBadge(
+          label: 'PURCHASE HELD',
+          icon: Icons.shield_outlined,
+          tone: PipeBuyerStatusTone.warning,
+        ),
+        child: Text(
+          'Existing active Dispatch memberships continue to work in this app. New subscription purchasing and Stripe billing management are not offered inside this native app build.',
+        ),
       );
+    }
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _catalog,
+      builder: (context, snapshot) {
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+        final catalog = snapshot.data ?? const <String, dynamic>{};
+        final plans = _map(catalog['plans']);
+        final monthly = _map(plans['monthly']);
+        final yearly = _map(plans['yearly']);
+        final checkoutAvailable = catalog['checkoutAvailable'] == true;
+        final taxStatus = '${catalog['taxCollectionStatus'] ?? ''}'.trim();
+
+        return PipeBuyerSectionCard(
+          title: 'Dispatch membership',
+          subtitle: loading
+              ? 'Loading the current Pipe Buyer subscription catalog…'
+              : 'Current recurring Dispatch pricing comes from the same server-owned configuration used to create Stripe Checkout.',
+          leading: const _BillingIcon(),
+          trailing: PipeBuyerStatusBadge(
+            label: loading
+                ? 'CHECKING'
+                : snapshot.hasError
+                    ? 'UNAVAILABLE'
+                    : checkoutAvailable
+                        ? 'SECURE CHECKOUT'
+                        : 'CHECKOUT HELD',
+            icon: loading
+                ? Icons.sync_outlined
+                : snapshot.hasError
+                    ? Icons.cloud_off_outlined
+                    : checkoutAvailable
+                        ? Icons.lock_outline
+                        : Icons.shield_outlined,
+            tone: snapshot.hasError || !checkoutAvailable
+                ? PipeBuyerStatusTone.warning
+                : PipeBuyerStatusTone.premium,
+          ),
+          child: loading
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : snapshot.hasError
+                  ? Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Dispatch pricing could not be verified from the server. No fallback price is shown.',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: _retry,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final wide = constraints.maxWidth >= 700;
+                            final width = wide
+                                ? (constraints.maxWidth - 12) / 2
+                                : constraints.maxWidth;
+                            return Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                SizedBox(
+                                  width: width,
+                                  child: _SubscriptionPriceCard(
+                                    title: 'Dispatch Monthly',
+                                    price: _priceLabel(monthly, 'month'),
+                                    description:
+                                        'Recurring carrier bidding access billed monthly.',
+                                    icon: Icons.calendar_month_outlined,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: width,
+                                  child: _SubscriptionPriceCard(
+                                    title: 'Dispatch Yearly',
+                                    price: _priceLabel(yearly, 'year'),
+                                    description:
+                                        'Recurring carrier bidding access billed annually.',
+                                    icon: Icons.calendar_today_outlined,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          checkoutAvailable
+                              ? 'Stripe-hosted Checkout opens only after the server confirms payment readiness. A browser return never grants paid access; signed Stripe provider evidence does.'
+                              : 'Subscription checkout is currently held by server readiness controls. Viewing the plans does not start a charge.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                height: 1.45,
+                              ),
+                        ),
+                        if (taxStatus.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Billing tax status: ${taxStatus.replaceAll('_', ' ')}.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        FilledButton.icon(
+                          onPressed: _openMembership,
+                          icon: const Icon(Icons.workspace_premium_outlined),
+                          label: const Text('View membership options'),
+                        ),
+                      ],
+                    ),
+        );
+      },
+    );
+  }
 }
 
 class _BillingIcon extends StatelessWidget {
