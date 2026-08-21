@@ -7,6 +7,7 @@ on:
       - 'firebase.json'
       - 'lib/main.dart'
       - 'tool/oauth_branding_test.mjs'
+      - 'tool/live_oauth_branding_check.mjs'
       - '.github/workflows/oauth-branding.yml'
   push:
     branches:
@@ -16,7 +17,9 @@ on:
       - 'firebase.json'
       - 'lib/main.dart'
       - 'tool/oauth_branding_test.mjs'
+      - 'tool/live_oauth_branding_check.mjs'
       - '.github/workflows/oauth-branding.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -32,5 +35,7 @@ jobs:
         uses: actions/setup-node@v6.4.0
         with:
           node-version: 22
-      - name: Simulate Google OAuth branding checks
+      - name: Simulate Google OAuth branding source checks
         run: node --test tool/oauth_branding_test.mjs
+      - name: Probe live Google OAuth branding URLs
+        run: node tool/live_oauth_branding_check.mjs
