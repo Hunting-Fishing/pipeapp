@@ -6,6 +6,8 @@ const DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS = new Set([
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
+  "customer.subscription.paused",
+  "customer.subscription.resumed",
 ]);
 
 function stripeEventFromRawBody(rawBody) {
@@ -84,12 +86,16 @@ function createStripeWebhookDispatchLifecycleWrapper({
       } else if (event.type === "customer.subscription.created") {
         await dispatchSubscriptionLifecycle
             .handleDispatchSubscriptionCreated(object);
-      } else if (event.type === "customer.subscription.updated") {
-        await dispatchSubscriptionLifecycle
-            .handleDispatchSubscriptionUpdated(object);
       } else if (event.type === "customer.subscription.deleted") {
         await dispatchSubscriptionLifecycle
             .handleDispatchSubscriptionDeleted(object);
+      } else if ([
+        "customer.subscription.updated",
+        "customer.subscription.paused",
+        "customer.subscription.resumed",
+      ].includes(event.type)) {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionUpdated(object);
       }
     } catch (error) {
       console.error("Dispatch subscription provider-state webhook failed", {
