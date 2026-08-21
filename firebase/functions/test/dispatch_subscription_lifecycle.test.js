@@ -3,11 +3,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  dispatchCheckoutIdentity,
   dispatchSubscriptionIdentity,
   lifecycleStatePatch,
   providerSubscriptionState,
 } = require("../dispatch_subscription_lifecycle");
 const {
+  isDispatchCheckoutCompletedEvent,
   isDispatchSubscriptionLifecycleEvent,
   stripeEventFromRawBody,
 } = require("../stripe_webhook_dispatch_lifecycle");
@@ -31,6 +33,27 @@ test("Dispatch subscription identity accepts only owned Dispatch metadata", () =
     id: "sub_123",
     metadata: {billingType: "other", pipeBuyerUid: "carrier_1"},
   }), null);
+});
+
+test("completed Dispatch Checkout identifies provider state without granting access", () => {
+  const session = {
+    subscription: "sub_123",
+    customer: "cus_123",
+    client_reference_id: "carrier_1",
+    metadata: {
+      billingType: "dispatch_subscription",
+      pipeBuyerUid: "carrier_1",
+    },
+  };
+  assert.deepEqual(dispatchCheckoutIdentity(session), {
+    uid: "carrier_1",
+    subscriptionId: "sub_123",
+    stripeCustomerId: "cus_123",
+  });
+  assert.equal(isDispatchCheckoutCompletedEvent({
+    type: "checkout.session.completed",
+    data: {object: session},
+  }), true);
 });
 
 test("provider state blocks duplicate checkout before entitlement exists", () => {
