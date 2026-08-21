@@ -44,6 +44,29 @@ function invoiceCommissionBaseMinor(invoice) {
     Math.max(0, subtotal - discounts) : 0;
 }
 
+function invoicePeriodBounds(invoice) {
+  const starts = [];
+  const ends = [];
+  const addPeriod = (period) => {
+    const start = Number(period && period.start || 0);
+    const end = Number(period && period.end || 0);
+    if (Number.isFinite(start) && start > 0) starts.push(start);
+    if (Number.isFinite(end) && end > 0) ends.push(end);
+  };
+  addPeriod({
+    start: invoice && invoice.period_start,
+    end: invoice && invoice.period_end,
+  });
+  const lines = invoice && invoice.lines && invoice.lines.data;
+  if (Array.isArray(lines)) {
+    for (const line of lines) addPeriod(line && line.period);
+  }
+  return {
+    startMillis: starts.length ? Math.min(...starts) * 1000 : null,
+    endMillis: ends.length ? Math.max(...ends) * 1000 : null,
+  };
+}
+
 function subscriptionIdentityFromInvoice(invoice) {
   const parent = invoice && invoice.parent;
   const details = parent && parent.subscription_details;
@@ -89,6 +112,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     }
     if (metadata.billingType !== "dispatch_subscription") return;
     const uid = String(metadata.pipeBuyerUid || "").trim();
+    if (!uid || uid.includes("/") || uid.length > 180) return;
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
@@ -99,18 +123,21 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
+    const membershipRef = db.collection("dispatch_memberships").doc(uid);
     const sourceChargeId = sourceChargeFromInvoice(invoice);
+    const period = invoicePeriodBounds(invoice);
     const eligibleAfter = Timestamp.fromMillis(
         Date.now() + SUBSCRIPTION_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
     );
     await db.runTransaction(async (transaction) => {
       const existingInvoice = await transaction.get(invoiceRef);
+      const existingMembership = await transaction.get(membershipRef);
       const existingCommission = referrerUid && commissionMinor > 0 ?
         await transaction.get(commissionRef) : null;
       transaction.set(invoiceRef, {
         invoiceId,
         subscriptionId,
-        uid: uid || null,
+        uid,
         plan: String(metadata.dispatchPlan || ""),
         currency: String(invoice.currency || "cad").toUpperCase(),
         commissionBaseMinor: baseMinor,
@@ -130,6 +157,31 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
         }),
       }, {merge: true});
+
+      if (period.endMillis) {
+        const currentEnd = existingMembership.exists &&
+          existingMembership.data().currentPeriodEnd &&
+          typeof existingMembership.data().currentPeriodEnd.toMillis === "function" ?
+          existingMembership.data().currentPeriodEnd.toMillis() : 0;
+        if (period.endMillis >= currentEnd) {
+          transaction.set(membershipRef, {
+            ownerUid: uid,
+            active: period.endMillis > Date.now(),
+            status: period.endMillis > Date.now() ? "active" : "expired",
+            plan: String(metadata.dispatchPlan || ""),
+            subscriptionId,
+            currentPeriodStart: period.startMillis ?
+              Timestamp.fromMillis(period.startMillis) : null,
+            currentPeriodEnd: Timestamp.fromMillis(period.endMillis),
+            lastPaidInvoiceId: invoiceId,
+            updatedAt: FieldValue.serverTimestamp(),
+            ...(existingMembership.exists ? {} : {
+              createdAt: FieldValue.serverTimestamp(),
+            }),
+          }, {merge: true});
+        }
+      }
+
       if (referrerUid && commissionMinor > 0 &&
           existingCommission && !existingCommission.exists) {
         transaction.create(commissionRef, {
@@ -187,6 +239,7 @@ module.exports = {
   SUBSCRIPTION_REFUND_WINDOW_DAYS,
   createSubscriptionMonetization,
   invoiceCommissionBaseMinor,
+  invoicePeriodBounds,
   retrieveStripeSubscription,
   sourceChargeFromInvoice,
   subscriptionIdentityFromInvoice,
