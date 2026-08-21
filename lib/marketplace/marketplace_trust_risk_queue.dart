@@ -246,13 +246,19 @@ class _MarketplaceTrustRiskQueueState extends State<MarketplaceTrustRiskQueue> {
   ) {
     final listingsById = {
       for (final document in listingDocs)
-        document.id: {'id': document.id, ...document.data()},
+        document.id: <String, dynamic>{
+          'id': document.id,
+          ...document.data(),
+        },
     };
     final allListings = listingsById.values.toList(growable: false);
     final items = <TrustRiskQueueItem>[];
 
     for (final reportDoc in reportDocs) {
-      final report = {'id': reportDoc.id, ...reportDoc.data()};
+      final report = <String, dynamic>{
+        'id': reportDoc.id,
+        ...reportDoc.data(),
+      };
       final status = '${report['status'] ?? ''}'.trim().toLowerCase();
       if (!_reviewStatuses.contains(status)) continue;
 
@@ -331,7 +337,11 @@ class TrustRiskCaseCard extends StatelessWidget {
     };
     final report = item.report;
     final listing = item.listing;
-    final reasonLabel = '${report['reasonLabel'] ?? report['reason'] ?? 'Safety report'}';
+    final listingUnitPrice = listing == null
+        ? null
+        : MarketplaceTrustRiskPolicy.normalizedUnitPrice(listing);
+    final reasonLabel =
+        '${report['reasonLabel'] ?? report['reason'] ?? 'Safety report'}';
     final source = '${report['source'] ?? 'user'}';
     final target = '${report['targetType'] ?? 'unknown'}';
 
@@ -425,9 +435,9 @@ class TrustRiskCaseCard extends StatelessWidget {
                       '${listing['title'] ?? 'Marketplace listing'}',
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
-                    if (MarketplaceTrustRiskPolicy.normalizedUnitPrice(listing) case final unitPrice?)
+                    if (listingUnitPrice != null)
                       Text(
-                        'Unit basis: ${_money(unitPrice, '${listing['currency'] ?? 'CAD'}')}',
+                        'Unit basis: ${_money(listingUnitPrice, '${listing['currency'] ?? 'CAD'}')}',
                         style: const TextStyle(color: Color(0xFF475569)),
                       ),
                     if ('${listing['category'] ?? ''}'.trim().isNotEmpty)
