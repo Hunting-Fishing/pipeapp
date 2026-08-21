@@ -61,7 +61,9 @@ class MarketplaceReputationSummary {
   factory MarketplaceReputationSummary.fromMap(Map<String, dynamic>? data) {
     final source = data ?? const <String, dynamic>{};
     final rawScore = source['reputationScore'];
-    final parsedScore = rawScore is num ? rawScore.round().clamp(0, 100) : null;
+    final parsedScore = rawScore is num
+        ? rawScore.round().clamp(0, 100).toInt()
+        : null;
     final rawAverage = source['reviewAverage'];
     return MarketplaceReputationSummary(
       score: parsedScore,
@@ -338,7 +340,9 @@ class _LegendRow extends StatelessWidget {
       );
 }
 
-int _safeInt(Object? value) => value is num ? value.round().clamp(0, 1 << 30) : 0;
+int _safeInt(Object? value) => value is num
+    ? value.round().clamp(0, 1 << 30).toInt()
+    : 0;
 
 String _titleCase(String value) {
   final words = value
