@@ -38,6 +38,9 @@ const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
+  createDispatchSubscriptionLifecycle,
+} = require("./dispatch_subscription_lifecycle");
+const {
   createDispatchSubscriptionStatus,
 } = require("./dispatch_subscription_status");
 const {
@@ -51,6 +54,9 @@ const {
   createStripeWebhookHandler,
   stripeWebhookSecret,
 } = require("./stripe_webhook");
+const {
+  createStripeWebhookDispatchLifecycleWrapper,
+} = require("./stripe_webhook_dispatch_lifecycle");
 
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
@@ -63,6 +69,7 @@ const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const dispatchSubscriptionLifecycle = createDispatchSubscriptionLifecycle(admin);
 const dispatchSubscriptionStatus = createDispatchSubscriptionStatus(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
@@ -71,8 +78,14 @@ const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
     marketplaceFinancialResolution,
 );
 const stripeDisputeResponse = createStripeDisputeResponse(admin);
-const stripeWebhookHandler = createStripeWebhookHandler(admin, {
+const baseStripeWebhookHandler = createStripeWebhookHandler(admin, {
   marketplaceFinancialResolution: marketplaceRefundWebhookGate,
+});
+const stripeWebhookHandler = createStripeWebhookDispatchLifecycleWrapper({
+  admin,
+  baseHandler: baseStripeWebhookHandler,
+  dispatchSubscriptionLifecycle,
+  stripeWebhookSecret,
 });
 
 async function updateMarketplaceTransactionWithFinancialGuard(request) {
