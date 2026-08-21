@@ -13,10 +13,8 @@ import 'marketplace_reputation_badge.dart';
 
 /// Functional action surface used by Dispatch Directory provider cards.
 ///
-/// The Directory itself stays privacy-bounded. Direct contact actions are
-/// populated only from fields the business explicitly publishes in
-/// `public_business_profiles/{uid}`. In-app messaging remains available when
-/// a business chooses not to publish phone/email.
+/// Direct contact actions come only from public fields the business explicitly
+/// publishes. In-app messaging remains available when phone/email are private.
 class MarketplaceDispatchDirectoryBusinessActions extends StatefulWidget {
   const MarketplaceDispatchDirectoryBusinessActions({
     super.key,
@@ -117,7 +115,7 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
     await showMarketplaceReportDialog(
       context,
       reportedUid: widget.providerUid,
-      targetType: 'profile',
+      targetType: 'user',
     );
   }
 
