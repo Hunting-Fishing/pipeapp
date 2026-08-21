@@ -224,14 +224,20 @@ function removeTopLevelClassLike(source, symbol, lineNumber) {
   if (!/^(?:class|enum|mixin|extension)\b/.test(line.trim())) {
     fail(`${symbol} is not a supported class-like declaration.`);
   }
-  const occurrences = countSymbol(source, symbol);
-  if (occurrences !== 1) {
-    fail(`${symbol} still has ${Math.max(0, occurrences - 1)} reference(s); refusing cleanup.`);
-  }
   const openBrace = source.indexOf('{', start);
   if (openBrace < 0) fail(`Could not locate the body for ${symbol}.`);
   const end = scanBalancedBlockEnd(source, openBrace);
   if (end < 0) fail(`Could not determine the end of ${symbol}.`);
+
+  // Constructors, named constructors, static factories and return types can
+  // legitimately repeat the class name inside the class body. They are not
+  // external consumers. Only occurrences outside the analyzer-proven unused
+  // declaration block are relevant when deciding whether removal is safe.
+  const outside = `${source.slice(0, start)}${source.slice(end)}`;
+  const externalOccurrences = countSymbol(outside, symbol);
+  if (externalOccurrences !== 0) {
+    fail(`${symbol} still has ${externalOccurrences} external reference(s); refusing cleanup.`);
+  }
   return normalizeGap(source, start, end);
 }
 
