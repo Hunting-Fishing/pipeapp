@@ -14,6 +14,9 @@ const {
   reusableCheckoutState,
   selectedPlan,
 } = require("../dispatch_subscription_commands");
+const {
+  membershipStatusPayload,
+} = require("../dispatch_subscription_status");
 
 test("subscription commission uses post-discount amount excluding tax", () => {
   assert.equal(invoiceCommissionBaseMinor({
@@ -131,4 +134,34 @@ test("Stripe idempotency key is stable for one server checkout attempt", () => {
       checkoutAttemptKey("user_123", 7),
       checkoutAttemptKey("user_123", 8),
   );
+});
+
+test("private status payload never reports an expired membership active", () => {
+  const now = 1_000_000;
+  assert.deepEqual(membershipStatusPayload(null, now), {
+    active: false,
+    status: "none",
+    plan: "",
+    currentPeriodStartMillis: null,
+    currentPeriodEndMillis: null,
+  });
+  assert.deepEqual(membershipStatusPayload({
+    active: true,
+    status: "active",
+    plan: "yearly",
+    currentPeriodStart: {toMillis: () => now - 5000},
+    currentPeriodEnd: {toMillis: () => now - 1},
+  }, now), {
+    active: false,
+    status: "active",
+    plan: "yearly",
+    currentPeriodStartMillis: now - 5000,
+    currentPeriodEndMillis: now - 1,
+  });
+  assert.equal(membershipStatusPayload({
+    active: true,
+    status: "active",
+    plan: "monthly",
+    currentPeriodEnd: {toMillis: () => now + 5000},
+  }, now).active, true);
 });
