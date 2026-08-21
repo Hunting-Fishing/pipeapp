@@ -5,11 +5,14 @@ const assert = require("node:assert/strict");
 const {
   dispatchSubscriptionLifecyclePatch,
   invoiceCommissionBaseMinor,
+  invoicePeriodBounds,
   subscriptionIdentityFromInvoice,
 } = require("../subscription_monetization");
 const {
   CHECKOUT_IDEMPOTENCY_WINDOW_MS,
+  CHECKOUT_SESSION_LIFETIME_MS,
   checkoutIdempotencyKey,
+  checkoutLockActive,
   couponFromEntitlement,
   selectedPlan,
   subscriptionPlanCatalog,
@@ -29,6 +32,22 @@ test("zero-dollar free invoices create a zero commission base", () => {
     total: 0,
     subtotal: 2500,
   }), 0);
+});
+
+test("subscription period uses the widest provider-authored invoice bounds", () => {
+  assert.deepEqual(invoicePeriodBounds({
+    period_start: 100,
+    period_end: 200,
+    lines: {
+      data: [
+        {period: {start: 90, end: 210}},
+        {period: {start: 110, end: 190}},
+      ],
+    },
+  }), {
+    startMillis: 90000,
+    endMillis: 210000,
+  });
 });
 
 test("reads immutable subscription metadata from invoice parent", () => {
@@ -102,6 +121,24 @@ test("duplicate checkout attempts share an idempotency key inside the window", (
       ),
   );
   assert.notEqual(first, checkoutIdempotencyKey("user_1", "yearly", start));
+});
+
+test("Dispatch checkout lock permits only one payable session window", () => {
+  const start = 2000000000000;
+  const lock = {
+    status: "open",
+    expiresAt: start + CHECKOUT_SESSION_LIFETIME_MS,
+  };
+  assert.equal(checkoutLockActive(lock, start), true);
+  assert.equal(
+      checkoutLockActive(lock, start + CHECKOUT_SESSION_LIFETIME_MS - 1),
+      true,
+  );
+  assert.equal(
+      checkoutLockActive(lock, start + CHECKOUT_SESSION_LIFETIME_MS),
+      false,
+  );
+  assert.equal(checkoutLockActive({...lock, status: "failed"}, start), false);
 });
 
 test("Stripe active status does not independently grant Dispatch access", () => {
