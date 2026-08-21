@@ -35,7 +35,7 @@ try {
         $url = $BaseUrl.TrimEnd('/') + $policy.Path
 
         try {
-            Invoke-WebRequest -Uri $url -OutFile $livePath -MaximumRedirection 5 | Out-Null
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $livePath -MaximumRedirection 5 | Out-Null
         } catch {
             Fail "Could not fetch $url. $($_.Exception.Message)"
         }
