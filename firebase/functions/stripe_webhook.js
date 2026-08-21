@@ -154,6 +154,14 @@ function createStripeWebhookHandler(admin, options = {}) {
   }
 
   async function markCheckoutFailure(session) {
+    if (billingType(session) === "dispatch_subscription") {
+      await db.collection("subscription_checkout_sessions")
+          .doc(String(session.id || "")).set({
+            status: "payment_failed",
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+      return;
+    }
     const transactionId = String(
         session && session.metadata &&
         session.metadata.pipeBuyerTransactionId || "",
@@ -429,6 +437,23 @@ function createStripeWebhookHandler(admin, options = {}) {
       await subscriptionMonetization.handleDispatchInvoicePaid(
           object,
           stripeSecretKey.value(),
+      );
+      return;
+    }
+    if (type === "invoice.payment_failed") {
+      await subscriptionMonetization.handleDispatchInvoicePaymentFailed(
+          object,
+          stripeSecretKey.value(),
+      );
+      return;
+    }
+    if ([
+      "customer.subscription.updated",
+      "customer.subscription.deleted",
+    ].includes(type)) {
+      await subscriptionMonetization.handleDispatchSubscriptionChanged(
+          object,
+          type,
       );
       return;
     }
