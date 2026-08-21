@@ -32,7 +32,7 @@ void main() {
       "tooltip: 'Email published business address'",
       "tooltip: 'Open business website'",
       "title: Text('Report Business')",
-      "targetType: 'profile'",
+      "targetType: 'user'",
       'GET QUOTE REQUEST',
     ]) {
       expect(actions, contains(marker), reason: 'Missing action marker: $marker');
