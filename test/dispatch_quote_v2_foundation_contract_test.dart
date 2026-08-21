@@ -19,11 +19,18 @@ void main() {
     expect(page, contains('MarketplaceDispatchQuoteForm.show('));
     expect(dashboard, contains('MarketplaceDispatchQuoteForm.show('));
     expect(page, isNot(contains("labelText: 'All-in transport price'")));
+    expect(page, isNot(contains("labelText: 'Truck assigned to this bid'")));
     expect(
       page,
-      isNot(contains('IconData _vehicleTypeFallbackIcon(')),
+      contains('IconData _vehicleTypeFallbackIcon('),
       reason:
-          'The legacy vehicle-icon helper was only used by the retired Jobs quote dialog and must not survive Quote V2 migration.',
+          'The vehicle-icon helper is still used by fleet management and must not be classified as Quote V1-only code.',
+    );
+    expect(
+      page,
+      contains('_vehicleTypeFallbackIcon(value)'),
+      reason:
+          'Fleet vehicle-type selection still consumes the shared vehicle icon helper.',
     );
     expect(
       dashboard,
