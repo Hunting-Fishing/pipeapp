@@ -1,5 +1,44 @@
 import 'package:flutter/material.dart';
 
+enum ClientReadinessStatus {
+  substantiallyComplete,
+  inProgress,
+  activeSeparateBranch,
+  future,
+}
+
+class ClientReadinessWorkstream {
+  const ClientReadinessWorkstream({
+    required this.title,
+    required this.percent,
+    required this.status,
+    required this.summary,
+    required this.remaining,
+    this.parallelNote,
+  });
+
+  final String title;
+  final int percent;
+  final ClientReadinessStatus status;
+  final String summary;
+  final String remaining;
+  final String? parallelNote;
+}
+
+class ClientPriorityOption {
+  const ClientPriorityOption({
+    required this.rank,
+    required this.title,
+    required this.description,
+    required this.state,
+  });
+
+  final int rank;
+  final String title;
+  final String description;
+  final String state;
+}
+
 /// Client-facing project progress snapshot.
 ///
 /// This screen is intentionally read-only. It does not query or mutate payment,
@@ -13,65 +52,65 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
   static const foundationCompletion = 95;
   static const softLaunchReadiness = 80;
 
-  static const workstreams = <_ReadinessWorkstream>[
-    _ReadinessWorkstream(
+  static const workstreams = <ClientReadinessWorkstream>[
+    ClientReadinessWorkstream(
       title: 'Firebase / Backend / Security',
       percent: 95,
-      status: _ReadinessStatus.substantiallyComplete,
+      status: ClientReadinessStatus.substantiallyComplete,
       summary:
           'Authentication, Firestore, Storage, Functions, App Check, rules, emulator tooling and controlled release foundations are substantially built.',
       remaining:
           'Reconcile active branches, restore dependable CI execution, and rerun the exact release gate.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Accounts / Profiles / Admin',
       percent: 92,
-      status: _ReadinessStatus.substantiallyComplete,
+      status: ClientReadinessStatus.substantiallyComplete,
       summary:
           'Personal/business profiles, identity verification, MFA-capable admin access, recovery, deletion and export foundations are in place.',
       remaining:
           'Physical-device MFA acceptance and final multi-account soft-launch verification.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Marketplace / Listings',
       percent: 92,
-      status: _ReadinessStatus.substantiallyComplete,
+      status: ClientReadinessStatus.substantiallyComplete,
       summary:
           'Pipe, equipment, buildings, vehicles, listing lifecycle, media, saved listings and owner controls are substantially implemented.',
       remaining:
           'Reconcile the current behavior stack and finish formal UI integration and acceptance.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Search / Filters / Discovery',
       percent: 90,
-      status: _ReadinessStatus.substantiallyComplete,
+      status: ClientReadinessStatus.substantiallyComplete,
       summary:
           'Indexed search, structured filtering, sorting, pagination, map discovery and approximate geography are implemented.',
       remaining:
           'Radius/geospatial indexing, current backfill verification and representative-volume acceptance.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Wanted Ads / Smart Matching',
       percent: 90,
-      status: _ReadinessStatus.substantiallyComplete,
+      status: ClientReadinessStatus.substantiallyComplete,
       summary:
           'Wanted lifecycle, ranked matching, explainable scoring, privacy and notifications are substantially built.',
       remaining:
           'Match-quality review, saved structured criteria and full end-user acceptance.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Offers / Transactions',
       percent: 88,
-      status: _ReadinessStatus.inProgress,
+      status: ClientReadinessStatus.inProgress,
       summary:
           'Offer, counteroffer, acceptance, privacy, history and transaction-generation foundations are built.',
       remaining:
           'Reconcile Smart Offers, formal Deal Room integration and final settlement/device acceptance.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Messaging / Deal Room',
       percent: 85,
-      status: _ReadinessStatus.inProgress,
+      status: ClientReadinessStatus.inProgress,
       summary:
           'Conversations, listing context, notifications, attachment foundations and offer relationships are built.',
       remaining:
@@ -79,28 +118,28 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       parallelNote:
           'Do not start a competing Messaging branch while PR #82 and PR #84 still own this surface.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Anti-Scam / Trust / Moderation',
       percent: 82,
-      status: _ReadinessStatus.inProgress,
+      status: ClientReadinessStatus.inProgress,
       summary:
           'Reporting, moderation commands, evidence, appeals, support cases and basic risk policy foundations are in place.',
       remaining:
           'Perceptual-image matching, cross-account/device signals, suspicious pricing and payment-risk scoring.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Trucking / Dispatch',
       percent: 82,
-      status: _ReadinessStatus.inProgress,
+      status: ClientReadinessStatus.inProgress,
       summary:
           'Requests, load board, providers, quotes, bids, awards, service areas and job lifecycle foundations are built.',
       remaining:
           'Routing acceptance, saved lanes, capacity matching, proof/signatures and final non-payment workflow acceptance.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Stripe / Payments / Tax',
       percent: 75,
-      status: _ReadinessStatus.activeSeparateBranch,
+      status: ClientReadinessStatus.activeSeparateBranch,
       summary:
           'Stripe Billing, Connect, fee collection, webhooks, payment-readiness gates, refunds/disputes and tax controls have substantial foundations.',
       remaining:
@@ -108,46 +147,45 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       parallelNote:
           'ACTIVE SEPARATE WORKSTREAM — keep scoreboard changes out of payment files and PR #87.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Formal Product UI Integration',
       percent: 70,
-      status: _ReadinessStatus.inProgress,
+      status: ClientReadinessStatus.inProgress,
       summary:
           'Formal Home, Browse, Listing, Create Listing, Deal Room, Dispatch and Buyer/Seller Center components exist.',
       remaining:
           'Wire them around the reconciled behavior stack without replacing newer logic.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Mobile / Store Release',
       percent: 65,
-      status: _ReadinessStatus.inProgress,
+      status: ClientReadinessStatus.inProgress,
       summary:
           'Mobile layouts, release foundations and prior signed artifacts exist.',
       remaining:
           'Exact release-candidate builds, current physical-device acceptance and store submission/final release gates.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Analytics / Market Intelligence',
       percent: 48,
-      status: _ReadinessStatus.future,
-      summary:
-          'Basic Marketplace analytics surfaces exist.',
+      status: ClientReadinessStatus.future,
+      summary: 'Basic Marketplace analytics surfaces exist.',
       remaining:
           'Versioned definitions, server aggregation, data-quality tests, regional demand, price trends and seller conversion intelligence.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'Verified Catalog Intelligence',
       percent: 46,
-      status: _ReadinessStatus.future,
+      status: ClientReadinessStatus.future,
       summary:
           'Pipe/equipment data structures and some calculation foundations exist.',
       remaining:
           'Verified specifications, source attribution, confidence scoring, approval history and broad catalog coverage.',
     ),
-    _ReadinessWorkstream(
+    ClientReadinessWorkstream(
       title: 'International Expansion',
       percent: 20,
-      status: _ReadinessStatus.future,
+      status: ClientReadinessStatus.future,
       summary:
           'The architecture is intended for international growth and location/currency foundations have begun.',
       remaining:
@@ -155,36 +193,36 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
     ),
   ];
 
-  static const nextPriorityOptions = <_PriorityOption>[
-    _PriorityOption(
+  static const nextPriorityOptions = <ClientPriorityOption>[
+    ClientPriorityOption(
       rank: 1,
       title: 'Release-candidate reconciliation',
       description:
           'Resolve the active behavior stack and produce one exact, testable release candidate before adding broad new behavior.',
       state: 'Mandatory foundation',
     ),
-    _PriorityOption(
+    ClientPriorityOption(
       rank: 2,
       title: 'Messaging / Deal Room',
       description:
           'High customer value, but wait for PR #82 / PR #84 reconciliation before creating another implementation branch.',
       state: 'Queued behind active PRs',
     ),
-    _PriorityOption(
+    ClientPriorityOption(
       rank: 3,
       title: 'Mobile acceptance & soft launch',
       description:
           'Run real buyer, seller, carrier and administrator journeys on physical devices against the reconciled candidate.',
       state: 'Safe parallel planning',
     ),
-    _PriorityOption(
+    ClientPriorityOption(
       rank: 4,
       title: 'Advanced Anti-Scam / Trust',
       description:
           'Add image similarity, suspicious-price and relationship-risk intelligence after core release stability.',
       state: 'Independent future branch',
     ),
-    _PriorityOption(
+    ClientPriorityOption(
       rank: 5,
       title: 'Analytics / Market Intelligence',
       description:
@@ -193,18 +231,18 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
     ),
   ];
 
-  Color _statusColor(_ReadinessStatus status) => switch (status) {
-        _ReadinessStatus.substantiallyComplete => const Color(0xFF15803D),
-        _ReadinessStatus.inProgress => const Color(0xFFD97706),
-        _ReadinessStatus.activeSeparateBranch => const Color(0xFF2563EB),
-        _ReadinessStatus.future => const Color(0xFF64748B),
+  static Color statusColor(ClientReadinessStatus status) => switch (status) {
+        ClientReadinessStatus.substantiallyComplete => const Color(0xFF15803D),
+        ClientReadinessStatus.inProgress => const Color(0xFFD97706),
+        ClientReadinessStatus.activeSeparateBranch => const Color(0xFF2563EB),
+        ClientReadinessStatus.future => const Color(0xFF64748B),
       };
 
-  String _statusLabel(_ReadinessStatus status) => switch (status) {
-        _ReadinessStatus.substantiallyComplete => 'SUBSTANTIALLY COMPLETE',
-        _ReadinessStatus.inProgress => 'IN PROGRESS',
-        _ReadinessStatus.activeSeparateBranch => 'ACTIVE SEPARATE BRANCH',
-        _ReadinessStatus.future => 'FUTURE / NOT COMPLETE',
+  static String statusLabel(ClientReadinessStatus status) => switch (status) {
+        ClientReadinessStatus.substantiallyComplete => 'SUBSTANTIALLY COMPLETE',
+        ClientReadinessStatus.inProgress => 'IN PROGRESS',
+        ClientReadinessStatus.activeSeparateBranch => 'ACTIVE SEPARATE BRANCH',
+        ClientReadinessStatus.future => 'FUTURE / NOT COMPLETE',
       };
 
   @override
@@ -222,14 +260,13 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
               40,
             ),
             children: [
-              _hero(context),
+              const _ScoreboardHero(),
               const SizedBox(height: 18),
-              _summaryMetrics(desktop),
+              _MetricGrid(desktop: desktop),
               const SizedBox(height: 18),
-              _parallelWorkBanner(context),
+              const _ParallelWorkBanner(),
               const SizedBox(height: 26),
-              _sectionHeader(
-                context,
+              const _SectionHeader(
                 title: 'Project workstream scoreboard',
                 subtitle:
                     'Audit snapshot, not live telemetry. Percentages are working estimates based on implemented behavior, verification and remaining launch acceptance.',
@@ -239,12 +276,11 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
               ...workstreams.map(
                 (workstream) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _workstreamCard(context, workstream),
+                  child: _WorkstreamCard(workstream: workstream),
                 ),
               ),
               const SizedBox(height: 16),
-              _sectionHeader(
-                context,
+              const _SectionHeader(
                 title: 'Recommended client priority order',
                 subtitle:
                     'These are intentionally sequenced to reduce merge collisions and avoid destabilizing payment work.',
@@ -254,19 +290,24 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
               ...nextPriorityOptions.map(
                 (priority) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _priorityCard(context, priority),
+                  child: _PriorityCard(priority: priority),
                 ),
               ),
               const SizedBox(height: 18),
-              _definitionOfDone(context),
+              const _DefinitionOfDone(),
             ],
           );
         },
       ),
     );
   }
+}
 
-  Widget _hero(BuildContext context) {
+class _ScoreboardHero extends StatelessWidget {
+  const _ScoreboardHero();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -283,7 +324,7 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
           final title = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _Pill(
+              const _StatusTag(
                 label: 'CLIENT-READY PROJECT SNAPSHOT',
                 icon: Icons.fact_check_outlined,
                 color: Color(0xFFFF6A00),
@@ -303,7 +344,7 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Audit date: $auditDate',
+                'Audit date: ${MarketplaceClientReadinessScoreboard.auditDate}',
                 style: TextStyle(
                   color: Color(0xFFFFB47A),
                   fontWeight: FontWeight.w800,
@@ -311,7 +352,6 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
               ),
             ],
           );
-
           final gauge = Container(
             width: compact ? double.infinity : 190,
             padding: const EdgeInsets.all(18),
@@ -323,7 +363,7 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
             child: const Column(
               children: [
                 Text(
-                  '$overallCompletion%',
+                  '${MarketplaceClientReadinessScoreboard.overallCompletion}%',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 42,
@@ -339,7 +379,6 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
               ],
             ),
           );
-
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -347,7 +386,6 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
             );
           }
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(child: title),
               const SizedBox(width: 22),
@@ -358,24 +396,31 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _summaryMetrics(bool desktop) {
+class _MetricGrid extends StatelessWidget {
+  const _MetricGrid({required this.desktop});
+
+  final bool desktop;
+
+  @override
+  Widget build(BuildContext context) {
     const cards = [
-      _Metric(
+      _MetricData(
         label: 'Overall project',
-        value: '$overallCompletion%',
+        value: '${MarketplaceClientReadinessScoreboard.overallCompletion}%',
         caption: 'Current working estimate',
         icon: Icons.donut_large_outlined,
       ),
-      _Metric(
+      _MetricData(
         label: 'Core foundation',
-        value: '$foundationCompletion%',
+        value: '${MarketplaceClientReadinessScoreboard.foundationCompletion}%',
         caption: 'Backend / platform foundation',
         icon: Icons.foundation_outlined,
       ),
-      _Metric(
+      _MetricData(
         label: 'Soft-launch readiness',
-        value: '~$softLaunchReadiness%',
+        value: '~${MarketplaceClientReadinessScoreboard.softLaunchReadiness}%',
         caption: 'Controlled colleague testing',
         icon: Icons.rocket_launch_outlined,
       ),
@@ -389,14 +434,40 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: cards
-              .map((metric) => SizedBox(width: width, child: _metricCard(metric)))
+              .map(
+                (metric) => SizedBox(
+                  width: width,
+                  child: _MetricCard(metric: metric),
+                ),
+              )
               .toList(growable: false),
         );
       },
     );
   }
+}
 
-  Widget _metricCard(_Metric metric) {
+class _MetricData {
+  const _MetricData({
+    required this.label,
+    required this.value,
+    required this.caption,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final String caption;
+  final IconData icon;
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.metric});
+
+  final _MetricData metric;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -443,8 +514,13 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _parallelWorkBanner(BuildContext context) {
+class _ParallelWorkBanner extends StatelessWidget {
+  const _ParallelWorkBanner();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -467,13 +543,21 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _sectionHeader(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -500,9 +584,18 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       ],
     );
   }
+}
 
-  Widget _workstreamCard(BuildContext context, _ReadinessWorkstream workstream) {
-    final color = _statusColor(workstream.status);
+class _WorkstreamCard extends StatelessWidget {
+  const _WorkstreamCard({required this.workstream});
+
+  final ClientReadinessWorkstream workstream;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = MarketplaceClientReadinessScoreboard.statusColor(
+      workstream.status,
+    );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -544,15 +637,18 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
             backgroundColor: color.withValues(alpha: .10),
           ),
           const SizedBox(height: 10),
-          _Pill(
-            label: _statusLabel(workstream.status),
-            icon: workstream.status == _ReadinessStatus.substantiallyComplete
-                ? Icons.check_circle_outline
-                : workstream.status == _ReadinessStatus.activeSeparateBranch
-                    ? Icons.call_split_outlined
-                    : workstream.status == _ReadinessStatus.future
-                        ? Icons.schedule_outlined
-                        : Icons.construction_outlined,
+          _StatusTag(
+            label: MarketplaceClientReadinessScoreboard.statusLabel(
+              workstream.status,
+            ),
+            icon: switch (workstream.status) {
+              ClientReadinessStatus.substantiallyComplete =>
+                Icons.check_circle_outline,
+              ClientReadinessStatus.activeSeparateBranch =>
+                Icons.call_split_outlined,
+              ClientReadinessStatus.future => Icons.schedule_outlined,
+              ClientReadinessStatus.inProgress => Icons.construction_outlined,
+            },
             color: color,
           ),
           const SizedBox(height: 12),
@@ -589,8 +685,15 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _priorityCard(BuildContext context, _PriorityOption priority) {
+class _PriorityCard extends StatelessWidget {
+  const _PriorityCard({required this.priority});
+
+  final ClientPriorityOption priority;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -648,15 +751,21 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _definitionOfDone(BuildContext context) {
-    const items = [
-      'One reconciled release candidate is identified by exact commit SHA.',
-      'Automated Flutter/Firebase gates pass or a documented infrastructure blocker is recorded.',
-      'Buyer, seller, Messaging, Dispatch and administrator journeys pass controlled acceptance.',
-      'Payment work remains governed by its separate readiness and reconciliation gates.',
-      'Every material repair records root cause, exact fix, verification and commit/PR.',
-    ];
+class _DefinitionOfDone extends StatelessWidget {
+  const _DefinitionOfDone();
+
+  static const items = [
+    'One reconciled release candidate is identified by exact commit SHA.',
+    'Automated Flutter/Firebase gates pass or a documented infrastructure blocker is recorded.',
+    'Buyer, seller, Messaging, Dispatch and administrator journeys pass controlled acceptance.',
+    'Payment work remains governed by its separate readiness and reconciliation gates.',
+    'Every material repair records root cause, exact fix, verification and commit/PR.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -702,61 +811,8 @@ class MarketplaceClientReadinessScoreboard extends StatelessWidget {
   }
 }
 
-enum _ReadinessStatus {
-  substantiallyComplete,
-  inProgress,
-  activeSeparateBranch,
-  future,
-}
-
-class _ReadinessWorkstream {
-  const _ReadinessWorkstream({
-    required this.title,
-    required this.percent,
-    required this.status,
-    required this.summary,
-    required this.remaining,
-    this.parallelNote,
-  });
-
-  final String title;
-  final int percent;
-  final _ReadinessStatus status;
-  final String summary;
-  final String remaining;
-  final String? parallelNote;
-}
-
-class _PriorityOption {
-  const _PriorityOption({
-    required this.rank,
-    required this.title,
-    required this.description,
-    required this.state,
-  });
-
-  final int rank;
-  final String title;
-  final String description;
-  final String state;
-}
-
-class _Metric {
-  const _Metric({
-    required this.label,
-    required this.value,
-    required this.caption,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final String caption;
-  final IconData icon;
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({
+class _StatusTag extends StatelessWidget {
+  const _StatusTag({
     required this.label,
     required this.icon,
     required this.color,
@@ -780,15 +836,13 @@ class _Pill extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: color),
           const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .35,
-              ),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: .35,
             ),
           ),
         ],
