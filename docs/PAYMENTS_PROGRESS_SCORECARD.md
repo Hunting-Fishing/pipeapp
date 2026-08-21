@@ -28,24 +28,24 @@ This is the operational percentage/checkoff dashboard for payment readiness. The
 | --- | ---: | ---: | ---: | --- |
 | P0 — Financial / legal truth | 20 | 28 | **71%** | Branch truth repaired; updated Terms/Privacy still need live deployment + publication |
 | P1 — Stripe/webhook integrity | 10 | 15 | **67%** | Live baseline good; expanded event catalog awaits deployed-handler acceptance |
-| P2 — Dispatch subscriptions | 13 | 63 | **21%** | **~68% verified + implemented**; local no-GitHub release path now exists |
+| P2 — Dispatch subscriptions | 13 | 64 | **20%** | **~69% verified + implemented**; local no-GitHub release path now exists |
 | P3 — External-settlement Marketplace fee | 4 | 15 | **27%** | Second revenue target; not active |
 | P4 — Full Marketplace Checkout / Connect | 7 | 19 | **37%** | Gated; do not activate |
-| P5 — Tax readiness | 0 | 12 | **0%** | Commercial/tax launch gate |
+| P5 — Tax readiness | 0 | 13 | **0%** | Pending registration is status only; separate billing approval now required if tax is not ready |
 | P6 — Refunds/disputes/seller recovery | 2 | 11 | **18%** | Foundation exists; acceptance pending |
 | P7 — Reconciliation/accounting | 0 | 17 | **0%** | Operational completion required |
-| **TOTAL** | **56** | **180** | **31%** | Overall verified payments checklist |
+| **TOTAL** | **56** | **182** | **31%** | Overall verified payments checklist |
 
-> **Important:** the decrease from 32% to 31% is intentional. We discovered missing live legal/payment-consent and no-Actions release controls and added them to scope instead of hiding them.
+> **Important:** percentages may decrease when a real missing launch requirement is found. The denominator expands instead of hiding new work.
 
 ## P2 engineering implementation view
 
-Current P2 scope: **63 acceptance items**.
+Current P2 scope: **64 acceptance items**.
 
-- Verified complete: **13 / 63 = 21%**
-- Additional items implemented in Draft PR #88 but awaiting deployment/provider acceptance: **30**
-- Verified + implemented coverage: **43 / 63 = 68%**
-- Not yet implemented/accepted: **20 / 63 = 32%**
+- Verified complete: **13 / 64 = 20%**
+- Additional items implemented in Draft PR #88 but awaiting deployment/provider acceptance: **31**
+- Verified + implemented coverage: **44 / 64 = 69%**
+- Not yet implemented/accepted: **20 / 64 = 31%**
 
 ---
 
@@ -131,6 +131,8 @@ Current live-site problem discovered 2026-08-22: the public Terms still describe
 - [ ] Current paid membership blocks another checkout.
 - [ ] Existing nonterminal Stripe subscription blocks another checkout even before entitlement exists.
 - [ ] Current policy acceptance is checked before the provider-state guard can allow a paid Checkout when policy enforcement is enabled.
+- [ ] Catalog/UI identifies stale policy acceptance and sends the user to Policy Center rather than presenting a generic payment hold.
+- [ ] Pending tax registration alone cannot authorize Dispatch billing; if Stripe Tax is not ready, `stripeTaxPendingBillingApproved=true` is separately required and audit-trailed through readiness administration.
 - [ ] `checkout.session.completed` records provider subscription existence without granting access.
 - [ ] `invoice.paid` creates/extends `dispatch_memberships/{uid}`.
 - [ ] Paid entitlement never shortens an existing paid-through date.
@@ -161,6 +163,7 @@ Current live-site problem discovered 2026-08-22: the public Terms still describe
 - [ ] Publish updated Terms/Privacy and prove stale-version reacceptance.
 - [ ] Read actual production `platform_configuration/payment_provider_readiness` values and revision.
 - [ ] Confirm intended `stripeMode`, `stripeSubscriptionsEnabled`, `stripeWebhookVerified`, `stripeReconciliationReady`, tax state and URLs.
+- [ ] Verify the real tax posture before launch: either Stripe Tax-ready or documented approval for pending-registration billing. The software must not infer this from the registration application alone.
 - [ ] Verify `https://www.pipebuyer.com/payments/success`, `/payments/cancel`, and `/payments/dispatch` after hosting deployment.
 - [ ] Deploy current Dispatch Functions from the validated commit.
 - [ ] Signed deployed-webhook probe passes.
@@ -183,6 +186,24 @@ P2 definition of done: a carrier on the approved web purchase surface can review
 
 ---
 
+# P5 — Tax readiness
+
+- [ ] Determine and record Pipe Buyer's actual GST/HST registration/effective-date position and any U.S. sales-tax obligations applicable to the first launch surface.
+- [ ] Stripe Tax registration/state verified for jurisdictions where collection is required.
+- [ ] `stripeTaxReady=true` only after provider/legal evidence exists.
+- [ ] If tax registration is pending and billing before registration is legally/accountingly approved, record that decision separately through `stripeTaxPendingBillingApproved=true` with a specific audited reason.
+- [ ] Pending registration without the separate approval must fail closed for Dispatch subscription and Marketplace-fee billing.
+- [ ] Automatic tax remains OFF while `stripeTaxReady=false`.
+- [ ] Provisional tax reserve behavior reconciled for any specifically approved pending-registration billing period.
+- [ ] Effective-date transition from pending approval to registered/Stripe Tax-ready is tested without double collection or missed collection.
+- [ ] Customer invoice tax presentation verified.
+- [ ] Tax amounts reconcile to Stripe/provider and Pipe Buyer accounting records.
+- [ ] Exemption/registration workflows verified where applicable.
+- [ ] Tax recovery/remediation path verified for errors.
+- [ ] Tax evidence and approval references recorded in the detailed tracker before revenue activation.
+
+---
+
 # Revenue activation sequence — no GitHub billing required
 
 1. [ ] Run `scripts/payments/dispatch_revenue_local_release.sh validate`.
@@ -192,11 +213,12 @@ P2 definition of done: a carrier on the approved web purchase surface can review
 5. [ ] Enable exact-version policy enforcement through `setPolicyEnforcement` with an approval record.
 6. [ ] Run controlled local Functions deployment from the validated commit.
 7. [ ] Read and record live payment-readiness values before changing them.
-8. [ ] Create/review the narrow Stripe Customer Portal configuration; keep Pipe Buyer Portal flag OFF until reviewed.
-9. [ ] Run signed webhook probe, then synchronize the expanded live event catalog.
-10. [ ] Run controlled Monthly/Yearly/free-promotion/renewal/failure/cancellation tests.
-11. [ ] Reconcile provider invoice/payment to Firestore membership/invoice/ledger state.
-12. [ ] Only then enable the narrow web Dispatch subscription readiness profile. Keep full Marketplace Checkout and affiliate cash payouts OFF.
+8. [ ] Resolve the tax gate: Stripe Tax-ready, or separately documented/audited pending-registration billing approval if applicable. Do not use `registration_pending` alone.
+9. [ ] Create/review the narrow Stripe Customer Portal configuration; keep Pipe Buyer Portal flag OFF until reviewed.
+10. [ ] Run signed webhook probe, then synchronize the expanded live event catalog.
+11. [ ] Run controlled Monthly/Yearly/free-promotion/renewal/failure/cancellation tests.
+12. [ ] Reconcile provider invoice/payment to Firestore membership/invoice/ledger state.
+13. [ ] Only then enable the narrow web Dispatch subscription readiness profile. Keep full Marketplace Checkout and affiliate cash payouts OFF.
 
 ---
 
@@ -208,13 +230,17 @@ P2 definition of done: a carrier on the approved web purchase surface can review
 - [x] Discovered public Terms still contained obsolete pilot pricing and billing-inactive statement; recorded as launch blocker.
 - [x] Updated branch Terms and Privacy for current Stripe Dispatch billing model; live deployment/publication still pending.
 - [x] Added current-policy acceptance check to Dispatch paid Checkout provider guard.
+- [x] Added reusable exact-version policy status so billing UI can distinguish a policy-review requirement from a generic provider hold.
+- [x] Updated both Dispatch billing surfaces to route stale-policy users to Policy Center and refresh eligibility after review.
 - [x] Added guarded local Functions release/probe script.
 - [x] Added guarded local Firebase Hosting/legal release script.
 - [x] Added guarded local live Stripe webhook synchronization script.
 - [x] Added guarded local Stripe Customer Portal configuration creation script.
 - [x] Removed three stale GitHub billing activation workflows that could write obsolete URLs/readiness state.
 - [x] Reclassified GitHub-hosted Actions as optional secondary assurance rather than a mandatory Stripe activation dependency.
-- [x] Scope expanded honestly; overall verified score is now **31%**, Dispatch verified **21%**, Dispatch verified + implemented **~68%**.
+- [x] Repaired tax readiness semantics: `stripeTaxRegistrationPending` is no longer billing authority; a separate audited `stripeTaxPendingBillingApproved` gate is required when tax is not ready.
+- [x] Added/updated tests for exact policy version/hash acceptance and the pending-tax approval separation.
+- [x] Scope expanded honestly; overall verified score remains **31%**, Dispatch verified is **20%**, Dispatch verified + implemented is **~69%**.
 
 ## 2026-08-21
 
