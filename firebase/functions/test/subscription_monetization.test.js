@@ -7,8 +7,11 @@ const {
   subscriptionIdentityFromInvoice,
 } = require("../subscription_monetization");
 const {
+  CHECKOUT_IDEMPOTENCY_WINDOW_MS,
+  checkoutIdempotencyKey,
   couponFromEntitlement,
   selectedPlan,
+  subscriptionPlanCatalog,
 } = require("../dispatch_subscription_commands");
 
 test("subscription commission uses post-discount amount excluding tax", () => {
@@ -62,4 +65,40 @@ test("Dispatch plan accepts only monthly and yearly", () => {
   assert.equal(selectedPlan("MONTHLY"), "monthly");
   assert.equal(selectedPlan("yearly"), "yearly");
   assert.throws(() => selectedPlan("lifetime"));
+});
+
+test("Dispatch pricing catalog reflects the server-owned live CAD plans", () => {
+  const catalog = subscriptionPlanCatalog();
+  assert.deepEqual(catalog.monthly, {
+    currency: "CAD",
+    amountMinor: 2500,
+    amount: 25,
+    interval: "month",
+  });
+  assert.deepEqual(catalog.yearly, {
+    currency: "CAD",
+    amountMinor: 30000,
+    amount: 300,
+    interval: "year",
+  });
+});
+
+test("duplicate checkout attempts share an idempotency key inside the window", () => {
+  const start = 2000000000000;
+  const first = checkoutIdempotencyKey("user_1", "monthly", start);
+  const retry = checkoutIdempotencyKey(
+      "user_1",
+      "monthly",
+      start + CHECKOUT_IDEMPOTENCY_WINDOW_MS - 1,
+  );
+  assert.equal(first, retry);
+  assert.notEqual(
+      first,
+      checkoutIdempotencyKey(
+          "user_1",
+          "monthly",
+          start + CHECKOUT_IDEMPOTENCY_WINDOW_MS,
+      ),
+  );
+  assert.notEqual(first, checkoutIdempotencyKey("user_1", "yearly", start));
 });
