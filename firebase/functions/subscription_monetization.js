@@ -44,6 +44,29 @@ function invoiceCommissionBaseMinor(invoice) {
     Math.max(0, subtotal - discounts) : 0;
 }
 
+function invoicePeriodBounds(invoice) {
+  const starts = [];
+  const ends = [];
+  const collect = (startValue, endValue) => {
+    const start = Number(startValue || 0);
+    const end = Number(endValue || 0);
+    if (Number.isFinite(start) && start > 0) starts.push(start);
+    if (Number.isFinite(end) && end > 0) ends.push(end);
+  };
+  collect(invoice && invoice.period_start, invoice && invoice.period_end);
+  const lines = invoice && invoice.lines && invoice.lines.data;
+  if (Array.isArray(lines)) {
+    for (const line of lines) {
+      collect(line && line.period && line.period.start,
+          line && line.period && line.period.end);
+    }
+  }
+  return Object.freeze({
+    startMillis: starts.length ? Math.min(...starts) * 1000 : null,
+    endMillis: ends.length ? Math.max(...ends) * 1000 : null,
+  });
+}
+
 function subscriptionIdentityFromInvoice(invoice) {
   const parent = invoice && invoice.parent;
   const details = parent && parent.subscription_details;
@@ -98,6 +121,13 @@ function dispatchSubscriptionLifecyclePatch(subscription, eventType) {
   });
 }
 
+function timestampMillis(value) {
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 function createSubscriptionMonetization(admin, stripeConfig) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -147,10 +177,12 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const commissionMinor = Math.floor(
         baseMinor * SUBSCRIPTION_AFFILIATE_SHARE_BPS / BASIS_POINTS,
     );
+    const period = invoicePeriodBounds(invoice);
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
     const userRef = uid ? db.collection("users").doc(uid) : null;
+    const membershipRef = uid ? db.collection("dispatch_memberships").doc(uid) : null;
     const sourceChargeId = sourceChargeFromInvoice(invoice);
     const eligibleAfter = Timestamp.fromMillis(
         Date.now() + SUBSCRIPTION_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
@@ -159,6 +191,14 @@ function createSubscriptionMonetization(admin, stripeConfig) {
       const existingInvoice = await transaction.get(invoiceRef);
       const existingCommission = referrerUid && commissionMinor > 0 ?
         await transaction.get(commissionRef) : null;
+      const existingMembership = membershipRef ?
+        await transaction.get(membershipRef) : null;
+      const currentMembershipEnd = existingMembership && existingMembership.exists ?
+        timestampMillis(existingMembership.data().currentPeriodEnd) : 0;
+      const shouldAdvanceMembership = period.endMillis != null &&
+        period.endMillis >= currentMembershipEnd;
+      const periodActive = period.endMillis != null && period.endMillis > Date.now();
+
       transaction.set(invoiceRef, {
         invoiceId,
         subscriptionId,
@@ -175,6 +215,8 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           "provisional_pending_cra" :
           "not_required",
         sourceChargeId: sourceChargeId || null,
+        periodStart: period.startMillis ? Timestamp.fromMillis(period.startMillis) : null,
+        periodEnd: period.endMillis ? Timestamp.fromMillis(period.endMillis) : null,
         status: "paid",
         paidAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -182,14 +224,40 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
         }),
       }, {merge: true});
-      if (userRef) {
+
+      if (membershipRef && shouldAdvanceMembership) {
+        transaction.set(membershipRef, {
+          ownerUid: uid,
+          active: periodActive,
+          status: periodActive ? "active" : "expired",
+          paymentStatus: "paid",
+          paymentProblem: false,
+          plan,
+          subscriptionId,
+          currentPeriodStart: period.startMillis ?
+            Timestamp.fromMillis(period.startMillis) : null,
+          currentPeriodEnd: Timestamp.fromMillis(period.endMillis),
+          lastPaidInvoiceId: invoiceId,
+          currency: String(invoice.currency || "cad").toUpperCase(),
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(existingMembership && existingMembership.exists ? {} : {
+            createdAt: FieldValue.serverTimestamp(),
+          }),
+        }, {merge: true});
+      }
+
+      if (userRef && shouldAdvanceMembership) {
         transaction.set(userRef, {
-          dispatchSubscriptionStatus: "active",
-          dispatchSubscriptionActive: true,
+          dispatchSubscriptionStatus: periodActive ? "active" : "expired",
+          dispatchSubscriptionActive: periodActive,
           dispatchSubscriptionPaymentStatus: "paid",
           dispatchSubscriptionPaymentProblem: false,
           dispatchSubscriptionPlan: plan || null,
           stripeDispatchSubscriptionId: subscriptionId,
+          dispatchSubscriptionCurrentPeriodStart: period.startMillis ?
+            Timestamp.fromMillis(period.startMillis) : null,
+          dispatchSubscriptionCurrentPeriodEnd:
+            Timestamp.fromMillis(period.endMillis),
           dispatchSubscriptionLastInvoiceId: invoiceId,
           dispatchSubscriptionLastAmountPaidMinor: Number(invoice.amount_paid || 0),
           dispatchSubscriptionCurrency:
@@ -198,7 +266,19 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           dispatchSubscriptionLastPaidAt: FieldValue.serverTimestamp(),
           dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
+      } else if (userRef && period.endMillis == null) {
+        transaction.set(userRef, {
+          dispatchSubscriptionStatus: "payment_recorded_pending_period",
+          dispatchSubscriptionActive: false,
+          dispatchSubscriptionPaymentStatus: "paid",
+          dispatchSubscriptionPaymentProblem: false,
+          dispatchSubscriptionPlan: plan || null,
+          stripeDispatchSubscriptionId: subscriptionId,
+          dispatchSubscriptionLastInvoiceId: invoiceId,
+          dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
       }
+
       if (referrerUid && commissionMinor > 0 &&
           existingCommission && !existingCommission.exists) {
         transaction.create(commissionRef, {
@@ -226,57 +306,112 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const identity = await resolveDispatchInvoiceIdentity(invoice, secretKey);
     if (!identity) return;
     const {invoiceId, subscriptionId, uid, plan} = identity;
-    await db.collection("dispatch_subscription_invoices").doc(invoiceId).set({
-      invoiceId,
-      subscriptionId,
-      uid: uid || null,
-      plan,
-      currency: String(invoice.currency || "cad").toUpperCase(),
-      amountDueMinor: Number(invoice.amount_due || 0),
-      amountPaidMinor: Number(invoice.amount_paid || 0),
-      status: "payment_failed",
-      paymentFailedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, {merge: true});
-    if (uid) {
-      await db.collection("users").doc(uid).set({
-        dispatchSubscriptionPaymentStatus: "payment_failed",
-        dispatchSubscriptionPaymentProblem: true,
-        dispatchSubscriptionLastFailedInvoiceId: invoiceId,
-        stripeDispatchSubscriptionId: subscriptionId,
-        dispatchSubscriptionPlan: plan || null,
-        dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+    const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
+    const userRef = uid ? db.collection("users").doc(uid) : null;
+    const membershipRef = uid ? db.collection("dispatch_memberships").doc(uid) : null;
+    await db.runTransaction(async (transaction) => {
+      const currentMembership = membershipRef ?
+        await transaction.get(membershipRef) : null;
+      const membershipMatches = currentMembership && currentMembership.exists &&
+        String(currentMembership.data().subscriptionId || "") === subscriptionId;
+      transaction.set(invoiceRef, {
+        invoiceId,
+        subscriptionId,
+        uid: uid || null,
+        plan,
+        currency: String(invoice.currency || "cad").toUpperCase(),
+        amountDueMinor: Number(invoice.amount_due || 0),
+        amountPaidMinor: Number(invoice.amount_paid || 0),
+        status: "payment_failed",
+        paymentFailedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
-    }
+      if (membershipRef && membershipMatches) {
+        transaction.set(membershipRef, {
+          paymentStatus: "payment_failed",
+          paymentProblem: true,
+          lastFailedInvoiceId: invoiceId,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+      if (userRef && membershipMatches) {
+        transaction.set(userRef, {
+          dispatchSubscriptionPaymentStatus: "payment_failed",
+          dispatchSubscriptionPaymentProblem: true,
+          dispatchSubscriptionLastFailedInvoiceId: invoiceId,
+          stripeDispatchSubscriptionId: subscriptionId,
+          dispatchSubscriptionPlan: plan || null,
+          dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+    });
   }
 
   async function handleDispatchSubscriptionChanged(subscription, eventType) {
     const lifecycle = dispatchSubscriptionLifecyclePatch(subscription, eventType);
     if (!lifecycle) return;
-    const patch = {
-      dispatchSubscriptionStatus: lifecycle.status,
-      dispatchSubscriptionPlan: lifecycle.plan || null,
-      stripeDispatchSubscriptionId: lifecycle.subscriptionId,
-      dispatchSubscriptionWillCancelAtPeriodEnd:
-        lifecycle.willCancelAtPeriodEnd,
-      dispatchSubscriptionPaymentProblem: lifecycle.paymentProblem,
-      dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
-      ...(lifecycle.currentPeriodEndSeconds == null ? {} : {
-        dispatchSubscriptionCurrentPeriodEnd: Timestamp.fromMillis(
-            lifecycle.currentPeriodEndSeconds * 1000,
-        ),
-      }),
-      ...(lifecycle.activeUpdate == null ? {} : {
-        dispatchSubscriptionActive: lifecycle.activeUpdate,
-      }),
-      ...(lifecycle.paymentProblem ? {
-        dispatchSubscriptionPaymentStatus: "payment_failed",
-      } : {}),
-      ...(eventType === "customer.subscription.deleted" ? {
-        dispatchSubscriptionEndedAt: FieldValue.serverTimestamp(),
-      } : {}),
-    };
-    await db.collection("users").doc(lifecycle.uid).set(patch, {merge: true});
+    const userRef = db.collection("users").doc(lifecycle.uid);
+    const membershipRef = db.collection("dispatch_memberships").doc(lifecycle.uid);
+    await db.runTransaction(async (transaction) => {
+      const [membershipSnapshot, userSnapshot] = await Promise.all([
+        transaction.get(membershipRef),
+        transaction.get(userRef),
+      ]);
+      const membershipSubscriptionId = membershipSnapshot.exists ?
+        String(membershipSnapshot.data().subscriptionId || "") : "";
+      const userSubscriptionId = userSnapshot.exists ?
+        String(userSnapshot.data().stripeDispatchSubscriptionId || "") : "";
+      const belongsToCurrentSubscription =
+        (!membershipSubscriptionId ||
+          membershipSubscriptionId === lifecycle.subscriptionId) &&
+        (!userSubscriptionId || userSubscriptionId === lifecycle.subscriptionId);
+      if (!belongsToCurrentSubscription) return;
+
+      const currentPeriodEnd = lifecycle.currentPeriodEndSeconds == null ? null :
+        Timestamp.fromMillis(lifecycle.currentPeriodEndSeconds * 1000);
+      const membershipPatch = {
+        ownerUid: lifecycle.uid,
+        subscriptionId: lifecycle.subscriptionId,
+        plan: lifecycle.plan || null,
+        stripeStatus: lifecycle.status,
+        willCancelAtPeriodEnd: lifecycle.willCancelAtPeriodEnd,
+        paymentProblem: lifecycle.paymentProblem,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(currentPeriodEnd == null ? {} : {
+          currentPeriodEnd,
+        }),
+        ...(lifecycle.activeUpdate == null ? {} : {
+          active: lifecycle.activeUpdate,
+          status: lifecycle.activeUpdate ? "active" : lifecycle.status,
+        }),
+        ...(lifecycle.paymentProblem ? {
+          paymentStatus: "payment_failed",
+        } : {}),
+      };
+      const userPatch = {
+        dispatchSubscriptionStatus: lifecycle.status,
+        dispatchSubscriptionPlan: lifecycle.plan || null,
+        stripeDispatchSubscriptionId: lifecycle.subscriptionId,
+        dispatchSubscriptionWillCancelAtPeriodEnd:
+          lifecycle.willCancelAtPeriodEnd,
+        dispatchSubscriptionPaymentProblem: lifecycle.paymentProblem,
+        dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+        ...(currentPeriodEnd == null ? {} : {
+          dispatchSubscriptionCurrentPeriodEnd: currentPeriodEnd,
+        }),
+        ...(lifecycle.activeUpdate == null ? {} : {
+          dispatchSubscriptionActive: lifecycle.activeUpdate,
+        }),
+        ...(lifecycle.paymentProblem ? {
+          dispatchSubscriptionPaymentStatus: "payment_failed",
+        } : {}),
+        ...(eventType === "customer.subscription.deleted" ? {
+          dispatchSubscriptionEndedAt: FieldValue.serverTimestamp(),
+        } : {}),
+      };
+      transaction.set(membershipRef, membershipPatch, {merge: true});
+      transaction.set(userRef, userPatch, {merge: true});
+    });
   }
 
   async function voidPendingCommissionForRefund(charge) {
@@ -316,7 +451,9 @@ module.exports = {
   createSubscriptionMonetization,
   dispatchSubscriptionLifecyclePatch,
   invoiceCommissionBaseMinor,
+  invoicePeriodBounds,
   retrieveStripeSubscription,
   sourceChargeFromInvoice,
   subscriptionIdentityFromInvoice,
+  timestampMillis,
 };
