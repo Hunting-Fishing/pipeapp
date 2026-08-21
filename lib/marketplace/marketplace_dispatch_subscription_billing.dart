@@ -137,11 +137,29 @@ class _MarketplaceDispatchSubscriptionBillingState
         final userData = snapshot.data?.data() ?? const <String, dynamic>{};
         final subscriptionStatus =
             '${userData['dispatchSubscriptionStatus'] ?? 'inactive'}'.toLowerCase();
-        final active = userData['dispatchSubscriptionActive'] == true &&
-            subscriptionStatus == 'active';
-        final currentPlan = '${userData['dispatchSubscriptionPlan'] ?? ''}'.toLowerCase();
+        final subscriptionActiveFlag =
+            userData['dispatchSubscriptionActive'] == true;
+        final providerSubscriptionId =
+            '${userData['stripeDispatchSubscriptionId'] ?? ''}'.trim();
+        final active = subscriptionActiveFlag && subscriptionStatus == 'active';
+        const terminalStatuses = {
+          'canceled',
+          'unpaid',
+          'incomplete_expired',
+          'paused',
+          'inactive',
+        };
+        final hasExistingSubscription = subscriptionActiveFlag ||
+            (providerSubscriptionId.startsWith('sub_') &&
+                !terminalStatuses.contains(subscriptionStatus));
+        final currentPlan =
+            '${userData['dispatchSubscriptionPlan'] ?? ''}'.toLowerCase();
         final paymentStatus =
             '${userData['dispatchSubscriptionPaymentStatus'] ?? ''}'.toLowerCase();
+        final paymentProblem =
+            userData['dispatchSubscriptionPaymentProblem'] == true ||
+                {'past_due', 'unpaid'}.contains(subscriptionStatus) ||
+                paymentStatus == 'payment_failed';
 
         final catalog = _catalog ?? const <String, dynamic>{};
         final plans = _map(catalog['plans']);
@@ -156,21 +174,27 @@ class _MarketplaceDispatchSubscriptionBillingState
               'Choose Monthly or Yearly access. Prices and checkout availability come from the Pipe Buyer server.',
           leading: const Icon(Icons.credit_card_outlined),
           trailing: PipeBuyerStatusBadge(
-            label: active
-                ? 'ACTIVE'
-                : checkoutAvailable
-                    ? 'SECURE CHECKOUT'
-                    : 'CHECKOUT HELD',
-            icon: active
-                ? Icons.verified_outlined
-                : checkoutAvailable
-                    ? Icons.lock_outline
-                    : Icons.shield_outlined,
-            tone: active
-                ? PipeBuyerStatusTone.success
-                : checkoutAvailable
-                    ? PipeBuyerStatusTone.premium
-                    : PipeBuyerStatusTone.warning,
+            label: paymentProblem
+                ? 'PAYMENT ATTENTION'
+                : active
+                    ? 'ACTIVE'
+                    : checkoutAvailable
+                        ? 'SECURE CHECKOUT'
+                        : 'CHECKOUT HELD',
+            icon: paymentProblem
+                ? Icons.warning_amber_outlined
+                : active
+                    ? Icons.verified_outlined
+                    : checkoutAvailable
+                        ? Icons.lock_outline
+                        : Icons.shield_outlined,
+            tone: paymentProblem
+                ? PipeBuyerStatusTone.warning
+                : active
+                    ? PipeBuyerStatusTone.success
+                    : checkoutAvailable
+                        ? PipeBuyerStatusTone.premium
+                        : PipeBuyerStatusTone.warning,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +228,8 @@ class _MarketplaceDispatchSubscriptionBillingState
                   ),
                 ),
                 const SizedBox(height: 14),
-              ] else if (paymentStatus == 'payment_failed') ...[
+              ],
+              if (paymentProblem) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
@@ -215,8 +240,10 @@ class _MarketplaceDispatchSubscriptionBillingState
                       color: PipeBuyerColors.warning.withValues(alpha: .24),
                     ),
                   ),
-                  child: const Text(
-                    'Stripe reported a payment problem. Paid membership is not granted from a browser redirect; provider confirmation is required.',
+                  child: Text(
+                    hasExistingSubscription
+                        ? 'Stripe reported a payment problem on your existing Dispatch subscription. Resolve that subscription before starting another checkout; Pipe Buyer will not create a duplicate membership.'
+                        : 'Stripe reported a payment problem. Paid membership is not granted from a browser redirect; provider confirmation is required.',
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -262,7 +289,8 @@ class _MarketplaceDispatchSubscriptionBillingState
                             plan: 'monthly',
                             active: active,
                             selected: currentPlan == 'monthly',
-                            enabled: checkoutAvailable && !active,
+                            enabled:
+                                checkoutAvailable && !hasExistingSubscription,
                             loading: _loadingPlan == 'monthly',
                             onPressed: () => _startCheckout('monthly'),
                           ),
@@ -275,7 +303,8 @@ class _MarketplaceDispatchSubscriptionBillingState
                             plan: 'yearly',
                             active: active,
                             selected: currentPlan == 'yearly',
-                            enabled: checkoutAvailable && !active,
+                            enabled:
+                                checkoutAvailable && !hasExistingSubscription,
                             loading: _loadingPlan == 'yearly',
                             onPressed: () => _startCheckout('yearly'),
                           ),
@@ -286,9 +315,11 @@ class _MarketplaceDispatchSubscriptionBillingState
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  checkoutAvailable
-                      ? 'Payment is completed on Stripe’s secure hosted Checkout. Pipe Buyer does not grant membership until a verified Stripe invoice event is processed.'
-                      : 'Subscription checkout is currently held by server readiness controls. No payment will be attempted until those controls are satisfied.',
+                  hasExistingSubscription && !active
+                      ? 'An existing Stripe subscription is still on file. New checkout remains disabled until that subscription reaches a terminal state.'
+                      : checkoutAvailable
+                          ? 'Payment is completed on Stripe’s secure hosted Checkout. Pipe Buyer does not grant membership until a verified Stripe invoice event is processed.'
+                          : 'Subscription checkout is currently held by server readiness controls. No payment will be attempted until those controls are satisfied.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context)
                             .colorScheme
