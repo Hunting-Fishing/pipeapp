@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../lib/marketplace/marketplace_dispatch_service_taxonomy.dart';
+import 'marketplace_dispatch_service_taxonomy.dart';
 
 // Candidate template. The gate copies this file into
-// lib/marketplace/marketplace_dispatch_multi_service_selector.dart and rewrites
-// the taxonomy import to the canonical sibling import before analysis/promotion.
+// lib/marketplace/marketplace_dispatch_multi_service_selector.dart before
+// canonical-mirror analysis and production promotion.
 class MarketplaceDispatchMultiServiceSelector extends StatefulWidget {
   const MarketplaceDispatchMultiServiceSelector({
     super.key,
