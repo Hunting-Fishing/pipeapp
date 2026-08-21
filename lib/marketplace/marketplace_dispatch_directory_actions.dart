@@ -145,6 +145,7 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
               membership['tier'],
         );
         final reputation = MarketplaceReputationSummary.fromMap(profile);
+        final websiteUri = _safeWebsite(website);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,10 +191,10 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
                         onPressed: () => _launch(Uri(scheme: 'mailto', path: email)),
                         icon: const Icon(Icons.email_outlined),
                       ),
-                    if (_safeWebsite(website) case final uri?)
+                    if (websiteUri != null)
                       IconButton.filledTonal(
                         tooltip: 'Open business website',
-                        onPressed: () => _launch(uri),
+                        onPressed: () => _launch(websiteUri),
                         icon: const Icon(Icons.language_outlined),
                       ),
                     if (!_isOwnBusiness)
@@ -237,7 +238,7 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${tier.label} member · Select score for legend',
+                                  '${tier.label} · Select score for legend',
                                   style: const TextStyle(
                                     color: PipeBuyerColors.muted,
                                     fontSize: 11,
