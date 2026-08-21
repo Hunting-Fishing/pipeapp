@@ -76,6 +76,8 @@ function createDispatchSubscriptionCatalog(admin) {
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          readinessData.stripeTaxPendingBillingApproved === true,
       };
       const providerCheckoutReady = subscriptionCheckoutReady(
           readiness,
@@ -90,6 +92,8 @@ function createDispatchSubscriptionCatalog(admin) {
         policyAcceptanceRequired:
           policyStatus.enforcementEnabled && !policyStatus.current,
         taxCollectionStatus: taxCollectionStatus(readiness),
+        pendingTaxBillingApproved:
+          readiness.stripeTaxPendingBillingApproved === true,
       };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
