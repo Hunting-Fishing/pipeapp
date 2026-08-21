@@ -6,6 +6,10 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
+const {
+  portalReady,
+  providerStateSupportsPortal,
+} = require("./dispatch_subscription_portal");
 
 function timestampMillis(value) {
   if (value && typeof value.toMillis === "function") return value.toMillis();
@@ -22,13 +26,17 @@ function membershipStatusPayload(data, nowMillis = Date.now()) {
       plan: "",
       currentPeriodStartMillis: null,
       currentPeriodEndMillis: null,
+      paymentIssue: false,
+      cancelAtPeriodEnd: false,
+      providerStatus: "",
+      renewalStatus: "",
     };
   }
   const periodStart = timestampMillis(data.currentPeriodStart);
   const periodEnd = timestampMillis(data.currentPeriodEnd);
   const active = data.active === true && periodEnd > nowMillis;
   const status = active ?
-    "active" :
+    String(data.status || "active") :
     periodEnd > 0 && periodEnd <= nowMillis ?
       "expired" :
       String(data.status || "inactive");
@@ -38,7 +46,16 @@ function membershipStatusPayload(data, nowMillis = Date.now()) {
     plan: String(data.plan || ""),
     currentPeriodStartMillis: periodStart > 0 ? periodStart : null,
     currentPeriodEndMillis: periodEnd > 0 ? periodEnd : null,
+    paymentIssue: data.paymentIssue === true,
+    cancelAtPeriodEnd: data.cancelAtPeriodEnd === true,
+    providerStatus: String(data.providerStatus || ""),
+    renewalStatus: String(data.renewalStatus || ""),
   };
+}
+
+function managementAvailable({readiness, providerState, uid}) {
+  return portalReady(readiness) &&
+    providerStateSupportsPortal(providerState, uid);
 }
 
 function createDispatchSubscriptionStatus(admin) {
@@ -53,13 +70,28 @@ function createDispatchSubscriptionStatus(admin) {
         request,
         scope: "account",
       });
-      const snapshot = await db.collection("dispatch_memberships")
-          .doc(identity.uid)
-          .get();
-      return membershipStatusPayload(
-          snapshot.exists ? snapshot.data() : null,
+      const [membershipSnapshot, readinessSnapshot, providerSnapshot] =
+        await Promise.all([
+          db.collection("dispatch_memberships").doc(identity.uid).get(),
+          db.collection("platform_configuration")
+              .doc("payment_provider_readiness")
+              .get(),
+          db.collection("dispatch_subscription_provider_state")
+              .doc(identity.uid)
+              .get(),
+        ]);
+      const payload = membershipStatusPayload(
+          membershipSnapshot.exists ? membershipSnapshot.data() : null,
           Date.now(),
       );
+      return {
+        ...payload,
+        managementAvailable: managementAvailable({
+          readiness: readinessSnapshot.exists ? readinessSnapshot.data() : {},
+          providerState: providerSnapshot.exists ? providerSnapshot.data() : null,
+          uid: identity.uid,
+        }),
+      };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       if (error instanceof AccountSecurityError) {
@@ -78,6 +110,7 @@ function createDispatchSubscriptionStatus(admin) {
 
 module.exports = {
   createDispatchSubscriptionStatus,
+  managementAvailable,
   membershipStatusPayload,
   timestampMillis,
 };
