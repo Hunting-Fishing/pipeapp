@@ -44,9 +44,13 @@ function Assert-Node22 {
     }
 
     $bash = Find-PipeBuyerBash
-    $bashProbe = (& $bash -c 'printf "%s\n" "$(node --version 2>/dev/null)" "$(npm --version 2>/dev/null)"' 2>$null)
-    $bashVersion = $bashProbe | Select-Object -First 1
-    $bashNpmVersion = $bashProbe | Select-Object -Skip 1 -First 1
+
+    # Keep these probes deliberately simple. Nested command substitution inside
+    # a PowerShell native-command argument is fragile on Windows and previously
+    # produced an unmatched ')' parse failure even though Git Bash/Node worked.
+    $bashVersion = (& $bash -c 'node --version' 2>$null | Select-Object -First 1)
+    $bashNpmVersion = (& $bash -c 'npm --version' 2>$null | Select-Object -First 1)
+
     if (-not $bashVersion) {
         $nodePath = $node.Source
         throw "PIPE BUYER RELEASE ERROR: PowerShell resolves Node $powerShellVersion at '$nodePath', but Git Bash '$bash' cannot resolve node from the inherited PATH. Open a new PowerShell window after installing/selecting Node 22, then retry."
