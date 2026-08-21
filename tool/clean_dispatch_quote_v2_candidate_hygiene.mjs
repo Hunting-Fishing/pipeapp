@@ -226,6 +226,20 @@ function removePlainImportIfNoConsumer(source, importPath, consumerToken) {
   return {source: withoutImport.replace(/^\s*\n/, ''), removed: true};
 }
 
+function replaceRequiredImport(source, before, after, label) {
+  if (source.includes(after)) {
+    if (source.includes(before)) {
+      fail(`${label} contains both isolated and canonical imports.`);
+    }
+    return source;
+  }
+  const count = source.split(before).length - 1;
+  if (count !== 1) {
+    fail(`${label} expected exactly one isolated import but found ${count}.`);
+  }
+  return source.replace(before, after);
+}
+
 for (const filePath of [dashboardPath, pagePath]) {
   if (!fs.existsSync(filePath)) fail(`Quote V2 candidate is missing: ${filePath}`);
 }
@@ -265,6 +279,37 @@ const vehicleIcon = removeTopLevelFunctionIfUnreferenced(
 );
 page = vehicleIcon.source;
 
+// Candidate builder isolates renamed preflight files from live production by
+// rewriting their imports to preflight filenames. V5 later places these files
+// under canonical filenames in a mirror, and production promotion also writes
+// them under canonical filenames. Normalize those import identities now so the
+// candidate being mirror-tested has the same Dart library identities as the
+// candidate that will be promoted.
+dashboard = replaceRequiredImport(
+  dashboard,
+  "import 'pipebuyer_dispatch_repository_quote_v2_preflight.dart';",
+  "import 'marketplace_dispatch_repository.dart';",
+  'Dashboard repository import',
+);
+page = replaceRequiredImport(
+  page,
+  "import 'pipebuyer_dispatch_repository_quote_v2_preflight.dart';",
+  "import 'marketplace_dispatch_repository.dart';",
+  'Jobs repository import',
+);
+page = replaceRequiredImport(
+  page,
+  "import 'pipebuyer_dispatch_dashboard_quote_v2_preflight.dart';",
+  "import 'marketplace_dispatch_dashboard.dart';",
+  'Jobs Dashboard import',
+);
+
+if (dashboard.includes('pipebuyer_dispatch_repository_quote_v2_preflight.dart') ||
+    page.includes('pipebuyer_dispatch_repository_quote_v2_preflight.dart') ||
+    page.includes('pipebuyer_dispatch_dashboard_quote_v2_preflight.dart')) {
+  fail('Preflight-only Dart import identity remains after canonicalization.');
+}
+
 fs.writeFileSync(dashboardPath, dashboard, 'utf8');
 fs.writeFileSync(pagePath, page, 'utf8');
 
@@ -273,6 +318,7 @@ console.log(`Dashboard dead _DispatchUnitRequirementDraft removed: ${draft.remov
 console.log(`Dashboard cascading _dispatchQuoteUnitTypes removed: ${unitTypes.removed ? 'YES' : 'NOT PRESENT / STILL REFERENCED'}`);
 console.log(`Dashboard unused marketplace_location.dart import removed: ${locationImport.removed ? 'YES' : 'NOT PRESENT'}`);
 console.log(`Jobs dead _vehicleTypeFallbackIcon removed: ${vehicleIcon.removed ? 'YES' : 'NOT PRESENT / STILL REFERENCED'}`);
+console.log('Candidate Dart imports normalized to production canonical identities: YES');
 console.log('Analyzer mutation inside hygiene helper: NO');
 console.log('Production source modified by hygiene helper: NO');
-console.log('Next authority: outer V4 strict flutter analyze on the complete candidate graph.');
+console.log('Next authority: V5 canonical-mirror strict flutter analyze on the complete candidate graph.');
