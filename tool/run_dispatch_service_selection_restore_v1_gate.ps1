@@ -24,6 +24,21 @@ function Restore-RelativeFiles([string]$Root, [string]$BackupRoot, [string[]]$Re
   }
 }
 
+function Copy-AssetDirectoryShape([string]$SourceRoot, [string]$DestinationRoot) {
+  $sourceAssets = Join-Path $SourceRoot 'assets'
+  if (-not (Test-Path -LiteralPath $sourceAssets)) {
+    throw 'STOP: The production assets directory is missing.'
+  }
+  $destinationAssets = Join-Path $DestinationRoot 'assets'
+  New-Item -ItemType Directory -Force -Path $destinationAssets | Out-Null
+  Get-ChildItem -LiteralPath $sourceAssets -Directory -Recurse | ForEach-Object {
+    $relative = $_.FullName.Substring($sourceAssets.Length).TrimStart('\')
+    if ($relative) {
+      New-Item -ItemType Directory -Force -Path (Join-Path $destinationAssets $relative) | Out-Null
+    }
+  }
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 [Environment]::CurrentDirectory = $repoRoot
@@ -75,7 +90,8 @@ $supportFiles = @(
   'tool/templates/marketplace_dispatch_directory_actions_v2.dart',
   'tool/dispatch_service_selection_restore_transform_v1.mjs',
   'test/dispatch_service_selection_restore_contract_test.dart',
-  'docs/DISPATCH_REQUEST_SERVICE_RESTORE_AND_MULTI_QUOTE.md'
+  'docs/DISPATCH_REQUEST_SERVICE_RESTORE_AND_MULTI_QUOTE.md',
+  'docs/repairs/DISPATCH_SERVICE_RESTORE_MIRROR_CONTRACT.md'
 )
 & git checkout $remote -- $supportFiles
 if ($LASTEXITCODE -ne 0) {
@@ -157,6 +173,8 @@ try {
     Copy-Item -LiteralPath (Join-Path $repoRoot 'analysis_options.yaml') -Destination $mirrorRoot -Force
   }
   Copy-Item -LiteralPath (Join-Path $repoRoot 'lib') -Destination $mirrorRoot -Recurse -Force
+  Copy-AssetDirectoryShape -SourceRoot $repoRoot -DestinationRoot $mirrorRoot
+  Write-Host 'Canonical mirror pubspec asset directory topology: PASS' -ForegroundColor Green
   New-Item -ItemType Directory -Force -Path (Join-Path $mirrorRoot '.dart_tool') | Out-Null
   if (-not (Test-Path -LiteralPath (Join-Path $repoRoot '.dart_tool\package_config.json'))) {
     throw 'STOP: .dart_tool/package_config.json is missing. Run flutter pub get first.'
@@ -301,6 +319,7 @@ try {
   Write-Host 'PIPE BUYER DISPATCH SERVICE SELECTION RESTORE V1 PASSED' -ForegroundColor Green
   Write-Host '============================================================' -ForegroundColor Green
   Write-Host 'Exact local structural dry-run: PASS' -ForegroundColor Green
+  Write-Host 'Canonical mirror pubspec asset topology: PASS' -ForegroundColor Green
   Write-Host 'Canonical mirror production mutation: NO' -ForegroundColor Green
   Write-Host 'Canonical mirror full candidate analyzer: PASS' -ForegroundColor Green
   Write-Host 'Canonical mirror restoration contract: PASS' -ForegroundColor Green
