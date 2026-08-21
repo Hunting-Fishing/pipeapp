@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 /// server-owned membership data; clients must never upgrade themselves by
 /// writing one of these values locally.
 enum MarketplaceMembershipTier {
+  unpublished,
   standard,
   bronze,
   silver,
@@ -15,6 +16,7 @@ enum MarketplaceMembershipTier {
 
 extension MarketplaceMembershipTierPresentation on MarketplaceMembershipTier {
   String get label => switch (this) {
+        MarketplaceMembershipTier.unpublished => 'Membership not published',
         MarketplaceMembershipTier.standard => 'Standard',
         MarketplaceMembershipTier.bronze => 'Bronze',
         MarketplaceMembershipTier.silver => 'Silver',
@@ -23,6 +25,7 @@ extension MarketplaceMembershipTierPresentation on MarketplaceMembershipTier {
       };
 
   Color get color => switch (this) {
+        MarketplaceMembershipTier.unpublished => const Color(0xFF94A3B8),
         MarketplaceMembershipTier.standard => const Color(0xFF64748B),
         MarketplaceMembershipTier.bronze => const Color(0xFFB87333),
         MarketplaceMembershipTier.silver => const Color(0xFFA7B0BC),
@@ -38,7 +41,8 @@ MarketplaceMembershipTier marketplaceMembershipTierFrom(Object? value) {
     'gold' => MarketplaceMembershipTier.gold,
     'silver' => MarketplaceMembershipTier.silver,
     'bronze' => MarketplaceMembershipTier.bronze,
-    _ => MarketplaceMembershipTier.standard,
+    'standard' => MarketplaceMembershipTier.standard,
+    _ => MarketplaceMembershipTier.unpublished,
   };
 }
 
@@ -138,7 +142,7 @@ class MarketplaceReputationBadge extends StatelessWidget {
     final badge = Semantics(
       button: true,
       label:
-          '${membershipTier.label} member. Pipe Buyer reputation ${summary.hasPublishedScore ? '${summary.score} out of 100' : 'building history'}. Tap for score legend.',
+          '${membershipTier.label}. Pipe Buyer reputation ${summary.hasPublishedScore ? '${summary.score} out of 100' : 'building history'}. Tap for score legend.',
       child: Tooltip(
         message: _tooltipText,
         child: InkWell(
@@ -208,8 +212,8 @@ class MarketplaceReputationBadge extends StatelessWidget {
   }
 
   String get _tooltipText =>
-      '${membershipTier.label} membership ring\n'
-      '${summary.reputationBand} reputation ring\n'
+      '${membershipTier.label} outer membership ring\n'
+      '${summary.reputationBand} inner reputation ring\n'
       '${summary.hasPublishedScore ? '${summary.score}/100' : 'New provider — no public numeric score until enough history exists'}\n'
       'Select for the legend and score explanation.';
 
