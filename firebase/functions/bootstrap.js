@@ -12,6 +12,10 @@ const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
 const {createAffiliateCommands} = require("./affiliate_commands");
 const {createAffiliatePayouts} = require("./affiliate_payouts");
+const {createDispatchCommands} = require("./dispatch_commands");
+const {
+  createDispatchMembershipAccess,
+} = require("./dispatch_membership_access");
 const {createMarketplaceCommands} = require("./marketplace_commands");
 const {
   createPolicyAcceptanceCommands,
@@ -51,6 +55,8 @@ const {
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
 const affiliatePayouts = createAffiliatePayouts(admin);
+const dispatchCommands = createDispatchCommands(admin);
+const dispatchMembershipAccess = createDispatchMembershipAccess(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
@@ -88,6 +94,11 @@ async function updateMarketplaceTransactionWithFinancialGuard(request) {
   return marketplaceCommands.updateMarketplaceTransaction(request);
 }
 
+async function submitDispatchQuoteWithMembershipGuard(request) {
+  await dispatchMembershipAccess.requireCurrentDispatchMembership(request);
+  return dispatchCommands.submitDispatchQuote(request);
+}
+
 async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
   const caseId = String(request.data && request.data.caseId || "").trim();
   if (caseId && caseId.length <= 180 && !caseId.includes("/")) {
@@ -119,6 +130,16 @@ exports.updateMarketplaceTransaction = onCall(
     protectedCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
         updateMarketplaceTransactionWithFinancialGuard,
+    ),
+);
+
+// Current main's Dispatch quote command predates the paid membership gate.
+// Keep the existing quote command intact and add the missing server-side
+// paid-through check around it so an expired/stale active flag cannot bid.
+exports.submitDispatchQuote = onCall(
+    protectedCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        submitDispatchQuoteWithMembershipGuard,
     ),
 );
 
