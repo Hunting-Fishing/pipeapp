@@ -59,6 +59,21 @@ function Enter-Repo {
     }
 }
 
+function Normalize-PaymentShellScripts {
+    $paymentDir = Join-Path $RepoRoot 'scripts\payments'
+    $scripts = Get-ChildItem -LiteralPath $paymentDir -Filter '*.sh' -File
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+    foreach ($script in $scripts) {
+        $text = [System.IO.File]::ReadAllText($script.FullName)
+        if ($text.Contains("`r`n")) {
+            $normalized = $text.Replace("`r`n", "`n")
+            [System.IO.File]::WriteAllText($script.FullName, $normalized, $utf8NoBom)
+            Write-Host "Normalized Bash line endings to LF: $($script.Name)" -ForegroundColor Yellow
+        }
+    }
+}
+
 function Get-RemoteRepo {
     $url = (& git remote get-url origin 2>$null).Trim()
     if (-not $url) { return '' }
@@ -135,6 +150,7 @@ function Prepare-Repo {
         Fail 'Fast-forward pull failed. No merge was attempted. Resolve the branch state before continuing.'
     }
 
+    Normalize-PaymentShellScripts
     Show-Status
 }
 
@@ -142,6 +158,7 @@ function Invoke-BashScript([string]$Script, [string[]]$Arguments = @()) {
     Enter-Repo
     Assert-RepoIdentity
     Assert-ReleaseBranch
+    Normalize-PaymentShellScripts
     $bash = Find-Bash
 
     Write-Host "Running $Script $($Arguments -join ' ')" -ForegroundColor Cyan
