@@ -18,6 +18,29 @@ void main() {
     expect(label, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
   });
 
+  test('Dispatch prices are rendered from the server catalog', () {
+    final catalog = {
+      'plans': {
+        'monthly': {
+          'currency': 'CAD',
+          'amountMinor': 2500,
+          'interval': 'month',
+        },
+        'yearly': {
+          'currency': 'CAD',
+          'amountMinor': 30000,
+          'interval': 'year',
+        },
+      },
+    };
+    expect(dispatchSubscriptionPriceLabel(catalog, 'monthly'), r'CA$25 / month');
+    expect(dispatchSubscriptionPriceLabel(catalog, 'yearly'), r'CA$300 / year');
+  });
+
+  test('Dispatch pricing never invents a local fallback amount', () {
+    expect(dispatchSubscriptionPriceLabel(const {}, 'monthly'), 'Price unavailable');
+  });
+
   testWidgets('payment success does not claim redirect grants access',
       (tester) async {
     await tester.pumpWidget(
