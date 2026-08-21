@@ -169,6 +169,22 @@ jobs:
               headers: {'Content-Type': 'application/x-www-form-urlencoded'},
               body: disable.toString(),
             });
+            const eventUpdate = new URLSearchParams();
+            for (const event of events) eventUpdate.append('enabled_events[]', event);
+            endpoint = await stripe(`/v1/webhook_endpoints/${encodeURIComponent(endpoint.id)}`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: eventUpdate.toString(),
+            });
+            const actualEvents = new Set(endpoint.enabled_events || []);
+            for (const event of events) {
+              if (!actualEvents.has(event)) {
+                throw new Error(`Stripe webhook is missing required event ${event}.`);
+              }
+            }
+            if (endpoint.status !== 'disabled') {
+              throw new Error('Stripe webhook did not remain disabled during event-list update.');
+            }
             fs.writeFileSync('.stripe-webhook-endpoint-id', String(endpoint.id), {mode: 0o600});
           })().catch((error) => {
             console.error(error.message);
@@ -177,7 +193,7 @@ jobs:
           NODE
           endpoint_id="$(cat .stripe-webhook-endpoint-id)"
           echo "endpoint_id=$endpoint_id" >> "$GITHUB_OUTPUT"
-          echo "Stripe endpoint prepared in disabled state: $endpoint_id" >> "$GITHUB_STEP_SUMMARY"
+          echo "Stripe endpoint prepared with required events in disabled state: $endpoint_id" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Store Stripe webhook signing secret in Firebase Secret Manager
         shell: bash
