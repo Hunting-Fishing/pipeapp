@@ -32,11 +32,16 @@ test("catalog checkout availability uses the same readiness gate as checkout", (
     stripeReconciliationReady: true,
     stripeTaxReady: false,
     stripeTaxRegistrationPending: true,
+    stripeTaxPendingBillingApproved: true,
   };
   assert.equal(subscriptionCheckoutReady(ready, true), true);
   assert.equal(subscriptionCheckoutReady(ready, false), false);
   assert.equal(subscriptionCheckoutReady({
     ...ready,
     stripeWebhookVerified: false,
+  }, true), false);
+  assert.equal(subscriptionCheckoutReady({
+    ...ready,
+    stripeTaxPendingBillingApproved: false,
   }, true), false);
 });
