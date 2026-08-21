@@ -29,9 +29,8 @@ function Require-Command([string]$Name) {
 }
 
 function Find-Bash {
-    $command = Get-Command bash.exe -ErrorAction SilentlyContinue
-    if ($command) { return $command.Source }
-
+    # Prefer Git for Windows explicitly. A generic bash.exe on PATH can be the
+    # Windows/WSL shim and will not share the Windows Node/npm toolchain.
     $candidates = @(
         "$env:ProgramFiles\Git\bin\bash.exe",
         "$env:ProgramFiles\Git\usr\bin\bash.exe",
@@ -39,7 +38,13 @@ function Find-Bash {
     ) | Where-Object { $_ -and (Test-Path $_) }
 
     if ($candidates.Count -gt 0) { return $candidates[0] }
-    Fail "Git Bash was not found. Install Git for Windows or add bash.exe to PATH."
+
+    $command = Get-Command bash.exe -ErrorAction SilentlyContinue
+    if ($command -and $command.Source -match '\\Git\\') {
+        return $command.Source
+    }
+
+    Fail "Git Bash was not found. Install Git for Windows. A WSL/System32 bash.exe is not accepted for this Windows release workflow."
 }
 
 function Enter-Repo {
@@ -161,6 +166,7 @@ function Invoke-BashScript([string]$Script, [string[]]$Arguments = @()) {
     Normalize-PaymentShellScripts
     $bash = Find-Bash
 
+    Write-Host "Using Git Bash: $bash" -ForegroundColor Cyan
     Write-Host "Running $Script $($Arguments -join ' ')" -ForegroundColor Cyan
     & $bash $Script @Arguments
     if ($LASTEXITCODE -ne 0) {
