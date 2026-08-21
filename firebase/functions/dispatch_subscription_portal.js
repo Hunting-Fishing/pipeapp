@@ -40,6 +40,22 @@ function portalReady(readiness) {
   );
 }
 
+function portalConfigurationApproved(configuration, expectedId) {
+  const features = configuration && configuration.features || {};
+  const cancel = features.subscription_cancel || {};
+  const paymentMethod = features.payment_method_update || {};
+  const subscriptionUpdate = features.subscription_update || {};
+  return Boolean(
+      configuration &&
+      String(configuration.id || "") === String(expectedId || "") &&
+      configuration.active === true &&
+      paymentMethod.enabled === true &&
+      cancel.enabled === true &&
+      cancel.mode === "at_period_end" &&
+      subscriptionUpdate.enabled !== true,
+  );
+}
+
 function requirePortalReady(readiness) {
   if (!portalReady(readiness)) {
     throw new HttpsError(
@@ -89,12 +105,30 @@ function createDispatchSubscriptionPortal(admin) {
         );
       }
 
+      const secretKey = stripeSecretKey.value();
+      const configuration = await stripeFormRequest({
+        secretKey,
+        path: `/v1/billing_portal/configurations/${encodeURIComponent(
+            readiness.stripeDispatchPortalConfigurationId,
+        )}`,
+        method: "GET",
+      });
+      if (!portalConfigurationApproved(
+          configuration,
+          readiness.stripeDispatchPortalConfigurationId,
+      )) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Dispatch subscription management configuration is not approved for use.",
+        );
+      }
+
       const returnUrl = safeConfiguredUrl(
           readiness.dispatchPortalReturnUrl,
           "Dispatch subscription portal return URL",
       );
       const portal = await stripeFormRequest({
-        secretKey: stripeSecretKey.value(),
+        secretKey,
         path: "/v1/billing_portal/sessions",
         fields: {
           customer: String(providerState.stripeCustomerId),
@@ -131,6 +165,7 @@ function createDispatchSubscriptionPortal(admin) {
 
 module.exports = {
   createDispatchSubscriptionPortal,
+  portalConfigurationApproved,
   portalReady,
   providerStateSupportsPortal,
   requirePortalReady,
