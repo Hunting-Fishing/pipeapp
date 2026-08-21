@@ -19,6 +19,7 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
   "stripeReconciliationReady",
+  "affiliatePayoutEconomicsReady",
   "affiliatePayoutsEnabled",
   "marketplaceFinancialResolutionEnabled",
   "marketplaceDisputeAutomationEnabled",
@@ -79,6 +80,13 @@ function normalizeReadiness(data = {}) {
 function taxBillingPrepared(next) {
   return next.stripeTaxReady === true ||
     next.stripeTaxRegistrationPending === true;
+}
+
+function affiliateProviderReady(next) {
+  return next.stripeMode === "production" &&
+    next.stripeConnectOnboardingEnabled &&
+    next.stripeWebhookVerified &&
+    next.stripeReconciliationReady;
 }
 
 function validateReadiness(next, options = {}) {
@@ -179,15 +187,19 @@ function validateReadiness(next, options = {}) {
         "Platform-funded refund overrides require marketplace financial resolution.",
     );
   }
+  if (next.affiliatePayoutEconomicsReady && !affiliateProviderReady(next)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Affiliate payout economics approval requires production mode, Connect onboarding, verified webhooks, and reconciliation readiness.",
+    );
+  }
   if (next.affiliatePayoutsEnabled && !(
-    next.stripeMode === "production" &&
-    next.stripeConnectOnboardingEnabled &&
-    next.stripeWebhookVerified &&
-    next.stripeReconciliationReady
+    affiliateProviderReady(next) &&
+    next.affiliatePayoutEconomicsReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Affiliate payouts require production mode, Connect onboarding, verified webhooks, and reconciliation readiness.",
+        "Affiliate payouts require provider readiness and a separate approved affiliate payout economics gate.",
     );
   }
   return next;
@@ -310,6 +322,7 @@ module.exports = {
   BOOLEAN_FIELDS,
   STRING_FIELDS,
   URL_FIELDS,
+  affiliateProviderReady,
   applyPatch,
   createPaymentReadinessAdmin,
   normalizeReadiness,
