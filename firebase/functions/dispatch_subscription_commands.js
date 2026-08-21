@@ -32,7 +32,7 @@ function requireAuth(request) {
 }
 
 function selectedPlan(value) {
-  const plan = String(value || "monthly").trim().toLowerCase();
+  const plan = String(value || "").trim().toLowerCase();
   if (!new Set(["monthly", "yearly"]).has(plan)) {
     throw new HttpsError("invalid-argument", "The Dispatch subscription plan is invalid.");
   }
