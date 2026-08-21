@@ -15,7 +15,6 @@ function providerStateBlocksNewCheckout(state) {
   if (!state) return false;
   const subscriptionId = String(state.subscriptionId || "").trim();
   if (!subscriptionId.startsWith("sub_")) return false;
-  if (state.blocksNewCheckout === false) return false;
   const status = String(state.providerStatus || "unknown").trim();
   return !TERMINAL_PROVIDER_STATUSES.has(status);
 }
