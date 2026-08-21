@@ -95,10 +95,12 @@ test("only controlled free entitlements map to Stripe coupons", () => {
   }), null);
 });
 
-test("Dispatch plan accepts only monthly and yearly", () => {
+test("Dispatch plan requires an explicit monthly or yearly selection", () => {
   assert.equal(selectedPlan("MONTHLY"), "monthly");
   assert.equal(selectedPlan("yearly"), "yearly");
   assert.throws(() => selectedPlan("lifetime"));
+  assert.throws(() => selectedPlan(""));
+  assert.throws(() => selectedPlan(undefined));
 });
 
 test("Dispatch membership requires active flag and a future paid-through date", () => {
@@ -157,6 +159,10 @@ test("private status payload never reports an expired membership active", () => 
     plan: "",
     currentPeriodStartMillis: null,
     currentPeriodEndMillis: null,
+    paymentIssue: false,
+    cancelAtPeriodEnd: false,
+    providerStatus: "",
+    renewalStatus: "",
   });
   assert.deepEqual(membershipStatusPayload({
     active: true,
@@ -170,6 +176,10 @@ test("private status payload never reports an expired membership active", () => 
     plan: "yearly",
     currentPeriodStartMillis: now - 5000,
     currentPeriodEndMillis: now - 1,
+    paymentIssue: false,
+    cancelAtPeriodEnd: false,
+    providerStatus: "",
+    renewalStatus: "",
   });
   assert.equal(membershipStatusPayload({
     active: true,
