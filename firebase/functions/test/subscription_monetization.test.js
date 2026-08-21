@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  dispatchSubscriptionLifecyclePatch,
   invoiceCommissionBaseMinor,
   subscriptionIdentityFromInvoice,
 } = require("../subscription_monetization");
@@ -101,4 +102,63 @@ test("duplicate checkout attempts share an idempotency key inside the window", (
       ),
   );
   assert.notEqual(first, checkoutIdempotencyKey("user_1", "yearly", start));
+});
+
+test("Stripe active status does not independently grant Dispatch access", () => {
+  const patch = dispatchSubscriptionLifecyclePatch({
+    id: "sub_123",
+    status: "active",
+    current_period_end: 2000000000,
+    cancel_at_period_end: false,
+    metadata: {
+      billingType: "dispatch_subscription",
+      pipeBuyerUid: "user_123",
+      dispatchPlan: "monthly",
+    },
+  }, "customer.subscription.updated");
+  assert.equal(patch.status, "active");
+  assert.equal(patch.activeUpdate, null);
+  assert.equal(patch.paymentProblem, false);
+});
+
+test("past-due Dispatch subscription raises attention without creating a second access decision", () => {
+  const patch = dispatchSubscriptionLifecyclePatch({
+    id: "sub_123",
+    status: "past_due",
+    cancel_at_period_end: false,
+    metadata: {
+      billingType: "dispatch_subscription",
+      pipeBuyerUid: "user_123",
+      dispatchPlan: "yearly",
+    },
+  }, "customer.subscription.updated");
+  assert.equal(patch.status, "past_due");
+  assert.equal(patch.paymentProblem, true);
+  assert.equal(patch.activeUpdate, null);
+});
+
+test("deleted Dispatch subscription terminates provider-authored access", () => {
+  const patch = dispatchSubscriptionLifecyclePatch({
+    id: "sub_123",
+    status: "active",
+    cancel_at_period_end: false,
+    metadata: {
+      billingType: "dispatch_subscription",
+      pipeBuyerUid: "user_123",
+      dispatchPlan: "monthly",
+    },
+  }, "customer.subscription.deleted");
+  assert.equal(patch.status, "canceled");
+  assert.equal(patch.activeUpdate, false);
+});
+
+test("subscription lifecycle ignores non-Dispatch Stripe subscriptions", () => {
+  assert.equal(dispatchSubscriptionLifecyclePatch({
+    id: "sub_123",
+    status: "active",
+    metadata: {
+      billingType: "other_subscription",
+      pipeBuyerUid: "user_123",
+    },
+  }, "customer.subscription.updated"), null);
 });
