@@ -127,11 +127,28 @@ test("past-due lifecycle flags payment issue without extending paid period", () 
   assert.equal(patch.renewalStatus, "past_due");
 });
 
-test("webhook lifecycle detector selects subscription create/update/delete only", () => {
+test("paused lifecycle flags payment issue without inventing new paid time", () => {
+  const now = 1_000_000;
+  const patch = lifecycleStatePatch({
+    subscription: {status: "paused", current_period_end: 1200},
+    existingMembership: {
+      status: "active",
+      currentPeriodEnd: {toMillis: () => 1_100_000},
+    },
+    nowMillis: now,
+  });
+  assert.equal(patch.active, true);
+  assert.equal(patch.paymentIssue, true);
+  assert.equal(patch.renewalStatus, "paused");
+});
+
+test("webhook lifecycle detector selects subscription create/update/delete/pause/resume", () => {
   for (const type of [
     "customer.subscription.created",
     "customer.subscription.updated",
     "customer.subscription.deleted",
+    "customer.subscription.paused",
+    "customer.subscription.resumed",
   ]) {
     const event = stripeEventFromRawBody(Buffer.from(JSON.stringify({
       id: "evt_123",
