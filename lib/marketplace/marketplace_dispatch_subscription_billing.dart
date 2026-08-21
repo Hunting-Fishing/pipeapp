@@ -5,6 +5,7 @@ import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_membership_page.dart';
+import 'marketplace_policy_center.dart';
 
 class MarketplaceDispatchSubscriptionBilling extends StatefulWidget {
   const MarketplaceDispatchSubscriptionBilling({super.key});
@@ -61,6 +62,17 @@ class _MarketplaceDispatchSubscriptionBillingState
     );
   }
 
+  void _openPolicies() {
+    if (!kIsWeb) return;
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => const MarketplacePolicyCenterPage(),
+          ),
+        )
+        .then((_) => _retry());
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!kIsWeb) {
@@ -88,7 +100,28 @@ class _MarketplaceDispatchSubscriptionBillingState
         final monthly = _map(plans['monthly']);
         final yearly = _map(plans['yearly']);
         final checkoutAvailable = catalog['checkoutAvailable'] == true;
+        final policyReviewRequired =
+            catalog['policyAcceptanceRequired'] == true;
         final taxStatus = '${catalog['taxCollectionStatus'] ?? ''}'.trim();
+
+        final statusLabel = loading
+            ? 'CHECKING'
+            : snapshot.hasError
+                ? 'UNAVAILABLE'
+                : policyReviewRequired
+                    ? 'POLICY REVIEW'
+                    : checkoutAvailable
+                        ? 'SECURE CHECKOUT'
+                        : 'CHECKOUT HELD';
+        final statusIcon = loading
+            ? Icons.sync_outlined
+            : snapshot.hasError
+                ? Icons.cloud_off_outlined
+                : policyReviewRequired
+                    ? Icons.fact_check_outlined
+                    : checkoutAvailable
+                        ? Icons.lock_outline
+                        : Icons.shield_outlined;
 
         return PipeBuyerSectionCard(
           title: 'Dispatch membership',
@@ -97,20 +130,8 @@ class _MarketplaceDispatchSubscriptionBillingState
               : 'Current recurring Dispatch pricing comes from the same server-owned configuration used to create Stripe Checkout.',
           leading: const _BillingIcon(),
           trailing: PipeBuyerStatusBadge(
-            label: loading
-                ? 'CHECKING'
-                : snapshot.hasError
-                    ? 'UNAVAILABLE'
-                    : checkoutAvailable
-                        ? 'SECURE CHECKOUT'
-                        : 'CHECKOUT HELD',
-            icon: loading
-                ? Icons.sync_outlined
-                : snapshot.hasError
-                    ? Icons.cloud_off_outlined
-                    : checkoutAvailable
-                        ? Icons.lock_outline
-                        : Icons.shield_outlined,
+            label: statusLabel,
+            icon: statusIcon,
             tone: snapshot.hasError || !checkoutAvailable
                 ? PipeBuyerStatusTone.warning
                 : PipeBuyerStatusTone.premium,
@@ -175,9 +196,11 @@ class _MarketplaceDispatchSubscriptionBillingState
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          checkoutAvailable
-                              ? 'Stripe-hosted Checkout opens only after the server confirms payment readiness. A browser return never grants paid access; signed Stripe provider evidence does.'
-                              : 'Subscription checkout is currently held by server readiness controls. Viewing the plans does not start a charge.',
+                          policyReviewRequired
+                              ? 'Your current Pipe Buyer policies must be reviewed and accepted before Dispatch billing can start. No charge has been created.'
+                              : checkoutAvailable
+                                  ? 'Stripe-hosted Checkout opens only after the server confirms payment readiness. A browser return never grants paid access; signed Stripe provider evidence does.'
+                                  : 'Subscription checkout is currently held by server readiness controls. Viewing the plans does not start a charge.',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 height: 1.45,
                               ),
@@ -191,9 +214,18 @@ class _MarketplaceDispatchSubscriptionBillingState
                         ],
                         const SizedBox(height: 14),
                         FilledButton.icon(
-                          onPressed: _openMembership,
-                          icon: const Icon(Icons.workspace_premium_outlined),
-                          label: const Text('View membership options'),
+                          onPressed:
+                              policyReviewRequired ? _openPolicies : _openMembership,
+                          icon: Icon(
+                            policyReviewRequired
+                                ? Icons.fact_check_outlined
+                                : Icons.workspace_premium_outlined,
+                          ),
+                          label: Text(
+                            policyReviewRequired
+                                ? 'Review current policies'
+                                : 'View membership options',
+                          ),
                         ),
                       ],
                     ),
@@ -260,10 +292,7 @@ class _SubscriptionPriceCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     price,
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 5),
                   Text(
