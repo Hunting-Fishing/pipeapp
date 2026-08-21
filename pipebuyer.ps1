@@ -14,9 +14,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 function Find-PipeBuyerBash {
-    $command = Get-Command bash.exe -ErrorAction SilentlyContinue
-    if ($command) { return $command.Source }
-
+    # Prefer Git for Windows explicitly. A generic bash.exe on PATH may be the
+    # Windows/WSL shim and will not share the Windows Node/npm toolchain.
     $candidates = @(
         "$env:ProgramFiles\Git\bin\bash.exe",
         "$env:ProgramFiles\Git\usr\bin\bash.exe",
@@ -24,7 +23,13 @@ function Find-PipeBuyerBash {
     ) | Where-Object { $_ -and (Test-Path $_) }
 
     if ($candidates.Count -gt 0) { return $candidates[0] }
-    throw 'PIPE BUYER RELEASE ERROR: Git Bash was not found. Install Git for Windows or add bash.exe to PATH.'
+
+    $command = Get-Command bash.exe -ErrorAction SilentlyContinue
+    if ($command -and $command.Source -match '\\Git\\') {
+        return $command.Source
+    }
+
+    throw 'PIPE BUYER RELEASE ERROR: Git Bash was not found. Install Git for Windows. A WSL/System32 bash.exe is not accepted for this Windows release workflow.'
 }
 
 function Assert-Node22 {
@@ -39,15 +44,12 @@ function Assert-Node22 {
     }
 
     $bash = Find-PipeBuyerBash
-    # Use a normal non-login shell here. `bash -l` can rebuild PATH from profile
-    # files and hide a freshly installed Windows Node runtime even though the
-    # release scripts themselves inherit the current PowerShell environment.
     $bashProbe = (& $bash -c 'printf "%s\n" "$(node --version 2>/dev/null)" "$(npm --version 2>/dev/null)"' 2>$null)
     $bashVersion = $bashProbe | Select-Object -First 1
     $bashNpmVersion = $bashProbe | Select-Object -Skip 1 -First 1
     if (-not $bashVersion) {
         $nodePath = $node.Source
-        throw "PIPE BUYER RELEASE ERROR: PowerShell resolves Node $powerShellVersion at '$nodePath', but Git Bash cannot resolve node from the inherited PATH. Open a new PowerShell window after installing/selecting Node 22. If it still fails, run: & 'C:\Program Files\Git\bin\bash.exe' -c 'echo \$PATH; command -v node; node --version' and record the output."
+        throw "PIPE BUYER RELEASE ERROR: PowerShell resolves Node $powerShellVersion at '$nodePath', but Git Bash '$bash' cannot resolve node from the inherited PATH. Open a new PowerShell window after installing/selecting Node 22, then retry."
     }
     $bashVersion = $bashVersion.Trim()
     if ($bashVersion -notmatch '^v22\.') {
@@ -57,6 +59,7 @@ function Assert-Node22 {
         throw "PIPE BUYER RELEASE ERROR: Git Bash resolves Node $bashVersion but cannot resolve npm. Repair the Node 22/npm installation before continuing."
     }
 
+    Write-Host "Bash preflight: $bash" -ForegroundColor Green
     Write-Host "Node preflight: PowerShell $powerShellVersion; Git Bash $bashVersion; npm $($bashNpmVersion.Trim())" -ForegroundColor Green
 }
 
