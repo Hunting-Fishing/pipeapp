@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 import 'industrial_icon_assets.dart';
+import 'marketplace_dispatch_membership_page.dart';
 
 const marketplaceVipEarlyAccessDuration = Duration(hours: 24);
 
@@ -316,6 +317,15 @@ class _MarketplaceVipGateBodyState extends State<_MarketplaceVipGateBody> {
 class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
   const MarketplaceSubscriptionPlansDialog({super.key});
 
+  void _openDispatchMembership(BuildContext context) {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const MarketplaceDispatchMembershipPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
@@ -340,7 +350,7 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Choose marketplace priority access or Dispatch membership. Provider checkout remains separate from marketplace transactions.',
+                            'Choose marketplace priority access or Dispatch membership. Stripe subscription checkout remains separate from marketplace transaction funds.',
                           ),
                         ],
                       ),
@@ -356,13 +366,15 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
-                    final cards = const [
-                      _SubscriptionPlanCard(
+                    final cards = [
+                      const _SubscriptionPlanCard(
                         title: 'VIP Membership',
                         eyebrow: 'MARKETPLACE PRIORITY',
                         artworkLabel: 'Pipe, Tubing & Materials',
                         icon: Icons.workspace_premium_rounded,
                         premium: true,
+                        price: 'Pricing not approved yet',
+                        actionLabel: 'VIP billing not enabled',
                         benefits: [
                           '24-hour early access to every newly published listing',
                           'Locked-listing countdowns show when inventory opens publicly',
@@ -374,10 +386,13 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                         eyebrow: 'FLEXIBLE DISPATCH ACCESS',
                         artworkLabel: 'Transport & Hauling',
                         icon: Icons.local_shipping_outlined,
-                        benefits: [
-                          'Dispatch membership billed monthly when provider checkout is enabled',
+                        price: r'CA$25 / month',
+                        actionLabel: 'Continue to secure payment',
+                        onPressed: () => _openDispatchMembership(context),
+                        benefits: const [
+                          'Recurring monthly Dispatch carrier membership',
                           'Load, carrier, quote and awarded-job workflows',
-                          'Provider-managed billing; marketplace transaction funds remain separate',
+                          'Stripe-hosted billing; marketplace transaction funds remain separate',
                         ],
                       ),
                       _SubscriptionPlanCard(
@@ -385,10 +400,13 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                         eyebrow: 'ANNUAL DISPATCH ACCESS',
                         artworkLabel: 'Semi Truck',
                         icon: Icons.calendar_month_outlined,
-                        benefits: [
-                          'Annual Dispatch membership option',
+                        price: r'CA$300 / year',
+                        actionLabel: 'Continue to secure payment',
+                        onPressed: () => _openDispatchMembership(context),
+                        benefits: const [
+                          'Recurring annual Dispatch carrier membership',
                           'Same operational Dispatch tools with annual renewal cadence',
-                          'Current pricing is supplied by the configured billing catalog',
+                          'Stripe-hosted billing; marketplace transaction funds remain separate',
                         ],
                       ),
                     ];
@@ -431,6 +449,9 @@ class _SubscriptionPlanCard extends StatelessWidget {
     required this.artworkLabel,
     required this.icon,
     required this.benefits,
+    required this.price,
+    required this.actionLabel,
+    this.onPressed,
     this.premium = false,
   });
 
@@ -439,6 +460,9 @@ class _SubscriptionPlanCard extends StatelessWidget {
   final String artworkLabel;
   final IconData icon;
   final List<String> benefits;
+  final String price;
+  final String actionLabel;
+  final VoidCallback? onPressed;
   final bool premium;
 
   @override
@@ -504,6 +528,15 @@ class _SubscriptionPlanCard extends StatelessWidget {
                 fontWeight: FontWeight.w900,
               ),
             ),
+            const SizedBox(height: 3),
+            Text(
+              price,
+              style: TextStyle(
+                color: premium ? const Color(0xFFFFC44D) : null,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
             const SizedBox(height: 10),
             for (final benefit in benefits)
               Padding(
@@ -536,15 +569,9 @@ class _SubscriptionPlanCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '$title checkout will use the configured provider billing flow. No marketplace transaction funds are processed by this button.',
-                    ),
-                  ),
-                ),
-                icon: Icon(icon),
-                label: const Text('View plan readiness'),
+                onPressed: onPressed,
+                icon: Icon(onPressed == null ? Icons.lock_outline : icon),
+                label: Text(actionLabel),
               ),
             ),
           ],
