@@ -6,8 +6,8 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {
-  createPolicyAcceptanceCommands,
-} = require("./policy_acceptance_commands");
+  currentPolicyAcceptanceStatus,
+} = require("./policy_acceptance_status");
 
 const TERMINAL_PROVIDER_STATUSES = new Set([
   "canceled",
@@ -24,21 +24,21 @@ function providerStateBlocksNewCheckout(state) {
 
 function createDispatchSubscriptionProviderAccess(admin) {
   const db = admin.firestore();
-  const policyAcceptance = createPolicyAcceptanceCommands(admin);
-  const requirePolicies = policyAcceptance.requireCurrentPolicies(
-      async () => ({current: true}),
-  );
 
   async function requireNoBlockingProviderSubscription(request) {
     try {
       const identity = requireAuthenticatedIdentity(request, {requirePhone: false});
 
-      // Billing must respect the same exact-version policy acceptance control as
-      // other protected commercial actions. When production policy enforcement
-      // is enabled, an account with missing or stale policy acceptance cannot
-      // reach Stripe Checkout. This check intentionally occurs before any
-      // provider lookup or money-creating operation.
-      await requirePolicies(request);
+      // Billing uses the same exact-version policy model as the rest of the
+      // commercial app. When policy enforcement is on, stale or missing
+      // acceptance fails before any provider lookup or money-creating operation.
+      const policyStatus = await currentPolicyAcceptanceStatus(db, identity.uid);
+      if (!policyStatus.current) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Review and accept the current Pipe Buyer policies before starting Dispatch billing.",
+        );
+      }
 
       const snapshot = await db.collection("dispatch_subscription_provider_state")
           .doc(identity.uid)
