@@ -20,6 +20,7 @@ function createAffiliatePayouts(admin) {
     const data = snapshot.exists ? snapshot.data() : {};
     return {
       enabled: data.affiliatePayoutsEnabled === true,
+      economicsReady: data.affiliatePayoutEconomicsReady === true,
       stripeMode: String(data.stripeMode || "disabled"),
     };
   }
@@ -266,8 +267,13 @@ function createAffiliatePayouts(admin) {
   async function processEligibleAffiliatePayouts() {
     const readiness = await payoutReadiness();
     if (!readiness.enabled ||
+        !readiness.economicsReady ||
         !["sandbox", "production"].includes(readiness.stripeMode)) {
-      return {enabled: false, processed: 0};
+      return {
+        enabled: false,
+        economicsReady: readiness.economicsReady,
+        processed: 0,
+      };
     }
     const snapshot = await db.collection("affiliate_commission_ledger")
         .where("eligibleAfter", "<=", Timestamp.now())
@@ -289,6 +295,7 @@ function createAffiliatePayouts(admin) {
     }
     return {
       enabled: true,
+      economicsReady: true,
       processed: snapshot.size,
       counts,
     };
@@ -296,6 +303,7 @@ function createAffiliatePayouts(admin) {
 
   return {
     applyRecoveryObligations,
+    payoutReadiness,
     processEligibleAffiliatePayouts,
   };
 }
