@@ -44,6 +44,9 @@ const {
   createDispatchSubscriptionLifecycle,
 } = require("./dispatch_subscription_lifecycle");
 const {
+  createDispatchSubscriptionPortal,
+} = require("./dispatch_subscription_portal");
+const {
   createDispatchSubscriptionProviderAccess,
 } = require("./dispatch_subscription_provider_access");
 const {
@@ -77,6 +80,7 @@ const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCatalog = createDispatchSubscriptionCatalog(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const dispatchSubscriptionLifecycle = createDispatchSubscriptionLifecycle(admin);
+const dispatchSubscriptionPortal = createDispatchSubscriptionPortal(admin);
 const dispatchSubscriptionProviderAccess =
   createDispatchSubscriptionProviderAccess(admin);
 const dispatchSubscriptionStatus = createDispatchSubscriptionStatus(admin);
@@ -228,6 +232,10 @@ exports.createExternalSettlementFeeCheckout = onCall(
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
     createDispatchSubscriptionCheckoutWithProviderGuard,
+);
+exports.createDispatchSubscriptionPortalSession = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionPortal.createDispatchSubscriptionPortalSession,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,
