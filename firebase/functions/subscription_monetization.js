@@ -89,6 +89,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     }
     if (metadata.billingType !== "dispatch_subscription") return;
     const uid = String(metadata.pipeBuyerUid || "").trim();
+    const plan = String(metadata.dispatchPlan || "").trim();
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
@@ -99,6 +100,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
+    const userRef = uid ? db.collection("users").doc(uid) : null;
     const sourceChargeId = sourceChargeFromInvoice(invoice);
     const eligibleAfter = Timestamp.fromMillis(
         Date.now() + SUBSCRIPTION_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
@@ -111,7 +113,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         invoiceId,
         subscriptionId,
         uid: uid || null,
-        plan: String(metadata.dispatchPlan || ""),
+        plan,
         currency: String(invoice.currency || "cad").toUpperCase(),
         commissionBaseMinor: baseMinor,
         amountPaidMinor: Number(invoice.amount_paid || 0),
@@ -130,6 +132,22 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
         }),
       }, {merge: true});
+      if (userRef) {
+        transaction.set(userRef, {
+          dispatchSubscriptionStatus: "active",
+          dispatchSubscriptionActive: true,
+          dispatchSubscriptionPaymentStatus: "paid",
+          dispatchSubscriptionPlan: plan || null,
+          stripeDispatchSubscriptionId: subscriptionId,
+          dispatchSubscriptionLastInvoiceId: invoiceId,
+          dispatchSubscriptionLastAmountPaidMinor: Number(invoice.amount_paid || 0),
+          dispatchSubscriptionCurrency:
+            String(invoice.currency || "cad").toUpperCase(),
+          dispatchSubscriptionTaxCollectionStatus: taxStatus,
+          dispatchSubscriptionLastPaidAt: FieldValue.serverTimestamp(),
+          dispatchSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
       if (referrerUid && commissionMinor > 0 &&
           existingCommission && !existingCommission.exists) {
         transaction.create(commissionRef, {
