@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const {
   dispatchSubscriptionIdentity,
   lifecycleStatePatch,
+  providerSubscriptionState,
 } = require("../dispatch_subscription_lifecycle");
 const {
   isDispatchSubscriptionLifecycleEvent,
@@ -30,6 +31,21 @@ test("Dispatch subscription identity accepts only owned Dispatch metadata", () =
     id: "sub_123",
     metadata: {billingType: "other", pipeBuyerUid: "carrier_1"},
   }), null);
+});
+
+test("provider state blocks duplicate checkout before entitlement exists", () => {
+  assert.deepEqual(providerSubscriptionState({
+    status: "incomplete",
+    customer: "cus_123",
+    current_period_end: 1200,
+  }), {
+    providerStatus: "incomplete",
+    blocksNewCheckout: true,
+    cancelAtPeriodEnd: false,
+    providerPeriodEndMillis: 1_200_000,
+    stripeCustomerId: "cus_123",
+  });
+  assert.equal(providerSubscriptionState({status: "canceled"}).blocksNewCheckout, false);
 });
 
 test("cancel-at-period-end keeps already-paid access only until paid-through", () => {
@@ -88,13 +104,19 @@ test("past-due lifecycle flags payment issue without extending paid period", () 
   assert.equal(patch.renewalStatus, "past_due");
 });
 
-test("webhook lifecycle detector only selects subscription update/delete events", () => {
-  const event = stripeEventFromRawBody(Buffer.from(JSON.stringify({
-    id: "evt_123",
-    type: "customer.subscription.updated",
-    data: {object: {id: "sub_123"}},
-  })));
-  assert.equal(isDispatchSubscriptionLifecycleEvent(event), true);
+test("webhook lifecycle detector selects subscription create/update/delete only", () => {
+  for (const type of [
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+  ]) {
+    const event = stripeEventFromRawBody(Buffer.from(JSON.stringify({
+      id: "evt_123",
+      type,
+      data: {object: {id: "sub_123"}},
+    })));
+    assert.equal(isDispatchSubscriptionLifecycleEvent(event), true, type);
+  }
   assert.equal(isDispatchSubscriptionLifecycleEvent({
     type: "invoice.paid",
     data: {object: {id: "in_123"}},
