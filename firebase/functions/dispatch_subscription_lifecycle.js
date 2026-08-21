@@ -120,7 +120,10 @@ function createDispatchSubscriptionLifecycle(admin) {
     const providerStateRef = db.collection("dispatch_subscription_provider_state")
         .doc(identity.uid);
     await db.runTransaction(async (transaction) => {
-      const membershipSnapshot = await transaction.get(membershipRef);
+      const [membershipSnapshot, providerStateSnapshot] = await Promise.all([
+        transaction.get(membershipRef),
+        transaction.get(providerStateRef),
+      ]);
       const provider = providerSubscriptionState(subscription, {deleted});
       transaction.set(providerStateRef, {
         ownerUid: identity.uid,
@@ -133,7 +136,9 @@ function createDispatchSubscriptionLifecycle(admin) {
           Timestamp.fromMillis(provider.providerPeriodEndMillis) : null,
         ...(deleted ? {deletedAt: FieldValue.serverTimestamp()} : {}),
         updatedAt: FieldValue.serverTimestamp(),
-        createdAt: FieldValue.serverTimestamp(),
+        ...(providerStateSnapshot.exists ? {} : {
+          createdAt: FieldValue.serverTimestamp(),
+        }),
       }, {merge: true});
 
       if (!membershipSnapshot.exists) {
