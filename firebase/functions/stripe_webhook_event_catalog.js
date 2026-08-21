@@ -9,6 +9,8 @@ const STRIPE_WEBHOOK_EVENTS = Object.freeze([
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
+  "customer.subscription.paused",
+  "customer.subscription.resumed",
   "charge.refunded",
   "refund.created",
   "refund.updated",
