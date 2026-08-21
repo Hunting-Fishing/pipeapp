@@ -11,7 +11,7 @@ command -v firebase >/dev/null 2>&1 || fail "Firebase CLI is required."
 command -v node >/dev/null 2>&1 || fail "Node is required."
 
 [[ "${PIPEBUYER_DEPLOY_WEB_LEGAL:-}" == "YES" ]] || \
-  fail "Set PIPEBUYER_DEPLOY_WEB_LEGAL=YES only after reviewing the August 22, 2026 Terms and Privacy changes."
+  fail "Set PIPEBUYER_DEPLOY_WEB_LEGAL=YES only after reviewing the August 22, 2026 Pipe Buyer policy changes."
 
 if [[ -n "$(git status --porcelain 2>/dev/null || true)" && "${PIPEBUYER_ALLOW_DIRTY_DEPLOY:-}" != "YES" ]]; then
   fail "Refusing hosting deployment from a dirty working tree."
@@ -25,14 +25,31 @@ flutter test
 echo "== Build Pipe Buyer web =="
 flutter build web --release
 
-[[ -f build/web/terms.html ]] || fail "build/web/terms.html is missing. Flutter did not include the reviewed Terms document."
-[[ -f build/web/privacy.html ]] || fail "build/web/privacy.html is missing. Flutter did not include the reviewed Privacy document."
+POLICY_FILES=(
+  "build/web/terms.html"
+  "build/web/privacy.html"
+  "build/web/prohibited-items.html"
+  "build/web/mapping-location.html"
+  "build/web/communications.html"
+)
+for file in "${POLICY_FILES[@]}"; do
+  [[ -f "$file" ]] || fail "$file is missing. Flutter did not include the reviewed policy document."
+done
 
 node <<'NODE'
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const terms = fs.readFileSync('build/web/terms.html', 'utf8');
-const privacy = fs.readFileSync('build/web/privacy.html', 'utf8');
+
+const files = {
+  terms: 'build/web/terms.html',
+  privacy: 'build/web/privacy.html',
+  prohibited: 'build/web/prohibited-items.html',
+  mapping: 'build/web/mapping-location.html',
+  communications: 'build/web/communications.html',
+};
+const contents = Object.fromEntries(
+  Object.entries(files).map(([key, file]) => [key, fs.readFileSync(file, 'utf8')]),
+);
 
 const requiredTerms = [
   'CA$25 per month',
@@ -42,16 +59,47 @@ const requiredTerms = [
   'Stripe',
 ];
 for (const text of requiredTerms) {
-  if (!terms.includes(text)) throw new Error(`Built Terms are missing required billing language: ${text}`);
+  if (!contents.terms.includes(text)) {
+    throw new Error(`Built Terms are missing required billing language: ${text}`);
+  }
 }
 for (const obsolete of ['$10 per dispatched job', 'No fee is currently charged', '$25 per year']) {
-  if (terms.includes(obsolete)) throw new Error(`Built Terms still contain obsolete pilot language: ${obsolete}`);
+  if (contents.terms.includes(obsolete)) {
+    throw new Error(`Built Terms still contain obsolete pilot language: ${obsolete}`);
+  }
 }
-if (!privacy.includes('Stripe') || !privacy.includes('Payment and subscription records')) {
+if (!contents.privacy.includes('Stripe') ||
+    !contents.privacy.includes('Payment and subscription records')) {
   throw new Error('Built Privacy Policy does not contain the reviewed Stripe/payment disclosure.');
 }
 
-for (const file of ['build/web/terms.html', 'build/web/privacy.html']) {
+const requiredMarkers = {
+  prohibited: [
+    'Prohibited Items Policy for Pipe Buyer',
+    'Illegal, Stolen, Counterfeit, or Fraudulent Property',
+    'Dispatch Restrictions',
+  ],
+  mapping: [
+    'Mapping and Location Policy for Pipe Buyer',
+    'Maps are planning tools, not legal routing instructions.',
+    'Carrier and Driver Responsibilities',
+  ],
+  communications: [
+    'Communications Policy for Pipe Buyer',
+    'Fraud, Impersonation, and Phishing',
+    'Automated Safety Signals and Human Review',
+  ],
+};
+for (const [policy, markers] of Object.entries(requiredMarkers)) {
+  for (const marker of markers) {
+    if (!contents[policy].includes(marker)) {
+      throw new Error(`Built ${policy} policy is missing required marker: ${marker}`);
+    }
+  }
+}
+
+console.log('== Policy SHA-256 hashes ==');
+for (const file of Object.values(files)) {
   const data = fs.readFileSync(file);
   const hash = crypto.createHash('sha256').update(data).digest('hex');
   console.log(`${file} SHA-256 ${hash}`);
@@ -63,8 +111,8 @@ firebase deploy \
   --project "$PROJECT_ID" \
   --config firebase.json \
   --only hosting \
-  --message "Pipe Buyer Dispatch billing legal/web release $(git rev-parse --short HEAD)" \
+  --message "Pipe Buyer reviewed policy/web release $(git rev-parse --short HEAD)" \
   --non-interactive
 
 echo "Hosting deployed without GitHub Actions."
-echo "Next: independently fetch https://www.pipebuyer.com/terms and /privacy and verify their SHA-256 hashes before publishPolicyDocument."
+echo "Next: independently fetch /terms, /privacy, /prohibited-items, /mapping-location, and /communications and verify their SHA-256 hashes before policy publication."
