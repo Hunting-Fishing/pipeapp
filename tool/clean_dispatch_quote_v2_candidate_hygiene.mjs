@@ -265,17 +265,47 @@ function removeTopLevelFunction(source, symbol, lineNumber) {
 }
 
 function runMachineAnalyzer(filePath) {
-  const result = spawnSync('dart', ['analyze', '--format=machine', filePath], {
+  // Important Windows rule: analyze a path relative to cwd. The repository lives
+  // under "D:\\Game Development", and passing the absolute path through a shell
+  // splits it at the space before Dart ever sees the candidate file.
+  const relativePath = path.relative(repoRoot, filePath);
+  const result = spawnSync('dart', ['analyze', '--format=machine', relativePath], {
     cwd: repoRoot,
     encoding: 'utf8',
     shell: process.platform === 'win32',
   });
   if (result.error) fail(`Could not start Dart analyzer: ${result.error.message}`);
-  const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`
+  const rawOutput = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+  const output = rawOutput
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  return output.filter((line) => /^(INFO|WARNING|ERROR)\|/.test(line));
+  const diagnostics = output.filter((line) => /^(INFO|WARNING|ERROR)\|/.test(line));
+  if (result.status !== 0 && diagnostics.length === 0) {
+    console.error(rawOutput.trim());
+    fail(
+      `Dart analyzer exited ${result.status} without machine diagnostics for ${relativePath}; refusing to treat analyzer transport failure as a clean candidate.`,
+    );
+  }
+  return diagnostics;
+}
+
+function verifyAnalyzerTransport() {
+  const probePath = path.join(repoRoot, 'tool', 'pipebuyer_quote_v2_hygiene_probe.dart');
+  const probeSource = 'void main() {}\nvoid _pipeBuyerUnusedProbe() {}\n';
+  fs.writeFileSync(probePath, probeSource, 'utf8');
+  try {
+    const diagnostics = runMachineAnalyzer(probePath);
+    if (!diagnostics.some((line) => line.includes('|UNUSED_ELEMENT|'))) {
+      console.error(diagnostics.join('\n'));
+      fail(
+        'Quote V2 hygiene analyzer transport probe did not capture the expected UNUSED_ELEMENT diagnostic.',
+      );
+    }
+  } finally {
+    fs.rmSync(probePath, {force: true});
+  }
+  console.log('Quote V2 hygiene analyzer transport through Windows path-with-spaces: PASS');
 }
 
 function parseDiagnostic(line) {
@@ -301,17 +331,23 @@ function chooseBoundedDiagnostic(source, diagnostics, label) {
     fail(`${label} candidate has diagnostics other than bounded unused imports/elements.`);
   }
 
+  // Remove the containing top-level declaration before an unused member warning.
+  // This prevents a dead class and its dead fromMap method being handled as two
+  // unrelated repairs.
+  const topLevelElement = parsed.find((item) => {
+    if (item.code !== 'UNUSED_ELEMENT') return false;
+    const match = item.message.match(/declaration '([^']+)' isn't referenced/);
+    if (!match || !match[1].startsWith('_')) return false;
+    const {line} = lineBounds(source, item.lineNumber);
+    return !/^\s/.test(line);
+  });
+  if (topLevelElement) {
+    const match = topLevelElement.message.match(/declaration '([^']+)' isn't referenced/);
+    return {...topLevelElement, symbol: match[1]};
+  }
+
   const importDiagnostic = parsed.find((item) => item.code === 'UNUSED_IMPORT');
   if (importDiagnostic) return importDiagnostic;
-
-  for (const item of parsed) {
-    const match = item.message.match(/declaration '([^']+)' isn't referenced/);
-    if (!match) continue;
-    const symbol = match[1];
-    if (!symbol.startsWith('_')) continue;
-    const {line} = lineBounds(source, item.lineNumber);
-    if (!/^\s/.test(line)) return {...item, symbol};
-  }
 
   console.error(`${label} candidate has only non-top-level unused elements:`);
   for (const item of parsed) console.error(item.raw);
@@ -357,6 +393,8 @@ function cleanupCandidate(filePath, label) {
 
   fail(`${label} candidate hygiene exceeded the bounded cleanup pass limit.`);
 }
+
+verifyAnalyzerTransport();
 
 const results = [];
 for (const candidate of candidates) {
