@@ -25,6 +25,20 @@ function isDispatchSubscriptionLifecycleEvent(event) {
     event.data.object);
 }
 
+function isDispatchCheckoutCompletedEvent(event) {
+  const session = event && event.data && event.data.object;
+  return Boolean(event &&
+    event.type === "checkout.session.completed" &&
+    session &&
+    session.metadata &&
+    session.metadata.billingType === "dispatch_subscription");
+}
+
+function isDispatchProviderStateEvent(event) {
+  return isDispatchSubscriptionLifecycleEvent(event) ||
+    isDispatchCheckoutCompletedEvent(event);
+}
+
 function createStripeWebhookDispatchLifecycleWrapper({
   admin,
   baseHandler,
@@ -48,7 +62,7 @@ function createStripeWebhookDispatchLifecycleWrapper({
     }
 
     const event = stripeEventFromRawBody(rawBody);
-    if (!isDispatchSubscriptionLifecycleEvent(event)) {
+    if (!isDispatchProviderStateEvent(event)) {
       return baseHandler(request, response);
     }
 
@@ -63,19 +77,22 @@ function createStripeWebhookDispatchLifecycleWrapper({
     }
 
     try {
-      const subscription = event.data.object;
-      if (event.type === "customer.subscription.created") {
+      const object = event.data.object;
+      if (event.type === "checkout.session.completed") {
         await dispatchSubscriptionLifecycle
-            .handleDispatchSubscriptionCreated(subscription);
+            .handleDispatchCheckoutCompleted(object);
+      } else if (event.type === "customer.subscription.created") {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionCreated(object);
       } else if (event.type === "customer.subscription.updated") {
         await dispatchSubscriptionLifecycle
-            .handleDispatchSubscriptionUpdated(subscription);
+            .handleDispatchSubscriptionUpdated(object);
       } else if (event.type === "customer.subscription.deleted") {
         await dispatchSubscriptionLifecycle
-            .handleDispatchSubscriptionDeleted(subscription);
+            .handleDispatchSubscriptionDeleted(object);
       }
     } catch (error) {
-      console.error("Dispatch subscription lifecycle webhook failed", {
+      console.error("Dispatch subscription provider-state webhook failed", {
         eventId,
         type: event.type,
         error,
@@ -92,9 +109,8 @@ function createStripeWebhookDispatchLifecycleWrapper({
       return;
     }
 
-    // The established handler intentionally ignores unknown event types but
-    // still records the Stripe event ID as processed. This preserves one
-    // shared idempotency/audit ledger instead of creating a second webhook log.
+    // The established handler remains the single owner of the processed event
+    // ledger and of all existing checkout/refund/dispute behavior.
     return baseHandler(request, response);
   };
 }
@@ -102,6 +118,8 @@ function createStripeWebhookDispatchLifecycleWrapper({
 module.exports = {
   DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS,
   createStripeWebhookDispatchLifecycleWrapper,
+  isDispatchCheckoutCompletedEvent,
+  isDispatchProviderStateEvent,
   isDispatchSubscriptionLifecycleEvent,
   stripeEventFromRawBody,
 };
