@@ -161,11 +161,10 @@ function createDispatchSubscriptionCommands(admin) {
           db.collection("users").doc(uid).get(),
         ]);
       const user = userSnapshot.exists ? userSnapshot.data() : {};
-      if (user.dispatchSubscriptionActive === true &&
-          String(user.dispatchSubscriptionStatus || "") === "active") {
+      if (user.dispatchSubscriptionActive === true) {
         throw new HttpsError(
             "already-exists",
-            "Your Dispatch subscription is already active.",
+            "Your existing Dispatch subscription must be resolved before starting another checkout.",
         );
       }
       const entitlement = entitlementSnapshot.exists ? entitlementSnapshot.data() : null;
