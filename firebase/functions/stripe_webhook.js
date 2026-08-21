@@ -154,6 +154,15 @@ function createStripeWebhookHandler(admin, options = {}) {
   }
 
   async function markCheckoutFailure(session) {
+    if (billingType(session) === "dispatch_subscription") {
+      await db.collection("subscription_checkout_sessions")
+          .doc(String(session.id || "")).set({
+            status: "payment_failed",
+            paymentFailedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+      return;
+    }
     const transactionId = String(
         session && session.metadata &&
         session.metadata.pipeBuyerTransactionId || "",
@@ -239,12 +248,15 @@ function createStripeWebhookHandler(admin, options = {}) {
       return;
     }
     if (billingType(session) === "dispatch_subscription") {
+      const customerId = typeof session.customer === "string" ?
+        session.customer : String(session.customer && session.customer.id || "");
       await db.collection("subscription_checkout_sessions")
           .doc(String(session.id || "")).set({
             status: session.payment_status === "paid" ? "active" : "processing",
             stripeSubscriptionId: typeof session.subscription === "string" ?
               session.subscription :
               String(session.subscription && session.subscription.id || ""),
+            stripeCustomerId: customerId.startsWith("cus_") ? customerId : null,
             updatedAt: FieldValue.serverTimestamp(),
           }, {merge: true});
       return;
@@ -427,6 +439,13 @@ function createStripeWebhookHandler(admin, options = {}) {
     }
     if (type === "invoice.paid") {
       await subscriptionMonetization.handleDispatchInvoicePaid(
+          object,
+          stripeSecretKey.value(),
+      );
+      return;
+    }
+    if (type === "invoice.payment_failed") {
+      await subscriptionMonetization.handleDispatchInvoicePaymentFailed(
           object,
           stripeSecretKey.value(),
       );
