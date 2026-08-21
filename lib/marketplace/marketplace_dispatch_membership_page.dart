@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_policy_center.dart';
 
 bool dispatchMembershipStatusActive(Map<String, dynamic>? data) =>
     data != null && data['active'] == true;
@@ -84,6 +85,16 @@ class _MarketplaceDispatchMembershipPageState
         _catalog = _loadCatalog();
       }
     });
+  }
+
+  Future<void> _openPolicies() async {
+    if (!dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb)) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const MarketplacePolicyCenterPage(),
+      ),
+    );
+    if (mounted) _refresh();
   }
 
   Future<void> _checkout(String plan) async {
@@ -252,6 +263,8 @@ class _MarketplaceDispatchMembershipPageState
                   builder: (context, catalogSnapshot) {
                     final catalog = catalogSnapshot.data;
                     final checkoutAvailable = catalog?['checkoutAvailable'] == true;
+                    final policyReviewRequired =
+                        catalog?['policyAcceptanceRequired'] == true;
                     final catalogUnavailable = catalogSnapshot.hasError ||
                         catalogSnapshot.connectionState == ConnectionState.waiting;
                     final statusUnavailable = snapshot.hasError ||
@@ -294,7 +307,27 @@ class _MarketplaceDispatchMembershipPageState
                               'Current subscription pricing could not be verified from the server. Payment is disabled until pricing is available.',
                             ),
                           )
-                        else if (!catalogUnavailable && !checkoutAvailable && !active)
+                        else if (!catalogUnavailable &&
+                            policyReviewRequired &&
+                            !active) ...[
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              'Review and accept the current Pipe Buyer policies before starting Dispatch billing. No charge has been created.',
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton.icon(
+                              onPressed: _openPolicies,
+                              icon: const Icon(Icons.fact_check_outlined),
+                              label: const Text('Review current policies'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ] else if (!catalogUnavailable &&
+                            !checkoutAvailable &&
+                            !active)
                           const Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
