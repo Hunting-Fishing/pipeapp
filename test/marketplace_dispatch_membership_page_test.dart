@@ -9,6 +9,11 @@ void main() {
     expect(dispatchMembershipStatusActive({'active': true}), isTrue);
   });
 
+  test('hosted Stripe purchase and Portal controls are web-only', () {
+    expect(dispatchHostedStripeSurfaceAllowed(isWeb: true), isTrue);
+    expect(dispatchHostedStripeSurfaceAllowed(isWeb: false), isFalse);
+  });
+
   test('Dispatch membership paid-through date is formatted from server millis', () {
     final utc = DateTime.utc(2026, 8, 21);
     final label = dispatchMembershipPaidThrough({
