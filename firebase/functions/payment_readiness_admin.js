@@ -14,6 +14,7 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeCheckoutEnabled",
   "stripeFeeBillingEnabled",
   "stripeSubscriptionsEnabled",
+  "stripeDispatchPortalEnabled",
   "stripeWebhookVerified",
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
@@ -29,6 +30,10 @@ const URL_FIELDS = Object.freeze([
   "connectRefreshUrl",
   "checkoutSuccessUrl",
   "checkoutCancelUrl",
+  "dispatchPortalReturnUrl",
+]);
+const STRING_FIELDS = Object.freeze([
+  "stripeDispatchPortalConfigurationId",
 ]);
 
 function safeHttpsPipeBuyerUrl(value, field) {
@@ -49,6 +54,17 @@ function safeHttpsPipeBuyerUrl(value, field) {
   return url.toString();
 }
 
+function safePortalConfigurationId(value) {
+  const configurationId = String(value || "").trim();
+  if (configurationId && !/^bpc_[A-Za-z0-9]+$/.test(configurationId)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "stripeDispatchPortalConfigurationId must be a Stripe billing portal configuration ID.",
+    );
+  }
+  return configurationId;
+}
+
 function normalizeReadiness(data = {}) {
   const normalized = {
     stripeMode: MODES.has(String(data.stripeMode || "")) ?
@@ -56,6 +72,7 @@ function normalizeReadiness(data = {}) {
   };
   for (const field of BOOLEAN_FIELDS) normalized[field] = data[field] === true;
   for (const field of URL_FIELDS) normalized[field] = String(data[field] || "");
+  for (const field of STRING_FIELDS) normalized[field] = String(data[field] || "");
   return normalized;
 }
 
@@ -120,6 +137,17 @@ function validateReadiness(next, options = {}) {
         "Live Dispatch subscriptions require production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
     );
   }
+  if (next.stripeDispatchPortalEnabled && !(
+    next.stripeMode === "production" &&
+    next.stripeWebhookVerified &&
+    /^bpc_[A-Za-z0-9]+$/.test(String(next.stripeDispatchPortalConfigurationId || "")) &&
+    String(next.dispatchPortalReturnUrl || "").trim()
+  )) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Dispatch Customer Portal requires production mode, verified webhooks, an approved Stripe portal configuration, and a Pipe Buyer return URL.",
+    );
+  }
   if (next.marketplaceFinancialResolutionEnabled && !(
     next.stripeMode === "production" &&
     next.stripeWebhookVerified &&
@@ -170,7 +198,12 @@ function applyPatch(current, patch, options = {}) {
     throw new HttpsError("invalid-argument", "A readiness patch is required.");
   }
   const next = {...normalizeReadiness(current)};
-  const allowed = new Set(["stripeMode", ...BOOLEAN_FIELDS, ...URL_FIELDS]);
+  const allowed = new Set([
+    "stripeMode",
+    ...BOOLEAN_FIELDS,
+    ...URL_FIELDS,
+    ...STRING_FIELDS,
+  ]);
   for (const key of Object.keys(patch)) {
     if (!allowed.has(key)) {
       throw new HttpsError("invalid-argument", `Unsupported readiness field: ${key}`);
@@ -190,6 +223,12 @@ function applyPatch(current, patch, options = {}) {
   for (const field of URL_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(patch, field)) {
       next[field] = safeHttpsPipeBuyerUrl(patch[field], field);
+    }
+  }
+  for (const field of STRING_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(patch, field)) {
+      next[field] = field === "stripeDispatchPortalConfigurationId" ?
+        safePortalConfigurationId(patch[field]) : String(patch[field] || "").trim();
     }
   }
   return validateReadiness(next, options);
@@ -269,11 +308,13 @@ function createPaymentReadinessAdmin(admin) {
 
 module.exports = {
   BOOLEAN_FIELDS,
+  STRING_FIELDS,
   URL_FIELDS,
   applyPatch,
   createPaymentReadinessAdmin,
   normalizeReadiness,
   safeHttpsPipeBuyerUrl,
+  safePortalConfigurationId,
   taxBillingPrepared,
   validateReadiness,
 };
