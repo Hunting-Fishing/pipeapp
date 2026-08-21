@@ -17,6 +17,32 @@ String dispatchMembershipPaidThrough(Map<String, dynamic>? data) {
   return '${date.year}-${two(date.month)}-${two(date.day)}';
 }
 
+Map<String, dynamic> _stringMap(Object? value) {
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return const <String, dynamic>{};
+}
+
+String dispatchSubscriptionPriceLabel(
+  Map<String, dynamic>? catalog,
+  String plan,
+) {
+  final plans = _stringMap(catalog?['plans']);
+  final entry = _stringMap(plans[plan]);
+  final amountMinor = (entry['amountMinor'] as num?)?.toInt();
+  final amount = amountMinor != null
+      ? amountMinor / 100
+      : (entry['amount'] as num?)?.toDouble();
+  if (amount == null || amount < 0) return 'Price unavailable';
+  final currency = '${entry['currency'] ?? 'CAD'}'.toUpperCase();
+  final interval = '${entry['interval'] ?? ''}'.trim().toLowerCase();
+  if (interval.isEmpty) return 'Price unavailable';
+  final amountText = amount == amount.roundToDouble()
+      ? amount.toStringAsFixed(0)
+      : amount.toStringAsFixed(2);
+  final prefix = currency == 'CAD' ? 'CA\$' : '$currency \$';
+  return '$prefix$amountText / $interval';
+}
+
 class MarketplaceDispatchMembershipPage extends StatefulWidget {
   const MarketplaceDispatchMembershipPage({super.key});
 
@@ -29,23 +55,32 @@ class _MarketplaceDispatchMembershipPageState
     extends State<MarketplaceDispatchMembershipPage> {
   final _commands = MarketplaceCommandClient();
   late Future<Map<String, dynamic>> _status;
+  late Future<Map<String, dynamic>> _catalog;
   String? _busyPlan;
+  bool _portalBusy = false;
 
   @override
   void initState() {
     super.initState();
     _status = _loadStatus();
+    _catalog = _loadCatalog();
   }
 
   Future<Map<String, dynamic>> _loadStatus() =>
       _commands.execute('getDispatchSubscriptionStatus', const {});
 
-  void _refreshStatus() {
-    setState(() => _status = _loadStatus());
+  Future<Map<String, dynamic>> _loadCatalog() =>
+      _commands.execute('getDispatchSubscriptionCatalog', const {});
+
+  void _refresh() {
+    setState(() {
+      _status = _loadStatus();
+      _catalog = _loadCatalog();
+    });
   }
 
   Future<void> _checkout(String plan) async {
-    if (_busyPlan != null) return;
+    if (_busyPlan != null || _portalBusy) return;
     setState(() => _busyPlan = plan);
     try {
       final result = await _commands.execute(
@@ -71,9 +106,44 @@ class _MarketplaceDispatchMembershipPageState
         ),
         tone: PipeStatusTone.error,
       );
-      _refreshStatus();
+      _refresh();
     } finally {
       if (mounted) setState(() => _busyPlan = null);
+    }
+  }
+
+  Future<void> _openPortal() async {
+    if (_portalBusy || _busyPlan != null) return;
+    setState(() => _portalBusy = true);
+    try {
+      final result = await _commands.execute(
+        'createDispatchSubscriptionPortalSession',
+        const {},
+        timeout: const Duration(seconds: 30),
+      );
+      final uri = Uri.tryParse('${result['portalUrl'] ?? ''}');
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          uri.host.toLowerCase() != 'billing.stripe.com') {
+        throw StateError('Stripe did not return a valid billing management link.');
+      }
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) {
+        throw StateError('Stripe subscription management could not be opened.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Dispatch subscription management is unavailable.',
+        ),
+        tone: PipeStatusTone.error,
+      );
+      _refresh();
+    } finally {
+      if (mounted) setState(() => _portalBusy = false);
     }
   }
 
@@ -91,7 +161,7 @@ class _MarketplaceDispatchMembershipPageState
         actions: [
           IconButton(
             tooltip: 'Refresh membership status',
-            onPressed: _refreshStatus,
+            onPressed: _refresh,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -102,6 +172,9 @@ class _MarketplaceDispatchMembershipPageState
           final data = snapshot.data;
           final active = dispatchMembershipStatusActive(data);
           final paidThrough = dispatchMembershipPaidThrough(data);
+          final paymentIssue = data?['paymentIssue'] == true;
+          final cancelAtPeriodEnd = data?['cancelAtPeriodEnd'] == true;
+          final managementAvailable = data?['managementAvailable'] == true;
           return ListView(
             padding: const EdgeInsets.all(18),
             children: [
@@ -109,9 +182,14 @@ class _MarketplaceDispatchMembershipPageState
                 active: active,
                 plan: '${data?['plan'] ?? ''}',
                 paidThrough: paidThrough,
+                paymentIssue: paymentIssue,
+                cancelAtPeriodEnd: cancelAtPeriodEnd,
+                managementAvailable: managementAvailable,
+                managementBusy: _portalBusy,
                 loading: snapshot.connectionState == ConnectionState.waiting,
                 error: snapshot.hasError,
-                onRetry: _refreshStatus,
+                onRetry: _refresh,
+                onManage: _openPortal,
               ),
               const SizedBox(height: 16),
               const Text(
@@ -123,47 +201,81 @@ class _MarketplaceDispatchMembershipPageState
                 'Joining Dispatch is free. A paid membership is required before a carrier submits bids. Stripe securely handles recurring billing.',
               ),
               const SizedBox(height: 16),
-              LayoutBuilder(
-                builder: (context, constraints) {
+              FutureBuilder<Map<String, dynamic>>(
+                future: _catalog,
+                builder: (context, catalogSnapshot) {
+                  final catalog = catalogSnapshot.data;
+                  final checkoutAvailable = catalog?['checkoutAvailable'] == true;
+                  final catalogUnavailable = catalogSnapshot.hasError ||
+                      catalogSnapshot.connectionState == ConnectionState.waiting;
                   final statusUnavailable = snapshot.hasError ||
                       snapshot.connectionState == ConnectionState.waiting;
+                  final checkoutDisabled = active ||
+                      _busyPlan != null ||
+                      _portalBusy ||
+                      statusUnavailable ||
+                      catalogUnavailable ||
+                      !checkoutAvailable;
                   final cards = [
                     _PlanCard(
                       title: 'Dispatch Monthly',
-                      price: r'CA$25 / month',
+                      price: dispatchSubscriptionPriceLabel(catalog, 'monthly'),
                       description:
                           'Flexible recurring Dispatch carrier bidding access.',
                       icon: Icons.calendar_month_outlined,
                       busy: _busyPlan == 'monthly',
-                      disabled: active || _busyPlan != null || statusUnavailable,
+                      disabled: checkoutDisabled,
                       onPressed: () => _checkout('monthly'),
                     ),
                     _PlanCard(
                       title: 'Dispatch Yearly',
-                      price: r'CA$300 / year',
+                      price: dispatchSubscriptionPriceLabel(catalog, 'yearly'),
                       description:
                           'Annual recurring Dispatch carrier bidding access.',
                       icon: Icons.calendar_today_outlined,
                       busy: _busyPlan == 'yearly',
-                      disabled: active || _busyPlan != null || statusUnavailable,
+                      disabled: checkoutDisabled,
                       onPressed: () => _checkout('yearly'),
                     ),
                   ];
-                  if (constraints.maxWidth >= 720) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: cards[0]),
-                        const SizedBox(width: 14),
-                        Expanded(child: cards[1]),
-                      ],
-                    );
-                  }
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      cards[0],
-                      const SizedBox(height: 12),
-                      cards[1],
+                      if (catalogSnapshot.hasError)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Current subscription pricing could not be verified from the server. Payment is disabled until pricing is available.',
+                          ),
+                        )
+                      else if (!catalogUnavailable && !checkoutAvailable && !active)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Dispatch subscription checkout is currently held by Pipe Buyer payment-readiness controls.',
+                          ),
+                        ),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth >= 720) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: cards[0]),
+                                const SizedBox(width: 14),
+                                Expanded(child: cards[1]),
+                              ],
+                            );
+                          }
+                          return Column(
+                            children: [
+                              cards[0],
+                              const SizedBox(height: 12),
+                              cards[1],
+                            ],
+                          );
+                        },
+                      ),
                     ],
                   );
                 },
@@ -275,17 +387,27 @@ class _MembershipStatusCard extends StatelessWidget {
     required this.active,
     required this.plan,
     required this.paidThrough,
+    required this.paymentIssue,
+    required this.cancelAtPeriodEnd,
+    required this.managementAvailable,
+    required this.managementBusy,
     required this.loading,
     required this.error,
     required this.onRetry,
+    required this.onManage,
   });
 
   final bool active;
   final String plan;
   final String paidThrough;
+  final bool paymentIssue;
+  final bool cancelAtPeriodEnd;
+  final bool managementAvailable;
+  final bool managementBusy;
   final bool loading;
   final bool error;
   final VoidCallback onRetry;
+  final VoidCallback onManage;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -293,6 +415,7 @@ class _MembershipStatusCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(active ? Icons.verified_outlined : Icons.info_outline),
               const SizedBox(width: 10),
@@ -314,6 +437,37 @@ class _MembershipStatusCard extends StatelessWidget {
                       Text(
                         '${plan.trim().isEmpty ? 'Dispatch' : plan.trim()}${paidThrough.isEmpty ? '' : ' • paid through $paidThrough'}',
                       ),
+                    if (active && paymentIssue) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Stripe reported a payment issue. Your already-paid access remains valid only through the paid-through date shown above.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (active && cancelAtPeriodEnd) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Renewal is cancelled at period end. Dispatch access remains available through the paid-through date shown above.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (managementAvailable && !loading && !error) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: managementBusy ? null : onManage,
+                        icon: managementBusy
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.manage_accounts_outlined),
+                        label: Text(
+                          managementBusy
+                              ? 'Opening Stripe…'
+                              : 'Manage billing with Stripe',
+                        ),
+                      ),
+                    ],
                     if (error)
                       TextButton.icon(
                         onPressed: onRetry,
