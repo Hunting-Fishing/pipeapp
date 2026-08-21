@@ -29,35 +29,38 @@ The detailed tracker remains the evidence and repair log. This scorecard is the 
 | --- | ---: | ---: | ---: | --- |
 | P0 — Financial truth | 19 | 25 | **76%** | Pricing/policy cleanup still open |
 | P1 — Stripe/webhook integrity | 10 | 15 | **67%** | Live baseline good; controlled verification pending |
-| P2 — Dispatch subscriptions | 12 | 56 | **21%** | **~63% implemented**, acceptance blocked by CI |
+| P2 — Dispatch subscriptions | 12 | 57 | **21%** | **~63% implemented**, hosted CI deliberately deferred |
 | P3 — External-settlement Marketplace fee | 4 | 15 | **27%** | Second revenue target; not active |
 | P4 — Full Marketplace Checkout / Connect | 7 | 19 | **37%** | Gated; do not activate |
 | P5 — Tax readiness | 0 | 12 | **0%** | Launch gate |
 | P6 — Refunds/disputes/seller recovery | 2 | 11 | **18%** | Foundation exists; acceptance pending |
 | P7 — Reconciliation/accounting | 0 | 17 | **0%** | Operational completion required |
-| **TOTAL** | **54** | **170** | **32%** | Overall verified payments checklist |
+| **TOTAL** | **54** | **171** | **32%** | Overall verified payments checklist |
 
 > **Important:** 32% is checklist completion, not commercial launch readiness. Dispatch P2 is the current revenue target and its critical path is much further along in code than its 21% verified acceptance score.
 
 ## P2 engineering implementation view
 
-Current P2 scope: **56 acceptance items**.
+Current P2 scope: **57 acceptance items**.
 
-- Verified complete: **12 / 56 = 21%**
-- Additional items implemented in Draft PR #88 but awaiting CI/provider acceptance: **23**
-- Verified + implemented coverage: **35 / 56 = 63%**
-- Not yet implemented/accepted: **21 / 56 = 38%**
+- Verified complete: **12 / 57 = 21%**
+- Additional items implemented in Draft PR #88 but awaiting CI/provider acceptance: **24**
+- Verified + implemented coverage: **36 / 57 = 63%**
+- Not yet implemented/accepted: **21 / 57 = 37%**
 
-Do not convert the 23 implemented items to `[x]` until their required acceptance evidence exists.
+Do not convert the 24 implemented items to `[x]` until their required acceptance evidence exists.
 
 ---
 
-# P0 release blocker — GitHub Actions
+# Deferred final release gate — GitHub Actions
 
 Issue: **#91 — Restore GitHub Actions execution and reduce hosted-runner spend**
 
-Current symptom:
+Owner decision on 2026-08-21: GitHub Actions billing remains intentionally off while engineering work continues. The recurring zero-job `BuildFailed` / `startup_failure` is therefore **not a reason to stop code completion** and must not trigger speculative payment-code changes.
 
+Before merge/deploy/production activation, all of the following still become mandatory:
+
+- [ ] GitHub Actions billing/runner admission intentionally restored.
 - [ ] Synthetic `BuildFailed` is gone.
 - [ ] PR run has a real workflow name.
 - [ ] At least one GitHub Actions job is created.
@@ -68,15 +71,7 @@ Current symptom:
 - [ ] Flutter analyze/tests pass.
 - [ ] Successful run IDs are recorded in the detailed payments tracker.
 
-Current diagnosis: GitHub-hosted Actions admission/billing/quota restriction is the primary suspected root cause. Do **not** modify payment code to chase a zero-job `startup_failure`.
-
-Account-owner verification required in GitHub billing settings:
-
-- [ ] Valid GitHub payment method confirmed.
-- [ ] Actions metered usage/included quota reviewed.
-- [ ] Actions budget is not zero/exhausted.
-- [ ] Hard `Stop usage when budget limit is reached` restriction is not blocking runs.
-- [ ] Failed-payment/account billing warning is cleared if present.
+When billing is restored, verify payment method, Actions budget/quota and any hard stop before troubleshooting workflow YAML.
 
 ---
 
@@ -122,6 +117,7 @@ Account-owner verification required in GitHub billing settings:
 - [ ] Browser success redirect does not grant entitlement.
 - [ ] VIP billing remains disabled while unapproved.
 - [ ] Stale `$25/year + $10/job + NOT BILLING YET` onboarding block is removed and replaced by server-backed recurring pricing.
+- [ ] Fail-closed Stripe Customer Portal callable/UI exists; it remains unavailable until an approved live Portal configuration is explicitly enabled.
 
 ## Still required / not accepted
 
@@ -142,7 +138,7 @@ Account-owner verification required in GitHub billing settings:
 - [ ] Cancellation/end-of-period signed-event acceptance passes.
 - [ ] Expand live webhook to `invoice.payment_failed` only after code deploy/test.
 - [ ] Expand live webhook to required subscription lifecycle events only after code deploy/test.
-- [ ] Decide/implement Customer Portal or equivalent subscription self-service.
+- [ ] Create/approve the live Stripe Customer Portal configuration and enable its `bpc_…` ID/return URL only after Portal behavior is reviewed.
 - [ ] 1-year free entitlement acceptance passes.
 - [ ] 5-year free entitlement acceptance passes.
 - [ ] 100%-discount invoice creates no false revenue/affiliate commission.
@@ -158,18 +154,18 @@ P2 definition of done: a carrier can choose the approved Monthly or Yearly plan,
 
 Execute in this order unless new evidence changes the dependency chain:
 
-1. [ ] **Restore GitHub Actions execution — Issue #91.**
-2. [ ] Run PR #88 `Quality`, `Financial Safety`, and `Callable Safety`.
-3. [ ] Fix only evidence-backed failures from those runs.
-4. [ ] Verify live Firebase payment readiness values and return URLs.
-5. [ ] Controlled Stripe duplicate-checkout test.
-6. [ ] Controlled Monthly/Yearly paid entitlement tests.
-7. [ ] Renewal/failure/cancellation acceptance.
-8. [ ] Expand live Stripe webhook event subscriptions only after deployed handler acceptance.
-9. [ ] Decide Customer Portal behavior and cancellation policy.
-10. [ ] Free-coupon/zero-dollar revenue tests.
-11. [ ] Reconciliation and colleague acceptance.
-12. [ ] Only after P2 gates pass, decide whether Dispatch subscription checkout may be enabled for the controlled launch surface.
+1. [ ] Continue PR #88 code completion and targeted static review while hosted Actions billing remains off.
+2. [ ] Complete Stripe webhook/revenue-recovery event matrix and any evidence-backed code gaps.
+3. [ ] Complete Customer Portal configuration specification; keep live Portal disabled until reviewed.
+4. [ ] Review current Apple App Store / Google Play external-purchase rules and define the allowed launch surfaces.
+5. [ ] Prepare controlled Monthly/Yearly/free-promotion/retry/cancellation/reconciliation acceptance scripts.
+6. [ ] Read/verify live Firebase payment-readiness values and return URLs before any activation.
+7. [ ] Restore GitHub Actions billing only when the branch is otherwise ready for final validation.
+8. [ ] Run PR #88 `Quality`, `Financial Safety`, and `Callable Safety`; fix only evidence-backed failures.
+9. [ ] Deploy to the controlled acceptance environment and run Stripe provider tests.
+10. [ ] Expand live Stripe webhook event subscriptions only after deployed handler acceptance.
+11. [ ] Reconcile test invoice/payment state and complete colleague acceptance.
+12. [ ] Only after all P2 gates pass, decide whether Dispatch subscription checkout may be enabled for the approved launch surface.
 
 ---
 
@@ -180,8 +176,10 @@ Execute in this order unless new evidence changes the dependency chain:
 - [x] Created percentage-based scorecard.
 - [x] Established verified-completion formula.
 - [x] Established separate implemented-vs-accepted accounting.
-- [x] Recorded GitHub Actions Issue #91 as P0 release blocker.
+- [x] Recorded GitHub Actions Issue #91 and later reclassified hosted CI as an intentionally deferred final release gate while billing is off.
 - [x] Recorded current overall verified checklist at **32%**.
 - [x] Recorded Dispatch P2 verified acceptance at **21%**.
 - [x] Recorded Dispatch P2 engineering implementation coverage at approximately **63%**.
 - [x] Replaced stale Dispatch pilot pricing block in PR #88 with server-backed subscription pricing component at code level; acceptance remains unchecked above.
+- [x] Removed hard-coded price duplication from the dedicated Dispatch membership page; both customer-facing price surfaces now use the server catalog and fail closed when pricing is unavailable.
+- [x] Added fail-closed Stripe Customer Portal code path, readiness controls, safe lifecycle status, and management UI while keeping live Portal disabled because no active Stripe Portal configuration currently exists.
