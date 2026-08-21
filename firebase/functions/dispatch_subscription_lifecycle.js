@@ -17,6 +17,11 @@ function stripeSecondsMillis(value) {
   return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
 }
 
+function validUid(value) {
+  const uid = String(value || "").trim();
+  return uid && !uid.includes("/") && uid.length <= 180 ? uid : "";
+}
+
 function dispatchSubscriptionIdentity(subscription) {
   const subscriptionId = String(subscription && subscription.id || "").trim();
   const metadata = subscription && subscription.metadata || {};
@@ -24,9 +29,27 @@ function dispatchSubscriptionIdentity(subscription) {
       metadata.billingType !== "dispatch_subscription") {
     return null;
   }
-  const uid = String(metadata.pipeBuyerUid || "").trim();
-  if (!uid || uid.includes("/") || uid.length > 180) return null;
+  const uid = validUid(metadata.pipeBuyerUid);
+  if (!uid) return null;
   return {subscriptionId, uid, metadata};
+}
+
+function dispatchCheckoutIdentity(session) {
+  const metadata = session && session.metadata || {};
+  if (metadata.billingType !== "dispatch_subscription") return null;
+  const uid = validUid(metadata.pipeBuyerUid || session.client_reference_id);
+  const subscriptionId = typeof (session && session.subscription) === "string" ?
+    session.subscription :
+    String(session && session.subscription && session.subscription.id || "");
+  if (!uid || !subscriptionId.startsWith("sub_")) return null;
+  const customerId = typeof (session && session.customer) === "string" ?
+    session.customer :
+    String(session && session.customer && session.customer.id || "");
+  return {
+    uid,
+    subscriptionId,
+    stripeCustomerId: customerId.startsWith("cus_") ? customerId : "",
+  };
 }
 
 function subscriptionCustomerId(subscription) {
@@ -113,6 +136,26 @@ function createDispatchSubscriptionLifecycle(admin) {
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
 
+  async function handleDispatchCheckoutCompleted(session) {
+    const identity = dispatchCheckoutIdentity(session);
+    if (!identity) return;
+    const providerStateRef = db.collection("dispatch_subscription_provider_state")
+        .doc(identity.uid);
+    await db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(providerStateRef);
+      transaction.set(providerStateRef, {
+        ownerUid: identity.uid,
+        subscriptionId: identity.subscriptionId,
+        stripeCustomerId: identity.stripeCustomerId || null,
+        providerStatus: "checkout_completed",
+        blocksNewCheckout: true,
+        cancelAtPeriodEnd: false,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(existing.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
+      }, {merge: true});
+    });
+  }
+
   async function applySubscriptionLifecycle(subscription, {deleted = false} = {}) {
     const identity = dispatchSubscriptionIdentity(subscription);
     if (!identity) return;
@@ -174,6 +217,7 @@ function createDispatchSubscriptionLifecycle(admin) {
   }
 
   return {
+    handleDispatchCheckoutCompleted,
     handleDispatchSubscriptionCreated: (subscription) =>
       applySubscriptionLifecycle(subscription, {deleted: false}),
     handleDispatchSubscriptionDeleted: (subscription) =>
@@ -186,6 +230,7 @@ function createDispatchSubscriptionLifecycle(admin) {
 module.exports = {
   TERMINAL_PROVIDER_STATUSES,
   createDispatchSubscriptionLifecycle,
+  dispatchCheckoutIdentity,
   dispatchSubscriptionIdentity,
   lifecycleStatePatch,
   providerSubscriptionState,
@@ -193,4 +238,5 @@ module.exports = {
   subscriptionCustomerId,
   subscriptionPeriodEndMillis,
   timestampMillis,
+  validUid,
 };
