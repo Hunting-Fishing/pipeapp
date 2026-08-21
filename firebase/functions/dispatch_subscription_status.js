@@ -27,9 +27,14 @@ function membershipStatusPayload(data, nowMillis = Date.now()) {
   const periodStart = timestampMillis(data.currentPeriodStart);
   const periodEnd = timestampMillis(data.currentPeriodEnd);
   const active = data.active === true && periodEnd > nowMillis;
+  const status = active ?
+    "active" :
+    periodEnd > 0 && periodEnd <= nowMillis ?
+      "expired" :
+      String(data.status || "inactive");
   return {
     active,
-    status: active ? "active" : String(data.status || "expired"),
+    status,
     plan: String(data.plan || ""),
     currentPeriodStartMillis: periodStart > 0 ? periodStart : null,
     currentPeriodEndMillis: periodEnd > 0 ? periodEnd : null,
