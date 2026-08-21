@@ -18,7 +18,7 @@ void main() {
       'MarketplaceDispatchMultiServiceSelector(',
       "label: 'Choose service(s)'",
       'List<String> requestedServiceCodes',
-      'Services requested: $services',
+      r'Services requested: $services',
       "'Select a listing for quote'",
       'MarketplaceFreightQuote.show(',
       "'Post a trucking job'",
