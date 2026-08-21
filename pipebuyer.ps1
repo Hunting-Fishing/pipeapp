@@ -39,16 +39,25 @@ function Assert-Node22 {
     }
 
     $bash = Find-PipeBuyerBash
-    $bashVersion = (& $bash -lc 'node --version 2>/dev/null' 2>$null | Select-Object -First 1)
+    # Use a normal non-login shell here. `bash -l` can rebuild PATH from profile
+    # files and hide a freshly installed Windows Node runtime even though the
+    # release scripts themselves inherit the current PowerShell environment.
+    $bashProbe = (& $bash -c 'printf "%s\n" "$(node --version 2>/dev/null)" "$(npm --version 2>/dev/null)"' 2>$null)
+    $bashVersion = $bashProbe | Select-Object -First 1
+    $bashNpmVersion = $bashProbe | Select-Object -Skip 1 -First 1
     if (-not $bashVersion) {
-        throw "PIPE BUYER RELEASE ERROR: PowerShell can see Node $powerShellVersion, but Git Bash cannot resolve node. Close and reopen PowerShell after installing Node 22 so Git Bash inherits the updated PATH."
+        $nodePath = $node.Source
+        throw "PIPE BUYER RELEASE ERROR: PowerShell resolves Node $powerShellVersion at '$nodePath', but Git Bash cannot resolve node from the inherited PATH. Open a new PowerShell window after installing/selecting Node 22. If it still fails, run: & 'C:\Program Files\Git\bin\bash.exe' -c 'echo \$PATH; command -v node; node --version' and record the output."
     }
     $bashVersion = $bashVersion.Trim()
     if ($bashVersion -notmatch '^v22\.') {
         throw "PIPE BUYER RELEASE ERROR: Git Bash resolves $bashVersion, but Firebase Functions requires Node.js 22. Fix PATH/runtime selection before continuing."
     }
+    if (-not $bashNpmVersion) {
+        throw "PIPE BUYER RELEASE ERROR: Git Bash resolves Node $bashVersion but cannot resolve npm. Repair the Node 22/npm installation before continuing."
+    }
 
-    Write-Host "Node preflight: PowerShell $powerShellVersion; Git Bash $bashVersion" -ForegroundColor Green
+    Write-Host "Node preflight: PowerShell $powerShellVersion; Git Bash $bashVersion; npm $($bashNpmVersion.Trim())" -ForegroundColor Green
 }
 
 if ($Action -in @('Validate','Deploy','Probe','WebLegal','SyncWebhook','CreatePortal')) {
