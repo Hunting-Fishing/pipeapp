@@ -138,6 +138,10 @@ exports.cancelMarketplaceRefundRequest = onCall(
     protectedCallableOptions,
     marketplaceFinancialResolution.cancelMarketplaceRefundRequest,
 );
+exports.getDispatchSubscriptionCatalog = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionCommands.getDispatchSubscriptionCatalog,
+);
 
 const stripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
