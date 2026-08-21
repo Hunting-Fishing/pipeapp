@@ -20,6 +20,9 @@ const {
 const {
   requireSubscriptionReady,
 } = require("./dispatch_subscription_commands");
+const {
+  currentPolicyAcceptanceStatus,
+} = require("./policy_acceptance_status");
 
 function planCatalogEntry(product) {
   const amountMinor = Number(product && product.unitAmountMinor || 0);
@@ -57,13 +60,16 @@ function createDispatchSubscriptionCatalog(admin) {
 
   const getDispatchSubscriptionCatalog = async (request) => {
     try {
-      requireAuthenticatedIdentity(request, {requirePhone: false});
+      const identity = requireAuthenticatedIdentity(request, {requirePhone: false});
       await enforceUserRateLimit({db, admin, request, scope: "account"});
       const flags = await loadPhase1FeatureFlags(db);
       requirePhase1Feature(flags, "dispatch");
-      const readinessSnapshot = await db.collection("platform_configuration")
-          .doc("payment_provider_readiness")
-          .get();
+      const [readinessSnapshot, policyStatus] = await Promise.all([
+        db.collection("platform_configuration")
+            .doc("payment_provider_readiness")
+            .get(),
+        currentPolicyAcceptanceStatus(db, identity.uid),
+      ]);
       const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
       const readiness = {
         ...(await loadProviderReadiness(db)),
@@ -71,12 +77,18 @@ function createDispatchSubscriptionCatalog(admin) {
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
       };
+      const providerCheckoutReady = subscriptionCheckoutReady(
+          readiness,
+          flags.paidFeatures,
+      );
       return {
         plans: dispatchSubscriptionPlanCatalog(),
-        checkoutAvailable: subscriptionCheckoutReady(
-            readiness,
-            flags.paidFeatures,
-        ),
+        checkoutAvailable: providerCheckoutReady && policyStatus.current,
+        providerCheckoutReady,
+        policyEnforcementEnabled: policyStatus.enforcementEnabled,
+        policyAcceptanceCurrent: policyStatus.current,
+        policyAcceptanceRequired:
+          policyStatus.enforcementEnabled && !policyStatus.current,
         taxCollectionStatus: taxCollectionStatus(readiness),
       };
     } catch (error) {
