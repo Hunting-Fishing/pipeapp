@@ -17,7 +17,7 @@ class MarketplaceDispatchSubscriptionBilling extends StatefulWidget {
 
 class _MarketplaceDispatchSubscriptionBillingState
     extends State<MarketplaceDispatchSubscriptionBilling> {
-  final MarketplaceCommandClient _commands = MarketplaceCommandClient();
+  MarketplaceCommandClient? _commands;
   late Future<Map<String, dynamic>> _catalog;
 
   @override
@@ -26,8 +26,13 @@ class _MarketplaceDispatchSubscriptionBillingState
     _catalog = kIsWeb ? _loadCatalog() : Future.value(const {});
   }
 
-  Future<Map<String, dynamic>> _loadCatalog() =>
-      _commands.execute('getDispatchSubscriptionCatalog', const {});
+  Future<Map<String, dynamic>> _loadCatalog() {
+    // Native builds deliberately do not expose hosted Stripe purchase or
+    // management. Keep Firebase Functions lazy so simply rendering the native
+    // billing disclosure does not require a configured Firebase app.
+    _commands ??= MarketplaceCommandClient();
+    return _commands!.execute('getDispatchSubscriptionCatalog', const {});
+  }
 
   void _retry() {
     if (!kIsWeb) return;
