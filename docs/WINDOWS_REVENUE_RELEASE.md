@@ -20,7 +20,7 @@ The controller underneath it is:
 
 `D:\Game Development\pipeapp-stripe-release\scripts\payments\pipebuyer_revenue_windows.ps1`
 
-It wraps the guarded Bash release scripts already stored in the repository and provides Windows-safe handling for repository paths containing spaces.
+It wraps the guarded release scripts already stored in the repository and provides Windows-safe handling for repository paths containing spaces.
 
 ## First-time / each-session setup
 
@@ -78,7 +78,7 @@ This reads the production Stripe account/prices/webhook/Portal configuration thr
 
 ## Controlled Firebase Functions deployment
 
-Only after validation passes:
+Only after validation passes and the policy/tax gates required for the current stage are satisfied:
 
 ```powershell
 .\pipebuyer.ps1 -Action Deploy -ConfirmControlledDeploy
@@ -86,21 +86,51 @@ Only after validation passes:
 
 This deploys the controlled Dispatch/payment Functions. It does **not** enable payment readiness or customer charging.
 
-## Reviewed web + legal deployment
+## Reviewed web + policy deployment
 
-Only after the current Terms and Privacy changes have been reviewed:
+Only after the current five public policy pages have been reviewed:
 
 ```powershell
 .\pipebuyer.ps1 -Action WebLegal -ConfirmWebLegalDeploy
 ```
 
-The guarded script builds Flutter web, rejects obsolete Dispatch billing language, verifies current recurring pricing language, prints SHA-256 hashes, and deploys Firebase Hosting.
+The guarded script builds Flutter web, rejects obsolete Dispatch billing language, verifies current recurring pricing language, requires all five policy pages in the release build, checks policy-specific markers, prints SHA-256 hashes for all five, and deploys Firebase Hosting.
 
-After deployment, independently verify the live `/terms` and `/privacy` pages before publishing their versions/hashes through Pipe Buyer's audited policy commands.
+The five public policy routes are:
+
+- `/terms`
+- `/privacy`
+- `/prohibited-items`
+- `/mapping-location`
+- `/communications`
+
+## One-command public policy hash verification
+
+After `WebLegal` completes, independently compare every live policy document with the exact local release build:
+
+```powershell
+.\pipebuyer.ps1 -Action VerifyPolicies
+```
+
+This read-only action downloads all five public policy pages, computes local and live SHA-256 values, and fails closed if even one byte differs. It is safe to run when Flutter has regenerated local platform registrant files because it does not mutate production or require a clean Git tree.
+
+Do not publish policy records if `VerifyPolicies` reports any mismatch.
+
+## Policy publication operator path
+
+The repository already contains `firebase/functions/scripts/policy_ops.js` for guarded policy operations. It:
+
+- computes the policy SHA-256 from the live HTTPS URL itself;
+- defaults to dry-run;
+- reuses the same publication validator as the callable path;
+- records the policy document and immutable publication event; and
+- requires `--confirm-production-project flutter-flow-pipe` before a production write.
+
+Before applying a publication, record the approving administrator UID, version, effective date, summary, and approval note. Do not enable policy enforcement until all five policies are published and acceptance/stale-reacceptance behavior has been verified.
 
 ## Create the narrow Stripe Customer Portal configuration
 
-Only after the live Terms and Privacy pages are current and reviewed:
+Only after the current legal/policy gates are satisfied:
 
 ```powershell
 .\pipebuyer.ps1 -Action CreatePortal -ConfirmPortalCreate
@@ -139,21 +169,25 @@ firebase projects:list
 
 The expected project is `flutter-flow-pipe`.
 
+The policy operator uses Firebase Admin application-default credentials. If that operator path reports missing application-default credentials, authenticate the approved operator account before retrying. Do not substitute service-account secrets into shell history.
+
 ## Release order
 
 1. `Prepare`
 2. `Validate`
-3. Review Terms/Privacy
+3. Review all five public policy pages
 4. `WebLegal`
-5. Verify public policy pages/hashes and publish current policy versions
-6. Verify exact-version policy enforcement
-7. `Deploy`
-8. `Probe`
-9. Create/review Portal configuration
-10. `SyncWebhook`
-11. Controlled Monthly/Yearly/free-promotion/renewal/failure/cancellation acceptance
-12. Reconciliation
-13. Enable only the approved web Dispatch subscription readiness profile
+5. `VerifyPolicies`
+6. Dry-run and publish all five exact policy versions through the guarded operator path
+7. Verify policy acceptance, stale-version reacceptance, and exact-version enforcement
+8. Read/record production payment-provider readiness and resolve tax authorization evidence
+9. `Deploy`
+10. `Probe`
+11. Create/review Portal configuration
+12. `SyncWebhook`
+13. Controlled Monthly/Yearly/free-promotion/renewal/failure/cancellation acceptance
+14. Reconciliation
+15. Enable only the approved web Dispatch subscription readiness profile
 
 Do not enable full buyer-to-seller Marketplace Checkout, affiliate cash payouts, or VIP billing as part of this Dispatch revenue release.
 
