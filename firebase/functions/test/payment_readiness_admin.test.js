@@ -39,6 +39,7 @@ test("full marketplace checkout still requires active tax registration", () => {
         stripeCheckoutEnabled: true,
         stripeWebhookVerified: true,
         stripeTaxRegistrationPending: true,
+        stripeTaxPendingBillingApproved: true,
         stripeReconciliationReady: true,
       }, {confirmProduction: true}),
       /active tax registration/i,
@@ -55,18 +56,45 @@ test("full marketplace checkout still requires active tax registration", () => {
   assert.equal(ready.stripeCheckoutEnabled, true);
 });
 
-test("Dispatch subscriptions can launch while tax registration is pending", () => {
+test("pending tax registration alone cannot authorize Dispatch billing", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeSubscriptionsEnabled: true,
+        stripeWebhookVerified: true,
+        stripeTaxRegistrationPending: true,
+        stripeReconciliationReady: true,
+      }, {confirmProduction: true}),
+      /separately approved pending-registration billing decision/i,
+  );
+});
+
+test("Dispatch subscriptions may use a separately approved pending-tax decision", () => {
   const ready = validateReadiness({
     ...base,
     stripeMode: "production",
     stripeSubscriptionsEnabled: true,
     stripeWebhookVerified: true,
     stripeTaxRegistrationPending: true,
+    stripeTaxPendingBillingApproved: true,
     stripeReconciliationReady: true,
   }, {confirmProduction: true});
   assert.equal(ready.stripeSubscriptionsEnabled, true);
   assert.equal(ready.stripeTaxReady, false);
   assert.equal(ready.stripeTaxRegistrationPending, true);
+  assert.equal(ready.stripeTaxPendingBillingApproved, true);
+});
+
+test("pending-tax billing approval cannot exist without pending registration", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeTaxPendingBillingApproved: true,
+      }, {confirmProduction: true}),
+      /only be enabled while tax registration is explicitly pending/i,
+  );
 });
 
 test("Dispatch Customer Portal is independent from new subscription checkout", () => {
@@ -104,13 +132,25 @@ test("Dispatch Customer Portal requires an approved Stripe configuration", () =>
   );
 });
 
-test("Pipe Buyer marketplace fee billing can launch while tax registration is pending", () => {
+test("marketplace fee billing also requires separate pending-tax approval", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeFeeBillingEnabled: true,
+        stripeWebhookVerified: true,
+        stripeTaxRegistrationPending: true,
+        stripeReconciliationReady: true,
+      }, {confirmProduction: true}),
+      /separately approved pending-registration billing decision/i,
+  );
   const ready = validateReadiness({
     ...base,
     stripeMode: "production",
     stripeFeeBillingEnabled: true,
     stripeWebhookVerified: true,
     stripeTaxRegistrationPending: true,
+    stripeTaxPendingBillingApproved: true,
     stripeReconciliationReady: true,
   }, {confirmProduction: true});
   assert.equal(ready.stripeFeeBillingEnabled, true);
