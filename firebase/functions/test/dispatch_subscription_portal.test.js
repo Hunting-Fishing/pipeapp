@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  portalConfigurationApproved,
   portalReady,
   providerStateSupportsPortal,
   validPortalConfigurationId,
@@ -48,4 +49,44 @@ test("provider state must belong to caller and contain customer and subscription
   assert.equal(providerStateSupportsPortal(state, "user_2"), false);
   assert.equal(providerStateSupportsPortal({...state, stripeCustomerId: ""}, "user_1"), false);
   assert.equal(providerStateSupportsPortal({...state, subscriptionId: ""}, "user_1"), false);
+});
+
+test("approved Portal allows payment updates and period-end cancel but no plan switching", () => {
+  const configuration = {
+    id: "bpc_123ABC",
+    active: true,
+    features: {
+      payment_method_update: {enabled: true},
+      subscription_cancel: {enabled: true, mode: "at_period_end"},
+      subscription_update: {enabled: false},
+    },
+  };
+  assert.equal(
+      portalConfigurationApproved(configuration, "bpc_123ABC"),
+      true,
+  );
+  assert.equal(
+      portalConfigurationApproved({
+        ...configuration,
+        features: {
+          ...configuration.features,
+          subscription_update: {enabled: true},
+        },
+      }, "bpc_123ABC"),
+      false,
+  );
+  assert.equal(
+      portalConfigurationApproved({
+        ...configuration,
+        features: {
+          ...configuration.features,
+          subscription_cancel: {enabled: true, mode: "immediately"},
+        },
+      }, "bpc_123ABC"),
+      false,
+  );
+  assert.equal(
+      portalConfigurationApproved({...configuration, active: false}, "bpc_123ABC"),
+      false,
+  );
 });
