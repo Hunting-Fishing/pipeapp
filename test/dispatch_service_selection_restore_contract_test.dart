@@ -78,7 +78,14 @@ void main() {
     expect(page, contains('widget.repo.createJob('));
     expect(
       page,
-      contains('loadDetails: _requestDetailsWithServices(details.text.trim())'),
+      matches(
+        RegExp(
+          r'loadDetails\s*:\s*_requestDetailsWithServices\s*\(\s*details\.text\.trim\(\)\s*\)',
+          multiLine: true,
+        ),
+      ),
+      reason:
+          'Request Service must pass service-prefixed details into the existing createDispatchJob model regardless of dart format line wrapping.',
     );
   });
 }
