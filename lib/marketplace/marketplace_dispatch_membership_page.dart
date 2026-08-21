@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,20 +6,13 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 
-bool dispatchMembershipActive(
-  Map<String, dynamic>? data, {
-  DateTime? now,
-}) {
-  if (data == null || data['active'] != true) return false;
-  final end = data['currentPeriodEnd'];
-  if (end is! Timestamp) return false;
-  return end.toDate().isAfter(now ?? DateTime.now());
-}
+bool dispatchMembershipStatusActive(Map<String, dynamic>? data) =>
+    data != null && data['active'] == true;
 
 String dispatchMembershipPaidThrough(Map<String, dynamic>? data) {
-  final end = data?['currentPeriodEnd'];
-  if (end is! Timestamp) return '';
-  final date = end.toDate().toLocal();
+  final millis = (data?['currentPeriodEndMillis'] as num?)?.toInt();
+  if (millis == null || millis <= 0) return '';
+  final date = DateTime.fromMillisecondsSinceEpoch(millis).toLocal();
   String two(int value) => value.toString().padLeft(2, '0');
   return '${date.year}-${two(date.month)}-${two(date.day)}';
 }
@@ -36,7 +28,21 @@ class MarketplaceDispatchMembershipPage extends StatefulWidget {
 class _MarketplaceDispatchMembershipPageState
     extends State<MarketplaceDispatchMembershipPage> {
   final _commands = MarketplaceCommandClient();
+  late Future<Map<String, dynamic>> _status;
   String? _busyPlan;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = _loadStatus();
+  }
+
+  Future<Map<String, dynamic>> _loadStatus() =>
+      _commands.execute('getDispatchSubscriptionStatus', const {});
+
+  void _refreshStatus() {
+    setState(() => _status = _loadStatus());
+  }
 
   Future<void> _checkout(String plan) async {
     if (_busyPlan != null) return;
@@ -65,6 +71,7 @@ class _MarketplaceDispatchMembershipPageState
         ),
         tone: PipeStatusTone.error,
       );
+      _refreshStatus();
     } finally {
       if (mounted) setState(() => _busyPlan = null);
     }
@@ -79,15 +86,21 @@ class _MarketplaceDispatchMembershipPageState
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Dispatch membership')),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('dispatch_memberships')
-            .doc(user.uid)
-            .snapshots(),
+      appBar: AppBar(
+        title: const Text('Dispatch membership'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh membership status',
+            onPressed: _refreshStatus,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _status,
         builder: (context, snapshot) {
-          final data = snapshot.data?.data();
-          final active = dispatchMembershipActive(data);
+          final data = snapshot.data;
+          final active = dispatchMembershipStatusActive(data);
           final paidThrough = dispatchMembershipPaidThrough(data);
           return ListView(
             padding: const EdgeInsets.all(18),
@@ -97,6 +110,8 @@ class _MarketplaceDispatchMembershipPageState
                 plan: '${data?['plan'] ?? ''}',
                 paidThrough: paidThrough,
                 loading: snapshot.connectionState == ConnectionState.waiting,
+                error: snapshot.hasError,
+                onRetry: _refreshStatus,
               ),
               const SizedBox(height: 16),
               const Text(
@@ -110,6 +125,8 @@ class _MarketplaceDispatchMembershipPageState
               const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
+                  final statusUnavailable = snapshot.hasError ||
+                      snapshot.connectionState == ConnectionState.waiting;
                   final cards = [
                     _PlanCard(
                       title: 'Dispatch Monthly',
@@ -118,7 +135,7 @@ class _MarketplaceDispatchMembershipPageState
                           'Flexible recurring Dispatch carrier bidding access.',
                       icon: Icons.calendar_month_outlined,
                       busy: _busyPlan == 'monthly',
-                      disabled: active || _busyPlan != null,
+                      disabled: active || _busyPlan != null || statusUnavailable,
                       onPressed: () => _checkout('monthly'),
                     ),
                     _PlanCard(
@@ -128,7 +145,7 @@ class _MarketplaceDispatchMembershipPageState
                           'Annual recurring Dispatch carrier bidding access.',
                       icon: Icons.calendar_today_outlined,
                       busy: _busyPlan == 'yearly',
-                      disabled: active || _busyPlan != null,
+                      disabled: active || _busyPlan != null || statusUnavailable,
                       onPressed: () => _checkout('yearly'),
                     ),
                   ];
@@ -259,12 +276,16 @@ class _MembershipStatusCard extends StatelessWidget {
     required this.plan,
     required this.paidThrough,
     required this.loading,
+    required this.error,
+    required this.onRetry,
   });
 
   final bool active;
   final String plan;
   final String paidThrough;
   final bool loading;
+  final bool error;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -282,14 +303,22 @@ class _MembershipStatusCard extends StatelessWidget {
                     Text(
                       loading
                           ? 'Checking membership…'
-                          : active
-                              ? 'Dispatch membership active'
-                              : 'No active paid membership',
+                          : error
+                              ? 'Membership status unavailable'
+                              : active
+                                  ? 'Dispatch membership active'
+                                  : 'No active paid membership',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     if (active)
                       Text(
                         '${plan.trim().isEmpty ? 'Dispatch' : plan.trim()}${paidThrough.isEmpty ? '' : ' • paid through $paidThrough'}',
+                      ),
+                    if (error)
+                      TextButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
                       ),
                   ],
                 ),
