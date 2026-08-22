@@ -109,12 +109,63 @@ class ExternalSettlementFeeCheckoutResult {
   }
 }
 
+class ExternalSettlementFeeReceiptResult {
+  const ExternalSettlementFeeReceiptResult({
+    required this.transactionId,
+    required this.chargeId,
+    required this.amountMinor,
+    required this.currency,
+    required this.receiptUri,
+  });
+
+  final String transactionId;
+  final String chargeId;
+  final int amountMinor;
+  final String currency;
+  final Uri? receiptUri;
+
+  factory ExternalSettlementFeeReceiptResult.fromMap(
+    Map<String, dynamic> data,
+  ) {
+    final transactionId = '${data['transactionId'] ?? ''}'.trim();
+    final chargeId = '${data['chargeId'] ?? ''}'.trim();
+    final amountMinor = (data['amountMinor'] as num?)?.toInt() ?? 0;
+    final currency = '${data['currency'] ?? ''}'.trim().toUpperCase();
+    final rawUrl = '${data['receiptUrl'] ?? ''}'.trim();
+    final receiptUri = rawUrl.isEmpty ? null : validatedStripeReceiptUri(rawUrl);
+    if (transactionId.isEmpty ||
+        !chargeId.startsWith('ch_') ||
+        amountMinor <= 0 ||
+        currency.length != 3) {
+      throw StateError('The server returned an invalid fee receipt response.');
+    }
+    return ExternalSettlementFeeReceiptResult(
+      transactionId: transactionId,
+      chargeId: chargeId,
+      amountMinor: amountMinor,
+      currency: currency,
+      receiptUri: receiptUri,
+    );
+  }
+}
+
 Uri validatedStripeCheckoutUri(String value) {
   final uri = Uri.tryParse(value.trim());
   if (uri == null ||
       uri.scheme.toLowerCase() != 'https' ||
       uri.host.toLowerCase() != 'checkout.stripe.com') {
     throw StateError('The secure Stripe checkout link is invalid.');
+  }
+  return uri;
+}
+
+Uri validatedStripeReceiptUri(String value) {
+  final uri = Uri.tryParse(value.trim());
+  final host = uri?.host.toLowerCase() ?? '';
+  if (uri == null ||
+      uri.scheme.toLowerCase() != 'https' ||
+      !(host == 'stripe.com' || host.endsWith('.stripe.com'))) {
+    throw StateError('The Stripe receipt link is invalid.');
   }
   return uri;
 }
@@ -146,5 +197,16 @@ class MarketplaceExternalSettlementClient {
       'transactionId': id,
     });
     return ExternalSettlementFeeCheckoutResult.fromMap(response);
+  }
+
+  Future<ExternalSettlementFeeReceiptResult> getFeeReceipt(
+    String transactionId,
+  ) async {
+    final id = transactionId.trim();
+    if (id.isEmpty) throw ArgumentError('Transaction ID is required.');
+    final response = await _commands.execute('getExternalSettlementFeeReceipt', {
+      'transactionId': id,
+    });
+    return ExternalSettlementFeeReceiptResult.fromMap(response);
   }
 }
