@@ -91,12 +91,20 @@ class _MarketplaceCanadaGstHstThresholdPanelState
           final taxReady = response['stripeTaxReady'] == true;
           final registrationPending =
               response['stripeTaxRegistrationPending'] == true;
+          final feeBilling = response['stripeFeeBillingEnabled'] == true;
+          final subscriptions = response['stripeSubscriptionsEnabled'] == true;
+          final boundRevision =
+              (response['canadaGstHstSmallSupplierAssessmentRevision'] as num?)
+                  ?.toInt();
           return _card(
             context,
             assessment: assessment,
             smallSupplier: smallSupplier,
             taxReady: taxReady,
             registrationPending: registrationPending,
+            feeBilling: feeBilling,
+            subscriptions: subscriptions,
+            boundRevision: boundRevision,
           );
         },
       );
@@ -107,6 +115,9 @@ class _MarketplaceCanadaGstHstThresholdPanelState
     required bool smallSupplier,
     required bool taxReady,
     required bool registrationPending,
+    required bool feeBilling,
+    required bool subscriptions,
+    required int? boundRevision,
   }) {
     final hasAssessment = assessment.isNotEmpty;
     final thresholdMinor =
@@ -116,6 +127,8 @@ class _MarketplaceCanadaGstHstThresholdPanelState
     final remainingMinor =
         (assessment['remainingCadMinor'] as num?)?.toInt() ?? thresholdMinor;
     final level = '${assessment['level'] ?? 'not_assessed'}';
+    final safetyAction = '${assessment['billingSafetyAction'] ?? 'none'}';
+    final assessmentRevision = (assessment['revision'] as num?)?.toInt();
     final progress = thresholdMinor <= 0
         ? 0.0
         : (governingMinor / thresholdMinor).clamp(0.0, 1.0).toDouble();
@@ -151,6 +164,22 @@ class _MarketplaceCanadaGstHstThresholdPanelState
                           : 'Small-supplier billing is not currently enabled.',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
+            if (smallSupplier && assessmentRevision != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  boundRevision == assessmentRevision
+                      ? 'Readiness is bound to audited assessment revision $assessmentRevision.'
+                      : 'Readiness/assessment revision mismatch — review before billing.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: boundRevision == assessmentRevision
+                        ? Colors.green.shade800
+                        : Colors.red.shade800,
+                  ),
+                ),
+              ),
             const SizedBox(height: 10),
             LinearProgressIndicator(value: progress),
             const SizedBox(height: 6),
@@ -176,6 +205,17 @@ class _MarketplaceCanadaGstHstThresholdPanelState
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Threshold exceeded: GST/HST registration/effective-date review is required before relying on small-supplier billing.',
+                    style: TextStyle(
+                      color: Colors.red.shade800,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              if (safetyAction == 'small_supplier_billing_disabled')
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Safety shutdown applied: Marketplace-fee billing ${feeBilling ? 'still enabled — REVIEW' : 'disabled'} • Dispatch subscriptions ${subscriptions ? 'still enabled — REVIEW' : 'disabled'}.',
                     style: TextStyle(
                       color: Colors.red.shade800,
                       fontWeight: FontWeight.w900,
