@@ -152,6 +152,8 @@ function createExternalSettlementCommands(admin) {
         stripeFeeBillingEnabled: readinessData.stripeFeeBillingEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          readinessData.stripeTaxPendingBillingApproved === true,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
