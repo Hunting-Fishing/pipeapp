@@ -217,6 +217,8 @@ class _MarketplaceExternalSettlementAdminPageState
         (transaction['marketplaceFeeProviderNetMinor'] as num?)?.toInt();
     final isCollected = transaction['marketplaceFeeStatus'] == 'collected';
     final isReconciling = _reconciling.contains(transactionId);
+    final operationalReview =
+        transaction['marketplaceFeeOperationalReviewRequired'] == true;
 
     return Card(
       child: Padding(
@@ -278,6 +280,19 @@ class _MarketplaceExternalSettlementAdminPageState
                     color: reconciliationStatus == 'balanced'
                         ? Colors.green.shade800
                         : Colors.red.shade800,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            if (operationalReview)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Webhook review required • ${transaction['marketplaceFeeOperationalReviewReason'] ?? 'provider event conflict'}'
+                  '${transaction['marketplaceFeeOperationalReviewEventSessionId'] == null ? '' : ' • Session ${transaction['marketplaceFeeOperationalReviewEventSessionId']}'}'
+                  '${transaction['marketplaceFeeOperationalReviewEventAttempt'] == null ? '' : ' • Attempt ${transaction['marketplaceFeeOperationalReviewEventAttempt']}'}',
+                  style: TextStyle(
+                    color: Colors.red.shade800,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -387,6 +402,13 @@ class _MarketplaceExternalSettlementAdminPageState
       return const _AdminFeeState(
         'PATH CONFLICT',
         Icons.warning_amber_outlined,
+        Colors.red,
+      );
+    }
+    if (transaction['marketplaceFeeOperationalReviewRequired'] == true) {
+      return const _AdminFeeState(
+        'WEBHOOK REVIEW',
+        Icons.crisis_alert_outlined,
         Colors.red,
       );
     }
