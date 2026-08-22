@@ -19,15 +19,62 @@ void main() {
     );
   });
 
-  test('unpaid fee checkout requires a secure provider URL', () {
+  test('open unpaid fee checkout requires a secure provider URL', () {
     expect(
       () => ExternalSettlementFeeCheckoutResult.fromMap({
         'transactionId': 'tx_1',
         'checkoutSessionId': 'cs_test_1',
         'alreadyPaid': false,
+        'processing': false,
+        'paymentFailed': false,
       }),
       throwsStateError,
     );
+  });
+
+  test('open fee checkout exposes a launchable Stripe link', () {
+    final result = ExternalSettlementFeeCheckoutResult.fromMap({
+      'transactionId': 'tx_1',
+      'checkoutSessionId': 'cs_test_1',
+      'checkoutUrl': 'https://checkout.stripe.com/c/pay/cs_test_1',
+      'alreadyPaid': false,
+      'alreadyCreated': true,
+      'processing': false,
+      'paymentFailed': false,
+      'checkoutAttempt': 2,
+      'taxCollectionStatus': 'registration_pending',
+    });
+    expect(result.canLaunchCheckout, isTrue);
+    expect(result.alreadyCreated, isTrue);
+    expect(result.checkoutAttempt, 2);
+  });
+
+  test('processing fee response does not require a checkout URL', () {
+    final result = ExternalSettlementFeeCheckoutResult.fromMap({
+      'transactionId': 'tx_1',
+      'checkoutSessionId': 'cs_live_1',
+      'alreadyPaid': false,
+      'alreadyCreated': true,
+      'processing': true,
+      'paymentFailed': false,
+    });
+    expect(result.processing, isTrue);
+    expect(result.canLaunchCheckout, isFalse);
+    expect(result.checkoutUri, isNull);
+  });
+
+  test('failed fee response allows a clean retry without a stale URL', () {
+    final result = ExternalSettlementFeeCheckoutResult.fromMap({
+      'transactionId': 'tx_1',
+      'checkoutSessionId': 'cs_failed_1',
+      'alreadyPaid': false,
+      'alreadyCreated': true,
+      'processing': false,
+      'paymentFailed': true,
+    });
+    expect(result.paymentFailed, isTrue);
+    expect(result.canLaunchCheckout, isFalse);
+    expect(result.checkoutUri, isNull);
   });
 
   test('already-paid fee response does not require a checkout URL', () {
@@ -37,7 +84,19 @@ void main() {
       'alreadyPaid': true,
     });
     expect(result.alreadyPaid, isTrue);
+    expect(result.canLaunchCheckout, isFalse);
     expect(result.checkoutUri, isNull);
+  });
+
+  test('contradictory paid and processing states are rejected', () {
+    expect(
+      () => ExternalSettlementFeeCheckoutResult.fromMap({
+        'transactionId': 'tx_1',
+        'alreadyPaid': true,
+        'processing': true,
+      }),
+      throwsStateError,
+    );
   });
 
   test('external settlement confirmation maps both-party state', () {
@@ -53,5 +112,18 @@ void main() {
     expect(result.buyerConfirmed, isTrue);
     expect(result.sellerConfirmed, isTrue);
     expect(result.fullyConfirmed, isTrue);
+  });
+
+  test('inconsistent fully-confirmed settlement state is rejected', () {
+    expect(
+      () => ExternalSettlementConfirmationResult.fromMap({
+        'transactionId': 'tx_1',
+        'role': 'buyer',
+        'buyerConfirmed': true,
+        'sellerConfirmed': false,
+        'fullyConfirmed': true,
+      }),
+      throwsStateError,
+    );
   });
 }
