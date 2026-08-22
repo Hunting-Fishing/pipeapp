@@ -17,14 +17,26 @@ class ExternalSettlementConfirmationResult {
 
   factory ExternalSettlementConfirmationResult.fromMap(
     Map<String, dynamic> data,
-  ) =>
-      ExternalSettlementConfirmationResult(
-        transactionId: '${data['transactionId'] ?? ''}'.trim(),
-        role: '${data['role'] ?? ''}'.trim(),
-        buyerConfirmed: data['buyerConfirmed'] == true,
-        sellerConfirmed: data['sellerConfirmed'] == true,
-        fullyConfirmed: data['fullyConfirmed'] == true,
-      );
+  ) {
+    final transactionId = '${data['transactionId'] ?? ''}'.trim();
+    final role = '${data['role'] ?? ''}'.trim();
+    final buyerConfirmed = data['buyerConfirmed'] == true;
+    final sellerConfirmed = data['sellerConfirmed'] == true;
+    final fullyConfirmed = data['fullyConfirmed'] == true;
+    if (transactionId.isEmpty || !const {'buyer', 'seller'}.contains(role)) {
+      throw StateError('The server returned an invalid settlement confirmation.');
+    }
+    if (fullyConfirmed && !(buyerConfirmed && sellerConfirmed)) {
+      throw StateError('The settlement confirmation state is inconsistent.');
+    }
+    return ExternalSettlementConfirmationResult(
+      transactionId: transactionId,
+      role: role,
+      buyerConfirmed: buyerConfirmed,
+      sellerConfirmed: sellerConfirmed,
+      fullyConfirmed: fullyConfirmed,
+    );
+  }
 }
 
 class ExternalSettlementFeeCheckoutResult {
@@ -33,6 +45,10 @@ class ExternalSettlementFeeCheckoutResult {
     required this.checkoutSessionId,
     required this.checkoutUri,
     required this.alreadyPaid,
+    required this.alreadyCreated,
+    required this.processing,
+    required this.paymentFailed,
+    required this.checkoutAttempt,
     required this.taxCollectionStatus,
   });
 
@@ -40,22 +56,54 @@ class ExternalSettlementFeeCheckoutResult {
   final String checkoutSessionId;
   final Uri? checkoutUri;
   final bool alreadyPaid;
+  final bool alreadyCreated;
+  final bool processing;
+  final bool paymentFailed;
+  final int? checkoutAttempt;
   final String taxCollectionStatus;
+
+  bool get canLaunchCheckout =>
+      checkoutUri != null && !alreadyPaid && !processing && !paymentFailed;
 
   factory ExternalSettlementFeeCheckoutResult.fromMap(
     Map<String, dynamic> data,
   ) {
+    final transactionId = '${data['transactionId'] ?? ''}'.trim();
+    final checkoutSessionId = '${data['checkoutSessionId'] ?? ''}'.trim();
     final alreadyPaid = data['alreadyPaid'] == true;
+    final alreadyCreated = data['alreadyCreated'] == true;
+    final processing = data['processing'] == true;
+    final paymentFailed = data['paymentFailed'] == true;
+    final rawAttempt = data['checkoutAttempt'];
+    final checkoutAttempt = rawAttempt is num && rawAttempt.toInt() > 0
+        ? rawAttempt.toInt()
+        : null;
     final rawUrl = '${data['checkoutUrl'] ?? ''}'.trim();
     final uri = rawUrl.isEmpty ? null : validatedStripeCheckoutUri(rawUrl);
-    if (!alreadyPaid && uri == null) {
+
+    if (transactionId.isEmpty) {
+      throw StateError('The server returned an invalid fee checkout response.');
+    }
+    if (alreadyPaid && (processing || paymentFailed)) {
+      throw StateError('The marketplace fee payment state is inconsistent.');
+    }
+    final stateAllowsNoUrl = alreadyPaid || processing || paymentFailed;
+    if (!stateAllowsNoUrl && uri == null) {
       throw StateError('The secure Stripe checkout link is unavailable.');
     }
+    if (uri != null && checkoutSessionId.isEmpty) {
+      throw StateError('The Stripe checkout session reference is unavailable.');
+    }
+
     return ExternalSettlementFeeCheckoutResult(
-      transactionId: '${data['transactionId'] ?? ''}'.trim(),
-      checkoutSessionId: '${data['checkoutSessionId'] ?? ''}'.trim(),
+      transactionId: transactionId,
+      checkoutSessionId: checkoutSessionId,
       checkoutUri: uri,
       alreadyPaid: alreadyPaid,
+      alreadyCreated: alreadyCreated,
+      processing: processing,
+      paymentFailed: paymentFailed,
+      checkoutAttempt: checkoutAttempt,
       taxCollectionStatus: '${data['taxCollectionStatus'] ?? ''}'.trim(),
     );
   }
@@ -85,11 +133,7 @@ class MarketplaceExternalSettlementClient {
     final response = await _commands.execute('confirmExternalSettlement', {
       'transactionId': id,
     });
-    final result = ExternalSettlementConfirmationResult.fromMap(response);
-    if (result.transactionId.isEmpty) {
-      throw StateError('The server returned an invalid settlement confirmation.');
-    }
-    return result;
+    return ExternalSettlementConfirmationResult.fromMap(response);
   }
 
   Future<ExternalSettlementFeeCheckoutResult> createFeeCheckout(
@@ -101,10 +145,6 @@ class MarketplaceExternalSettlementClient {
         await _commands.execute('createExternalSettlementFeeCheckout', {
       'transactionId': id,
     });
-    final result = ExternalSettlementFeeCheckoutResult.fromMap(response);
-    if (result.transactionId.isEmpty) {
-      throw StateError('The server returned an invalid fee checkout response.');
-    }
-    return result;
+    return ExternalSettlementFeeCheckoutResult.fromMap(response);
   }
 }
