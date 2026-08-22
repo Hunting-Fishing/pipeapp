@@ -17,6 +17,7 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeWebhookVerified",
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
+  "stripeTaxPendingBillingApproved",
   "stripeReconciliationReady",
   "affiliatePayoutsEnabled",
   "marketplaceFinancialResolutionEnabled",
@@ -61,7 +62,8 @@ function normalizeReadiness(data = {}) {
 
 function taxBillingPrepared(next) {
   return next.stripeTaxReady === true ||
-    next.stripeTaxRegistrationPending === true;
+    (next.stripeTaxRegistrationPending === true &&
+      next.stripeTaxPendingBillingApproved === true);
 }
 
 function validateReadiness(next, options = {}) {
@@ -86,6 +88,13 @@ function validateReadiness(next, options = {}) {
         "Pending tax registration may only be used with production billing.",
     );
   }
+  if (next.stripeTaxPendingBillingApproved &&
+      !next.stripeTaxRegistrationPending) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Pending-tax billing approval may only be enabled while tax registration is explicitly pending.",
+    );
+  }
   if (next.stripeCheckoutEnabled && !(
     next.stripeMode === "production" &&
     next.stripeConnectOnboardingEnabled &&
@@ -106,7 +115,7 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace fee billing requires production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
+        "Marketplace fee billing requires production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
     );
   }
   if (next.stripeSubscriptionsEnabled && !(
@@ -117,7 +126,7 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
+        "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
