@@ -52,12 +52,16 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [x] Webhook event IDs are recorded in `stripe_webhook_events`.
 - [x] Already-processed events return safely without running money movement again.
 - [x] Failed webhook processing is recorded and returns non-2xx so Stripe can retry.
+- [x] CODE — Production webhook export transactionally claims an event before financial handling with a recoverable processing lease, preventing simultaneous deliveries from both owning the event.
+- [x] CODE — Failed/stale processing claims can be retried; invalid signatures are rejected before a claim is written.
+- [x] CODE — Fee-only non-success webhook transitions compare the current server-owned Checkout attempt/Session and cannot downgrade `collected` or let stale attempts overwrite newer payment state.
+- [x] CODE — Same-attempt/different-Session fee webhook conflicts are quarantined as `WEBHOOK REVIEW` instead of changing financial state.
 - [x] Seller Transfers use a stable transaction idempotency key.
 - [ ] Verify production `STRIPE_WEBHOOK_SECRET` deployment without exposing secret value.
 - [ ] Verify production `STRIPE_SECRET_KEY` deployment without exposing secret value.
-- [ ] Run controlled duplicate-event acceptance test.
-- [ ] Run out-of-order event acceptance test.
-- [ ] Verify failed-event operational alert/review path.
+- [ ] Run controlled duplicate-event acceptance test against deployed/provider delivery.
+- [ ] Run controlled out-of-order event acceptance test against deployed/provider delivery.
+- [ ] Verify failed-event operational alert/review path in deployed admin operations.
 
 ---
 
@@ -133,20 +137,26 @@ The items below separate **code evidence**, **focused executable verification**,
 - [x] CODE — One-party external-settlement confirmation cannot satisfy the server fee-checkout gate.
 - [x] CODE — Fee amount is read only from the immutable server marketplace-fee snapshot; the client cannot submit the authoritative amount.
 - [x] CODE — External fee Checkout uses attempt-scoped Stripe idempotency rather than removing idempotency on retries.
-- [x] CODE — Open fee Checkout Sessions are reused; processing/completed payments cannot create a second live fee payment.
+- [x] CODE — Provider lifecycle decisions are centralized: open sessions are reused only with a valid Stripe URL, completed/paid sessions are processing-locked, expired sessions may advance, and unknown provider states fail closed for review.
 - [x] CODE — Failed/expired fee Checkout can advance to a clean server-owned payment attempt.
-- [x] CODE — Post-Stripe Firestore persistence preserves newer webhook-authoritative `processing`, `payment_failed`, or `collected` state instead of downgrading it to `checkout_created`.
+- [x] CODE — Post-Stripe Firestore persistence preserves newer webhook-authoritative `processing`, `payment_failed`, or `collected` state instead of downgrading it to `checkout_created`; newer attempts supersede stale provider responses.
 - [x] CODE — Each created external fee Checkout attempt has a Firestore audit record for reconciliation support.
+- [x] CODE — Stripe webhook event handling uses a transactional processing claim/lease so simultaneous duplicate deliveries cannot both enter the financial handler.
+- [x] CODE — Fee-only `processing`/`payment_failed` events are attempt/session-aware; `collected` is terminal for non-success events and stale attempts cannot overwrite newer state.
+- [x] CODE — Same-attempt/different-Session webhook conflicts set an operational-review flag instead of changing fee state.
 - [x] CODE — Authenticated user settlement workspace exists at `/account/settlements`.
 - [x] CODE — User workspace shows buyer/seller settlement confirmation plus fee due, checkout open, processing, failed, and paid states from Firestore.
 - [x] CODE — Seller fee action launches only a validated HTTPS `checkout.stripe.com` URL returned by the server.
 - [x] CODE — Seller-only receipt callable re-reads the paid Stripe Charge and verifies stored amount/currency before returning receipt evidence.
 - [x] CODE — Paid seller UX can open a validated HTTPS Stripe receipt or retain the verified Stripe Charge reference if no hosted receipt URL is available.
 - [x] CODE — MFA-backed admin queue exists at `/admin/settlement-fees` and does not grant client-side payment-state overrides.
-- [x] CODE — Admin queue surfaces confirmation pending, fee due, checkout open, processing, failed, paid, tax-review, payment-path-conflict, and reconciliation evidence.
+- [x] CODE — Admin queue surfaces confirmation pending, fee due, checkout open, processing, failed, paid, tax-review, `WEBHOOK REVIEW`, payment-path-conflict, and reconciliation evidence.
 - [x] CODE — Canadian small supplier is a distinct tax-readiness state; it is not faked as `stripeTaxReady` or registration pending.
 - [x] CODE — MFA-admin GST/HST threshold assessment requires quarter totals, rolling-four-quarter totals, bookkeeping source note, and worldwide/associated-business attestation.
 - [x] CODE — GST/HST threshold monitor uses CAD $30,000 with 75% warning, 90% high warning, and >$30,000 exceeded states.
+- [x] CODE — Small-supplier readiness cannot be activated as a bare boolean; activation requires a valid audited threshold assessment and stores the authorizing assessment revision in readiness/audit evidence.
+- [x] CODE — An under-threshold reassessment while small-supplier billing is active transactionally refreshes the readiness binding to the new assessment revision without disabling fee/Dispatch billing.
+- [x] CODE — An exceeded reassessment while small-supplier billing is active automatically clears the small-supplier authorization and disables Marketplace-fee plus Dispatch-subscription billing until tax registration/effective-date review is completed.
 - [x] CODE — Full Marketplace buyer-to-seller Checkout still requires actual `stripeTaxReady=true`; small-supplier mode authorizes only Pipe Buyer own-revenue flows such as fee billing/Dispatch where otherwise ready.
 - [x] CODE — Provider-backed fee reconciliation re-reads Stripe Checkout Session → PaymentIntent → Charge → Balance Transaction.
 - [x] CODE — Reconciliation validates immutable fee subtotal, tax, buyer total, currency, provider identity chain, paid/succeeded states, and provider gross/fee/net arithmetic.
@@ -156,8 +166,12 @@ The items below separate **code evidence**, **focused executable verification**,
 ### Focused executable verification
 
 - [x] VERIFIED-FOCUSED — Exact branch P3 source was retrieved through the connected GitHub API and mounted under `/mnt/data/pipeapp` because the execution sandbox blocks outbound GitHub DNS even while the repository is public.
-- [x] VERIFIED-FOCUSED — Node 22 syntax checks passed for the mounted payment-path, retry, receipt, tax/readiness, threshold, and reconciliation modules.
-- [x] VERIFIED-FOCUSED — Consolidated mounted P3 Node suite executed **48 tests: 48 passed, 0 failed**.
+- [x] VERIFIED-FOCUSED — Node 22 syntax checks passed for the mounted payment-path, retry, receipt, tax/readiness, threshold, reconciliation, webhook-claim, and guarded fee-webhook modules exercised in the focused workspace.
+- [x] VERIFIED-FOCUSED — Consolidated mounted P3 Node safety subset executed **75 tests: 75 passed, 0 failed** after the current small-supplier binding/shutdown and fee-webhook ordering changes.
+- [x] VERIFIED-FOCUSED — Separate provider-lifecycle execution covered open-session reuse, invalid URL refusal, complete/paid processing lock, expired retry, unknown-state review, webhook-state preservation, and stale-attempt supersession with no failures.
+- [x] VERIFIED-FOCUSED — Transactional webhook-claim execution proved processed-event refusal, simultaneous in-flight duplicate refusal, failed-event retry, expired-lease recovery, and invalid-signature refusal before claim.
+- [x] VERIFIED-FOCUSED — Guarded fee-webhook execution proved late failure cannot downgrade `collected`, stale attempts are ignored, a legitimate newer attempt can arrive before callable persistence, and same-attempt Session conflicts are quarantined for admin review without changing fee state.
+- [x] VERIFIED-FOCUSED — Small-supplier control-plane execution proved activation requires audited evidence, the exact authorizing assessment revision is bound to readiness, under-threshold reassessment refreshes that binding, threshold exceedance disables the dependent revenue paths, and registered tax mode is not rewritten.
 - [x] VERIFIED-FOCUSED — Executed reconciliation-command tests prove the server re-reads Session/PaymentIntent/Charge/Balance Transaction through an injected provider chain, records `balanced` only when every check agrees, persists `mismatch` when provider evidence disagrees, and refuses unpaid fee state before provider calls.
 - [x] VERIFIED-FOCUSED — Live Stripe read-only check identified the intended Pipe Buyer live account, confirmed the production webhook is enabled, and observed zero live Checkout Sessions at the time checked.
 
@@ -166,11 +180,11 @@ Focused verification is real execution evidence but **does not equal the reposit
 ### Acceptance still required
 
 - [ ] ACCEPTANCE — Run `tool/verify.ps1` successfully from the final P3 commit. This must include the repository Flutter/Functions/rules/build gates and the P3 emulator integration. GitHub-hosted Actions currently return repository-level `startup_failure` before jobs are created; do not treat that synthetic zero-job condition as a P3 code failure or alter payment code to chase it.
-- [ ] ACCEPTANCE — Firebase emulator/provider-stub acceptance proves one-party rejection, both-party success, active-session reuse, failed-attempt retry, and webhook/callable race preservation.
+- [ ] ACCEPTANCE — Firebase emulator acceptance proves the authenticated one-party rejection, both-party success, seller-only fee authority, and payment-path exclusivity against real emulator Auth/Firestore/Functions. Provider-stub focused lifecycle/race coverage exists, but the repository emulator gate still must execute from the final commit.
 - [ ] ACCEPTANCE — Controlled real Stripe fee payment proves successful collection, failure/retry behavior, duplicate handling, and provider-backed seller receipt.
 - [ ] ACCEPTANCE — The controlled paid fee is reconciled by `reconcileExternalSettlementFee` to its Stripe Balance Transaction and produces `marketplaceFeeReconciliationStatus=balanced`, zero Firestore arithmetic difference, and zero provider gross-fee-net difference.
-- [ ] ACCEPTANCE — Before enabling `canadaGstHstSmallSupplier=true` in production readiness, save a current audited threshold assessment that includes worldwide taxable supplies and associated businesses. Provincial tax obligations remain separate.
-- [ ] ACCEPTANCE — User/admin settlement and threshold/reconciliation surfaces receive web/mobile colleague visual acceptance before production activation.
+- [ ] ACCEPTANCE — Before enabling `canadaGstHstSmallSupplier=true` in production readiness, save the real current audited business threshold assessment. The code now refuses activation without it and auto-disables dependent billing if a later assessment exceeds the threshold. Provincial tax obligations remain separate.
+- [ ] ACCEPTANCE — User/admin settlement, threshold, webhook-review, and reconciliation surfaces receive web/mobile colleague visual acceptance before production activation.
 
 P3 code repair records:
 
@@ -178,6 +192,8 @@ P3 code repair records:
 - `docs/repairs/2026-08-22-p3-fee-checkout-retry-and-race.md`
 - `docs/repairs/2026-08-23-canada-small-supplier-gst-hst-mode.md`
 - `docs/repairs/2026-08-23-p3-provider-backed-fee-reconciliation.md`
+- `docs/repairs/2026-08-23-p3-concurrent-webhook-claim.md`
+- `docs/repairs/2026-08-23-p3-out-of-order-fee-webhook-state.md`
 
 P3 release boundary: **do not merge or activate merely because code/focused tests are green.** Final repository-wide, emulator, provider-payment, exact reconciliation, and visual acceptance evidence must still agree.
 
@@ -322,21 +338,21 @@ Observed: a failed external fee payment could reuse a stale Stripe Checkout Sess
 
 Root cause: the first implementation modeled fee Checkout as one lifetime operation per marketplace transaction and persisted its post-provider state with a blind merge.
 
-Repair/action: introduced server-owned payment-attempt numbering and attempt-scoped Stripe idempotency; open sessions are reused, processing payments are locked, failed/expired attempts can advance, and post-Stripe persistence uses a Firestore transaction that preserves newer webhook-authoritative state. Added provider-backed seller receipt verification and dedicated user/admin settlement surfaces.
+Repair/action: introduced server-owned payment-attempt numbering and attempt-scoped Stripe idempotency; centralized provider-session/persistence decisions; open sessions are reused, processing payments are locked, expired/failed attempts can advance, unknown provider states fail closed, and post-Stripe persistence preserves newer webhook-authoritative state or newer attempts. Added provider-backed seller receipt verification and dedicated user/admin settlement surfaces.
 
-Verification: Node/Flutter contract coverage exists; retry/idempotency policy was included in the 2026-08-23 mounted focused Node run. Live/emulator financial acceptance remains pending.
+Verification: Node/Flutter contract coverage exists; retry/idempotency/provider lifecycle policy was exercised in the 2026-08-23 mounted/focused Node work. Live/emulator financial acceptance remains pending.
 
 Repair record: `docs/repairs/2026-08-22-p3-fee-checkout-retry-and-race.md`.
 
 ## 2026-08-23 — Canadian small-supplier readiness and threshold monitor
 
-Observed: treating pre-registration billing as `registration_pending` would misstate the user's current intended Canadian small-supplier status, and Stripe revenue alone cannot prove the CRA threshold because worldwide taxable supplies and associated businesses matter.
+Observed: treating pre-registration billing as `registration_pending` would misstate the intended Canadian small-supplier status, Stripe revenue alone cannot prove the CRA threshold, a bare readiness boolean was insufficient evidence, and later threshold changes could otherwise leave stale billing authorization active.
 
-Root cause: payment readiness previously had no explicit small-supplier identity state and no audited threshold assessment record.
+Root cause: payment readiness originally had no explicit small-supplier identity state, no audited threshold record, and no lifecycle link between threshold assessment revisions and billing readiness.
 
-Repair/action: added distinct `canadaGstHstSmallSupplier` readiness, kept Stripe automatic tax off in that mode, kept full Marketplace Checkout gated behind real tax readiness, and added an MFA-admin threshold assessment/monitor with quarterly and rolling-four-quarter amounts, source note, attestation, warnings, revisioning, and audit trail.
+Repair/action: added distinct `canadaGstHstSmallSupplier` readiness, kept Stripe automatic tax off in that mode, kept full Marketplace Checkout gated behind real tax readiness, and added an MFA-admin threshold assessment/monitor with quarterly and rolling-four-quarter amounts, source note, attestation, warnings, revisioning, and audit trail. Activation now requires valid audited assessment evidence and binds its revision to readiness. Under-threshold reassessment refreshes that binding; exceeded reassessment transactionally clears small-supplier authorization and disables fee/Dispatch billing without guessing registration status/effective date.
 
-Verification: small-supplier policy/readiness/threshold tests are included in the 2026-08-23 mounted focused Node run. Production readiness still requires a current saved business assessment; provincial taxes remain separate.
+Verification: small-supplier policy/readiness/threshold tests are included in the 2026-08-23 mounted focused Node run; the latest activation/binding/shutdown control-plane run passed 10/10. Production readiness still requires the real current business assessment; provincial taxes remain separate.
 
 Repair record: `docs/repairs/2026-08-23-canada-small-supplier-gst-hst-mode.md`.
 
@@ -351,3 +367,27 @@ Repair/action: added server reconciliation that re-reads Checkout Session -> Pay
 Verification: reconciliation policy and command tests were executed in the 2026-08-23 mounted focused Node run, including a full injected provider chain, mismatch persistence, and unpaid-state refusal. A controlled real Stripe fee payment is still required before exact reconciliation is financially accepted.
 
 Repair record: `docs/repairs/2026-08-23-p3-provider-backed-fee-reconciliation.md`.
+
+## 2026-08-23 — P3 concurrent webhook claim
+
+Observed: webhook deduplication used a read-then-process sequence, allowing simultaneous deliveries of the same Stripe event to both pass the initial unprocessed check before either wrote `processed`.
+
+Root cause: the webhook event ledger did not transactionally claim event ownership before financial handling.
+
+Repair/action: production webhook now transactionally writes a recoverable `processing` lease/attempt before the inner financial handler runs. Processed events are refused, active in-flight duplicates return safely, failed events can retry, stale processing leases can recover, and invalid signatures are rejected before claim.
+
+Verification: focused webhook claim/wrapper tests passed with no failures; duplicate delivery ownership and stale-lease recovery were explicitly exercised.
+
+Repair record: `docs/repairs/2026-08-23-p3-concurrent-webhook-claim.md`.
+
+## 2026-08-23 — P3 out-of-order fee webhook state
+
+Observed: fee-only `processing`/`payment_failed` webhook updates were blind merges and could theoretically downgrade `collected`, apply an old attempt after a newer checkout began, or silently accept a different Session for the same attempt.
+
+Root cause: the server-owned checkout-attempt/session model was enforced in the callable path but not in non-success fee webhook transitions.
+
+Repair/action: fee-only non-success webhook transitions now compare current status, current Session, current attempt, incoming Session, and incoming attempt. `collected` is terminal, stale attempts are ignored, failed same-attempt state cannot move backward to processing, a legitimate newer attempt may arrive before callable persistence, and same-attempt Session conflicts are quarantined as `WEBHOOK REVIEW` without changing fee state.
+
+Verification: focused transition-policy and command-level guarded webhook execution passed with no failures; admin contract now surfaces the review state and conflict evidence.
+
+Repair record: `docs/repairs/2026-08-23-p3-out-of-order-fee-webhook-state.md`.
