@@ -1,5 +1,7 @@
 "use strict";
 
+const fs = require("node:fs");
+const path = require("node:path");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
@@ -87,4 +89,13 @@ test("normal first provider response persists checkout_created", () => {
     createdSessionId: "cs_1",
     createdAttempt: 1,
   }), "checkout_created");
+});
+
+test("external settlement command consumes both provider lifecycle decisions", () => {
+  const source = fs.readFileSync(
+      path.join(__dirname, "..", "external_settlement_commands.js"),
+      "utf8",
+  );
+  assert.match(source, /existingExternalFeeSessionDecision\s*\(/);
+  assert.match(source, /externalFeePostProviderPersistenceDecision\s*\(/);
 });
