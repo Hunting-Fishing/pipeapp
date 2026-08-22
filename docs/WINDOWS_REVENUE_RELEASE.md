@@ -123,10 +123,11 @@ The repository already contains `firebase/functions/scripts/policy_ops.js` for g
 - computes the policy SHA-256 from the live HTTPS URL itself;
 - defaults to dry-run;
 - reuses the same publication validator as the callable path;
-- records the policy document and immutable publication event; and
+- records the policy document and immutable publication event;
+- rejects missing, email-address, overlong, or obvious placeholder `--actor-uid` values; and
 - requires `--confirm-production-project flutter-flow-pipe` before a production write.
 
-Before applying a publication, record the approving administrator UID, version, effective date, summary, and approval note. Do not enable policy enforcement until all five policies are published and acceptance/stale-reacceptance behavior has been verified.
+Before applying a publication, copy the approving administrator's **actual Firebase Authentication User UID** and use that exact value as `--actor-uid`. Do not use an email address, GitHub username, display name, or placeholder text. Record the version, effective date, summary, and approval note as well. Do not enable policy enforcement until all five policies are published and acceptance/stale-reacceptance behavior has been verified.
 
 ## Create the narrow Stripe Customer Portal configuration
 
@@ -220,6 +221,24 @@ The validation must progress beyond Bash line 2 and into the Functions validatio
 **Repository evidence**
 
 The repair is committed on PR #88 / branch `fix/dispatch-checkout-hardening`.
+
+## Recorded repair: policy publication placeholder actor UID — 2026-08-22
+
+**Symptom**
+
+A publication dry run displayed `Approved by PASTE_FIREBASE_ADMIN_UID_HERE` because the PowerShell variable still held the example placeholder.
+
+**Root cause**
+
+The operator previously required a non-empty `--actor-uid` but did not distinguish a real Firebase Authentication User UID from obvious placeholder text.
+
+**Repair**
+
+`policy_ops.js` now rejects missing, email-address, overlong, and obvious placeholder actor UID values before both publication and enforcement operations. The operator must use the real Firebase Authentication User UID of the approving administrator.
+
+**Verification**
+
+A retry with the placeholder must fail before fetching or writing a policy document. A dry run with the real UID must show that UID in `Approved by` and still end with `DRY RUN — nothing was written.`
 
 ## Repair rule
 
