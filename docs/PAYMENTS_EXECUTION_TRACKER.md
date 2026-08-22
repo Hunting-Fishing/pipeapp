@@ -85,7 +85,7 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [ ] Confirm `stripeMode` intended state.
 - [ ] Confirm `stripeWebhookVerified` evidence.
 - [ ] Confirm `stripeReconciliationReady` evidence.
-- [ ] Confirm tax state is either valid ready or explicitly approved registration-pending mode.
+- [ ] Confirm tax state is one authorized mode: registered, Canadian small supplier with current audited threshold evidence, or registration-pending with separate billing approval.
 - [ ] Verify success/cancel URLs resolve to current Pipe Buyer routes.
 - [ ] Verify Flutter monthly button calls current command.
 - [ ] Verify Flutter yearly button calls current command.
@@ -111,21 +111,23 @@ P2 definition of done: a user can choose Monthly or Yearly, complete secure Stri
 - [x] Pipe Buyer can bill only its Marketplace fee.
 - [x] Fee-only webhook verifies checkout subtotal against immutable fee snapshot.
 - [x] No seller-proceeds Transfer is created in fee-only settlement.
-- [ ] Verify both-party external settlement confirmation gate end to end.
-- [ ] Verify one-party-only confirmation cannot start fee checkout.
-- [ ] Verify server-generated fee-only Checkout amount.
-- [ ] Verify tax handling for Pipe Buyer fee.
-- [ ] Verify successful fee collection state.
-- [ ] Verify failed fee collection state.
-- [ ] Verify duplicate Checkout prevention.
-- [ ] Verify duplicate webhook prevention.
-- [ ] Verify fee receipt/invoice UX.
-- [ ] Verify admin unpaid/paid/review states.
-- [ ] Reconcile controlled test payment.
+- [ ] Verify both-party external settlement confirmation gate end to end in the repository emulator acceptance run.
+- [ ] Verify one-party-only confirmation cannot start fee checkout in the repository emulator acceptance run.
+- [ ] Verify server-generated fee-only Checkout amount against an actual provider Checkout Session.
+- [ ] Verify tax handling for Pipe Buyer fee against the active production tax-readiness state.
+- [ ] Verify successful fee collection state from a controlled provider payment.
+- [ ] Verify failed fee collection and clean retry from a controlled provider attempt.
+- [ ] Verify duplicate Checkout prevention against provider behavior.
+- [ ] Verify duplicate webhook prevention against controlled provider events.
+- [ ] Verify fee receipt UX against a real paid Stripe Charge.
+- [ ] Verify admin unpaid/paid/review/reconciliation states in web/mobile colleague acceptance.
+- [ ] Reconcile one controlled provider payment with zero unexplained difference.
 
-## P3 implementation status — 2026-08-22
+## P3 implementation and verification status — 2026-08-23
 
-The items below are **implementation evidence**, not financial acceptance. The verification checklist above remains open until CI/emulator/provider/reconciliation evidence agrees.
+The items below separate **code evidence**, **focused executable verification**, and **financial acceptance**. A code-complete item is not automatically a financially accepted item.
+
+### Code architecture
 
 - [x] CODE — Full Stripe marketplace checkout and external settlement share a fail-closed payment-path exclusivity guard.
 - [x] CODE — One-party external-settlement confirmation cannot satisfy the server fee-checkout gate.
@@ -140,19 +142,44 @@ The items below are **implementation evidence**, not financial acceptance. The v
 - [x] CODE — Seller fee action launches only a validated HTTPS `checkout.stripe.com` URL returned by the server.
 - [x] CODE — Seller-only receipt callable re-reads the paid Stripe Charge and verifies stored amount/currency before returning receipt evidence.
 - [x] CODE — Paid seller UX can open a validated HTTPS Stripe receipt or retain the verified Stripe Charge reference if no hosted receipt URL is available.
-- [x] CODE — MFA-backed read-only admin queue exists at `/admin/settlement-fees`.
-- [x] CODE — Admin queue surfaces confirmation pending, fee due, checkout open, processing, failed, paid, tax-review, and payment-path-conflict states.
-- [x] CODE — Flutter settlement/admin clients do not directly mutate authoritative financial state.
-- [ ] ACCEPTANCE — Repository CI executes successfully on the P3 branch. Current GitHub run state is `startup_failure` before any job is created.
-- [ ] ACCEPTANCE — Firebase emulator proves one-party rejection, both-party success, active-session reuse, failed-attempt retry, and webhook/callable race preservation.
-- [ ] ACCEPTANCE — Controlled Stripe payment proves success, failure/retry, duplicate handling, provider receipt, and exact Firestore reconciliation.
-- [ ] ACCEPTANCE — Tax treatment for the Pipe Buyer fee is approved and readiness configuration matches the approved treatment.
-- [ ] ACCEPTANCE — User and admin settlement pages receive web/mobile colleague visual acceptance before production activation.
+- [x] CODE — MFA-backed admin queue exists at `/admin/settlement-fees` and does not grant client-side payment-state overrides.
+- [x] CODE — Admin queue surfaces confirmation pending, fee due, checkout open, processing, failed, paid, tax-review, payment-path-conflict, and reconciliation evidence.
+- [x] CODE — Canadian small supplier is a distinct tax-readiness state; it is not faked as `stripeTaxReady` or registration pending.
+- [x] CODE — MFA-admin GST/HST threshold assessment requires quarter totals, rolling-four-quarter totals, bookkeeping source note, and worldwide/associated-business attestation.
+- [x] CODE — GST/HST threshold monitor uses CAD $30,000 with 75% warning, 90% high warning, and >$30,000 exceeded states.
+- [x] CODE — Full Marketplace buyer-to-seller Checkout still requires actual `stripeTaxReady=true`; small-supplier mode authorizes only Pipe Buyer own-revenue flows such as fee billing/Dispatch where otherwise ready.
+- [x] CODE — Provider-backed fee reconciliation re-reads Stripe Checkout Session → PaymentIntent → Charge → Balance Transaction.
+- [x] CODE — Reconciliation validates immutable fee subtotal, tax, buyer total, currency, provider identity chain, paid/succeeded states, and provider gross/fee/net arithmetic.
+- [x] CODE — Provider mismatch is stored as `mismatch`; Flutter cannot declare `balanced`.
+- [x] CODE — Admin paid-fee card exposes server-controlled `Reconcile Stripe ↔ Firestore` and displays Balance Transaction, provider fee/net, and BALANCED/MISMATCH state.
+
+### Focused executable verification
+
+- [x] VERIFIED-FOCUSED — Exact branch P3 source was retrieved through the connected GitHub API and mounted under `/mnt/data/pipeapp` because the execution sandbox blocks outbound GitHub DNS even while the repository is public.
+- [x] VERIFIED-FOCUSED — Node 22 syntax checks passed for the mounted payment-path, retry, receipt, tax/readiness, threshold, and reconciliation modules.
+- [x] VERIFIED-FOCUSED — Consolidated mounted P3 Node suite executed **48 tests: 48 passed, 0 failed**.
+- [x] VERIFIED-FOCUSED — Executed reconciliation-command tests prove the server re-reads Session/PaymentIntent/Charge/Balance Transaction through an injected provider chain, records `balanced` only when every check agrees, persists `mismatch` when provider evidence disagrees, and refuses unpaid fee state before provider calls.
+- [x] VERIFIED-FOCUSED — Live Stripe read-only check identified the intended Pipe Buyer live account, confirmed the production webhook is enabled, and observed zero live Checkout Sessions at the time checked.
+
+Focused verification is real execution evidence but **does not equal the repository-wide local quality gate, Firebase emulator acceptance, Flutter analyzer/tests/builds, or a live financial acceptance transaction**.
+
+### Acceptance still required
+
+- [ ] ACCEPTANCE — Run `tool/verify.ps1` successfully from the final P3 commit. This must include the repository Flutter/Functions/rules/build gates and the P3 emulator integration. GitHub-hosted Actions currently return repository-level `startup_failure` before jobs are created; do not treat that synthetic zero-job condition as a P3 code failure or alter payment code to chase it.
+- [ ] ACCEPTANCE — Firebase emulator/provider-stub acceptance proves one-party rejection, both-party success, active-session reuse, failed-attempt retry, and webhook/callable race preservation.
+- [ ] ACCEPTANCE — Controlled real Stripe fee payment proves successful collection, failure/retry behavior, duplicate handling, and provider-backed seller receipt.
+- [ ] ACCEPTANCE — The controlled paid fee is reconciled by `reconcileExternalSettlementFee` to its Stripe Balance Transaction and produces `marketplaceFeeReconciliationStatus=balanced`, zero Firestore arithmetic difference, and zero provider gross-fee-net difference.
+- [ ] ACCEPTANCE — Before enabling `canadaGstHstSmallSupplier=true` in production readiness, save a current audited threshold assessment that includes worldwide taxable supplies and associated businesses. Provincial tax obligations remain separate.
+- [ ] ACCEPTANCE — User/admin settlement and threshold/reconciliation surfaces receive web/mobile colleague visual acceptance before production activation.
 
 P3 code repair records:
 
 - `docs/repairs/2026-08-22-p3-payment-path-exclusivity.md`
 - `docs/repairs/2026-08-22-p3-fee-checkout-retry-and-race.md`
+- `docs/repairs/2026-08-23-canada-small-supplier-gst-hst-mode.md`
+- `docs/repairs/2026-08-23-p3-provider-backed-fee-reconciliation.md`
+
+P3 release boundary: **do not merge or activate merely because code/focused tests are green.** Final repository-wide, emulator, provider-payment, exact reconciliation, and visual acceptance evidence must still agree.
 
 ---
 
@@ -185,19 +212,20 @@ Do not activate this merely because code exists.
 # P5 — Tax readiness — LAUNCH GATE
 
 - [ ] Confirm legal billing entity.
-- [ ] Confirm GST/HST registrations/effective dates.
+- [ ] Record/maintain Canadian small-supplier threshold evidence while that status is being used.
+- [ ] Confirm GST/HST registrations/effective dates when registration becomes required/available.
 - [ ] Confirm BC PST treatment.
 - [ ] Confirm seller registered/non-registered treatment.
 - [ ] Confirm tax liability for Dispatch subscription flow.
 - [ ] Confirm tax liability for fee-only Marketplace flow.
 - [ ] Confirm tax liability for full on-platform Marketplace flow.
-- [ ] Confirm Stripe Tax registrations match actual government registrations.
+- [ ] Confirm Stripe Tax registrations match actual government registrations before setting `stripeTaxReady=true`.
 - [ ] Confirm physical listing tax-code strategy.
 - [ ] Confirm exemption workflow.
 - [ ] Confirm refund/tax reversal process.
 - [ ] Confirm accounting/remittance owner.
 
-Never set `stripeTaxReady=true` solely because Stripe Tax is enabled in the Dashboard.
+Never set `stripeTaxReady=true` solely because Stripe Tax is enabled in the Dashboard. Canadian small-supplier status is a separate readiness state and must be supported by current audited threshold evidence.
 
 ---
 
@@ -219,15 +247,16 @@ Never set `stripeTaxReady=true` solely because Stripe Tax is enabled in the Dash
 
 # P7 — Reconciliation / accounting
 
-- [ ] Verify stored Checkout Session ID.
-- [ ] Verify stored PaymentIntent ID.
-- [ ] Verify stored Charge ID.
-- [ ] Add/verify Balance Transaction ID capture where required for actual Stripe fee reconciliation.
+- [ ] Verify stored Checkout Session ID against a controlled provider payment.
+- [ ] Verify stored PaymentIntent ID against a controlled provider payment.
+- [ ] Verify stored Charge ID against a controlled provider payment.
+- [ ] Verify stored Balance Transaction ID against a controlled provider payment. P3 code capture/re-read is implemented, but live acceptance is still required.
 - [ ] Verify gross amount.
 - [ ] Verify tax.
 - [ ] Verify Pipe Buyer revenue.
-- [ ] Verify seller proceeds.
-- [ ] Verify Transfer ID.
+- [ ] Verify Stripe provider fee and net amount.
+- [ ] Verify seller proceeds where seller money movement applies.
+- [ ] Verify Transfer ID where seller money movement applies.
 - [ ] Verify refund IDs.
 - [ ] Verify dispute IDs.
 - [ ] Verify currency.
@@ -246,7 +275,7 @@ P7 definition of done: every Pipe Buyer dollar can be traced from business trans
 1. [ ] Finish P0 documentation/UI/config reconciliation.
 2. [ ] Finish P1 live readiness verification and controlled webhook tests.
 3. [ ] Complete P2 Dispatch subscriptions and reconciliation.
-4. [ ] Complete P3 external-settlement fee checkout.
+4. [ ] Complete P3 external-settlement fee checkout acceptance.
 5. [ ] Complete P5 tax gates for each flow before activating it.
 6. [ ] Complete P6/P7 operational acceptance.
 7. [ ] Only then activate P4 full Marketplace money movement.
@@ -283,7 +312,7 @@ Root cause: the two payment callables evaluated their own local conditions inste
 
 Repair/action: added shared payment-path guard and applied it to both full Stripe marketplace Checkout and external-settlement confirmation/fee billing. The first active path now blocks the other path.
 
-Verification: regression tests added in PR #95. Full CI acceptance is still pending because GitHub Actions is currently failing before job startup.
+Verification: regression tests added in PR #95 and included in the 2026-08-23 mounted focused execution. Repository-wide/emulator/provider acceptance remains open.
 
 Repair record: `docs/repairs/2026-08-22-p3-payment-path-exclusivity.md`.
 
@@ -295,6 +324,30 @@ Root cause: the first implementation modeled fee Checkout as one lifetime operat
 
 Repair/action: introduced server-owned payment-attempt numbering and attempt-scoped Stripe idempotency; open sessions are reused, processing payments are locked, failed/expired attempts can advance, and post-Stripe persistence uses a Firestore transaction that preserves newer webhook-authoritative state. Added provider-backed seller receipt verification and dedicated user/admin settlement surfaces.
 
-Verification: Node and Flutter contract/regression tests added in PR #95; live/emulator financial acceptance remains pending.
+Verification: Node/Flutter contract coverage exists; retry/idempotency policy was included in the 2026-08-23 mounted focused Node run. Live/emulator financial acceptance remains pending.
 
 Repair record: `docs/repairs/2026-08-22-p3-fee-checkout-retry-and-race.md`.
+
+## 2026-08-23 — Canadian small-supplier readiness and threshold monitor
+
+Observed: treating pre-registration billing as `registration_pending` would misstate the user's current intended Canadian small-supplier status, and Stripe revenue alone cannot prove the CRA threshold because worldwide taxable supplies and associated businesses matter.
+
+Root cause: payment readiness previously had no explicit small-supplier identity state and no audited threshold assessment record.
+
+Repair/action: added distinct `canadaGstHstSmallSupplier` readiness, kept Stripe automatic tax off in that mode, kept full Marketplace Checkout gated behind real tax readiness, and added an MFA-admin threshold assessment/monitor with quarterly and rolling-four-quarter amounts, source note, attestation, warnings, revisioning, and audit trail.
+
+Verification: small-supplier policy/readiness/threshold tests are included in the 2026-08-23 mounted focused Node run. Production readiness still requires a current saved business assessment; provincial taxes remain separate.
+
+Repair record: `docs/repairs/2026-08-23-canada-small-supplier-gst-hst-mode.md`.
+
+## 2026-08-23 — P3 provider-backed exact fee reconciliation
+
+Observed: a paid Stripe Charge proved collection but did not expose the provider fee/net accounting required for exact reconciliation.
+
+Root cause: P3 reconciliation stopped at Checkout Session / PaymentIntent / Charge evidence and did not require Stripe's linked Balance Transaction.
+
+Repair/action: added server reconciliation that re-reads Checkout Session -> PaymentIntent -> Charge -> Balance Transaction, validates the immutable Firestore fee/tax/total and provider identity/arithmetic, persists BALANCED/MISMATCH plus provider gross/fee/net evidence, and exposes only an MFA-admin server-controlled reconciliation action in Flutter.
+
+Verification: reconciliation policy and command tests were executed in the 2026-08-23 mounted focused Node run, including a full injected provider chain, mismatch persistence, and unpaid-state refusal. A controlled real Stripe fee payment is still required before exact reconciliation is financially accepted.
+
+Repair record: `docs/repairs/2026-08-23-p3-provider-backed-fee-reconciliation.md`.
