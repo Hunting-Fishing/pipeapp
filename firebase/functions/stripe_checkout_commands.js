@@ -18,6 +18,9 @@ const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   createMarketplaceTaxCompliance,
 } = require("./marketplace_tax_compliance");
+const {
+  hasStartedExternalSettlement,
+} = require("./marketplace_payment_path_guard");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -169,6 +172,12 @@ function createStripeCheckoutCommands(admin) {
         throw new HttpsError(
             "permission-denied",
             "Only the buyer can start the marketplace payment.",
+        );
+      }
+      if (hasStartedExternalSettlement(sale)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "This transaction is already using external settlement.",
         );
       }
       if (!["pending_completion", "pending_payment"].includes(String(sale.status))) {
