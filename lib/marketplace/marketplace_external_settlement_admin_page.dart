@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/data/bounded_firestore_query.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_canada_gst_hst_threshold_panel.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_data_state.dart';
 
 class MarketplaceExternalSettlementAdminPage extends StatefulWidget {
@@ -16,6 +17,8 @@ class MarketplaceExternalSettlementAdminPage extends StatefulWidget {
 
 class _MarketplaceExternalSettlementAdminPageState
     extends State<MarketplaceExternalSettlementAdminPage> {
+  final MarketplaceCommandClient _commands = MarketplaceCommandClient();
+  final Set<String> _reconciling = <String>{};
   late Future<MarketplaceAdministratorState> _access;
 
   @override
@@ -180,7 +183,7 @@ class _MarketplaceExternalSettlementAdminPageState
               ),
               const SizedBox(height: 6),
               const Text(
-                'Read-only financial operations view. Client code cannot mark fees paid, override Stripe evidence, or edit settlement confirmations.',
+                'Server-controlled financial operations view. Client code cannot mark fees paid, override Stripe evidence, edit settlement confirmations, or declare a reconciliation balanced.',
                 style: TextStyle(fontSize: 11, color: Colors.black54),
               ),
             ],
@@ -206,6 +209,14 @@ class _MarketplaceExternalSettlementAdminPageState
         transaction['externalSettlementBuyerConfirmed'] == true;
     final sellerConfirmed =
         transaction['externalSettlementSellerConfirmed'] == true;
+    final reconciliationStatus =
+        '${transaction['marketplaceFeeReconciliationStatus'] ?? ''}'.trim();
+    final providerFeeMinor =
+        (transaction['marketplaceFeeProviderFeeMinor'] as num?)?.toInt();
+    final providerNetMinor =
+        (transaction['marketplaceFeeProviderNetMinor'] as num?)?.toInt();
+    final isCollected = transaction['marketplaceFeeStatus'] == 'collected';
+    final isReconciling = _reconciling.contains(transactionId);
 
     return Card(
       child: Padding(
@@ -254,6 +265,23 @@ class _MarketplaceExternalSettlementAdminPageState
             _reference(
                 'PaymentIntent', transaction['stripeMarketplaceFeePaymentIntentId']),
             _reference('Charge', transaction['stripeMarketplaceFeeChargeId']),
+            _reference('Balance txn',
+                transaction['stripeMarketplaceFeeBalanceTransactionId']),
+            if (reconciliationStatus.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Reconciliation: ${reconciliationStatus.toUpperCase()}'
+                  '${providerFeeMinor == null ? '' : ' • Stripe fee ${_moneyMinor(providerFeeMinor, currency)}'}'
+                  '${providerNetMinor == null ? '' : ' • Net ${_moneyMinor(providerNetMinor, currency)}'}',
+                  style: TextStyle(
+                    color: reconciliationStatus == 'balanced'
+                        ? Colors.green.shade800
+                        : Colors.red.shade800,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
             if (transaction['marketplaceFeeTaxExposureReviewRequired'] == true)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -263,6 +291,24 @@ class _MarketplaceExternalSettlementAdminPageState
                     color: Colors.deepOrange.shade700,
                     fontWeight: FontWeight.w800,
                   ),
+                ),
+              ),
+            if (isCollected)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: OutlinedButton.icon(
+                  onPressed:
+                      isReconciling ? null : () => _reconcile(transactionId),
+                  icon: isReconciling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.balance_outlined),
+                  label: Text(isReconciling
+                      ? 'Reconciling…'
+                      : 'Reconcile Stripe ↔ Firestore'),
                 ),
               ),
             if (updatedAt != null)
@@ -277,6 +323,44 @@ class _MarketplaceExternalSettlementAdminPageState
         ),
       ),
     );
+  }
+
+  Future<void> _reconcile(String transactionId) async {
+    if (_reconciling.contains(transactionId)) return;
+    setState(() => _reconciling.add(transactionId));
+    try {
+      final result = await _commands.execute(
+        'reconcileExternalSettlementFee',
+        {'transactionId': transactionId},
+      );
+      if (!mounted) return;
+      final balanced = result['balanced'] == true;
+      final failedChecks = result['failedChecks'] is List
+          ? List<Object?>.from(result['failedChecks'] as List)
+          : const <Object?>[];
+      final message = balanced
+          ? 'Stripe and Firestore reconcile with zero unexplained difference.'
+          : 'Reconciliation mismatch: ${failedChecks.join(', ')}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            marketplaceCommandErrorMessage(
+              error,
+              fallback: 'The fee could not be reconciled.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _reconciling.remove(transactionId));
+      }
+    }
   }
 
   Widget _reference(String label, dynamic value) {
