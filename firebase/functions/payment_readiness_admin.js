@@ -18,6 +18,7 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
   "stripeTaxPendingBillingApproved",
+  "canadaGstHstSmallSupplier",
   "stripeReconciliationReady",
   "affiliatePayoutsEnabled",
   "marketplaceFinancialResolutionEnabled",
@@ -62,6 +63,7 @@ function normalizeReadiness(data = {}) {
 
 function taxBillingPrepared(next) {
   return next.stripeTaxReady === true ||
+    next.canadaGstHstSmallSupplier === true ||
     (next.stripeTaxRegistrationPending === true &&
       next.stripeTaxPendingBillingApproved === true);
 }
@@ -76,16 +78,27 @@ function validateReadiness(next, options = {}) {
         "Production mode requires explicit confirmation.",
     );
   }
-  if (next.stripeTaxReady && next.stripeTaxRegistrationPending) {
+  const taxIdentityStates = [
+    next.stripeTaxReady === true,
+    next.stripeTaxRegistrationPending === true,
+    next.canadaGstHstSmallSupplier === true,
+  ].filter(Boolean).length;
+  if (taxIdentityStates > 1) {
     throw new HttpsError(
         "failed-precondition",
-        "Tax registration cannot be both pending and ready.",
+        "GST/HST status must be exactly one of registered, registration pending, or Canadian small supplier.",
     );
   }
   if (next.stripeTaxRegistrationPending && next.stripeMode !== "production") {
     throw new HttpsError(
         "failed-precondition",
         "Pending tax registration may only be used with production billing.",
+    );
+  }
+  if (next.canadaGstHstSmallSupplier && next.stripeMode !== "production") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Canadian small-supplier billing status may only be used with production billing.",
     );
   }
   if (next.stripeTaxPendingBillingApproved &&
@@ -115,7 +128,7 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace fee billing requires production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
+        "Marketplace fee billing requires production mode, verified webhooks, reconciliation readiness, and an authorized GST/HST billing state.",
     );
   }
   if (next.stripeSubscriptionsEnabled && !(
@@ -126,7 +139,7 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
+        "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and an authorized GST/HST billing state.",
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
