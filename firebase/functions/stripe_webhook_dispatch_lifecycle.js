@@ -1,0 +1,131 @@
+"use strict";
+
+const {verifyStripeSignature} = require("./stripe_webhook");
+
+const DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS = new Set([
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "customer.subscription.paused",
+  "customer.subscription.resumed",
+]);
+
+function stripeEventFromRawBody(rawBody) {
+  if (!Buffer.isBuffer(rawBody) || rawBody.length === 0) return null;
+  try {
+    const event = JSON.parse(rawBody.toString("utf8"));
+    return event && typeof event === "object" ? event : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function isDispatchSubscriptionLifecycleEvent(event) {
+  return Boolean(event &&
+    DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS.has(String(event.type || "")) &&
+    event.data &&
+    event.data.object);
+}
+
+function isDispatchCheckoutCompletedEvent(event) {
+  const session = event && event.data && event.data.object;
+  return Boolean(event &&
+    event.type === "checkout.session.completed" &&
+    session &&
+    session.metadata &&
+    session.metadata.billingType === "dispatch_subscription");
+}
+
+function isDispatchProviderStateEvent(event) {
+  return isDispatchSubscriptionLifecycleEvent(event) ||
+    isDispatchCheckoutCompletedEvent(event);
+}
+
+function createStripeWebhookDispatchLifecycleWrapper({
+  admin,
+  baseHandler,
+  dispatchSubscriptionLifecycle,
+  stripeWebhookSecret,
+}) {
+  const db = admin.firestore();
+  const FieldValue = admin.firestore.FieldValue;
+
+  return async (request, response) => {
+    const rawBody = request.rawBody;
+    const signature = request.get("stripe-signature");
+    if (!verifyStripeSignature(
+        rawBody,
+        signature,
+        stripeWebhookSecret.value(),
+    )) {
+      // Delegate so the established handler remains authoritative for the
+      // exact HTTP error contract and audit behavior.
+      return baseHandler(request, response);
+    }
+
+    const event = stripeEventFromRawBody(rawBody);
+    if (!isDispatchProviderStateEvent(event)) {
+      return baseHandler(request, response);
+    }
+
+    const eventId = String(event.id || "");
+    const eventRef = eventId.startsWith("evt_") ?
+      db.collection("stripe_webhook_events").doc(eventId) : null;
+    if (eventRef) {
+      const existing = await eventRef.get();
+      if (existing.exists && existing.data().status === "processed") {
+        return baseHandler(request, response);
+      }
+    }
+
+    try {
+      const object = event.data.object;
+      if (event.type === "checkout.session.completed") {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchCheckoutCompleted(object);
+      } else if (event.type === "customer.subscription.created") {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionCreated(object);
+      } else if (event.type === "customer.subscription.deleted") {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionDeleted(object);
+      } else if ([
+        "customer.subscription.updated",
+        "customer.subscription.paused",
+        "customer.subscription.resumed",
+      ].includes(event.type)) {
+        await dispatchSubscriptionLifecycle
+            .handleDispatchSubscriptionUpdated(object);
+      }
+    } catch (error) {
+      console.error("Dispatch subscription provider-state webhook failed", {
+        eventId,
+        type: event.type,
+        error,
+      });
+      if (eventRef) {
+        await eventRef.set({
+          eventId,
+          type: String(event.type || ""),
+          status: "failed",
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+      response.status(500).send("Webhook processing failed");
+      return;
+    }
+
+    // The established handler remains the single owner of the processed event
+    // ledger and of all existing checkout/refund/dispute behavior.
+    return baseHandler(request, response);
+  };
+}
+
+module.exports = {
+  DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS,
+  createStripeWebhookDispatchLifecycleWrapper,
+  isDispatchCheckoutCompletedEvent,
+  isDispatchProviderStateEvent,
+  isDispatchSubscriptionLifecycleEvent,
+  stripeEventFromRawBody,
+};

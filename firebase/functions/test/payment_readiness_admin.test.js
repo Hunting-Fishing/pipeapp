@@ -14,6 +14,7 @@ const base = normalizeReadiness({
   connectRefreshUrl: "https://pipebuyer.com/payments/connect/refresh",
   checkoutSuccessUrl: "https://pipebuyer.com/payments/success",
   checkoutCancelUrl: "https://pipebuyer.com/payments/cancel",
+  dispatchPortalReturnUrl: "https://pipebuyer.com/payments/dispatch",
 });
 
 test("production mode requires explicit confirmation", () => {
@@ -38,6 +39,7 @@ test("full marketplace checkout still requires active tax registration", () => {
         stripeCheckoutEnabled: true,
         stripeWebhookVerified: true,
         stripeTaxRegistrationPending: true,
+        stripeTaxPendingBillingApproved: true,
         stripeReconciliationReady: true,
       }, {confirmProduction: true}),
       /active tax registration/i,
@@ -54,27 +56,101 @@ test("full marketplace checkout still requires active tax registration", () => {
   assert.equal(ready.stripeCheckoutEnabled, true);
 });
 
-test("Dispatch subscriptions can launch while tax registration is pending", () => {
+test("pending tax registration alone cannot authorize Dispatch billing", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeSubscriptionsEnabled: true,
+        stripeWebhookVerified: true,
+        stripeTaxRegistrationPending: true,
+        stripeReconciliationReady: true,
+      }, {confirmProduction: true}),
+      /separately approved pending-registration billing decision/i,
+  );
+});
+
+test("Dispatch subscriptions may use a separately approved pending-tax decision", () => {
   const ready = validateReadiness({
     ...base,
     stripeMode: "production",
     stripeSubscriptionsEnabled: true,
     stripeWebhookVerified: true,
     stripeTaxRegistrationPending: true,
+    stripeTaxPendingBillingApproved: true,
     stripeReconciliationReady: true,
   }, {confirmProduction: true});
   assert.equal(ready.stripeSubscriptionsEnabled, true);
   assert.equal(ready.stripeTaxReady, false);
   assert.equal(ready.stripeTaxRegistrationPending, true);
+  assert.equal(ready.stripeTaxPendingBillingApproved, true);
 });
 
-test("Pipe Buyer marketplace fee billing can launch while tax registration is pending", () => {
+test("pending-tax billing approval cannot exist without pending registration", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeTaxPendingBillingApproved: true,
+      }, {confirmProduction: true}),
+      /only be enabled while tax registration is explicitly pending/i,
+  );
+});
+
+test("Dispatch Customer Portal is independent from new subscription checkout", () => {
+  const ready = applyPatch(
+      base,
+      {
+        stripeMode: "production",
+        stripeWebhookVerified: true,
+        stripeDispatchPortalEnabled: true,
+        stripeDispatchPortalConfigurationId: "bpc_123ABC",
+        dispatchPortalReturnUrl: "https://pipebuyer.com/payments/dispatch",
+      },
+      {confirmProduction: true},
+  );
+  assert.equal(ready.stripeDispatchPortalEnabled, true);
+  assert.equal(ready.stripeSubscriptionsEnabled, false);
+});
+
+test("Dispatch Customer Portal requires an approved Stripe configuration", () => {
+  assert.throws(
+      () => applyPatch(
+          base,
+          {
+            stripeMode: "production",
+            stripeWebhookVerified: true,
+            stripeDispatchPortalEnabled: true,
+          },
+          {confirmProduction: true},
+      ),
+      /approved Stripe portal configuration/i,
+  );
+  assert.throws(
+      () => applyPatch(base, {stripeDispatchPortalConfigurationId: "pc_bad"}),
+      /billing portal configuration ID/i,
+  );
+});
+
+test("marketplace fee billing also requires separate pending-tax approval", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeFeeBillingEnabled: true,
+        stripeWebhookVerified: true,
+        stripeTaxRegistrationPending: true,
+        stripeReconciliationReady: true,
+      }, {confirmProduction: true}),
+      /separately approved pending-registration billing decision/i,
+  );
   const ready = validateReadiness({
     ...base,
     stripeMode: "production",
     stripeFeeBillingEnabled: true,
     stripeWebhookVerified: true,
     stripeTaxRegistrationPending: true,
+    stripeTaxPendingBillingApproved: true,
     stripeReconciliationReady: true,
   }, {confirmProduction: true});
   assert.equal(ready.stripeFeeBillingEnabled, true);
@@ -128,14 +204,38 @@ test("dispute evidence cannot outrun dispute automation", () => {
   );
 });
 
-test("affiliate payouts require the payout prerequisites", () => {
+test("affiliate payout economics approval is a separate production gate", () => {
+  const providerReady = {
+    ...base,
+    stripeMode: "production",
+    stripeConnectOnboardingEnabled: true,
+    stripeWebhookVerified: true,
+    stripeReconciliationReady: true,
+  };
+  assert.throws(
+      () => validateReadiness({
+        ...providerReady,
+        affiliatePayoutsEnabled: true,
+      }, {confirmProduction: true}),
+      /separate approved affiliate payout economics gate/i,
+  );
+  const ready = validateReadiness({
+    ...providerReady,
+    affiliatePayoutEconomicsReady: true,
+    affiliatePayoutsEnabled: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.affiliatePayoutEconomicsReady, true);
+  assert.equal(ready.affiliatePayoutsEnabled, true);
+});
+
+test("affiliate economics cannot be approved before provider readiness", () => {
   assert.throws(
       () => validateReadiness({
         ...base,
         stripeMode: "production",
-        affiliatePayoutsEnabled: true,
+        affiliatePayoutEconomicsReady: true,
       }, {confirmProduction: true}),
-      /Affiliate payouts require/i,
+      /economics approval requires production mode, Connect onboarding/i,
   );
 });
 
