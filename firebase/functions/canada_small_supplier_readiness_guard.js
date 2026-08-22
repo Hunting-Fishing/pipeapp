@@ -41,7 +41,36 @@ function canadaSmallSupplierAssessmentDecision(assessment) {
   });
 }
 
+function canadaSmallSupplierReadinessDecision(readiness = {}, assessment) {
+  if (readiness.canadaGstHstSmallSupplier !== true) {
+    return Object.freeze({authorized: false, reason: "readiness_inactive"});
+  }
+  const assessmentDecision = canadaSmallSupplierAssessmentDecision(assessment);
+  if (!assessmentDecision.authorized) return assessmentDecision;
+  const boundRevision = Number(
+      readiness.canadaGstHstSmallSupplierAssessmentRevision,
+  );
+  if (!Number.isSafeInteger(boundRevision) || boundRevision < 1) {
+    return Object.freeze({authorized: false, reason: "readiness_unbound"});
+  }
+  if (boundRevision !== assessmentDecision.revision) {
+    return Object.freeze({
+      authorized: false,
+      reason: "assessment_revision_mismatch",
+      boundRevision,
+      assessmentRevision: assessmentDecision.revision,
+    });
+  }
+  return Object.freeze({
+    ...assessmentDecision,
+    authorized: true,
+    reason: "authorized",
+    boundRevision,
+  });
+}
+
 module.exports = {
   canadaSmallSupplierAssessmentDecision,
+  canadaSmallSupplierReadinessDecision,
   safeMinor,
 };
