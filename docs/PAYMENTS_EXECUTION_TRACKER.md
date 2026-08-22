@@ -123,6 +123,37 @@ P2 definition of done: a user can choose Monthly or Yearly, complete secure Stri
 - [ ] Verify admin unpaid/paid/review states.
 - [ ] Reconcile controlled test payment.
 
+## P3 implementation status — 2026-08-22
+
+The items below are **implementation evidence**, not financial acceptance. The verification checklist above remains open until CI/emulator/provider/reconciliation evidence agrees.
+
+- [x] CODE — Full Stripe marketplace checkout and external settlement share a fail-closed payment-path exclusivity guard.
+- [x] CODE — One-party external-settlement confirmation cannot satisfy the server fee-checkout gate.
+- [x] CODE — Fee amount is read only from the immutable server marketplace-fee snapshot; the client cannot submit the authoritative amount.
+- [x] CODE — External fee Checkout uses attempt-scoped Stripe idempotency rather than removing idempotency on retries.
+- [x] CODE — Open fee Checkout Sessions are reused; processing/completed payments cannot create a second live fee payment.
+- [x] CODE — Failed/expired fee Checkout can advance to a clean server-owned payment attempt.
+- [x] CODE — Post-Stripe Firestore persistence preserves newer webhook-authoritative `processing`, `payment_failed`, or `collected` state instead of downgrading it to `checkout_created`.
+- [x] CODE — Each created external fee Checkout attempt has a Firestore audit record for reconciliation support.
+- [x] CODE — Authenticated user settlement workspace exists at `/account/settlements`.
+- [x] CODE — User workspace shows buyer/seller settlement confirmation plus fee due, checkout open, processing, failed, and paid states from Firestore.
+- [x] CODE — Seller fee action launches only a validated HTTPS `checkout.stripe.com` URL returned by the server.
+- [x] CODE — Seller-only receipt callable re-reads the paid Stripe Charge and verifies stored amount/currency before returning receipt evidence.
+- [x] CODE — Paid seller UX can open a validated HTTPS Stripe receipt or retain the verified Stripe Charge reference if no hosted receipt URL is available.
+- [x] CODE — MFA-backed read-only admin queue exists at `/admin/settlement-fees`.
+- [x] CODE — Admin queue surfaces confirmation pending, fee due, checkout open, processing, failed, paid, tax-review, and payment-path-conflict states.
+- [x] CODE — Flutter settlement/admin clients do not directly mutate authoritative financial state.
+- [ ] ACCEPTANCE — Repository CI executes successfully on the P3 branch. Current GitHub run state is `startup_failure` before any job is created.
+- [ ] ACCEPTANCE — Firebase emulator proves one-party rejection, both-party success, active-session reuse, failed-attempt retry, and webhook/callable race preservation.
+- [ ] ACCEPTANCE — Controlled Stripe payment proves success, failure/retry, duplicate handling, provider receipt, and exact Firestore reconciliation.
+- [ ] ACCEPTANCE — Tax treatment for the Pipe Buyer fee is approved and readiness configuration matches the approved treatment.
+- [ ] ACCEPTANCE — User and admin settlement pages receive web/mobile colleague visual acceptance before production activation.
+
+P3 code repair records:
+
+- `docs/repairs/2026-08-22-p3-payment-path-exclusivity.md`
+- `docs/repairs/2026-08-22-p3-fee-checkout-retry-and-race.md`
+
 ---
 
 # P4 — Full Marketplace Checkout / Stripe Connect — GATED
@@ -243,3 +274,27 @@ Observed: production Stripe webhook is already live and enabled.
 Verification: live Stripe endpoint event list matches Firebase webhook handler coverage for Checkout, subscription invoice paid, refunds, and disputes.
 
 Status: architecture verified; secret deployment and controlled retry/duplicate acceptance still pending.
+
+## 2026-08-22 — P3 payment-path exclusivity
+
+Observed: full Stripe marketplace checkout and external settlement did not share one authoritative path lock. A transaction could potentially cross into the other payment path after the first path had already begun.
+
+Root cause: the two payment callables evaluated their own local conditions instead of a shared payment-path invariant.
+
+Repair/action: added shared payment-path guard and applied it to both full Stripe marketplace Checkout and external-settlement confirmation/fee billing. The first active path now blocks the other path.
+
+Verification: regression tests added in PR #95. Full CI acceptance is still pending because GitHub Actions is currently failing before job startup.
+
+Repair record: `docs/repairs/2026-08-22-p3-payment-path-exclusivity.md`.
+
+## 2026-08-22 — P3 fee Checkout retry and webhook/write race
+
+Observed: a failed external fee payment could reuse a stale Stripe Checkout Session because the original idempotency key did not distinguish logical payment attempts. Also, a fast Stripe webhook could advance Firestore to `processing`, `payment_failed`, or `collected` before the fee-checkout callable performed its final `checkout_created` write, allowing the callable to downgrade newer provider evidence.
+
+Root cause: the first implementation modeled fee Checkout as one lifetime operation per marketplace transaction and persisted its post-provider state with a blind merge.
+
+Repair/action: introduced server-owned payment-attempt numbering and attempt-scoped Stripe idempotency; open sessions are reused, processing payments are locked, failed/expired attempts can advance, and post-Stripe persistence uses a Firestore transaction that preserves newer webhook-authoritative state. Added provider-backed seller receipt verification and dedicated user/admin settlement surfaces.
+
+Verification: Node and Flutter contract/regression tests added in PR #95; live/emulator financial acceptance remains pending.
+
+Repair record: `docs/repairs/2026-08-22-p3-fee-checkout-retry-and-race.md`.
