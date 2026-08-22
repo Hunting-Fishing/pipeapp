@@ -32,6 +32,7 @@ void main() {
       'FAILED',
       'PAID',
       'TAX REVIEW',
+      'WEBHOOK REVIEW',
       'PATH CONFLICT',
     ]) {
       expect(page, contains(label), reason: label);
@@ -41,6 +42,8 @@ void main() {
     expect(page, contains('stripeMarketplaceFeeChargeId'));
     expect(page, contains('stripeMarketplaceFeeBalanceTransactionId'));
     expect(page, contains('marketplaceFeeReconciliationStatus'));
+    expect(page, contains('marketplaceFeeOperationalReviewRequired'));
+    expect(page, contains('marketplaceFeeOperationalReviewReason'));
   });
 
   test('admin reconciliation is server-controlled and cannot mutate financial state directly', () {
