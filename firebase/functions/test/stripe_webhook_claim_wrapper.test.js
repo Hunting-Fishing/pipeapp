@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  applyExternalFeeNonSuccessEvent,
   claimStripeWebhookEvent,
   createClaimedStripeWebhookHandler,
 } = require("../stripe_webhook_claim_wrapper");
@@ -19,15 +20,27 @@ class FakeTimestamp {
   }
 }
 
+const FakeFieldValue = {
+  serverTimestamp() {
+    return "server-time";
+  },
+};
+
 function fakeDb(initial = {}) {
   const docs = new Map(Object.entries(initial));
-  const ref = (path) => ({path});
+  const makeRef = (path) => ({
+    path,
+    async set(value, options) {
+      const current = docs.get(path) || {};
+      docs.set(path, options && options.merge ? {...current, ...value} : value);
+    },
+  });
   return {
     docs,
     collection(name) {
       return {
         doc(id) {
-          return ref(`${name}/${id}`);
+          return makeRef(`${name}/${id}`);
         },
       };
     },
@@ -81,6 +94,30 @@ function requestFor(event) {
   };
 }
 
+function feeEvent({
+  id = "evt_fee",
+  type = "checkout.session.async_payment_failed",
+  sessionId = "cs_1",
+  attempt = 1,
+  paymentStatus = "unpaid",
+} = {}) {
+  return {
+    id,
+    type,
+    data: {
+      object: {
+        id: sessionId,
+        payment_status: paymentStatus,
+        metadata: {
+          billingType: "marketplace_fee_only",
+          checkoutAttempt: String(attempt),
+          pipeBuyerTransactionId: "txn_fee",
+        },
+      },
+    },
+  };
+}
+
 test("claim writes processing lease and increments attempts", async () => {
   const db = fakeDb({
     "stripe_webhook_events/evt_1": {status: "failed", attempts: 2},
@@ -111,6 +148,7 @@ test("wrapper allows only the first in-flight delivery to invoke inner handler",
     },
   };
   admin.firestore.Timestamp = FakeTimestamp;
+  admin.firestore.FieldValue = FakeFieldValue;
   const handler = createClaimedStripeWebhookHandler(admin, {
     verifySignature: () => true,
     secretProvider: () => "secret",
@@ -120,7 +158,7 @@ test("wrapper allows only the first in-flight delivery to invoke inner handler",
       response.status(200).send("OK");
     },
   });
-  const event = {id: "evt_dup", type: "checkout.session.completed"};
+  const event = {id: "evt_dup", type: "customer.created"};
   const first = responseRecorder();
   await handler(requestFor(event), first);
   assert.equal(first.statusCode, 200);
@@ -140,6 +178,7 @@ test("processed event bypasses inner handler", async () => {
   let innerCalls = 0;
   const admin = {firestore: () => db};
   admin.firestore.Timestamp = FakeTimestamp;
+  admin.firestore.FieldValue = FakeFieldValue;
   const handler = createClaimedStripeWebhookHandler(admin, {
     verifySignature: () => true,
     secretProvider: () => "secret",
@@ -150,7 +189,7 @@ test("processed event bypasses inner handler", async () => {
   });
   const response = responseRecorder();
   await handler(
-      requestFor({id: "evt_done", type: "checkout.session.completed"}),
+      requestFor({id: "evt_done", type: "customer.created"}),
       response,
   );
   assert.equal(response.statusCode, 200);
@@ -162,6 +201,7 @@ test("invalid signature never claims event", async () => {
   const db = fakeDb();
   const admin = {firestore: () => db};
   admin.firestore.Timestamp = FakeTimestamp;
+  admin.firestore.FieldValue = FakeFieldValue;
   const handler = createClaimedStripeWebhookHandler(admin, {
     verifySignature: () => false,
     secretProvider: () => "secret",
@@ -169,9 +209,107 @@ test("invalid signature never claims event", async () => {
   });
   const response = responseRecorder();
   await handler(
-      requestFor({id: "evt_bad", type: "checkout.session.completed"}),
+      requestFor({id: "evt_bad", type: "customer.created"}),
       response,
   );
   assert.equal(response.statusCode, 400);
   assert.equal(db.docs.size, 0);
+});
+
+test("late failed fee webhook cannot downgrade collected state", async () => {
+  const db = fakeDb({
+    "marketplace_transactions/txn_fee": {
+      marketplaceFeeStatus: "collected",
+      stripeMarketplaceFeeSessionId: "cs_1",
+      marketplaceFeeCheckoutAttempt: 1,
+    },
+  });
+  const result = await applyExternalFeeNonSuccessEvent({
+    db,
+    event: feeEvent(),
+    FieldValue: FakeFieldValue,
+  });
+  assert.equal(result.action, "ignore");
+  assert.equal(result.reason, "already_collected");
+  assert.equal(
+      db.docs.get("marketplace_transactions/txn_fee").marketplaceFeeStatus,
+      "collected",
+  );
+});
+
+test("newer attempt processing webhook can arrive before callable persistence", async () => {
+  const db = fakeDb({
+    "marketplace_transactions/txn_fee": {
+      marketplaceFeeStatus: "payment_failed",
+      stripeMarketplaceFeeSessionId: "cs_old",
+      marketplaceFeeCheckoutAttempt: 1,
+    },
+  });
+  const result = await applyExternalFeeNonSuccessEvent({
+    db,
+    event: feeEvent({
+      type: "checkout.session.completed",
+      sessionId: "cs_new",
+      attempt: 2,
+    }),
+    FieldValue: FakeFieldValue,
+  });
+  assert.equal(result.action, "apply");
+  const stored = db.docs.get("marketplace_transactions/txn_fee");
+  assert.equal(stored.marketplaceFeeStatus, "processing");
+  assert.equal(stored.stripeMarketplaceFeeSessionId, "cs_new");
+  assert.equal(stored.marketplaceFeeCheckoutAttempt, 2);
+});
+
+test("same-attempt session conflict is flagged without changing fee state", async () => {
+  const db = fakeDb({
+    "marketplace_transactions/txn_fee": {
+      marketplaceFeeStatus: "checkout_created",
+      stripeMarketplaceFeeSessionId: "cs_expected",
+      marketplaceFeeCheckoutAttempt: 2,
+    },
+  });
+  const result = await applyExternalFeeNonSuccessEvent({
+    db,
+    event: feeEvent({sessionId: "cs_unexpected", attempt: 2}),
+    FieldValue: FakeFieldValue,
+  });
+  assert.equal(result.action, "review");
+  const stored = db.docs.get("marketplace_transactions/txn_fee");
+  assert.equal(stored.marketplaceFeeStatus, "checkout_created");
+  assert.equal(stored.marketplaceFeeOperationalReviewRequired, true);
+  assert.equal(stored.marketplaceFeeOperationalReviewReason, "session_conflict");
+});
+
+test("wrapper intercepts fee failure and marks claimed event processed", async () => {
+  const db = fakeDb({
+    "marketplace_transactions/txn_fee": {
+      marketplaceFeeStatus: "processing",
+      stripeMarketplaceFeeSessionId: "cs_1",
+      marketplaceFeeCheckoutAttempt: 1,
+    },
+  });
+  let innerCalls = 0;
+  const admin = {firestore: () => db};
+  admin.firestore.Timestamp = FakeTimestamp;
+  admin.firestore.FieldValue = FakeFieldValue;
+  const handler = createClaimedStripeWebhookHandler(admin, {
+    verifySignature: () => true,
+    secretProvider: () => "secret",
+    nowProvider: () => 1000,
+    innerHandler: async () => {
+      innerCalls += 1;
+    },
+  });
+  const response = responseRecorder();
+  await handler(requestFor(feeEvent()), response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(innerCalls, 0);
+  assert.equal(
+      db.docs.get("marketplace_transactions/txn_fee").marketplaceFeeStatus,
+      "payment_failed",
+  );
+  const eventRecord = db.docs.get("stripe_webhook_events/evt_fee");
+  assert.equal(eventRecord.status, "processed");
+  assert.equal(eventRecord.guardedFeeTransitionAction, "apply");
 });
