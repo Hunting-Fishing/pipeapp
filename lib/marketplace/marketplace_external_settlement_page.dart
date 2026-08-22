@@ -305,7 +305,6 @@ class _MarketplaceExternalSettlementPageState
                 if (isSeller)
                   _sellerFeeAction(
                     transactionId,
-                    transaction,
                     feeStatus,
                     busy,
                   )
@@ -398,15 +397,25 @@ class _MarketplaceExternalSettlementPageState
 
   Widget _sellerFeeAction(
     String transactionId,
-    Map<String, dynamic> transaction,
     String feeStatus,
     bool busy,
   ) {
     if (feeStatus == 'collected') {
-      return _notice(
-        Icons.task_alt_outlined,
-        'Pipe Buyer marketplace fee paid and verified by Stripe.',
-        Colors.green,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _notice(
+            Icons.task_alt_outlined,
+            'Pipe Buyer marketplace fee paid and verified by Stripe.',
+            Colors.green,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: busy ? null : () => _openFeeReceipt(transactionId),
+            icon: const Icon(Icons.receipt_long_outlined),
+            label: const Text('Open Stripe receipt'),
+          ),
+        ],
       );
     }
     if (feeStatus == 'processing') {
@@ -555,7 +564,7 @@ class _MarketplaceExternalSettlementPageState
             : 'Your external-settlement confirmation was recorded.',
         tone: PipeStatusTone.success,
       );
-    }, operation: 'confirm_external_settlement');
+    });
   }
 
   Future<void> _openFeeCheckout(String transactionId) async {
@@ -599,14 +608,37 @@ class _MarketplaceExternalSettlementPageState
       if (!launched) {
         throw StateError('The secure Stripe checkout could not be opened.');
       }
-    }, operation: 'open_external_fee_checkout');
+    });
+  }
+
+  Future<void> _openFeeReceipt(String transactionId) async {
+    await _runBusy(transactionId, () async {
+      final receipt = await _client.getFeeReceipt(transactionId);
+      if (!mounted) return;
+      final uri = receipt.receiptUri;
+      if (uri == null) {
+        PipeFeedback.show(
+          context,
+          message:
+              'Stripe verified the fee payment. Hosted receipt unavailable; charge reference ${receipt.chargeId}.',
+          tone: PipeStatusTone.info,
+        );
+        return;
+      }
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        throw StateError('The Stripe receipt could not be opened.');
+      }
+    });
   }
 
   Future<void> _runBusy(
     String transactionId,
-    Future<void> Function() action, {
-    required String operation,
-  }) async {
+    Future<void> Function() action,
+  ) async {
     if (_busyTransactions.contains(transactionId)) return;
     setState(() => _busyTransactions.add(transactionId));
     try {
