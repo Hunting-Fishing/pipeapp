@@ -23,12 +23,13 @@ References:
 
 ## Root cause
 
-The original readiness model understood only registered, registration-pending, and not-ready states. After adding a proper Canadian small-supplier state, two additional integrity gaps remained:
+The original readiness model understood only registered, registration-pending, and not-ready states. After adding a proper Canadian small-supplier state, three additional integrity gaps remained:
 
-1. an administrator could theoretically set the small-supplier readiness boolean without first proving a current audited threshold assessment; and
-2. after small-supplier billing was enabled, a later assessment could exceed the threshold while the old readiness record continued to authorize fee/subscription billing.
+1. an administrator could theoretically set the small-supplier readiness boolean without first proving a current audited threshold assessment;
+2. after small-supplier billing was enabled, a later assessment could exceed the threshold while the old readiness record continued to authorize fee/subscription billing; and
+3. even with correct application-managed activation/reassessment transactions, the fee and Dispatch Checkout commands still trusted the readiness document at billing time. A manual Firestore/config drift could therefore leave a stale small-supplier boolean or assessment revision capable of authorizing Checkout.
 
-Both are unsafe because Stripe revenue alone cannot prove CRA small-supplier eligibility and threshold evidence changes over time.
+All three are unsafe because Stripe revenue alone cannot prove CRA small-supplier eligibility and threshold evidence changes over time.
 
 ## Repair
 
@@ -77,7 +78,7 @@ The application cannot infer this evidence from Stripe alone.
 
 Added `canada_small_supplier_readiness_guard.js`.
 
-`setPaymentProviderReadiness` now refuses to enable `canadaGstHstSmallSupplier=true` unless the current audited assessment:
+`setPaymentProviderReadiness` refuses to enable `canadaGstHstSmallSupplier=true` unless the current audited assessment:
 
 - exists;
 - includes the worldwide/associated-business attestation;
@@ -121,6 +122,28 @@ It deliberately **does not** guess the GST/HST registration effective date, set 
 
 If Pipe Buyer is already in actual registered tax-ready mode and small-supplier mode is inactive, a small-supplier threshold assessment does not rewrite or disable that registered configuration.
 
+### Billing-time evidence gate
+
+Added `canada_small_supplier_runtime_gate.js` and wired it into both small-supplier-eligible own-revenue Checkout paths:
+
+- `createExternalSettlementFeeCheckout`;
+- `createDispatchSubscriptionCheckout`.
+
+When `canadaGstHstSmallSupplier=true`, each Checkout now re-reads `tax_threshold_assessments/canada_gst_hst_current` before the Stripe Checkout request and requires the readiness record to be bound to that exact current assessment revision.
+
+Billing fails closed before Stripe when the assessment is:
+
+- missing;
+- invalid or unattested;
+- exceeded / registration-review-required;
+- unversioned;
+- newer or older than the revision bound into readiness; or
+- not correctly bound in readiness.
+
+This is deliberately redundant with the administrator activation/reassessment safety transactions. The transaction controls prevent bad state from being created by the app; the runtime gate prevents manually drifted configuration from being consumed by a money path.
+
+Registered tax-ready and approved registration-pending paths do not require the small-supplier assessment gate.
+
 ## Important operating constraint
 
 Pipe Buyer cannot prove the CRA CAD $30,000 threshold solely from Stripe revenue. The threshold includes worldwide taxable supplies before expenses from relevant businesses and associates. The administrator assessment must therefore be maintained from bookkeeping/business evidence, not just Stripe payment totals.
@@ -146,9 +169,12 @@ Focused Node 22 coverage verifies:
 - an exceeded assessment cannot authorize small-supplier activation;
 - active under-threshold reassessment refreshes the readiness binding to the new assessment revision without stopping billing;
 - active exceeded reassessment automatically disables the small-supplier-dependent fee/subscription billing paths;
-- registered tax-ready configuration is not damaged when small-supplier mode is inactive.
+- registered tax-ready configuration is not damaged when small-supplier mode is inactive;
+- billing-time runtime evidence accepts the exact current bound assessment;
+- billing-time runtime evidence rejects missing, stale/revision-mismatched, or exceeded assessment evidence;
+- the actual external-settlement fee callable provider-stub tests continue to pass with the runtime gate installed.
 
-Latest focused control-plane run for activation/binding/shutdown: **10 tests passed, 0 failed**.
+The mounted P3 focused Node safety subset after the billing-time gate executed **85 tests: 85 passed, 0 failed**.
 
 ## Do not repeat
 
@@ -157,4 +183,5 @@ Latest focused control-plane run for activation/binding/shutdown: **10 tests pas
 - Do not allow `canadaGstHstSmallSupplier=true` without an audited threshold assessment.
 - Do not leave readiness bound to an old assessment after a newer threshold assessment is saved.
 - Do not leave fee/subscription billing enabled under the small-supplier authorization after the threshold assessment is exceeded.
+- Do not remove the billing-time evidence re-check merely because activation/reassessment writes are transactional; it protects against manual/config drift at the point money is about to move.
 - When the GST/HST number becomes available, change the readiness state deliberately; do not rebuild the checkout architecture or bypass these audit controls.
