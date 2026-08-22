@@ -70,17 +70,24 @@ function validStripeCheckoutUrl(value) {
   }
 }
 
-function createExternalSettlementCommands(admin) {
+function createExternalSettlementCommands(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+  const authUid = options.authUid || requireAuth;
+  const rateLimit = options.rateLimit || enforceUserRateLimit;
+  const loadFeatureFlags = options.loadFeatureFlags || loadPhase1FeatureFlags;
+  const requireFeature = options.requireFeature || requirePhase1Feature;
+  const providerReadiness = options.loadProviderReadiness || loadProviderReadiness;
+  const stripeRequest = options.stripeRequest || stripeFormRequest;
+  const secretProvider = options.secretProvider || (() => stripeSecretKey.value());
 
   const confirmExternalSettlement = async (request) => {
     try {
-      const uid = requireAuth(request);
-      await enforceUserRateLimit({db, admin, request, scope: "offers"});
-      const flags = await loadPhase1FeatureFlags(db);
-      requirePhase1Feature(flags, "marketplace");
-      requirePhase1Feature(flags, "offers");
+      const uid = authUid(request);
+      await rateLimit({db, admin, request, scope: "offers"});
+      const flags = await loadFeatureFlags(db);
+      requireFeature(flags, "marketplace");
+      requireFeature(flags, "offers");
       const transactionId = transactionIdFromRequest(request);
       const transactionRef = db.collection("marketplace_transactions")
           .doc(transactionId);
@@ -142,17 +149,17 @@ function createExternalSettlementCommands(admin) {
 
   const createExternalSettlementFeeCheckout = async (request) => {
     try {
-      const uid = requireAuth(request);
-      await enforceUserRateLimit({db, admin, request, scope: "offers"});
-      const flags = await loadPhase1FeatureFlags(db);
-      requirePhase1Feature(flags, "marketplace");
-      requirePhase1Feature(flags, "offers");
-      requirePhase1Feature(flags, "paidFeatures");
+      const uid = authUid(request);
+      await rateLimit({db, admin, request, scope: "offers"});
+      const flags = await loadFeatureFlags(db);
+      requireFeature(flags, "marketplace");
+      requireFeature(flags, "offers");
+      requireFeature(flags, "paidFeatures");
       const readinessSnapshot = await db.collection("platform_configuration")
           .doc("payment_provider_readiness").get();
       const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
       const readiness = {
-        ...(await loadProviderReadiness(db)),
+        ...(await providerReadiness(db)),
         stripeFeeBillingEnabled: readinessData.stripeFeeBillingEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
@@ -207,8 +214,8 @@ function createExternalSettlementCommands(admin) {
 
       if (localCheckoutState === "active") {
         const existingSessionId = externalFeeCheckoutSessionId(sale);
-        const existingSession = await stripeFormRequest({
-          secretKey: stripeSecretKey.value(),
+        const existingSession = await stripeRequest({
+          secretKey: secretProvider(),
           path: `/v1/checkout/sessions/${encodeURIComponent(existingSessionId)}`,
           method: "GET",
         });
@@ -279,8 +286,8 @@ function createExternalSettlementCommands(admin) {
           collectionStatus,
       );
       const attempt = nextExternalFeeCheckoutAttempt(sale);
-      const session = await stripeFormRequest({
-        secretKey: stripeSecretKey.value(),
+      const session = await stripeRequest({
+        secretKey: secretProvider(),
         path: "/v1/checkout/sessions",
         idempotencyKey: externalFeeCheckoutIdempotencyKey(transactionId, attempt),
         fields: {
