@@ -28,6 +28,7 @@ void main() {
     expect(source, contains("Pay Pipe Buyer marketplace fee"));
     expect(source, contains("Retry Pipe Buyer fee payment"));
     expect(source, contains("Continue secure fee checkout"));
+    expect(source, contains("Open Stripe receipt"));
     expect(source, contains("marketplaceFeeStatus"));
     expect(source, contains("marketplaceFeeSnapshot"));
     expect(source, contains("stripeMarketplaceFeeChargeId"));
@@ -43,5 +44,6 @@ void main() {
     expect(source, isNot(contains('.set({')));
     expect(source, contains('_client.confirm(transactionId)'));
     expect(source, contains('_client.createFeeCheckout(transactionId)'));
+    expect(source, contains('_client.getFeeReceipt(transactionId)'));
   });
 }
