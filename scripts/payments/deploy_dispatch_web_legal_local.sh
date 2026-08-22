@@ -6,12 +6,26 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
+command -v git >/dev/null 2>&1 || fail "Git is required."
 command -v flutter >/dev/null 2>&1 || fail "Flutter is required."
 command -v firebase >/dev/null 2>&1 || fail "Firebase CLI is required."
 command -v node >/dev/null 2>&1 || fail "Node is required."
 
 [[ "${PIPEBUYER_DEPLOY_WEB_LEGAL:-}" == "YES" ]] || \
   fail "Set PIPEBUYER_DEPLOY_WEB_LEGAL=YES only after reviewing the August 22, 2026 Pipe Buyer policy changes."
+
+# Firebase Hosting deployments replace the full live Hosting version, not only
+# the reviewed policy HTML files. A release/payment branch that is behind main
+# must therefore never be allowed to publish Hosting, even when its legal pages
+# are correct. This guard was added after a stale release branch temporarily
+# replaced a newer live application while deploying policy pages.
+echo "== Verify Hosting source contains current origin/main =="
+git fetch origin main --quiet || fail "Could not fetch origin/main. Refusing Hosting deployment without a current source comparison."
+if ! git merge-base --is-ancestor origin/main HEAD; then
+  BRANCH="$(git branch --show-current 2>/dev/null || true)"
+  BEHIND="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo unknown)"
+  fail "Refusing full Firebase Hosting deployment from '${BRANCH:-detached HEAD}': this source is ${BEHIND} commit(s) behind origin/main. Hosting deploy replaces the entire live web application, not just policy files. Build/deploy from source that contains current origin/main or use a dedicated policy-safe release path."
+fi
 
 if [[ -n "$(git status --porcelain 2>/dev/null || true)" && "${PIPEBUYER_ALLOW_DIRTY_DEPLOY:-}" != "YES" ]]; then
   fail "Refusing hosting deployment from a dirty working tree."
