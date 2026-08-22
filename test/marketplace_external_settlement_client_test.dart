@@ -126,4 +126,45 @@ void main() {
       throwsStateError,
     );
   });
+
+  test('Stripe fee receipt accepts only HTTPS Stripe domains', () {
+    expect(
+      validatedStripeReceiptUri(
+        'https://pay.stripe.com/receipts/payment/example',
+      ).host,
+      'pay.stripe.com',
+    );
+    expect(
+      () => validatedStripeReceiptUri(
+        'https://stripe.com.evil.example/receipt',
+      ),
+      throwsStateError,
+    );
+  });
+
+  test('paid fee receipt maps provider reference and amount', () {
+    final result = ExternalSettlementFeeReceiptResult.fromMap({
+      'transactionId': 'tx_1',
+      'chargeId': 'ch_live_123',
+      'amountMinor': 2875,
+      'currency': 'CAD',
+      'receiptUrl': 'https://pay.stripe.com/receipts/payment/example',
+    });
+    expect(result.chargeId, 'ch_live_123');
+    expect(result.amountMinor, 2875);
+    expect(result.currency, 'CAD');
+    expect(result.receiptUri, isNotNull);
+  });
+
+  test('receipt may retain provider reference when hosted URL is unavailable', () {
+    final result = ExternalSettlementFeeReceiptResult.fromMap({
+      'transactionId': 'tx_1',
+      'chargeId': 'ch_live_123',
+      'amountMinor': 2875,
+      'currency': 'CAD',
+      'receiptUrl': '',
+    });
+    expect(result.receiptUri, isNull);
+    expect(result.chargeId, 'ch_live_123');
+  });
 }
