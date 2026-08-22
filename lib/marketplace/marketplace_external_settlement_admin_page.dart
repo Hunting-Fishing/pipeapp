@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/data/bounded_firestore_query.dart';
 import 'marketplace_admin_access.dart';
+import 'marketplace_canada_gst_hst_threshold_panel.dart';
 import 'marketplace_data_state.dart';
 
 class MarketplaceExternalSettlementAdminPage extends StatefulWidget {
@@ -108,12 +109,19 @@ class _MarketplaceExternalSettlementAdminPageState
               });
 
             if (transactions.isEmpty) {
-              return const MarketplaceDataStateView(
-                kind: MarketplaceDataStateKind.empty,
-                icon: Icons.receipt_long_outlined,
-                title: 'External settlement queue is empty',
-                message:
-                    'Transactions appear here when either party confirms external settlement.',
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: const [
+                  MarketplaceCanadaGstHstThresholdPanel(),
+                  SizedBox(height: 12),
+                  MarketplaceDataStateView(
+                    kind: MarketplaceDataStateKind.empty,
+                    icon: Icons.receipt_long_outlined,
+                    title: 'External settlement queue is empty',
+                    message:
+                        'Transactions appear here when either party confirms external settlement.',
+                  ),
+                ],
               );
             }
 
@@ -126,6 +134,8 @@ class _MarketplaceExternalSettlementAdminPageState
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                const MarketplaceCanadaGstHstThresholdPanel(),
+                const SizedBox(height: 12),
                 _summary(counts, transactions.length),
                 const SizedBox(height: 12),
                 ...transactions.map(
