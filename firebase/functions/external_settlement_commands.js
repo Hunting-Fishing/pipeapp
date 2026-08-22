@@ -24,6 +24,10 @@ const {
   provisionalTaxReserveMinor,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
+const {
+  externalSettlementFullyConfirmed,
+  hasStartedStripeMarketplaceCheckout,
+} = require("./marketplace_payment_path_guard");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -73,7 +77,7 @@ function createExternalSettlementCommands(admin) {
               "This transaction cannot switch to external settlement.",
           );
         }
-        if (sale.paymentProviderStatus === "paid" || sale.stripePaymentIntentId) {
+        if (hasStartedStripeMarketplaceCheckout(sale)) {
           throw new HttpsError(
               "failed-precondition",
               "A Stripe marketplace payment has already started for this transaction.",
@@ -151,9 +155,13 @@ function createExternalSettlementCommands(admin) {
             "The seller is responsible for the current Pipe Buyer marketplace fee.",
         );
       }
-      if (sale.paymentMethod !== "external_settlement" ||
-          sale.externalSettlementBuyerConfirmed !== true ||
-          sale.externalSettlementSellerConfirmed !== true) {
+      if (hasStartedStripeMarketplaceCheckout(sale)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "This transaction is already using Stripe marketplace checkout.",
+        );
+      }
+      if (!externalSettlementFullyConfirmed(sale)) {
         throw new HttpsError(
             "failed-precondition",
             "Both parties must confirm external settlement before the marketplace fee is billed.",
