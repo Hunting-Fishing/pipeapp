@@ -17,6 +17,14 @@ test("registered tax status enables Stripe automatic tax and billing", () => {
   assert.equal(provisionalTaxReserveMinor(10000, "registered"), 0);
 });
 
+test("Canadian small supplier mode authorizes billing without collecting GST HST", () => {
+  const readiness = {canadaGstHstSmallSupplier: true};
+  assert.equal(taxCollectionStatus(readiness), "small_supplier_unregistered");
+  assert.equal(taxBillingPrepared(readiness), true);
+  assert.equal(automaticTaxEnabled(readiness), false);
+  assert.equal(provisionalTaxReserveMinor(10000, "small_supplier_unregistered"), 0);
+});
+
 test("pending registration alone does not authorize billing", () => {
   const readiness = {stripeTaxRegistrationPending: true};
   assert.equal(taxCollectionStatus(readiness), "registration_pending");
