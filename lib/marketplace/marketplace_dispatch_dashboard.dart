@@ -6,9 +6,11 @@ import 'package:latlong2/latlong.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_repository.dart';
+import 'marketplace_dispatch_quote_form.dart';
 import 'marketplace_dispatch_onboarding.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_location_picker.dart';
+
 import 'marketplace_money.dart';
 
 class MarketplaceDispatchDashboard extends StatefulWidget {
@@ -211,12 +213,13 @@ class _MarketplaceDispatchDashboardState
                           ),
                           Text(
                             'Service region and verified scale locations for route planning.',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: .60),
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: .60),
+                                    ),
                           ),
                         ],
                       ),
@@ -324,10 +327,8 @@ class _MarketplaceDispatchDashboardState
                   width: width,
                   child: _SavedLaneCard(
                     data: data,
-                    onHistory: () =>
-                        _showSavedQuoteHistory(quote.id, data),
-                    onOpen: () =>
-                        _newQuote(template: data, quoteId: quote.id),
+                    onHistory: () => _showSavedQuoteHistory(quote.id, data),
+                    onOpen: () => _newQuote(template: data, quoteId: quote.id),
                   ),
                 );
               }).toList(),
@@ -338,12 +339,26 @@ class _MarketplaceDispatchDashboardState
 
   Future<void> _newQuote(
       {Map<String, dynamic>? template, String? quoteId}) async {
-    await showDialog<void>(
-        context: context,
-        builder: (_) => _DispatchQuoteDialog(
-            repo: widget.repo,
-            template: template ?? const {},
-            quoteId: quoteId));
+    final draft = await MarketplaceDispatchQuoteForm.show(
+      context,
+      title: quoteId == null
+          ? 'Dispatch quote calculator'
+          : 'Revise saved Dispatch quote',
+      subtitle: quoteId == null
+          ? 'Build a reusable rate plan from the Pipe Buyer quote form.'
+          : 'Saving creates the next saved-quote version and preserves the prior one.',
+      confirmLabel: quoteId == null ? 'Save Version 1' : 'Save new version',
+      initial: template ?? const <String, dynamic>{},
+    );
+    if (draft == null) return;
+    await widget.repo.saveQuote(
+      {
+        ...draft.breakdown,
+        'terms': draft.terms,
+        'currency': draft.currency,
+      },
+      quoteId: quoteId,
+    );
   }
 
   Future<void> _showSavedQuoteHistory(
@@ -434,8 +449,7 @@ class _MarketplaceDispatchDashboardState
                                           PipeBuyerColors.orangeSoft,
                                       foregroundColor:
                                           PipeBuyerColors.orangePressed,
-                                      child:
-                                          Text('${data['revision'] ?? '—'}'),
+                                      child: Text('${data['revision'] ?? '—'}'),
                                     ),
                                     const SizedBox(width: 11),
                                     Expanded(
@@ -856,505 +870,8 @@ class _LaneChip extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      );
-}
-
-class _DispatchQuoteDialog extends StatefulWidget {
-  const _DispatchQuoteDialog(
-      {required this.repo, required this.template, this.quoteId});
-  final MarketplaceDispatchRepository repo;
-  final Map<String, dynamic> template;
-  final String? quoteId;
-
-  @override
-  State<_DispatchQuoteDialog> createState() => _DispatchQuoteDialogState();
-}
-
-class _DispatchQuoteDialogState extends State<_DispatchQuoteDialog> {
-  late final Map<String, TextEditingController> c;
-  bool manual = false;
-
-  @override
-  void initState() {
-    super.initState();
-    String initial(String key, [Object fallback = '0']) =>
-        '${widget.template[key] ?? fallback}';
-    c = {
-      'name': TextEditingController(text: initial('name', '')),
-      'origin': TextEditingController(text: initial('origin', '')),
-      'destination': TextEditingController(text: initial('destination', '')),
-      'distanceKm': TextEditingController(text: initial('distanceKm')),
-      'deadheadKm': TextEditingController(text: initial('deadheadKm')),
-      'mileageRate': TextEditingController(text: initial('mileageRate')),
-      'deadheadRate': TextEditingController(text: initial('deadheadRate')),
-      'weightKg': TextEditingController(text: initial('weightKg')),
-      'weightRate': TextEditingController(text: initial('weightRate')),
-      'hours': TextEditingController(text: initial('hours')),
-      'hourlyRate': TextEditingController(text: initial('hourlyRate')),
-      'areaFee': TextEditingController(text: initial('areaFee')),
-      'pilotCount': TextEditingController(text: initial('pilotCount')),
-      'pilotKmRate': TextEditingController(text: initial('pilotKmRate')),
-      'pilotHourlyRate':
-          TextEditingController(text: initial('pilotHourlyRate')),
-      'pilotAreaFee': TextEditingController(text: initial('pilotAreaFee')),
-      'permitFee': TextEditingController(text: initial('permitFee')),
-      'baseFee': TextEditingController(text: initial('baseFee')),
-      'surchargePercent':
-          TextEditingController(text: initial('surchargePercent')),
-      'taxPercent': TextEditingController(text: initial('taxPercent')),
-      'manualTotal': TextEditingController(text: initial('manualTotal')),
-    };
-    for (final controller in c.values) {
-      controller.addListener(_refresh);
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final controller in c.values) {
-      controller.removeListener(_refresh);
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  void _refresh() => setState(() {});
-  double n(String key) => double.tryParse(c[key]!.text) ?? 0;
-
-  Map<String, double> get calculation {
-    final loadedMileage = n('distanceKm') * n('mileageRate');
-    final deadhead = n('deadheadKm') * n('deadheadRate');
-    final weight = n('weightKg') / 1000 * n('weightRate');
-    final time = n('hours') * n('hourlyRate');
-    final pilot = n('pilotCount') *
-        (n('distanceKm') * n('pilotKmRate') +
-            n('hours') * n('pilotHourlyRate') +
-            n('pilotAreaFee'));
-    final subtotal = n('baseFee') +
-        loadedMileage +
-        deadhead +
-        weight +
-        time +
-        n('areaFee') +
-        n('permitFee') +
-        pilot;
-    final surcharge = subtotal * n('surchargePercent') / 100;
-    final beforeTax = subtotal + surcharge;
-    final tax = beforeTax * n('taxPercent') / 100;
-    return {
-      'loadedMileage': loadedMileage,
-      'deadhead': deadhead,
-      'weight': weight,
-      'time': time,
-      'pilot': pilot,
-      'subtotal': subtotal,
-      'surcharge': surcharge,
-      'tax': tax,
-      'total': manual ? n('manualTotal') : beforeTax + tax
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final total = calculation;
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 820),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: PipeBuyerColors.orangeSoft,
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: const Icon(
-                      Icons.calculate_outlined,
-                      color: PipeBuyerColors.orangePressed,
-                    ),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.quoteId == null
-                              ? 'Dispatch quote calculator'
-                              : 'Edit dispatch quote',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w900),
-                        ),
-                        const Text(
-                          'Build a transparent planning quote from route, load, truck, pilot, permit and tax inputs.',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: Theme.of(context).dividerColor),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _QuoteSection(
-                      title: 'Lane identity',
-                      icon: Icons.route_outlined,
-                      child: Column(
-                        children: [
-                          _field('name', 'Saved quote / lane name'),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final stack = constraints.maxWidth < 560;
-                              final origin = _field('origin', 'Origin');
-                              final destination =
-                                  _field('destination', 'Destination');
-                              if (stack) {
-                                return Column(
-                                  children: [origin, destination],
-                                );
-                              }
-                              return Row(
-                                children: [
-                                  Expanded(child: origin),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: destination),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _QuoteSection(
-                      title: 'Route & load',
-                      icon: Icons.straighten_outlined,
-                      child: _numberRow([
-                        ('distanceKm', 'Loaded distance', 'km'),
-                        ('deadheadKm', 'Deadhead distance', 'km'),
-                        ('weightKg', 'Shipping weight', 'kg'),
-                        ('hours', 'Estimated time', 'hours')
-                      ]),
-                    ),
-                    const SizedBox(height: 12),
-                    _QuoteSection(
-                      title: 'Truck charges',
-                      icon: Icons.local_shipping_outlined,
-                      child: _numberRow([
-                        ('baseFee', 'Base / call-out', '\$'),
-                        ('mileageRate', 'Loaded mileage', '\$/km'),
-                        ('deadheadRate', 'Deadhead', '\$/km'),
-                        ('weightRate', 'Weight charge', '\$/tonne'),
-                        ('hourlyRate', 'Time charge', '\$/hour'),
-                        ('areaFee', 'Area / zone fee', '\$'),
-                        ('permitFee', 'Permits / fixed costs', '\$')
-                      ]),
-                    ),
-                    const SizedBox(height: 12),
-                    _QuoteSection(
-                      title: 'Pilot vehicles',
-                      icon: Icons.assistant_direction_outlined,
-                      child: _numberRow([
-                        ('pilotCount', 'Pilot vehicles needed', '#'),
-                        ('pilotKmRate', 'Pilot mileage', '\$/km each'),
-                        ('pilotHourlyRate', 'Pilot time', '\$/hour each'),
-                        ('pilotAreaFee', 'Pilot area fee', '\$ each')
-                      ]),
-                    ),
-                    const SizedBox(height: 12),
-                    _QuoteSection(
-                      title: 'Adjustments',
-                      icon: Icons.tune_rounded,
-                      child: Column(
-                        children: [
-                          _numberRow([
-                            ('surchargePercent', 'Fuel / service surcharge', '%'),
-                            ('taxPercent', 'Tax', '%')
-                          ]),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              'Manual quote override',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            subtitle: const Text(
-                              'Overrides the calculated total; the calculation remains visible for comparison.',
-                            ),
-                            value: manual,
-                            onChanged: (value) =>
-                                setState(() => manual = value),
-                          ),
-                          if (manual)
-                            _field('manualTotal', 'Manual quoted total'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _QuoteTotalCard(total: total, lineBuilder: _line),
-                    const SizedBox(height: 10),
-                    const _RoutePlanningNotice(),
-                  ],
-                ),
-              ),
-            ),
-            Divider(height: 1, color: Theme.of(context).dividerColor),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: _save,
-                    icon: Icon(widget.quoteId == null
-                        ? Icons.bookmark_add_outlined
-                        : Icons.save_outlined),
-                    label: Text(widget.quoteId == null
-                        ? 'Save quote'
-                        : 'Save changes'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _field(String key, String label) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextField(
-          controller: c[key], decoration: InputDecoration(labelText: label)));
-
-  Widget _numberRow(List<(String, String, String)> fields) => LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 720
-              ? 3
-              : constraints.maxWidth >= 470
-                  ? 2
-                  : 1;
-          const gap = 8.0;
-          final width = columns == 1
-              ? constraints.maxWidth
-              : (constraints.maxWidth - gap * (columns - 1)) / columns;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: fields
-                .map((field) => SizedBox(
-                    width: width,
-                    child: TextField(
-                        controller: c[field.$1],
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        decoration: InputDecoration(
-                            labelText: field.$2, suffixText: field.$3))))
-                .toList(),
-          );
-        },
-      );
-
-  Widget _line(String label, double amount, {bool strong = false}) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(children: [
-        Expanded(
-            child: Text(label,
-                style: TextStyle(
-                    fontWeight: strong ? FontWeight.w900 : FontWeight.normal))),
-        Text(marketplaceMoney(amount),
-            style: TextStyle(
-                fontSize: strong ? 18 : 14, fontWeight: FontWeight.w900))
-      ]));
-
-  Future<void> _save() async {
-    if (c['name']!.text.trim().isEmpty ||
-        c['origin']!.text.trim().isEmpty ||
-        c['destination']!.text.trim().isEmpty ||
-        calculation['total']! <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:
-              Text('Add a name, both locations and a valid quote total.')));
-      return;
-    }
-    await widget.repo.saveQuote({
-      for (final entry in c.entries)
-        entry.key: ['name', 'origin', 'destination'].contains(entry.key)
-            ? entry.value.text.trim()
-            : double.tryParse(entry.value.text) ?? 0,
-      ...calculation,
-      'manual': manual,
-      'formulaVersion': 1
-    }, quoteId: widget.quoteId);
-    if (mounted) Navigator.pop(context);
-  }
-}
-
-class _QuoteSection extends StatelessWidget {
-  const _QuoteSection({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Theme.of(context).dividerColor),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: PipeBuyerColors.orangeSoft,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: PipeBuyerColors.orangePressed,
-                    size: 19,
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
-      );
-}
-
-class _QuoteTotalCard extends StatelessWidget {
-  const _QuoteTotalCard({required this.total, required this.lineBuilder});
-
-  final Map<String, double> total;
-  final Widget Function(String, double, {bool strong}) lineBuilder;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: PipeBuyerColors.success.withValues(alpha: .065),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: PipeBuyerColors.success.withValues(alpha: .22),
-          ),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: PipeBuyerColors.success.withValues(alpha: .11),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.receipt_long_outlined,
-                    color: PipeBuyerColors.success,
-                  ),
-                ),
-                const SizedBox(width: 9),
-                const Expanded(
-                  child: Text(
-                    'Calculated quote',
-                    style: TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 9),
-            lineBuilder('Loaded mileage', total['loadedMileage']!),
-            lineBuilder('Deadhead', total['deadhead']!),
-            lineBuilder('Weight', total['weight']!),
-            lineBuilder('Time', total['time']!),
-            lineBuilder('Pilot vehicles', total['pilot']!),
-            lineBuilder('Subtotal', total['subtotal']!),
-            lineBuilder('Surcharge', total['surcharge']!),
-            lineBuilder('Tax', total['tax']!),
-            const Divider(),
-            lineBuilder('QUOTE TOTAL', total['total']!, strong: true),
-          ],
-        ),
-      );
-}
-
-class _RoutePlanningNotice extends StatelessWidget {
-  const _RoutePlanningNotice();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(
-          color: PipeBuyerColors.warning.withValues(alpha: .06),
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(
-            color: PipeBuyerColors.warning.withValues(alpha: .20),
-          ),
-        ),
-        child: const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              size: 19,
-              color: PipeBuyerColors.warning,
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Map distance is a planning input. Confirm the legal truck route, restrictions, permits, borders and scale access before issuing a binding quote.',
-                style: TextStyle(fontSize: 11.5, height: 1.35),
-              ),
+              style:
+                  const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
             ),
           ],
         ),

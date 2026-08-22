@@ -743,7 +743,8 @@ abstract final class DispatchServiceTaxonomy {
 
   static List<DispatchServiceDefinition> servicesForCategory(
     DispatchServiceCategoryCode category,
-  ) => services.where((service) => service.category == category).toList();
+  ) =>
+      services.where((service) => service.category == category).toList();
 
   static List<DispatchServiceDefinition> get featuredDirectoryServices =>
       services.where((service) => service.featuredInDirectory).toList();

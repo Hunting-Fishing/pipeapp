@@ -199,7 +199,8 @@ class _TimedBuyingUrgencyFrameState extends State<TimedBuyingUrgencyFrame>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {
       _controller.stop();
       _controller.value = 0;
@@ -221,7 +222,8 @@ class _TimedBuyingUrgencyFrameState extends State<TimedBuyingUrgencyFrame>
       start: widget.start,
       end: widget.end,
     );
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final animate = urgency.animated && !reduceMotion;
     final stroke = urgency.urgency == TimedBuyingUrgency.finalHour ? 3.0 : 2.0;
     return Padding(
@@ -364,7 +366,8 @@ class TimedBuyingUrgencyBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.timer_outlined, size: compact ? 13 : 15, color: state.color),
+          Icon(Icons.timer_outlined,
+              size: compact ? 13 : 15, color: state.color),
           const SizedBox(width: 5),
           Flexible(
             child: Text(
@@ -478,7 +481,8 @@ class _TimedBuyingLegendRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  Text(label,
+                      style: const TextStyle(fontWeight: FontWeight.w900)),
                   Text(
                     detail,
                     style: const TextStyle(

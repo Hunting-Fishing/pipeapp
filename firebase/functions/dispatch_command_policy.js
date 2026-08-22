@@ -340,6 +340,91 @@ function validateDispatchJobPublish(job, actorUid) {
   }
 }
 
+function dispatchQuoteNumber(raw, fieldName, maximum = 100000000) {
+  const value = Number(raw && raw[fieldName] || 0);
+  if (!Number.isFinite(value) || value < 0 || value > maximum) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        `Quote ${fieldName} must be a valid non-negative number.`,
+    );
+  }
+  return value;
+}
+
+function validateDispatchQuoteBreakdown(data, submittedAmount) {
+  const raw = data && data.quoteBreakdown;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {currency: "CAD", quoteBreakdown: null};
+  }
+  const currency = String(data.currency || raw.currency || "CAD")
+      .trim().toUpperCase();
+  if (!["CAD", "USD"].includes(currency)) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Dispatch quote currency must be CAD or USD.",
+    );
+  }
+  const formulaVersion = Number(raw.formulaVersion || 2);
+  if (formulaVersion !== 2) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Dispatch quote formula version is unsupported.",
+    );
+  }
+  const distanceKm = dispatchQuoteNumber(raw, "distanceKm");
+  const deadheadKm = dispatchQuoteNumber(raw, "deadheadKm");
+  const mileageRate = dispatchQuoteNumber(raw, "mileageRate", 1000000);
+  const deadheadRate = dispatchQuoteNumber(raw, "deadheadRate", 1000000);
+  const weightKg = dispatchQuoteNumber(raw, "weightKg");
+  const weightRate = dispatchQuoteNumber(raw, "weightRate", 1000000);
+  const hours = dispatchQuoteNumber(raw, "hours", 100000);
+  const hourlyRate = dispatchQuoteNumber(raw, "hourlyRate", 1000000);
+  const areaFee = dispatchQuoteNumber(raw, "areaFee");
+  const pilotCount = dispatchQuoteNumber(raw, "pilotCount", 100);
+  const pilotKmRate = dispatchQuoteNumber(raw, "pilotKmRate", 1000000);
+  const pilotHourlyRate = dispatchQuoteNumber(raw, "pilotHourlyRate", 1000000);
+  const pilotAreaFee = dispatchQuoteNumber(raw, "pilotAreaFee");
+  const permitFee = dispatchQuoteNumber(raw, "permitFee");
+  const baseFee = dispatchQuoteNumber(raw, "baseFee");
+  const surchargePercent = dispatchQuoteNumber(raw, "surchargePercent", 1000);
+  const taxPercent = dispatchQuoteNumber(raw, "taxPercent", 1000);
+  const manualTotal = dispatchQuoteNumber(raw, "manualTotal");
+  const manual = raw.manual === true;
+
+  const loadedMileage = distanceKm * mileageRate;
+  const deadhead = deadheadKm * deadheadRate;
+  const weight = weightKg / 1000 * weightRate;
+  const time = hours * hourlyRate;
+  const pilot = pilotCount *
+    (distanceKm * pilotKmRate + hours * pilotHourlyRate + pilotAreaFee);
+  const subtotal = baseFee + loadedMileage + deadhead + weight + time +
+    areaFee + permitFee + pilot;
+  const surcharge = subtotal * surchargePercent / 100;
+  const beforeTax = subtotal + surcharge;
+  const tax = beforeTax * taxPercent / 100;
+  const total = manual ? manualTotal : beforeTax + tax;
+  if (!Number.isFinite(total) || total <= 0 ||
+      Math.abs(total - Number(submittedAmount)) > 0.011) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Carrier quote total does not match the server-calculated quote form.",
+    );
+  }
+  const name = optionalText(raw.name, "Quote name", 200) || "";
+  const origin = optionalText(raw.origin, "Quote origin", 500) || "";
+  const destination = optionalText(raw.destination, "Quote destination", 500) || "";
+  return {
+    currency,
+    quoteBreakdown: {
+      name, origin, destination, currency, formulaVersion: 2, manual,
+      distanceKm, deadheadKm, mileageRate, deadheadRate, weightKg, weightRate,
+      hours, hourlyRate, areaFee, pilotCount, pilotKmRate, pilotHourlyRate,
+      pilotAreaFee, permitFee, baseFee, surchargePercent, taxPercent, manualTotal,
+      loadedMileage, deadhead, weight, time, pilot, subtotal, surcharge, tax, total,
+    },
+  };
+}
+
 function validateDispatchQuote({
   job,
   carrier,
@@ -395,6 +480,7 @@ function validateDispatchQuote({
     );
   }
   const amount = requireMoney(data.amount, "Carrier quote");
+  const breakdown = validateDispatchQuoteBreakdown(data, amount);
   const note = String(data.note || "").trim();
   if (note.length > 2000) {
     throw new CommandPolicyError(
@@ -437,7 +523,7 @@ function validateDispatchQuote({
       );
     }
   }
-  return {amount, note, availableDate};
+  return {amount, note, availableDate, ...breakdown};
 }
 
 function validateDispatchAward(job, bid, actorUid) {
@@ -704,6 +790,7 @@ module.exports = {
   validateDispatchJobInput,
   validateDispatchJobPublish,
   validateDispatchQuote,
+  validateDispatchQuoteBreakdown,
   validateDispatchProviderApplication,
   validateDispatchProviderDecision,
   validateDispatchTransactionAction,

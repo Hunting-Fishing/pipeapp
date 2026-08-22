@@ -38,7 +38,8 @@ class TimedBuyingViewerParticipation {
   final int? offersAhead;
   final num amountBehind;
 
-  bool get outbid => hasParticipated && !leading && currentLead > viewerTopOffer;
+  bool get outbid =>
+      hasParticipated && !leading && currentLead > viewerTopOffer;
 
   String get compactStatusLabel {
     if (!hasParticipated) return '';
@@ -114,14 +115,14 @@ class TimedBuyingViewerParticipationScope extends StatelessWidget {
   final String? viewerUid;
   final Widget child;
 
-  static _TimedBuyingParticipationData? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_TimedBuyingParticipationData>();
+  static TimedBuyingParticipationData? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<TimedBuyingParticipationData>();
 
   @override
   Widget build(BuildContext context) {
     final uid = viewerUid;
     if (uid == null || uid.isEmpty) {
-      return _TimedBuyingParticipationData(
+      return TimedBuyingParticipationData(
         viewerUid: null,
         offersByListing: const {},
         child: child,
@@ -142,7 +143,7 @@ class TimedBuyingViewerParticipationScope extends StatelessWidget {
           if (listingId.isEmpty) continue;
           grouped.putIfAbsent(listingId, () => []).add(data);
         }
-        return _TimedBuyingParticipationData(
+        return TimedBuyingParticipationData(
           viewerUid: uid,
           offersByListing: grouped,
           child: child,
@@ -152,8 +153,9 @@ class TimedBuyingViewerParticipationScope extends StatelessWidget {
   }
 }
 
-class _TimedBuyingParticipationData extends InheritedWidget {
-  const _TimedBuyingParticipationData({
+class TimedBuyingParticipationData extends InheritedWidget {
+  const TimedBuyingParticipationData({
+    super.key,
     required this.viewerUid,
     required this.offersByListing,
     required super.child,
@@ -173,7 +175,7 @@ class _TimedBuyingParticipationData extends InheritedWidget {
       );
 
   @override
-  bool updateShouldNotify(covariant _TimedBuyingParticipationData oldWidget) =>
+  bool updateShouldNotify(covariant TimedBuyingParticipationData oldWidget) =>
       oldWidget.viewerUid != viewerUid ||
       !identical(oldWidget.offersByListing, offersByListing);
 }
@@ -230,11 +232,13 @@ class _TimedBuyingTrustFrameState extends State<TimedBuyingTrustFrame>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {
       _controller.stop();
       _controller.value = 0;
-    } else if (widget.participation.hasParticipated && !_controller.isAnimating) {
+    } else if (widget.participation.hasParticipated &&
+        !_controller.isAnimating) {
       _controller.repeat();
     }
   }
@@ -364,7 +368,9 @@ class TimedBuyingParticipationBadge extends StatelessWidget {
         color: const Color(0xF20B1118),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color, width: 1.3),
-        boxShadow: [BoxShadow(color: color.withValues(alpha: .28), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(color: color.withValues(alpha: .28), blurRadius: 10)
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -489,7 +495,9 @@ class TimedBuyingOfferActivityHeader extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Icon(
-              identity.verified ? Icons.verified_user_outlined : Icons.person_outline,
+              identity.verified
+                  ? Icons.verified_user_outlined
+                  : Icons.person_outline,
               size: 13,
               color: identity.verified
                   ? PipeBuyerColors.success

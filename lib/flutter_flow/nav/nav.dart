@@ -359,15 +359,7 @@ class FFRoute {
                   builder: (context, _) => builder(context, ffParams),
                 )
               : builder(context, ffParams);
-          final child = appStateNotifier.loading
-              ? Container(
-                  color: Colors.transparent,
-                  child: Image.asset(
-                    'assets/images/pipe_buyer_logo.png',
-                    fit: BoxFit.contain,
-                  ),
-                )
-              : page;
+          final child = page; // Web/native startup owns the loading surface.
 
           final transitionInfo = state.transitionInfo;
           return transitionInfo.hasTransition

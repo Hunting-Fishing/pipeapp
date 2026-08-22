@@ -345,6 +345,8 @@ class MarketplaceDispatchRepository {
     required DateTime availableDate,
     required String vehicleId,
     required String vehicleName,
+    required Map<String, dynamic> quoteBreakdown,
+    required String currency,
   }) async {
     await _commands.execute('submitDispatchQuote', {
       'requestId': _firestore.collection('dispatch_bids').doc().id,
@@ -353,6 +355,8 @@ class MarketplaceDispatchRepository {
       'note': note.trim(),
       'availableDate': availableDate.millisecondsSinceEpoch,
       'vehicleId': vehicleId,
+      'quoteBreakdown': quoteBreakdown,
+      'currency': currency,
     });
   }
 

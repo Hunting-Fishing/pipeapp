@@ -142,6 +142,20 @@ class MarketplaceActionsRepository {
     return '${result['conversationId']}';
   }
 
+  Future<String> openBusinessConversation({
+    required String providerUid,
+  }) async {
+    final normalized = providerUid.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(
+          providerUid, 'providerUid', 'Provider is required.');
+    }
+    final result = await _commands.execute('openBusinessConversation', {
+      'providerUid': normalized,
+    });
+    return '${result['conversationId']}';
+  }
+
   Future<Map<String, dynamic>> authorizeUpload({
     required String purpose,
     required String originalName,

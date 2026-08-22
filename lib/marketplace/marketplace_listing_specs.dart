@@ -172,7 +172,8 @@ class _ListingSpecsDisclosure extends StatefulWidget {
   final List<MarketplaceListingSpec> specs;
 
   @override
-  State<_ListingSpecsDisclosure> createState() => _ListingSpecsDisclosureState();
+  State<_ListingSpecsDisclosure> createState() =>
+      _ListingSpecsDisclosureState();
 }
 
 class _ListingSpecsDisclosureState extends State<_ListingSpecsDisclosure>

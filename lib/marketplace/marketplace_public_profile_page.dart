@@ -137,7 +137,8 @@ class _MarketplacePublicProfilePageState
             if (snapshot.connectionState != ConnectionState.done) {
               return const MarketplaceDataStateView.loading(
                 title: 'Loading seller storefront',
-                message: 'Retrieving public details, specialties, and listings…',
+                message:
+                    'Retrieving public details, specialties, and listings…',
               );
             }
             if (snapshot.hasError) {
@@ -247,7 +248,8 @@ class _MarketplacePublicProfilePageState
                           title: 'About this seller',
                           subtitle:
                               'Public information supplied for marketplace buyers.',
-                          leading: const _SectionIcon(Icons.storefront_outlined),
+                          leading:
+                              const _SectionIcon(Icons.storefront_outlined),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -768,7 +770,8 @@ class _ListingCard extends StatelessWidget {
             aspectRatio: 16 / 9,
             child: thumbnail == null
                 ? Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     alignment: Alignment.center,
                     child: const Icon(
                       Icons.inventory_2_outlined,

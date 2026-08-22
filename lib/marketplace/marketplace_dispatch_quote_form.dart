@@ -328,7 +328,8 @@ class _DispatchQuoteFormDialogState extends State<_DispatchQuoteFormDialog> {
                               .titleLarge
                               ?.copyWith(fontWeight: FontWeight.w900),
                         ),
-                        Text(widget.subtitle, style: const TextStyle(fontSize: 12)),
+                        Text(widget.subtitle,
+                            style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -411,8 +412,8 @@ class _DispatchQuoteFormDialogState extends State<_DispatchQuoteFormDialog> {
                                       label: Text(vehicle.name),
                                       tooltip: vehicle.subtitle,
                                       selected: vehicle.id == _vehicleId,
-                                      onSelected: (_) =>
-                                          setState(() => _vehicleId = vehicle.id),
+                                      onSelected: (_) => setState(
+                                          () => _vehicleId = vehicle.id),
                                     ),
                                   )
                                   .toList(),
@@ -426,7 +427,8 @@ class _DispatchQuoteFormDialogState extends State<_DispatchQuoteFormDialog> {
                             const SizedBox(height: 8),
                             ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.calendar_month_outlined),
+                              leading:
+                                  const Icon(Icons.calendar_month_outlined),
                               title: const Text('Carrier available date'),
                               subtitle: Text(_availableDate == null
                                   ? 'Choose date'
@@ -481,7 +483,11 @@ class _DispatchQuoteFormDialogState extends State<_DispatchQuoteFormDialog> {
                       Column(
                         children: [
                           _numberGrid([
-                            ('surchargePercent', 'Fuel / service surcharge', '%'),
+                            (
+                              'surchargePercent',
+                              'Fuel / service surcharge',
+                              '%'
+                            ),
                             ('taxPercent', 'Tax', '%'),
                           ]),
                           SwitchListTile(
@@ -494,7 +500,8 @@ class _DispatchQuoteFormDialogState extends State<_DispatchQuoteFormDialog> {
                               'The calculated amount remains in the version record for audit comparison.',
                             ),
                             value: _manual,
-                            onChanged: (value) => setState(() => _manual = value),
+                            onChanged: (value) =>
+                                setState(() => _manual = value),
                           ),
                           if (_manual)
                             _field('manualTotal', 'Manual quoted total'),

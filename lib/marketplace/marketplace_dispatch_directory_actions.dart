@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_deep_links.dart';
-import 'marketplace_dispatch_service_taxonomy.dart';
+import 'marketplace_dispatch_multi_service_selector.dart';
 import 'marketplace_reporting.dart';
 import 'marketplace_reputation_badge.dart';
 
@@ -20,12 +20,14 @@ class MarketplaceDispatchDirectoryBusinessActions extends StatefulWidget {
     super.key,
     required this.providerUid,
     required this.operatingName,
-    this.serviceCode = '',
+    required this.serviceCodes,
+    this.remoteDataEnabled = true,
   });
 
   final String providerUid;
   final String operatingName;
-  final String serviceCode;
+  final List<String> serviceCodes;
+  final bool remoteDataEnabled;
 
   @override
   State<MarketplaceDispatchDirectoryBusinessActions> createState() =>
@@ -34,14 +36,16 @@ class MarketplaceDispatchDirectoryBusinessActions extends StatefulWidget {
 
 class _MarketplaceDispatchDirectoryBusinessActionsState
     extends State<MarketplaceDispatchDirectoryBusinessActions> {
-  final MarketplaceActionsRepository _actions = MarketplaceActionsRepository();
-  late Future<Map<String, dynamic>> _publicProfile;
+  MarketplaceActionsRepository? _actions;
+  Future<Map<String, dynamic>>? _publicProfile;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _publicProfile = _loadPublicProfile();
+    if (widget.remoteDataEnabled) {
+      _publicProfile = _loadPublicProfile();
+    }
   }
 
   Future<Map<String, dynamic>> _loadPublicProfile() async {
@@ -52,18 +56,25 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
     return document.data() ?? const <String, dynamic>{};
   }
 
+  MarketplaceActionsRepository get _actionRepository =>
+      _actions ??= MarketplaceActionsRepository();
+
   bool get _isOwnBusiness =>
+      widget.remoteDataEnabled &&
       FirebaseAuth.instance.currentUser?.uid == widget.providerUid;
+
+  bool get _remoteActionsAvailable =>
+      widget.remoteDataEnabled && !_isOwnBusiness;
 
   Future<void> _openBusiness() async {
     context.push(MarketplaceDeepLinks.profile(widget.providerUid));
   }
 
   Future<void> _messageBusiness() async {
-    if (_busy || _isOwnBusiness) return;
+    if (_busy || !_remoteActionsAvailable) return;
     setState(() => _busy = true);
     try {
-      final conversationId = await _actions.openBusinessConversation(
+      final conversationId = await _actionRepository.openBusinessConversation(
         providerUid: widget.providerUid,
       );
       if (!mounted) return;
@@ -79,22 +90,22 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
   }
 
   Future<void> _requestQuote() async {
-    if (_busy || _isOwnBusiness) return;
+    if (_busy || !_remoteActionsAvailable) return;
     final request = await showDialog<_DirectoryQuoteRequest>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _DirectoryQuoteRequestDialog(
         providerName: widget.operatingName,
-        initialServiceCode: widget.serviceCode,
+        allowedServiceCodes: widget.serviceCodes,
       ),
     );
     if (request == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final conversationId = await _actions.openBusinessConversation(
+      final conversationId = await _actionRepository.openBusinessConversation(
         providerUid: widget.providerUid,
       );
-      await _actions.sendChatMessage(
+      await _actionRepository.sendChatMessage(
         conversationId,
         request.toMessage(widget.operatingName),
       );
@@ -111,7 +122,7 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
   }
 
   Future<void> _reportBusiness() async {
-    if (_isOwnBusiness) return;
+    if (!_remoteActionsAvailable) return;
     await showMarketplaceReportDialog(
       context,
       reportedUid: widget.providerUid,
@@ -120,9 +131,11 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
   }
 
   Future<void> _launch(Uri uri) async {
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This contact action could not be opened.')),
+        const SnackBar(
+            content: Text('This contact action could not be opened.')),
       );
     }
   }
@@ -145,7 +158,6 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
               membership['tier'],
         );
         final reputation = MarketplaceReputationSummary.fromMap(profile);
-        final websiteUri = _safeWebsite(website);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,12 +177,16 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
                   runSpacing: 8,
                   children: [
                     FilledButton.icon(
-                      onPressed: _busy || _isOwnBusiness ? null : _requestQuote,
+                      onPressed: _busy || !_remoteActionsAvailable
+                          ? null
+                          : _requestQuote,
                       icon: const Icon(Icons.request_quote_outlined),
                       label: const Text('Get Quote'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: _busy || _isOwnBusiness ? null : _messageBusiness,
+                      onPressed: _busy || !_remoteActionsAvailable
+                          ? null
+                          : _messageBusiness,
                       icon: const Icon(Icons.chat_bubble_outline),
                       label: const Text('Message'),
                     ),
@@ -182,22 +198,24 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
                     if (phone.isNotEmpty)
                       IconButton.filledTonal(
                         tooltip: 'Call published business phone',
-                        onPressed: () => _launch(Uri(scheme: 'tel', path: phone)),
+                        onPressed: () =>
+                            _launch(Uri(scheme: 'tel', path: phone)),
                         icon: const Icon(Icons.phone_outlined),
                       ),
                     if (email.isNotEmpty)
                       IconButton.filledTonal(
                         tooltip: 'Email published business address',
-                        onPressed: () => _launch(Uri(scheme: 'mailto', path: email)),
+                        onPressed: () =>
+                            _launch(Uri(scheme: 'mailto', path: email)),
                         icon: const Icon(Icons.email_outlined),
                       ),
-                    if (websiteUri != null)
+                    if (_safeWebsite(website) case final uri?)
                       IconButton.filledTonal(
                         tooltip: 'Open business website',
-                        onPressed: () => _launch(websiteUri),
+                        onPressed: () => _launch(uri),
                         icon: const Icon(Icons.language_outlined),
                       ),
-                    if (!_isOwnBusiness)
+                    if (_remoteActionsAvailable)
                       PopupMenuButton<String>(
                         tooltip: 'More business actions',
                         onSelected: (value) {
@@ -234,11 +252,12 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
                                   reputation.hasPublishedScore
                                       ? '${reputation.score}/100 · ${reputation.statusLabel}'
                                       : 'New provider · Building reputation',
-                                  style: const TextStyle(fontWeight: FontWeight.w900),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w900),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${tier.label} · Select score for legend',
+                                  '${tier.label} member · Select score for legend',
                                   style: const TextStyle(
                                     color: PipeBuyerColors.muted,
                                     fontSize: 11,
@@ -285,35 +304,45 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
 
 class _DirectoryQuoteRequest {
   const _DirectoryQuoteRequest({
-    required this.serviceLabel,
+    required this.serviceCodes,
     required this.location,
     required this.requestedDate,
+    required this.urgency,
     required this.details,
   });
 
-  final String serviceLabel;
+  final List<String> serviceCodes;
   final String location;
-  final String requestedDate;
+  final DateTime? requestedDate;
+  final String urgency;
   final String details;
 
-  String toMessage(String providerName) =>
-      'GET QUOTE REQUEST\n'
-      'Provider: $providerName\n'
-      'Service: $serviceLabel\n'
-      'Work location: $location\n'
-      '${requestedDate.isEmpty ? '' : 'Requested date/window: $requestedDate\n'}'
-      'Scope / details: $details\n\n'
-      'Please reply in Pipe Buyer with availability, questions, and your quote.';
+  String toMessage(String providerName) {
+    final services = serviceCodes
+        .map((code) => '- ${dispatchServiceLabelForCode(code)}')
+        .join('\n');
+    final dateLabel = requestedDate == null
+        ? 'Flexible / to be confirmed'
+        : '${requestedDate!.year}-${requestedDate!.month.toString().padLeft(2, '0')}-${requestedDate!.day.toString().padLeft(2, '0')}';
+    return 'GET QUOTE REQUEST\n'
+        'Provider: $providerName\n'
+        'Services requested:\n$services\n'
+        'Work / pickup location: $location\n'
+        'Requested date: $dateLabel\n'
+        'Priority: ${_urgencyLabel(urgency)}\n'
+        'Scope / details: $details\n\n'
+        'Please reply in Pipe Buyer with availability, questions, and your quote.';
+  }
 }
 
 class _DirectoryQuoteRequestDialog extends StatefulWidget {
   const _DirectoryQuoteRequestDialog({
     required this.providerName,
-    required this.initialServiceCode,
+    required this.allowedServiceCodes,
   });
 
   final String providerName;
-  final String initialServiceCode;
+  final List<String> allowedServiceCodes;
 
   @override
   State<_DirectoryQuoteRequestDialog> createState() =>
@@ -322,44 +351,55 @@ class _DirectoryQuoteRequestDialog extends StatefulWidget {
 
 class _DirectoryQuoteRequestDialogState
     extends State<_DirectoryQuoteRequestDialog> {
-  late final TextEditingController _service;
   final TextEditingController _location = TextEditingController();
-  final TextEditingController _date = TextEditingController();
   final TextEditingController _details = TextEditingController();
+  late List<String> _serviceCodes;
+  DateTime? _requestedDate;
+  String _urgency = 'flexible';
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _service = TextEditingController(
-      text: _serviceLabel(widget.initialServiceCode),
-    );
+    _serviceCodes = widget.allowedServiceCodes.isEmpty
+        ? <String>[]
+        : <String>[widget.allowedServiceCodes.first];
   }
 
   @override
   void dispose() {
-    _service.dispose();
     _location.dispose();
-    _date.dispose();
     _details.dispose();
     super.dispose();
   }
 
+  Future<void> _pickDate() async {
+    final current =
+        _requestedDate ?? DateTime.now().add(const Duration(days: 1));
+    final value = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 730)),
+    );
+    if (value != null && mounted) setState(() => _requestedDate = value);
+  }
+
   void _submit() {
-    final service = _service.text.trim();
     final location = _location.text.trim();
     final details = _details.text.trim();
-    if (service.isEmpty || location.isEmpty || details.length < 8) {
+    if (_serviceCodes.isEmpty || location.isEmpty || details.length < 8) {
       setState(() => _error =
-          'Add the service, work location, and enough detail for the provider to quote the work.');
+          'Choose at least one service, add the work location, and include enough detail for the provider to quote the work.');
       return;
     }
     Navigator.pop(
       context,
       _DirectoryQuoteRequest(
-        serviceLabel: service,
+        serviceCodes: List<String>.unmodifiable(_serviceCodes),
         location: location,
-        requestedDate: _date.text.trim(),
+        requestedDate: _requestedDate,
+        urgency: _urgency,
         details: details,
       ),
     );
@@ -369,40 +409,96 @@ class _DirectoryQuoteRequestDialogState
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Get Quote · ${widget.providerName}'),
         content: SizedBox(
-          width: 520,
+          width: 600,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'This sends a private quote request into a Pipe Buyer business conversation. The provider can reply with availability, questions, and pricing.',
+                  'Choose one or more services this company provides. The request stays private between you and the provider.',
                 ),
                 const SizedBox(height: 14),
-                TextField(
-                  controller: _service,
-                  decoration: const InputDecoration(labelText: 'Service needed *'),
+                MarketplaceDispatchMultiServiceSelector(
+                  allowedServiceCodes: widget.allowedServiceCodes,
+                  initialServiceCodes: _serviceCodes,
+                  onChanged: (values) => _serviceCodes = values,
+                  maximumItems: 6,
+                  label: 'Services from this company',
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 TextField(
                   controller: _location,
                   decoration: const InputDecoration(
                     labelText: 'Work / pickup location *',
+                    prefixIcon: Icon(Icons.location_on_outlined),
                   ),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: _date,
-                  decoration: const InputDecoration(
-                    labelText: 'Requested date or time window',
-                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final dateButton = OutlinedButton.icon(
+                      onPressed: _pickDate,
+                      icon: const Icon(Icons.calendar_month_outlined),
+                      label: Text(
+                        _requestedDate == null
+                            ? 'Choose requested date'
+                            : '${_requestedDate!.year}-${_requestedDate!.month.toString().padLeft(2, '0')}-${_requestedDate!.day.toString().padLeft(2, '0')}',
+                      ),
+                    );
+                    final urgency = DropdownButtonFormField<String>(
+                      initialValue: _urgency,
+                      decoration: const InputDecoration(labelText: 'Priority'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'flexible',
+                          child: Text('Flexible / planning'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'scheduled',
+                          child: Text('Scheduled / date sensitive'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'urgent',
+                          child: Text('Urgent / ASAP'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'emergency',
+                          child: Text('Emergency callout'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _urgency = value ?? 'flexible'),
+                    );
+                    if (constraints.maxWidth < 520) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          dateButton,
+                          const SizedBox(height: 10),
+                          urgency,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: dateButton),
+                        const SizedBox(width: 10),
+                        Expanded(child: urgency),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _details,
-                  minLines: 3,
-                  maxLines: 6,
+                  minLines: 4,
+                  maxLines: 7,
                   decoration: const InputDecoration(
-                    labelText: 'Scope, equipment, quantity, dimensions, notes *',
+                    labelText:
+                        'Scope, equipment, quantity, dimensions, notes *',
+                    alignLabelWithHint: true,
+                    prefixIcon: Icon(Icons.description_outlined),
                   ),
                 ),
                 if (_error != null) ...[
@@ -433,13 +529,12 @@ class _DirectoryQuoteRequestDialogState
       );
 }
 
-String _serviceLabel(String code) {
-  if (code.trim().isEmpty) return '';
-  for (final service in DispatchServiceTaxonomy.services) {
-    if (service.code == code) return service.label;
-  }
-  return code;
-}
+String _urgencyLabel(String value) => switch (value) {
+      'scheduled' => 'Scheduled / date sensitive',
+      'urgent' => 'Urgent / ASAP',
+      'emergency' => 'Emergency callout',
+      _ => 'Flexible / planning',
+    };
 
 Uri? _safeWebsite(String value) {
   final uri = Uri.tryParse(value.trim());

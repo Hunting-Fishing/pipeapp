@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
-import 'marketplace_dispatch_service_taxonomy.dart';
+import 'marketplace_dispatch_directory.dart';
 
 enum DispatchSection {
   dashboard,
@@ -266,7 +266,8 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                       label: const Text('Find Companies'),
                     ),
                     TextButton.icon(
-                      style: TextButton.styleFrom(foregroundColor: Colors.white),
+                      style:
+                          TextButton.styleFrom(foregroundColor: Colors.white),
                       onPressed: onBrowseJobs,
                       icon: const Icon(Icons.work_outline),
                       label: const Text('Browse Jobs'),
@@ -288,9 +289,8 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 820;
-              final width = wide
-                  ? (constraints.maxWidth - 12) / 2
-                  : constraints.maxWidth;
+              final width =
+                  wide ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth;
               return Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -359,96 +359,8 @@ class MarketplaceDispatchDirectoryFoundation extends StatelessWidget {
   final Widget? legacyProviderTools;
 
   @override
-  Widget build(BuildContext context) {
-    final featured = DispatchServiceTaxonomy.featuredDirectoryServices;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
-      children: [
-        const PipeBuyerPageHeader(
-          eyebrow: 'PIPE BUYER SERVICE DIRECTORY',
-          title: 'Industrial companies and owner/operators',
-          subtitle:
-              'The Directory is the searchable company network for transportation and field services. The verified Phase 2 taxonomy now supplies stable service categories and capability fields while company profiles, filters and map search are built in the gated phases that follow.',
-          icon: Icons.business_outlined,
-        ),
-        const SizedBox(height: 14),
-        PipeBuyerSectionCard(
-          title: 'Service taxonomy active',
-          subtitle:
-              'These service labels are backed by stable machine codes so future filters, provider profiles and matching do not depend on free-text names.',
-          leading: const Icon(
-            Icons.account_tree_outlined,
-            color: PipeBuyerColors.orange,
-          ),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: featured
-                .map(
-                  (service) => Tooltip(
-                    message: service.code,
-                    child: Chip(label: Text(service.label)),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        PipeBuyerSectionCard(
-          title: 'Four core service groups',
-          subtitle:
-              'Directory and Request Service will use this hierarchy consistently across North America and later international expansion.',
-          leading: const Icon(
-            Icons.category_outlined,
-            color: PipeBuyerColors.industrialBlue,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: DispatchServiceTaxonomy.categories
-                .map(
-                  (category) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      '${category.label} - ${category.description}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        PipeBuyerSectionCard(
-          title: accountState.providerRegistered
-              ? 'Your business will be searchable here'
-              : 'Need to add a business?',
-          subtitle: accountState.providerRegistered
-              ? 'Company services, service areas, equipment and availability will feed the Directory after the provider profile phase is complete.'
-              : 'Use List your business to create the existing Dispatch provider record. The expanded company profile is built in Phase 3.',
-          leading: Icon(
-            accountState.providerRegistered
-                ? Icons.business_center_outlined
-                : Icons.add_business_outlined,
-            color: PipeBuyerColors.industrialBlue,
-          ),
-          child: Text(
-            accountState.providerStatusLabel,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-        ),
-        if (legacyProviderTools != null) ...[
-          const SizedBox(height: 20),
-          const PipeBuyerPageHeader(
-            eyebrow: 'CURRENT PROVIDER TOOLS',
-            title: 'Pilot and escort equipment',
-            subtitle:
-                'Existing provider equipment remains available during the network restructure.',
-            icon: Icons.assistant_direction_outlined,
-          ),
-          const SizedBox(height: 10),
-          legacyProviderTools!,
-        ],
-      ],
-    );
-  }
+  Widget build(BuildContext context) => MarketplaceDispatchDirectoryPage(
+        key: ValueKey(accountState.providerStatusLabel),
+        legacyProviderTools: legacyProviderTools,
+      );
 }

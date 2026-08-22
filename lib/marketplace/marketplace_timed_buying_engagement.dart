@@ -36,7 +36,8 @@ bool timedBuyingAttentionAnimates(TimedBuyingUrgency urgency) =>
     urgency == TimedBuyingUrgency.hours ||
     urgency == TimedBuyingUrgency.finalHour;
 
-double timedBuyingAttentionStroke(TimedBuyingUrgency urgency) => switch (urgency) {
+double timedBuyingAttentionStroke(TimedBuyingUrgency urgency) =>
+    switch (urgency) {
       TimedBuyingUrgency.monthPlus => 1.3,
       TimedBuyingUrgency.weeks => 1.5,
       TimedBuyingUrgency.week => 1.8,
@@ -87,7 +88,8 @@ class _TimedBuyingAttentionFrameState extends State<TimedBuyingAttentionFrame>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {
       _controller.stop();
       _controller.value = 0;
@@ -106,7 +108,8 @@ class _TimedBuyingAttentionFrameState extends State<TimedBuyingAttentionFrame>
   @override
   Widget build(BuildContext context) {
     final state = timedBuyingUrgencyState(start: widget.start, end: widget.end);
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final motion = timedBuyingAttentionAnimates(state.urgency) && !reduceMotion;
     final stroke = timedBuyingAttentionStroke(state.urgency);
     final urgent = state.urgency == TimedBuyingUrgency.day ||
@@ -129,7 +132,8 @@ class _TimedBuyingAttentionFrameState extends State<TimedBuyingAttentionFrame>
                   ? [
                       BoxShadow(
                         color: state.color.withValues(
-                          alpha: critical ? .34 + pulse * .16 : .20 + pulse * .10,
+                          alpha:
+                              critical ? .34 + pulse * .16 : .20 + pulse * .10,
                         ),
                         blurRadius: critical ? 22 + pulse * 8 : 15 + pulse * 5,
                         spreadRadius: critical ? 2.2 : 1.2,
@@ -233,7 +237,8 @@ class _TimedBuyingAttentionPainter extends CustomPainter {
         center.dx + math.cos(angle) * rx,
         center.dy + math.sin(angle) * ry,
       );
-      canvas.drawCircle(point, critical && index == 0 ? 2.8 : 1.8, sparklePaint);
+      canvas.drawCircle(
+          point, critical && index == 0 ? 2.8 : 1.8, sparklePaint);
     }
   }
 
@@ -332,14 +337,26 @@ class TimedBuyingViewerPositionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, icon, color) = switch (position) {
-      TimedBuyingViewerPosition.seller =>
-        ('YOUR LISTING', Icons.storefront_outlined, PipeBuyerColors.industrialBlue),
-      TimedBuyingViewerPosition.leading =>
-        ('YOU’RE LEADING', Icons.emoji_events_outlined, PipeBuyerColors.success),
-      TimedBuyingViewerPosition.outbid =>
-        ('YOU’VE BEEN SURPASSED', Icons.trending_up_outlined, PipeBuyerColors.danger),
-      TimedBuyingViewerPosition.participating =>
-        ('YOUR TIMED OFFER', Icons.schedule_send_outlined, PipeBuyerColors.orangePressed),
+      TimedBuyingViewerPosition.seller => (
+          'YOUR LISTING',
+          Icons.storefront_outlined,
+          PipeBuyerColors.industrialBlue
+        ),
+      TimedBuyingViewerPosition.leading => (
+          'YOU’RE LEADING',
+          Icons.emoji_events_outlined,
+          PipeBuyerColors.success
+        ),
+      TimedBuyingViewerPosition.outbid => (
+          'YOU’VE BEEN SURPASSED',
+          Icons.trending_up_outlined,
+          PipeBuyerColors.danger
+        ),
+      TimedBuyingViewerPosition.participating => (
+          'YOUR TIMED OFFER',
+          Icons.schedule_send_outlined,
+          PipeBuyerColors.orangePressed
+        ),
     };
     return Container(
       padding: EdgeInsets.symmetric(
@@ -422,7 +439,8 @@ Future<void> showTimedBuyingAttentionLegend(BuildContext context) =>
                 _AttentionLegendRow(
                     color: PipeBuyerColors.danger,
                     label: 'Final hour',
-                    detail: 'Under 60 minutes • critical moving border + spark points'),
+                    detail:
+                        'Under 60 minutes • critical moving border + spark points'),
               ],
             ),
           ),
@@ -469,7 +487,8 @@ class _AttentionLegendRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  Text(label,
+                      style: const TextStyle(fontWeight: FontWeight.w900)),
                   Text(
                     detail,
                     style: const TextStyle(

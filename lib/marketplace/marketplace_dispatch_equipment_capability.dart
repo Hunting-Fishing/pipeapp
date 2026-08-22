@@ -17,26 +17,26 @@ enum DispatchEquipmentType {
 
 extension DispatchEquipmentTypeDetails on DispatchEquipmentType {
   String get code => switch (this) {
-    DispatchEquipmentType.truckTractor => 'truck_tractor',
-    DispatchEquipmentType.trailer => 'trailer',
-    DispatchEquipmentType.pilotEscort => 'pilot_escort',
-    DispatchEquipmentType.cranePicker => 'crane_picker',
-    DispatchEquipmentType.hydrovacVacuum => 'hydrovac_vacuum',
-    DispatchEquipmentType.serviceTruck => 'service_truck',
-    DispatchEquipmentType.heavyEquipment => 'heavy_equipment',
-    DispatchEquipmentType.other => 'other',
-  };
+        DispatchEquipmentType.truckTractor => 'truck_tractor',
+        DispatchEquipmentType.trailer => 'trailer',
+        DispatchEquipmentType.pilotEscort => 'pilot_escort',
+        DispatchEquipmentType.cranePicker => 'crane_picker',
+        DispatchEquipmentType.hydrovacVacuum => 'hydrovac_vacuum',
+        DispatchEquipmentType.serviceTruck => 'service_truck',
+        DispatchEquipmentType.heavyEquipment => 'heavy_equipment',
+        DispatchEquipmentType.other => 'other',
+      };
 
   String get label => switch (this) {
-    DispatchEquipmentType.truckTractor => 'Truck / Tractor',
-    DispatchEquipmentType.trailer => 'Trailer',
-    DispatchEquipmentType.pilotEscort => 'Pilot / Escort Vehicle',
-    DispatchEquipmentType.cranePicker => 'Crane / Picker',
-    DispatchEquipmentType.hydrovacVacuum => 'Hydrovac / Vacuum',
-    DispatchEquipmentType.serviceTruck => 'Service Truck',
-    DispatchEquipmentType.heavyEquipment => 'Heavy Equipment',
-    DispatchEquipmentType.other => 'Other Equipment',
-  };
+        DispatchEquipmentType.truckTractor => 'Truck / Tractor',
+        DispatchEquipmentType.trailer => 'Trailer',
+        DispatchEquipmentType.pilotEscort => 'Pilot / Escort Vehicle',
+        DispatchEquipmentType.cranePicker => 'Crane / Picker',
+        DispatchEquipmentType.hydrovacVacuum => 'Hydrovac / Vacuum',
+        DispatchEquipmentType.serviceTruck => 'Service Truck',
+        DispatchEquipmentType.heavyEquipment => 'Heavy Equipment',
+        DispatchEquipmentType.other => 'Other Equipment',
+      };
 }
 
 class DispatchEquipmentCapabilityDraft {
@@ -57,16 +57,14 @@ class DispatchEquipmentCapabilityDraft {
   final Map<String, Object?> capabilityValues;
 
   List<String> get normalizedServiceCodes {
-    final known = DispatchServiceTaxonomy.services
-        .map((item) => item.code)
-        .toSet();
-    final result =
-        serviceCodes
-            .map((value) => value.trim())
-            .where((value) => value.isNotEmpty && known.contains(value))
-            .toSet()
-            .toList()
-          ..sort();
+    final known =
+        DispatchServiceTaxonomy.services.map((item) => item.code).toSet();
+    final result = serviceCodes
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && known.contains(value))
+        .toSet()
+        .toList()
+      ..sort();
     return result;
   }
 
@@ -89,9 +87,8 @@ class DispatchEquipmentCapabilityDraft {
       case DispatchCapabilityValueType.boolean:
         return value is bool ? value : null;
       case DispatchCapabilityValueType.number:
-        final number = value is num
-            ? value.toDouble()
-            : double.tryParse('$value');
+        final number =
+            value is num ? value.toDouble() : double.tryParse('$value');
         return number != null && number.isFinite && number > 0 ? number : null;
       case DispatchCapabilityValueType.shortText:
         final text = '${value ?? ''}'.trim();
@@ -138,8 +135,8 @@ class DispatchEquipmentCapabilityDraft {
 
     return DispatchEquipmentCapabilityDraft(
       id: id,
-      name: '${data['name'] ?? data['vehicleType'] ?? 'Fleet equipment'}'
-          .trim(),
+      name:
+          '${data['name'] ?? data['vehicleType'] ?? 'Fleet equipment'}'.trim(),
       equipmentType: _equipmentType(
         '${data['equipmentTypeCode'] ?? ''}',
         '${data['vehicleType'] ?? ''}',
@@ -265,8 +262,8 @@ class MarketplaceDispatchEquipmentCapabilityRepository {
   MarketplaceDispatchEquipmentCapabilityRepository({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _auth = auth ?? FirebaseAuth.instance;
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -312,18 +309,17 @@ class MarketplaceDispatchEquipmentCapabilityRepository {
         .map(DispatchServiceTaxonomy.findByCode)
         .whereType<DispatchServiceDefinition>()
         .toList();
-    final services = serviceDefinitions
-        .map((service) => service.label)
-        .toList();
+    final services =
+        serviceDefinitions.map((service) => service.label).toList();
     final capabilities = draft.normalizedCapabilityValues;
     final maxPayload = capabilities['max_payload'];
     final pilotTruck =
         draft.equipmentType == DispatchEquipmentType.pilotEscort ||
-        serviceDefinitions.any(
-          (service) =>
-              service.category ==
-              DispatchServiceCategoryCode.pilotOversizeSupport,
-        );
+            serviceDefinitions.any(
+              (service) =>
+                  service.category ==
+                  DispatchServiceCategoryCode.pilotOversizeSupport,
+            );
 
     final values = <String, dynamic>{
       'ownerUid': uid,
@@ -401,8 +397,12 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                             draft.id == null
                                 ? 'Add fleet equipment'
                                 : 'Edit fleet capabilities',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w900),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
                           ),
                         ),
                         IconButton(
@@ -456,7 +456,7 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                           onChanged: saving
                               ? null
                               : (value) =>
-                                    setDialogState(() => available = value),
+                                  setDialogState(() => available = value),
                           title: const Text('Available for work'),
                           subtitle: const Text(
                             'This is operational availability, not a guarantee of schedule acceptance.',
@@ -465,15 +465,16 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                         const SizedBox(height: 8),
                         Text(
                           'Services this equipment can perform',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w900),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                  ),
                         ),
                         const SizedBox(height: 8),
                         ...DispatchServiceTaxonomy.categories.map((category) {
                           final services = DispatchServiceTaxonomy.services
-                              .where(
-                                (service) => service.category == category.code,
-                              )
+                              .where((service) =>
+                                  service.category == category.code)
                               .toList();
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 14),
@@ -483,8 +484,7 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                                 Text(
                                   category.label,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                      fontWeight: FontWeight.w800),
                                 ),
                                 const SizedBox(height: 6),
                                 Wrap(
@@ -494,21 +494,18 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                                       .map(
                                         (service) => FilterChip(
                                           label: Text(service.label),
-                                          selected: serviceCodes.contains(
-                                            service.code,
-                                          ),
+                                          selected: serviceCodes
+                                              .contains(service.code),
                                           onSelected: saving
                                               ? null
                                               : (selected) {
                                                   setDialogState(() {
                                                     if (selected) {
-                                                      serviceCodes.add(
-                                                        service.code,
-                                                      );
+                                                      serviceCodes
+                                                          .add(service.code);
                                                     } else {
-                                                      serviceCodes.remove(
-                                                        service.code,
-                                                      );
+                                                      serviceCodes
+                                                          .remove(service.code);
                                                     }
                                                   });
                                                 },
@@ -524,8 +521,12 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                           const Divider(height: 28),
                           Text(
                             'Structured capabilities',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
                           ),
                           const SizedBox(height: 4),
                           const Text(
@@ -596,13 +597,11 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                                     if (!mounted || !dialogContext.mounted)
                                       return;
                                     Navigator.of(dialogContext).pop();
-                                    ScaffoldMessenger.of(
-                                      this.context,
-                                    ).showSnackBar(
+                                    ScaffoldMessenger.of(this.context)
+                                        .showSnackBar(
                                       const SnackBar(
-                                        content: Text(
-                                          'Fleet capabilities saved.',
-                                        ),
+                                        content:
+                                            Text('Fleet capabilities saved.'),
                                       ),
                                     );
                                   } catch (error) {
@@ -616,14 +615,12 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.save_outlined),
-                          label: Text(
-                            saving ? 'Saving...' : 'Save capabilities',
-                          ),
+                          label:
+                              Text(saving ? 'Saving...' : 'Save capabilities'),
                         ),
                       ],
                     ),
@@ -645,141 +642,140 @@ class _MarketplaceDispatchEquipmentCapabilitiesPageState
       final service = DispatchServiceTaxonomy.findByCode(serviceCode);
       if (service != null) codes.addAll(service.capabilityFieldCodes);
     }
-    final result =
-        codes
-            .map(DispatchServiceTaxonomy.capabilityByCode)
-            .whereType<DispatchCapabilityFieldDefinition>()
-            .toList()
-          ..sort((a, b) => a.label.compareTo(b.label));
+    final result = codes
+        .map(DispatchServiceTaxonomy.capabilityByCode)
+        .whereType<DispatchCapabilityFieldDefinition>()
+        .toList()
+      ..sort((a, b) => a.label.compareTo(b.label));
     return result;
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Fleet & equipment capabilities')),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => _edit(
-        const DispatchEquipmentCapabilityDraft(
-          name: '',
-          equipmentType: DispatchEquipmentType.truckTractor,
-          available: true,
-          serviceCodes: <String>[],
-          capabilityValues: <String, Object?>{},
+        appBar: AppBar(title: const Text('Fleet & equipment capabilities')),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _edit(
+            const DispatchEquipmentCapabilityDraft(
+              name: '',
+              equipmentType: DispatchEquipmentType.truckTractor,
+              available: true,
+              serviceCodes: <String>[],
+              capabilityValues: <String, Object?>{},
+            ),
+          ),
+          icon: const Icon(Icons.add),
+          label: const Text('Add equipment'),
         ),
-      ),
-      icon: const Icon(Icons.add),
-      label: const Text('Add equipment'),
-    ),
-    body: StreamBuilder<List<DispatchEquipmentCapabilityDraft>>(
-      stream: _repository.watchFleet(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'Fleet equipment could not be loaded: ${snapshot.error}',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-        final equipment =
-            snapshot.data ?? const <DispatchEquipmentCapabilityDraft>[];
-        if (equipment.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'No fleet equipment is listed yet. Add the trucks, trailers, pilot vehicles, cranes or field-service equipment customers can request.',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-          itemCount: equipment.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final item = equipment[index];
-            final serviceLabels = item.normalizedServiceCodes
-                .map(DispatchServiceTaxonomy.findByCode)
-                .whereType<DispatchServiceDefinition>()
-                .map((service) => service.label)
-                .toList();
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        body: StreamBuilder<List<DispatchEquipmentCapabilityDraft>>(
+          stream: _repository.watchFleet(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Fleet equipment could not be loaded: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }
+            final equipment =
+                snapshot.data ?? const <DispatchEquipmentCapabilityDraft>[];
+            if (equipment.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'No fleet equipment is listed yet. Add the trucks, trailers, pilot vehicles, cranes or field-service equipment customers can request.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              itemCount: equipment.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final item = equipment[index];
+                final serviceLabels = item.normalizedServiceCodes
+                    .map(DispatchServiceTaxonomy.findByCode)
+                    .whereType<DispatchServiceDefinition>()
+                    .map((service) => service.label)
+                    .toList();
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          item.equipmentType ==
-                                  DispatchEquipmentType.pilotEscort
-                              ? Icons.assistant_direction_outlined
-                              : item.equipmentType ==
-                                    DispatchEquipmentType.cranePicker
-                              ? Icons.construction_outlined
-                              : Icons.local_shipping_outlined,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 16,
-                                ),
+                        Row(
+                          children: [
+                            Icon(
+                              item.equipmentType ==
+                                      DispatchEquipmentType.pilotEscort
+                                  ? Icons.assistant_direction_outlined
+                                  : item.equipmentType ==
+                                          DispatchEquipmentType.cranePicker
+                                      ? Icons.construction_outlined
+                                      : Icons.local_shipping_outlined,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(item.equipmentType.label),
+                                ],
                               ),
-                              Text(item.equipmentType.label),
-                            ],
-                          ),
+                            ),
+                            Chip(
+                              label: Text(
+                                item.available ? 'Available' : 'Unavailable',
+                              ),
+                            ),
+                          ],
                         ),
-                        Chip(
-                          label: Text(
-                            item.available ? 'Available' : 'Unavailable',
+                        if (serviceLabels.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: serviceLabels
+                                .take(8)
+                                .map((label) => Chip(label: Text(label)))
+                                .toList(),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _edit(item),
+                            icon: const Icon(Icons.tune_outlined),
+                            label: const Text('Edit capabilities'),
                           ),
                         ),
                       ],
                     ),
-                    if (serviceLabels.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: serviceLabels
-                            .take(8)
-                            .map((label) => Chip(label: Text(label)))
-                            .toList(),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _edit(item),
-                        icon: const Icon(Icons.tune_outlined),
-                        label: const Text('Edit capabilities'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
-        );
-      },
-    ),
-  );
+        ),
+      );
 }
 
 class _CapabilityFieldEditor extends StatelessWidget {
@@ -804,19 +800,17 @@ class _CapabilityFieldEditor extends StatelessWidget {
           value: value == true,
           onChanged: enabled ? (checked) => onChanged(checked == true) : null,
           title: Text(definition.label),
-          subtitle: definition.helpText.isEmpty
-              ? null
-              : Text(definition.helpText),
+          subtitle:
+              definition.helpText.isEmpty ? null : Text(definition.helpText),
         );
       case DispatchCapabilityValueType.number:
         final Object? numberValue = value;
         final num? canonical = numberValue is num ? numberValue : null;
         final display = canonical == null
             ? ''
-            : DispatchCapabilityDisplayUnits.toDisplay(
-                definition,
-                canonical,
-              ).toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
+            : DispatchCapabilityDisplayUnits.toDisplay(definition, canonical)
+                .toStringAsFixed(1)
+                .replaceFirst(RegExp(r'\.0$'), '');
         final unit = DispatchCapabilityDisplayUnits.label(definition);
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -829,9 +823,8 @@ class _CapabilityFieldEditor extends StatelessWidget {
               labelText: unit.isEmpty
                   ? definition.label
                   : '${definition.label} ($unit)',
-              helperText: definition.helpText.isEmpty
-                  ? null
-                  : definition.helpText,
+              helperText:
+                  definition.helpText.isEmpty ? null : definition.helpText,
             ),
             onChanged: (text) {
               final number = double.tryParse(text.trim());
@@ -840,9 +833,7 @@ class _CapabilityFieldEditor extends StatelessWidget {
               } else {
                 onChanged(
                   DispatchCapabilityDisplayUnits.toCanonical(
-                    definition,
-                    number,
-                  ),
+                      definition, number),
                 );
               }
             },
@@ -857,12 +848,12 @@ class _CapabilityFieldEditor extends StatelessWidget {
             enabled: enabled,
             decoration: InputDecoration(
               labelText: definition.label,
-              helperText: definition.helpText.isEmpty
-                  ? null
-                  : definition.helpText,
+              helperText:
+                  definition.helpText.isEmpty ? null : definition.helpText,
             ),
-            onChanged: (text) =>
-                onChanged(text.trim().isEmpty ? null : text.trim()),
+            onChanged: (text) => onChanged(
+              text.trim().isEmpty ? null : text.trim(),
+            ),
           ),
         );
       case DispatchCapabilityValueType.multiChoice:
@@ -878,9 +869,8 @@ class _CapabilityFieldEditor extends StatelessWidget {
             decoration: InputDecoration(
               labelText: definition.label,
               hintText: 'Separate entries with commas',
-              helperText: definition.helpText.isEmpty
-                  ? null
-                  : definition.helpText,
+              helperText:
+                  definition.helpText.isEmpty ? null : definition.helpText,
             ),
             onChanged: (raw) {
               final values = raw

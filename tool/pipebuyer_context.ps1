@@ -18,6 +18,24 @@ function Assert-PipeBuyerFormalBranch {
   }
 
   $currentBranch = ((git branch --show-current | Out-String).Trim())
+
+  if ([string]::IsNullOrWhiteSpace($currentBranch)) {
+    $headSha = ((git rev-parse HEAD | Out-String).Trim())
+    $expectedRef = "origin/$ExpectedBranch"
+    $expectedSha = ((git rev-parse $expectedRef 2>$null | Out-String).Trim())
+
+    if (
+      [string]::IsNullOrWhiteSpace($headSha) -or
+      [string]::IsNullOrWhiteSpace($expectedSha) -or
+      $headSha -ne $expectedSha
+    ) {
+      throw "STOP: Detached Pipe Buyer worktree must exactly match $expectedRef. HEAD: $headSha Expected: $expectedSha"
+    }
+
+    Write-Host "Detached worktree verified at $expectedRef ($headSha)." -ForegroundColor DarkGray
+    return $ExpectedBranch
+  }
+
   if ($currentBranch -ne $ExpectedBranch) {
     throw "STOP: Expected branch $ExpectedBranch but found $currentBranch"
   }

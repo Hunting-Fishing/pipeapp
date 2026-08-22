@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -5,6 +7,7 @@ import '../core/data/bounded_firestore_query.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_service_taxonomy.dart';
+import 'marketplace_dispatch_directory_actions.dart';
 
 class DispatchDirectoryEntry {
   const DispatchDirectoryEntry({
@@ -21,6 +24,37 @@ class DispatchDirectoryEntry {
     required this.homeBaseLabel,
     required this.homeBasePoint,
   });
+
+  factory DispatchDirectoryEntry.fromDirectoryProjection(
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    final publicLocation = _map(data['publicLocation']);
+    final serviceCodes = data['serviceCodes'] is Iterable
+        ? (data['serviceCodes'] as Iterable)
+            .map((value) => '$value'.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+        : <String>[];
+    serviceCodes.sort();
+    final point = data['mapPoint'];
+
+    return DispatchDirectoryEntry(
+      id: id,
+      operatingName: _firstText([data['companyName'], data['operatingName']]),
+      description: '${data['publicSummary'] ?? ''}'.trim(),
+      website: '${data['website'] ?? ''}'.trim(),
+      businessTypeCode: '${data['businessType'] ?? ''}'.trim(),
+      serviceCodes: serviceCodes,
+      serviceAreaLabel: '${data['serviceAreaSummary'] ?? ''}'.trim(),
+      availabilityCode: '${data['availability'] ?? ''}'.trim(),
+      emergencyCallout: data['emergencyCallout'] == true,
+      remoteSiteCapable: data['remoteSiteCapable'] == true,
+      homeBaseLabel: '${publicLocation['label'] ?? ''}'.trim(),
+      homeBasePoint: point is GeoPoint ? point : null,
+    );
+  }
 
   factory DispatchDirectoryEntry.fromPublicBusinessProfile(
     String id,
@@ -192,23 +226,46 @@ class MarketplaceDispatchDirectoryRepository {
   final FirebaseFirestore _firestore;
 
   Future<DispatchDirectoryPageData> loadPage({
+    DispatchDirectoryFilters filters = const DispatchDirectoryFilters(),
     QueryDocumentSnapshot<Map<String, dynamic>>? after,
     int pageSize = 60,
   }) async {
+    Query<Map<String, dynamic>> query =
+        _firestore.collection('dispatch_directory_entries');
+    final searchTerms = filters.searchText
+        .trim()
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((value) => value.length >= 2)
+        .toList();
+
+    if (filters.serviceCode.isNotEmpty) {
+      query = query.where('serviceCodes', arrayContains: filters.serviceCode);
+    } else if (searchTerms.isNotEmpty) {
+      query = query.where('searchTokens', arrayContains: searchTerms.first);
+    } else if (filters.availabilityCode.isNotEmpty) {
+      query = query.where('availability', isEqualTo: filters.availabilityCode);
+    } else if (filters.businessTypeCode.isNotEmpty) {
+      query = query.where('businessType', isEqualTo: filters.businessTypeCode);
+    }
+
     final page = await loadFirestoreDocumentPage(
-      _firestore.collection('public_business_profiles'),
+      query,
       after: after,
       pageSize: pageSize,
     );
     final entries = page.documents
         .map(
-          (document) => DispatchDirectoryEntry.fromPublicBusinessProfile(
+          (document) => DispatchDirectoryEntry.fromDirectoryProjection(
             document.id,
             document.data(),
           ),
         )
-        .where((entry) => entry.isDirectoryReady)
-        .toList(growable: false);
+        .where((entry) => entry.isDirectoryReady && entry.matches(filters))
+        .toList()
+      ..sort((left, right) => left.operatingName
+          .toLowerCase()
+          .compareTo(right.operatingName.toLowerCase()));
     return DispatchDirectoryPageData(
       entries: entries,
       cursor: page.cursor,
@@ -236,42 +293,75 @@ class MarketplaceDispatchDirectoryPage extends StatefulWidget {
 
 class _MarketplaceDispatchDirectoryPageState
     extends State<MarketplaceDispatchDirectoryPage> {
-  late final MarketplaceDispatchDirectoryRepository _repository;
+  MarketplaceDispatchDirectoryRepository? _repository;
   late Future<DispatchDirectoryPageData> _loadFuture;
+  DispatchDirectoryPageData? _lastSuccessfulData;
+  Timer? _filterDebounce;
+  int _loadGeneration = 0;
   final TextEditingController _search = TextEditingController();
   DispatchDirectoryFilters _filters = const DispatchDirectoryFilters();
 
   @override
   void initState() {
     super.initState();
-    _repository = widget.repository ?? MarketplaceDispatchDirectoryRepository();
+    _repository = widget.repository;
     _loadFuture = _load();
   }
 
   Future<DispatchDirectoryPageData> _load() {
+    final generation = ++_loadGeneration;
     final seed = widget.seedEntries;
+    final Future<DispatchDirectoryPageData> request;
     if (seed != null) {
-      return Future.value(
+      request = Future.value(
         DispatchDirectoryPageData(
           entries: seed,
           cursor: null,
           hasMore: false,
         ),
       );
+    } else {
+      final repository =
+          _repository ??= MarketplaceDispatchDirectoryRepository();
+      request = repository.loadPage(filters: _filters);
     }
-    return _repository.loadPage();
+    return request.then((data) {
+      if (generation == _loadGeneration) {
+        _lastSuccessfulData = data;
+      }
+      return data;
+    });
   }
 
   @override
   void dispose() {
+    _filterDebounce?.cancel();
     _search.dispose();
     super.dispose();
   }
 
-  void _reload() => setState(() => _loadFuture = _load());
+  void _reload() {
+    _filterDebounce?.cancel();
+    final nextLoad = _load();
+    setState(() {
+      _loadFuture = nextLoad;
+    });
+  }
 
-  void _setFilters(DispatchDirectoryFilters value) =>
-      setState(() => _filters = value);
+  void _setFilters(DispatchDirectoryFilters value) {
+    setState(() {
+      _filters = value;
+      _loadGeneration++;
+    });
+    _filterDebounce?.cancel();
+    _filterDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      final nextLoad = _load();
+      setState(() {
+        _loadFuture = nextLoad;
+      });
+    });
+  }
 
   void _clearFilters() {
     _search.clear();
@@ -282,11 +372,14 @@ class _MarketplaceDispatchDirectoryPageState
   Widget build(BuildContext context) {
     return FutureBuilder<DispatchDirectoryPageData>(
       future: _loadFuture,
+      initialData: _lastSuccessfulData,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        final retainedData = snapshot.data ?? _lastSuccessfulData;
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            retainedData == null) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
+        if (snapshot.hasError && retainedData == null) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -301,7 +394,7 @@ class _MarketplaceDispatchDirectoryPageState
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Check the connection and retry. No private provider data is used by this Directory view.',
+                    'Check the connection and retry. Only the bounded server-owned Directory projection is read by this view.',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
@@ -316,7 +409,8 @@ class _MarketplaceDispatchDirectoryPageState
           );
         }
 
-        final allEntries = snapshot.data?.entries ?? const <DispatchDirectoryEntry>[];
+        final allEntries =
+            retainedData?.entries ?? const <DispatchDirectoryEntry>[];
         final filtered = allEntries
             .where((entry) => entry.matches(_filters))
             .toList(growable: false);
@@ -328,7 +422,7 @@ class _MarketplaceDispatchDirectoryPageState
               eyebrow: 'PIPE BUYER SERVICE DIRECTORY',
               title: 'Find industrial service companies',
               subtitle:
-                  'Search structured provider profiles by service, operating area and availability. This first Directory slice uses only public company profile data.',
+                  'Search structured provider profiles by service, operating area and availability. Results come from the server-owned Dispatch Directory projection, which excludes private contacts, exact addresses, credentials and account-only data.',
               icon: Icons.business_outlined,
             ),
             const SizedBox(height: 14),
@@ -338,6 +432,31 @@ class _MarketplaceDispatchDirectoryPageState
               onChanged: _setFilters,
               onClear: _clearFilters,
             ),
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                retainedData != null) ...[
+              const SizedBox(height: 8),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Updating Directory results...',
+                    style: TextStyle(
+                      color: PipeBuyerColors.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (snapshot.hasError && retainedData != null) ...[
+              const SizedBox(height: 8),
+              _DirectoryRefreshWarning(onRetry: _reload),
+            ],
             const SizedBox(height: 14),
             Row(
               children: [
@@ -359,7 +478,7 @@ class _MarketplaceDispatchDirectoryPageState
               const _DirectoryEmptyState(
                 title: 'No companies are listed yet',
                 message:
-                    'Provider profiles become eligible after they contain an operating name, at least one structured service, and a service area.',
+                    'Active, Directory-ready provider profiles will appear here after the server projection publishes them.',
               )
             else if (filtered.isEmpty)
               _DirectoryEmptyState(
@@ -375,7 +494,12 @@ class _MarketplaceDispatchDirectoryPageState
                     : null,
               )
             else
-              ...filtered.map((entry) => _DirectoryCompanyCard(entry: entry)),
+              ...filtered.map(
+                (entry) => _DirectoryCompanyCard(
+                  entry: entry,
+                  remoteDataEnabled: widget.seedEntries == null,
+                ),
+              ),
             if (snapshot.data?.hasMore == true) ...[
               const SizedBox(height: 8),
               const Text(
@@ -430,7 +554,8 @@ class _DirectoryFilterCard extends StatelessWidget {
         children: [
           TextField(
             controller: searchController,
-            onChanged: (value) => onChanged(filters.copyWith(searchText: value)),
+            onChanged: (value) =>
+                onChanged(filters.copyWith(searchText: value)),
             decoration: const InputDecoration(
               labelText: 'Search company, service or area',
               prefixIcon: Icon(Icons.search_outlined),
@@ -440,73 +565,91 @@ class _DirectoryFilterCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
-              final service = DropdownButtonFormField<String>(
-                initialValue: filters.serviceCode,
-                decoration: const InputDecoration(labelText: 'Service'),
-                items: [
-                  const DropdownMenuItem(value: '', child: Text('All services')),
+
+              final service = _DirectoryInlineSelect(
+                id: 'directory-service-filter',
+                label: 'Service',
+                value: filters.serviceCode,
+                options: [
+                  const _DirectoryInlineSelectOption(
+                    value: '',
+                    label: 'All services',
+                  ),
                   ...DispatchServiceTaxonomy.services.map(
-                    (service) => DropdownMenuItem(
+                    (service) => _DirectoryInlineSelectOption(
                       value: service.code,
-                      child: Text(service.label),
+                      label: service.label,
                     ),
                   ),
                 ],
                 onChanged: (value) => onChanged(
-                  filters.copyWith(serviceCode: value ?? ''),
+                  filters.copyWith(serviceCode: value),
                 ),
               );
-              final availability = DropdownButtonFormField<String>(
-                initialValue: filters.availabilityCode,
-                decoration: const InputDecoration(labelText: 'Availability'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Any availability')),
-                  DropdownMenuItem(
+
+              final availability = _DirectoryInlineSelect(
+                id: 'directory-availability-filter',
+                label: 'Availability',
+                value: filters.availabilityCode,
+                options: const [
+                  _DirectoryInlineSelectOption(
+                    value: '',
+                    label: 'Any availability',
+                  ),
+                  _DirectoryInlineSelectOption(
                     value: 'available_now',
-                    child: Text('Available now'),
+                    label: 'Available now',
                   ),
-                  DropdownMenuItem(
+                  _DirectoryInlineSelectOption(
                     value: 'available_today',
-                    child: Text('Available today'),
+                    label: 'Available today',
                   ),
-                  DropdownMenuItem(
+                  _DirectoryInlineSelectOption(
                     value: 'available_this_week',
-                    child: Text('Available this week'),
+                    label: 'Available this week',
                   ),
-                  DropdownMenuItem(
+                  _DirectoryInlineSelectOption(
                     value: 'unavailable',
-                    child: Text('Unavailable'),
+                    label: 'Unavailable',
                   ),
                 ],
                 onChanged: (value) => onChanged(
-                  filters.copyWith(availabilityCode: value ?? ''),
+                  filters.copyWith(availabilityCode: value),
                 ),
               );
-              final businessType = DropdownButtonFormField<String>(
-                initialValue: filters.businessTypeCode,
-                decoration: const InputDecoration(labelText: 'Business type'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('All business types')),
-                  DropdownMenuItem(
+
+              final businessType = _DirectoryInlineSelect(
+                id: 'directory-business-type-filter',
+                label: 'Business type',
+                value: filters.businessTypeCode,
+                options: const [
+                  _DirectoryInlineSelectOption(
+                    value: '',
+                    label: 'All business types',
+                  ),
+                  _DirectoryInlineSelectOption(
                     value: 'owner_operator',
-                    child: Text('Owner / operator'),
+                    label: 'Owner / operator',
                   ),
-                  DropdownMenuItem(
+                  _DirectoryInlineSelectOption(
                     value: 'sole_proprietorship',
-                    child: Text('Sole proprietorship'),
+                    label: 'Sole proprietorship',
                   ),
-                  DropdownMenuItem(
+                  _DirectoryInlineSelectOption(
                     value: 'partnership',
-                    child: Text('Partnership'),
+                    label: 'Partnership',
                   ),
-                  DropdownMenuItem(
+                  _DirectoryInlineSelectOption(
                     value: 'corporation',
-                    child: Text('Corporation / company'),
+                    label: 'Corporation / company',
                   ),
-                  DropdownMenuItem(value: 'other', child: Text('Other')),
+                  _DirectoryInlineSelectOption(
+                    value: 'other',
+                    label: 'Other',
+                  ),
                 ],
                 onChanged: (value) => onChanged(
-                  filters.copyWith(businessTypeCode: value ?? ''),
+                  filters.copyWith(businessTypeCode: value),
                 ),
               );
 
@@ -521,6 +664,7 @@ class _DirectoryFilterCard extends StatelessWidget {
                   ],
                 );
               }
+
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -558,10 +702,145 @@ class _DirectoryFilterCard extends StatelessWidget {
   }
 }
 
+class _DirectoryInlineSelectOption {
+  const _DirectoryInlineSelectOption({
+    required this.value,
+    required this.label,
+  });
+
+  final String value;
+  final String label;
+}
+
+class _DirectoryInlineSelect extends StatefulWidget {
+  const _DirectoryInlineSelect({
+    required this.id,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String id;
+  final String label;
+  final String value;
+  final List<_DirectoryInlineSelectOption> options;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_DirectoryInlineSelect> createState() => _DirectoryInlineSelectState();
+}
+
+class _DirectoryInlineSelectState extends State<_DirectoryInlineSelect> {
+  bool _expanded = false;
+
+  _DirectoryInlineSelectOption get _selected {
+    for (final option in widget.options) {
+      if (option.value == widget.value) return option;
+    }
+    return widget.options.first;
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+  }
+
+  void _choose(String value) {
+    setState(() => _expanded = false);
+
+    // Close the same-tree selector first. Applying parent filter state on the
+    // next frame avoids pointer/geometry churn while the option is handling
+    // its mouse event.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onChanged(value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = _selected;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GestureDetector(
+          key: ValueKey('${widget.id}-button'),
+          behavior: HitTestBehavior.opaque,
+          onTap: _toggle,
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: widget.label,
+              suffixIcon: Icon(
+                _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              ),
+            ),
+            child: Text(
+              selected.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 280),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: widget.options.length,
+              separatorBuilder: (context, index) =>
+                  Divider(height: 1, color: Theme.of(context).dividerColor),
+              itemBuilder: (context, index) {
+                final option = widget.options[index];
+                final isSelected = option.value == widget.value;
+
+                return GestureDetector(
+                  key: ValueKey(
+                    '${widget.id}-option-${option.value}',
+                  ),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _choose(option.value),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(option.label)),
+                        if (isSelected)
+                          const Icon(
+                            Icons.check,
+                            size: 18,
+                            color: PipeBuyerColors.orange,
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _DirectoryCompanyCard extends StatelessWidget {
-  const _DirectoryCompanyCard({required this.entry});
+  const _DirectoryCompanyCard({
+    required this.entry,
+    required this.remoteDataEnabled,
+  });
 
   final DispatchDirectoryEntry entry;
+  final bool remoteDataEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -620,6 +899,13 @@ class _DirectoryCompanyCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
+            MarketplaceDispatchDirectoryBusinessActions(
+              providerUid: entry.id,
+              operatingName: entry.operatingName,
+              serviceCodes: entry.serviceCodes,
+              remoteDataEnabled: remoteDataEnabled,
+            ),
+            const SizedBox(height: 8),
             const Text(
               'Provider-supplied profile information. Verification badges are not shown in this Directory foundation.',
               style: TextStyle(color: PipeBuyerColors.muted, fontSize: 11),
@@ -657,6 +943,38 @@ class _AvailabilityBadge extends StatelessWidget {
       tone: tone,
     );
   }
+}
+
+class _DirectoryRefreshWarning extends StatelessWidget {
+  const _DirectoryRefreshWarning({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF4E8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFFD2A8)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.sync_problem_outlined,
+              color: PipeBuyerColors.orange,
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Could not refresh these filters. Showing the last loaded Directory results.',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      );
 }
 
 class _DirectoryEmptyState extends StatelessWidget {

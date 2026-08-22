@@ -98,6 +98,7 @@ function deliveryCopy(data = {}) {
     auction: ["Auction update", "Open Pipe Buyer to review the latest auction activity."],
     auction_settlement: ["Auction settlement update", "A settlement step needs your attention."],
     dispatch: ["Dispatch update", "Open Pipe Buyer to review the trucking job activity."],
+    dispatch_credential: ["Credential expiry reminder", "A Dispatch credential needs your attention."],
     dispatch_award: ["Dispatch quote selected", "A Dispatch award needs your attention."],
     account_verification: ["Account verification update", "Open your account to review the decision."],
     moderation_decision: ["Report review update", "A report or appeal has been reviewed."],

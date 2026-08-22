@@ -3,51 +3,112 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('saved quote planner supports listing or standalone source', () {
-    final source = File(
+  test('legacy Dashboard quote planner stays superseded by shared Quote V2',
+      () {
+    final page = File(
+      'lib/marketplace/marketplace_dispatch_page.dart',
+    ).readAsStringSync();
+    final dashboard = File(
       'lib/marketplace/marketplace_dispatch_dashboard.dart',
     ).readAsStringSync();
-
-    expect(source, contains("'listing'"));
-    expect(source, contains("'standalone'"));
-    expect(source, contains("collection('public_listings')"));
-    expect(source, contains("where('status', isEqualTo: 'active')"));
-    expect(source, contains('selectedListingId'));
-    expect(source, contains('listingTitle'));
-  });
-
-  test('saved quote planner requires mapped origin and destination', () {
-    final source = File(
-      'lib/marketplace/marketplace_dispatch_dashboard.dart',
+    final form = File(
+      'lib/marketplace/marketplace_dispatch_quote_form.dart',
     ).readAsStringSync();
 
-    expect(source, contains('MarketplaceLocation? originLocation'));
-    expect(source, contains('MarketplaceLocation? destinationLocation'));
-    expect(source, contains('MarketplaceLocationPicker.show('));
-    expect(source, contains('MarketplaceLocationPicker.showDelivery('));
-    expect(source, contains("'originLocation'"));
-    expect(source, contains("'destinationLocation'"));
+    expect(page, contains("import 'marketplace_dispatch_quote_form.dart';"));
+    expect(
+      dashboard,
+      contains("import 'marketplace_dispatch_quote_form.dart';"),
+    );
+    expect(page, contains('MarketplaceDispatchQuoteForm.show('));
+    expect(dashboard, contains('MarketplaceDispatchQuoteForm.show('));
+
+    expect(
+      dashboard,
+      isNot(contains('class _DispatchQuoteDialog extends StatefulWidget')),
+    );
+    expect(
+      dashboard,
+      isNot(contains('class _DispatchUnitRequirementDraft')),
+    );
+    expect(dashboard, isNot(contains('_dispatchQuoteUnitTypes')));
+
+    for (final marker in [
+      "'distanceKm'",
+      "'deadheadKm'",
+      "'mileageRate'",
+      "'deadheadRate'",
+      "'weightKg'",
+      "'weightRate'",
+      "'hourlyRate'",
+      "'pilotCount'",
+      "'permitFee'",
+      "'surchargePercent'",
+      "'taxPercent'",
+      "'manualTotal'",
+      "'formulaVersion': 2",
+      "ButtonSegment(value: 'CAD'",
+      "ButtonSegment(value: 'USD'",
+    ]) {
+      expect(form, contains(marker),
+          reason: 'Missing Quote V2 marker: $marker');
+    }
   });
 
-  test('saved quote planner supports ranged multi-unit requirements', () {
-    final source = File(
-      'lib/marketplace/marketplace_dispatch_dashboard.dart',
+  test('Quote V2 sends a complete versionable server-validated breakdown', () {
+    final repository = File(
+      'lib/marketplace/marketplace_dispatch_repository.dart',
+    ).readAsStringSync();
+    final page = File(
+      'lib/marketplace/marketplace_dispatch_page.dart',
+    ).readAsStringSync();
+    final policy = File(
+      'firebase/functions/dispatch_command_policy.js',
+    ).readAsStringSync();
+    final commands = File(
+      'firebase/functions/dispatch_commands.js',
     ).readAsStringSync();
 
-    expect(source, contains('class _DispatchUnitRequirementDraft'));
-    expect(source, contains("'pilot_truck'"));
-    expect(source, contains("'hauling_tractor'"));
-    expect(source, contains('minQuantity'));
-    expect(source, contains('maxQuantity'));
-    expect(source, contains("'requestedUnits'"));
-    expect(source, contains("'requirementsVersion': 1"));
+    expect(
+      repository,
+      contains('required Map<String, dynamic> quoteBreakdown'),
+    );
+    expect(repository, contains("'quoteBreakdown': quoteBreakdown"));
+    expect(repository, contains("'currency': currency"));
+    expect(page, contains('quoteBreakdown: draft.breakdown'));
+    expect(page, contains('currency: draft.currency'));
+
+    expect(policy, contains('function validateDispatchQuoteBreakdown('));
+    expect(
+      policy,
+      contains(
+        'Carrier quote total does not match the server-calculated quote form.',
+      ),
+    );
+    expect(commands, contains('quoteBreakdown: quote.quoteBreakdown'));
+    expect(commands, contains('quoteReference:'));
+    expect(commands, contains('quoteVersion: revision'));
+    expect(commands, contains('validityStatus: "active"'));
   });
 
-  test('master plan locks source and requested-unit model for Phase 5', () {
-    final plan = File('docs/DISPATCH_NETWORK_MASTER_PLAN.md').readAsStringSync();
+  test(
+      'Dispatch build plan is not coupled to retired Dashboard editor internals',
+      () {
+    final plan =
+        File('docs/DISPATCH_NETWORK_MASTER_PLAN.md').readAsStringSync();
+    final handoff =
+        File('docs/PIPEBUYER_ACTIVE_BUILD_HANDOFF.md').readAsStringSync();
 
-    expect(plan, contains('requestedUnits[]'));
-    expect(plan, contains('Select Marketplace listing'));
-    expect(plan, contains('Custom / standalone job'));
+    expect(plan, contains('PHASE 5'));
+    expect(plan, contains('Request Service'));
+    expect(handoff, contains('Phase 3'));
+    expect(handoff, contains('Phase 4'));
+
+    // The active architecture is the shared Quote V2 form. A plan document
+    // must not force dead private Dashboard classes back into production.
+    final dashboard = File(
+      'lib/marketplace/marketplace_dispatch_dashboard.dart',
+    ).readAsStringSync();
+    expect(dashboard, isNot(contains('class _DispatchUnitRequirementDraft')));
   });
 }

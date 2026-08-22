@@ -41,7 +41,8 @@ class _MarketplaceAdminRoleManagerState
       _error = null;
     });
     try {
-      final result = await _commands.execute('listAdministratorRoles', const {});
+      final result =
+          await _commands.execute('listAdministratorRoles', const {});
       final raw = result['administrators'];
       final administrators = raw is List
           ? raw
@@ -210,8 +211,8 @@ class _MarketplaceAdminRoleManagerState
                   FilledButton.icon(
                     onPressed: _busy ? null : _grant,
                     icon: const Icon(Icons.verified_user_outlined),
-                    label:
-                        Text(_busy ? 'Working...' : 'Grant administrator access'),
+                    label: Text(
+                        _busy ? 'Working...' : 'Grant administrator access'),
                   ),
                 ],
               ),
@@ -240,8 +241,8 @@ class _MarketplaceAdminRoleManagerState
                                 : Icons.admin_panel_settings_outlined,
                             color: primary ? PipeBuyerColors.orange : null,
                           ),
-                          title:
-                              Text(email.isEmpty ? 'Missing Auth account' : email),
+                          title: Text(
+                              email.isEmpty ? 'Missing Auth account' : email),
                           subtitle: Text(
                             primary
                                 ? 'Primary administrator manager - MFA factors: $factors'

@@ -111,7 +111,7 @@ class _MarketplaceAuctionSettlementState
     return PipeBuyerSectionCard(
       title: 'Auction settlement',
       subtitle:
-          'Permanent closeout record between the winning bidder and seller.',
+          'Permanent closeout record between the successful buyer and seller.',
       leading: const _SectionIcon(
         Icons.handshake_outlined,
         tone: PipeBuyerStatusTone.success,
@@ -142,10 +142,9 @@ class _MarketplaceAuctionSettlementState
                 ),
                 _SettlementFact(
                   label: 'Your role',
-                  value: buyer ? 'Winning bidder' : 'Seller',
-                  icon: buyer
-                      ? Icons.person_outline
-                      : Icons.storefront_outlined,
+                  value: buyer ? 'Successful buyer' : 'Seller',
+                  icon:
+                      buyer ? Icons.person_outline : Icons.storefront_outlined,
                   tone: PipeBuyerStatusTone.neutral,
                 ),
               ];
@@ -228,8 +227,7 @@ class _MarketplaceAuctionSettlementState
                   child: OutlinedButton.icon(
                     onPressed: () {
                       final price =
-                          (sale['winningBidAmount'] as num?)?.toDouble() ??
-                              0.0;
+                          (sale['winningBidAmount'] as num?)?.toDouble() ?? 0.0;
                       final title =
                           '${widget.listing['title'] ?? 'Auction Item'}';
                       final invoice = MarketplaceInvoice(
@@ -244,8 +242,7 @@ class _MarketplaceAuctionSettlementState
                         quantity: 1,
                         unitLabel: 'lot',
                         issueDate: DateTime.now(),
-                        dueDate:
-                            DateTime.now().add(const Duration(days: 7)),
+                        dueDate: DateTime.now().add(const Duration(days: 7)),
                         status: sale['escrowStatus'] == 'released'
                             ? 'Paid'
                             : 'Unpaid',
@@ -269,7 +266,7 @@ class _MarketplaceAuctionSettlementState
             style: TextStyle(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 7),
-          _confirmation('Winning bidder', buyerConfirmed),
+          _confirmation('Successful buyer', buyerConfirmed),
           const SizedBox(height: 7),
           _confirmation('Seller', sellerConfirmed),
           const SizedBox(height: 10),
@@ -358,9 +355,8 @@ class _MarketplaceAuctionSettlementState
           children: [
             Icon(
               confirmed ? Icons.check_circle : Icons.schedule_outlined,
-              color: confirmed
-                  ? PipeBuyerColors.success
-                  : PipeBuyerColors.warning,
+              color:
+                  confirmed ? PipeBuyerColors.success : PipeBuyerColors.warning,
             ),
             const SizedBox(width: 9),
             Expanded(
@@ -541,7 +537,8 @@ class _MarketplaceAuctionSettlementState
   IconData _statusIcon(String status) => switch (status) {
         'completed' => Icons.check_circle_outline,
         'disputed' => Icons.report_problem_outlined,
-        'buyer_default_reported' || 'seller_default_reported' =>
+        'buyer_default_reported' ||
+        'seller_default_reported' =>
           Icons.gavel_outlined,
         'cancelled' => Icons.cancel_outlined,
         _ => Icons.schedule_outlined,

@@ -4,7 +4,8 @@ import 'package:pipe_app/marketplace/marketplace_timed_buying_engagement.dart';
 import 'package:pipe_app/marketplace/marketplace_timed_buying_presentation.dart';
 
 void main() {
-  test('legacy auction titles are converted to Timed Buying display titles', () {
+  test('legacy auction titles are converted to Timed Buying display titles',
+      () {
     expect(
       timedBuyingDisplayTitle('Timed Auction — CAT D6 Dozer'),
       'Timed Buying — CAT D6 Dozer',
@@ -16,7 +17,8 @@ void main() {
     expect(timedBuyingDisplayTitle('Auction Lot 14'), 'Timed Buying Lot 14');
   });
 
-  test('final day and final hour both animate while final week stays static', () {
+  test('final day and final hour both animate while final week stays static',
+      () {
     expect(timedBuyingAttentionAnimates(TimedBuyingUrgency.day), isFalse);
     expect(timedBuyingAttentionAnimates(TimedBuyingUrgency.hours), isTrue);
     expect(timedBuyingAttentionAnimates(TimedBuyingUrgency.finalHour), isTrue);
@@ -30,7 +32,8 @@ void main() {
     );
   });
 
-  testWidgets('five-hour listing renders attention strip and viewer-leading badge',
+  testWidgets(
+      'five-hour listing renders attention strip and viewer-leading badge',
       (tester) async {
     final now = DateTime.now();
     await tester.pumpWidget(

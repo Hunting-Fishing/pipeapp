@@ -65,17 +65,15 @@ class MarketplaceReputationSummary {
   factory MarketplaceReputationSummary.fromMap(Map<String, dynamic>? data) {
     final source = data ?? const <String, dynamic>{};
     final rawScore = source['reputationScore'];
-    final parsedScore = rawScore is num
-        ? rawScore.round().clamp(0, 100).toInt()
-        : null;
+    final parsedScore =
+        rawScore is num ? rawScore.round().clamp(0, 100).toInt() : null;
     final rawAverage = source['reviewAverage'];
     return MarketplaceReputationSummary(
       score: parsedScore,
       status: '${source['reputationStatus'] ?? 'new'}'.trim().toLowerCase(),
       reviewAverage: rawAverage is num ? rawAverage.toDouble() : null,
       reviewCount: _safeInt(source['reviewCount']),
-      completedTransactionCount:
-          _safeInt(source['completedTransactionCount']),
+      completedTransactionCount: _safeInt(source['completedTransactionCount']),
       responseBand: '${source['responseBand'] ?? ''}'.trim(),
       reliabilityBand: '${source['reliabilityBand'] ?? ''}'.trim(),
       scoreVersion: _safeInt(source['scoreVersion']),
@@ -181,7 +179,8 @@ class MarketplaceReputationBadge extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: summary.reputationColor,
-                      fontSize: summary.hasPublishedScore ? size * .29 : size * .18,
+                      fontSize:
+                          summary.hasPublishedScore ? size * .29 : size * .18,
                       fontWeight: FontWeight.w900,
                       letterSpacing: summary.hasPublishedScore ? 0 : .7,
                     ),
@@ -211,8 +210,7 @@ class MarketplaceReputationBadge extends StatelessWidget {
     );
   }
 
-  String get _tooltipText =>
-      '${membershipTier.label} outer membership ring\n'
+  String get _tooltipText => '${membershipTier.label} outer membership ring\n'
       '${summary.reputationBand} inner reputation ring\n'
       '${summary.hasPublishedScore ? '${summary.score}/100' : 'New provider — no public numeric score until enough history exists'}\n'
       'Select for the legend and score explanation.';
@@ -344,9 +342,8 @@ class _LegendRow extends StatelessWidget {
       );
 }
 
-int _safeInt(Object? value) => value is num
-    ? value.round().clamp(0, 1 << 30).toInt()
-    : 0;
+int _safeInt(Object? value) =>
+    value is num ? value.round().clamp(0, 1 << 30).toInt() : 0;
 
 String _titleCase(String value) {
   final words = value
@@ -355,6 +352,7 @@ String _titleCase(String value) {
       .where((word) => word.isNotEmpty)
       .toList(growable: false);
   return words
-      .map((word) => '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
+      .map((word) =>
+          '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
       .join(' ');
 }

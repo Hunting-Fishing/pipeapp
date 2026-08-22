@@ -161,6 +161,131 @@ class MarketplaceServiceArea {
   }
 }
 
+Map<String, dynamic> selectServiceAreaBoundaryCandidate({
+  required Iterable<Map<String, dynamic>> candidates,
+  required String requestedName,
+  required ServiceAreaMode mode,
+  String countryCode = '',
+}) {
+  final requested = _normalizeServiceAreaBoundaryText(requestedName);
+  if (requested.isEmpty) return <String, dynamic>{};
+
+  const settlementTypes = {
+    'city',
+    'town',
+    'village',
+    'hamlet',
+    'locality',
+    'municipality',
+    'borough',
+  };
+  const broadTypes = {
+    'country',
+    'state',
+    'province',
+    'region',
+    'district',
+    'county',
+  };
+  const regionTypes = {
+    'country',
+    'state',
+    'province',
+    'region',
+    'district',
+    'county',
+    'municipality',
+    'administrative',
+  };
+
+  for (final item in candidates) {
+    final geometry = item['geojson'];
+    if (geometry is! Map ||
+        !const ['Polygon', 'MultiPolygon'].contains(geometry['type'])) {
+      continue;
+    }
+
+    final address = item['address'] is Map
+        ? Map<String, dynamic>.from(item['address'] as Map)
+        : const <String, dynamic>{};
+    final namedetails = item['namedetails'] is Map
+        ? Map<String, dynamic>.from(item['namedetails'] as Map)
+        : const <String, dynamic>{};
+    final extratags = item['extratags'] is Map
+        ? Map<String, dynamic>.from(item['extratags'] as Map)
+        : const <String, dynamic>{};
+    final displayFirst =
+        '${item['display_name'] ?? ''}'.split(',').first.trim();
+    final names = <String>[
+      '${item['name'] ?? ''}',
+      '${namedetails['name'] ?? ''}',
+      displayFirst,
+      ...[
+        'city',
+        'town',
+        'village',
+        'hamlet',
+        'locality',
+        'municipality',
+        'borough',
+        'district',
+        'county',
+        'state',
+        'province',
+        'region',
+        'country',
+      ].map((key) => '${address[key] ?? ''}'),
+    ].map(_normalizeServiceAreaBoundaryText).where((value) => value.isNotEmpty);
+    if (!names.contains(requested)) continue;
+
+    final addressType = '${item['addresstype'] ?? ''}'.trim().toLowerCase();
+    if (mode == ServiceAreaMode.places) {
+      if (broadTypes.contains(addressType)) continue;
+      final settlementEvidence = settlementTypes.contains(addressType) ||
+          const [
+            'city',
+            'town',
+            'village',
+            'hamlet',
+            'locality',
+            'municipality',
+            'borough',
+          ].any((key) =>
+              _normalizeServiceAreaBoundaryText('${address[key] ?? ''}') ==
+              requested);
+      if (!settlementEvidence) continue;
+
+      // Canadian incorporated municipalities are admin_level 8 in OSM.
+      // Reject a broader regional-district boundary even if its address
+      // hierarchy happens to mention the requested city.
+      if (countryCode.trim().toUpperCase() == 'CA') {
+        final adminLevel = '${extratags['admin_level'] ?? ''}'.trim();
+        if (adminLevel.isNotEmpty && adminLevel != '8') continue;
+      }
+    } else {
+      final regionEvidence = regionTypes.contains(addressType) ||
+          const [
+            'country',
+            'state',
+            'province',
+            'region',
+            'district',
+            'county',
+            'municipality',
+          ].any((key) =>
+              _normalizeServiceAreaBoundaryText('${address[key] ?? ''}') ==
+              requested);
+      if (!regionEvidence) continue;
+    }
+
+    return item;
+  }
+  return <String, dynamic>{};
+}
+
+String _normalizeServiceAreaBoundaryText(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
+
 class MarketplaceServiceAreaPicker extends StatefulWidget {
   const MarketplaceServiceAreaPicker({super.key, this.initial});
   final MarketplaceServiceArea? initial;
@@ -449,7 +574,8 @@ class _MarketplaceServiceAreaPickerState
         ],
       );
 
-  Widget _buildMapPanel(BuildContext context, {required bool wide}) => Container(
+  Widget _buildMapPanel(BuildContext context, {required bool wide}) =>
+      Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
@@ -505,12 +631,13 @@ class _MarketplaceServiceAreaPickerState
                           _mode == ServiceAreaMode.radius
                               ? 'Drag the orange pin or adjust the service radius.'
                               : 'Selected boundaries and reference pins are shown below.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: .60),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: .60),
+                                  ),
                         ),
                       ],
                     ),
@@ -566,10 +693,9 @@ class _MarketplaceServiceAreaPickerState
                                             .withValues(alpha: .14)
                                         : PipeBuyerColors.industrialBlue
                                             .withValues(alpha: .13),
-                                    borderColor:
-                                        _mode == ServiceAreaMode.places
-                                            ? PipeBuyerColors.success
-                                            : PipeBuyerColors.industrialBlue,
+                                    borderColor: _mode == ServiceAreaMode.places
+                                        ? PipeBuyerColors.success
+                                        : PipeBuyerColors.industrialBlue,
                                     borderStrokeWidth: 2.25,
                                   ),
                                 )
@@ -658,11 +784,15 @@ class _MarketplaceServiceAreaPickerState
       );
 
   void _selected(OpenAddress address) async {
-    final settlement = _settlementName(address);
+    final selectedAreaName = _mode == ServiceAreaMode.places
+        ? _settlementName(address)
+        : _regionName(address);
     final name = [
-      _mode == ServiceAreaMode.places ? settlement : address.region,
-      if (_mode == ServiceAreaMode.places) address.region,
-      address.country
+      selectedAreaName,
+      if (address.region.isNotEmpty &&
+          _normalized(address.region) != _normalized(selectedAreaName))
+        address.region,
+      address.country,
     ].where((value) => value.isNotEmpty).toSet().join(', ');
     var place = ServiceAreaPlace(
       name: name.isEmpty ? address.label : name,
@@ -697,10 +827,20 @@ class _MarketplaceServiceAreaPickerState
       );
       if (!mounted) return;
       setState(() => _loadingBoundary = false);
+      if (_mode == ServiceAreaMode.regions && boundary.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+            'An official administrative boundary was not available for this region result, so it was not added. Choose another region result with a mapped boundary.',
+          ),
+        ));
+        return;
+      }
       if (_mode == ServiceAreaMode.places && boundary.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'An official municipality boundary was not available. The town pin is still saved and can be adjusted.')));
+          content: Text(
+            'An official municipality boundary was not available. Only the town reference point will be saved; a surrounding district will not be substituted.',
+          ),
+        ));
       }
     }
     if (_places.any((item) => item.name == place.name)) return;
@@ -776,61 +916,87 @@ class _MarketplaceServiceAreaPickerState
 
   Future<List<List<LatLng>>> _loadBoundary(OpenAddress address) async {
     try {
-      final directRelation = _mode == ServiceAreaMode.regions &&
-          address.osmType.toUpperCase() == 'R' &&
-          address.osmId.isNotEmpty;
+      final directRelation =
+          _isRelationOsmType(address.osmType) && address.osmId.isNotEmpty;
       final requestedName = _mode == ServiceAreaMode.places
           ? _settlementName(address)
-          : address.region;
-      final uri = directRelation
-          ? Uri.https('nominatim.openstreetmap.org', '/lookup', {
-              'osm_ids': 'R${address.osmId}',
-              'format': 'jsonv2',
-              'polygon_geojson': '1',
-              'polygon_threshold': '0.005',
-              'email': 'admin@pipebuyer.com',
-            })
-          : Uri.https('nominatim.openstreetmap.org', '/search', {
-              'q': [requestedName, address.region, address.country]
-                  .where((part) => part.isNotEmpty)
-                  .join(', '),
-              'format': 'jsonv2',
-              'addressdetails': '1',
-              'polygon_geojson': '1',
-              'polygon_threshold': '0.005',
-              'limit': '8',
-              'email': 'admin@pipebuyer.com',
-            });
-      final response = await http.get(uri, headers: {
-        'Accept': 'application/json'
-      }).timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200) return const [];
-      final results = jsonDecode(response.body) as List;
-      if (results.isEmpty) return const [];
-      final candidates = results
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item));
-      final polygonCandidates = candidates.where((item) =>
-          item['geojson'] is Map &&
-          const ['Polygon', 'MultiPolygon']
-              .contains((item['geojson'] as Map)['type']));
-      final requested = _normalized(requestedName);
-      final selected = polygonCandidates.firstWhere((item) {
-        final display = _normalized('${item['display_name'] ?? ''}');
-        final addressData = item['address'] is Map
-            ? Map<String, dynamic>.from(item['address'] as Map)
-            : const <String, dynamic>{};
-        final names = [
-          addressData['city'],
-          addressData['town'],
-          addressData['village'],
-          addressData['municipality'],
-          addressData['county'],
-          addressData['name']
-        ].map((value) => _normalized('${value ?? ''}'));
-        return requested.isNotEmpty &&
-            (display.startsWith(requested) || names.contains(requested));
-      }, orElse: () => <String, dynamic>{});
+          : _regionName(address);
+      final common = <String, String>{
+        'format': 'jsonv2',
+        'addressdetails': '1',
+        'extratags': '1',
+        'namedetails': '1',
+        'polygon_geojson': '1',
+        'polygon_threshold':
+            _mode == ServiceAreaMode.places ? '0.002' : '0.005',
+        'limit': '8',
+        'email': 'admin@pipebuyer.com',
+      };
+
+      Future<List<Map<String, dynamic>>> fetchCandidates(Uri uri) async {
+        final response = await http.get(uri, headers: {
+          'Accept': 'application/json'
+        }).timeout(const Duration(seconds: 20));
+        if (response.statusCode != 200) return const [];
+        final decoded = jsonDecode(response.body);
+        if (decoded is! List) return const [];
+        return decoded
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList(growable: false);
+      }
+
+      var candidates = <Map<String, dynamic>>[];
+      if (directRelation) {
+        candidates = await fetchCandidates(
+          Uri.https('nominatim.openstreetmap.org', '/lookup', {
+            ...common,
+            'osm_ids': 'R${address.osmId}',
+          }),
+        );
+      }
+
+      var selected = selectServiceAreaBoundaryCandidate(
+        candidates: candidates,
+        requestedName: requestedName,
+        mode: _mode,
+        countryCode: address.countryCode,
+      );
+
+      if (selected.isEmpty) {
+        final queryParts = <String>[
+          requestedName,
+          if (address.region.isNotEmpty &&
+              _normalized(address.region) != _normalized(requestedName))
+            address.region,
+          address.country,
+        ].where((part) => part.isNotEmpty).toSet().toList();
+        final searchParameters = <String, String>{
+          ...common,
+          if (address.countryCode.isNotEmpty)
+            'countrycodes': address.countryCode.toLowerCase(),
+          if (_mode == ServiceAreaMode.places) 'city': requestedName,
+          if (_mode == ServiceAreaMode.places && address.region.isNotEmpty)
+            'state': address.region,
+          if (_mode == ServiceAreaMode.places && address.country.isNotEmpty)
+            'country': address.country,
+          if (_mode == ServiceAreaMode.regions) 'q': queryParts.join(', '),
+        };
+        candidates = await fetchCandidates(
+          Uri.https(
+            'nominatim.openstreetmap.org',
+            '/search',
+            searchParameters,
+          ),
+        );
+        selected = selectServiceAreaBoundaryCandidate(
+          candidates: candidates,
+          requestedName: requestedName,
+          mode: _mode,
+          countryCode: address.countryCode,
+        );
+      }
+
       final geometry = selected['geojson'] as Map<String, dynamic>?;
       if (geometry == null) return const [];
       final coordinates = geometry['coordinates'];
@@ -842,7 +1008,9 @@ class _MarketplaceServiceAreaPickerState
             .whereType<List>()
             .where((pair) => pair.length >= 2)
             .map((pair) => LatLng(
-                (pair[1] as num).toDouble(), (pair[0] as num).toDouble()))
+                  (pair[1] as num).toDouble(),
+                  (pair[0] as num).toDouble(),
+                ))
             .toList();
         if (ring.length >= 3) rings.add(ring);
       }
@@ -865,6 +1033,20 @@ class _MarketplaceServiceAreaPickerState
     if (city.isNotEmpty && _normalized(city) != _normalized(address.region)) {
       return city;
     }
+    final explicit = address.name.trim();
+    if (explicit.isNotEmpty &&
+        const {
+          'city',
+          'town',
+          'village',
+          'hamlet',
+          'locality',
+          'municipality',
+          'borough',
+        }.contains(address.placeType.toLowerCase()) &&
+        _normalized(explicit) != _normalized(address.region)) {
+      return explicit;
+    }
     final firstLabel =
         address.label.split(',').first.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (firstLabel.isNotEmpty &&
@@ -873,6 +1055,19 @@ class _MarketplaceServiceAreaPickerState
       return firstLabel;
     }
     return city;
+  }
+
+  String _regionName(OpenAddress address) {
+    final explicit = address.name.trim();
+    if (explicit.isNotEmpty) return explicit;
+    final region = address.region.trim();
+    if (region.isNotEmpty) return region;
+    return address.label.split(',').first.trim();
+  }
+
+  bool _isRelationOsmType(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized == 'r' || normalized == 'relation';
   }
 
   String _normalized(String value) =>

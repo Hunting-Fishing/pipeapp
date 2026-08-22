@@ -1452,6 +1452,43 @@ function createMarketplaceCommands(admin) {
     return personalName ? personalName.slice(0, 160) : "Marketplace buyer";
   }
 
+  function maskedTimedOfferPersonalName(rawName) {
+    const parts = String(rawName || "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "Authenticated buyer";
+    if (parts.length === 1) return parts[0].slice(0, 40);
+    const last = parts[parts.length - 1];
+    return (parts[0] + " " + last.slice(0, 1).toUpperCase() + ".").slice(0, 80);
+  }
+
+  async function timedOfferPublicIdentity(transaction, buyerUid, request) {
+    const userSnapshot = await transaction.get(db.collection("users").doc(buyerUid));
+    const user = userSnapshot.data() || {};
+    const accountType = String(user.accountType || "personal").trim() || "personal";
+    let publicName = "";
+    if (accountType === "business") {
+      const businessSnapshot = await transaction.get(
+          db.collection("public_business_profiles").doc(buyerUid),
+      );
+      publicName = String(
+          businessSnapshot.data() && businessSnapshot.data().publicName ||
+          user.businessName || user.displayName || user.display_name || "",
+      ).trim();
+    } else {
+      const personalName = String(
+          user.display_name || user.displayName ||
+          (buyerUid === request.auth.uid && request.auth.token && request.auth.token.name) ||
+          "",
+      ).trim();
+      publicName = maskedTimedOfferPersonalName(personalName);
+    }
+    return {
+      bidderPublicName: (publicName || "Authenticated buyer").slice(0, 160),
+      bidderVerified: approvedAccountVerification(user),
+      bidderAccountType: accountType.slice(0, 40),
+      bidderIdentityVersion: 1,
+    };
+  }
+
   const placeAuctionBid = featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
@@ -1481,6 +1518,10 @@ function createMarketplaceCommands(admin) {
       const now = Timestamp.now();
       const validated = validatePlaceBid(listing, uid, amount, now);
       await requireEligibleBidder(transaction, uid, isAdministrator(request));
+      const bidderIdentity = await timedOfferPublicIdentity(
+          transaction, uid, request,
+      );
+      const sequenceNumber = Number(listing.bidCount || 0) + 1;
 
       let previousBidRef = null;
       let previousBidSnapshot = null;
@@ -1510,6 +1551,8 @@ function createMarketplaceCommands(admin) {
         listingId,
         sellerUid: listing.sellerUid,
         bidderUid: uid,
+        ...bidderIdentity,
+        sequenceNumber,
         amount: validated.amount,
         currency: listing.currency || "CAD",
         status: "leading",

@@ -14,9 +14,33 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Pipe Buyer doctor failed.'
 }
 
-$tracked = @(git diff --name-only --diff-filter=ACMR HEAD)
+# Changed-file discovery is read-only. Disable worktree line-ending
+# conversion for these Git inventory commands so harmless autocrlf warnings
+# on stderr cannot become terminating NativeCommandError records in Windows
+# PowerShell when $ErrorActionPreference is Stop.
+$tracked = @(
+  git `
+    -c core.autocrlf=false `
+    -c core.safecrlf=false `
+    diff `
+    --name-only `
+    --diff-filter=ACMR `
+    HEAD
+)
+if ($LASTEXITCODE -ne 0) {
+  throw 'Git failed while enumerating tracked changes for the Formal Fast Gate.'
+}
+
 $untracked = @(git ls-files --others --exclude-standard)
-$changed = @($tracked + $untracked | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+if ($LASTEXITCODE -ne 0) {
+  throw 'Git failed while enumerating untracked files for the Formal Fast Gate.'
+}
+
+$changed = @(
+  $tracked + $untracked |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+    Sort-Object -Unique
+)
 
 Write-Step 'Checking changed Node generator syntax'
 $nodeFiles = @($changed | Where-Object { $_ -match '\.(mjs|cjs|js)$' })

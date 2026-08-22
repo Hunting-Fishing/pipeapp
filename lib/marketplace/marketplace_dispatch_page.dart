@@ -12,12 +12,15 @@ import '../core/data/bounded_firestore_query.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_repository.dart';
 import 'marketplace_dispatch_company_profile_page.dart';
+import 'marketplace_dispatch_directory.dart';
 import 'marketplace_dispatch_distance.dart';
 import 'marketplace_money.dart';
 import 'marketplace_service_area.dart';
 import 'marketplace_freight_quote.dart';
+import 'marketplace_dispatch_quote_form.dart';
 import 'marketplace_dispatch_dashboard.dart';
 import 'marketplace_dispatch_navigation.dart';
+import 'marketplace_dispatch_multi_service_selector.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_dispatch_transaction.dart';
@@ -464,8 +467,7 @@ class _MarketplaceDispatchPageState extends State<MarketplaceDispatchPage> {
                   onListBusiness: () => _openProviderAccount(accountState),
                 ),
           DispatchSection.requestService => _PostJob(repo: repo),
-          DispatchSection.directory => MarketplaceDispatchDirectoryFoundation(
-              accountState: accountState,
+          DispatchSection.directory => MarketplaceDispatchDirectoryPage(
               legacyProviderTools: accountState.providerRegistered
                   ? _PilotTruckSection(repo: repo)
                   : null,
@@ -1535,125 +1537,79 @@ class _JobBoardState extends State<_JobBoard> {
       }
       return;
     }
+
     final existingData = existing?.data();
-    var selectedVehicle = fleet.docs
-            .where((vehicle) => vehicle.id == existingData?['vehicleId'])
+    final rawBreakdown = existingData?['quoteBreakdown'];
+    final previousBreakdown = rawBreakdown is Map
+        ? Map<String, dynamic>.from(rawBreakdown)
+        : <String, dynamic>{};
+    final existingVehicleId = '${existingData?['vehicleId'] ?? ''}';
+    final selectedVehicle = fleet.docs
+            .where((vehicle) => vehicle.id == existingVehicleId)
             .firstOrNull ??
         fleet.docs.first;
-    final amount = TextEditingController(
-      text: '${existingData?['amount'] ?? ''}',
-    );
-    final note = TextEditingController(text: '${existingData?['note'] ?? ''}');
-    var date = (existingData?['availableDate'] as Timestamp?)?.toDate() ??
-        (data['truckingDate'] as Timestamp?)?.toDate() ??
-        DateTime.now();
+    final initialDate =
+        (existingData?['availableDate'] as Timestamp?)?.toDate() ??
+            (data['truckingDate'] as Timestamp?)?.toDate() ??
+            DateTime.now();
+    final routeDistance = data['routeDistanceKm'] ?? data['distanceKm'] ?? 0;
+    final initial = <String, dynamic>{
+      ...previousBreakdown,
+      'name': previousBreakdown['name'] ??
+          'Dispatch quote - ${data['title'] ?? 'job'}',
+      'origin': data['pickupLabel'] ?? previousBreakdown['origin'] ?? '',
+      'destination':
+          data['deliveryLabel'] ?? previousBreakdown['destination'] ?? '',
+      'distanceKm': previousBreakdown['distanceKm'] ?? routeDistance,
+      'weightKg': previousBreakdown['weightKg'] ??
+          data['estimatedWeightKg'] ??
+          data['catalogWeightKg'] ??
+          0,
+      'terms': existingData?['note'] ?? '',
+      'currency':
+          existingData?['currency'] ?? previousBreakdown['currency'] ?? 'CAD',
+    };
+    final vehicles = fleet.docs.map(
+      (vehicle) {
+        final vehicleData = vehicle.data();
+        final vehicleType = '${vehicleData['vehicleType'] ?? 'Truck'}';
+        return DispatchQuoteVehicleOption(
+          id: vehicle.id,
+          name: '${vehicleData['name'] ?? 'Fleet vehicle'}',
+          subtitle:
+              '$vehicleType • ${vehicleData['maximumPayloadKg'] ?? 0} kg payload',
+        );
+      },
+    ).toList(growable: false);
+
     if (!context.mounted) return;
-    final submit = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => StatefulBuilder(
-            builder: (context, update) => AlertDialog(
-              title: Text(
-                existing == null ? 'Bid on trucking job' : 'Edit carrier quote',
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: amount,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'All-in transport price',
-                      prefixText: r'$ ',
-                    ),
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedVehicle.id,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Truck assigned to this bid',
-                    ),
-                    items: fleet.docs.map((vehicle) {
-                      final vehicleData = vehicle.data();
-                      final vehicleType =
-                          '${vehicleData['vehicleType'] ?? 'Truck'}';
-                      return DropdownMenuItem(
-                        value: vehicle.id,
-                        child: MarketplaceFormOption(
-                          label: '${vehicleData['name'] ?? 'Fleet vehicle'}',
-                          subtitle:
-                              '$vehicleType • ${vehicleData['maximumPayloadKg'] ?? 0} kg payload',
-                          icon: _vehicleTypeFallbackIcon(vehicleType),
-                          assetPath: IndustrialIconAssets.forVehicleType(
-                            vehicleType,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      selectedVehicle = fleet.docs.firstWhere(
-                        (vehicle) => vehicle.id == value,
-                      );
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.calendar_month_outlined),
-                    title: const Text('Carrier available date'),
-                    subtitle: Text(
-                      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-                    ),
-                    onTap: () async {
-                      final selected = await showDatePicker(
-                        context: dialogContext,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 730)),
-                        initialDate: date.isBefore(DateTime.now())
-                            ? DateTime.now()
-                            : date,
-                      );
-                      if (selected != null) {
-                        update(() => date = selected);
-                      }
-                    },
-                  ),
-                  TextField(
-                    controller: note,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Equipment, timing and terms',
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: Text(
-                    existing == null ? 'Review bid' : 'Review changes',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ) ??
-        false;
-    if (!submit || !context.mounted) return;
-    final value = num.tryParse(amount.text);
-    if (value == null || value <= 0) return;
+    final draft = await MarketplaceDispatchQuoteForm.show(
+      context,
+      title: existing == null ? 'Build carrier quote' : 'Revise carrier quote',
+      subtitle: existing == null
+          ? 'Use the Pipe Buyer quote form. The submitted quote becomes Version 1.'
+          : 'The current quote is preserved. Saving creates the next immutable version.',
+      confirmLabel:
+          existing == null ? 'Review Version 1' : 'Review new version',
+      initial: initial,
+      lockLaneIdentity: true,
+      vehicles: vehicles,
+      initialVehicleId: selectedVehicle.id,
+      initialAvailableDate: initialDate,
+    );
+    if (draft == null || !context.mounted) return;
+
+    final nextVersion = (existingData?['revision'] as num? ?? 0).toInt() + 1;
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text(
               existing == null
-                  ? 'Submit carrier bid?'
-                  : 'Save revised carrier quote?',
+                  ? 'Submit carrier quote Version 1?'
+                  : 'Submit carrier quote Version $nextVersion?',
             ),
             content: Text(
-              '${marketplaceMoney(value)} all-in. The job owner will see your carrier profile, terms, and revision history.',
+              '${marketplaceMoney(draft.total)} ${draft.currency}. The job owner will see this version and the participant-only version history. Earlier versions remain preserved and are no longer the active quote.',
             ),
             actions: [
               TextButton(
@@ -1662,42 +1618,46 @@ class _JobBoardState extends State<_JobBoard> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(existing == null ? 'Submit bid' : 'Save quote'),
+                child: Text(existing == null
+                    ? 'Submit Version 1'
+                    : 'Save Version $nextVersion'),
               ),
             ],
           ),
         ) ??
         false;
-    if (confirmed) {
-      try {
-        await repo.bid(
-          jobId: id,
-          amount: value,
-          note: note.text.trim(),
-          availableDate: date,
-          vehicleId: selectedVehicle.id,
-          vehicleName: '${selectedVehicle.data()['name'] ?? 'Fleet vehicle'}',
+    if (!confirmed) return;
+
+    try {
+      await repo.bid(
+        jobId: id,
+        amount: draft.total,
+        note: draft.terms,
+        availableDate: draft.availableDate!,
+        vehicleId: draft.vehicleId!,
+        vehicleName: draft.vehicleName!,
+        quoteBreakdown: draft.breakdown,
+        currency: draft.currency,
+      );
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: existing == null
+              ? 'Carrier quote Version 1 submitted.'
+              : 'Carrier quote Version $nextVersion submitted. Previous version preserved.',
+          tone: PipeStatusTone.success,
         );
-        if (context.mounted) {
-          PipeFeedback.show(
-            context,
-            message: existing == null
-                ? 'Carrier quote submitted.'
-                : 'Carrier quote updated. Revision saved.',
-            tone: PipeStatusTone.success,
-          );
-        }
-      } catch (error) {
-        if (context.mounted) {
-          PipeFeedback.show(
-            context,
-            message: marketplaceCommandErrorMessage(
-              error,
-              fallback: 'The carrier quote could not be saved.',
-            ),
-            tone: PipeStatusTone.error,
-          );
-        }
+      }
+    } catch (error) {
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The carrier quote could not be saved.',
+          ),
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -1976,6 +1936,7 @@ class _PostJobState extends State<_PostJob> {
   final pickup = TextEditingController();
   final delivery = TextEditingController();
   final details = TextEditingController();
+  List<String> requestedServiceCodes = <String>[];
   MarketplaceLocation? pickupLocation;
   MarketplaceLocation? deliveryLocation;
   DateTime date = DateTime.now().add(const Duration(days: 1));
@@ -1989,6 +1950,21 @@ class _PostJobState extends State<_PostJob> {
           ),
           const Text(
             'Only operational details are shared. Private offer and payment information stays protected.',
+          ),
+          const SizedBox(height: 14),
+          Card(
+            color: const Color(0xFFF8FAFC),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: MarketplaceDispatchMultiServiceSelector(
+                initialServiceCodes: requestedServiceCodes,
+                onChanged: (values) =>
+                    setState(() => requestedServiceCodes = values),
+                label: 'Choose service(s)',
+                helperText:
+                    'Keep the existing transportation request below, but select the actual work needed first — Hotshot, crane, pilot, road work, mobile service and more.',
+              ),
+            ),
           ),
           const SizedBox(height: 14),
           Card(
@@ -2094,6 +2070,15 @@ class _PostJobState extends State<_PostJob> {
                 FilledButton.icon(
                   onPressed: () async {
                     if (!form.currentState!.validate()) return;
+                    if (requestedServiceCodes.isEmpty) {
+                      PipeFeedback.show(
+                        context,
+                        message:
+                            'Choose at least one service before publishing this request.',
+                        tone: PipeStatusTone.warning,
+                      );
+                      return;
+                    }
                     if (pickupLocation == null || deliveryLocation == null) {
                       PipeFeedback.show(
                         context,
@@ -2108,7 +2093,8 @@ class _PostJobState extends State<_PostJob> {
                         pickup: pickup.text.trim(),
                         delivery: delivery.text.trim(),
                         truckingDate: date,
-                        loadDetails: details.text.trim(),
+                        loadDetails:
+                            _requestDetailsWithServices(details.text.trim()),
                         pickupGeoPoint: pickupLocation!.exactGeoPoint,
                         deliveryLocation: deliveryLocation,
                       );
@@ -2141,6 +2127,12 @@ class _PostJobState extends State<_PostJob> {
           ),
         ],
       );
+
+  String _requestDetailsWithServices(String requestDetails) {
+    final services =
+        requestedServiceCodes.map(dispatchServiceLabelForCode).join(', ');
+    return 'Services requested: $services\n$requestDetails';
+  }
 
   Future<void> _choosePickup() async {
     final selected = await MarketplaceLocationPicker.show(

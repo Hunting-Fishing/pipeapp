@@ -3,32 +3,48 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Directory runtime regression follows semantic lifecycle markers', () {
+  test('Directory runtime regression checks production lifecycle semantics',
+      () {
     final source = File(
-      'test/dispatch_directory_filter_runtime_stability_contract_test.dart',
-    ).readAsStringSync();
+      'lib/marketplace/marketplace_dispatch_directory.dart',
+    ).readAsStringSync().replaceAll('\r\n', '\n');
 
-    expect(source, contains("replaceAll(RegExp(r'\\s+'), ' ')"));
-    expect(source, contains("contains('_filters = value;')"));
-    expect(source, contains("contains('_loadGeneration++;')"));
-    expect(source, contains("contains('_filterDebounce?.cancel();')"));
-    expect(source, contains("contains('final nextLoad = _load();')"));
-    expect(
-      source,
-      contains("contains('setState(() { _loadFuture = nextLoad; });')"),
+    final start = source.indexOf(
+      'void _setFilters(DispatchDirectoryFilters value)',
+    );
+    final end = source.indexOf(
+      '@override\n  Widget build(BuildContext context)',
+      start,
     );
 
-    // Never codify the runtime-invalid arrow assignment again. Because the
-    // assignment expression evaluates to the Future returned by _load(),
-    // Flutter rejects it at runtime as a non-void setState callback.
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+
+    final segment = source.substring(start, end);
+    final compact = segment.replaceAll(RegExp(r'\s+'), ' ');
+
+    expect(compact, contains('_filters = value;'));
+    expect(compact, contains('_loadGeneration++;'));
+    expect(compact, contains('_filterDebounce?.cancel();'));
     expect(
-      source,
-      isNot(contains("contains('setState(() => _loadFuture = _load());')")),
+      compact,
+      contains('Timer(const Duration(milliseconds: 180), () {'),
+    );
+    expect(compact, contains('final nextLoad = _load();'));
+    expect(
+      compact,
+      contains('setState(() { _loadFuture = nextLoad; });'),
     );
 
+    // The production callback body must return void. Inspect production
+    // source directly instead of scanning a test file for quoted assertions.
     expect(
-      source,
-      isNot(contains("contains('setState(() => _filters = value);')")),
+      compact,
+      isNot(contains('setState(() => _loadFuture = _load());')),
+    );
+    expect(
+      compact,
+      isNot(contains('_filters = value; _loadFuture = _load();')),
     );
   });
 }

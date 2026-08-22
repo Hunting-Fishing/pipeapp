@@ -13,15 +13,16 @@ void main() {
           now: now,
         );
 
-    expect(state(const Duration(days: 45)).urgency,
-        TimedBuyingUrgency.monthPlus);
+    expect(
+        state(const Duration(days: 45)).urgency, TimedBuyingUrgency.monthPlus);
     expect(state(const Duration(days: 20)).urgency, TimedBuyingUrgency.weeks);
     expect(state(const Duration(days: 10)).urgency, TimedBuyingUrgency.week);
     expect(state(const Duration(days: 3)).urgency, TimedBuyingUrgency.day);
     expect(state(const Duration(hours: 8)).urgency, TimedBuyingUrgency.hours);
     expect(state(const Duration(minutes: 35)).urgency,
         TimedBuyingUrgency.finalHour);
-    expect(state(const Duration(minutes: -1)).urgency, TimedBuyingUrgency.closed);
+    expect(
+        state(const Duration(minutes: -1)).urgency, TimedBuyingUrgency.closed);
   });
 
   test('upcoming Timed Buying shows the start countdown', () {

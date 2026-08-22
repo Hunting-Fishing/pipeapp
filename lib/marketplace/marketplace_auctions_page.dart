@@ -19,8 +19,11 @@ import 'marketplace_freight_quote.dart';
 import 'marketplace_grid_density.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_listing_status.dart';
+import 'marketplace_listing_specs.dart';
 import 'marketplace_money.dart';
-import 'marketplace_property_details.dart';
+import 'marketplace_timed_buying_presentation.dart';
+import 'marketplace_timed_buying_engagement.dart';
+import 'marketplace_timed_buying_trust.dart';
 import 'marketplace_trucking_plan.dart';
 
 DateTime? parseAuctionDate(Map<String, dynamic> data, List<String> keys) {
@@ -126,15 +129,15 @@ class _MarketplaceAuctionRoutePageState
           if (snapshot.connectionState != ConnectionState.done) {
             return const Scaffold(
               body: MarketplaceDataStateView.loading(
-                title: 'Loading timed auction',
+                title: 'Loading Timed Buying',
                 message:
-                    'Retrieving current bids, timing, and listing details…',
+                    'Retrieving current timed offers, timing, and listing details…',
               ),
             );
           }
           if (snapshot.hasError) {
             return Scaffold(
-              appBar: AppBar(title: const Text('Timed auction')),
+              appBar: AppBar(title: const Text('Timed Buying')),
               body: _AuctionLoadError(
                 details:
                     'Check your connection or account access, then try again.',
@@ -146,7 +149,7 @@ class _MarketplaceAuctionRoutePageState
           if (docs.isEmpty) {
             return Scaffold(
               appBar: AppBar(
-                title: const Text('Timed auction'),
+                title: const Text('Timed Buying'),
                 actions: [
                   IconButton(
                     tooltip: 'Marketplace home',
@@ -157,7 +160,7 @@ class _MarketplaceAuctionRoutePageState
               ),
               body: _AuctionLoadError(
                 details:
-                    'This auction may have ended, been removed, or the link may be incorrect.',
+                    'This Timed Buying listing may have closed, been removed, or the link may be incorrect.',
                 onRetry: () => setState(_load),
               ),
             );
@@ -246,10 +249,10 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
     } catch (error) {
       if (!mounted || generation != _queryGeneration) return;
       setState(() {
-        _loadError =
-            error is FirebaseException && error.code == 'failed-precondition'
-                ? 'The auction index is still being prepared. Try again shortly.'
-                : 'Check your connection and try again.';
+        _loadError = error is FirebaseException &&
+                error.code == 'failed-precondition'
+            ? 'The Timed Buying index is still being prepared. Try again shortly.'
+            : 'Check your connection and try again.';
       });
     } finally {
       if (mounted && generation == _queryGeneration) {
@@ -272,7 +275,8 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final auctions = all.where((doc) {
       final data = doc.data();
-      if (_filter == 'My auctions') return uid != null && data['sellerUid'] == uid;
+      if (_filter == 'My Timed Buying')
+        return uid != null && data['sellerUid'] == uid;
       if (_filter == 'Live') return isAuctionLive(data, now);
       if (_filter == 'Upcoming') return isAuctionUpcoming(data, now);
       if (_filter == 'Ended') return isAuctionEnded(data, now);
@@ -291,7 +295,7 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                 upcomingCount: upcomingCount,
                 endedCount: endedCount,
                 onCreateAuction: widget.onCreateAuction,
-                onShowLegend: () => showMarketplaceListingLegend(context),
+                onShowLegend: () => showTimedBuyingAttentionLegend(context),
               ),
               const SizedBox(height: 12),
               LayoutBuilder(
@@ -317,9 +321,9 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                           label: Text('Ended'),
                         ),
                         ButtonSegment(
-                          value: 'My auctions',
+                          value: 'My Timed Buying',
                           icon: Icon(Icons.person_outline),
-                          label: Text('My auctions'),
+                          label: Text('My Timed Buying'),
                         ),
                       ],
                       selected: {_filter},
@@ -332,8 +336,7 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                   );
                   final density = MarketplaceGridDensityBar(
                     selectedColumns: _gridColumns,
-                    onChanged: (value) =>
-                        setState(() => _gridColumns = value),
+                    onChanged: (value) => setState(() => _gridColumns = value),
                   );
                   if (compact) {
                     return Column(
@@ -357,7 +360,12 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
             ],
           ),
         ),
-        Expanded(child: _body(auctions)),
+        Expanded(
+          child: TimedBuyingViewerParticipationScope(
+            viewerUid: uid,
+            child: _body(auctions),
+          ),
+        ),
       ],
     );
   }
@@ -365,8 +373,8 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
   Widget _body(List<QueryDocumentSnapshot<Map<String, dynamic>>> auctions) {
     if (_loading && _documents.isEmpty) {
       return const MarketplaceDataStateView.loading(
-        title: 'Loading auctions',
-        message: 'Retrieving current bidding and closing times…',
+        title: 'Loading Timed Buying',
+        message: 'Retrieving current timed offers and closing times…',
       );
     }
     if (_loadError != null && _documents.isEmpty) {
@@ -439,7 +447,7 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
         padding: EdgeInsets.symmetric(vertical: 14),
         child: Center(
           child: Text(
-            'All auctions loaded.',
+            'All Timed Buying listings loaded.',
             style: TextStyle(color: PipeBuyerColors.muted),
           ),
         ),
@@ -456,7 +464,7 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.expand_more),
-          label: Text(_loading ? 'Loading more…' : 'Load more auctions'),
+          label: Text(_loading ? 'Loading more…' : 'Load more Timed Buying'),
         ),
       ),
     );
@@ -503,7 +511,7 @@ class _AuctionPageHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'PIPE BUYER AUCTIONS',
+                  'PIPE BUYER TIMED BUYING',
                   style: TextStyle(
                     color: PipeBuyerColors.orange,
                     fontSize: 11,
@@ -513,7 +521,7 @@ class _AuctionPageHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Timed auctions',
+                  'Timed Buying',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -523,7 +531,7 @@ class _AuctionPageHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 const Text(
-                  'Bid on oilfield pipe, equipment and industrial inventory with clear timing and auditable bid history.',
+                  'Use timed offers for oilfield pipe, equipment and industrial inventory with clear closing times and auditable offer activity.',
                   style: TextStyle(color: Colors.white70, height: 1.4),
                 ),
                 const SizedBox(height: 13),
@@ -546,7 +554,7 @@ class _AuctionPageHero extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onShowLegend,
                   icon: const Icon(Icons.info_outline_rounded),
-                  label: const Text('Signals'),
+                  label: const Text('Time legend'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white30),
@@ -555,7 +563,7 @@ class _AuctionPageHero extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onCreateAuction,
                   icon: const Icon(Icons.add),
-                  label: const Text('Create auction'),
+                  label: const Text('Create timed listing'),
                 ),
               ],
             );
@@ -632,6 +640,16 @@ class _AuctionCard extends StatelessWidget {
     final now = DateTime.now();
     final ended = isAuctionEnded(data, now);
     final live = isAuctionLive(data, now);
+    final viewerUid = FirebaseAuth.instance.currentUser?.uid;
+    final viewerOwnsListing =
+        viewerUid != null && data['sellerUid'] == viewerUid;
+    final participation = TimedBuyingViewerParticipationScope.maybeOf(context)
+            ?.forListing(document.id, data) ??
+        deriveTimedBuyingViewerParticipation(
+          viewerUid: viewerUid,
+          listing: data,
+          viewerOffers: const [],
+        );
     final presentation = MarketplaceListingPresentation.fromMap(
       data,
       currentUserUid: FirebaseAuth.instance.currentUser?.uid,
@@ -644,140 +662,163 @@ class _AuctionCard extends StatelessWidget {
             ? PipeBuyerColors.slate
             : PipeBuyerColors.industrialBlue;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return TimedBuyingTrustFrame(
+      participation: participation,
+      start: start,
+      end: end,
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: presentation.emphasized ? 2 : 0,
-      shadowColor: presentation.shadowColor,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: presentation.borderColor,
-          width: presentation.emphasized ? 1.5 : 1,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        margin: EdgeInsets.zero,
+        elevation: presentation.emphasized ? 2 : 0,
+        shadowColor: presentation.shadowColor,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: presentation.borderColor,
+            width: presentation.emphasized ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(16),
         ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: () => context.push(MarketplaceDeepLinks.auction(document.id)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              children: [
-                MarketplaceListingMedia(
-                  listing: data,
-                  height: 174,
-                  borderRadius: 0,
-                  showCategoryLabel: false,
-                  showSourceLabel: true,
-                ),
-                Positioned(
-                  left: 10,
-                  bottom: 10,
-                  right: 10,
-                  child: MarketplaceListingBadges(
-                    badges: presentation.badges,
-                    compact: true,
-                  ),
-                ),
-                Positioned(
-                  right: 10,
-                  bottom: 10,
-                  child: _AuctionStateBadge(
-                    label: live
-                        ? 'LIVE'
-                        : ended
-                            ? 'ENDED'
-                            : 'UPCOMING',
-                    color: statusColor,
-                    icon: live
-                        ? Icons.fiber_manual_record
-                        : ended
-                            ? Icons.flag_outlined
-                            : Icons.schedule_outlined,
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+        child: InkWell(
+          onTap: () => context.push(MarketplaceDeepLinks.auction(document.id)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
                 children: [
-                  Text(
-                    '${data['title'] ?? 'Auction listing'}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      height: 1.15,
+                  MarketplaceListingMedia(
+                    listing: data,
+                    height: 174,
+                    borderRadius: 0,
+                    showCategoryLabel: false,
+                    showSourceLabel: true,
+                  ),
+                  Positioned(
+                    left: 10,
+                    bottom: 10,
+                    right: 10,
+                    child: MarketplaceListingBadges(
+                      badges: presentation.badges,
+                      compact: true,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    marketplaceMoney(current > 0 ? current : starting),
-                    style: const TextStyle(
-                      color: PipeBuyerColors.orangePressed,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                  if (viewerOwnsListing || participation.hasParticipated)
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: viewerOwnsListing
+                          ? const TimedBuyingViewerPositionBadge(
+                              position: TimedBuyingViewerPosition.seller,
+                            )
+                          : TimedBuyingParticipationBadge(
+                              participation: participation,
+                            ),
                     ),
-                  ),
-                  Text(
-                    current > 0 ? 'Current highest bid' : 'Starting bid',
-                    style: const TextStyle(
-                      color: PipeBuyerColors.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: _AuctionStateBadge(
+                      label: live
+                          ? 'LIVE'
+                          : ended
+                              ? 'ENDED'
+                              : 'UPCOMING',
+                      color: statusColor,
+                      icon: live
+                          ? Icons.fiber_manual_record
+                          : ended
+                              ? Icons.flag_outlined
+                              : Icons.schedule_outlined,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.gavel_outlined,
-                        size: 15,
-                        color: PipeBuyerColors.muted,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        '${data['bidCount'] ?? 0} bids',
-                        style: const TextStyle(
-                          color: PipeBuyerColors.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Spacer(),
-                      const Icon(
-                        Icons.timer_outlined,
-                        size: 15,
-                        color: PipeBuyerColors.muted,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: _AuctionCountdown(
-                          start: start,
-                          end: end,
-                          style: TextStyle(
-                            color: live
-                                ? PipeBuyerColors.danger
-                                : PipeBuyerColors.muted,
-                            fontSize: 11,
-                            fontWeight:
-                                live ? FontWeight.w900 : FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
-            ),
-          ],
+              TimedBuyingAttentionStrip(
+                start: start,
+                end: end,
+                compact: true,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      timedBuyingDisplayTitle(data['title']),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      marketplaceMoney(current > 0 ? current : starting),
+                      style: const TextStyle(
+                        color: PipeBuyerColors.orangePressed,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      current > 0 ? 'Leading offer' : 'Opening offer',
+                      style: const TextStyle(
+                        color: PipeBuyerColors.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 15,
+                          color: PipeBuyerColors.muted,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${data['bidCount'] ?? 0} timed offers',
+                          style: const TextStyle(
+                            color: PipeBuyerColors.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 15,
+                          color: PipeBuyerColors.muted,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: _AuctionCountdown(
+                            start: start,
+                            end: end,
+                            style: TextStyle(
+                              color: live
+                                  ? PipeBuyerColors.danger
+                                  : PipeBuyerColors.muted,
+                              fontSize: 11,
+                              fontWeight:
+                                  live ? FontWeight.w900 : FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -867,6 +908,14 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
           final now = DateTime.now();
           final live = isAuctionLive(data, now);
           final ended = isAuctionEnded(data, now);
+          if (live && !_submitting && _bid.text.trim().isEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || _bid.text.trim().isNotEmpty) return;
+              _bid.text = next.toStringAsFixed(2);
+              _bid.selection =
+                  TextSelection.collapsed(offset: _bid.text.length);
+            });
+          }
           final uid = FirebaseAuth.instance.currentUser?.uid;
           final mine = data['sellerUid'] == uid;
           final participant = mine || data['highBidderUid'] == uid;
@@ -909,7 +958,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
               return Scaffold(
                 backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 appBar: AppBar(
-                  title: const Text('Timed auction'),
+                  title: const Text('Timed Buying'),
                   actions: [
                     IconButton(
                       tooltip: 'Marketplace home',
@@ -926,7 +975,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
                         children: [
                           _AuctionDetailHero(
-                            title: '${data['title'] ?? 'Auction listing'}',
+                            title: timedBuyingDisplayTitle(data['title']),
                             live: live,
                             ended: ended,
                             start: start,
@@ -955,9 +1004,12 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                     start: start,
                                     end: end,
                                     bidCount:
-                                        (data['bidCount'] as num?)?.toInt() ?? 0,
+                                        (data['bidCount'] as num?)?.toInt() ??
+                                            0,
                                   ),
-                                  if (mine && reserve != null && reserve > 0) ...[
+                                  if (mine &&
+                                      reserve != null &&
+                                      reserve > 0) ...[
                                     const SizedBox(height: 12),
                                     _ReserveCard(
                                       current: current,
@@ -986,7 +1038,8 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                   const SizedBox(height: 12),
                                   MarketplaceDispatchQuoteCard(
                                     auction: true,
-                                    onPressed: () => MarketplaceFreightQuote.show(
+                                    onPressed: () =>
+                                        MarketplaceFreightQuote.show(
                                       context,
                                       listingId: widget.document.id,
                                       listing: data,
@@ -1005,7 +1058,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                       icon:
                                           const Icon(Icons.handshake_outlined),
                                       label: Text(
-                                        'Accept leading bid • ${marketplaceMoney(current)}',
+                                        'Accept leading offer • ${marketplaceMoney(current)}',
                                       ),
                                     ),
                                   ],
@@ -1014,9 +1067,10 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                       ? const Card(
                                           child: ListTile(
                                             leading: Icon(Icons.storefront),
-                                            title: Text('This is your auction'),
+                                            title: Text(
+                                                'This is your Timed Buying listing'),
                                             subtitle: Text(
-                                              'Bid activity and seller controls appear here.',
+                                              'Timed-offer activity and seller controls appear here.',
                                             ),
                                           ),
                                         )
@@ -1037,7 +1091,8 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                               );
                               if (!desktop) {
                                 return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     primary,
                                     const SizedBox(height: 14),
@@ -1065,12 +1120,20 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                           ],
                           const SizedBox(height: 20),
                           const Text(
-                            'Bid history',
+                            'Timed offer activity',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          _TimedBuyingBuyerTrustPosition(
+                            listingId: widget.document.id,
+                            listing: data,
+                            nextOffer: next,
+                            live: live,
+                          ),
+                          const TimedBuyingTrustStrip(),
                           const SizedBox(height: 8),
                           _BidHistory(
                             listingId: widget.document.id,
@@ -1089,13 +1152,20 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
 
   Future<void> _placeBid() async {
     final amount = num.tryParse(_bid.text.replaceAll(RegExp(r'[^0-9.]'), ''));
-    if (amount == null) return;
+    if (amount == null) {
+      PipeFeedback.show(
+        context,
+        message: 'Enter a timed offer amount to continue.',
+        tone: PipeStatusTone.error,
+      );
+      return;
+    }
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Place this bid?'),
+            title: const Text('Submit this timed offer?'),
             content: Text(
-              'Submit a binding bid of ${marketplaceMoney(amount)} CAD?',
+              'Submit a binding timed offer of ${marketplaceMoney(amount)} CAD?',
             ),
             actions: [
               TextButton(
@@ -1104,7 +1174,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Place bid'),
+                child: const Text('Submit timed offer'),
               ),
             ],
           ),
@@ -1121,7 +1191,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
         _bid.clear();
         PipeFeedback.show(
           context,
-          message: 'Bid placed.',
+          message: 'Timed offer submitted.',
           tone: PipeStatusTone.success,
         );
       }
@@ -1129,7 +1199,8 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: marketplaceCommandErrorMessage(error),
+          message:
+              timedBuyingPublicMessage(marketplaceCommandErrorMessage(error)),
           tone: PipeStatusTone.error,
         );
       }
@@ -1144,7 +1215,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
           builder: (dialogContext) => AlertDialog(
             title: const Text('Buy this item now?'),
             content: Text(
-              'Confirm purchase at ${marketplaceMoney(price)} CAD. This immediately closes the auction.',
+              'Confirm purchase at ${marketplaceMoney(price)} CAD. This immediately closes the Timed Buying listing.',
             ),
             actions: [
               TextButton(
@@ -1168,7 +1239,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: 'Purchase confirmed. The auction is closed.',
+          message: 'Purchase confirmed. Timed Buying is closed.',
           tone: PipeStatusTone.success,
         );
       }
@@ -1176,7 +1247,8 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: marketplaceCommandErrorMessage(error),
+          message:
+              timedBuyingPublicMessage(marketplaceCommandErrorMessage(error)),
           tone: PipeStatusTone.error,
         );
       }
@@ -1189,18 +1261,18 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Accept below reserve?'),
+            title: const Text('Accept below seller minimum?'),
             content: Text(
-              'Accept the leading ${marketplaceMoney(amount)} bid and end this auction? The bidder will be notified immediately.',
+              'Accept the leading ${marketplaceMoney(amount)} bid and close this Timed Buying listing? The bidder will be notified immediately.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Keep auction open'),
+                child: const Text('Keep Timed Buying open'),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Accept and end auction'),
+                child: const Text('Accept and close'),
               ),
             ],
           ),
@@ -1215,7 +1287,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: 'Leading bid accepted. The bidder was notified.',
+          message: 'Leading offer accepted. The buyer was notified.',
           tone: PipeStatusTone.success,
         );
       }
@@ -1223,13 +1295,117 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: marketplaceCommandErrorMessage(error),
+          message:
+              timedBuyingPublicMessage(marketplaceCommandErrorMessage(error)),
           tone: PipeStatusTone.error,
         );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+}
+
+class _TimedBuyingBuyerTrustPosition extends StatelessWidget {
+  const _TimedBuyingBuyerTrustPosition({
+    required this.listingId,
+    required this.listing,
+    required this.nextOffer,
+    required this.live,
+  });
+
+  final String listingId;
+  final Map<String, dynamic> listing;
+  final num nextOffer;
+  final bool live;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty || listing['sellerUid'] == uid) {
+      return const SizedBox.shrink();
+    }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('auction_bids')
+          .where('listingId', isEqualTo: listingId)
+          .orderBy('createdAt', descending: true)
+          .limit(defaultActivityFeedLimit)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final offers = (snapshot.data?.docs ?? const [])
+            .map((document) => document.data())
+            .toList(growable: false);
+        final participation = deriveTimedBuyingViewerParticipation(
+          viewerUid: uid,
+          listing: listing,
+          viewerOffers: offers,
+        );
+        if (!participation.hasParticipated) return const SizedBox.shrink();
+        final color = participation.leading
+            ? PipeBuyerColors.success
+            : participation.outbid
+                ? PipeBuyerColors.danger
+                : PipeBuyerColors.orangePressed;
+        final offersAhead = participation.offersAhead;
+        final aheadText = offersAhead == null
+            ? ''
+            : ' • $offersAhead ${offersAhead == 1 ? 'offer' : 'offers'} ahead';
+        final nextText =
+            live ? ' • Next minimum: ${marketplaceMoney(nextOffer)}' : '';
+        final positionText = participation.leading
+            ? 'Your top timed offer is ${marketplaceMoney(participation.viewerTopOffer)} and it is the current lead.'
+            : participation.outbid
+                ? 'Your top: ${marketplaceMoney(participation.viewerTopOffer)} • Lead: ${marketplaceMoney(participation.currentLead)} • Behind by ${marketplaceMoney(participation.amountBehind)}$aheadText$nextText'
+                : 'You have an active timed offer on this listing.';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .07),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: .5), width: 1.3),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                participation.leading
+                    ? Icons.emoji_events_outlined
+                    : Icons.trending_up_outlined,
+                color: color,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      participation.compactStatusLabel,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      positionText,
+                      style: const TextStyle(
+                        color: PipeBuyerColors.graphite,
+                        fontSize: 11.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -1276,7 +1452,7 @@ class _AuctionDetailHero extends StatelessWidget {
               borderRadius: BorderRadius.circular(13),
             ),
             child: const Icon(
-              Icons.gavel_outlined,
+              Icons.timer_outlined,
               color: Colors.white,
               size: 24,
             ),
@@ -1341,9 +1517,10 @@ class _AuctionArtworkFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final asset = IndustrialIconAssets.forLabel('${data['productType'] ?? ''}') ??
-        IndustrialIconAssets.forLabel('${data['category'] ?? ''}') ??
-        IndustrialIconAssets.complianceGavel;
+    final asset =
+        IndustrialIconAssets.forLabel('${data['productType'] ?? ''}') ??
+            IndustrialIconAssets.forLabel('${data['category'] ?? ''}') ??
+            IndustrialIconAssets.inventory;
     return Container(
       height: 230,
       alignment: Alignment.center,
@@ -1356,12 +1533,12 @@ class _AuctionArtworkFallback extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: IndustrialAssetIcon(
-        label: '${data['productType'] ?? data['title'] ?? 'Auction'}',
+        label: '${data['productType'] ?? data['title'] ?? 'Timed Buying'}',
         assetPath: asset,
         size: 174,
         borderRadius: 16,
         fallback: const Icon(
-          Icons.gavel,
+          Icons.timer_rounded,
           color: Colors.white70,
           size: 76,
         ),
@@ -1415,7 +1592,7 @@ class _AuctionBidSummary extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    current > 0 ? 'CURRENT HIGHEST BID' : 'STARTING BID',
+                    current > 0 ? 'LEADING OFFER' : 'OPENING OFFER',
                     style: const TextStyle(
                       color: Colors.white54,
                       fontSize: 10,
@@ -1442,7 +1619,7 @@ class _AuctionBidSummary extends StatelessWidget {
                     ),
                   if (!totalBasis && quantity != null)
                     Text(
-                      '$quantity units • Bid total ${marketplaceMoney(displayedTotal)}',
+                      '$quantity units • Offer total ${marketplaceMoney(displayedTotal)}',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.white60,
@@ -1456,7 +1633,7 @@ class _AuctionBidSummary extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '$bidCount ${bidCount == 1 ? 'bid' : 'bids'}',
+                  '$bidCount ${bidCount == 1 ? 'timed offer' : 'timed offers'}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -1488,7 +1665,8 @@ class _ReserveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final met = current >= reserve;
-    final progress = reserve <= 0 ? 0.0 : (current / reserve).clamp(0, 1).toDouble();
+    final progress =
+        reserve <= 0 ? 0.0 : (current / reserve).clamp(0, 1).toDouble();
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -1501,7 +1679,9 @@ class _ReserveCard extends StatelessWidget {
                 const Icon(Icons.flag_outlined, color: PipeBuyerColors.orange),
                 const SizedBox(width: 8),
                 Text(
-                  met ? 'Reserve has been met' : 'Reserve not met',
+                  met
+                      ? 'Seller minimum has been met'
+                      : 'Seller minimum not met',
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ],
@@ -1518,7 +1698,7 @@ class _ReserveCard extends StatelessWidget {
             const SizedBox(height: 7),
             Text(
               met
-                  ? 'The current leading bid satisfies your private reserve.'
+                  ? 'The current leading timed offer satisfies your private reserve.'
                   : '${(progress * 100).toStringAsFixed(0)}% reached • ${marketplaceMoney((reserve - current).clamp(0, double.infinity))} remaining',
             ),
           ],
@@ -1589,12 +1769,12 @@ class _BidActionPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'Place your bid',
+                'Submit a timed offer',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 4),
               const Text(
-                'Review the amount carefully before submitting a binding bid.',
+                'Review the amount carefully before submitting a binding timed offer.',
                 style: TextStyle(fontSize: 11, color: PipeBuyerColors.muted),
               ),
               const SizedBox(height: 12),
@@ -1604,7 +1784,8 @@ class _BidActionPanel extends StatelessWidget {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: 'Your bid • minimum ${marketplaceMoney(nextBid)}',
+                  labelText:
+                      'Your timed offer • minimum ${marketplaceMoney(nextBid)}',
                   prefixText: '\$ ',
                   suffixText: currency,
                 ),
@@ -1620,10 +1801,15 @@ class _BidActionPanel extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.gavel),
-                label: Text(live ? 'Review and place bid' : 'Bidding unavailable'),
+                    : const Icon(Icons.timer_rounded),
+                label: Text(live
+                    ? 'Review & submit timed offer'
+                    : 'Timed offers unavailable'),
               ),
-              if (live && buyNow != null && buyNow! > 0 && onBuyNow != null) ...[
+              if (live &&
+                  buyNow != null &&
+                  buyNow! > 0 &&
+                  onBuyNow != null) ...[
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: submitting ? null : onBuyNow,
@@ -1633,7 +1819,7 @@ class _BidActionPanel extends StatelessWidget {
               ],
               const SizedBox(height: 8),
               const Text(
-                'Bids are binding. The seller and winning bidder finalize payment and logistics through marketplace messaging.',
+                'Timed offers are binding. The seller and successful buyer finalize payment and logistics through marketplace messaging.',
                 style: TextStyle(fontSize: 11, color: PipeBuyerColors.muted),
               ),
             ],
@@ -1649,126 +1835,39 @@ class _AuctionListingDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final details = <({IconData icon, String label, String value})>[];
-    void add(IconData icon, String label, Object? raw) {
-      final value = '${raw ?? ''}'.trim();
-      if (value.isNotEmpty && value != 'null') {
-        details.add((icon: icon, label: label, value: value));
-      }
-    }
+    final description =
+        timedBuyingPublicMessage('${data['description'] ?? ''}');
+    final hasSpecs = marketplaceListingSpecs(data).isNotEmpty;
+    if (!hasSpecs && description.isEmpty) return const SizedBox.shrink();
 
-    add(Icons.category_outlined, 'Category', data['category']);
-    add(Icons.inventory_2_outlined, 'Item type', data['productType']);
-    add(Icons.straighten_outlined, 'Pipe size', data['pipeSize']);
-    add(Icons.layers_outlined, 'Pipe band', data['pipeBand']);
-    add(Icons.factory_outlined, 'Brand', data['brand']);
-    add(Icons.precision_manufacturing_outlined, 'Model', data['model']);
-    add(Icons.calendar_today_outlined, 'Model year', data['modelYear']);
-    if (data['machineHours'] != null) {
-      add(Icons.timer_outlined, 'Machine hours', '${data['machineHours']} hours');
-    }
-    add(Icons.settings_outlined, 'Engine', data['engineDetails']);
-    add(Icons.power_settings_new_outlined, 'Operating status',
-        data['operatingStatus']);
-    add(Icons.build_outlined, 'Maintenance history', data['maintenanceHistory']);
-    add(Icons.confirmation_number_outlined, 'Serial number', data['serialNumber']);
-    final quantity = data['quantity'];
-    final basis = '${data['priceBasis'] ?? ''}'.trim();
-    if (quantity != null) {
-      add(
-        Icons.numbers_outlined,
-        'Quantity',
-        basis.isEmpty ? quantity : '$quantity • $basis',
-      );
-    }
-    add(Icons.verified_outlined, 'Condition', data['condition']);
-    add(Icons.fact_check_outlined, 'Inspection', data['inspectionStatus']);
-    add(Icons.notes_outlined, 'Inspection details', data['inspectionDetails']);
-    add(Icons.attachment_outlined, 'Included attachments', data['attachments']);
-    add(Icons.real_estate_agent_outlined, 'Offering includes',
-        data['propertyOffering']);
-    add(Icons.account_balance_outlined, 'Interest offered', data['propertyInterest']);
-
-    final acres = data['landAreaAcres'] as num?;
-    final hectares = data['landAreaHectares'] as num?;
-    if (acres != null && hectares != null) {
-      add(
-        Icons.landscape_outlined,
-        'Land area',
-        '${propertyMeasure(acres)} acres • ${propertyMeasure(hectares)} hectares',
-      );
-    }
-    final buildingArea = data['buildingAreaValue'] as num?;
-    if (buildingArea != null) {
-      add(
-        Icons.warehouse_outlined,
-        'Building area',
-        '${propertyMeasure(buildingArea)} ${data['buildingAreaUnit'] ?? ''}',
-      );
-    }
-    add(Icons.map_outlined, 'Zoning / permitted use', data['zoningOrUse']);
-    add(Icons.location_on_outlined, 'Location', data['publicLocationName'] ??
-        data['nearestTown'] ??
-        data['locationLabel'] ??
-        data['city']);
-
-    final description = '${data['description'] ?? ''}'.trim();
-    if (details.isEmpty && description.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Listing details',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 10),
-        if (details.isNotEmpty)
-          Card(
-            margin: EdgeInsets.zero,
-            child: Column(
-              children: details
-                  .map(
-                    (detail) => ListTile(
-                      leading: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: PipeBuyerColors.orangeSoft,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          detail.icon,
-                          color: PipeBuyerColors.orange,
-                          size: 18,
-                        ),
-                      ),
-                      title: Text(
-                        detail.label,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: PipeBuyerColors.muted,
-                        ),
-                      ),
-                      subtitle: Text(
-                        detail.value,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
+        if (hasSpecs)
+          MarketplaceListingSpecsGrid(
+            listing: data,
+            title: 'Asset overview',
+            maxVisibleSpecs: 8,
           ),
         if (description.isNotEmpty) ...[
-          const SizedBox(height: 14),
+          if (hasSpecs) const SizedBox(height: 12),
           const Text(
             'Description',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: PipeBuyerColors.ink,
+            ),
           ),
           const SizedBox(height: 5),
-          Text(description, style: const TextStyle(height: 1.4)),
+          Text(
+            description,
+            style: const TextStyle(
+              color: PipeBuyerColors.graphite,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
         ],
       ],
     );
@@ -1823,23 +1922,23 @@ class _BidPricingAnalytics extends StatelessWidget {
                 Icon(Icons.analytics_outlined, color: PipeBuyerColors.orange),
                 SizedBox(width: 8),
                 Text(
-                  'Bid pricing analysis',
+                  'Timed offer analysis',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            _row('Next minimum bid', marketplaceMoney(nextBid)),
+            _row('Next minimum offer', marketplaceMoney(nextBid)),
             _row('Required increase', marketplaceMoney(increment)),
             if (quantity != null && !totalBasis)
               _row(
-                'Next bid total',
+                'Next offer total',
                 '${marketplaceMoney(nextTotal)} • $quantity units',
               ),
             if (difference != null && percent != null)
               _row(
                 'Compared with asking',
-                '${difference >= 0 ? '↑' : '↓'} ${marketplaceMoney(difference.abs())} • ${percent.abs().toStringAsFixed(1)}%',
+                '${difference >= 0 ? 'â†‘' : 'â†“'} ${marketplaceMoney(difference.abs())} • ${percent.abs().toStringAsFixed(1)}%',
                 color: comparisonColor,
               ),
             if (reserve != null && reserve! > 0)
@@ -1905,7 +2004,8 @@ class _AuctionMediaGalleryState extends State<_AuctionMediaGallery> {
                   PageView.builder(
                     itemCount: widget.images.length,
                     onPageChanged: (value) => setState(() => _selected = value),
-                    itemBuilder: (context, index) => MarketplaceStorageMediaImage(
+                    itemBuilder: (context, index) =>
+                        MarketplaceStorageMediaImage(
                       url: widget.images[index],
                       fit: BoxFit.cover,
                       fallback: const ColoredBox(
@@ -1995,9 +2095,9 @@ class _BidHistory extends StatelessWidget {
           if (bids.isEmpty) {
             return const MarketplaceDataStateView(
               kind: MarketplaceDataStateKind.empty,
-              title: 'No bids yet',
-              message: 'The first eligible bid will appear here.',
-              icon: Icons.gavel_outlined,
+              title: 'No timed offers yet',
+              message: 'The first eligible timed offer will appear here.',
+              icon: Icons.timer_outlined,
               compact: true,
             );
           }
@@ -2007,7 +2107,7 @@ class _BidHistory extends StatelessWidget {
                 const ListTile(
                   dense: true,
                   leading: Icon(Icons.info_outline),
-                  title: Text('Showing the latest 100 bids'),
+                  title: Text('Showing the latest 100 timed offers'),
                   subtitle: Text(
                     'The complete authoritative history remains stored for review.',
                   ),
@@ -2015,7 +2115,8 @@ class _BidHistory extends StatelessWidget {
               ...bids.map((bid) {
                 final data = bid.data();
                 final uid = FirebaseAuth.instance.currentUser?.uid;
-                final start = (listing['auctionStartAt'] as Timestamp?)?.toDate();
+                final start =
+                    (listing['auctionStartAt'] as Timestamp?)?.toDate();
                 final canWithdraw = listing['customAuction'] == true &&
                     start != null &&
                     !DateTime.now()
@@ -2023,9 +2124,34 @@ class _BidHistory extends StatelessWidget {
                     data['bidderUid'] == uid &&
                     data['status'] != 'withdrawn' &&
                     data['status'] != 'buy_now';
+                final viewerOwnsOffer = uid != null && data['bidderUid'] == uid;
+                final leadingOffer =
+                    data['status'] == 'leading' || data['status'] == 'won';
+                final surpassedOffer = data['status'] == 'outbid';
+                final viewerRowColor = leadingOffer
+                    ? PipeBuyerColors.success
+                    : surpassedOffer
+                        ? PipeBuyerColors.danger
+                        : PipeBuyerColors.orangePressed;
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 7),
+                  color: viewerOwnsOffer
+                      ? viewerRowColor.withValues(alpha: .07)
+                      : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: viewerOwnsOffer
+                          ? viewerRowColor.withValues(alpha: .58)
+                          : Theme.of(context).dividerColor,
+                      width: viewerOwnsOffer ? 1.4 : .7,
+                    ),
+                  ),
+                  margin: const EdgeInsets.only(bottom: 4),
                   child: ListTile(
+                    dense: true,
+                    visualDensity: const VisualDensity(vertical: -3),
+                    minLeadingWidth: 32,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
                     leading: Container(
                       width: 38,
                       height: 38,
@@ -2034,14 +2160,14 @@ class _BidHistory extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
-                        Icons.gavel_outlined,
+                        Icons.timer_outlined,
                         color: PipeBuyerColors.orange,
                         size: 19,
                       ),
                     ),
-                    title: Text(
-                      marketplaceMoney(data['amount'] as num? ?? 0),
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    title: TimedBuyingOfferActivityHeader(
+                      bid: data,
+                      viewerUid: uid,
                     ),
                     subtitle: Text(
                       data['status'] == 'withdrawn'
@@ -2075,18 +2201,18 @@ class _BidHistory extends StatelessWidget {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Withdraw this bid?'),
+            title: const Text('Withdraw this timed offer?'),
             content: const Text(
-              'This action is permanent. If this is the leading bid, the auction will return to the next eligible bid.',
+              'This action is permanent. If this is the leading timed offer, the auction will return to the next eligible bid.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Keep bid'),
+                child: const Text('Keep timed offer'),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Withdraw bid'),
+                child: const Text('Withdraw timed offer'),
               ),
             ],
           ),
@@ -2101,7 +2227,7 @@ class _BidHistory extends StatelessWidget {
       if (context.mounted) {
         PipeFeedback.show(
           context,
-          message: 'Bid withdrawn. Auction totals were updated.',
+          message: 'Timed offer withdrawn. Timed Buying totals were updated.',
           tone: PipeStatusTone.success,
         );
       }
@@ -2109,7 +2235,8 @@ class _BidHistory extends StatelessWidget {
       if (context.mounted) {
         PipeFeedback.show(
           context,
-          message: marketplaceCommandErrorMessage(error),
+          message:
+              timedBuyingPublicMessage(marketplaceCommandErrorMessage(error)),
           tone: PipeStatusTone.error,
         );
       }
@@ -2126,7 +2253,7 @@ class _AuctionLoadError extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MarketplaceDataStateView(
         kind: MarketplaceDataStateKind.error,
-        title: 'Auctions could not be loaded',
+        title: 'Timed Buying could not be loaded',
         message: details,
         primaryLabel: 'Try again',
         primaryIcon: Icons.refresh,
@@ -2143,7 +2270,7 @@ class _AuctionPageError extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MarketplaceDataStateView(
         kind: MarketplaceDataStateKind.error,
-        title: 'More auctions could not be loaded',
+        title: 'More Timed Buying listings could not be loaded',
         message: details,
         primaryLabel: 'Retry',
         primaryIcon: Icons.refresh,
@@ -2166,25 +2293,20 @@ class _AuctionEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MarketplaceDataStateView(
         kind: MarketplaceDataStateKind.empty,
-        icon: Icons.gavel_outlined,
-        title: 'No ${filter.toLowerCase()} auctions',
+        icon: Icons.timer_outlined,
+        title: 'No ${filter.toLowerCase()} Timed Buying listings',
         message:
-            'Timed auction listings will appear here separately from Marketplace inventory.',
-        primaryLabel: 'Create an auction',
+            'Timed Buying listings will appear here separately from Marketplace inventory.',
+        primaryLabel: 'Create a timed listing',
         primaryIcon: Icons.add,
         onPrimary: onCreate,
-        secondaryLabel: onLoadMore == null ? null : 'Check more auctions',
+        secondaryLabel: onLoadMore == null ? null : 'Check more Timed Buying',
         onSecondary: onLoadMore,
       );
 }
 
-String _auctionTimeLabel(DateTime? start, DateTime? end) {
-  final now = DateTime.now();
-  if (start == null || end == null) return 'Schedule unavailable';
-  if (now.isBefore(start)) return 'Starts in ${_duration(start.difference(now))}';
-  if (!now.isBefore(end)) return 'Ended';
-  return 'Ends in ${_duration(end.difference(now))}';
-}
+String _auctionTimeLabel(DateTime? start, DateTime? end) =>
+    timedBuyingTimeLabel(start: start, end: end);
 
 class _AuctionCountdown extends StatefulWidget {
   const _AuctionCountdown({required this.start, required this.end, this.style});
@@ -2218,14 +2340,4 @@ class _AuctionCountdownState extends State<_AuctionCountdown> {
   @override
   Widget build(BuildContext context) =>
       Text(_auctionTimeLabel(widget.start, widget.end), style: widget.style);
-}
-
-String _duration(Duration value) {
-  final days = value.inDays;
-  final hours = value.inHours.remainder(24);
-  final minutes = value.inMinutes.remainder(60);
-  final seconds = value.inSeconds.remainder(60);
-  if (days > 0) return '${days}d ${hours}h ${minutes}m ${seconds}s';
-  if (value.inHours > 0) return '${value.inHours}h ${minutes}m ${seconds}s';
-  return '${value.inMinutes}m ${seconds}s';
 }

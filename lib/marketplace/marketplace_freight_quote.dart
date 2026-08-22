@@ -482,65 +482,65 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
     _model = TextEditingController(
       text: _firstListingText(listing, ['model']),
     );
-    final listingYear =
-        (listing['modelYear'] as num?)?.toInt() ?? (listing['year'] as num?)?.toInt();
+    final listingYear = (listing['modelYear'] as num?)?.toInt() ??
+        (listing['year'] as num?)?.toInt();
     _year = TextEditingController(text: listingYear?.toString() ?? '');
     _specDetails = TextEditingController();
     _lengthM = TextEditingController(
       text: _listingMeters(
-                listing,
-                meterKeys: const [
-                  'transportLengthM',
-                  'shippingLengthM',
-                  'overallLengthM',
-                  'lengthM',
-                ],
-                footKeys: const [
-                  'transportLengthFt',
-                  'shippingLengthFt',
-                  'overallLengthFt',
-                  'lengthFt',
-                ],
-                inchKeys: const ['transportLengthIn', 'overallLengthIn'],
-              )?.toStringAsFixed(2) ??
+            listing,
+            meterKeys: const [
+              'transportLengthM',
+              'shippingLengthM',
+              'overallLengthM',
+              'lengthM',
+            ],
+            footKeys: const [
+              'transportLengthFt',
+              'shippingLengthFt',
+              'overallLengthFt',
+              'lengthFt',
+            ],
+            inchKeys: const ['transportLengthIn', 'overallLengthIn'],
+          )?.toStringAsFixed(2) ??
           '',
     );
     _widthM = TextEditingController(
       text: _listingMeters(
-                listing,
-                meterKeys: const [
-                  'transportWidthM',
-                  'shippingWidthM',
-                  'overallWidthM',
-                  'widthM',
-                ],
-                footKeys: const [
-                  'transportWidthFt',
-                  'shippingWidthFt',
-                  'overallWidthFt',
-                  'widthFt',
-                ],
-                inchKeys: const ['transportWidthIn', 'overallWidthIn'],
-              )?.toStringAsFixed(2) ??
+            listing,
+            meterKeys: const [
+              'transportWidthM',
+              'shippingWidthM',
+              'overallWidthM',
+              'widthM',
+            ],
+            footKeys: const [
+              'transportWidthFt',
+              'shippingWidthFt',
+              'overallWidthFt',
+              'widthFt',
+            ],
+            inchKeys: const ['transportWidthIn', 'overallWidthIn'],
+          )?.toStringAsFixed(2) ??
           '',
     );
     _heightM = TextEditingController(
       text: _listingMeters(
-                listing,
-                meterKeys: const [
-                  'transportHeightM',
-                  'shippingHeightM',
-                  'overallHeightM',
-                  'heightM',
-                ],
-                footKeys: const [
-                  'transportHeightFt',
-                  'shippingHeightFt',
-                  'overallHeightFt',
-                  'heightFt',
-                ],
-                inchKeys: const ['transportHeightIn', 'overallHeightIn'],
-              )?.toStringAsFixed(2) ??
+            listing,
+            meterKeys: const [
+              'transportHeightM',
+              'shippingHeightM',
+              'overallHeightM',
+              'heightM',
+            ],
+            footKeys: const [
+              'transportHeightFt',
+              'shippingHeightFt',
+              'overallHeightFt',
+              'heightFt',
+            ],
+            inchKeys: const ['transportHeightIn', 'overallHeightIn'],
+          )?.toStringAsFixed(2) ??
           '',
     );
     _date = DateTime.now().add(const Duration(days: 7));
@@ -596,8 +596,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
               : _suggestedWeightKg!;
           _weight.text = value.toStringAsFixed(0);
         }
-      } else if (choice == _FreightWeightChoice.suggested) {
-      }
+      } else if (choice == _FreightWeightChoice.suggested) {}
     });
   }
 
@@ -672,8 +671,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
       final operatingWeight = _positive(matched['operatingWeightKg']);
       final maximumWeight = _positive(matched['operatingWeightMaxKg']) ??
           _positive(matched['shippingWeightMaxKg']);
-      final resolvedWeight =
-          shippingWeight ?? operatingWeight ?? maximumWeight;
+      final resolvedWeight = shippingWeight ?? operatingWeight ?? maximumWeight;
 
       final length = _listingMeters(
         matched,
@@ -726,8 +724,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
 
       final source =
           '${matched['sourceLabel'] ?? matched['sourceName'] ?? 'Pipe Buyer reviewed reference'}';
-      final confidence =
-          '${matched['verificationStatus'] ?? 'admin reviewed'}';
+      final confidence = '${matched['verificationStatus'] ?? 'admin reviewed'}';
 
       setState(() {
         if (resolvedWeight != null) {
@@ -871,8 +868,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                 assetPath: IndustrialIconAssets.truckingQuote,
                 size: 38,
                 borderRadius: 9,
-                fallback:
-                    Icon(Icons.local_shipping_outlined, color: _orange),
+                fallback: Icon(Icons.local_shipping_outlined, color: _orange),
               ),
             ),
             const SizedBox(width: 13),
@@ -956,7 +952,8 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.trip_origin, color: _orangePressed),
+                            const Icon(Icons.trip_origin,
+                                color: _orangePressed),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
@@ -1003,8 +1000,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                       const SizedBox(height: 10),
                       MarketplaceDeliveryLocationSelector(
                         value: _delivery,
-                        onChanged: (value) =>
-                            setState(() => _delivery = value),
+                        onChanged: (value) => setState(() => _delivery = value),
                       ),
                       if (_delivery == null)
                         const Padding(
@@ -1043,14 +1039,13 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                               size: 18,
                             ),
                             label: const Text('Use suggested weight'),
-                            onSelected: (_) =>
-                                _setWeightChoice(_FreightWeightChoice.suggested),
+                            onSelected: (_) => _setWeightChoice(
+                                _FreightWeightChoice.suggested),
                           ),
                           ChoiceChip(
                             selected:
                                 _weightChoice == _FreightWeightChoice.manual,
-                            avatar:
-                                const Icon(Icons.edit_outlined, size: 18),
+                            avatar: const Icon(Icons.edit_outlined, size: 18),
                             label: const Text('Enter / adjust weight'),
                             onSelected: (_) =>
                                 _setWeightChoice(_FreightWeightChoice.manual),
@@ -1058,8 +1053,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                           ChoiceChip(
                             selected:
                                 _weightChoice == _FreightWeightChoice.unknown,
-                            avatar:
-                                const Icon(Icons.help_outline, size: 18),
+                            avatar: const Icon(Icons.help_outline, size: 18),
                             label: const Text("I don't know - add later"),
                             onSelected: (_) =>
                                 _setWeightChoice(_FreightWeightChoice.unknown),
@@ -1083,8 +1077,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                             listingId: widget.listingId,
                             listing: widget.listing,
                           ),
-                          icon:
-                              const Icon(Icons.edit_note_outlined, size: 18),
+                          icon: const Icon(Icons.edit_note_outlined, size: 18),
                           label:
                               const Text('Suggest a catalog weight correction'),
                         ),
@@ -1486,8 +1479,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
           const SizedBox(height: 9),
           TextFormField(
             controller: _weight,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               labelText: 'Approximate total shipping weight',
@@ -1497,11 +1489,10 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
               prefixIcon: const Icon(Icons.scale_outlined),
               suffixText: _usePounds ? 'lb' : 'kg',
             ),
-            validator: (_) =>
-                _weightChoice == _FreightWeightChoice.manual &&
-                        _manualWeightKg == null
-                    ? 'Enter a valid weight or choose "I don\'t know - add later"'
-                    : null,
+            validator: (_) => _weightChoice == _FreightWeightChoice.manual &&
+                    _manualWeightKg == null
+                ? 'Enter a valid weight or choose "I don\'t know - add later"'
+                : null,
           ),
           const SizedBox(height: 8),
           _weightAnalytics(
@@ -1589,8 +1580,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
         child: child,
       );
 
-  Widget _sectionHeading(IconData icon, String title, String subtitle) =>
-      Row(
+  Widget _sectionHeading(IconData icon, String title, String subtitle) => Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -1929,9 +1919,7 @@ class _ReviewSummaryCard extends StatelessWidget {
             draft.delivery.publicName,
           ),
           _line(
-            draft.weightUnknown
-                ? Icons.help_outline
-                : Icons.scale_outlined,
+            draft.weightUnknown ? Icons.help_outline : Icons.scale_outlined,
             'Planning weight',
             weight,
           ),

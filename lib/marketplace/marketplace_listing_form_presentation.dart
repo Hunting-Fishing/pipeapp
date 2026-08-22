@@ -207,8 +207,7 @@ class MarketplaceListingPlacementSelector extends StatelessWidget {
                 ? 2
                 : 1;
         const gap = 9.0;
-        final width =
-            (constraints.maxWidth - (gap * (columns - 1))) / columns;
+        final width = (constraints.maxWidth - (gap * (columns - 1))) / columns;
         return Wrap(
           spacing: gap,
           runSpacing: gap,
@@ -270,78 +269,82 @@ class _PlacementCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Ink(
+        child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 78),
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: border, width: selected ? 1.6 : 1),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? PipeBuyerColors.orange
-                      : PipeBuyerColors.industrialBlue.withValues(alpha: .08),
-                  borderRadius: BorderRadius.circular(9),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: border, width: selected ? 1.6 : 1),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? PipeBuyerColors.orange
+                        : PipeBuyerColors.industrialBlue.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(
+                    option.icon,
+                    size: 18,
+                    color: selected
+                        ? Colors.white
+                        : enabled
+                            ? PipeBuyerColors.industrialBlue
+                            : PipeBuyerColors.muted,
+                  ),
                 ),
-                child: Icon(
-                  option.icon,
-                  size: 18,
-                  color: selected
-                      ? Colors.white
-                      : enabled
-                          ? PipeBuyerColors.industrialBlue
-                          : PipeBuyerColors.muted,
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            option.label,
-                            style: TextStyle(
-                              color: enabled
-                                  ? PipeBuyerColors.ink
-                                  : PipeBuyerColors.muted,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              option.label,
+                              style: TextStyle(
+                                color: enabled
+                                    ? PipeBuyerColors.ink
+                                    : PipeBuyerColors.muted,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
-                        ),
-                        if (selected)
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            size: 17,
-                            color: PipeBuyerColors.orange,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      enabled ? option.description : 'Temporarily unavailable',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: PipeBuyerColors.muted,
-                        fontSize: 10.5,
-                        height: 1.2,
+                          if (selected)
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              size: 17,
+                              color: PipeBuyerColors.orange,
+                            ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 3),
+                      Text(
+                        enabled
+                            ? option.description
+                            : 'Temporarily unavailable',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PipeBuyerColors.muted,
+                          fontSize: 10.5,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
