@@ -39,16 +39,21 @@ void main() {
     expect(page, contains('stripeMarketplaceFeeSessionId'));
     expect(page, contains('stripeMarketplaceFeePaymentIntentId'));
     expect(page, contains('stripeMarketplaceFeeChargeId'));
+    expect(page, contains('stripeMarketplaceFeeBalanceTransactionId'));
+    expect(page, contains('marketplaceFeeReconciliationStatus'));
   });
 
-  test('admin fee queue is read-only from Flutter', () {
+  test('admin reconciliation is server-controlled and cannot mutate financial state directly', () {
     final page = File(
       'lib/marketplace/marketplace_external_settlement_admin_page.dart',
     ).readAsStringSync();
 
+    expect(page, contains("'reconcileExternalSettlementFee'"));
+    expect(page, contains('Reconcile Stripe ↔ Firestore'));
+    expect(page, contains('zero unexplained difference'));
     expect(page, isNot(contains('.update({')));
     expect(page, isNot(contains('.set({')));
     expect(page, isNot(contains('.delete()')));
-    expect(page, contains('Read-only financial operations view'));
+    expect(page, contains('Server-controlled financial operations view'));
   });
 }
