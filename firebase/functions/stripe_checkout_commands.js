@@ -18,6 +18,7 @@ const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   createMarketplaceTaxCompliance,
 } = require("./marketplace_tax_compliance");
+const {taxBillingPrepared} = require("./pending_tax_policy");
 const {
   hasStartedExternalSettlement,
 } = require("./marketplace_payment_path_guard");
@@ -60,13 +61,11 @@ function requireCheckoutReady(readiness) {
 }
 
 function requirePlatformFeeBillingReady(readiness) {
-  const taxPrepared = readiness.stripeTaxReady === true ||
-    readiness.stripeTaxRegistrationPending === true;
   const ready =
     readiness.stripeMode === "production" &&
     readiness.stripeFeeBillingEnabled &&
     readiness.stripeWebhookVerified &&
-    taxPrepared &&
+    taxBillingPrepared(readiness) &&
     readiness.stripeReconciliationReady;
   if (!ready) {
     throw new HttpsError(
