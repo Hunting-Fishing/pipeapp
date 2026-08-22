@@ -19,6 +19,20 @@ void main() {
     expect(panel, isNot(contains('.collection(')));
   });
 
+  test('threshold panel surfaces readiness revision binding and automatic shutdown', () {
+    final panel = File(
+      'lib/marketplace/marketplace_canada_gst_hst_threshold_panel.dart',
+    ).readAsStringSync();
+
+    expect(panel, contains('canadaGstHstSmallSupplierAssessmentRevision'));
+    expect(panel, contains('Readiness is bound to audited assessment revision'));
+    expect(panel, contains('Readiness/assessment revision mismatch'));
+    expect(panel, contains('small_supplier_billing_disabled'));
+    expect(panel, contains('Safety shutdown applied'));
+    expect(panel, contains('Marketplace-fee billing'));
+    expect(panel, contains('Dispatch subscriptions'));
+  });
+
   test('threshold assessment callables are exported and MFA-admin guarded', () {
     final bootstrap =
         File('firebase/functions/bootstrap.js').readAsStringSync();
@@ -30,7 +44,10 @@ void main() {
     expect(bootstrap, contains('setCanadaGstHstThresholdAssessment'));
     expect(commands, contains('requireAdministrator(request)'));
     expect(commands, contains('tax_threshold_assessment_audit'));
+    expect(commands, contains('payment_readiness_audit'));
     expect(commands, contains('worldwide taxable supplies and associated businesses'));
+    expect(commands, contains('small_supplier_threshold_exceeded'));
+    expect(commands, contains('small_supplier_assessment_refreshed'));
   });
 
   test('settlement admin page includes the threshold monitor even when queue is empty', () {
