@@ -21,6 +21,7 @@ const {
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   automaticTaxEnabled,
+  taxBillingPrepared,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
 
@@ -37,13 +38,11 @@ function selectedPlan(value) {
 }
 
 function requireSubscriptionReady(readiness) {
-  const taxPrepared = readiness.stripeTaxReady === true ||
-    readiness.stripeTaxRegistrationPending === true;
   if (!readiness.stripeSubscriptionsEnabled ||
       readiness.stripeMode !== "production" ||
       readiness.stripeWebhookVerified !== true ||
       readiness.stripeReconciliationReady !== true ||
-      !taxPrepared) {
+      !taxBillingPrepared(readiness)) {
     throw new HttpsError(
         "failed-precondition",
         "Dispatch subscription checkout is not enabled yet.",
@@ -82,6 +81,8 @@ function createDispatchSubscriptionCommands(admin) {
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          readinessData.stripeTaxPendingBillingApproved === true,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
