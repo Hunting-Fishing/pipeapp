@@ -49,6 +49,8 @@ When true:
 
 The central provider-readiness loader now exposes this field so all payment callables consume the same rule.
 
+Added `canada_small_supplier_policy.js` as the single threshold-calculation helper. It uses CAD $30,000 as the federal threshold, preserves exactly $30,000 as not exceeded, and exposes 75% warning, 90% high-warning, and exceeded states for future administrator monitoring.
+
 ## Important operating constraint
 
 Pipe Buyer cannot prove the CRA $30,000 threshold solely from Stripe revenue. The threshold includes worldwide taxable supplies before expenses from all relevant businesses and associates. Production activation of `canadaGstHstSmallSupplier=true` therefore requires an explicit audited business attestation/review outside automatic Stripe calculations.
@@ -56,6 +58,7 @@ Pipe Buyer cannot prove the CRA $30,000 threshold solely from Stripe revenue. Th
 ## Follow-up before/while revenue grows
 
 - Add an administrator threshold-monitoring record for quarterly taxable supplies and any external/associated-business adjustment.
+- Feed the authoritative threshold helper from that administrator record plus Pipe Buyer revenue evidence.
 - Warn well before CAD $30,000 so registration work can begin without interrupting billing.
 - When GST/HST registration becomes effective, atomically switch from `canadaGstHstSmallSupplier=true` to `stripeTaxReady=true` only after the registration and Stripe Tax configuration are verified.
 - Keep provincial sales-tax obligations (for example BC PST where applicable) as a separate analysis; the federal $30,000 GST/HST threshold does not automatically resolve provincial tax obligations.
@@ -69,6 +72,10 @@ Unit coverage verifies:
 - no GST/HST reserve is computed for small-supplier status;
 - pending registration alone remains insufficient;
 - full Marketplace Checkout still requires active tax registration;
-- tax identity states are mutually exclusive.
+- tax identity states are mutually exclusive;
+- CAD $30,000 is not treated as exceeded;
+- one cent over the threshold is treated as exceeded;
+- warning levels are deterministic;
+- invalid negative/fractional threshold inputs fail closed.
 
 Do not remove these invariants when the GST/HST number is added later; change the readiness state instead.
