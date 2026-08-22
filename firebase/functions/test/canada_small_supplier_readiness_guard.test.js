@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   canadaSmallSupplierAssessmentDecision,
+  canadaSmallSupplierReadinessDecision,
 } = require("../canada_small_supplier_readiness_guard");
 
 function validAssessment(overrides = {}) {
@@ -15,6 +16,14 @@ function validAssessment(overrides = {}) {
     rollingFourQuarterCadMinor: 1200000,
     exceeded: false,
     requiresRegistrationReview: false,
+    ...overrides,
+  };
+}
+
+function validReadiness(overrides = {}) {
+  return {
+    canadaGstHstSmallSupplier: true,
+    canadaGstHstSmallSupplierAssessmentRevision: 2,
     ...overrides,
   };
 }
@@ -69,4 +78,30 @@ test("assessment must have an audit revision", () => {
   }));
   assert.equal(decision.authorized, false);
   assert.equal(decision.reason, "assessment_unversioned");
+});
+
+test("runtime readiness must be active and bound to the current assessment revision", () => {
+  assert.equal(canadaSmallSupplierReadinessDecision(
+      validReadiness(), validAssessment()).authorized, true);
+  assert.equal(canadaSmallSupplierReadinessDecision(
+      {canadaGstHstSmallSupplier: false}, validAssessment()).reason,
+  "readiness_inactive");
+  assert.equal(canadaSmallSupplierReadinessDecision(
+      {canadaGstHstSmallSupplier: true}, validAssessment()).reason,
+  "readiness_unbound");
+  const mismatch = canadaSmallSupplierReadinessDecision(
+      validReadiness({canadaGstHstSmallSupplierAssessmentRevision: 1}),
+      validAssessment(),
+  );
+  assert.equal(mismatch.authorized, false);
+  assert.equal(mismatch.reason, "assessment_revision_mismatch");
+});
+
+test("runtime readiness fails closed when bound assessment becomes invalid", () => {
+  const decision = canadaSmallSupplierReadinessDecision(
+      validReadiness(),
+      validAssessment({requiresRegistrationReview: true, exceeded: true}),
+  );
+  assert.equal(decision.authorized, false);
+  assert.equal(decision.reason, "threshold_exceeded");
 });
