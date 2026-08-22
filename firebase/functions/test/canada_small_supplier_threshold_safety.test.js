@@ -102,22 +102,49 @@ function activeSmallSupplierReadiness(overrides = {}) {
   };
 }
 
-test("safety decision only disables active small supplier billing after threshold exceedance", () => {
-  assert.equal(smallSupplierBillingSafetyDecision({
+function priorAssessment(overrides = {}) {
+  return {
+    revision: 2,
+    periodLabel: "2026 Q2",
+    sourceNote: "Previous audited bookkeeping and associated-business review.",
+    worldwideAndAssociatedIncluded: true,
+    thresholdCadMinor: 3000000,
+    singleQuarterCadMinor: 400000,
+    rollingFourQuarterCadMinor: 900000,
+    governingAmountCadMinor: 900000,
+    remainingCadMinor: 2100000,
+    level: "within_threshold",
+    exceeded: false,
+    exceededSingleQuarter: false,
+    exceededRolling: false,
     requiresRegistrationReview: false,
-  }, activeSmallSupplierReadiness()).disableBilling, false);
-  assert.equal(smallSupplierBillingSafetyDecision({
+    ...overrides,
+  };
+}
+
+test("safety decision refreshes active readiness below threshold and disables it above threshold", () => {
+  const refreshed = smallSupplierBillingSafetyDecision({
+    requiresRegistrationReview: false,
+  }, activeSmallSupplierReadiness());
+  assert.equal(refreshed.disableBilling, false);
+  assert.equal(refreshed.refreshBinding, true);
+  assert.equal(refreshed.reason, "small_supplier_assessment_refreshed");
+  const inactive = smallSupplierBillingSafetyDecision({
     requiresRegistrationReview: true,
-  }, {canadaGstHstSmallSupplier: false}).disableBilling, false);
-  const decision = smallSupplierBillingSafetyDecision({
+  }, {canadaGstHstSmallSupplier: false});
+  assert.equal(inactive.disableBilling, false);
+  assert.equal(inactive.refreshBinding, false);
+  const exceeded = smallSupplierBillingSafetyDecision({
     requiresRegistrationReview: true,
   }, activeSmallSupplierReadiness());
-  assert.equal(decision.disableBilling, true);
-  assert.equal(decision.reason, "small_supplier_threshold_exceeded");
+  assert.equal(exceeded.disableBilling, true);
+  assert.equal(exceeded.refreshBinding, false);
+  assert.equal(exceeded.reason, "small_supplier_threshold_exceeded");
 });
 
-test("under-threshold reassessment keeps authorized billing unchanged", async () => {
+test("under-threshold reassessment preserves billing and binds readiness to the new assessment revision", async () => {
   const {firestore, db} = fakeAdmin({
+    "tax_threshold_assessments/canada_gst_hst_current": priorAssessment(),
     "platform_configuration/payment_provider_readiness":
       activeSmallSupplierReadiness(),
   });
@@ -125,19 +152,30 @@ test("under-threshold reassessment keeps authorized billing unchanged", async ()
   const result = await commands.setCanadaGstHstThresholdAssessment(
       adminRequest(),
   );
+  assert.equal(result.revision, 3);
   assert.equal(result.billingSafetyAction, "none");
-  assert.equal(result.readinessRevision, null);
+  assert.equal(result.readinessBindingAction,
+      "small_supplier_assessment_refreshed");
+  assert.equal(result.readinessRevision, 8);
   const readiness = db.docs.get(
       "platform_configuration/payment_provider_readiness",
   );
   assert.equal(readiness.canadaGstHstSmallSupplier, true);
+  assert.equal(readiness.canadaGstHstSmallSupplierAssessmentRevision, 3);
   assert.equal(readiness.stripeFeeBillingEnabled, true);
   assert.equal(readiness.stripeSubscriptionsEnabled, true);
-  assert.equal(readiness.revision, 7);
+  assert.equal(readiness.revision, 8);
+  const audit = [...db.docs.entries()].find(([path]) =>
+    path.startsWith("payment_readiness_audit/"));
+  assert.ok(audit);
+  assert.equal(audit[1].readinessBindingAction,
+      "small_supplier_assessment_refreshed");
+  assert.equal(audit[1].triggeringThresholdAssessmentRevision, 3);
 });
 
 test("exceeded assessment immediately disables small supplier fee and subscription billing", async () => {
   const {firestore, db} = fakeAdmin({
+    "tax_threshold_assessments/canada_gst_hst_current": priorAssessment(),
     "platform_configuration/payment_provider_readiness":
       activeSmallSupplierReadiness(),
   });
@@ -145,7 +183,9 @@ test("exceeded assessment immediately disables small supplier fee and subscripti
   const result = await commands.setCanadaGstHstThresholdAssessment(
       adminRequest({rolling: 3000001}),
   );
+  assert.equal(result.revision, 3);
   assert.equal(result.billingSafetyAction, "small_supplier_billing_disabled");
+  assert.equal(result.readinessBindingAction, "none");
   assert.equal(result.readinessRevision, 8);
   const readiness = db.docs.get(
       "platform_configuration/payment_provider_readiness",
@@ -163,7 +203,7 @@ test("exceeded assessment immediately disables small supplier fee and subscripti
   assert.ok(audit);
   assert.equal(audit[1].automaticSafetyAction,
       "small_supplier_threshold_exceeded");
-  assert.equal(audit[1].triggeringThresholdAssessmentRevision, 1);
+  assert.equal(audit[1].triggeringThresholdAssessmentRevision, 3);
 });
 
 test("exceeded assessment does not rewrite registered tax readiness when small supplier is inactive", async () => {
@@ -175,13 +215,17 @@ test("exceeded assessment does not rewrite registered tax readiness when small s
     stripeSubscriptionsEnabled: true,
   });
   const {firestore, db} = fakeAdmin({
+    "tax_threshold_assessments/canada_gst_hst_current": priorAssessment(),
     "platform_configuration/payment_provider_readiness": registered,
   });
   const commands = createCanadaSmallSupplierThresholdCommands({firestore});
   const result = await commands.setCanadaGstHstThresholdAssessment(
       adminRequest({singleQuarter: 3000001}),
   );
+  assert.equal(result.revision, 3);
   assert.equal(result.billingSafetyAction, "none");
+  assert.equal(result.readinessBindingAction, "none");
+  assert.equal(result.readinessRevision, null);
   const readiness = db.docs.get(
       "platform_configuration/payment_provider_readiness",
   );
