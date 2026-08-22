@@ -18,16 +18,20 @@ The first implementation treated Checkout creation as a single lifetime operatio
 ## Repair
 
 - Added `external_settlement_fee_checkout_policy.js`.
+- Added `external_settlement_fee_provider_policy.js` as the single provider-session/persistence decision layer.
 - Added a server-owned `marketplaceFeeCheckoutAttempt` counter.
 - Stripe idempotency keys now include the payment attempt number.
 - Concurrent requests for the same attempt still share the same Stripe idempotency key.
 - `checkout_created` sessions are re-read from Stripe before reuse.
-- Open sessions are reused; processing/completed sessions are not duplicated.
+- Open sessions are reused only when the returned URL is a valid Stripe Checkout URL.
+- Processing/completed/paid sessions are not duplicated.
 - Expired sessions can advance to a new attempt.
+- Unknown provider states fail closed for manual review rather than guessing a retry path.
 - Failed local payment state can advance to a clean new attempt.
 - Inconsistent active state without a valid Stripe Session ID fails closed for review.
 - Post-Stripe persistence now runs inside a Firestore transaction.
 - The callable refuses to downgrade `collected`, `processing`, or `payment_failed` states written by a faster webhook for the same Session.
+- A newer checkout attempt supersedes any stale response from an older provider call.
 - Each created attempt is recorded under `marketplace_transactions/{transactionId}/marketplace_fee_checkout_attempts/{attempt}` for reconciliation evidence.
 - Stripe Checkout URL host is validated server-side as `https://checkout.stripe.com`.
 
@@ -47,31 +51,36 @@ The first implementation treated Checkout creation as a single lifetime operatio
 - Seller-only marketplace-fee payment action is enabled only after both confirmations.
 - UI distinguishes fee due, checkout open, processing, failed, and paid states.
 - Paid seller can open the provider-backed Stripe receipt when available.
-- Added MFA-backed read-only admin queue at `/admin/settlement-fees`.
-- Admin queue surfaces confirmation pending, fee due, checkout open, processing, failed, paid, tax review, and payment-path conflict states.
+- Added MFA-backed admin queue at `/admin/settlement-fees`.
+- Admin queue surfaces confirmation pending, fee due, checkout open, processing, failed, paid, tax review, payment-path conflict, and reconciliation state.
 
-## Verification added
+## Verification added / executed
 
 - Pure Node tests for attempt numbering, active/inconsistent state, retry generation, and idempotency keys.
 - Pure Node tests for receipt URL and amount/currency verification.
-- Flutter contract tests for Checkout lifecycle responses and Stripe URL restrictions.
-- Flutter source-contract tests for user settlement route/controls and admin fee queue states.
-- Functions `npm run check` now includes the new policy and receipt modules.
+- Provider lifecycle policy tests cover open-session reuse, invalid URL refusal, completed/paid processing lock, expired-session retry, unknown-status review, webhook-state preservation, and stale-attempt supersession.
+- Focused Node 22 execution verified 11 provider lifecycle assertions with no failures.
+- A source-contract test verifies `external_settlement_commands.js` consumes both authoritative provider lifecycle decisions.
+- Flutter contract tests cover Checkout lifecycle responses and Stripe URL restrictions.
+- Flutter source-contract tests cover user settlement route/controls and admin fee queue states.
+- Functions `npm run check` includes the checkout, provider policy, receipt, reconciliation and webhook claim modules.
 
 ## Acceptance still required
 
-Do not mark P3 complete from this repair record alone.
+Do not mark P3 financially complete from this repair record alone.
 
 Required evidence remains:
 
-- Repository CI must run successfully. GitHub currently reports `startup_failure` before any job is created, so no branch test result exists yet.
-- Firebase emulator callable flow should confirm one-party rejection, both-party success, concurrent duplicate behavior, failed-attempt retry, and webhook race preservation.
-- A controlled Stripe payment must prove successful collection, failure/retry, webhook idempotency, receipt retrieval, and Firestore reconciliation.
-- Tax handling must be approved for the fee flow.
-- Admin and user pages must be visually accepted on web/mobile before merge/deploy.
+- Run the repository-wide `tool/verify.ps1` gate from the final P3 commit, including Flutter and Firebase emulator work. Hosted GitHub Actions continue to fail before job startup and are not payment-code evidence.
+- Complete a controlled real Stripe fee payment to prove the deployed Checkout/webhook path against provider objects.
+- Exercise one intentional failed payment/retry during controlled acceptance.
+- Run provider-backed reconciliation and require a zero-difference `balanced` result through the Stripe Balance Transaction.
+- Obtain web/mobile visual acceptance before production activation.
 
 ## Do not repeat
 
 Do not "fix" failed fee retries by removing Stripe idempotency. The correct repair is attempt-scoped idempotency: one stable key per logical payment attempt, with a new attempt only after the prior attempt is conclusively failed/expired.
 
 Do not write `checkout_created` blindly after the Stripe API returns. The provider webhook may have already advanced the transaction state. Preserve newer provider-authoritative state inside a Firestore transaction.
+
+Do not duplicate provider-status branching in multiple call sites. `external_settlement_fee_provider_policy.js` is now the authoritative provider lifecycle decision layer for fee Checkout reuse/retry and post-provider persistence.
