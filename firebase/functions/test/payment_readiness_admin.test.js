@@ -37,8 +37,7 @@ test("full marketplace checkout still requires active tax registration", () => {
         stripeConnectOnboardingEnabled: true,
         stripeCheckoutEnabled: true,
         stripeWebhookVerified: true,
-        stripeTaxRegistrationPending: true,
-        stripeTaxPendingBillingApproved: true,
+        canadaGstHstSmallSupplier: true,
         stripeReconciliationReady: true,
       }, {confirmProduction: true}),
       /active tax registration/i,
@@ -55,6 +54,33 @@ test("full marketplace checkout still requires active tax registration", () => {
   assert.equal(ready.stripeCheckoutEnabled, true);
 });
 
+test("Canadian small supplier mode can authorize Dispatch subscriptions", () => {
+  const ready = validateReadiness({
+    ...base,
+    stripeMode: "production",
+    stripeSubscriptionsEnabled: true,
+    stripeWebhookVerified: true,
+    canadaGstHstSmallSupplier: true,
+    stripeReconciliationReady: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.stripeSubscriptionsEnabled, true);
+  assert.equal(ready.canadaGstHstSmallSupplier, true);
+  assert.equal(ready.stripeTaxReady, false);
+});
+
+test("Canadian small supplier mode can authorize Pipe Buyer fee billing", () => {
+  const ready = validateReadiness({
+    ...base,
+    stripeMode: "production",
+    stripeFeeBillingEnabled: true,
+    stripeWebhookVerified: true,
+    canadaGstHstSmallSupplier: true,
+    stripeReconciliationReady: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.stripeFeeBillingEnabled, true);
+  assert.equal(ready.canadaGstHstSmallSupplier, true);
+});
+
 test("pending registration alone cannot authorize Dispatch subscriptions", () => {
   assert.throws(
       () => validateReadiness({
@@ -65,7 +91,7 @@ test("pending registration alone cannot authorize Dispatch subscriptions", () =>
         stripeTaxRegistrationPending: true,
         stripeReconciliationReady: true,
       }, {confirmProduction: true}),
-      /separately approved pending-registration billing decision/i,
+      /authorized GST\/HST billing state/i,
   );
   const ready = validateReadiness({
     ...base,
@@ -90,7 +116,7 @@ test("pending registration alone cannot authorize Pipe Buyer fee billing", () =>
         stripeTaxRegistrationPending: true,
         stripeReconciliationReady: true,
       }, {confirmProduction: true}),
-      /separately approved pending-registration billing decision/i,
+      /authorized GST\/HST billing state/i,
   );
   const ready = validateReadiness({
     ...base,
@@ -116,19 +142,28 @@ test("pending-tax billing approval requires registration to be pending", () => {
   );
 });
 
-test("tax registration cannot be pending and ready at the same time", () => {
+test("GST HST identity states are mutually exclusive", () => {
   assert.throws(
       () => validateReadiness({
         ...base,
         stripeMode: "production",
         stripeTaxReady: true,
-        stripeTaxRegistrationPending: true,
+        canadaGstHstSmallSupplier: true,
       }, {confirmProduction: true}),
-      /cannot be both pending and ready/i,
+      /exactly one of registered, registration pending, or Canadian small supplier/i,
+  );
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeTaxRegistrationPending: true,
+        canadaGstHstSmallSupplier: true,
+      }, {confirmProduction: true}),
+      /exactly one of registered, registration pending, or Canadian small supplier/i,
   );
 });
 
-test("tax registration pending is production-only", () => {
+test("pending registration and small supplier states are production-only", () => {
   assert.throws(
       () => validateReadiness({
         ...base,
@@ -136,6 +171,14 @@ test("tax registration pending is production-only", () => {
         stripeTaxRegistrationPending: true,
       }),
       /only be used with production billing/i,
+  );
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "sandbox",
+        canadaGstHstSmallSupplier: true,
+      }),
+      /small-supplier billing status may only be used with production billing/i,
   );
 });
 
