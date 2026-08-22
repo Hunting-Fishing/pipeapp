@@ -25,6 +25,9 @@ const {
   taxCollectionStatus,
 } = require("./pending_tax_policy");
 const {
+  requireCanadaSmallSupplierRuntimeEvidence,
+} = require("./canada_small_supplier_runtime_gate");
+const {
   externalSettlementFullyConfirmed,
   hasStartedStripeMarketplaceCheckout,
 } = require("./marketplace_payment_path_guard");
@@ -165,9 +168,14 @@ function createExternalSettlementCommands(admin, options = {}) {
           readinessData.stripeTaxRegistrationPending === true,
         stripeTaxPendingBillingApproved:
           readinessData.stripeTaxPendingBillingApproved === true,
+        canadaGstHstSmallSupplier:
+          readinessData.canadaGstHstSmallSupplier === true,
+        canadaGstHstSmallSupplierAssessmentRevision:
+          readinessData.canadaGstHstSmallSupplierAssessmentRevision,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
+      await requireCanadaSmallSupplierRuntimeEvidence(db, readiness);
       requirePlatformFeeBillingReady(readiness);
       const collectionStatus = taxCollectionStatus(readiness);
       const transactionId = transactionIdFromRequest(request);
