@@ -44,6 +44,29 @@ function invoiceCommissionBaseMinor(invoice) {
     Math.max(0, subtotal - discounts) : 0;
 }
 
+function invoicePeriodBounds(invoice) {
+  const starts = [];
+  const ends = [];
+  const addPeriod = (period) => {
+    const start = Number(period && period.start || 0);
+    const end = Number(period && period.end || 0);
+    if (Number.isFinite(start) && start > 0) starts.push(start);
+    if (Number.isFinite(end) && end > 0) ends.push(end);
+  };
+  addPeriod({
+    start: invoice && invoice.period_start,
+    end: invoice && invoice.period_end,
+  });
+  const lines = invoice && invoice.lines && invoice.lines.data;
+  if (Array.isArray(lines)) {
+    for (const line of lines) addPeriod(line && line.period);
+  }
+  return {
+    startMillis: starts.length ? Math.min(...starts) * 1000 : null,
+    endMillis: ends.length ? Math.max(...ends) * 1000 : null,
+  };
+}
+
 function subscriptionIdentityFromInvoice(invoice) {
   const parent = invoice && invoice.parent;
   const details = parent && parent.subscription_details;
@@ -54,6 +77,13 @@ function subscriptionIdentityFromInvoice(invoice) {
     String(invoice.subscription && invoice.subscription.id || "");
   const metadata = details && details.metadata ? details.metadata : null;
   return {subscriptionId, metadata};
+}
+
+function stripeCustomerIdFromInvoice(invoice) {
+  const customerId = typeof (invoice && invoice.customer) === "string" ?
+    invoice.customer :
+    String(invoice && invoice.customer && invoice.customer.id || "");
+  return customerId.startsWith("cus_") ? customerId : "";
 }
 
 function sourceChargeFromInvoice(invoice) {
@@ -68,27 +98,45 @@ function sourceChargeFromInvoice(invoice) {
   return "";
 }
 
+async function dispatchSubscriptionContextFromInvoice({
+  invoice,
+  secretKey,
+  stripeConfig,
+}) {
+  const invoiceId = String(invoice && invoice.id || "");
+  const identity = subscriptionIdentityFromInvoice(invoice);
+  const subscriptionId = String(identity.subscriptionId || "");
+  if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) {
+    return null;
+  }
+  let metadata = identity.metadata;
+  if (!metadata) {
+    const subscription = await retrieveStripeSubscription({
+      secretKey,
+      apiVersion: stripeConfig.apiVersion,
+      subscriptionId,
+    });
+    metadata = subscription.metadata || {};
+  }
+  if (metadata.billingType !== "dispatch_subscription") return null;
+  const uid = String(metadata.pipeBuyerUid || "").trim();
+  if (!uid || uid.includes("/") || uid.length > 180) return null;
+  return {invoiceId, subscriptionId, metadata, uid};
+}
+
 function createSubscriptionMonetization(admin, stripeConfig) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
 
   async function handleDispatchInvoicePaid(invoice, secretKey) {
-    const invoiceId = String(invoice && invoice.id || "");
-    const identity = subscriptionIdentityFromInvoice(invoice);
-    const subscriptionId = String(identity.subscriptionId || "");
-    if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) return;
-    let metadata = identity.metadata;
-    if (!metadata) {
-      const subscription = await retrieveStripeSubscription({
-        secretKey,
-        apiVersion: stripeConfig.apiVersion,
-        subscriptionId,
-      });
-      metadata = subscription.metadata || {};
-    }
-    if (metadata.billingType !== "dispatch_subscription") return;
-    const uid = String(metadata.pipeBuyerUid || "").trim();
+    const context = await dispatchSubscriptionContextFromInvoice({
+      invoice,
+      secretKey,
+      stripeConfig,
+    });
+    if (!context) return;
+    const {invoiceId, subscriptionId, metadata, uid} = context;
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
@@ -99,22 +147,28 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
+    const membershipRef = db.collection("dispatch_memberships").doc(uid);
     const sourceChargeId = sourceChargeFromInvoice(invoice);
+    const customerId = stripeCustomerIdFromInvoice(invoice);
+    const period = invoicePeriodBounds(invoice);
     const eligibleAfter = Timestamp.fromMillis(
         Date.now() + SUBSCRIPTION_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
     );
     await db.runTransaction(async (transaction) => {
       const existingInvoice = await transaction.get(invoiceRef);
+      const existingMembership = await transaction.get(membershipRef);
       const existingCommission = referrerUid && commissionMinor > 0 ?
         await transaction.get(commissionRef) : null;
       transaction.set(invoiceRef, {
         invoiceId,
         subscriptionId,
-        uid: uid || null,
+        uid,
+        stripeCustomerId: customerId || null,
         plan: String(metadata.dispatchPlan || ""),
         currency: String(invoice.currency || "cad").toUpperCase(),
         commissionBaseMinor: baseMinor,
         amountPaidMinor: Number(invoice.amount_paid || 0),
+        amountDueMinor: Number(invoice.amount_due || 0),
         taxMinor: Math.max(0, Number(invoice.total || 0) - baseMinor),
         taxCollectionStatus: taxStatus,
         taxExposureReviewRequired: taxStatus === "registration_pending",
@@ -130,6 +184,36 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
         }),
       }, {merge: true});
+
+      if (period.endMillis) {
+        const currentEnd = existingMembership.exists &&
+          existingMembership.data().currentPeriodEnd &&
+          typeof existingMembership.data().currentPeriodEnd.toMillis === "function" ?
+          existingMembership.data().currentPeriodEnd.toMillis() : 0;
+        if (period.endMillis >= currentEnd) {
+          transaction.set(membershipRef, {
+            ownerUid: uid,
+            active: period.endMillis > Date.now(),
+            status: period.endMillis > Date.now() ? "active" : "expired",
+            renewalStatus: "paid",
+            paymentIssue: false,
+            plan: String(metadata.dispatchPlan || ""),
+            subscriptionId,
+            stripeCustomerId: customerId ||
+              (existingMembership.exists ?
+                existingMembership.data().stripeCustomerId || null : null),
+            currentPeriodStart: period.startMillis ?
+              Timestamp.fromMillis(period.startMillis) : null,
+            currentPeriodEnd: Timestamp.fromMillis(period.endMillis),
+            lastPaidInvoiceId: invoiceId,
+            updatedAt: FieldValue.serverTimestamp(),
+            ...(existingMembership.exists ? {} : {
+              createdAt: FieldValue.serverTimestamp(),
+            }),
+          }, {merge: true});
+        }
+      }
+
       if (referrerUid && commissionMinor > 0 &&
           existingCommission && !existingCommission.exists) {
         transaction.create(commissionRef, {
@@ -149,6 +233,65 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
+      }
+    });
+  }
+
+  async function handleDispatchInvoicePaymentFailed(invoice, secretKey) {
+    const context = await dispatchSubscriptionContextFromInvoice({
+      invoice,
+      secretKey,
+      stripeConfig,
+    });
+    if (!context) return;
+    const {invoiceId, subscriptionId, metadata, uid} = context;
+    const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
+    const membershipRef = db.collection("dispatch_memberships").doc(uid);
+    const customerId = stripeCustomerIdFromInvoice(invoice);
+    const nextAttemptSeconds = Number(invoice && invoice.next_payment_attempt || 0);
+    const nextPaymentAttempt = Number.isFinite(nextAttemptSeconds) &&
+      nextAttemptSeconds > 0 ?
+      Timestamp.fromMillis(nextAttemptSeconds * 1000) : null;
+
+    await db.runTransaction(async (transaction) => {
+      const [existingInvoice, existingMembership] = await Promise.all([
+        transaction.get(invoiceRef),
+        transaction.get(membershipRef),
+      ]);
+      transaction.set(invoiceRef, {
+        invoiceId,
+        subscriptionId,
+        uid,
+        stripeCustomerId: customerId || null,
+        plan: String(metadata.dispatchPlan || ""),
+        currency: String(invoice.currency || "cad").toUpperCase(),
+        amountDueMinor: Number(invoice.amount_due || 0),
+        amountPaidMinor: Number(invoice.amount_paid || 0),
+        attemptCount: Number(invoice.attempt_count || 0),
+        nextPaymentAttempt,
+        status: "payment_failed",
+        paymentFailedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(existingInvoice.exists ? {} : {
+          createdAt: FieldValue.serverTimestamp(),
+        }),
+      }, {merge: true});
+
+      // A failed renewal does not revoke a period that was already paid for.
+      // Access remains governed by currentPeriodEnd. Once that date passes,
+      // the status callable reports the membership expired even if the stored
+      // active flag has not yet been changed by another lifecycle event.
+      if (existingMembership.exists) {
+        transaction.set(membershipRef, {
+          renewalStatus: "payment_failed",
+          paymentIssue: true,
+          lastPaymentFailureInvoiceId: invoiceId,
+          lastPaymentFailureAt: FieldValue.serverTimestamp(),
+          nextPaymentAttempt,
+          stripeCustomerId: customerId ||
+            existingMembership.data().stripeCustomerId || null,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
       }
     });
   }
@@ -177,6 +320,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
 
   return {
     handleDispatchInvoicePaid,
+    handleDispatchInvoicePaymentFailed,
     voidPendingCommissionForRefund,
   };
 }
@@ -186,8 +330,11 @@ module.exports = {
   SUBSCRIPTION_AFFILIATE_SHARE_BPS,
   SUBSCRIPTION_REFUND_WINDOW_DAYS,
   createSubscriptionMonetization,
+  dispatchSubscriptionContextFromInvoice,
   invoiceCommissionBaseMinor,
+  invoicePeriodBounds,
   retrieveStripeSubscription,
   sourceChargeFromInvoice,
+  stripeCustomerIdFromInvoice,
   subscriptionIdentityFromInvoice,
 };
