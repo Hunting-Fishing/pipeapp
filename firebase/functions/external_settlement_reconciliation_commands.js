@@ -6,10 +6,6 @@ const {
   requireAdministrator,
 } = require("./administrator_authorization");
 const {
-  stripeSecretKey,
-} = require("./stripe_marketplace_commands");
-const {stripeFormRequest} = require("./stripe_checkout_commands");
-const {
   externalFeeReconciliationState,
   objectId,
 } = require("./external_settlement_reconciliation_policy");
@@ -67,11 +63,21 @@ function reconciliationRecord({
   };
 }
 
+function defaultStripeRequest(args) {
+  const {stripeFormRequest} = require("./stripe_checkout_commands");
+  return stripeFormRequest(args);
+}
+
+function defaultSecretKeyProvider() {
+  const {stripeSecretKey} = require("./stripe_marketplace_commands");
+  return stripeSecretKey.value();
+}
+
 function createExternalSettlementReconciliationCommands(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
-  const stripeRequest = options.stripeRequest || stripeFormRequest;
-  const secretKeyProvider = options.secretKeyProvider || (() => stripeSecretKey.value());
+  const stripeRequest = options.stripeRequest || defaultStripeRequest;
+  const secretKeyProvider = options.secretKeyProvider || defaultSecretKeyProvider;
 
   async function reconcileExternalSettlementFee(request) {
     try {
@@ -202,6 +208,8 @@ module.exports = {
   RECONCILIATION_AUDIT_COLLECTION,
   RECONCILIATION_COLLECTION,
   createExternalSettlementReconciliationCommands,
+  defaultSecretKeyProvider,
+  defaultStripeRequest,
   reconciliationRecord,
   requiredProviderId,
   transactionIdFromRequest,
