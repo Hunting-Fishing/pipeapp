@@ -1,6 +1,6 @@
 # Policy publication and acceptance control
 
-Status: Source verified; Terms/Privacy live-hash verified; remaining three public policy pages added to the release branch and pending Hosting deployment/hash verification before policy publication
+Status: All five Phase 1 policy documents are live-hash verified and published in production at version `2026.08.22`, revision `1`; policy enforcement remains disabled pending acceptance and stale-version verification
 
 Owner: Product, privacy/legal, Trust & Safety, and engineering
 
@@ -20,12 +20,12 @@ The five Phase 1 policies are:
 - Mapping and Location Policy (`mapping_location`) — `https://www.pipebuyer.com/mapping-location`
 - Communications Policy (`communications`) — `https://www.pipebuyer.com/communications`
 
-As of August 22, 2026, the reviewed Terms and Privacy build files were deployed
-to Firebase Hosting and independently fetched from the public domain. Their
-live bytes matched the release build SHA-256 values exactly. The other three
-policy pages now exist on the controlled release branch; they are not yet
-considered published policy records until Hosting deployment, independent live
-hash verification, owner approval, and operator publication are complete.
+On August 22, 2026, all five reviewed policy build files were deployed to
+Firebase Hosting and independently fetched from the public domain. Every live
+file matched the release build SHA-256 exactly. The approving owner authorized
+publication, the guarded operator path recomputed each live hash, and all five
+production policy records were published at version `2026.08.22`, revision `1`.
+A post-publication status check confirmed policy enforcement remained disabled.
 
 ## Publication control
 
@@ -33,8 +33,8 @@ An administrator with reviewed role claims and a current Firebase MFA session
 may use `publishPolicyDocument`. Production operations may also use
 `firebase/functions/scripts/policy_ops.js`, which preserves the policy document
 and immutable publication-event model, computes the SHA-256 from the live HTTPS
-URL, defaults to dry-run, and requires an explicit production-project
-confirmation before a write.
+URL, defaults to dry-run, validates the approval actor, and requires an explicit
+production-project confirmation before a write.
 
 Each publication requires:
 
@@ -53,9 +53,10 @@ Do not publish until the named policy owner has approved the document and an
 operator has independently verified that the public URL content produces the
 submitted SHA-256 hash.
 
-`WebLegal` must validate and build all five public policy pages. Its release
-script prints a SHA-256 for each built file and instructs the operator to fetch
-all five public URLs independently before policy publication.
+`WebLegal` validates and builds all five public policy pages. Its release script
+prints a SHA-256 for each built file. `VerifyPolicies` independently fetches all
+five public URLs and fails closed unless every live byte matches the local
+release build before policy publication.
 
 ## User acceptance
 
@@ -75,6 +76,10 @@ It rejects missing, unpublished, duplicated, or stale versions and records:
 The UI determines current status by comparing the acceptance record with the
 live policy versions. A stored boolean is deliberately not trusted because a
 later publication can make an older acceptance stale.
+
+The next production gate after publication is acceptance verification with new
+and existing users plus proof that a stale version is blocked and must be
+reaccepted. Do not enable enforcement before that evidence is complete.
 
 ## Enforcement rollout
 
@@ -99,6 +104,8 @@ Before enabling in production:
 6. publish customer communication and support instructions;
 7. enable in staging/controlled production rollout and monitor failures; and
 8. record the production approval and rollback owner.
+
+Steps 1-3 are complete for version `2026.08.22`. Steps 4-8 remain open.
 
 Disable enforcement only for an incident with an approved reason. Disabling
 does not delete policy or acceptance history.
