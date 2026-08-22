@@ -118,7 +118,7 @@ class _MarketplaceCanadaGstHstThresholdPanelState
     final level = '${assessment['level'] ?? 'not_assessed'}';
     final progress = thresholdMinor <= 0
         ? 0.0
-        : (governingMinor / thresholdMinor).clamp(0.0, 1.0);
+        : (governingMinor / thresholdMinor).clamp(0.0, 1.0).toDouble();
     final state = _visualState(level, hasAssessment);
 
     return Card(
