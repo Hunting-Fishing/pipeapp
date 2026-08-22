@@ -113,6 +113,10 @@ async function loadProviderReadiness(db) {
     stripeCheckoutEnabled: data.stripeCheckoutEnabled === true,
     stripeWebhookVerified: data.stripeWebhookVerified === true,
     stripeTaxReady: data.stripeTaxReady === true,
+    stripeTaxRegistrationPending: data.stripeTaxRegistrationPending === true,
+    stripeTaxPendingBillingApproved:
+      data.stripeTaxPendingBillingApproved === true,
+    canadaGstHstSmallSupplier: data.canadaGstHstSmallSupplier === true,
     stripeReconciliationReady: data.stripeReconciliationReady === true,
     connectReturnUrl: String(data.connectReturnUrl || ""),
     connectRefreshUrl: String(data.connectRefreshUrl || ""),
@@ -301,8 +305,6 @@ function createStripeMarketplaceCommands(admin) {
         onboardingLinkExpiresAt: accountLink.expires_at || null,
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
-      // Account links are single-use and grant access to private onboarding data.
-      // Return the URL only to this authenticated caller; never persist the URL.
       return {
         accountId: seller.accountId,
         onboardingUrl: url,
