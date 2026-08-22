@@ -3,6 +3,11 @@
 const {
   stripeWebhookClaimDecision,
 } = require("./stripe_webhook_event_claim");
+const {
+  externalFeeWebhookTransitionDecision,
+  feeOnlyWebhookTransition,
+  safeAttempt,
+} = require("./external_settlement_fee_webhook_policy");
 
 async function claimStripeWebhookEvent({
   db,
@@ -35,6 +40,78 @@ async function claimStripeWebhookEvent({
   });
 }
 
+function feeEventData(event = {}) {
+  const session = event.data && event.data.object || {};
+  return {
+    transactionId: String(
+        session.metadata && session.metadata.pipeBuyerTransactionId || "",
+    ).trim(),
+    sessionId: String(session.id || "").trim(),
+    attempt: safeAttempt(
+        session.metadata && session.metadata.checkoutAttempt,
+    ),
+  };
+}
+
+async function applyExternalFeeNonSuccessEvent({
+  db,
+  event,
+  FieldValue,
+}) {
+  const nextStatus = feeOnlyWebhookTransition(event);
+  if (!nextStatus) return {handled: false};
+  const eventData = feeEventData(event);
+  if (!eventData.transactionId) {
+    return {handled: true, action: "ignore", reason: "missing_transaction_id"};
+  }
+  const transactionRef = db.collection("marketplace_transactions")
+      .doc(eventData.transactionId);
+  const result = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(transactionRef);
+    if (!snapshot.exists) {
+      throw new Error("Pipe Buyer transaction for fee webhook was not found.");
+    }
+    const sale = snapshot.data() || {};
+    const decision = externalFeeWebhookTransitionDecision({
+      currentStatus: sale.marketplaceFeeStatus,
+      currentSessionId: sale.stripeMarketplaceFeeSessionId,
+      currentAttempt: sale.marketplaceFeeCheckoutAttempt,
+      eventSessionId: eventData.sessionId,
+      eventAttempt: eventData.attempt,
+      nextStatus,
+    });
+    if (decision.action === "apply") {
+      transaction.set(transactionRef, {
+        marketplaceFeeStatus: nextStatus,
+        stripeMarketplaceFeeSessionId: eventData.sessionId,
+        ...(eventData.attempt > 0 ? {
+          marketplaceFeeCheckoutAttempt: eventData.attempt,
+        } : {}),
+        ...(nextStatus === "payment_failed" ? {
+          marketplaceFeePaymentFailedAt: FieldValue.serverTimestamp(),
+        } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+    } else if (decision.action === "review") {
+      transaction.set(transactionRef, {
+        marketplaceFeeOperationalReviewRequired: true,
+        marketplaceFeeOperationalReviewReason: decision.reason,
+        marketplaceFeeOperationalReviewEventSessionId: eventData.sessionId,
+        marketplaceFeeOperationalReviewEventAttempt: eventData.attempt || null,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+    }
+    return {
+      handled: true,
+      action: decision.action,
+      reason: decision.reason || "",
+      nextStatus: decision.nextStatus || nextStatus,
+      transactionId: eventData.transactionId,
+    };
+  });
+  return result;
+}
+
 function productionInnerHandler(admin) {
   const {
     createMarketplaceFinancialResolution,
@@ -58,6 +135,7 @@ function productionInnerHandler(admin) {
 function createClaimedStripeWebhookHandler(admin, options = {}) {
   const db = admin.firestore();
   const Timestamp = admin.firestore.Timestamp;
+  const FieldValue = admin.firestore.FieldValue;
   const innerHandler = options.innerHandler || productionInnerHandler(admin);
   const verifySignature = options.verifySignature ||
     require("./stripe_webhook").verifyStripeSignature;
@@ -111,12 +189,51 @@ function createClaimedStripeWebhookHandler(admin, options = {}) {
       response.status(200).send("Already processing");
       return;
     }
+
+    if (feeOnlyWebhookTransition(event)) {
+      try {
+        const transition = await applyExternalFeeNonSuccessEvent({
+          db,
+          event,
+          FieldValue,
+        });
+        await eventRef.set({
+          eventId,
+          type: String(event.type || ""),
+          status: "processed",
+          guardedFeeTransitionAction: transition.action || "",
+          guardedFeeTransitionReason: transition.reason || "",
+          processingLeaseExpiresAt: null,
+          processedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        response.status(200).send("OK");
+      } catch (error) {
+        console.error("Guarded external fee webhook transition failed", {
+          eventId,
+          type: event.type,
+          error,
+        });
+        await eventRef.set({
+          eventId,
+          type: String(event.type || ""),
+          status: "failed",
+          processingLeaseExpiresAt: null,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        response.status(500).send("Webhook processing failed");
+      }
+      return;
+    }
+
     await innerHandler(request, response);
   };
 }
 
 module.exports = {
+  applyExternalFeeNonSuccessEvent,
   claimStripeWebhookEvent,
   createClaimedStripeWebhookHandler,
+  feeEventData,
   productionInnerHandler,
 };
