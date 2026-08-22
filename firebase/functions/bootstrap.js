@@ -37,6 +37,9 @@ const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
+  createCanadaSmallSupplierThresholdCommands,
+} = require("./canada_small_supplier_threshold_commands");
+const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
 const {
@@ -59,6 +62,8 @@ const externalSettlementCommands = createExternalSettlementCommands(admin);
 const externalSettlementReceiptCommands =
     createExternalSettlementReceiptCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const canadaSmallSupplierThresholdCommands =
+    createCanadaSmallSupplierThresholdCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
 const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
@@ -142,6 +147,14 @@ exports.requestMarketplaceRefund = onCall(
 exports.cancelMarketplaceRefundRequest = onCall(
     protectedCallableOptions,
     marketplaceFinancialResolution.cancelMarketplaceRefundRequest,
+);
+exports.getCanadaGstHstThresholdAssessment = onCall(
+    protectedCallableOptions,
+    canadaSmallSupplierThresholdCommands.getCanadaGstHstThresholdAssessment,
+);
+exports.setCanadaGstHstThresholdAssessment = onCall(
+    protectedCallableOptions,
+    canadaSmallSupplierThresholdCommands.setCanadaGstHstThresholdAssessment,
 );
 
 const stripeCallableOptions = Object.freeze({
