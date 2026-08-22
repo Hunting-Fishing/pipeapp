@@ -31,6 +31,9 @@ const {
   createExternalSettlementCommands,
 } = require("./external_settlement_commands");
 const {
+  createExternalSettlementReceiptCommands,
+} = require("./external_settlement_receipt_commands");
+const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
@@ -53,6 +56,8 @@ const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
+const externalSettlementReceiptCommands =
+    createExternalSettlementReceiptCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
@@ -163,6 +168,10 @@ exports.createMarketplaceCheckout = onCall(
 exports.createExternalSettlementFeeCheckout = onCall(
     stripeCallableOptions,
     externalSettlementCommands.createExternalSettlementFeeCheckout,
+);
+exports.getExternalSettlementFeeReceipt = onCall(
+    stripeCallableOptions,
+    externalSettlementReceiptCommands.getExternalSettlementFeeReceipt,
 );
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
