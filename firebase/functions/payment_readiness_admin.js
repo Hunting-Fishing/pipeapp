@@ -5,9 +5,14 @@ const {
   AdministratorAuthorizationError,
   requireAdministrator,
 } = require("./administrator_authorization");
+const {
+  canadaSmallSupplierAssessmentDecision,
+} = require("./canada_small_supplier_readiness_guard");
 
 const READINESS_DOC = "payment_provider_readiness";
 const CONFIG_COLLECTION = "platform_configuration";
+const SMALL_SUPPLIER_ASSESSMENT_COLLECTION = "tax_threshold_assessments";
+const SMALL_SUPPLIER_ASSESSMENT_DOC = "canada_gst_hst_current";
 const MODES = new Set(["disabled", "sandbox", "production"]);
 const BOOLEAN_FIELDS = Object.freeze([
   "stripeConnectOnboardingEnabled",
@@ -254,10 +259,31 @@ function createPaymentReadinessAdmin(admin) {
             request.data && request.data.patch,
             {confirmProduction: request.data && request.data.confirmProduction === true},
         );
-        const revision = Math.max(0, Number(snapshot.exists && snapshot.data().revision || 0)) + 1;
+        let smallSupplierAssessmentRevision = null;
+        if (next.canadaGstHstSmallSupplier) {
+          const assessmentRef = db.collection(SMALL_SUPPLIER_ASSESSMENT_COLLECTION)
+              .doc(SMALL_SUPPLIER_ASSESSMENT_DOC);
+          const assessmentSnapshot = await transaction.get(assessmentRef);
+          const decision = canadaSmallSupplierAssessmentDecision(
+              assessmentSnapshot.exists ? assessmentSnapshot.data() : null,
+          );
+          if (!decision.authorized) {
+            throw new HttpsError(
+                "failed-precondition",
+                `Canadian small-supplier billing requires a valid audited threshold assessment (${decision.reason}).`,
+            );
+          }
+          smallSupplierAssessmentRevision = decision.revision;
+        }
+        const revision = Math.max(
+            0,
+            Number(snapshot.exists && snapshot.data().revision || 0),
+        ) + 1;
         transaction.set(ref, {
           ...next,
           revision,
+          canadaGstHstSmallSupplierAssessmentRevision:
+            smallSupplierAssessmentRevision,
           lastChangedByUid: administratorUid,
           lastChangeReason: reason,
           updatedAt: FieldValue.serverTimestamp(),
@@ -269,9 +295,16 @@ function createPaymentReadinessAdmin(admin) {
           revision,
           previous: current,
           next,
+          canadaGstHstSmallSupplierAssessmentRevision:
+            smallSupplierAssessmentRevision,
           createdAt: FieldValue.serverTimestamp(),
         });
-        return {revision, readiness: next};
+        return {
+          revision,
+          readiness: next,
+          canadaGstHstSmallSupplierAssessmentRevision:
+            smallSupplierAssessmentRevision,
+        };
       });
     } catch (error) {
       if (error instanceof HttpsError) throw error;
@@ -291,6 +324,10 @@ function createPaymentReadinessAdmin(admin) {
 
 module.exports = {
   BOOLEAN_FIELDS,
+  CONFIG_COLLECTION,
+  READINESS_DOC,
+  SMALL_SUPPLIER_ASSESSMENT_COLLECTION,
+  SMALL_SUPPLIER_ASSESSMENT_DOC,
   URL_FIELDS,
   applyPatch,
   createPaymentReadinessAdmin,
