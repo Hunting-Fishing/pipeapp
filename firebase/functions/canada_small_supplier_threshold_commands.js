@@ -71,16 +71,25 @@ function smallSupplierBillingSafetyDecision(assessment, readiness = {}) {
     assessment.requiresRegistrationReview === true;
   const smallSupplierActive = readiness &&
     readiness.canadaGstHstSmallSupplier === true;
-  if (!thresholdExceeded || !smallSupplierActive) {
+  if (!smallSupplierActive) {
     return Object.freeze({
       disableBilling: false,
+      refreshBinding: false,
       reason: thresholdExceeded ?
-        "small_supplier_not_active" : "threshold_not_exceeded",
+        "small_supplier_not_active" : "readiness_inactive",
+    });
+  }
+  if (thresholdExceeded) {
+    return Object.freeze({
+      disableBilling: true,
+      refreshBinding: false,
+      reason: "small_supplier_threshold_exceeded",
     });
   }
   return Object.freeze({
-    disableBilling: true,
-    reason: "small_supplier_threshold_exceeded",
+    disableBilling: false,
+    refreshBinding: true,
+    reason: "small_supplier_assessment_refreshed",
   });
 }
 
@@ -100,6 +109,10 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
       return {
         assessment,
         canadaGstHstSmallSupplier: readiness.canadaGstHstSmallSupplier === true,
+        canadaGstHstSmallSupplierAssessmentRevision:
+          Number(readiness.canadaGstHstSmallSupplierAssessmentRevision || 0),
+        stripeFeeBillingEnabled: readiness.stripeFeeBillingEnabled === true,
+        stripeSubscriptionsEnabled: readiness.stripeSubscriptionsEnabled === true,
         stripeTaxReady: readiness.stripeTaxReady === true,
         stripeTaxRegistrationPending:
           readiness.stripeTaxRegistrationPending === true,
@@ -132,13 +145,17 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
         const readiness = readinessSnapshot.exists ? readinessSnapshot.data() : {};
         const revision = Math.max(0, Number(previous && previous.revision || 0)) + 1;
         const safety = smallSupplierBillingSafetyDecision(next, readiness);
+        const billingSafetyAction = safety.disableBilling ?
+          "small_supplier_billing_disabled" : "none";
+        const readinessBindingAction = safety.refreshBinding ?
+          "small_supplier_assessment_refreshed" : "none";
         const record = {
           ...next,
           revision,
           reviewedByUid: administratorUid,
           reviewedAt: FieldValue.serverTimestamp(),
-          billingSafetyAction: safety.disableBilling ?
-            "small_supplier_billing_disabled" : "none",
+          billingSafetyAction,
+          readinessBindingAction,
           updatedAt: FieldValue.serverTimestamp(),
         };
         transaction.set(ref, record, {merge: false});
@@ -148,17 +165,18 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
           revision,
           previous,
           next: record,
-          billingSafetyAction: record.billingSafetyAction,
+          billingSafetyAction,
+          readinessBindingAction,
           createdAt: FieldValue.serverTimestamp(),
         });
 
         let readinessRevision = null;
-        if (safety.disableBilling) {
+        if (safety.disableBilling || safety.refreshBinding) {
           readinessRevision = Math.max(
               0,
               Number(readiness && readiness.revision || 0),
           ) + 1;
-          const readinessPatch = {
+          const readinessPatch = safety.disableBilling ? {
             canadaGstHstSmallSupplier: false,
             canadaGstHstSmallSupplierAssessmentRevision: null,
             stripeFeeBillingEnabled: false,
@@ -168,6 +186,13 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
             lastChangeReason:
               "Automatic safety shutdown: audited Canadian GST/HST small-supplier threshold assessment is exceeded. Tax registration/effective-date review is required before billing resumes.",
             updatedAt: FieldValue.serverTimestamp(),
+          } : {
+            canadaGstHstSmallSupplierAssessmentRevision: revision,
+            revision: readinessRevision,
+            lastChangedByUid: administratorUid,
+            lastChangeReason:
+              "Audited Canadian GST/HST small-supplier threshold assessment refreshed; billing remains bound to the current assessment revision.",
+            updatedAt: FieldValue.serverTimestamp(),
           };
           transaction.set(readinessRef, readinessPatch, {merge: true});
           const readinessAuditRef = db.collection(READINESS_AUDIT_COLLECTION).doc();
@@ -175,7 +200,10 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
             administratorUid,
             reason: readinessPatch.lastChangeReason,
             revision: readinessRevision,
-            automaticSafetyAction: "small_supplier_threshold_exceeded",
+            automaticSafetyAction: safety.disableBilling ?
+              "small_supplier_threshold_exceeded" : null,
+            readinessBindingAction: safety.refreshBinding ?
+              "small_supplier_assessment_refreshed" : null,
             triggeringThresholdAssessmentRevision: revision,
             previous: readiness,
             patch: readinessPatch,
@@ -188,9 +216,11 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
           assessment: {
             ...next,
             reviewedByUid: administratorUid,
-            billingSafetyAction: record.billingSafetyAction,
+            billingSafetyAction,
+            readinessBindingAction,
           },
-          billingSafetyAction: record.billingSafetyAction,
+          billingSafetyAction,
+          readinessBindingAction,
           readinessRevision,
         };
       });
