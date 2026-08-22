@@ -5,7 +5,7 @@
 const coreExports = require("./bootstrap");
 Object.assign(exports, coreExports);
 
-const {onCall} = require("firebase-functions/v2/https");
+const {onCall, onRequest} = require("firebase-functions/v2/https");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
 const {
@@ -24,6 +24,15 @@ const {
 const {
   createMarketplaceTaxRecovery,
 } = require("./marketplace_tax_recovery");
+const {
+  stripeSecretKey,
+} = require("./stripe_marketplace_commands");
+const {
+  stripeWebhookSecret,
+} = require("./stripe_webhook");
+const {
+  createClaimedStripeWebhookHandler,
+} = require("./stripe_webhook_claim_wrapper");
 
 const admin = createAdminRuntime();
 const readinessAdmin = createPaymentReadinessAdmin(admin);
@@ -33,6 +42,7 @@ const marketplaceTaxClaimLink = createMarketplaceTaxClaimLink(admin);
 const marketplaceTaxRegistrationAdmin =
   createMarketplaceTaxRegistrationAdmin(admin);
 const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
+const claimedStripeWebhookHandler = createClaimedStripeWebhookHandler(admin);
 
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
@@ -116,4 +126,15 @@ exports.createMarketplaceTaxRecoveryCase = onCall(
 exports.resolveMarketplaceTaxRecoveryCase = onCall(
     protectedCallableOptions,
     marketplaceTaxRecovery.resolveMarketplaceTaxRecoveryCase,
+);
+
+// Override the core webhook export with a transactional event-claim wrapper.
+// The inner webhook handler remains authoritative for signature validation,
+// provider state transitions, money movement, failure recording, and retries.
+exports.stripeMarketplaceWebhook = onRequest(
+    {
+      secrets: [stripeSecretKey.name, stripeWebhookSecret.name],
+      cors: false,
+    },
+    claimedStripeWebhookHandler,
 );
