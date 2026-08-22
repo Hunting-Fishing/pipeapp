@@ -24,6 +24,9 @@ const {
   taxBillingPrepared,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
+const {
+  requireCanadaSmallSupplierRuntimeEvidence,
+} = require("./canada_small_supplier_runtime_gate");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -83,9 +86,14 @@ function createDispatchSubscriptionCommands(admin) {
           readinessData.stripeTaxRegistrationPending === true,
         stripeTaxPendingBillingApproved:
           readinessData.stripeTaxPendingBillingApproved === true,
+        canadaGstHstSmallSupplier:
+          readinessData.canadaGstHstSmallSupplier === true,
+        canadaGstHstSmallSupplierAssessmentRevision:
+          readinessData.canadaGstHstSmallSupplierAssessmentRevision,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
+      await requireCanadaSmallSupplierRuntimeEvidence(db, readiness);
       requireSubscriptionReady(readiness);
       const collectionStatus = taxCollectionStatus(readiness);
       const plan = selectedPlan(request.data && request.data.plan);
