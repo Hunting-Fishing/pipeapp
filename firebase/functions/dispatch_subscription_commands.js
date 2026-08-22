@@ -27,6 +27,19 @@ const {
 const {
   requireCanadaSmallSupplierRuntimeEvidence,
 } = require("./canada_small_supplier_runtime_gate");
+const {
+  dispatchCheckoutIdempotencyKey,
+  dispatchCheckoutSessionId,
+  dispatchPostProviderPersistenceDecision,
+  dispatchStripeSubscriptionId,
+  dispatchSubscriptionCheckoutState,
+  existingDispatchCheckoutDecision,
+  nextDispatchCheckoutAttempt,
+} = require("./dispatch_subscription_checkout_policy");
+
+const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
+const SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION =
+  "subscription_checkout_sessions";
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -38,6 +51,15 @@ function selectedPlan(value) {
     throw new HttpsError("invalid-argument", "The Dispatch subscription plan is invalid.");
   }
   return plan;
+}
+
+function validStripeCheckoutUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && url.hostname === "checkout.stripe.com";
+  } catch (_) {
+    return false;
+  }
 }
 
 function requireSubscriptionReady(readiness) {
@@ -65,22 +87,31 @@ function couponFromEntitlement(entitlement) {
   return null;
 }
 
-function createDispatchSubscriptionCommands(admin) {
+function createDispatchSubscriptionCommands(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+  const authUid = options.authUid || requireAuth;
+  const rateLimit = options.rateLimit || enforceUserRateLimit;
+  const loadFeatureFlags = options.loadFeatureFlags || loadPhase1FeatureFlags;
+  const requireFeature = options.requireFeature || requirePhase1Feature;
+  const providerReadiness = options.loadProviderReadiness || loadProviderReadiness;
+  const stripeRequest = options.stripeRequest || stripeFormRequest;
+  const secretProvider = options.secretProvider || (() => stripeSecretKey.value());
+  const runtimeTaxEvidence = options.runtimeTaxEvidence ||
+    requireCanadaSmallSupplierRuntimeEvidence;
 
   const createDispatchSubscriptionCheckout = async (request) => {
     try {
-      const uid = requireAuth(request);
-      await enforceUserRateLimit({db, admin, request, scope: "account"});
-      const flags = await loadPhase1FeatureFlags(db);
-      requirePhase1Feature(flags, "dispatch");
-      requirePhase1Feature(flags, "paidFeatures");
+      const uid = authUid(request);
+      await rateLimit({db, admin, request, scope: "account"});
+      const flags = await loadFeatureFlags(db);
+      requireFeature(flags, "dispatch");
+      requireFeature(flags, "paidFeatures");
       const readinessSnapshot = await db.collection("platform_configuration")
           .doc("payment_provider_readiness").get();
       const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
       const readiness = {
-        ...(await loadProviderReadiness(db)),
+        ...(await providerReadiness(db)),
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
@@ -93,10 +124,87 @@ function createDispatchSubscriptionCommands(admin) {
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
-      await requireCanadaSmallSupplierRuntimeEvidence(db, readiness);
+      await runtimeTaxEvidence(db, readiness);
       requireSubscriptionReady(readiness);
-      const collectionStatus = taxCollectionStatus(readiness);
+
       const plan = selectedPlan(request.data && request.data.plan);
+      const stateRef = db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid);
+      const stateSnapshot = await stateRef.get();
+      const state = stateSnapshot.exists ? stateSnapshot.data() : {};
+      const localState = dispatchSubscriptionCheckoutState(state);
+
+      if (localState === "existing_subscription") {
+        return {
+          alreadySubscribed: true,
+          processing: false,
+          plan: String(state.plan || ""),
+          subscriptionStatus: String(state.status || ""),
+          stripeSubscriptionId: dispatchStripeSubscriptionId(state),
+        };
+      }
+      if (localState === "inconsistent") {
+        throw new HttpsError(
+            "failed-precondition",
+            "The current Dispatch subscription payment state needs review before another Checkout can start.",
+        );
+      }
+      if (localState === "active_checkout") {
+        const existingPlan = String(state.plan || "");
+        if (existingPlan && existingPlan !== plan) {
+          throw new HttpsError(
+              "failed-precondition",
+              `A ${existingPlan} Dispatch Checkout is already open. Complete it or let it expire before switching plans.`,
+          );
+        }
+        const existingSessionId = dispatchCheckoutSessionId(state);
+        const existingSession = await stripeRequest({
+          secretKey: secretProvider(),
+          path: `/v1/checkout/sessions/${encodeURIComponent(existingSessionId)}`,
+          method: "GET",
+        });
+        const existingUrl = String(existingSession.url || "");
+        const decision = existingDispatchCheckoutDecision({
+          localStatus: state.status,
+          providerStatus: existingSession.status,
+          paymentStatus: existingSession.payment_status,
+          checkoutUrlValid: validStripeCheckoutUrl(existingUrl),
+        });
+        if (decision.action === "processing") {
+          return {
+            alreadySubscribed: false,
+            alreadyCreated: true,
+            processing: true,
+            plan,
+            checkoutSessionId: existingSessionId,
+            taxCollectionStatus: taxCollectionStatus(readiness),
+          };
+        }
+        if (decision.action === "reuse") {
+          return {
+            alreadySubscribed: false,
+            alreadyCreated: true,
+            processing: false,
+            plan,
+            checkoutSessionId: existingSessionId,
+            checkoutUrl: existingUrl,
+            taxCollectionStatus: taxCollectionStatus(readiness),
+          };
+        }
+        if (decision.action === "invalid_url") {
+          throw new HttpsError(
+              "failed-precondition",
+              "The existing Stripe Dispatch Checkout link is unavailable.",
+          );
+        }
+        if (decision.action === "review") {
+          throw new HttpsError(
+              "failed-precondition",
+              "The existing Dispatch subscription Checkout needs review before another Checkout can start.",
+          );
+        }
+      }
+
+      const collectionStatus = taxCollectionStatus(readiness);
       const priceId = plan === "monthly" ?
         stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId :
         stripeMarketplaceConfig.products.dispatchYearlyCad.priceId;
@@ -116,10 +224,11 @@ function createDispatchSubscriptionCommands(admin) {
       const couponId = couponFromEntitlement(entitlement);
       const referrerUid = relationshipSnapshot.exists ?
         String(relationshipSnapshot.data().referrerUid || "").trim() : "";
-      const checkout = await stripeFormRequest({
-        secretKey: stripeSecretKey.value(),
+      const attempt = nextDispatchCheckoutAttempt(state);
+      const checkout = await stripeRequest({
+        secretKey: secretProvider(),
         path: "/v1/checkout/sessions",
-        idempotencyKey: `pipebuyer-dispatch-${uid}-${plan}-${Date.now()}`,
+        idempotencyKey: dispatchCheckoutIdempotencyKey(uid, attempt),
         fields: {
           mode: "subscription",
           success_url: successUrl,
@@ -134,6 +243,7 @@ function createDispatchSubscriptionCommands(admin) {
           "metadata[billingType]": "dispatch_subscription",
           "metadata[pipeBuyerUid]": uid,
           "metadata[dispatchPlan]": plan,
+          "metadata[checkoutAttempt]": attempt,
           "metadata[taxCollectionStatus]": collectionStatus,
           ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
           ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
@@ -148,26 +258,96 @@ function createDispatchSubscriptionCommands(admin) {
       });
       const sessionId = String(checkout.id || "");
       const checkoutUrl = String(checkout.url || "");
-      if (!sessionId.startsWith("cs_") || !checkoutUrl.startsWith("https://")) {
-        throw new HttpsError("internal", "Stripe did not return a valid subscription checkout.");
+      if (!sessionId.startsWith("cs_") || !validStripeCheckoutUrl(checkoutUrl)) {
+        throw new HttpsError("internal", "Stripe did not return a valid subscription Checkout.");
       }
-      await db.collection("subscription_checkout_sessions").doc(sessionId).set({
-        uid,
-        plan,
-        priceId,
-        couponId: couponId || null,
-        referrerUid: referrerUid || null,
-        taxCollectionStatus: collectionStatus,
-        taxExposureReviewRequired: collectionStatus === "registration_pending",
-        automaticTaxEnabled: automaticTaxEnabled(readiness),
-        status: "created",
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+
+      const sessionRef = db.collection(SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION)
+          .doc(sessionId);
+      const persistence = await db.runTransaction(async (transaction) => {
+        const currentSnapshot = await transaction.get(stateRef);
+        const current = currentSnapshot.exists ? currentSnapshot.data() : {};
+        const decision = dispatchPostProviderPersistenceDecision({
+          currentStatus: current.status,
+          currentSessionId: dispatchCheckoutSessionId(current),
+          currentAttempt: current.checkoutAttempt,
+          createdSessionId: sessionId,
+          createdAttempt: attempt,
+          currentSubscriptionId: dispatchStripeSubscriptionId(current),
+        });
+
+        transaction.set(sessionRef, {
+          uid,
+          plan,
+          priceId,
+          checkoutAttempt: attempt,
+          couponId: couponId || null,
+          referrerUid: referrerUid || null,
+          taxCollectionStatus: collectionStatus,
+          taxExposureReviewRequired: collectionStatus === "registration_pending",
+          automaticTaxEnabled: automaticTaxEnabled(readiness),
+          status: "created",
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+
+        if (decision !== "checkout_created") {
+          return {
+            decision,
+            subscriptionId: dispatchStripeSubscriptionId(current),
+          };
+        }
+        transaction.set(stateRef, {
+          uid,
+          plan,
+          priceId,
+          status: "checkout_created",
+          checkoutAttempt: attempt,
+          stripeCheckoutSessionId: sessionId,
+          taxCollectionStatus: collectionStatus,
+          promotionCouponId: couponId || null,
+          affiliateReferrerUid: referrerUid || null,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(currentSnapshot.exists ? {} : {
+            createdAt: FieldValue.serverTimestamp(),
+          }),
+        }, {merge: true});
+        return {decision: "checkout_created", subscriptionId: ""};
       });
+
+      if (persistence.decision === "existing_subscription") {
+        return {
+          alreadySubscribed: true,
+          processing: false,
+          plan,
+          stripeSubscriptionId: persistence.subscriptionId,
+        };
+      }
+      if (persistence.decision === "processing") {
+        return {
+          alreadySubscribed: false,
+          alreadyCreated: true,
+          processing: true,
+          plan,
+          checkoutSessionId: sessionId,
+          taxCollectionStatus: collectionStatus,
+        };
+      }
+      if (persistence.decision === "superseded") {
+        throw new HttpsError(
+            "failed-precondition",
+            "A newer Dispatch subscription Checkout already exists. Refresh and try again.",
+        );
+      }
+
       return {
         checkoutSessionId: sessionId,
         checkoutUrl,
         plan,
+        checkoutAttempt: attempt,
+        alreadyCreated: false,
+        alreadySubscribed: false,
+        processing: false,
         promotionApplied: Boolean(couponId),
         taxCollectionStatus: collectionStatus,
       };
@@ -185,8 +365,11 @@ function createDispatchSubscriptionCommands(admin) {
 }
 
 module.exports = {
+  DISPATCH_SUBSCRIPTIONS_COLLECTION,
+  SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION,
   couponFromEntitlement,
   createDispatchSubscriptionCommands,
   requireSubscriptionReady,
   selectedPlan,
+  validStripeCheckoutUrl,
 };
