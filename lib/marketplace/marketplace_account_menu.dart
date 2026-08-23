@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_memberships_dialog.dart';
 
 class MarketplaceAccountMenuButton extends StatelessWidget {
   const MarketplaceAccountMenuButton({
@@ -43,7 +44,12 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
             onTrust();
             return;
           case _AccountMenuAction.memberships:
-            onMemberships();
+            showDialog<void>(
+              context: context,
+              builder: (_) => MarketplaceMembershipsDialog(
+                onVipDetails: onMemberships,
+              ),
+            );
             return;
           case _AccountMenuAction.support:
             onSupport();
