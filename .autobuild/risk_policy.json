@@ -35,16 +35,21 @@
     "tool/autonomous_build_v2.ps1",
     "tool/autonomous_process.ps1",
     "tool/autonomous_project.ps1",
+    "tool/autonomous_fingerprint.ps1",
+    "tool/autonomous_graduation.ps1",
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
     "tool/autonomous_guard_test.ps1",
     "tool/autonomous_recovery.ps1",
     "tool/autonomous_recovery_test.ps1",
+    "tool/autonomous_runtime_fault_test.ps1",
+    "tool/autonomous_reviewer_fault_test.ps1",
     "tool/autonomous_compatibility.mjs",
     "tool/autonomous_compatibility_test.mjs",
     "tool/verify.ps1"
   ],
   "forbidden_path_patterns": [
+    "(^|/)\\.github/workflows/",
     "(^|/)\\.env($|\\.)",
     "service[-_]?account.*\\.json$",
     "credentials?.*\\.json$",
@@ -59,84 +64,18 @@
     "sk-proj-[A-Za-z0-9_-]{20,}"
   ],
   "path_risk_rules": [
-    {
-      "risk": "high",
-      "pattern": "(^|/)firebase/functions/|(^|/)firebase/agent-functions/",
-      "reason": "server-authoritative Functions change"
-    },
-    {
-      "risk": "high",
-      "pattern": "firestore\\.rules$|storage\\.rules$|firestore\\.indexes\\.json$",
-      "reason": "security/data access or index contract change"
-    },
-    {
-      "risk": "high",
-      "pattern": "(^|/)\\.github/workflows/|firebase\\.json$|release_manifest|deployment",
-      "reason": "CI/release/deployment contract change"
-    },
-    {
-      "risk": "high",
-      "pattern": "pubspec\\.ya?ml$|pubspec\\.lock$|package\\.json$|package-lock\\.json$",
-      "reason": "dependency/toolchain change"
-    },
-    {
-      "risk": "high",
-      "pattern": "payment|stripe|billing|invoice|refund|dispute|reconcil|tax",
-      "reason": "financial/billing behavior change"
-    },
-    {
-      "risk": "high",
-      "pattern": "auth|authorization|admin_role|app_check|moderation|verification",
-      "reason": "identity/security/privileged behavior change"
-    },
-    {
-      "risk": "high",
-      "pattern": "migration|backfill|schema|firestore",
-      "reason": "persisted data/schema behavior change"
-    },
-    {
-      "risk": "medium",
-      "pattern": "(^|/)lib/|(^|/)test/",
-      "reason": "application behavior or regression surface"
-    }
+    {"risk":"high","pattern":"(^|/)firebase/functions/|(^|/)firebase/agent-functions/","reason":"server-authoritative Functions change"},
+    {"risk":"high","pattern":"firestore\\.rules$|storage\\.rules$|firestore\\.indexes\\.json$","reason":"security/data access or index contract change"},
+    {"risk":"high","pattern":"(^|/)\\.github/workflows/|firebase\\.json$|release_manifest|deployment","reason":"CI/release/deployment contract change"},
+    {"risk":"high","pattern":"pubspec\\.ya?ml$|pubspec\\.lock$|package\\.json$|package-lock\\.json$","reason":"dependency/toolchain change"},
+    {"risk":"high","pattern":"payment|stripe|billing|invoice|refund|dispute|reconcil|tax","reason":"financial/billing behavior change"},
+    {"risk":"high","pattern":"auth|authorization|admin_role|app_check|moderation|verification","reason":"identity/security/privileged behavior change"},
+    {"risk":"high","pattern":"migration|backfill|schema|firestore","reason":"persisted data/schema behavior change"},
+    {"risk":"medium","pattern":"(^|/)lib/|(^|/)test/","reason":"application behavior or regression surface"}
   ],
-  "dependency_path_patterns": [
-    "pubspec\\.ya?ml$",
-    "pubspec\\.lock$",
-    "package\\.json$",
-    "package-lock\\.json$"
-  ],
-  "data_path_patterns": [
-    "firestore",
-    "schema",
-    "migration",
-    "backfill"
-  ],
-  "security_path_patterns": [
-    "auth",
-    "firestore\\.rules$",
-    "storage\\.rules$",
-    "app_check",
-    "admin_role",
-    "verification",
-    "moderation"
-  ],
-  "billing_path_patterns": [
-    "payment",
-    "stripe",
-    "billing",
-    "invoice",
-    "refund",
-    "dispute",
-    "reconcil",
-    "tax"
-  ],
-  "provider_path_patterns": [
-    "stripe",
-    "routing",
-    "oauth",
-    "firebase",
-    "messaging",
-    "provider"
-  ]
+  "dependency_path_patterns": ["pubspec\\.ya?ml$","pubspec\\.lock$","package\\.json$","package-lock\\.json$"],
+  "data_path_patterns": ["firestore","schema","migration","backfill"],
+  "security_path_patterns": ["auth","firestore\\.rules$","storage\\.rules$","app_check","admin_role","verification","moderation"],
+  "billing_path_patterns": ["payment","stripe","billing","invoice","refund","dispute","reconcil","tax"],
+  "provider_path_patterns": ["stripe","routing","oauth","firebase","messaging","provider"]
 }
