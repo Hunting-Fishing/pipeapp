@@ -1,237 +1,196 @@
-# Repair record — Dispatch subscription singleton, lifecycle, and billing management
+# Repair record — Dispatch subscription production readiness
 
 Date: 2026-08-23  
 Branch: `p2-dispatch-subscription-hardening`  
 Base: `p3-external-settlement-checkout`
 
-## Root cause
+## Root causes
 
-The original Dispatch subscription Checkout command used an idempotency key containing `Date.now()`:
+The original Dispatch subscription flow had several independent financial-state defects:
 
-`pipebuyer-dispatch-${uid}-${plan}-${Date.now()}`
+1. Stripe Checkout idempotency included `Date.now()`, so repeated taps/retries were different Stripe operations.
+2. There was no single server-owned per-user Dispatch subscription state.
+3. Browser/`invoice.paid` evidence could be treated too strongly without re-reading the current Stripe Subscription lifecycle.
+4. Out-of-order `customer.subscription.updated` delivery could roll entitlement backward.
+5. A canceled subscription replacement could conflict with the retired provider subscription, and later webhooks from that retired subscription could overwrite the replacement attempt.
+6. The user UI had informational Dispatch cards but no authoritative subscription status/Checkout/management path.
+7. Billing Portal availability was not separately readiness-gated.
+8. Dispatch affiliate commission accrual was not independently authorized. A referred paid invoice could create a 20% liability even though the affiliate business economics were still unresolved.
+9. Live Monthly and Yearly Stripe tax behavior was inconsistent (`unspecified` vs `exclusive`).
 
-Every repeated tap, browser retry, or concurrent callable invocation therefore became a different Stripe operation. The application also had no single authoritative per-user Dispatch subscription record. Checkout Sessions and paid invoices were recorded separately, but there was no one server-owned state that could answer whether the user already had an open Checkout, an active subscription, a payment problem, or a canceled subscription.
+## Repairs
 
-Additional lifecycle and financial audit found five related integrity defects:
+### Singleton and Checkout safety
 
-1. `invoice.paid` could activate Dispatch access from invoice metadata without re-reading the current Stripe Subscription status;
-2. `customer.subscription.updated` could apply an out-of-order event snapshot and overwrite a newer provider state;
-3. a legitimate replacement subscription after cancellation could be mistaken for a second live subscription because the retired `sub_` id remained in the singleton state when the new Checkout began;
-4. after that retired id was cleared for a replacement Checkout, a very late Checkout/invoice/subscription webhook from the retired subscription could still overwrite the new replacement attempt because there was no durable way to identify the old provider subscription as retired; and
-5. a referred Dispatch invoice could accrue a 20% affiliate commission liability even while `affiliatePayoutsEnabled` was false. Payout execution was gated, but accrual was not, so launching Dispatch subscriptions before affiliate economics were approved could silently create an obligation that Pipe Buyer did not intend to owe yet.
+Server-owned state: `dispatch_subscriptions/{uid}`.
 
-Finally, the existing membership UI only displayed informational Dispatch cards. It did not start the server Checkout command, expose provider-authoritative status, or provide a controlled billing-management/cancellation path.
+- Stable idempotency: `pipebuyer-dispatch-${uid}-attempt-${attempt}`.
+- Open Checkout is reused.
+- Expired Checkout may advance to the next attempt.
+- A different plan cannot start while another Checkout is unresolved.
+- An unresolved Stripe subscription blocks a second subscription.
+- Post-provider Firestore persistence preserves newer webhook/provider state.
+- Checkout URLs must be exact HTTPS `checkout.stripe.com`.
+- Client responses do not expose Stripe subscription/customer IDs.
 
-## Repair
+### Provider-authoritative entitlement
 
-### One authoritative Dispatch subscription record
+- `active` / `trialing` => access ON.
+- `past_due` => payment issue while preserving the current access state during Stripe retry.
+- `unpaid`, `canceled`, `incomplete`, `incomplete_expired`, `paused` => access OFF.
+- Unknown/conflicting state => review, not a guessed transition.
+- Browser return from Checkout never grants access.
+- `invoice.paid` always re-reads the current Stripe Subscription and only activates access when the current status is entitlement-eligible.
+- `customer.subscription.updated` re-reads the current Subscription so stale webhook snapshots cannot roll access backward.
 
-Added server-owned singleton state:
+### Replacement and retired-provider protection
 
-`dispatch_subscriptions/{uid}`
+A restart is permitted only for genuinely restartable states (`canceled`, `incomplete_expired`).
 
-This record owns the current Checkout attempt, provider Session, subscription/customer identity, plan, provider lifecycle status, entitlement state, payment-issue flag, operational-review state, and a bounded retired-subscription ledger used only for stale-event rejection.
+The prior subscription ID is moved to normalized `retiredStripeSubscriptionIds`, bounded to the 10 most recent IDs, before the replacement live ID is cleared. Checkout completion, paid invoice, failed invoice, subscription update, and subscription deletion events belonging to a retired ID return `ignored_retired` and cannot mutate the replacement state. A late retired Checkout is retained as `retired_ignored` audit evidence.
 
-Clients do not read or write this document directly. A sanitized callable projection is used for the UI.
+### Webhook execution
 
-### Stable Checkout attempts and idempotency
+Dispatch lifecycle processing is composed inside the existing signed + transactionally claimed Stripe webhook. A Dispatch lifecycle failure marks the event failed and returns HTTP 500 before the inner financial handler can mark it processed.
 
-Added `dispatch_subscription_checkout_policy.js`.
+### Tax/readiness safety
 
-- Checkout attempts are server-owned integers.
-- Stripe idempotency is stable per logical attempt:
-  `pipebuyer-dispatch-${uid}-attempt-${attempt}`.
-- An open provider Checkout is reused instead of duplicated.
-- An expired provider Checkout may advance to the next attempt.
-- A different plan cannot start while another Dispatch Checkout is open.
-- An unresolved existing Stripe subscription blocks creation of a second subscription.
-- Provider/write races preserve newer processing/subscription state instead of overwriting it with stale `checkout_created` state.
-- Stripe Checkout links must use exact HTTPS `checkout.stripe.com`.
-- When a canceled or `incomplete_expired` subscription legitimately starts a replacement Checkout, the prior subscription id is moved into `retiredStripeSubscriptionIds` before `stripeSubscriptionId` is cleared.
-- The retired-id ledger is normalized, deduplicated, and bounded to the 10 most recent Stripe subscription ids.
-- `unpaid` and other unresolved subscription states are not silently replaceable.
-- User-facing Checkout responses no longer return Stripe subscription IDs.
+Dispatch Checkout re-checks the current audited Canadian small-supplier assessment revision immediately before Stripe when small-supplier mode is active.
 
-The previous timestamp-based idempotency pattern has been removed.
+If an audited threshold assessment exceeds the small-supplier threshold, the automatic readiness shutdown now clears:
 
-### Webhook-authoritative entitlement lifecycle
+- `canadaGstHstSmallSupplier`
+- `stripeFeeBillingEnabled`
+- `stripeSubscriptionsEnabled`
+- `dispatchAffiliateCommissionAccrualEnabled`
 
-Added `dispatch_subscription_lifecycle_policy.js`, `dispatch_subscription_state.js`, and `dispatch_subscription_webhook_wrapper.js`.
+This prevents an internally inconsistent readiness state after billing is shut down for tax review.
 
-Provider lifecycle behavior:
+### Separate Dispatch affiliate accrual and payout controls
 
-- `active` / `trialing` => entitlement ON.
-- `past_due` => payment issue; preserve the current entitlement while Stripe is still retrying.
-- `unpaid`, `canceled`, `incomplete`, `incomplete_expired`, `paused` => entitlement OFF.
-- unknown/conflicting subscription states => operational review, not a guessed entitlement transition.
+These are now different financial authorities:
 
-Checkout browser return does **not** grant membership.
+- `dispatchAffiliateCommissionAccrualEnabled` = business authorization to incur **new Dispatch affiliate commission obligations**.
+- `affiliatePayoutsEnabled` = operational authorization to send eligible affiliate payouts/Transfers.
 
-`invoice.paid` is now treated as necessary payment evidence, not sufficient entitlement evidence. Every paid invoice re-reads the current Stripe Subscription. Access is activated only when the current provider status is explicitly entitlement-eligible (`active` or `trialing`). A paid invoice whose current Subscription is `unpaid` does not grant access; an unknown current provider status is quarantined for review.
+`dispatchAffiliateCommissionAccrualEnabled` defaults false and may only be enabled when live Dispatch subscriptions, production mode, verified webhooks, and reconciliation readiness are active.
 
-Stripe does not guarantee webhook delivery order. Therefore `customer.subscription.updated` does not trust the potentially stale event snapshot for entitlement. The server re-reads the current Stripe Subscription before changing access. `customer.subscription.deleted` remains a terminal cancellation signal for the current subscription id.
+`subscription_monetization.js` records an explicit `affiliateCommissionAccrualStatus` on every paid Dispatch invoice:
 
-Every Dispatch Checkout-completion, paid-invoice, failed-invoice, subscription-update, and subscription-deletion path now checks the bounded retired-subscription ledger before mutating the singleton. Events belonging to a retired provider subscription return `ignored_retired`; a late retired Checkout Session is retained as `retired_ignored` audit evidence but cannot change the replacement Checkout/subscription state.
+- `no_referrer` => 0
+- `disabled_by_readiness` => 0
+- `zero_base` => 0
+- `accrued` => configured commission (currently 20%)
 
-The lifecycle wrapper executes inside the already claimed/signed Stripe webhook path. If the Dispatch state update or provider re-read fails, the webhook event is marked failed and returns HTTP 500 so Stripe can retry; the inner financial webhook is not allowed to mark that failed lifecycle event processed.
+No `affiliate_commission_ledger` record is created unless Dispatch accrual is explicitly enabled and the commission is positive.
 
-### Tax/readiness binding
+This means Pipe Buyer can launch Dispatch subscriptions with `dispatchAffiliateCommissionAccrualEnabled=false` while affiliate economics are still unresolved. If commissions are later contractually approved, accrual can be enabled independently. A temporary payout pause does not erase or stop approved accrual because payout execution is a separate control.
 
-Dispatch Checkout uses the same runtime Canadian small-supplier evidence guard as Pipe Buyer marketplace-fee billing. If Canadian small-supplier billing is the active federal GST/HST state, Checkout re-reads the audited threshold assessment and requires the exact readiness-bound revision before calling Stripe.
+### Free subscription promotions
 
-The live Dispatch Monthly and Yearly Products both use Stripe service tax code `txcd_10103001`. During the production catalog audit, Monthly Price `price_1U2SYGDkO07WMXyRm6xbprUn` was normalized from `tax_behavior=unspecified` to `tax_behavior=exclusive`, matching the Yearly Price. The live account had zero subscriptions and zero Checkout Sessions at the time, so no existing subscriber behavior was changed. Monthly also received stable lookup key `pipe_buyer_dispatch_monthly_cad` and the same Pipe Buyer/Dispatch/Canada metadata pattern used by Yearly.
+Live coupons are verified as:
 
-### Affiliate commission accrual readiness
+- `PIPEBUYER_FREE_1Y` — 100% repeating for 12 months.
+- `PIPEBUYER_FREE_5Y` — 100% repeating for 60 months.
 
-Dispatch subscription revenue is no longer allowed to create an unapproved affiliate liability merely because an invoice contains an affiliate referrer.
+Both had zero redemptions at the audit time. Code treats a 100%-discount invoice as commission base 0, so it cannot create false affiliate revenue/commission.
 
-Added `affiliateCommissionAccrualDecision` in `subscription_monetization.js`:
+### Live Stripe catalog normalization
 
-- no referrer => `no_referrer`, commission 0;
-- `affiliatePayoutsEnabled=false` => `disabled_by_readiness`, commission 0;
-- affiliate program enabled but commission base 0 => `zero_base`, commission 0;
-- affiliate program enabled + positive commission base => `accrued`, using the configured 20% share.
+Live Dispatch objects are:
 
-`handleDispatchInvoicePaid` now re-reads `platform_configuration/payment_provider_readiness` and creates an `affiliate_commission_ledger` entry only when `affiliatePayoutsEnabled === true` and the calculated commission is positive.
+- Monthly: CAD 25/month, active.
+- Yearly: CAD 300/year, active.
+- Both Products: service tax code `txcd_10103001`.
 
-The Dispatch invoice accounting record always persists the decision as `affiliateCommissionAccrualStatus` and `affiliateCommissionMinor`, so reconciliation can distinguish intentionally disabled accrual from a missing write.
+During this repair, while the live account had zero subscriptions and zero Checkout Sessions:
 
-This allows Dispatch subscription revenue to be enabled independently while affiliate economics remain unresolved. Enabling `affiliatePayoutsEnabled` is now the explicit audited act that authorizes both accrual and payout processing.
-
-### Safe user status projection
-
-Added `getDispatchSubscriptionStatus`.
-
-The callable returns only UI-safe state such as plan, provider status, entitlement, payment issue, review state, Checkout availability, Billing Portal availability, and the configured Monthly/Yearly billing catalog.
-
-It does **not** expose Stripe customer IDs, subscription IDs, Checkout provider identifiers, or the retired-subscription ledger.
-
-Monthly/Yearly displayed prices are read from the server Stripe catalog instead of duplicated as authoritative client constants.
-
-### Client data protection
-
-Firestore rules currently default-deny `dispatch_subscriptions` and `subscription_checkout_sessions` because no client allow rule exists. Dedicated rules tests now assert that subscriber, unrelated user, and MFA administrator clients cannot directly read provider identity records or forge Dispatch entitlement/provider state.
-
-### Billing Portal / cancellation path
-
-Added a gated Stripe Billing Portal path:
-
-- audited MFA admin readiness document: `platform_configuration/dispatch_billing_portal`;
-- server-only `createDispatchBillingPortalSession` callable;
-- portal availability requires explicit readiness plus server-owned `cus_` and `sub_` identity and no subscription-conflict review;
-- returned links must use exact HTTPS `billing.stripe.com`;
-- Flutter shows `Manage billing or cancel in Stripe` only when the sanitized server status says the portal is available;
-- the emergency disable path does not require a return URL, so the portal kill switch cannot be blocked by incomplete configuration.
-
-The live Pipe Buyer Stripe account currently has no Billing Portal configuration. Therefore this readiness remains OFF and no live portal mutation was made during this repair.
-
-### User experience
-
-The existing account menu `Memberships & upgrades` entry now opens a small combined memberships dialog:
-
-- VIP continues to its existing detail flow;
-- Dispatch Monthly and Yearly use the authoritative status callable and server Checkout command;
-- existing open Checkout is continued instead of restarted;
-- processing state instructs the user not to start another payment;
-- active, past-due, canceled, review, and inactive-existing subscription states are shown distinctly;
-- client code never marks membership active because a browser returned from Checkout.
-
-## Verification executed
-
-Focused Node 22 execution of the pure Dispatch safety policies: **17 tests passed, 0 failed** before the retired-event extension.
-
-That focused run covers:
-
-- deterministic attempt idempotency;
-- open Checkout reuse classification;
-- expired Checkout advancement;
-- existing subscription duplicate prevention;
-- provider/write race preservation;
-- active/trialing entitlement;
-- past-due payment issue behavior;
-- unpaid/canceled entitlement revocation;
-- unknown lifecycle review;
-- conflicting live subscription quarantine;
-- canceled-subscription replacement allowance;
-- unresolved `unpaid` replacement refusal;
-- safe public status projection with no provider IDs;
-- clean restart after cancellation;
-- open Checkout duplicate blocking;
-- exact Stripe Billing Portal host validation;
-- explicit portal readiness/provider-identity gating.
-
-Additional executable retired-subscription harness after the final stale-event repair: **6 tests passed, 0 failed**. It proves:
-
-- retired subscription ids remain bounded;
-- a late retired Checkout completion cannot overwrite the replacement Checkout;
-- a late retired paid invoice cannot activate the replacement state;
-- a late retired failed invoice cannot set the replacement payment-issue state;
-- a late retired subscription deletion cannot cancel the replacement Checkout; and
-- a late retired subscription update cannot replace the current Checkout state.
-
-The updated Checkout policy separately executed **9 tests passed, 0 failed**.
-
-Affiliate accrual readiness decision executed **4 focused checks passed, 0 failed**:
-
-- referred positive revenue + affiliate disabled => zero liability;
-- referred positive revenue + affiliate enabled => configured 20% accrual;
-- 100%-discount invoice => zero commission even when affiliate enabled; and
-- no referrer => zero commission.
-
-The repository test `subscription_monetization.test.js` also contains the zero-dollar commission-base regression and the controlled 1-year/5-year coupon mapping tests. Functions `npm run check` syntax-checks `subscription_monetization.js` and then executes `node --test test/*.test.js`.
-
-Node syntax checks also passed for the updated Checkout policy, lifecycle policy, and the exercised Dispatch subscription state module in the focused harness.
-
-Repository tests have also been added/expanded for the real Dispatch Checkout command, retired-id persistence, paid-invoice current-provider status re-read, stale subscription-update protection, retired webhook rejection, replacement lifecycle, lifecycle state writer, webhook wrapper, public status projection, Billing Portal policy, Flutter client parsing/URL validation, memberships integration, Firestore provider-state denial, and affiliate accrual readiness.
-
-The repository-wide tests are **committed but not represented as fully executed** until the exact branch is run through `tool/verify.ps1` / Firebase emulators / Flutter in a complete local checkout. This ChatGPT execution sandbox still cannot resolve `github.com`, so a native clone cannot be created here even though the repository is currently public. GitHub-hosted Financial Safety, Callable Safety, iOS, and Quality job shells are currently failing before any step starts and expose no job logs; that remains tracked separately as repository Actions infrastructure issue #91 and is not payment-code evidence.
-
-## Live Stripe production evidence
-
-At the latest read-only audit:
-
-- live Dispatch Monthly Price is active at CAD 25/month;
-- live Dispatch Yearly Price is active at CAD 300/year;
-- both Prices use exclusive tax behavior after the Monthly normalization;
-- both Products use service tax code `txcd_10103001`;
-- `PIPEBUYER_FREE_1Y` is a valid 100% repeating coupon for 12 months with zero redemptions;
-- `PIPEBUYER_FREE_5Y` is a valid 100% repeating coupon for 60 months with zero redemptions;
-- live Stripe had zero subscriptions and zero Checkout Sessions;
-- the production webhook is enabled but still lacks `invoice.payment_failed`, `customer.subscription.updated`, and `customer.subscription.deleted`;
-- Stripe Billing Portal currently has zero configurations.
-
-The Stripe integration planner recommendation for this use case is hosted Checkout, flat-rate subscriptions, pay up front, Customer Portal self-management, cancel at period end, and Stripe Smart Retries / normal recovery emails. Portal plan switching is intentionally deferred.
-
-## Acceptance still required
-
-Before enabling live Dispatch subscriptions:
-
-1. Run the complete repository `tool/verify.ps1` gate from the final P2 commit.
-2. Execute Auth/Firestore/Functions/rules emulator integration.
-3. Configure the live Stripe Billing Portal with payment-method updates, invoice history, and cancel-at-period-end; do not enable plan switching yet. Then enable the audited Pipe Buyer portal readiness record.
-4. Deploy the accepted lifecycle code before adding live webhook subscriptions for:
-   - `invoice.payment_failed`
-   - `customer.subscription.updated`
-   - `customer.subscription.deleted`
-5. Keep `affiliatePayoutsEnabled=false` until the affiliate economics are explicitly approved; this now prevents both accrual and payout liability.
-6. Run controlled Monthly and Yearly Stripe subscription payments.
-7. Prove repeated taps/retries produce one logical Checkout/subscription.
-8. Prove `invoice.paid` plus an entitlement-eligible current Subscription activates access and browser return alone does not.
-9. Prove failed payment, recovery, cancellation, replacement, retired-event rejection, and deletion lifecycle behavior.
-10. Reconcile the controlled invoice/Charge/provider fee evidence with Firestore.
-11. Complete web/mobile colleague visual acceptance before production activation.
+- Monthly Price tax behavior was changed from `unspecified` to `exclusive`, matching Yearly.
+- Monthly Price received stable lookup key `pipe_buyer_dispatch_monthly_cad`.
+- Monthly metadata was normalized to Pipe Buyer / Dispatch / Canada / monthly subscription.
+
+No charge or subscription was created by these catalog changes.
+
+### Safe user UX and Billing Portal
+
+- `getDispatchSubscriptionStatus` returns only bounded UI-safe state and server catalog prices.
+- `Memberships & upgrades` now presents Dispatch Monthly/Yearly Checkout actions and current provider-authoritative state.
+- Flutter never writes authoritative subscription/provider state.
+- Billing Portal session creation is server-only and accepts only exact HTTPS `billing.stripe.com` URLs.
+- Portal UI appears only when the audited Pipe Buyer portal readiness record and server-owned subscription/customer identity agree.
+- Portal emergency disable does not require a return URL.
+
+The live Stripe account currently has zero Billing Portal configurations, so Pipe Buyer portal readiness remains OFF.
+
+## Verification evidence
+
+Focused executable evidence completed during this work:
+
+- Earlier P2 pure safety set: **17/17 passed**.
+- Updated Checkout policy: **9/9 passed**.
+- Retired-provider event harness: **6/6 passed**.
+- Dedicated Dispatch affiliate accrual/readiness decisions: **6/6 passed**.
+- Earlier affiliate decision slice: **4/4 passed** before the accrual/payout controls were split; superseded by the dedicated accrual control above.
+
+Repository tests additionally cover:
+
+- real Dispatch Checkout provider stubs;
+- paid-invoice current-Subscription re-read;
+- stale subscription-update protection;
+- replacement/retired event behavior;
+- Billing Portal policy;
+- public status projection;
+- Flutter model/URL/route contracts;
+- Firestore provider-state denial;
+- zero-dollar commission base;
+- 1-year/5-year coupon mapping;
+- dedicated Dispatch affiliate accrual readiness;
+- readiness validation.
+
+`firebase/functions/package.json` syntax-checks the P2 Functions modules and runs `node --test test/*.test.js` as part of `npm run check`.
+
+The complete repository gate has **not** been represented as passing: GitHub-hosted Financial Safety, Callable Safety, iOS, and Quality job shells currently terminate before any step runs and provide no logs. This is tracked under Issue #91. The ChatGPT execution sandbox also cannot resolve `github.com` for a native clone, so `tool/verify.ps1` / Flutter / Firebase emulator execution still requires a complete external checkout or restored runner execution.
+
+## Current live Stripe evidence
+
+At the latest audit:
+
+- zero live Stripe Subscriptions;
+- zero live Checkout Sessions;
+- production webhook enabled;
+- production webhook still missing:
+  - `invoice.payment_failed`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+- zero Billing Portal configurations.
+
+Recommended Stripe production behavior for P2: hosted Checkout, flat-rate pay-up-front subscriptions, Customer Portal, cancel at period end, payment-method management, invoice history, Smart Retries / standard failed-payment recovery, and no Portal plan switching yet.
+
+## Acceptance still required before production activation
+
+1. Run the exact final P2 commit through `tool/verify.ps1` / Flutter / Functions / rules / Firebase emulator gates.
+2. Deploy the accepted lifecycle code.
+3. Only after deployment, add the three missing live Stripe subscription lifecycle webhook events.
+4. Configure Stripe Billing Portal for payment method updates, invoice history, and cancel-at-period-end; keep plan switching disabled initially.
+5. Enable the audited Pipe Buyer portal readiness record only after the Stripe Portal configuration exists.
+6. Keep `dispatchAffiliateCommissionAccrualEnabled=false` until affiliate economics are explicitly approved.
+7. Keep `affiliatePayoutsEnabled=false` until payout operations are explicitly approved.
+8. Run controlled Monthly and Yearly subscriptions.
+9. Prove double-tap/retry creates one logical subscription.
+10. Prove success, failed payment/recovery, renewal, cancellation, replacement, and retired-event behavior.
+11. Reconcile the controlled Stripe invoice/Charge/provider fee evidence to Firestore with zero unexplained difference.
+12. Complete web/mobile colleague acceptance.
 
 ## Do not repeat
 
-- Do not use timestamps/random values as Stripe idempotency keys for retries of the same logical operation.
-- Do not infer paid subscription access from browser redirects or from `invoice.paid` alone without checking current Subscription state.
-- Do not trust webhook delivery order for entitlement state when a current provider read is available.
-- Do not store separate Checkout/invoice records without one authoritative per-user subscription state.
-- Do not merely clear a retired subscription id when replacement starts; retain a bounded retired-id ledger so delayed provider events can be rejected deterministically.
-- Do not let the Flutter client directly write Dispatch entitlement or Stripe provider identity.
-- Do not create a second subscription while an existing subscription or open Checkout is unresolved.
-- Do not expose Stripe customer/subscription IDs or retired provider identities in user-facing status or Checkout responses.
-- Do not accrue affiliate commission merely because a referrer exists; accrual and payout readiness must both be explicitly authorized by the audited affiliate readiness control.
-- Do not enable the Billing Portal button until Stripe Portal configuration and the audited Pipe Buyer readiness control both agree.
-- Do not add subscription lifecycle webhook events before the receiving lifecycle code is deployed.
-- Do not mark P2 financially complete until the controlled provider lifecycle and reconciliation evidence are recorded.
+- Do not use timestamps/randomness for idempotency of the same logical payment attempt.
+- Do not grant entitlement from a browser redirect or `invoice.paid` alone.
+- Do not trust webhook event order where a current provider read can resolve state.
+- Do not clear a retired subscription identity without retaining bounded stale-event evidence.
+- Do not let clients write Dispatch entitlement or provider identity.
+- Do not expose Stripe subscription/customer IDs to the user status API.
+- Do not treat affiliate **accrual** and affiliate **payout execution** as the same financial control.
+- Do not create affiliate liabilities while Dispatch accrual readiness is disabled.
+- Do not add lifecycle webhook events before the receiving code is deployed.
+- Do not enable Billing Portal UI before Stripe Portal + Pipe Buyer readiness agree.
+- Do not mark P2 financially complete until controlled provider lifecycle and exact reconciliation evidence are recorded.
