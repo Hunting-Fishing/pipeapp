@@ -7,6 +7,7 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
     super.key,
     required this.readiness,
     required this.portal,
+    required this.taxEvidence,
     required this.working,
     required this.error,
     required this.resultMessage,
@@ -17,6 +18,7 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
 
   final Map<String, dynamic> readiness;
   final Map<String, dynamic> portal;
+  final Map<String, dynamic> taxEvidence;
   final bool working;
   final String? error;
   final String? resultMessage;
@@ -45,10 +47,30 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
     final recovery = readiness['stripeSubscriptionRecoveryVerified'] == true;
     final reconciliation = readiness['stripeReconciliationReady'] == true;
     final subscriptions = readiness['stripeSubscriptionsEnabled'] == true;
-    final taxPrepared = readiness['stripeTaxReady'] == true ||
-        readiness['canadaGstHstSmallSupplier'] == true ||
-        (readiness['stripeTaxRegistrationPending'] == true &&
-            readiness['stripeTaxPendingBillingApproved'] == true);
+
+    final stripeTaxReady = readiness['stripeTaxReady'] == true;
+    final smallSupplierActive =
+        readiness['canadaGstHstSmallSupplier'] == true;
+    final smallSupplierEvidenceReady =
+        taxEvidence['smallSupplierBillingEvidenceReady'] == true;
+    final pendingTaxApproved =
+        readiness['stripeTaxRegistrationPending'] == true &&
+            readiness['stripeTaxPendingBillingApproved'] == true;
+    final taxPrepared = stripeTaxReady ||
+        (smallSupplierActive && smallSupplierEvidenceReady) ||
+        pendingTaxApproved;
+    final taxDetail = dispatchTaxReadinessDetail(
+      stripeTaxReady: stripeTaxReady,
+      smallSupplierActive: smallSupplierActive,
+      smallSupplierEvidenceReady: smallSupplierEvidenceReady,
+      pendingTaxApproved: pendingTaxApproved,
+      evidenceReason:
+          '${taxEvidence['smallSupplierBillingEvidenceReason'] ?? ''}'.trim(),
+      assessmentRevision:
+          (taxEvidence['smallSupplierAssessmentRevision'] as num?)?.toInt() ?? 0,
+      boundRevision:
+          (taxEvidence['smallSupplierBoundRevision'] as num?)?.toInt() ?? 0,
+    );
 
     final prerequisiteStates = <bool>[
       portalReady,
@@ -161,7 +183,7 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
             _GateRow(
               label: 'GST/HST billing state',
               ready: taxPrepared,
-              detail: taxPrepared ? 'Authorized billing state' : 'Not prepared',
+              detail: taxDetail,
             ),
             const SizedBox(height: 12),
             Container(
@@ -256,6 +278,44 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
       ),
     );
   }
+}
+
+String dispatchTaxReadinessDetail({
+  required bool stripeTaxReady,
+  required bool smallSupplierActive,
+  required bool smallSupplierEvidenceReady,
+  required bool pendingTaxApproved,
+  required String evidenceReason,
+  required int assessmentRevision,
+  required int boundRevision,
+}) {
+  if (stripeTaxReady) {
+    return 'Stripe Tax registration/readiness is authorized for billing.';
+  }
+  if (smallSupplierActive) {
+    if (smallSupplierEvidenceReady) {
+      return 'Canadian small-supplier evidence is current (assessment revision $assessmentRevision, bound revision $boundRevision).';
+    }
+    switch (evidenceReason) {
+      case 'assessment_missing':
+        return 'Small-supplier mode is active but the audited GST/HST threshold assessment is missing.';
+      case 'assessment_revision_mismatch':
+        return 'Small-supplier assessment is stale (assessment revision $assessmentRevision, bound revision $boundRevision).';
+      case 'threshold_exceeded':
+        return 'The audited GST/HST small-supplier threshold has been exceeded; registration review is required.';
+      case 'attestation_missing':
+      case 'assessment_invalid':
+      case 'assessment_unversioned':
+      case 'readiness_unbound':
+        return 'Small-supplier billing evidence is incomplete and must be reviewed before billing.';
+      default:
+        return 'Small-supplier billing evidence is not currently authorized.';
+    }
+  }
+  if (pendingTaxApproved) {
+    return 'Tax registration is pending and the audited pending-registration billing treatment is approved.';
+  }
+  return 'No authorized GST/HST billing state is currently recorded.';
 }
 
 String dispatchSubscriptionNextAction({
