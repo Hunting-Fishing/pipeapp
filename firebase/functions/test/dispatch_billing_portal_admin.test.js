@@ -59,21 +59,43 @@ function fakeAdmin(previous = {}) {
   return {admin: {firestore}, writes};
 }
 
-test("portal readiness normalization preserves exact Stripe configuration identity", () => {
+test("portal readiness normalization preserves provider verification evidence", () => {
   assert.deepEqual(normalizePortalConfig({
     enabled: true,
     returnUrl: "https://pipebuyer.com/account",
     stripePortalConfigurationId: "bpc_live_1",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_live_1",
+    providerVerificationRevision: "provider-v1",
+    providerVerifiedFeatures: {
+      paymentMethodUpdate: true,
+      invoiceHistory: true,
+      subscriptionCancel: true,
+      subscriptionCancelMode: "at_period_end",
+      subscriptionCancelProration: "none",
+      subscriptionUpdate: false,
+    },
     revision: 4,
   }), {
     enabled: true,
     returnUrl: "https://pipebuyer.com/account",
     stripePortalConfigurationId: "bpc_live_1",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_live_1",
+    providerVerificationRevision: "provider-v1",
+    providerVerifiedFeatures: {
+      paymentMethodUpdate: true,
+      invoiceHistory: true,
+      subscriptionCancel: true,
+      subscriptionCancelMode: "at_period_end",
+      subscriptionCancelProration: "none",
+      subscriptionUpdate: false,
+    },
     revision: 4,
   });
 });
 
-test("enabling Dispatch portal requires reviewed Stripe configuration identity", async () => {
+test("manual Billing Portal enablement is rejected without provider verification", async () => {
   const {admin} = fakeAdmin();
   const commands = createDispatchBillingPortalAdmin(admin);
   await assert.rejects(
@@ -81,54 +103,40 @@ test("enabling Dispatch portal requires reviewed Stripe configuration identity",
         enabled: true,
         confirmProduction: true,
         returnUrl: "https://pipebuyer.com/account",
-        stripePortalConfigurationId: "",
-        reason: "Enable reviewed production Dispatch billing portal.",
-      })),
-      /configuration ID is required/i,
-  );
-});
-
-test("audited enable persists exact Stripe configuration and return URL", async () => {
-  const {admin, writes} = fakeAdmin({revision: 2});
-  const commands = createDispatchBillingPortalAdmin(admin);
-  const result = await commands.setDispatchBillingPortalReadiness(
-      administratorRequest({
-        enabled: true,
-        confirmProduction: true,
-        returnUrl: "https://pipebuyer.com/account",
         stripePortalConfigurationId: "bpc_live_1",
         reason: "Enable reviewed production Dispatch billing portal.",
-      }),
+      })),
+      /server-side Stripe provider verification/i,
   );
-  assert.equal(result.enabled, true);
-  assert.equal(result.stripePortalConfigurationId, "bpc_live_1");
-  assert.equal(result.revision, 3);
-  const configWrite = writes.find(
-      (entry) => entry.operation === "set" &&
-        entry.ref.name === "platform_configuration",
-  );
-  assert.equal(configWrite.data.stripePortalConfigurationId, "bpc_live_1");
-  assert.equal(configWrite.data.returnUrl, "https://pipebuyer.com/account");
-  assert.equal(writes.filter((entry) => entry.operation === "create").length, 1);
 });
 
-test("emergency disable remains possible without portal configuration or return URL", async () => {
-  const {admin} = fakeAdmin({
+test("emergency disable clears stale provider verification evidence", async () => {
+  const {admin, writes} = fakeAdmin({
     enabled: true,
     returnUrl: "https://pipebuyer.com/account",
     stripePortalConfigurationId: "bpc_live_1",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_live_1",
+    providerVerificationRevision: "provider-v1",
     revision: 1,
   });
   const commands = createDispatchBillingPortalAdmin(admin);
   const result = await commands.setDispatchBillingPortalReadiness(
       administratorRequest({
         enabled: false,
-        returnUrl: "",
-        stripePortalConfigurationId: "",
         reason: "Emergency disable of Dispatch billing management.",
       }),
   );
   assert.equal(result.enabled, false);
   assert.equal(result.returnUrl, "");
   assert.equal(result.stripePortalConfigurationId, "");
+  assert.equal(result.providerVerified, false);
+  assert.equal(result.providerVerifiedConfigurationId, "");
+  assert.equal(result.providerVerificationRevision, "");
+  const configWrite = writes.find(
+      (entry) => entry.operation === "set" &&
+        entry.ref.name === "platform_configuration",
+  );
+  assert.equal(configWrite.data.providerVerified, false);
+  assert.equal(writes.filter((entry) => entry.operation === "create").length, 1);
 });
