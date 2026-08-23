@@ -1,30 +1,18 @@
-name: Callable Safety
+name: Callable Safety - Manual
 
 on:
-  pull_request:
-    paths:
-      - "firebase/functions/**"
-      - "firebase/agent-functions/**"
-      - "firebase/firestore.rules"
-      - "firebase/storage.rules"
-      - "firebase.json"
-      - ".github/workflows/callable-safety.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "firebase/functions/**"
-      - "firebase/agent-functions/**"
-      - "firebase/firestore.rules"
-      - "firebase/storage.rules"
-      - "firebase.json"
-      - ".github/workflows/callable-safety.yml"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why this emulator verification run is needed
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: callable-safety-${{ github.event.pull_request.number || github.ref }}
+  group: callable-safety-manual-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -89,4 +77,8 @@ jobs:
           name: callable-integration-log
           path: callable-integration.log
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 3
+
+      - name: Record manual emulator gate
+        run: |
+          echo "Callable Safety runs only by explicit workflow dispatch." >> "$GITHUB_STEP_SUMMARY"
