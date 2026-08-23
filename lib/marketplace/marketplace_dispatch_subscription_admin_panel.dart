@@ -121,7 +121,7 @@ class _MarketplaceDispatchSubscriptionAdminPanelState
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Stripe Invoice → Charge → Balance Transaction accounting evidence',
+                      'Stripe Invoice → InvoicePayment → PaymentIntent → Charge → Balance Transaction',
                       style: TextStyle(
                         color: PipeBuyerColors.muted,
                         fontSize: 11,
@@ -166,10 +166,26 @@ class _MarketplaceDispatchSubscriptionAdminPanelState
           else if (_invoices.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'No paid Dispatch subscription invoices are recorded yet.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: PipeBuyerColors.muted),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    color: PipeBuyerColors.muted,
+                    size: 34,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'No paid Dispatch subscription invoices yet',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'This is expected before the controlled Monthly/Yearly acceptance payments are completed.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: PipeBuyerColors.muted),
+                  ),
+                ],
               ),
             )
           else
