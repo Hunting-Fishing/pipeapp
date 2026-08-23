@@ -8,6 +8,9 @@ const {
 const {
   canadaSmallSupplierThresholdState,
 } = require("./canada_small_supplier_policy");
+const {
+  canadaSmallSupplierReadinessDecision,
+} = require("./canada_small_supplier_readiness_guard");
 
 const ASSESSMENT_COLLECTION = "tax_threshold_assessments";
 const CURRENT_ASSESSMENT_ID = "canada_gst_hst_current";
@@ -93,6 +96,34 @@ function smallSupplierBillingSafetyDecision(assessment, readiness = {}) {
   });
 }
 
+function smallSupplierBillingEvidence(readiness = {}, assessment = null) {
+  if (readiness.canadaGstHstSmallSupplier !== true) {
+    return Object.freeze({
+      applicable: false,
+      ready: false,
+      reason: "small_supplier_inactive",
+      assessmentRevision: Number(assessment && assessment.revision || 0),
+      boundRevision: Number(
+          readiness.canadaGstHstSmallSupplierAssessmentRevision || 0,
+      ),
+    });
+  }
+  const decision = canadaSmallSupplierReadinessDecision(readiness, assessment);
+  return Object.freeze({
+    applicable: true,
+    ready: decision.authorized === true,
+    reason: String(decision.reason || "assessment_invalid"),
+    assessmentRevision: Number(
+        decision.assessmentRevision || decision.revision ||
+        assessment && assessment.revision || 0,
+    ),
+    boundRevision: Number(
+        decision.boundRevision ||
+        readiness.canadaGstHstSmallSupplierAssessmentRevision || 0,
+    ),
+  });
+}
+
 function createCanadaSmallSupplierThresholdCommands(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -106,11 +137,17 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
       ]);
       const assessment = assessmentSnapshot.exists ? assessmentSnapshot.data() : null;
       const readiness = readinessSnapshot.exists ? readinessSnapshot.data() : {};
+      const billingEvidence = smallSupplierBillingEvidence(readiness, assessment);
       return {
         assessment,
         canadaGstHstSmallSupplier: readiness.canadaGstHstSmallSupplier === true,
         canadaGstHstSmallSupplierAssessmentRevision:
           Number(readiness.canadaGstHstSmallSupplierAssessmentRevision || 0),
+        smallSupplierBillingEvidenceApplicable: billingEvidence.applicable,
+        smallSupplierBillingEvidenceReady: billingEvidence.ready,
+        smallSupplierBillingEvidenceReason: billingEvidence.reason,
+        smallSupplierAssessmentRevision: billingEvidence.assessmentRevision,
+        smallSupplierBoundRevision: billingEvidence.boundRevision,
         stripeFeeBillingEnabled: readiness.stripeFeeBillingEnabled === true,
         stripeSubscriptionsEnabled: readiness.stripeSubscriptionsEnabled === true,
         dispatchAffiliateCommissionAccrualEnabled:
@@ -255,5 +292,6 @@ module.exports = {
   READINESS_ID,
   assessmentFromRequest,
   createCanadaSmallSupplierThresholdCommands,
+  smallSupplierBillingEvidence,
   smallSupplierBillingSafetyDecision,
 };
