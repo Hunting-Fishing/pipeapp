@@ -71,7 +71,7 @@ function sourceChargeFromInvoice(invoice) {
 function affiliateCommissionAccrualDecision({
   referrerUid = "",
   baseMinor = 0,
-  affiliatePayoutsEnabled = false,
+  dispatchAffiliateCommissionAccrualEnabled = false,
 } = {}) {
   const normalizedReferrerUid = String(referrerUid || "").trim();
   const normalizedBaseMinor = Number(baseMinor);
@@ -82,7 +82,7 @@ function affiliateCommissionAccrualDecision({
       commissionMinor: 0,
     });
   }
-  if (affiliatePayoutsEnabled !== true) {
+  if (dispatchAffiliateCommissionAccrualEnabled !== true) {
     return Object.freeze({
       enabled: false,
       status: "disabled_by_readiness",
@@ -137,7 +137,8 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const accrual = affiliateCommissionAccrualDecision({
       referrerUid,
       baseMinor,
-      affiliatePayoutsEnabled: readiness.affiliatePayoutsEnabled === true,
+      dispatchAffiliateCommissionAccrualEnabled:
+        readiness.dispatchAffiliateCommissionAccrualEnabled === true,
     });
     const commissionMinor = accrual.commissionMinor;
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
@@ -216,7 +217,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         refundedChargeId: chargeId,
         voidedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      }, {merge: true});
     }
     await writer.close();
   }
