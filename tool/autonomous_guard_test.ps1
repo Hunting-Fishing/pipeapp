@@ -53,22 +53,11 @@ function Reset-Fixture {
 }
 
 function Expect-Guard {
-    param(
-        [string]$Name,
-        [bool]$ShouldPass,
-        [string]$ResultPath
-    )
-
+    param([string]$Name, [bool]$ShouldPass, [string]$ResultPath)
     $passed = $true
     $message = ""
-    try {
-        & $guardPath -ProjectRoot $tempRoot -ResultPath $ResultPath *> $null
-    }
-    catch {
-        $passed = $false
-        $message = $_.Exception.Message
-    }
-
+    try { & $guardPath -ProjectRoot $tempRoot -ResultPath $ResultPath *> $null }
+    catch { $passed = $false; $message = $_.Exception.Message }
     if ($passed -ne $ShouldPass) {
         throw "Guard test '$Name' expected pass=$ShouldPass but pass=$passed. $message"
     }
@@ -96,6 +85,7 @@ try {
 
     $risk = @{
         critical_changes_allowed = $false
+        protected_governance_paths = @("docs/QUALITY_GATES.md")
         forbidden_path_patterns = @("(^|/)\\.env($|\\.)", "service[-_]?account.*\\.json$")
         secret_content_patterns = @("sk_live_[A-Za-z0-9]{16,}", "-----BEGIN (RSA |EC |OPENSSH |)?PRIVATE KEY-----")
         path_risk_rules = @(
@@ -115,11 +105,9 @@ try {
         required_text = @(@{ path = "lib/safe.dart"; pattern = "SAFE_ANCHOR" })
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $tempRoot ".autobuild/feature_contract.json") -Encoding UTF8
 
-    @(
-        "// SAFE_ANCHOR",
-        "void safeFeature() {}"
-    ) | Set-Content -LiteralPath (Join-Path $tempRoot "lib/safe.dart")
+    @("// SAFE_ANCHOR", "void safeFeature() {}") | Set-Content -LiteralPath (Join-Path $tempRoot "lib/safe.dart")
     "# Feature Registry" | Set-Content -LiteralPath (Join-Path $tempRoot "docs/FEATURE_REGISTRY.md")
+    "# Quality Gates" | Set-Content -LiteralPath (Join-Path $tempRoot "docs/QUALITY_GATES.md")
 
     Invoke-GitTemp @("init")
     Invoke-GitTemp @("config", "user.email", "autobuild-test@example.invalid")
@@ -182,6 +170,11 @@ try {
     Add-Content -LiteralPath (Join-Path $tempRoot "lib/safe.dart") -Value "<<<<<<< ours"
     $resultPath = Write-Result -Risk "medium"
     Expect-Guard -Name "conflict-marker" -ShouldPass $false -ResultPath $resultPath
+    Reset-Fixture
+
+    Add-Content -LiteralPath (Join-Path $tempRoot "docs/QUALITY_GATES.md") -Value "weaken the gate"
+    $resultPath = Write-Result -Risk "high"
+    Expect-Guard -Name "governance-self-modification" -ShouldPass $false -ResultPath $resultPath
     Reset-Fixture
 
     Write-Host "Autonomous guard fault-injection suite passed."
