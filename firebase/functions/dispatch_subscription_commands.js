@@ -35,6 +35,7 @@ const {
   dispatchSubscriptionCheckoutState,
   existingDispatchCheckoutDecision,
   nextDispatchCheckoutAttempt,
+  nextDispatchRetiredSubscriptionIds,
 } = require("./dispatch_subscription_checkout_policy");
 
 const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
@@ -293,6 +294,8 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
         if (decision !== "checkout_created") {
           return {decision};
         }
+        const retiredStripeSubscriptionIds =
+          nextDispatchRetiredSubscriptionIds(current);
         transaction.set(stateRef, {
           uid,
           plan,
@@ -301,9 +304,16 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           checkoutAttempt: attempt,
           stripeCheckoutSessionId: sessionId,
           // A new Checkout is only allowed when no unresolved subscription is
-          // active. Clear any retired subscription id so the replacement
-          // webhook is not falsely treated as a second live subscription.
+          // active. Move a restartable prior subscription into a bounded
+          // retired-id ledger before clearing the live provider identity. Late
+          // webhooks for that old subscription can then be ignored safely.
           stripeSubscriptionId: null,
+          retiredStripeSubscriptionIds,
+          entitlementActive: false,
+          paymentIssue: false,
+          reviewRequired: false,
+          reviewReason: null,
+          conflictingStripeSubscriptionId: null,
           taxCollectionStatus: collectionStatus,
           promotionCouponId: couponId || null,
           affiliateReferrerUid: referrerUid || null,
