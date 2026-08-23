@@ -27,6 +27,16 @@ function validStripeBillingPortalUrl(value) {
   }
 }
 
+function dispatchBillingPortalStoredFeaturesReady(features = {}) {
+  const data = features && typeof features === "object" ? features : {};
+  return data.paymentMethodUpdate === true &&
+    data.invoiceHistory === true &&
+    data.subscriptionCancel === true &&
+    String(data.subscriptionCancelMode || "") === "at_period_end" &&
+    String(data.subscriptionCancelProration || "") === "none" &&
+    data.subscriptionUpdate === false;
+}
+
 function dispatchBillingPortalProviderAssessment(configuration = {}) {
   const features = configuration && typeof configuration.features === "object" ?
     configuration.features : {};
@@ -84,7 +94,8 @@ function dispatchBillingPortalProviderRecordReady(config = {}) {
     config.providerVerificationRevision ===
       DISPATCH_BILLING_PORTAL_PROVIDER_REVISION &&
     config.providerVerifiedConfigurationId === configurationId &&
-    validStripeBillingPortalConfigurationId(configurationId);
+    validStripeBillingPortalConfigurationId(configurationId) &&
+    dispatchBillingPortalStoredFeaturesReady(config.providerVerifiedFeatures);
 }
 
 function dispatchBillingPortalAvailable(config = {}, state = {}) {
@@ -100,6 +111,7 @@ module.exports = {
   dispatchBillingPortalAvailable,
   dispatchBillingPortalProviderAssessment,
   dispatchBillingPortalProviderRecordReady,
+  dispatchBillingPortalStoredFeaturesReady,
   validStripeBillingPortalConfigurationId,
   validStripeBillingPortalUrl,
   validStripeCustomerId,
