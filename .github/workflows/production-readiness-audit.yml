@@ -78,6 +78,12 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const key = fs.readFileSync('.stripe-key', 'utf8').trim();
+          const DISPATCH_PRODUCT = 'prod_V2WkE5D16GhGaD';
+          const DISPATCH_PRICES = [
+            'price_1U2SYGDkO07WMXyRm6xbprUn',
+            'price_1U7bTCDkO07WMXyRvLkWVHHu',
+          ].sort();
+          const CUSTOMER_UPDATES = ['address', 'email', 'name', 'phone', 'tax_id'].sort();
           async function stripe(path) {
             const response = await fetch(`https://api.stripe.com${path}`, {
               headers: {Authorization: `Bearer ${key}`},
@@ -86,18 +92,38 @@ jobs:
             if (!response.ok) throw new Error(`Stripe credential validation failed (${response.status}).`);
             return payload;
           }
+          function normalized(values) {
+            return [...new Set((Array.isArray(values) ? values : [])
+              .map((value) => String(value || '').trim())
+              .filter(Boolean))].sort();
+          }
+          function sameSet(actual, expected) {
+            const left = normalized(actual);
+            const right = normalized(expected);
+            return left.length === right.length &&
+              left.every((value, index) => value === right[index]);
+          }
           function safeDispatchPortal(item) {
             const features = item && item.features || {};
+            const customer = features.customer_update || {};
             const cancel = features.subscription_cancel || {};
+            const update = features.subscription_update || {};
+            const products = Array.isArray(update.products) ? update.products : [];
+            const reviewedProduct = products.length === 1 ? products[0] : {};
             return item && item.active === true && item.livemode === true &&
               features.payment_method_update &&
               features.payment_method_update.enabled === true &&
+              customer.enabled === true &&
+              sameSet(customer.allowed_updates, CUSTOMER_UPDATES) &&
               features.invoice_history &&
               features.invoice_history.enabled === true &&
               cancel.enabled === true && cancel.mode === 'at_period_end' &&
               String(cancel.proration_behavior || 'none') === 'none' &&
-              features.subscription_update &&
-              features.subscription_update.enabled === false;
+              update.enabled === true &&
+              sameSet(update.default_allowed_updates, ['price']) &&
+              String(update.proration_behavior || '') === 'none' &&
+              String(reviewedProduct.product || '') === DISPATCH_PRODUCT &&
+              sameSet(reviewedProduct.prices, DISPATCH_PRICES);
           }
           (async () => {
             const [account, balance, endpoints, portalConfigurations] = await Promise.all([
@@ -194,6 +220,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${name}: ${present ? 'deployed' : 'NOT DEPLOYED'}\n`);
             if (!present) missing = 1;
           }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `missing=${missing}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `missing=${missing}\n`);
           NODE
 
