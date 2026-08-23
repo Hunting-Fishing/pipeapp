@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  dispatchInvoiceCatalogAssessment,
   dispatchPlanForPriceId,
   dispatchSubscriptionCatalogAssessment,
 } = require("../dispatch_subscription_catalog_policy");
@@ -17,6 +18,28 @@ function subscription({priceId, productId, quantity = 1, itemCount = 1} = {}) {
         quantity,
         price: {id: price, product},
       })),
+    },
+  };
+}
+
+function invoice({priceId, quantity = 1, metadataPlan = "monthly"} = {}) {
+  const price = priceId || stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId;
+  return {
+    parent: {
+      subscription_details: {
+        metadata: {dispatchPlan: metadataPlan},
+      },
+    },
+    lines: {
+      data: [{
+        quantity,
+        pricing: {
+          price_details: {
+            price,
+            product: stripeMarketplaceConfig.products.dispatchMonthlyCad.productId,
+          },
+        },
+      }],
     },
   };
 }
@@ -50,6 +73,19 @@ test("single quantity-one canonical subscription item is accepted", () => {
   assert.equal(yearly.plan, "yearly");
 });
 
+test("invoice Price overrides stale Checkout metadata plan", () => {
+  const assessment = dispatchInvoiceCatalogAssessment(invoice({
+    priceId: stripeMarketplaceConfig.products.dispatchYearlyCad.priceId,
+    metadataPlan: "monthly",
+  }));
+  assert.equal(assessment.ready, true);
+  assert.equal(assessment.plan, "yearly");
+  assert.equal(
+      assessment.priceId,
+      stripeMarketplaceConfig.products.dispatchYearlyCad.priceId,
+  );
+});
+
 test("unknown price, wrong product, quantity change, or multiple items fail closed", () => {
   assert.deepEqual(
       dispatchSubscriptionCatalogAssessment(subscription({
@@ -70,4 +106,6 @@ test("unknown price, wrong product, quantity change, or multiple items fail clos
       dispatchSubscriptionCatalogAssessment(subscription({itemCount: 2}))
           .failedChecks.includes("subscription_item_count"),
   );
+  assert.equal(dispatchInvoiceCatalogAssessment({lines: {data: []}}).ready, false);
+  assert.equal(dispatchInvoiceCatalogAssessment(invoice({quantity: 2})).ready, false);
 });
