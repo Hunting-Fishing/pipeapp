@@ -29,6 +29,12 @@ The Billing Portal was implemented and pinned to an exact `bpc_...` configuratio
 
 A related Portal risk was also identified: the current subscription lifecycle stores the Pipe Buyer plan from Dispatch subscription metadata. It does not yet derive the authoritative Monthly/Yearly plan from the live Stripe Price ID on every subscription update. Allowing a customer to switch prices inside Billing Portal could therefore create provider/app plan drift.
 
+### 5. The protected Dispatch Billing page existed but was not discoverable from the real account menu
+
+The dedicated `/admin/dispatch-billing` route and page existed, but the main marketplace account shell still routed administrators into the older broad Admin Portal. Adding the shortcut only inside another secondary admin composition would not make the financial workspace reliably discoverable.
+
+The repair therefore had to use the actual account popup menu while preserving admin/MFA protection and avoiding a large edit to `marketplace_account_hub.dart` or `marketplace_admin_dashboard.dart`.
+
 ## Exact repair
 
 ### Explicit subscription readiness gates
@@ -147,6 +153,21 @@ The page is MFA-admin protected. The readiness panel shows Portal, webhook, life
 
 This keeps Dispatch-specific launch controls out of the already-large general Billing Readiness/Admin files.
 
+### Admin navigation was completed without editing the oversized dashboard
+
+The first safe integration added a `Dispatch Billing` destination to `marketplace_admin_transaction_portal.dart`, but repository inspection showed the real marketplace shell exposes `MarketplaceAdminDashboard` through the account experience and does not rely on that secondary portal for primary discovery.
+
+The final integration therefore updates the existing small `marketplace_account_menu.dart` instead of reconstructing either large admin file.
+
+The account menu now:
+
+- evaluates `marketplaceAdministratorState()`;
+- shows `Dispatch Billing Operations` only when the state is `authorized`;
+- routes directly to `/admin/dispatch-billing` with GoRouter;
+- contains no direct Firestore financial writes.
+
+The destination page independently re-checks the administrator role and MFA, so menu visibility is not the security boundary.
+
 ## Verification added
 
 Repository tests/contracts now cover:
@@ -160,7 +181,9 @@ Repository tests/contracts now cover:
 - retirement of the three legacy direct-write activation workflows;
 - production-readiness audit requirements;
 - stable authenticated `/admin/dispatch-billing` route;
-- callable-only launch-readiness UI and absence of a subscription-activation action.
+- callable-only launch-readiness UI and absence of a subscription-activation action;
+- Administration portal Dispatch shortcut;
+- real account-menu Dispatch entry is visible only for `MarketplaceAdministratorState.authorized` and routes to the protected page.
 
 Full Flutter/Functions/emulator acceptance remains required from a complete toolchain. These code/contracts do not replace that release gate.
 
@@ -173,4 +196,6 @@ Full Flutter/Functions/emulator acceptance remains required from a complete tool
 - Do not use Stripe's mutable/default Portal configuration; always pin the reviewed `bpc_...` ID.
 - Do not enable Monthly ↔ Yearly plan switching in Portal until the application derives/validates the provider Price and has an approved proration/change policy.
 - Do not treat the Smart Retry/email flag as provider-authored evidence; it is an audited operator assertion because the current provider API surface does not expose those Dashboard settings.
+- Do not edit the oversized account hub/admin dashboard merely to add a small financial shortcut when a smaller authenticated navigation seam exists.
+- Do not treat menu visibility as authorization; the destination financial page/callables must continue to enforce administrator role + MFA.
 - Do not mark Monthly/Yearly financially accepted until each controlled payment reconciles `BALANCED` with zero unexplained provider/Firestore difference.
