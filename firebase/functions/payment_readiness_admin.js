@@ -219,6 +219,12 @@ function applyPatch(current, patch, options = {}) {
       throw new HttpsError("invalid-argument", `Unsupported readiness field: ${key}`);
     }
   }
+  if (patch.stripeSubscriptionLifecycleWebhookVerified === true) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Subscription lifecycle webhook readiness can only be enabled by live Stripe endpoint verification.",
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, "stripeMode")) {
     next.stripeMode = String(patch.stripeMode || "");
   }
