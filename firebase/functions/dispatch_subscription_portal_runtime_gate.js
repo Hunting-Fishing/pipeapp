@@ -14,6 +14,17 @@ const {stripeSecretKey} = require("./stripe_marketplace_commands");
 const CONFIG_COLLECTION = "platform_configuration";
 const PORTAL_DOC = "dispatch_billing_portal";
 
+function requireAuthenticatedRequest(request) {
+  const uid = String(request && request.auth && request.auth.uid || "").trim();
+  if (!uid) {
+    throw new HttpsError(
+        "unauthenticated",
+        "Sign in before using Dispatch billing.",
+    );
+  }
+  return uid;
+}
+
 function dispatchBillingPortalRuntimeDecision(portal = {}) {
   if (portal.enabled !== true) {
     return Object.freeze({ready: false, reason: "portal_disabled"});
@@ -47,6 +58,10 @@ function createDispatchSubscriptionPortalRuntimeGate(
   const actionLabel = String(options.actionLabel || "Dispatch billing").trim();
 
   return async (request) => {
+    // Do this before Firestore or Stripe reads. The wrapped handler still owns
+    // the complete account-security, feature, and abuse/rate-limit policy.
+    requireAuthenticatedRequest(request);
+
     const snapshot = await db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC).get();
     const portal = snapshot.exists ? snapshot.data() : {};
     const decision = dispatchBillingPortalRuntimeDecision(portal);
@@ -90,4 +105,5 @@ module.exports = {
   PORTAL_DOC,
   createDispatchSubscriptionPortalRuntimeGate,
   dispatchBillingPortalRuntimeDecision,
+  requireAuthenticatedRequest,
 };
