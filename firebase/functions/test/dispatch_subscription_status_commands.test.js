@@ -11,6 +11,8 @@ const {
   DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
 } = require("../dispatch_billing_portal_policy");
 
+const enabledFeatures = Object.freeze({dispatch: true, paidFeatures: true});
+
 function storedPortalFeatures(overrides = {}) {
   return {
     paymentMethodUpdate: true,
@@ -112,15 +114,32 @@ const catalog = () => ({
   yearly: {currency: "CAD", unitAmountMinor: 30000, interval: "year"},
 });
 
+function commandOptions(overrides = {}) {
+  return {
+    authUid: () => "user-1",
+    rateLimit: async () => {},
+    catalog,
+    loadFeatureFlags: async () => enabledFeatures,
+    ...overrides,
+  };
+}
+
 test("public billing readiness requires every Dispatch launch prerequisite", () => {
   assert.equal(
-      dispatchSubscriptionPublicBillingReady(readyBilling(), verifiedPortal()),
+      dispatchSubscriptionPublicBillingReady(
+          readyBilling(),
+          verifiedPortal(),
+          null,
+          enabledFeatures,
+      ),
       true,
   );
   assert.equal(
       dispatchSubscriptionPublicBillingReady(
           readyBilling({stripeSubscriptionsEnabled: false}),
           verifiedPortal(),
+          null,
+          enabledFeatures,
       ),
       false,
   );
@@ -128,6 +147,8 @@ test("public billing readiness requires every Dispatch launch prerequisite", () 
       dispatchSubscriptionPublicBillingReady(
           readyBilling({stripeSubscriptionRecoveryVerified: false}),
           verifiedPortal(),
+          null,
+          enabledFeatures,
       ),
       false,
   );
@@ -135,6 +156,8 @@ test("public billing readiness requires every Dispatch launch prerequisite", () 
       dispatchSubscriptionPublicBillingReady(
           readyBilling(),
           verifiedPortal({providerVerified: false}),
+          null,
+          enabledFeatures,
       ),
       false,
   );
@@ -144,6 +167,17 @@ test("public billing readiness requires every Dispatch launch prerequisite", () 
           verifiedPortal({
             providerVerifiedFeatures: storedPortalFeatures({subscriptionUpdate: true}),
           }),
+          null,
+          enabledFeatures,
+      ),
+      false,
+  );
+  assert.equal(
+      dispatchSubscriptionPublicBillingReady(
+          readyBilling(),
+          verifiedPortal(),
+          null,
+          {dispatch: true, paidFeatures: false},
       ),
       false,
   );
@@ -181,11 +215,7 @@ test("status disables purchase before public billing readiness is enabled", asyn
       fakeAdmin({
         readiness: readyBilling({stripeSubscriptionsEnabled: false}),
       }),
-      {
-        authUid: () => "user-1",
-        rateLimit: async () => {},
-        catalog,
-      },
+      commandOptions(),
   );
   const result = await commands.getDispatchSubscriptionStatus({auth: {uid: "user-1"}});
   assert.equal(result.billingAvailable, false);
@@ -196,25 +226,29 @@ test("status disables purchase before public billing readiness is enabled", asyn
 test("status enables purchase only when user state and billing readiness both allow it", async () => {
   const commands = createDispatchSubscriptionStatusCommands(
       fakeAdmin(),
-      {
-        authUid: () => "user-1",
-        rateLimit: async () => {},
-        catalog,
-      },
+      commandOptions(),
   );
   const result = await commands.getDispatchSubscriptionStatus({auth: {uid: "user-1"}});
   assert.equal(result.billingAvailable, true);
   assert.equal(result.canStartCheckout, true);
 });
 
+test("status hides purchase when Dispatch or paidFeatures flag is off", async () => {
+  const commands = createDispatchSubscriptionStatusCommands(
+      fakeAdmin(),
+      commandOptions({
+        loadFeatureFlags: async () => ({dispatch: true, paidFeatures: false}),
+      }),
+  );
+  const result = await commands.getDispatchSubscriptionStatus({auth: {uid: "user-1"}});
+  assert.equal(result.billingAvailable, false);
+  assert.equal(result.canStartCheckout, false);
+});
+
 test("status fails closed when small-supplier assessment is missing or stale", async () => {
   const missingAssessmentCommands = createDispatchSubscriptionStatusCommands(
       fakeAdmin({readiness: smallSupplierBilling()}),
-      {
-        authUid: () => "user-1",
-        rateLimit: async () => {},
-        catalog,
-      },
+      commandOptions(),
   );
   const missing = await missingAssessmentCommands.getDispatchSubscriptionStatus({
     auth: {uid: "user-1"},
@@ -227,11 +261,7 @@ test("status fails closed when small-supplier assessment is missing or stale", a
         readiness: smallSupplierBilling(),
         assessment: validSmallSupplierAssessment(),
       }),
-      {
-        authUid: () => "user-1",
-        rateLimit: async () => {},
-        catalog,
-      },
+      commandOptions(),
   );
   const valid = await validCommands.getDispatchSubscriptionStatus({
     auth: {uid: "user-1"},
@@ -253,11 +283,7 @@ test("active subscriber remains active even when new purchases are disabled", as
         },
         readiness: readyBilling({stripeSubscriptionsEnabled: false}),
       }),
-      {
-        authUid: () => "user-1",
-        rateLimit: async () => {},
-        catalog,
-      },
+      commandOptions(),
   );
   const result = await commands.getDispatchSubscriptionStatus({auth: {uid: "user-1"}});
   assert.equal(result.billingAvailable, false);
