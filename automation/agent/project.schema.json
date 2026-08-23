@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://366industries.local/autobuild/project.schema.json",
+  "title": "Autonomous Builder Project Configuration",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_id",
+    "project_name",
+    "agent_policy",
+    "verify_command",
+    "writer_branch",
+    "knowledge",
+    "quality",
+    "timeouts",
+    "git",
+    "safety"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "project_id": { "type": "string", "minLength": 1 },
+    "project_name": { "type": "string", "minLength": 1 },
+    "agent_policy": { "type": "string", "minLength": 1 },
+    "verify_command": { "type": "string", "minLength": 1 },
+    "writer_branch": { "type": "string", "minLength": 1 },
+    "knowledge": {
+      "type": "object",
+      "required": ["always", "feature_registry"],
+      "properties": {
+        "always": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "ui": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "payments": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "marketplace": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "feature_registry": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" },
+        "uniqueItems": true
+      }
+    },
+    "quality": {
+      "type": "object",
+      "required": [
+        "max_source_lines",
+        "refactor_warning_lines",
+        "max_files_touched",
+        "max_changed_lines",
+        "source_extensions",
+        "generated_path_markers"
+      ],
+      "properties": {
+        "max_source_lines": { "type": "integer", "minimum": 100 },
+        "refactor_warning_lines": { "type": "integer", "minimum": 50 },
+        "max_files_touched": { "type": "integer", "minimum": 1 },
+        "max_changed_lines": { "type": "integer", "minimum": 1 },
+        "source_extensions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "generated_path_markers": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "timeouts": {
+      "type": "object",
+      "required": ["worker_minutes", "verify_minutes", "repair_minutes"],
+      "properties": {
+        "worker_minutes": { "type": "integer", "minimum": 1, "maximum": 240 },
+        "verify_minutes": { "type": "integer", "minimum": 1, "maximum": 240 },
+        "repair_minutes": { "type": "integer", "minimum": 1, "maximum": 240 }
+      },
+      "additionalProperties": false
+    },
+    "git": {
+      "type": "object",
+      "required": ["reuse_writer_branch", "allow_direct_main", "push_verified_commits_only"],
+      "properties": {
+        "reuse_writer_branch": { "type": "boolean" },
+        "allow_direct_main": { "type": "boolean" },
+        "push_verified_commits_only": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "safety": {
+      "type": "object",
+      "required": ["production_activation", "live_provider_mutations", "merge_to_main"],
+      "properties": {
+        "production_activation": { "enum": ["human-only"] },
+        "live_provider_mutations": { "enum": ["human-only"] },
+        "merge_to_main": { "enum": ["human-only"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
