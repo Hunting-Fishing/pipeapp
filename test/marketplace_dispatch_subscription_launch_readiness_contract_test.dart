@@ -21,6 +21,7 @@ void main() {
     expect(page, contains('MarketplaceDispatchSubscriptionLaunchReadinessPanel'));
     expect(controller, contains("'getPaymentProviderReadiness'"));
     expect(controller, contains("'getDispatchBillingPortalReadiness'"));
+    expect(controller, contains("'getCanadaGstHstThresholdAssessment'"));
     expect(controller, contains("'verifyDispatchSubscriptionLifecycleWebhook'"));
     expect(controller, contains("'setPaymentProviderReadiness'"));
     expect(controller, contains("'stripeSubscriptionRecoveryVerified'"));
@@ -44,6 +45,22 @@ void main() {
     expect(view, contains('BILLING OFF'));
     expect(view, contains('prerequisiteStates.length'));
     expect(view, contains('dispatchSubscriptionNextAction'));
+  });
+
+  test('GST HST readiness requires server-projected small-supplier evidence', () {
+    final controller = controllerSource();
+    final view = viewSource();
+
+    expect(controller, contains('_taxEvidence'));
+    expect(controller, contains('getCanadaGstHstThresholdAssessment'));
+    expect(controller, contains('taxEvidence: _taxEvidence'));
+    expect(view, contains("taxEvidence['smallSupplierBillingEvidenceReady'] == true"));
+    expect(view, contains('smallSupplierBillingEvidenceReason'));
+    expect(view, contains('smallSupplierAssessmentRevision'));
+    expect(view, contains('smallSupplierBoundRevision'));
+    expect(view, contains('dispatchTaxReadinessDetail'));
+    expect(view, contains('assessment is stale'));
+    expect(view, contains('threshold has been exceeded'));
   });
 
   test('stateful readiness controller delegates pure presentation to extracted view', () {
