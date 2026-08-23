@@ -96,6 +96,14 @@ function verifiedPortal(overrides = {}) {
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_dispatchlive",
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    providerVerifiedFeatures: {
+      paymentMethodUpdate: true,
+      invoiceHistory: true,
+      subscriptionCancel: true,
+      subscriptionCancelMode: "at_period_end",
+      subscriptionCancelProration: "none",
+      subscriptionUpdate: false,
+    },
     ...overrides,
   };
 }
@@ -130,6 +138,20 @@ test("provider proof must be bound to the exact current bpc identity", async () 
     "platform_configuration/payment_provider_readiness": currentReadiness(),
     "platform_configuration/dispatch_billing_portal": verifiedPortal({
       providerVerifiedConfigurationId: "bpc_otherlive",
+    }),
+  });
+  const commands = createPaymentReadinessAdmin({firestore});
+  await assert.rejects(
+      () => commands.setPaymentProviderReadiness(request()),
+      /provider-verified Stripe Billing Portal configuration/i,
+  );
+});
+
+test("missing stored provider features cannot authorize Dispatch activation", async () => {
+  const {firestore} = fakeAdmin({
+    "platform_configuration/payment_provider_readiness": currentReadiness(),
+    "platform_configuration/dispatch_billing_portal": verifiedPortal({
+      providerVerifiedFeatures: {},
     }),
   });
   const commands = createPaymentReadinessAdmin({firestore});
