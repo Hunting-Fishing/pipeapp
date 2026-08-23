@@ -13,6 +13,7 @@ Map<String, dynamic> statusPayload({
   bool processing = false,
   bool alreadySubscribed = false,
   bool canStartCheckout = true,
+  bool canManageBilling = false,
 }) =>
     {
       'hasRecord': hasRecord,
@@ -26,6 +27,7 @@ Map<String, dynamic> statusPayload({
       'processing': processing,
       'alreadySubscribed': alreadySubscribed,
       'canStartCheckout': canStartCheckout,
+      'canManageBilling': canManageBilling,
       'plans': {
         'monthly': {
           'currency': 'CAD',
@@ -57,10 +59,12 @@ void main() {
       entitlementActive: true,
       alreadySubscribed: true,
       canStartCheckout: false,
+      canManageBilling: true,
     ));
     expect(status.entitlementActive, isTrue);
     expect(status.alreadySubscribed, isTrue);
     expect(status.canStartCheckout, isFalse);
+    expect(status.canManageBilling, isTrue);
   });
 
   test('Stripe Checkout accepts only exact secure checkout host', () {
@@ -85,6 +89,34 @@ void main() {
     expect(
       isValidStripeCheckoutUrl('https://evil.example/checkout'),
       isFalse,
+    );
+  });
+
+  test('Stripe Billing Portal accepts only exact secure billing host', () {
+    expect(
+      isValidStripeBillingPortalUrl(
+        'https://billing.stripe.com/p/session/test',
+      ),
+      isTrue,
+    );
+    expect(
+      isValidStripeBillingPortalUrl(
+        'https://billing.stripe.com.evil.example/session',
+      ),
+      isFalse,
+    );
+  });
+
+  test('Billing Portal response requires validated Stripe link', () {
+    final result = MarketplaceDispatchBillingPortalResult.fromMap({
+      'portalUrl': 'https://billing.stripe.com/p/session/test',
+    });
+    expect(result.portalUrl, contains('billing.stripe.com'));
+    expect(
+      () => MarketplaceDispatchBillingPortalResult.fromMap({
+        'portalUrl': 'https://evil.example/billing',
+      }),
+      throwsStateError,
     );
   });
 
