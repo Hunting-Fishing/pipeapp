@@ -49,18 +49,29 @@ function createDispatchBillingPortalVerificationCommands(admin, options = {}) {
             "A concise Billing Portal verification reason is required.",
         );
       }
-      if (request.data && request.data.confirmProduction !== true) {
+      if (!request.data || request.data.confirmProduction !== true) {
         throw new HttpsError(
             "failed-precondition",
             "Live Dispatch Billing Portal verification requires explicit production confirmation.",
         );
       }
 
-      const providerConfiguration = await stripeRequest({
-        secretKey: secretProvider(),
-        path: `/v1/billing_portal/configurations/${encodeURIComponent(configurationId)}`,
-        method: "GET",
-      });
+      let providerConfiguration;
+      try {
+        providerConfiguration = await stripeRequest({
+          secretKey: secretProvider(),
+          path: `/v1/billing_portal/configurations/${encodeURIComponent(configurationId)}`,
+          method: "GET",
+        });
+      } catch (error) {
+        if (error instanceof HttpsError) {
+          throw new HttpsError(
+              "failed-precondition",
+              "Stripe could not retrieve that live Billing Portal configuration.",
+          );
+        }
+        throw error;
+      }
       const assessment = dispatchBillingPortalProviderAssessment(
           providerConfiguration,
       );
