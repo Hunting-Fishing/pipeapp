@@ -36,6 +36,7 @@ $engineFiles = @(
     "tool/autonomous_process.ps1",
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
+    "tool/autonomous_guard_test.ps1",
     "automation/agent/project.schema.json",
     "automation/agent/result.schema.json",
     "automation/agent/review.schema.json",
@@ -131,7 +132,8 @@ $powerShellScripts = @(
     "tool/autonomous_build_v2.ps1",
     "tool/autonomous_process.ps1",
     "tool/autonomous_guard.ps1",
-    "tool/autonomous_builder_self_test.ps1"
+    "tool/autonomous_builder_self_test.ps1",
+    "tool/autonomous_guard_test.ps1"
 )
 foreach ($relative in $powerShellScripts) {
     $full = Join-Path $ProjectRoot $relative
@@ -149,12 +151,37 @@ foreach ($relative in $powerShellScripts) {
 $wrapper = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_build.ps1") -Raw
 Assert-True ($wrapper.Contains("autonomous_build_v2.ps1")) "Stable autonomous_build.ps1 wrapper must delegate to V2 supervisor."
 
+$supervisor = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_build_v2.ps1") -Raw
+Assert-True ($supervisor.Contains("Invoke-CodexReviewer")) "V2 supervisor must invoke the independent reviewer."
+Assert-True ($supervisor.Contains("supervisor.lock")) "V2 supervisor must implement a single-writer lock."
+Assert-True ($supervisor.Contains("-ResultPath '$resultEsc'")) "V2 supervisor must pass worker result metadata into the autonomous guard."
+
 $featureContractPath = Join-Path $ProjectRoot ".autobuild/feature_contract.json"
 if (Test-Path -LiteralPath $featureContractPath) {
     $contract = Read-JsonFile -Path $featureContractPath
     foreach ($relative in @($contract.required_paths)) {
         Assert-True (Test-Path -LiteralPath (Join-Path $ProjectRoot ([string]$relative))) "Feature contract required path missing: $relative"
     }
+}
+
+$lockTestPath = Join-Path ([System.IO.Path]::GetTempPath()) "autobuild-lock-test-$([guid]::NewGuid().ToString('N')).lock"
+$firstLock = $null
+$secondLock = $null
+try {
+    $firstLock = [System.IO.File]::Open($lockTestPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+    $secondFailed = $false
+    try {
+        $secondLock = [System.IO.File]::Open($lockTestPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+    }
+    catch {
+        $secondFailed = $true
+    }
+    Assert-True $secondFailed "Exclusive single-writer file lock did not reject a second owner."
+}
+finally {
+    if ($null -ne $secondLock) { $secondLock.Dispose() }
+    if ($null -ne $firstLock) { $firstLock.Dispose() }
+    Remove-Item -LiteralPath $lockTestPath -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "Autonomous Builder static self-test passed."
