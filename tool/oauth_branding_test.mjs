@@ -20,7 +20,7 @@ function requireExactAppIdentity(html, pageName) {
 test('root homepage visibly identifies Pipe Buyer and explains its purpose before Flutter loads', () => {
   const index = read('web/index.html');
   requireExactAppIdentity(index, 'web/index.html');
-  assert.match(index, /Application Purpose & Identity:/u);
+  assert.match(index, /Application Purpose &(?:amp;)? Identity:/u);
   assert.match(index, /B2B industrial marketplace/u);
   assert.match(index, /timed auctions/u);
   assert.match(index, /freight trucking dispatch/u);
