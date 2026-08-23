@@ -26,7 +26,7 @@ Future<String> uploadProfilePhotoImpl({
     });
     await task;
     onProgress(1);
-    return reference.getDownloadURL();
+    return await reference.getDownloadURL();
   } on FirebaseException catch (error) {
     throw ProfilePhotoUploadException(
         error.code, error.message ?? 'The profile photo upload failed.');
