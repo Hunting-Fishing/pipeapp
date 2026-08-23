@@ -50,10 +50,12 @@
   },
   "timeouts": {
     "worker_minutes": 35,
+    "no_output_minutes": 10,
     "verify_minutes": 45,
     "repair_minutes": 25
   },
   "git": {
+    "base_branch": "main",
     "reuse_writer_branch": true,
     "allow_direct_main": false,
     "push_verified_commits_only": true
