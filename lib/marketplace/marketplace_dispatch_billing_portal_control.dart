@@ -4,7 +4,12 @@ import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 
 class MarketplaceDispatchBillingPortalControl extends StatefulWidget {
-  const MarketplaceDispatchBillingPortalControl({super.key});
+  const MarketplaceDispatchBillingPortalControl({
+    super.key,
+    this.onChanged,
+  });
+
+  final VoidCallback? onChanged;
 
   @override
   State<MarketplaceDispatchBillingPortalControl> createState() =>
@@ -150,6 +155,7 @@ class _MarketplaceDispatchBillingPortalControlState
             : 'Stripe did not verify the requested Billing Portal configuration.';
       });
       await _load();
+      if (verified) widget.onChanged?.call();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -208,6 +214,7 @@ class _MarketplaceDispatchBillingPortalControlState
             'Dispatch Billing Portal readiness was disabled and provider proof revoked.';
       });
       await _load();
+      widget.onChanged?.call();
     } catch (error) {
       if (!mounted) return;
       setState(() {
