@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Pipe Buyer Autonomous Build Result",
+  "title": "Autonomous Build Result",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,6 +10,9 @@
     "source_item",
     "summary",
     "changed_files",
+    "knowledge_used",
+    "refactor_mode",
+    "compatibility_notes",
     "verification",
     "requires_human",
     "blocker_classification",
@@ -22,23 +25,26 @@
       "type": "string",
       "enum": ["continue", "blocked", "complete"]
     },
-    "task": {
-      "type": "string"
-    },
-    "source_doc": {
-      "type": "string"
-    },
-    "source_item": {
-      "type": "string"
-    },
-    "summary": {
-      "type": "string"
-    },
+    "task": { "type": "string" },
+    "source_doc": { "type": "string" },
+    "source_item": { "type": "string" },
+    "summary": { "type": "string" },
     "changed_files": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "knowledge_used": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "refactor_mode": {
+      "type": "string",
+      "enum": ["none", "behavior-preserving", "behavior-changing"]
+    },
+    "compatibility_notes": {
+      "type": "string"
     },
     "verification": {
       "type": "array",
@@ -47,22 +53,16 @@
         "additionalProperties": false,
         "required": ["command", "result", "evidence"],
         "properties": {
-          "command": {
-            "type": "string"
-          },
+          "command": { "type": "string" },
           "result": {
             "type": "string",
             "enum": ["passed", "failed", "not-run"]
           },
-          "evidence": {
-            "type": "string"
-          }
+          "evidence": { "type": "string" }
         }
       }
     },
-    "requires_human": {
-      "type": "boolean"
-    },
+    "requires_human": { "type": "boolean" },
     "blocker_classification": {
       "type": "string",
       "enum": [
@@ -75,14 +75,8 @@
         "ambiguous-policy"
       ]
     },
-    "human_reason": {
-      "type": "string"
-    },
-    "next_task": {
-      "type": "string"
-    },
-    "commit_message": {
-      "type": "string"
-    }
+    "human_reason": { "type": "string" },
+    "next_task": { "type": "string" },
+    "commit_message": { "type": "string" }
   }
 }
