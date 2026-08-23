@@ -3,6 +3,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+} = require("../dispatch_billing_portal_policy");
+const {
   createDispatchSubscriptionPortalCommands,
 } = require("../dispatch_subscription_portal_commands");
 
@@ -37,6 +40,9 @@ const validConfig = Object.freeze({
   enabled: true,
   returnUrl: "https://pipebuyer.com/account",
   stripePortalConfigurationId: "bpc_live_1",
+  providerVerified: true,
+  providerVerifiedConfigurationId: "bpc_live_1",
+  providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
 });
 const validState = Object.freeze({
   stripeCustomerId: "cus_live_1",
@@ -44,7 +50,7 @@ const validState = Object.freeze({
   reviewRequired: false,
 });
 
-test("Dispatch portal session explicitly uses the audited Stripe configuration", async () => {
+test("Dispatch portal session explicitly uses the provider-verified Stripe configuration", async () => {
   let requestArgs = null;
   const commands = createDispatchSubscriptionPortalCommands(
       fakeAdmin({config: validConfig, state: validState}),
@@ -67,11 +73,39 @@ test("Dispatch portal session explicitly uses the audited Stripe configuration",
   assert.equal(requestArgs.fields.return_url, "https://pipebuyer.com/account");
 });
 
-test("missing reviewed Stripe Portal configuration fails before provider call", async () => {
+test("missing provider proof fails before Portal session provider call", async () => {
   let providerCalls = 0;
   const commands = createDispatchSubscriptionPortalCommands(
       fakeAdmin({
-        config: {...validConfig, stripePortalConfigurationId: ""},
+        config: {...validConfig, providerVerified: false},
+        state: validState,
+      }),
+      {
+        authUid: () => "user-1",
+        rateLimit: async () => {},
+        secretProvider: () => "sk_test_injected",
+        stripeRequest: async () => {
+          providerCalls += 1;
+          return {};
+        },
+      },
+  );
+
+  await assert.rejects(
+      commands.createDispatchBillingPortalSession({data: {}}),
+      /not available/i,
+  );
+  assert.equal(providerCalls, 0);
+});
+
+test("provider proof for a different bpc cannot authorize a Portal session", async () => {
+  let providerCalls = 0;
+  const commands = createDispatchSubscriptionPortalCommands(
+      fakeAdmin({
+        config: {
+          ...validConfig,
+          providerVerifiedConfigurationId: "bpc_other_1",
+        },
         state: validState,
       }),
       {
