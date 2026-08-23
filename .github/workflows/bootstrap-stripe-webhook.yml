@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".github/workflows/bootstrap-stripe-webhook.yml"
+      - "firebase/functions/stripe_webhook_event_catalog.js"
   workflow_dispatch:
 
 permissions:
@@ -82,7 +83,7 @@ jobs:
           });
           NODE
 
-      - name: Resolve or create disabled Stripe webhook endpoint
+      - name: Resolve Stripe webhook endpoint and signing secret
         id: endpoint
         shell: bash
         run: |
@@ -101,24 +102,11 @@ jobs:
           export HAS_SECRET
           node <<'NODE'
           const fs = require('node:fs');
+          const {STRIPE_WEBHOOK_EVENTS: events} = require('./firebase/functions/stripe_webhook_event_catalog');
           const key = fs.readFileSync('.stripe-api-key', 'utf8').trim();
           const webhookUrl = process.env.WEBHOOK_URL;
           const auth = {Authorization: `Bearer ${key}`, 'Stripe-Version': '2026-06-24.dahlia'};
-          const events = [
-            'checkout.session.completed',
-            'checkout.session.async_payment_succeeded',
-            'checkout.session.async_payment_failed',
-            'invoice.paid',
-            'charge.refunded',
-            'refund.created',
-            'refund.updated',
-            'refund.failed',
-            'charge.dispute.created',
-            'charge.dispute.updated',
-            'charge.dispute.closed',
-            'charge.dispute.funds_withdrawn',
-            'charge.dispute.funds_reinstated',
-          ];
+          const description = 'Pipe Buyer production marketplace, subscription, refund, and dispute webhook';
           async function stripe(path, options = {}) {
             const response = await fetch(`https://api.stripe.com${path}`, {
               ...options,
@@ -132,16 +120,27 @@ jobs:
             const listed = await stripe('/v1/webhook_endpoints?limit=100');
             const matches = (listed.data || []).filter((item) => item.url === webhookUrl);
             let endpoint;
-            if (process.env.HAS_SECRET === 'true' && matches.length === 1) {
+            let created = false;
+
+            if (process.env.HAS_SECRET === 'true') {
+              if (matches.length !== 1) {
+                throw new Error(
+                  `Expected exactly one Pipe Buyer webhook endpoint while a signing secret exists; found ${matches.length}. Refusing automatic delete/recreate.`,
+                );
+              }
               endpoint = matches[0];
               if (endpoint.livemode !== true) throw new Error('Existing webhook endpoint is not live-mode.');
+              // Keep the established endpoint enabled with its established event
+              // set while the backward-compatible new handler is deployed.
             } else {
-              for (const match of matches) {
-                await stripe(`/v1/webhook_endpoints/${encodeURIComponent(match.id)}`, {method: 'DELETE'});
+              if (matches.length !== 0) {
+                throw new Error(
+                  'A Pipe Buyer webhook endpoint exists but Firebase has no matching signing secret. Refusing automatic replacement; reconcile the secret manually.',
+                );
               }
               const form = new URLSearchParams();
               form.set('url', webhookUrl);
-              form.set('description', 'Pipe Buyer production marketplace, subscription, refund, and dispute webhook');
+              form.set('description', description);
               form.set('api_version', '2026-06-24.dahlia');
               form.set('connect', 'false');
               for (const event of events) form.append('enabled_events[]', event);
@@ -150,31 +149,47 @@ jobs:
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: form.toString(),
               });
+              created = true;
               if (endpoint.livemode !== true) throw new Error('Stripe created a non-live webhook endpoint.');
               if (!String(endpoint.secret || '').startsWith('whsec_')) {
                 throw new Error('Stripe did not return a webhook signing secret at creation.');
               }
               fs.writeFileSync('.stripe-webhook-secret', String(endpoint.secret), {mode: 0o600});
+
+              // Stripe creates endpoints enabled. With no prior endpoint there is
+              // no live webhook path to preserve, so immediately hold this new
+              // endpoint until its signing secret is deployed and probed.
+              const hold = new URLSearchParams();
+              hold.set('disabled', 'true');
+              endpoint = await stripe(`/v1/webhook_endpoints/${encodeURIComponent(endpoint.id)}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: hold.toString(),
+              });
+              if (endpoint.status !== 'disabled') {
+                throw new Error('New Stripe webhook endpoint could not be held for verification.');
+              }
             }
+
             if (!String(endpoint.id || '').startsWith('we_')) {
               throw new Error('Stripe returned an invalid webhook endpoint id.');
             }
-            const disable = new URLSearchParams();
-            disable.set('disabled', 'true');
-            await stripe(`/v1/webhook_endpoints/${encodeURIComponent(endpoint.id)}`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-              body: disable.toString(),
-            });
             fs.writeFileSync('.stripe-webhook-endpoint-id', String(endpoint.id), {mode: 0o600});
+            fs.writeFileSync('.stripe-webhook-created', created ? 'true' : 'false', {mode: 0o600});
           })().catch((error) => {
             console.error(error.message);
             process.exit(1);
           });
           NODE
           endpoint_id="$(cat .stripe-webhook-endpoint-id)"
+          created="$(cat .stripe-webhook-created)"
           echo "endpoint_id=$endpoint_id" >> "$GITHUB_OUTPUT"
-          echo "Stripe endpoint prepared in disabled state: $endpoint_id" >> "$GITHUB_STEP_SUMMARY"
+          echo "created=$created" >> "$GITHUB_OUTPUT"
+          if [[ "$created" == "true" ]]; then
+            echo "New Stripe endpoint created and held disabled pending verification: $endpoint_id" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Existing Stripe endpoint preserved during handler deployment: $endpoint_id" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Store Stripe webhook signing secret in Firebase Secret Manager
         shell: bash
@@ -241,16 +256,20 @@ jobs:
           });
           NODE
 
-      - name: Enable verified Stripe endpoint
+      - name: Synchronize approved events and enable verified Stripe endpoint
         shell: bash
         run: |
           set -euo pipefail
           export ENDPOINT_ID="${{ steps.endpoint.outputs.endpoint_id }}"
           node <<'NODE'
           const fs = require('node:fs');
+          const {STRIPE_WEBHOOK_EVENTS: events} = require('./firebase/functions/stripe_webhook_event_catalog');
           const key = fs.readFileSync('.stripe-api-key', 'utf8').trim();
+          const description = 'Pipe Buyer production marketplace, subscription, refund, and dispute webhook';
           const form = new URLSearchParams();
           form.set('disabled', 'false');
+          form.set('description', description);
+          for (const event of events) form.append('enabled_events[]', event);
           (async () => {
             const response = await fetch(
               `https://api.stripe.com/v1/webhook_endpoints/${encodeURIComponent(process.env.ENDPOINT_ID)}`,
@@ -265,19 +284,23 @@ jobs:
               },
             );
             const payload = await response.json();
-            if (!response.ok || payload.status !== 'enabled' || payload.livemode !== true) {
-              throw new Error(`Stripe endpoint enable failed (${response.status}).`);
+            const expected = [...events].sort();
+            const actual = Array.isArray(payload.enabled_events) ? [...payload.enabled_events].sort() : [];
+            const eventsMatch = expected.length === actual.length &&
+              expected.every((event, index) => event === actual[index]);
+            if (!response.ok || payload.status !== 'enabled' || payload.livemode !== true || !eventsMatch) {
+              throw new Error(`Stripe endpoint event synchronization failed (${response.status}).`);
             }
-            console.log('Stripe production webhook endpoint enabled.');
+            console.log('Stripe production webhook endpoint enabled with verified event catalog.');
           })().catch((error) => {
             console.error(error.message);
             process.exit(1);
           });
           NODE
-          echo "Stripe webhook endpoint enabled after signed verification." >> "$GITHUB_STEP_SUMMARY"
+          echo "Stripe webhook endpoint event catalog expanded only after deployed-handler verification." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove local credential files
         if: always()
         shell: bash
         run: |
-          rm -f .stripe-api-key .stripe-webhook-secret .stripe-webhook-endpoint-id
+          rm -f .stripe-api-key .stripe-webhook-secret .stripe-webhook-endpoint-id .stripe-webhook-created

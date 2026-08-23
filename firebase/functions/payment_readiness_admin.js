@@ -14,10 +14,13 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeCheckoutEnabled",
   "stripeFeeBillingEnabled",
   "stripeSubscriptionsEnabled",
+  "stripeDispatchPortalEnabled",
   "stripeWebhookVerified",
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
+  "stripeTaxPendingBillingApproved",
   "stripeReconciliationReady",
+  "affiliatePayoutEconomicsReady",
   "affiliatePayoutsEnabled",
   "marketplaceFinancialResolutionEnabled",
   "marketplaceDisputeAutomationEnabled",
@@ -29,6 +32,10 @@ const URL_FIELDS = Object.freeze([
   "connectRefreshUrl",
   "checkoutSuccessUrl",
   "checkoutCancelUrl",
+  "dispatchPortalReturnUrl",
+]);
+const STRING_FIELDS = Object.freeze([
+  "stripeDispatchPortalConfigurationId",
 ]);
 
 function safeHttpsPipeBuyerUrl(value, field) {
@@ -49,6 +56,17 @@ function safeHttpsPipeBuyerUrl(value, field) {
   return url.toString();
 }
 
+function safePortalConfigurationId(value) {
+  const configurationId = String(value || "").trim();
+  if (configurationId && !/^bpc_[A-Za-z0-9]+$/.test(configurationId)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "stripeDispatchPortalConfigurationId must be a Stripe billing portal configuration ID.",
+    );
+  }
+  return configurationId;
+}
+
 function normalizeReadiness(data = {}) {
   const normalized = {
     stripeMode: MODES.has(String(data.stripeMode || "")) ?
@@ -56,12 +74,21 @@ function normalizeReadiness(data = {}) {
   };
   for (const field of BOOLEAN_FIELDS) normalized[field] = data[field] === true;
   for (const field of URL_FIELDS) normalized[field] = String(data[field] || "");
+  for (const field of STRING_FIELDS) normalized[field] = String(data[field] || "");
   return normalized;
 }
 
 function taxBillingPrepared(next) {
   return next.stripeTaxReady === true ||
-    next.stripeTaxRegistrationPending === true;
+    (next.stripeTaxRegistrationPending === true &&
+      next.stripeTaxPendingBillingApproved === true);
+}
+
+function affiliateProviderReady(next) {
+  return next.stripeMode === "production" &&
+    next.stripeConnectOnboardingEnabled &&
+    next.stripeWebhookVerified &&
+    next.stripeReconciliationReady;
 }
 
 function validateReadiness(next, options = {}) {
@@ -86,6 +113,13 @@ function validateReadiness(next, options = {}) {
         "Pending tax registration may only be used with production billing.",
     );
   }
+  if (next.stripeTaxPendingBillingApproved &&
+      !next.stripeTaxRegistrationPending) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Pending-tax billing approval may only be enabled while tax registration is explicitly pending.",
+    );
+  }
   if (next.stripeCheckoutEnabled && !(
     next.stripeMode === "production" &&
     next.stripeConnectOnboardingEnabled &&
@@ -106,7 +140,7 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace fee billing requires production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
+        "Marketplace fee billing requires production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
     );
   }
   if (next.stripeSubscriptionsEnabled && !(
@@ -117,7 +151,18 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
+        "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
+    );
+  }
+  if (next.stripeDispatchPortalEnabled && !(
+    next.stripeMode === "production" &&
+    next.stripeWebhookVerified &&
+    /^bpc_[A-Za-z0-9]+$/.test(String(next.stripeDispatchPortalConfigurationId || "")) &&
+    String(next.dispatchPortalReturnUrl || "").trim()
+  )) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Dispatch Customer Portal requires production mode, verified webhooks, an approved Stripe portal configuration, and a Pipe Buyer return URL.",
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
@@ -151,15 +196,19 @@ function validateReadiness(next, options = {}) {
         "Platform-funded refund overrides require marketplace financial resolution.",
     );
   }
+  if (next.affiliatePayoutEconomicsReady && !affiliateProviderReady(next)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Affiliate payout economics approval requires production mode, Connect onboarding, verified webhooks, and reconciliation readiness.",
+    );
+  }
   if (next.affiliatePayoutsEnabled && !(
-    next.stripeMode === "production" &&
-    next.stripeConnectOnboardingEnabled &&
-    next.stripeWebhookVerified &&
-    next.stripeReconciliationReady
+    affiliateProviderReady(next) &&
+    next.affiliatePayoutEconomicsReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Affiliate payouts require production mode, Connect onboarding, verified webhooks, and reconciliation readiness.",
+        "Affiliate payouts require provider readiness and a separate approved affiliate payout economics gate.",
     );
   }
   return next;
@@ -170,7 +219,12 @@ function applyPatch(current, patch, options = {}) {
     throw new HttpsError("invalid-argument", "A readiness patch is required.");
   }
   const next = {...normalizeReadiness(current)};
-  const allowed = new Set(["stripeMode", ...BOOLEAN_FIELDS, ...URL_FIELDS]);
+  const allowed = new Set([
+    "stripeMode",
+    ...BOOLEAN_FIELDS,
+    ...URL_FIELDS,
+    ...STRING_FIELDS,
+  ]);
   for (const key of Object.keys(patch)) {
     if (!allowed.has(key)) {
       throw new HttpsError("invalid-argument", `Unsupported readiness field: ${key}`);
@@ -190,6 +244,12 @@ function applyPatch(current, patch, options = {}) {
   for (const field of URL_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(patch, field)) {
       next[field] = safeHttpsPipeBuyerUrl(patch[field], field);
+    }
+  }
+  for (const field of STRING_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(patch, field)) {
+      next[field] = field === "stripeDispatchPortalConfigurationId" ?
+        safePortalConfigurationId(patch[field]) : String(patch[field] || "").trim();
     }
   }
   return validateReadiness(next, options);
@@ -269,11 +329,14 @@ function createPaymentReadinessAdmin(admin) {
 
 module.exports = {
   BOOLEAN_FIELDS,
+  STRING_FIELDS,
   URL_FIELDS,
+  affiliateProviderReady,
   applyPatch,
   createPaymentReadinessAdmin,
   normalizeReadiness,
   safeHttpsPipeBuyerUrl,
+  safePortalConfigurationId,
   taxBillingPrepared,
   validateReadiness,
 };

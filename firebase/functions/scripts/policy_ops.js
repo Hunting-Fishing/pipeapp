@@ -68,6 +68,37 @@ function fail(message) {
   process.exitCode = 2;
 }
 
+function assertActorUid(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    fail(
+        "--actor-uid is required. Record the Firebase Auth UID of the " +
+        "administrator who approved this action.",
+    );
+    return false;
+  }
+  if (normalized.length > 128) {
+    fail("--actor-uid is longer than Firebase Auth permits.");
+    return false;
+  }
+  if (normalized.includes("@")) {
+    fail(
+        "--actor-uid must be a Firebase Auth UID, not an email address.",
+    );
+    return false;
+  }
+  if (/^(paste|replace|your|example|todo)[-_ ]/i.test(normalized) ||
+      /firebase.*admin.*uid.*here/i.test(normalized) ||
+      normalized === "PASTE_FIREBASE_ADMIN_UID_HERE") {
+    fail(
+        "--actor-uid is still a placeholder. Copy the approving " +
+        "administrator's real User UID from Firebase Authentication first.",
+    );
+    return false;
+  }
+  return true;
+}
+
 function assertProjectGuard(projectId, args, apply) {
   if (!apply) return true;
   if (projectId !== PRODUCTION_PROJECT_ID) return true;
@@ -174,12 +205,7 @@ async function commandPublish(args) {
   const effective = String(args.effective || "").trim();
 
   if (!projectId) return fail("--project is required.");
-  if (!actorUid) {
-    return fail(
-        "--actor-uid is required. Record the administrator who approved this " +
-        "document, not the operator credential.",
-    );
-  }
+  if (!assertActorUid(actorUid)) return;
   if (!url) return fail("--url is required.");
   if (!effective) return fail("--effective YYYY-MM-DD is required.");
 
@@ -278,7 +304,7 @@ async function commandSetEnforcement(args) {
   const enabled = String(args.enabled || "").trim().toLowerCase() === "true";
 
   if (!projectId) return fail("--project is required.");
-  if (!actorUid) return fail("--actor-uid is required.");
+  if (!assertActorUid(actorUid)) return;
   if (!assertProjectGuard(projectId, args, apply)) return;
 
   const db = connect(projectId);

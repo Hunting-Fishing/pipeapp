@@ -29,12 +29,19 @@ When repairing a payment defect, record the root cause, exact repair, verificati
 ## Live Stripe products/prices
 
 - [x] Live Pipe Buyer Stripe account identified.
+- [x] Stripe account can accept charges.
+- [x] Stripe account payouts are enabled.
+- [x] Stripe `transfers` capability is active.
+- [x] Stripe currently reports no outstanding account requirements.
 - [x] Dispatch Monthly CAD recurring price exists: CA$25/month.
 - [x] Dispatch Yearly CAD recurring price exists: CA$300/year.
 - [x] Pipe Marketplace Fee product exists with launch-v2 metadata.
 - [x] Equipment & Assets Marketplace Fee product exists.
 - [x] 1-year free Dispatch coupon exists and is valid.
 - [x] 5-year free Dispatch coupon exists and is valid.
+- [x] Live Stripe account currently has no Checkout Sessions or subscriptions, providing a clean pre-revenue audit baseline.
+- [x] Live Stripe balance was zero at the audit checkpoint.
+- [x] Stripe Tax currently has no active registrations at the audit checkpoint.
 - [ ] Review/deactivate only after dependency audit: legacy CA$25 one-time Dispatch price.
 - [ ] Review/deactivate only after dependency audit: legacy CA$300 one-time Dispatch price.
 - [ ] Review/deactivate only after dependency audit: separate active US$25/month Dispatch product/price.
@@ -63,7 +70,7 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 
 # P2 — Dispatch subscriptions — FIRST REVENUE TARGET
 
-## Server checkout
+## Server checkout — verified baseline on `main`
 
 - [x] Authenticated Firebase command exists.
 - [x] Paid-feature and Dispatch feature gates are enforced.
@@ -78,6 +85,28 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [x] Checkout session is persisted in Firestore.
 - [x] Checkout is fail-closed unless subscription, mode, webhook, reconciliation, and tax readiness gates pass.
 
+## Draft PR #88 — implemented, not yet accepted/merged
+
+The following items exist on `fix/dispatch-checkout-hardening`, but remain unchecked until automated and controlled acceptance evidence is available:
+
+- [ ] Duplicate-safe checkout creation: Firestore reservation/lease plus stable server attempt idempotency key.
+- [ ] Same-plan open Checkout Session reuse.
+- [ ] Active paid membership prevents creation of another Dispatch subscription Checkout Session.
+- [ ] Verified `invoice.paid` creates/extends server-owned `dispatch_memberships/{uid}` entitlement.
+- [ ] Membership extension never shortens an existing paid-through date.
+- [ ] Private authenticated `getDispatchSubscriptionStatus` callable.
+- [ ] Dedicated Dispatch Monthly/Yearly payment screen.
+- [ ] UI shows CA$25/month and CA$300/year.
+- [ ] Existing memberships dialog links Dispatch plans into the secure payment flow.
+- [ ] VIP billing remains disabled while VIP pricing/economics are unapproved.
+- [ ] `/payments/dispatch` route registered.
+- [ ] `/payments/success` route registered.
+- [ ] `/payments/cancel` route registered.
+- [ ] Success return explicitly does not grant membership from browser redirect.
+- [ ] Cancel return explicitly does not mark membership paid.
+- [ ] Node unit coverage added for checkout idempotency/membership period/status helpers.
+- [ ] Flutter coverage added for payment-return messaging and membership formatting helpers.
+
 ## Remaining Dispatch subscription work
 
 - [ ] Read current production `platform_configuration/payment_provider_readiness` values.
@@ -86,20 +115,21 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [ ] Confirm `stripeWebhookVerified` evidence.
 - [ ] Confirm `stripeReconciliationReady` evidence.
 - [ ] Confirm tax state is either valid ready or explicitly approved registration-pending mode.
-- [ ] Verify success/cancel URLs resolve to current Pipe Buyer routes.
-- [ ] Verify Flutter monthly button calls current command.
-- [ ] Verify Flutter yearly button calls current command.
-- [ ] Verify success screen does not grant entitlement from redirect alone.
-- [ ] Verify `invoice.paid` is authoritative for paid subscription monetization/entitlement.
-- [ ] Verify failed recurring payment behavior.
-- [ ] Verify cancellation/end-of-period behavior.
-- [ ] Verify renewal behavior.
+- [ ] Verify configured success/cancel URLs resolve to the PR #88 Pipe Buyer routes after deployment.
+- [ ] Run Functions syntax/lint/unit suite against PR #88.
+- [ ] Run Flutter analyze/test suite against PR #88.
+- [ ] Run duplicate-click/retry acceptance and prove only one active provider Checkout attempt is created.
+- [ ] Run controlled `invoice.paid` acceptance and prove one correct paid-through entitlement.
+- [ ] Verify renewal extends membership once and never shortens the prior period.
+- [ ] Add/verify `invoice.payment_failed` operational behavior.
+- [ ] Add/verify subscription cancellation/end-of-period lifecycle behavior.
+- [ ] Decide and implement Stripe Customer Portal or equivalent self-service subscription management.
 - [ ] Verify 1-year-free entitlement.
 - [ ] Verify 5-year-free entitlement.
 - [ ] Verify a 100%-discount invoice creates no false revenue/commission.
-- [ ] Add/confirm customer self-service subscription management path.
 - [ ] Run colleague acceptance test in controlled environment.
 - [ ] Reconcile resulting Stripe invoice/payment to Pipe Buyer ledger/state.
+- [ ] Review Apple App Store / Google Play billing rules before exposing external Stripe purchase of digital Dispatch access in public native-store builds.
 
 P2 definition of done: a user can choose Monthly or Yearly, complete secure Stripe Checkout, Pipe Buyer records exactly one valid subscription entitlement after provider evidence, renewal/cancellation work, and revenue reconciles.
 
@@ -243,3 +273,63 @@ Observed: production Stripe webhook is already live and enabled.
 Verification: live Stripe endpoint event list matches Firebase webhook handler coverage for Checkout, subscription invoice paid, refunds, and disputes.
 
 Status: architecture verified; secret deployment and controlled retry/duplicate acceptance still pending.
+
+## 2026-08-21 — Dispatch Checkout duplicate-session defect
+
+Observed: `createDispatchSubscriptionCheckout` used `Date.now()` inside the Stripe idempotency key. A retry or double-click therefore generated a new provider key and could create another Checkout Session.
+
+Root cause: provider idempotency was tied to wall-clock time rather than a stable server-owned business attempt.
+
+Repair: draft PR #88 adds `dispatch_subscription_checkout_state/{uid}`, a short creation lease, stable server attempt numbers, same-plan session reuse, and Stripe keys in the form `pipebuyer-dispatch-{uid}-attempt-{n}`. Interrupted requests can retry the same attempt instead of creating a new provider operation.
+
+Verification added: unit tests for stable attempt keys, same-plan open-session reuse, and current-membership detection. Controlled Stripe acceptance remains required because repository CI currently cannot start jobs.
+
+Status: repaired in draft; not marked complete until automated and provider acceptance pass.
+
+## 2026-08-21 — Paid invoice did not activate Dispatch entitlement
+
+Observed: current `main` `invoice.paid` processing persisted subscription invoice/revenue and affiliate ledger state, but did not create/extend a server-owned paid Dispatch membership.
+
+Root cause: monetization accounting and Dispatch access entitlement were implemented on separate development paths; the entitlement primitive existed in older PR #76 but was not present in current `main` payment processing.
+
+Repair: draft PR #88 selectively ports the `dispatch_memberships/{uid}` payment entitlement model without copying older Dispatch pages. A verified Dispatch `invoice.paid` now extends the provider-confirmed paid period and refuses to shorten an existing paid-through date.
+
+Verification added: unit coverage for provider period extraction, current-membership rules, and expired status normalization. Controlled paid-invoice acceptance remains required.
+
+Status: repaired in draft; not marked complete until acceptance passes.
+
+## 2026-08-21 — Dispatch membership cards were placeholders
+
+Observed: the existing Pipe Buyer memberships dialog displayed Dispatch Monthly/Yearly cards but its action only showed a snackbar and never called Stripe Checkout.
+
+Root cause: design/UI was introduced before the gated provider checkout was ready to be exposed.
+
+Repair: draft PR #88 adds a dedicated authenticated Dispatch payment page, uses the existing authenticated Firebase command, shows CA$25/month and CA$300/year, opens only an HTTPS Stripe-hosted Checkout URL returned by the server, and wires the existing Dispatch cards into that page. VIP billing remains disabled because VIP pricing is not approved.
+
+Verification added: Flutter tests for payment-return semantics and status formatting. Full Flutter analyze/test and rendered acceptance remain required.
+
+Status: repaired in draft; not marked complete until tests and controlled checkout pass.
+
+## 2026-08-21 — Payment return routes missing
+
+Observed: payment readiness configuration expects Pipe Buyer success/cancel destinations, but the app router did not register `/payments/success` or `/payments/cancel`.
+
+Root cause: backend readiness URLs preceded explicit Flutter routes.
+
+Repair: draft PR #88 registers `/payments/dispatch`, `/payments/success`, and `/payments/cancel`. The success page explicitly states that the redirect is not proof of payment and only signed provider webhook evidence grants paid membership.
+
+Verification added: widget tests assert success/cancel pages do not falsely claim payment entitlement.
+
+Status: repaired in draft; production configured URLs still need to be read and tested after deploy.
+
+## 2026-08-21 — PR #88 CI startup failure
+
+Observed: GitHub Actions run `32493207031` ended as `startup_failure` with path `BuildFailed` before any jobs were created. The run has no job records or job logs.
+
+Root cause: not established. Evidence points to repository/Actions startup infrastructure rather than a failing application test because no runner job started.
+
+Repair/action: do not change payment logic to chase this failure. Track the Actions startup issue independently and obtain a real Functions + Flutter test execution before PR #88 can move out of draft.
+
+Verification: GitHub run metadata plus empty job list.
+
+Status: open infrastructure blocker for automated PR acceptance.

@@ -1,0 +1,92 @@
+[CmdletBinding()]
+param(
+    [ValidateSet('Prepare','Validate','Deploy','Probe','WebLegal','VerifyPolicies','SyncWebhook','CreatePortal','Status')]
+    [string]$Action = 'Status',
+
+    [switch]$AllowDirty,
+    [switch]$ConfirmControlledDeploy,
+    [switch]$ConfirmWebLegalDeploy,
+    [switch]$ConfirmWebhookSync,
+    [switch]$ConfirmPortalCreate
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+function Find-PipeBuyerBash {
+    # Prefer Git for Windows explicitly. A generic bash.exe on PATH may be the
+    # Windows/WSL shim and will not share the Windows Node/npm toolchain.
+    $candidates = @(
+        "$env:ProgramFiles\Git\bin\bash.exe",
+        "$env:ProgramFiles\Git\usr\bin\bash.exe",
+        "${env:ProgramFiles(x86)}\Git\bin\bash.exe"
+    ) | Where-Object { $_ -and (Test-Path $_) }
+
+    if ($candidates.Count -gt 0) { return $candidates[0] }
+
+    $command = Get-Command bash.exe -ErrorAction SilentlyContinue
+    if ($command -and $command.Source -match '\\Git\\') {
+        return $command.Source
+    }
+
+    throw 'PIPE BUYER RELEASE ERROR: Git Bash was not found. Install Git for Windows. A WSL/System32 bash.exe is not accepted for this Windows release workflow.'
+}
+
+function Assert-Node22 {
+    $node = Get-Command node.exe -ErrorAction SilentlyContinue
+    if (-not $node) {
+        throw "PIPE BUYER RELEASE ERROR: Node.js 22 is required but node.exe is not on PATH. Install the Node 22 Windows package (for winget: winget install --id OpenJS.NodeJS.22 -e --source winget), then close and reopen PowerShell before retrying."
+    }
+
+    $powerShellVersion = (& $node.Source --version).Trim()
+    if ($powerShellVersion -notmatch '^v22\.') {
+        throw "PIPE BUYER RELEASE ERROR: Firebase Functions requires Node.js 22, but PowerShell resolves $powerShellVersion at $($node.Source). Install/select Node 22 before continuing."
+    }
+
+    $bash = Find-PipeBuyerBash
+
+    # Keep these probes deliberately simple. Nested command substitution inside
+    # a PowerShell native-command argument is fragile on Windows and previously
+    # produced an unmatched ')' parse failure even though Git Bash/Node worked.
+    $bashVersion = (& $bash -c 'node --version' 2>$null | Select-Object -First 1)
+    $bashNpmVersion = (& $bash -c 'npm --version' 2>$null | Select-Object -First 1)
+
+    if (-not $bashVersion) {
+        $nodePath = $node.Source
+        throw "PIPE BUYER RELEASE ERROR: PowerShell resolves Node $powerShellVersion at '$nodePath', but Git Bash '$bash' cannot resolve node from the inherited PATH. Open a new PowerShell window after installing/selecting Node 22, then retry."
+    }
+    $bashVersion = $bashVersion.Trim()
+    if ($bashVersion -notmatch '^v22\.') {
+        throw "PIPE BUYER RELEASE ERROR: Git Bash resolves $bashVersion, but Firebase Functions requires Node.js 22. Fix PATH/runtime selection before continuing."
+    }
+    if (-not $bashNpmVersion) {
+        throw "PIPE BUYER RELEASE ERROR: Git Bash resolves Node $bashVersion but cannot resolve npm. Repair the Node 22/npm installation before continuing."
+    }
+
+    Write-Host "Bash preflight: $bash" -ForegroundColor Green
+    Write-Host "Node preflight: PowerShell $powerShellVersion; Git Bash $bashVersion; npm $($bashNpmVersion.Trim())" -ForegroundColor Green
+}
+
+if ($Action -in @('Validate','Deploy','Probe','WebLegal','SyncWebhook','CreatePortal')) {
+    Assert-Node22
+}
+
+$controller = Join-Path $PSScriptRoot 'scripts\payments\pipebuyer_revenue_windows.ps1'
+if (-not (Test-Path -LiteralPath $controller)) {
+    throw "Pipe Buyer Windows revenue controller is missing: $controller"
+}
+
+$arguments = @{
+    Action = $Action
+    RepoRoot = $PSScriptRoot
+}
+if ($AllowDirty) { $arguments.AllowDirty = $true }
+if ($ConfirmControlledDeploy) { $arguments.ConfirmControlledDeploy = $true }
+if ($ConfirmWebLegalDeploy) { $arguments.ConfirmWebLegalDeploy = $true }
+if ($ConfirmWebhookSync) { $arguments.ConfirmWebhookSync = $true }
+if ($ConfirmPortalCreate) { $arguments.ConfirmPortalCreate = $true }
+
+& $controller @arguments
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}

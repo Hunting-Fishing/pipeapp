@@ -22,6 +22,7 @@ const {
 const {
   automaticTaxEnabled,
   provisionalTaxReserveMinor,
+  taxBillingPrepared,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
 
@@ -132,9 +133,17 @@ function createExternalSettlementCommands(admin) {
         stripeFeeBillingEnabled: readinessData.stripeFeeBillingEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          readinessData.stripeTaxPendingBillingApproved === true,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
+      if (!taxBillingPrepared(readiness)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Pipe Buyer marketplace fee billing is waiting for tax readiness or an approved pending-registration billing decision.",
+        );
+      }
       requirePlatformFeeBillingReady(readiness);
       const collectionStatus = taxCollectionStatus(readiness);
       const transactionId = transactionIdFromRequest(request);
