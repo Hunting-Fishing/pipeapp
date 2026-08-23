@@ -5,6 +5,9 @@ const {
   AdministratorAuthorizationError,
   requireAdministrator,
 } = require("./administrator_authorization");
+const {
+  dispatchBillingPortalProviderRecordReady,
+} = require("./dispatch_billing_portal_policy");
 
 const CONFIG_COLLECTION = "platform_configuration";
 const PORTAL_DOC = "dispatch_billing_portal";
@@ -13,12 +16,13 @@ function normalizePortalConfig(data = {}) {
   const features = data.providerVerifiedFeatures &&
     typeof data.providerVerifiedFeatures === "object" ?
     data.providerVerifiedFeatures : {};
+  const providerVerified = dispatchBillingPortalProviderRecordReady(data);
   return Object.freeze({
-    enabled: data.enabled === true,
+    enabled: data.enabled === true && providerVerified,
     returnUrl: String(data.returnUrl || ""),
     stripePortalConfigurationId:
       String(data.stripePortalConfigurationId || "").trim(),
-    providerVerified: data.providerVerified === true,
+    providerVerified,
     providerVerifiedConfigurationId:
       String(data.providerVerifiedConfigurationId || "").trim(),
     providerVerificationRevision:
