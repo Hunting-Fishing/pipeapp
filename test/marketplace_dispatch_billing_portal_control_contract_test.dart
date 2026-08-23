@@ -57,7 +57,7 @@ void main() {
     expect(portal, contains('final VoidCallback? onChanged'));
     expect(portal, contains('widget.onChanged?.call()'));
     expect(page, contains('_operationsRevision'));
-    expect(page, contains('ValueKey(\'dispatch-readiness-$_operationsRevision\')'));
+    expect(page, contains(r"ValueKey('dispatch-readiness-$_operationsRevision')"));
     expect(page, contains('onChanged: _refreshOperationCards'));
   });
 
