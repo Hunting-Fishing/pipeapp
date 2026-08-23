@@ -12,7 +12,7 @@ import {
 import path from "node:path";
 import {pathToFileURL} from "node:url";
 
-const manifestSchemaVersion = 2;
+const manifestSchemaVersion = 3;
 const controlledEnvironments = new Set(["staging", "production"]);
 const appCheckModes = new Set(["disabled", "observe", "enforce"]);
 const knownEnvironments = new Set([
@@ -36,6 +36,14 @@ function compareText(left, right) {
 
 function sha256() {
   return createHash("sha256");
+}
+
+export function parseBooleanFlag(value, field = "boolean flag") {
+  if (value === true || value === false) return value;
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  throw new Error(`${field} must be exactly true or false.`);
 }
 
 export function extractFunctionExports(source) {
@@ -212,6 +220,8 @@ export function validateReleaseInputs({
   firebaseProjectId,
   publicSupportEmail = "",
   appCheckMode = "disabled",
+  dispatchBuildEnabled = false,
+  paidFeaturesBuildEnabled = false,
   workingTreeClean = true,
 }) {
   if (!knownEnvironments.has(environment)) {
@@ -219,6 +229,10 @@ export function validateReleaseInputs({
   }
   if (!/^[0-9a-f]{40}$/iu.test(releaseSha)) {
     throw new Error("Release SHA must be a full 40-character Git commit.");
+  }
+  if (typeof dispatchBuildEnabled !== "boolean" ||
+      typeof paidFeaturesBuildEnabled !== "boolean") {
+    throw new Error("Client feature build approvals must be boolean values.");
   }
   if (controlledEnvironments.has(environment) && !firebaseProjectId) {
     throw new Error(
@@ -272,6 +286,8 @@ export function createReleaseManifest({
   firebaseProjectId,
   publicSupportEmail = "",
   appCheckMode = "disabled",
+  dispatchBuildEnabled = false,
+  paidFeaturesBuildEnabled = false,
   requireWeb,
 }) {
   const workingTreeClean = git(
@@ -284,6 +300,8 @@ export function createReleaseManifest({
     firebaseProjectId,
     publicSupportEmail,
     appCheckMode,
+    dispatchBuildEnabled,
+    paidFeaturesBuildEnabled,
     workingTreeClean,
   });
 
@@ -339,6 +357,10 @@ export function createReleaseManifest({
       commitSha: actualSha,
       repository: process.env.GITHUB_REPOSITORY || "local",
       workflowRunId: process.env.GITHUB_RUN_ID || "local",
+      clientFeatureBuildApprovals: {
+        dispatch: dispatchBuildEnabled,
+        paidFeatures: paidFeaturesBuildEnabled,
+      },
     },
     firebase: {
       projectId: firebaseProjectId || "not-assigned",
@@ -388,6 +410,14 @@ function parseArguments(argumentsList) {
     firebaseProjectId: process.env.PIPE_FIREBASE_PROJECT_ID || "",
     publicSupportEmail: process.env.PIPE_PUBLIC_SUPPORT_EMAIL || "",
     appCheckMode: process.env.PIPE_APP_CHECK_MODE || "disabled",
+    dispatchBuildEnabled: parseBooleanFlag(
+        process.env.PIPE_ENABLE_DISPATCH || "false",
+        "PIPE_ENABLE_DISPATCH",
+    ),
+    paidFeaturesBuildEnabled: parseBooleanFlag(
+        process.env.PIPE_ENABLE_PAID_FEATURES || "false",
+        "PIPE_ENABLE_PAID_FEATURES",
+    ),
     output: "build/release-manifest.json",
     requireWeb: false,
   };
@@ -415,6 +445,18 @@ function parseArguments(argumentsList) {
       case "--app-check-mode":
         options.appCheckMode = value;
         break;
+      case "--dispatch-build-enabled":
+        options.dispatchBuildEnabled = parseBooleanFlag(
+            value,
+            "--dispatch-build-enabled",
+        );
+        break;
+      case "--paid-features-build-enabled":
+        options.paidFeaturesBuildEnabled = parseBooleanFlag(
+            value,
+            "--paid-features-build-enabled",
+        );
+        break;
       case "--output":
         options.output = value;
         break;
@@ -436,6 +478,8 @@ function writeManifest(options) {
     firebaseProjectId: options.firebaseProjectId.trim(),
     publicSupportEmail: options.publicSupportEmail.trim(),
     appCheckMode: options.appCheckMode.trim().toLowerCase(),
+    dispatchBuildEnabled: options.dispatchBuildEnabled,
+    paidFeaturesBuildEnabled: options.paidFeaturesBuildEnabled,
     requireWeb: options.requireWeb,
   });
   const output = path.resolve(root, options.output);
@@ -448,7 +492,9 @@ function writeManifest(options) {
   );
   process.stdout.write(
       `Functions: ${manifest.firebase.expectedFunctionCount}; ` +
-      `web files: ${manifest.webArtifact?.fileCount ?? 0}\n`,
+      `web files: ${manifest.webArtifact?.fileCount ?? 0}; ` +
+      `Dispatch build: ${manifest.release.clientFeatureBuildApprovals.dispatch}; ` +
+      `paid build: ${manifest.release.clientFeatureBuildApprovals.paidFeatures}\n`,
   );
 }
 
