@@ -68,6 +68,47 @@ test("Canadian small supplier mode can authorize Dispatch subscriptions", () => 
   assert.equal(ready.stripeTaxReady, false);
 });
 
+test("Dispatch affiliate accrual is a separate audited control", () => {
+  assert.equal(base.dispatchAffiliateCommissionAccrualEnabled, false);
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        dispatchAffiliateCommissionAccrualEnabled: true,
+        stripeWebhookVerified: true,
+        stripeReconciliationReady: true,
+      }, {confirmProduction: true}),
+      /requires live Dispatch subscriptions/i,
+  );
+
+  const ready = validateReadiness({
+    ...base,
+    stripeMode: "production",
+    stripeSubscriptionsEnabled: true,
+    dispatchAffiliateCommissionAccrualEnabled: true,
+    stripeWebhookVerified: true,
+    canadaGstHstSmallSupplier: true,
+    stripeReconciliationReady: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.dispatchAffiliateCommissionAccrualEnabled, true);
+  assert.equal(ready.affiliatePayoutsEnabled, false);
+});
+
+test("affiliate payout pause does not disable approved Dispatch accrual", () => {
+  const ready = validateReadiness({
+    ...base,
+    stripeMode: "production",
+    stripeSubscriptionsEnabled: true,
+    dispatchAffiliateCommissionAccrualEnabled: true,
+    affiliatePayoutsEnabled: false,
+    stripeWebhookVerified: true,
+    canadaGstHstSmallSupplier: true,
+    stripeReconciliationReady: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.dispatchAffiliateCommissionAccrualEnabled, true);
+  assert.equal(ready.affiliatePayoutsEnabled, false);
+});
+
 test("Canadian small supplier mode can authorize Pipe Buyer fee billing", () => {
   const ready = validateReadiness({
     ...base,
