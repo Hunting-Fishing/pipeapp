@@ -1,3 +1,8 @@
+param(
+  [switch]$EnableDispatch,
+  [switch]$EnablePaidFeatures
+)
+
 $ErrorActionPreference = 'Stop'
 
 function Invoke-Checked {
@@ -62,6 +67,8 @@ $generatedFiles = @(
 
 Write-Host 'PIPE BUYER LOCAL PRODUCTION DEPLOY' -ForegroundColor Yellow
 Write-Host 'GitHub Actions are not used by this script.' -ForegroundColor DarkGray
+Write-Host "Dispatch build approval: $($EnableDispatch.IsPresent)" -ForegroundColor DarkGray
+Write-Host "Paid features build approval: $($EnablePaidFeatures.IsPresent)" -ForegroundColor DarkGray
 
 $branch = (git branch --show-current).Trim()
 if ($branch -ne 'main') {
@@ -105,6 +112,8 @@ if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
 
 $env:PIPE_ENV = 'production'
 $env:PIPE_RELEASE_SHA = $releaseSha
+$env:PIPE_ENABLE_DISPATCH = if ($EnableDispatch.IsPresent) { 'true' } else { 'false' }
+$env:PIPE_ENABLE_PAID_FEATURES = if ($EnablePaidFeatures.IsPresent) { 'true' } else { 'false' }
 $env:PIPE_FIREBASE_API_KEY = Get-ProductionVariable 'PIPE_FIREBASE_API_KEY'
 $env:PIPE_FIREBASE_AUTH_DOMAIN = Get-ProductionVariable 'PIPE_FIREBASE_AUTH_DOMAIN'
 $env:PIPE_FIREBASE_PROJECT_ID = Get-ProductionVariable 'PIPE_FIREBASE_PROJECT_ID'
@@ -143,6 +152,8 @@ Write-Host 'Production configuration loaded and validated.' -ForegroundColor Gre
 Write-Host "Firebase project: $env:PIPE_FIREBASE_PROJECT_ID"
 Write-Host "Auth domain: $env:PIPE_FIREBASE_AUTH_DOMAIN"
 Write-Host 'App Check: enforce'
+Write-Host "Dispatch build approval: $env:PIPE_ENABLE_DISPATCH"
+Write-Host "Paid features build approval: $env:PIPE_ENABLE_PAID_FEATURES"
 Write-Host 'Web Push: configured'
 
 Invoke-Checked 'Running complete local release verification' {
@@ -169,6 +180,8 @@ $definesPath = Join-Path $env:TEMP ("pipebuyer-production-defines-{0}.json" -f (
 $defineMap = [ordered]@{
   PIPE_ENV = 'production'
   PIPE_RELEASE_SHA = $releaseSha
+  PIPE_ENABLE_DISPATCH = $env:PIPE_ENABLE_DISPATCH
+  PIPE_ENABLE_PAID_FEATURES = $env:PIPE_ENABLE_PAID_FEATURES
   PIPE_FIREBASE_API_KEY = $env:PIPE_FIREBASE_API_KEY
   PIPE_FIREBASE_AUTH_DOMAIN = $env:PIPE_FIREBASE_AUTH_DOMAIN
   PIPE_FIREBASE_PROJECT_ID = $env:PIPE_FIREBASE_PROJECT_ID
@@ -229,6 +242,8 @@ Invoke-Checked 'Recording exact production release manifest' {
     --release-sha $releaseSha `
     --firebase-project flutter-flow-pipe `
     --app-check-mode enforce `
+    --dispatch-build-enabled $env:PIPE_ENABLE_DISPATCH `
+    --paid-features-build-enabled $env:PIPE_ENABLE_PAID_FEATURES `
     --output build/release-manifest.json `
     --require-web
 }
@@ -238,6 +253,8 @@ Write-Host ' DEPLOYING PIPE BUYER TO PRODUCTION' -ForegroundColor Yellow
 Write-Host ' Project: flutter-flow-pipe' -ForegroundColor Yellow
 Write-Host " SHA: $releaseSha" -ForegroundColor Yellow
 Write-Host ' App Check: enforce' -ForegroundColor Yellow
+Write-Host " Dispatch build: $env:PIPE_ENABLE_DISPATCH" -ForegroundColor Yellow
+Write-Host " Paid features build: $env:PIPE_ENABLE_PAID_FEATURES" -ForegroundColor Yellow
 Write-Host '======================================================' -ForegroundColor Yellow
 
 Invoke-Checked 'Deploying Firebase Auth, Hosting, Functions, Firestore and Storage' {
@@ -291,5 +308,7 @@ Write-Host '======================================================' -ForegroundC
 Write-Host ' PIPE BUYER PRODUCTION DEPLOYMENT COMPLETE' -ForegroundColor Green
 Write-Host '======================================================' -ForegroundColor Green
 Write-Host "Release SHA: $releaseSha" -ForegroundColor Green
+Write-Host "Dispatch build approval: $env:PIPE_ENABLE_DISPATCH" -ForegroundColor Green
+Write-Host "Paid features build approval: $env:PIPE_ENABLE_PAID_FEATURES" -ForegroundColor Green
 Write-Host 'Site: https://www.pipebuyer.com' -ForegroundColor Green
 Write-Host 'Hard-refresh the browser with Ctrl+Shift+R before visual review.' -ForegroundColor Green
