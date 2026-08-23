@@ -40,6 +40,9 @@ const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
+  createDispatchSubscriptionStatusCommands,
+} = require("./dispatch_subscription_status_commands");
+const {
   createCanadaSmallSupplierThresholdCommands,
 } = require("./canada_small_supplier_threshold_commands");
 const {
@@ -67,6 +70,8 @@ const externalSettlementReceiptCommands =
 const externalSettlementReconciliationCommands =
     createExternalSettlementReconciliationCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const dispatchSubscriptionStatusCommands =
+    createDispatchSubscriptionStatusCommands(admin);
 const canadaSmallSupplierThresholdCommands =
     createCanadaSmallSupplierThresholdCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
@@ -160,6 +165,10 @@ exports.getCanadaGstHstThresholdAssessment = onCall(
 exports.setCanadaGstHstThresholdAssessment = onCall(
     protectedCallableOptions,
     canadaSmallSupplierThresholdCommands.setCanadaGstHstThresholdAssessment,
+);
+exports.getDispatchSubscriptionStatus = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionStatusCommands.getDispatchSubscriptionStatus,
 );
 
 const stripeCallableOptions = Object.freeze({
