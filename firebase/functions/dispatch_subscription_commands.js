@@ -20,6 +20,9 @@ const {
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
+  validStripeBillingPortalConfigurationId,
+} = require("./dispatch_billing_portal_policy");
+const {
   automaticTaxEnabled,
   taxBillingPrepared,
   taxCollectionStatus,
@@ -41,6 +44,7 @@ const {
 const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
 const SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION =
   "subscription_checkout_sessions";
+const DISPATCH_BILLING_PORTAL_DOC = "dispatch_billing_portal";
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -63,12 +67,29 @@ function validStripeCheckoutUrl(value) {
   }
 }
 
+function dispatchBillingPortalRuntimeReady(portalConfig) {
+  const data = portalConfig && typeof portalConfig === "object" ? portalConfig : {};
+  if (data.enabled !== true ||
+      !validStripeBillingPortalConfigurationId(
+          data.stripePortalConfigurationId,
+      )) {
+    return false;
+  }
+  try {
+    safeConfiguredUrl(data.returnUrl, "Dispatch Billing Portal return URL");
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 function requireSubscriptionReady(readiness) {
   if (!readiness.stripeSubscriptionsEnabled ||
       readiness.stripeMode !== "production" ||
       readiness.stripeWebhookVerified !== true ||
       readiness.stripeSubscriptionLifecycleWebhookVerified !== true ||
       readiness.stripeSubscriptionRecoveryVerified !== true ||
+      readiness.dispatchBillingPortalReady !== true ||
       readiness.stripeReconciliationReady !== true ||
       !taxBillingPrepared(readiness)) {
     throw new HttpsError(
@@ -110,9 +131,14 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
       const flags = await loadFeatureFlags(db);
       requireFeature(flags, "dispatch");
       requireFeature(flags, "paidFeatures");
-      const readinessSnapshot = await db.collection("platform_configuration")
-          .doc("payment_provider_readiness").get();
+      const [readinessSnapshot, portalSnapshot] = await Promise.all([
+        db.collection("platform_configuration")
+            .doc("payment_provider_readiness").get(),
+        db.collection("platform_configuration")
+            .doc(DISPATCH_BILLING_PORTAL_DOC).get(),
+      ]);
       const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
+      const portalData = portalSnapshot.exists ? portalSnapshot.data() : {};
       const readiness = {
         ...(await providerReadiness(db)),
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
@@ -120,6 +146,7 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           readinessData.stripeSubscriptionRecoveryVerified === true,
         stripeSubscriptionLifecycleWebhookVerified:
           readinessData.stripeSubscriptionLifecycleWebhookVerified === true,
+        dispatchBillingPortalReady: dispatchBillingPortalRuntimeReady(portalData),
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
         stripeTaxPendingBillingApproved:
@@ -380,10 +407,12 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
 }
 
 module.exports = {
+  DISPATCH_BILLING_PORTAL_DOC,
   DISPATCH_SUBSCRIPTIONS_COLLECTION,
   SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION,
   couponFromEntitlement,
   createDispatchSubscriptionCommands,
+  dispatchBillingPortalRuntimeReady,
   requireSubscriptionReady,
   selectedPlan,
   validStripeCheckoutUrl,
