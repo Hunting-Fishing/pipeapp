@@ -32,8 +32,8 @@
       "tool/autonomous_guard.ps1",
       "tool/autonomous_builder_self_test.ps1",
       "tool/autonomous_guard_test.ps1",
-      "tool/autonomous_recovery.ps1",
-      "tool/autonomous_recovery_test.ps1",
+      "tool/autonomous_recovery_safe.ps1",
+      "tool/autonomous_recovery_safe_test.ps1",
       "tool/autonomous_runtime_fault_test.ps1",
       "tool/autonomous_reviewer_fault_test.ps1",
       "tool/autonomous_compatibility.mjs",
@@ -70,31 +70,12 @@
       "docs/PHASE_1_BILLING_BOUNDARY.md",
       "docs/COST_AND_BILLING_GOVERNANCE.md"
     ],
-    "marketplace": [
-      "docs/PHASE_2_PROGRESS_AUDIT.md"
-    ],
-    "data": [
-      "docs/DATA_CHANGE_POLICY.md",
-      "firebase/FIRESTORE_SCHEMA.md",
-      "docs/FIREBASE_BACKUP_RESTORE_RUNBOOK.md"
-    ],
-    "security": [
-      "docs/SECURITY_AND_PRIVACY_ENGINEERING.md",
-      "docs/ENGINEERING_CONTROL_BASELINE.md",
-      "docs/APP_CHECK_ROLLOUT.md"
-    ],
-    "providers": [
-      "docs/DEPENDENCY_AND_PROVIDER_POLICY.md",
-      "docs/COST_AND_BILLING_GOVERNANCE.md"
-    ],
-    "release": [
-      "docs/RELEASE_GOVERNANCE.md",
-      "docs/FIREBASE_ENVIRONMENTS_AND_DEPLOYMENT.md",
-      "docs/OBSERVABILITY_AND_INCIDENTS.md"
-    ],
-    "technical_debt": [
-      "docs/TECH_DEBT_REGISTER.md"
-    ],
+    "marketplace": ["docs/PHASE_2_PROGRESS_AUDIT.md"],
+    "data": ["docs/DATA_CHANGE_POLICY.md","firebase/FIRESTORE_SCHEMA.md","docs/FIREBASE_BACKUP_RESTORE_RUNBOOK.md"],
+    "security": ["docs/SECURITY_AND_PRIVACY_ENGINEERING.md","docs/ENGINEERING_CONTROL_BASELINE.md","docs/APP_CHECK_ROLLOUT.md"],
+    "providers": ["docs/DEPENDENCY_AND_PROVIDER_POLICY.md","docs/COST_AND_BILLING_GOVERNANCE.md"],
+    "release": ["docs/RELEASE_GOVERNANCE.md","docs/FIREBASE_ENVIRONMENTS_AND_DEPLOYMENT.md","docs/OBSERVABILITY_AND_INCIDENTS.md","docs/GITHUB_ACTIONS_DIAGNOSIS.md"],
+    "technical_debt": ["docs/TECH_DEBT_REGISTER.md"],
     "feature_registry": "docs/FEATURE_REGISTRY.md"
   },
   "quality": {
@@ -103,30 +84,10 @@
     "max_document_lines": 600,
     "max_files_touched": 12,
     "max_changed_lines": 800,
-    "source_extensions": [
-      ".dart",
-      ".js",
-      ".mjs",
-      ".ts",
-      ".tsx",
-      ".ps1",
-      ".py"
-    ],
-    "generated_path_markers": [
-      "/generated/",
-      ".g.dart",
-      ".freezed.dart",
-      "package-lock.json",
-      "pubspec.lock"
-    ]
+    "source_extensions": [".dart",".js",".mjs",".ts",".tsx",".ps1",".py"],
+    "generated_path_markers": ["/generated/",".g.dart",".freezed.dart","package-lock.json","pubspec.lock"]
   },
-  "timeouts": {
-    "worker_minutes": 35,
-    "no_output_minutes": 10,
-    "review_minutes": 20,
-    "verify_minutes": 45,
-    "repair_minutes": 25
-  },
+  "timeouts": {"worker_minutes":35,"no_output_minutes":10,"review_minutes":20,"verify_minutes":45,"repair_minutes":25},
   "git": {
     "base_branch": "main",
     "remote_name": "origin",
