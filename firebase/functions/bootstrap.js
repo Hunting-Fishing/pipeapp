@@ -207,6 +207,10 @@ exports.getDispatchSubscriptionStatus = onCall(
     protectedCallableOptions,
     dispatchSubscriptionStatusCommands.getDispatchSubscriptionStatus,
 );
+exports.getDispatchSubscriptionLaunchReadiness = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionLaunchReadinessCommands.getDispatchSubscriptionLaunchReadiness,
+);
 exports.getDispatchSubscriptionReconciliationQueue = onCall(
     protectedCallableOptions,
     dispatchSubscriptionAdminCommands.getDispatchSubscriptionReconciliationQueue,
