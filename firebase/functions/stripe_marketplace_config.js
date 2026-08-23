@@ -18,8 +18,11 @@ const stripeMarketplaceConfig = Object.freeze({
       billingInterval: "month",
     }),
     dispatchYearlyCad: Object.freeze({
-      productId: "prod_V2WsPl25y7Qe6A",
-      priceId: "price_1U2XDVDkO07WMXyRS0eCYKCh",
+      // Monthly and Yearly intentionally share one Stripe Product so the
+      // Customer Portal can offer a tightly-scoped plan switch between only
+      // these two reviewed prices.
+      productId: "prod_V2WkE5D16GhGaD",
+      priceId: "price_1U7bTCDkO07WMXyRvLkWVHHu",
       taxCode: "txcd_10103001",
       currency: "CAD",
       unitAmountMinor: 30000,
@@ -33,6 +36,15 @@ const stripeMarketplaceConfig = Object.freeze({
     equipmentMarketplaceFee: Object.freeze({
       productId: "prod_V2cTrDBcQDhMKq",
       taxCode: "txcd_10000000",
+    }),
+  }),
+  legacyProducts: Object.freeze({
+    dispatchYearlyCadPreUnified: Object.freeze({
+      productId: "prod_V2WsPl25y7Qe6A",
+      priceId: "price_1U2XDVDkO07WMXyRS0eCYKCh",
+      replacementProductId: "prod_V2WkE5D16GhGaD",
+      replacementPriceId: "price_1U7bTCDkO07WMXyRvLkWVHHu",
+      allowNewCheckout: false,
     }),
   }),
   coupons: Object.freeze({
