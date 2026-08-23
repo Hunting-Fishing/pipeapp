@@ -39,7 +39,9 @@ $releaseToolScripts = @(
   (Join-Path $workspace 'tool\autonomous_project.ps1'),
   (Join-Path $workspace 'tool\autonomous_guard.ps1'),
   (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1'),
-  (Join-Path $workspace 'tool\autonomous_guard_test.ps1')
+  (Join-Path $workspace 'tool\autonomous_guard_test.ps1'),
+  (Join-Path $workspace 'tool\autonomous_recovery.ps1'),
+  (Join-Path $workspace 'tool\autonomous_recovery_test.ps1')
 )
 foreach ($scriptPath in $releaseToolScripts) {
   $tokens = $null
@@ -60,6 +62,17 @@ Write-Host 'Testing autonomous builder governance and configuration'
 
 Write-Host 'Testing autonomous guard fail-closed behavior'
 & (Join-Path $workspace 'tool\autonomous_guard_test.ps1')
+
+Write-Host 'Testing interrupted-run recovery and refusal paths'
+& (Join-Path $workspace 'tool\autonomous_recovery_test.ps1')
+
+Write-Host 'Testing automatic compatibility inventory logic'
+node --test tool/autonomous_compatibility_test.mjs
+Assert-NativeSuccess 'Autonomous compatibility tests'
+
+Write-Host 'Checking current routes and Firebase Function exports for accidental deletion'
+node tool/autonomous_compatibility.mjs $workspace
+Assert-NativeSuccess 'Autonomous compatibility preservation'
 
 if (-not $SkipDependencyRestore) {
   Write-Host 'Restoring Flutter dependencies'
@@ -91,17 +104,25 @@ Write-Host 'Testing Phase 1 acceptance evidence controls'
 node --test tool/phase1_acceptance_test.mjs tool/prepare_phase1_acceptance_test.mjs tool/configure_firebase_messaging_worker_test.mjs
 Assert-NativeSuccess 'Phase 1 acceptance evidence tests'
 
-Write-Host 'Validating Firebase Functions'
+Write-Host 'Validating Firebase Functions codebases'
 if (-not $SkipDependencyRestore) {
   npm ci --prefix firebase/functions
-  Assert-NativeSuccess 'Functions dependency restore'
+  Assert-NativeSuccess 'Marketplace Functions dependency restore'
+  npm ci --prefix firebase/agent-functions
+  Assert-NativeSuccess 'Administrative agent Functions dependency restore'
 }
 npm run lint --prefix firebase/functions
-Assert-NativeSuccess 'Functions lint validation'
+Assert-NativeSuccess 'Marketplace Functions lint validation'
 npm run check --prefix firebase/functions
-Assert-NativeSuccess 'Functions validation'
+Assert-NativeSuccess 'Marketplace Functions validation'
 npm audit --omit=dev --audit-level=high --prefix firebase/functions
-Assert-NativeSuccess 'Functions production dependency audit'
+Assert-NativeSuccess 'Marketplace Functions production dependency audit'
+npm run lint --prefix firebase/agent-functions
+Assert-NativeSuccess 'Administrative agent Functions lint validation'
+npm run check --prefix firebase/agent-functions
+Assert-NativeSuccess 'Administrative agent Functions validation'
+npm audit --omit=dev --audit-level=high --prefix firebase/agent-functions
+Assert-NativeSuccess 'Administrative agent Functions production dependency audit'
 
 if (-not $SkipRulesEmulator) {
   $java = Get-Command java -ErrorAction SilentlyContinue
