@@ -206,7 +206,34 @@ test("failed invoice in past_due state flags payment issue without arbitrary acc
   assert.equal(stored.paymentIssue, true);
 });
 
-test("unpaid subscription revokes entitlement", async () => {
+test("subscription.updated re-reads provider state so stale event snapshot cannot downgrade access", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": {
+      status: "active",
+      entitlementActive: true,
+      stripeSubscriptionId: "sub_dispatch",
+    },
+  });
+  let retrievals = 0;
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => {
+      retrievals += 1;
+      return subscription({status: "active"});
+    },
+  });
+  await state.handleSubscriptionEvent(
+      subscription({status: "past_due"}),
+      "customer.subscription.updated",
+      "sk_test",
+  );
+  assert.equal(retrievals, 1);
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.status, "active");
+  assert.equal(stored.entitlementActive, true);
+  assert.equal(stored.paymentIssue, false);
+});
+
+test("current unpaid subscription update revokes entitlement", async () => {
   const {admin, db} = fakeAdmin({
     "dispatch_subscriptions/user-1": {
       status: "past_due",
@@ -214,10 +241,13 @@ test("unpaid subscription revokes entitlement", async () => {
       stripeSubscriptionId: "sub_dispatch",
     },
   });
-  const state = createDispatchSubscriptionState(admin, stripeConfig);
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({status: "unpaid"}),
+  });
   await state.handleSubscriptionEvent(
-      subscription({status: "unpaid"}),
+      subscription({status: "active"}),
       "customer.subscription.updated",
+      "sk_test",
   );
   const stored = db.docs.get("dispatch_subscriptions/user-1");
   assert.equal(stored.entitlementActive, false);
@@ -236,13 +266,41 @@ test("subscription deletion revokes entitlement", async () => {
   await state.handleSubscriptionEvent(
       subscription({status: "active"}),
       "customer.subscription.deleted",
+      "sk_test",
   );
   const stored = db.docs.get("dispatch_subscriptions/user-1");
   assert.equal(stored.entitlementActive, false);
   assert.equal(stored.status, "canceled");
 });
 
-test("different paid subscription is quarantined instead of silently replacing active subscription", async () => {
+test("canceled subscription may be replaced by current new subscription lifecycle", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": {
+      status: "canceled",
+      entitlementActive: false,
+      stripeSubscriptionId: "sub_retired",
+    },
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({
+      id: "sub_replacement",
+      status: "active",
+      customer: "cus_replacement",
+    }),
+  });
+  const result = await state.handleSubscriptionEvent(
+      subscription({id: "sub_replacement", status: "past_due"}),
+      "customer.subscription.updated",
+      "sk_test",
+  );
+  assert.equal(result.action, "updated");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.stripeSubscriptionId, "sub_replacement");
+  assert.equal(stored.status, "active");
+  assert.equal(stored.entitlementActive, true);
+});
+
+test("different paid subscription is quarantined instead of silently replacing unresolved subscription", async () => {
   const {admin, db} = fakeAdmin({
     "dispatch_subscriptions/user-1": {
       status: "active",
