@@ -20,7 +20,7 @@ const {
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
-  validStripeBillingPortalConfigurationId,
+  dispatchBillingPortalProviderRecordReady,
 } = require("./dispatch_billing_portal_policy");
 const {
   automaticTaxEnabled,
@@ -70,9 +70,7 @@ function validStripeCheckoutUrl(value) {
 function dispatchBillingPortalRuntimeReady(portalConfig) {
   const data = portalConfig && typeof portalConfig === "object" ? portalConfig : {};
   if (data.enabled !== true ||
-      !validStripeBillingPortalConfigurationId(
-          data.stripePortalConfigurationId,
-      )) {
+      !dispatchBillingPortalProviderRecordReady(data)) {
     return false;
   }
   try {
