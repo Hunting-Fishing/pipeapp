@@ -66,6 +66,15 @@ function conversationIdFor(firstUid, secondUid, listingId) {
   return `${[firstUid, secondUid].sort().join("_")}_${listingId}`;
 }
 
+function businessConversationIdFor(firstUid, secondUid) {
+  const members = [String(firstUid), String(secondUid)].sort();
+  const digest = crypto.createHash("sha256")
+      .update(members.join("|"))
+      .digest("hex")
+      .slice(0, 40);
+  return `business_${digest}`;
+}
+
 function receiptReference(db, uid, commandName, requestId) {
   const digest = crypto.createHash("sha256")
       .update(`${uid}|${commandName}|${requestId}`)
@@ -187,6 +196,76 @@ function createCommunicationCommands(admin) {
           return {conversationId};
         });
         return result;
+      },
+  );
+
+  const openBusinessConversation = secured(
+      "messaging",
+      async (request, {uid}) => {
+        const providerUid = requiredId(request.data, "providerUid");
+        if (providerUid === uid) {
+          throw new HttpsError(
+              "invalid-argument",
+              "You cannot open a business conversation with yourself.",
+          );
+        }
+        const providerSnapshot = await db
+            .collection("public_business_profiles")
+            .doc(providerUid)
+            .get();
+        if (!providerSnapshot.exists) {
+          throw new HttpsError(
+              "not-found",
+              "This business is not publicly available.",
+          );
+        }
+        const provider = providerSnapshot.data() || {};
+        const providerName = profileName(provider, "Pipe Buyer business");
+        const [requesterBusiness, requesterPersonal] = await Promise.all([
+          db.collection("public_business_profiles").doc(uid).get(),
+          db.collection("public_seller_profiles").doc(uid).get(),
+        ]);
+        const requesterName = profileName(
+            requesterBusiness.exists ? requesterBusiness.data() :
+              requesterPersonal.exists ? requesterPersonal.data() : {},
+            "Pipe Buyer member",
+        );
+        const conversationId = businessConversationIdFor(uid, providerUid);
+        const conversationRef = db.collection("conversations")
+            .doc(conversationId);
+        return db.runTransaction(async (transaction) => {
+          const existing = await transaction.get(conversationRef);
+          if (!existing.exists) {
+            const memberUids = [uid, providerUid].sort();
+            transaction.create(conversationRef, {
+              memberUids,
+              contextType: "business",
+              contextId: providerUid,
+              contextTitle: providerName,
+              providerUid,
+              requesterUid: uid,
+              requesterDisplayName: requesterName,
+              sellerUid: providerUid,
+              sellerName: providerName,
+              listingId: null,
+              listingTitle: `Business inquiry · ${providerName}`,
+              openedByUid: uid,
+              openedAt: FieldValue.serverTimestamp(),
+              messageCount: 0,
+              unreadCounts: {[uid]: 0, [providerUid]: 0},
+            });
+          } else {
+            const members = Array.isArray(existing.data().memberUids) ?
+              existing.data().memberUids.map(String) : [];
+            if (!members.includes(uid) || !members.includes(providerUid)) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "This business conversation is unavailable.",
+              );
+            }
+          }
+          return {conversationId};
+        });
       },
   );
 
@@ -639,6 +718,7 @@ function createCommunicationCommands(admin) {
     confirmMarketplaceUpload,
     markMarketplaceConversationRead,
     openMarketplaceConversation,
+    openBusinessConversation,
     sendMarketplaceMessage,
     submitMarketplaceReport,
   };

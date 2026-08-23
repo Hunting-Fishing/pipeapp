@@ -52,6 +52,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $scripts = @(
             'tool/verify.ps1',
+            'tool/verify_formal_beautification.ps1',
+            'tool/check_formal_integration_readiness.ps1',
             'tool/web_visual_smoke.ps1',
             'tool/phase1_safe_default_rehearsal.ps1'
           )
@@ -107,6 +109,7 @@ jobs:
             echo "## Manual Linux quality gate"
             echo ""
             echo "- Trigger: explicit workflow dispatch only"
+            echo "- Formal beautification and integration PowerShell controls are syntax-checked"
             echo "- No Windows runner"
             echo "- No macOS/iOS runner"
             echo "- No Android compile"

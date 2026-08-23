@@ -2,6 +2,9 @@ const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
 const { createAdminRuntime } = require("./admin_runtime");
+const {
+  createAdministratorRoleCommands,
+} = require("./administrator_role_commands");
 const { createAccountCommands } = require("./account_commands");
 const {
   createAccountVerificationCommands,
@@ -14,6 +17,10 @@ const {
   createCommunicationCommands,
 } = require("./communication_commands");
 const { createDispatchCommands } = require("./dispatch_commands");
+const { createDispatchDirectoryProjection } = require("./dispatch_directory_projection");
+const {
+  createDispatchCredentialMonitor,
+} = require("./dispatch_credential_monitor");
 const { createMarketplaceCommands } = require("./marketplace_commands");
 const {
   createMarketplaceListingLifecycle,
@@ -79,10 +86,13 @@ async function createAutomatedReviewCase(reportId, report) {
 }
 
 const accountCommands = createAccountCommands(admin);
+const administratorRoleCommands = createAdministratorRoleCommands(admin);
 const accountPrivacyCommands = createAccountPrivacyCommands(admin);
 const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
+const dispatchDirectoryProjection = createDispatchDirectoryProjection(admin);
+const dispatchCredentialMonitor = createDispatchCredentialMonitor(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 const marketplaceListingLifecycle = createMarketplaceListingLifecycle(admin);
 const marketplaceListingInsights = createMarketplaceListingInsights(admin);
@@ -91,6 +101,28 @@ const notificationDelivery = createNotificationDelivery(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const supportCommands = createSupportCommands(admin);
 const wantedMatching = createWantedMatching(admin);
+exports.syncDispatchDirectoryFromPublicProfile = onDocumentWritten(
+  {
+    document: "public_business_profiles/{companyId}",
+    retry: true,
+  },
+  async (event) => dispatchDirectoryProjection.syncCompany(event.params.companyId),
+);
+exports.syncDispatchDirectoryFromCarrierStatus = onDocumentWritten(
+  {
+    document: "dispatch_carriers/{companyId}",
+    retry: true,
+  },
+  async (event) => dispatchDirectoryProjection.syncCompany(event.params.companyId),
+);
+exports.listAdministratorRoles = onCall(
+  protectedCallableOptions,
+  administratorRoleCommands.listAdministratorRoles,
+);
+exports.manageAdministratorRole = onCall(
+  protectedCallableOptions,
+  administratorRoleCommands.manageAdministratorRole,
+);
 exports.registerNotificationEndpoint = onCall(
   protectedCallableOptions,
   notificationDelivery.registerNotificationEndpoint,
@@ -98,6 +130,10 @@ exports.registerNotificationEndpoint = onCall(
 exports.unregisterNotificationEndpoint = onCall(
   protectedCallableOptions,
   notificationDelivery.unregisterNotificationEndpoint,
+);
+exports.syncDispatchCredentialReminderSchedule = onCall(
+  protectedCallableOptions,
+  dispatchCredentialMonitor.syncDispatchCredentialReminderSchedule,
 );
 exports.resolveNotificationDeliveryFailure = onCall(
   protectedCallableOptions,
@@ -170,6 +206,10 @@ exports.cleanupExpiredMarketplaceListingDrafts = onSchedule(
   "every 24 hours",
   async () => marketplaceCommands.cleanupExpiredMarketplaceListingDrafts(),
 );
+exports.monitorDispatchCredentialReminders = onSchedule(
+  "every 6 hours",
+  async () => dispatchCredentialMonitor.monitorCredentialReminders(),
+);
 exports.monitorMarketplaceListingLifecycle = onSchedule(
   "every 1 hours",
   async () => {
@@ -181,6 +221,12 @@ exports.openMarketplaceConversation = onCall(
   protectedCallableOptions,
   policyAcceptanceCommands.requireCurrentPolicies(
     communicationCommands.openMarketplaceConversation,
+  ),
+);
+exports.openBusinessConversation = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.openBusinessConversation,
   ),
 );
 exports.markMarketplaceConversationRead = onCall(
@@ -741,6 +787,12 @@ exports.onConversationCreated = onDocumentCreated(
   "conversations/{conversationId}",
   async (event) => {
     const data = event.data.data();
+    // Visual-sandbox conversations/offers already receive deterministic
+    // analytics counters from seed_live_test_listing_analytics.js. Skip
+    // asynchronous aggregate increments so fixture verification cannot
+    // race delayed emulator onCreate deliveries. Production documents do
+    // not carry visualSandbox=true and keep the normal aggregation path.
+    if (data.visualSandbox === true) return null;
     if (!data.listingId) return null;
     await admin.firestore().collection("public_listings")
       .doc(data.listingId)
@@ -752,6 +804,12 @@ exports.onConversationCreated = onDocumentCreated(
 
 exports.onOfferCreated = onDocumentCreated("offers/{offerId}", async (event) => {
   const data = event.data.data();
+  // Visual-sandbox conversations/offers already receive deterministic
+  // analytics counters from seed_live_test_listing_analytics.js. Skip
+  // asynchronous aggregate increments so fixture verification cannot
+  // race delayed emulator onCreate deliveries. Production documents do
+  // not carry visualSandbox=true and keep the normal aggregation path.
+  if (data.visualSandbox === true) return null;
   if (!data.listingId) return null;
   const writes = [
     admin.firestore().collection("public_listings")

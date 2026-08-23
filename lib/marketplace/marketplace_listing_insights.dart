@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_analytics_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_money.dart';
@@ -55,7 +56,7 @@ class _MarketplaceListingInsightsDialogState
   Widget build(BuildContext context) => Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 860, maxHeight: 760),
+          constraints: const BoxConstraints(maxWidth: 920, maxHeight: 800),
           child: FutureBuilder<Map<String, dynamic>>(
             future: _future,
             builder: (context, snapshot) {
@@ -151,7 +152,7 @@ class _MarketplaceListingInsightsDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Smart listing suggestions',
+                      'Listing performance & market insights',
                       style:
                           TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
                     ),
@@ -192,7 +193,7 @@ class _MarketplaceListingInsightsDialogState
                 SizedBox(width: 9),
                 Expanded(
                   child: Text(
-                    'These are Marketplace analytics based on seller-provided listings and activity. They are not an appraisal, certified valuation, legal limit, or guarantee of sale price.',
+                    'These analytics use Pipe Buyer activity counters and seller-provided comparable listings. They are decision-support signals, not an appraisal, certified valuation, legal limit, or guarantee of buyer demand or sale price.',
                     style: TextStyle(fontSize: 12.5, height: 1.35),
                   ),
                 ),
@@ -200,7 +201,7 @@ class _MarketplaceListingInsightsDialogState
             ),
           ),
           const SizedBox(height: 16),
-          _pricingSummary(pricing, engagement, comparableCount),
+          _analyticsSummary(pricing, engagement, comparableCount),
           const SizedBox(height: 18),
           const Text(
             'Recommended next steps',
@@ -249,7 +250,7 @@ class _MarketplaceListingInsightsDialogState
     );
   }
 
-  Widget _pricingSummary(
+  Widget _analyticsSummary(
     Map<String, dynamic> pricing,
     Map<String, dynamic> engagement,
     int comparableCount,
@@ -257,80 +258,113 @@ class _MarketplaceListingInsightsDialogState
     final median = pricing['median'] as num?;
     final low = pricing['low'] as num?;
     final high = pricing['high'] as num?;
-    Widget metric(String label, String value, IconData icon) => Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: PipeBuyerColors.canvas,
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+    final delta = pricing['deltaFromMedianPercent'] as num?;
+    final views = (engagement['views'] as num?)?.toInt() ?? 0;
+    final saves = (engagement['saves'] as num?)?.toInt() ?? 0;
+    final messages = (engagement['messages'] as num?)?.toInt() ?? 0;
+    final offers = (engagement['offers'] as num?)?.toInt() ?? 0;
+    final shares = (engagement['shares'] as num?)?.toInt() ?? 0;
+    final ageDays = (engagement['ageDays'] as num?)?.toInt();
+    final signal = engagement['signal'] is Map
+        ? Map<String, dynamic>.from(engagement['signal'] as Map)
+        : const <String, dynamic>{};
+    final signalCode = '${signal['code'] ?? 'building'}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PipeBuyerAnalyticsMetricGrid(
+          items: [
+            PipeBuyerAnalyticsMetricData(
+              label: 'Comparable median',
+              value: median == null ? 'Building data' : marketplaceMoney(median),
+              detail: '$comparableCount comparable price samples',
+              icon: Icons.price_check_outlined,
+              emphasis: median != null,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 19, color: PipeBuyerColors.orangePressed),
-                const SizedBox(height: 8),
-                Text(
-                  value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: PipeBuyerColors.muted,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+            PipeBuyerAnalyticsMetricData(
+              label: 'Comparable range',
+              value: low == null || high == null
+                  ? '$comparableCount samples'
+                  : '${marketplaceMoney(low)} – ${marketplaceMoney(high)}',
+              detail: 'Same normalized pricing basis',
+              icon: Icons.compare_arrows_rounded,
             ),
-          ),
-        );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cards = [
-          metric(
-            'Comparable median',
-            median == null ? 'Building data' : marketplaceMoney(median),
-            Icons.price_check_outlined,
-          ),
-          metric(
-            'Comparable range',
-            low == null || high == null
-                ? '$comparableCount samples'
-                : '${marketplaceMoney(low)} – ${marketplaceMoney(high)}',
-            Icons.compare_arrows_rounded,
-          ),
-          metric(
-            'Buyer signals',
-            '${(engagement['views'] as num?)?.toInt() ?? 0} views · ${(engagement['saves'] as num?)?.toInt() ?? 0} saves · ${(engagement['offers'] as num?)?.toInt() ?? 0} offers',
-            Icons.insights_outlined,
-          ),
-        ];
-        if (constraints.maxWidth >= 680) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              cards[0],
-              const SizedBox(width: 10),
-              cards[1],
-              const SizedBox(width: 10),
-              cards[2],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            for (var index = 0; index < cards.length; index++) ...[
-              SizedBox(width: double.infinity, child: cards[index]),
-              if (index < cards.length - 1) const SizedBox(height: 8),
-            ],
+            PipeBuyerAnalyticsMetricData(
+              label: 'Listing vs median',
+              value: _deltaLabel(delta),
+              detail: 'Comparable position, not a valuation',
+              icon: Icons.balance_rounded,
+            ),
+            PipeBuyerAnalyticsMetricData(
+              label: 'Listing activity',
+              value: '$views views · $shares shares',
+              detail: ageDays == null ? 'Age unavailable' : '$ageDays days since listing',
+              icon: Icons.visibility_outlined,
+            ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 10),
+        PipeBuyerAnalyticsSignalBand(
+          label: '${signal['label'] ?? 'Building signal'}',
+          message: '${signal['message'] ?? 'More buyer activity is needed before interpreting this listing pattern.'}',
+          strong: signalCode == 'strong',
+          icon: signalCode == 'strong'
+              ? Icons.trending_up_rounded
+              : signalCode == 'limited'
+                  ? Icons.tune_rounded
+                  : Icons.insights_rounded,
+        ),
+        const SizedBox(height: 10),
+        PipeBuyerAnalyticsFunnel(
+          subtitle:
+              'Rates are calculated from this listing’s recorded views. Saves, messages and offers are marketplace actions, not unique-buyer counts.',
+          steps: [
+            PipeBuyerAnalyticsFunnelStepData(
+              label: 'Views',
+              value: views,
+              rateLabel: views > 0 ? 'baseline' : null,
+            ),
+            PipeBuyerAnalyticsFunnelStepData(
+              label: 'Saves',
+              value: saves,
+              rateLabel: _rateLabel(engagement['saveRatePercent']),
+            ),
+            PipeBuyerAnalyticsFunnelStepData(
+              label: 'Messages',
+              value: messages,
+              rateLabel: _rateLabel(engagement['messageRatePercent']),
+            ),
+            PipeBuyerAnalyticsFunnelStepData(
+              label: 'Offers',
+              value: offers,
+              rateLabel: _rateLabel(engagement['offerRatePercent']),
+            ),
+          ],
+        ),
+      ],
     );
+  }
+
+  String _deltaLabel(num? delta) {
+    if (delta == null) return 'Building data';
+    final value = delta.toDouble();
+    final magnitude = value.abs();
+    final formatted = magnitude == magnitude.roundToDouble()
+        ? magnitude.toStringAsFixed(0)
+        : magnitude.toStringAsFixed(1);
+    if (value > 0) return '+$formatted% vs median';
+    if (value < 0) return '-$formatted% vs median';
+    return 'At comparable median';
+  }
+
+  String? _rateLabel(Object? value) {
+    if (value is! num) return null;
+    final number = value.toDouble();
+    final formatted = number == number.roundToDouble()
+        ? number.toStringAsFixed(0)
+        : number.toStringAsFixed(1);
+    return '$formatted% of views';
   }
 
   Widget _suggestionCard(Map<String, dynamic> suggestion) {

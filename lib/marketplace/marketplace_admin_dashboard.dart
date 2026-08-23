@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_admin_access.dart';
+import 'marketplace_admin_role_manager.dart';
 import 'marketplace_payment_readiness.dart';
-
 
 class MarketplaceAdminDashboard extends StatefulWidget {
   const MarketplaceAdminDashboard({super.key});
@@ -617,27 +617,18 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                       Icons.trending_up,
                       Colors.blue),
                   const SizedBox(width: 12),
-                  _metricCard(
-                      'PAYMENT REVENUE',
-                      'Not active',
-                      Icons.account_balance_wallet_outlined,
-                      Colors.grey),
+                  _metricCard('PAYMENT REVENUE', 'Not active',
+                      Icons.account_balance_wallet_outlined, Colors.grey),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _metricCard(
-                      'COMMISSION SCHEDULE',
-                      'Draft only',
-                      Icons.percent_outlined,
-                      Colors.grey),
+                  _metricCard('COMMISSION SCHEDULE', 'Draft only',
+                      Icons.percent_outlined, Colors.grey),
                   const SizedBox(width: 12),
-                  _metricCard(
-                      'PROVIDER SETTLEMENT',
-                      'Not connected',
-                      Icons.account_balance_outlined,
-                      Colors.grey),
+                  _metricCard('PROVIDER SETTLEMENT', 'Not connected',
+                      Icons.account_balance_outlined, Colors.grey),
                 ],
               ),
               const SizedBox(height: 24),
@@ -1131,11 +1122,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     Icons.gavel,
                     Colors.deepOrange),
                 const SizedBox(width: 12),
-                _metricCard(
-                    'AUCTION PAYMENT FEES',
-                    'Not active',
-                    Icons.account_balance_wallet_outlined,
-                    Colors.grey),
+                _metricCard('AUCTION PAYMENT FEES', 'Not active',
+                    Icons.account_balance_wallet_outlined, Colors.grey),
               ],
             ),
             const SizedBox(height: 12),
@@ -1476,12 +1464,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   }
 
   // 3. Read-only transaction lifecycle records
-  Widget _buildTransactionsTab() =>
-      const MarketplaceTransactionRecordsPanel();
+  Widget _buildTransactionsTab() => const MarketplaceTransactionRecordsPanel();
 
   // 4. Provider readiness and non-secret billing architecture
-  Widget _buildBankingGatewaysTab() =>
-      const MarketplacePaymentReadinessPanel();
+  Widget _buildBankingGatewaysTab() => const MarketplacePaymentReadinessPanel();
 
   // 5. Users Directory & Leaderboards Tab
   Widget _buildUsersTab() {
@@ -1493,7 +1479,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             !snapshot.hasData;
         final docs = snapshot.data?.docs ?? [];
         final currentUser = FirebaseAuth.instance.currentUser;
-        final masterEmail = currentUser?.email ?? 'jordilwbailey@gmail.com';
+        final accountEmail = currentUser?.email ?? 'Administrator';
 
         final filtered = docs.where((doc) {
           if (_userSearchQuery.isEmpty) return true;
@@ -1515,7 +1501,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   _explanationBanner(
                     title: 'Users Directory & Member Controls',
                     explanation:
-                        'Search all Pipe Buyer members, view email/phone verification status, change user roles (Personal, Business, Hotshot Carrier, Admin), or suspend accounts.',
+                        'Search Pipe Buyer members and maintain ordinary account-type metadata. Administrator access is managed separately through protected Firebase claims and MFA.',
                   ),
                   if (isLoading) const LinearProgressIndicator(),
                   const SizedBox(height: 12),
@@ -1540,7 +1526,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                               backgroundColor: Colors.purple.shade100,
                               child: const Icon(Icons.person,
                                   color: Colors.purple)),
-                          title: Text(masterEmail,
+                          title: Text(accountEmail,
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(
@@ -1589,9 +1575,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                               PopupMenuItem(
                                   value: 'carrier',
                                   child: Text('Set Role: Hotshot Carrier')),
-                              PopupMenuItem(
-                                  value: 'administrator',
-                                  child: Text('Set Role: Administrator')),
                             ],
                             child: Chip(
                               label: Text(role.toUpperCase()),
@@ -1727,6 +1710,25 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               'Control live platform capabilities in real time. Enable or disable the Auctions Engine, Escrow Protection, or Wanted Radar matching.',
         ),
         const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.admin_panel_settings_outlined),
+            title: const Text(
+              'Administrator access management',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text(
+              'Primary administrator only. Grants and removals use protected Firebase claims, verified email and MFA.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const MarketplaceAdminRoleManager(),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         SwitchListTile(
           value: _auctionsEnabled,
           onChanged: (val) => setState(() => _auctionsEnabled = val),

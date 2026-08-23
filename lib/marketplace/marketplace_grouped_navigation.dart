@@ -72,9 +72,9 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
           ),
           if (auctionsEnabled)
             _NavItem(
-              icon: Icons.gavel_outlined,
-              selectedIcon: Icons.gavel_rounded,
-              label: 'Timed Auctions',
+              icon: Icons.timer_outlined,
+              selectedIcon: Icons.timer_rounded,
+              label: 'Timed Buying',
               selected: selectedPageIndex == 6,
               onTap: () => onDestinationSelected(6),
             ),

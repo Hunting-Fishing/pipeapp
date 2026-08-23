@@ -12,6 +12,10 @@ const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
 const {createAffiliateCommands} = require("./affiliate_commands");
 const {createAffiliatePayouts} = require("./affiliate_payouts");
+const {createDispatchCommands} = require("./dispatch_commands");
+const {
+  createDispatchMembershipAccess,
+} = require("./dispatch_membership_access");
 const {createMarketplaceCommands} = require("./marketplace_commands");
 const {
   createPolicyAcceptanceCommands,
@@ -31,8 +35,23 @@ const {
   createExternalSettlementCommands,
 } = require("./external_settlement_commands");
 const {
+  createDispatchSubscriptionCatalog,
+} = require("./dispatch_subscription_catalog");
+const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
+const {
+  createDispatchSubscriptionLifecycle,
+} = require("./dispatch_subscription_lifecycle");
+const {
+  createDispatchSubscriptionPortal,
+} = require("./dispatch_subscription_portal");
+const {
+  createDispatchSubscriptionProviderAccess,
+} = require("./dispatch_subscription_provider_access");
+const {
+  createDispatchSubscriptionStatus,
+} = require("./dispatch_subscription_status");
 const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
@@ -44,16 +63,27 @@ const {
   createStripeWebhookHandler,
   stripeWebhookSecret,
 } = require("./stripe_webhook");
+const {
+  createStripeWebhookDispatchLifecycleWrapper,
+} = require("./stripe_webhook_dispatch_lifecycle");
 
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
 const affiliatePayouts = createAffiliatePayouts(admin);
+const dispatchCommands = createDispatchCommands(admin);
+const dispatchMembershipAccess = createDispatchMembershipAccess(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
+const dispatchSubscriptionCatalog = createDispatchSubscriptionCatalog(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const dispatchSubscriptionLifecycle = createDispatchSubscriptionLifecycle(admin);
+const dispatchSubscriptionPortal = createDispatchSubscriptionPortal(admin);
+const dispatchSubscriptionProviderAccess =
+  createDispatchSubscriptionProviderAccess(admin);
+const dispatchSubscriptionStatus = createDispatchSubscriptionStatus(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
 const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
@@ -61,8 +91,14 @@ const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
     marketplaceFinancialResolution,
 );
 const stripeDisputeResponse = createStripeDisputeResponse(admin);
-const stripeWebhookHandler = createStripeWebhookHandler(admin, {
+const baseStripeWebhookHandler = createStripeWebhookHandler(admin, {
   marketplaceFinancialResolution: marketplaceRefundWebhookGate,
+});
+const stripeWebhookHandler = createStripeWebhookDispatchLifecycleWrapper({
+  admin,
+  baseHandler: baseStripeWebhookHandler,
+  dispatchSubscriptionLifecycle,
+  stripeWebhookSecret,
 });
 
 async function updateMarketplaceTransactionWithFinancialGuard(request) {
@@ -82,6 +118,17 @@ async function updateMarketplaceTransactionWithFinancialGuard(request) {
     }
   }
   return marketplaceCommands.updateMarketplaceTransaction(request);
+}
+
+async function submitDispatchQuoteWithMembershipGuard(request) {
+  await dispatchMembershipAccess.requireCurrentDispatchMembership(request);
+  return dispatchCommands.submitDispatchQuote(request);
+}
+
+async function createDispatchSubscriptionCheckoutWithProviderGuard(request) {
+  await dispatchSubscriptionProviderAccess
+      .requireNoBlockingProviderSubscription(request);
+  return dispatchSubscriptionCommands.createDispatchSubscriptionCheckout(request);
 }
 
 async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
@@ -118,6 +165,16 @@ exports.updateMarketplaceTransaction = onCall(
     ),
 );
 
+// Current main's Dispatch quote command predates the paid membership gate.
+// Keep the existing quote command intact and add the missing server-side
+// paid-through check around it so an expired/stale active flag cannot bid.
+exports.submitDispatchQuote = onCall(
+    protectedCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        submitDispatchQuoteWithMembershipGuard,
+    ),
+);
+
 exports.ensureAffiliateCode = onCall(
     protectedCallableOptions,
     affiliateCommands.ensureAffiliateCode,
@@ -137,6 +194,14 @@ exports.requestMarketplaceRefund = onCall(
 exports.cancelMarketplaceRefundRequest = onCall(
     protectedCallableOptions,
     marketplaceFinancialResolution.cancelMarketplaceRefundRequest,
+);
+exports.getDispatchSubscriptionCatalog = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionCatalog.getDispatchSubscriptionCatalog,
+);
+exports.getDispatchSubscriptionStatus = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionStatus.getDispatchSubscriptionStatus,
 );
 
 const stripeCallableOptions = Object.freeze({
@@ -166,7 +231,11 @@ exports.createExternalSettlementFeeCheckout = onCall(
 );
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
-    dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+    createDispatchSubscriptionCheckoutWithProviderGuard,
+);
+exports.createDispatchSubscriptionPortalSession = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionPortal.createDispatchSubscriptionPortalSession,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,

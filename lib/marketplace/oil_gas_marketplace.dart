@@ -969,6 +969,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   bool _createWantedRequested = false;
   bool _savedLoading = false;
   Object? _savedLoadError;
+  bool _authResolved = false;
+  bool _authGateScheduled = false;
+  bool _authRouteOpen = false;
 
   void _openCreate({bool auction = false, bool wanted = false}) {
     if (!_features.marketplace) {
@@ -1064,6 +1067,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_authResolved || FirebaseAuth.instance.currentUser == null) {
+      _scheduleAuthGate();
+      return const _MarketplaceAuthControlBackdrop();
+    }
+
     final pages = [
       _HomePage(
           onBrowse: () =>
@@ -1532,11 +1540,15 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     _savedSubscription = null;
     if (!mounted) return;
     setState(() {
+      _authResolved = true;
       _saved.clear();
       _savedLoadError = null;
       _savedLoading = user != null;
     });
-    if (user == null) return;
+    if (user == null) {
+      _scheduleAuthGate();
+      return;
+    }
     unawaited(_registerCurrentDevice(user));
     final userUid = user.uid;
     _savedSubscription = _actions.watchSavedListingIds(userUid).listen(
@@ -1592,13 +1604,36 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           ? Badge(label: Text('${snapshot.data}'))
           : const SizedBox.shrink());
 
-  Future<void> _openAuth() async {
+  void _scheduleAuthGate() {
+    if (!mounted ||
+        _authGateScheduled ||
+        _authRouteOpen ||
+        FirebaseAuth.instance.currentUser != null) {
+      return;
+    }
+    _authGateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _authGateScheduled = false;
+      if (_authRouteOpen || FirebaseAuth.instance.currentUser != null) return;
+      unawaited(_showAuth(enforced: true));
+    });
+  }
+
+  Future<void> _openAuth() => _showAuth(enforced: false);
+
+  Future<void> _showAuth({required bool enforced}) async {
+    if (_authRouteOpen) return;
+    if (enforced && FirebaseAuth.instance.currentUser != null) return;
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
       Navigator.of(context).pop();
     }
-    final signedIn = await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const MarketplaceAuthPage()));
-    if (mounted) {
+
+    _authRouteOpen = true;
+    try {
+      final signedIn = await Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const MarketplaceAuthPage()));
+      if (!mounted) return;
       setState(() {});
       if (signedIn == true) {
         PipeFeedback.show(
@@ -1606,6 +1641,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           message: 'Signed in successfully. Your account is ready.',
           tone: PipeStatusTone.success,
         );
+      }
+    } finally {
+      _authRouteOpen = false;
+      if (mounted && enforced && FirebaseAuth.instance.currentUser == null) {
+        _scheduleAuthGate();
       }
     }
   }
@@ -1654,6 +1694,42 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       );
     }
   }
+}
+
+class _MarketplaceAuthControlBackdrop extends StatelessWidget {
+  const _MarketplaceAuthControlBackdrop();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: const Color(0xFF0D131A),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/pipe_buyer_logo.png',
+                  width: 132,
+                  height: 96,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 18),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 14),
+                const Text(
+                  'Opening secure Pipe Buyer access...',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }
 
 class _NavAccountIcon extends StatelessWidget {

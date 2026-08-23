@@ -11,6 +11,12 @@ function taxCollectionStatus(readiness = {}) {
   return "not_ready";
 }
 
+function taxBillingPrepared(readiness = {}) {
+  return readiness.stripeTaxReady === true ||
+    (readiness.stripeTaxRegistrationPending === true &&
+      readiness.stripeTaxPendingBillingApproved === true);
+}
+
 function automaticTaxEnabled(readiness = {}) {
   return readiness.stripeTaxReady === true;
 }
@@ -29,5 +35,6 @@ module.exports = {
   PROVISIONAL_TAX_RESERVE_BPS,
   automaticTaxEnabled,
   provisionalTaxReserveMinor,
+  taxBillingPrepared,
   taxCollectionStatus,
 };

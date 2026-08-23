@@ -172,7 +172,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
               Text(
                 _signup
                     ? 'Create a verified marketplace identity for pipe, equipment, buildings, transport and energy inventory.'
-                    : 'Access listings, negotiations, timed auctions, secure payments and Pipe Buyer Dispatch from one account.',
+                    : 'Access listings, negotiations, Timed Buying, secure payments and Pipe Buyer Dispatch from one account.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: .72),
                   fontSize: 16,
@@ -198,7 +198,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                   ),
                   _DarkTrustPill(
                     icon: Icons.gavel_outlined,
-                    label: 'Timed auctions',
+                    label: 'Timed Buying',
                   ),
                 ],
               ),
@@ -262,7 +262,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                       title: _signup ? 'Join Pipe Buyer' : 'Welcome back',
                       subtitle: _signup
                           ? 'Choose how you will buy, sell and represent yourself in the marketplace.'
-                          : 'Sign in to manage listings, negotiate offers, bid on auctions and access Dispatch.',
+                          : 'Sign in to manage listings, negotiate offers, submit timed offers and access Dispatch.',
                       icon: _signup
                           ? Icons.person_add_alt_1_outlined
                           : Icons.lock_open_outlined,

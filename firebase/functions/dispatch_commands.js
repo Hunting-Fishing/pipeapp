@@ -720,6 +720,12 @@ function createDispatchCommands(admin) {
         carrierUid: uid,
         carrierName,
         amount: quote.amount,
+        currency: quote.currency,
+        quoteBreakdown: quote.quoteBreakdown,
+        quoteReference: existingBid && existingBid.quoteReference ||
+          `PBQ-${bidRef.id.slice(0, 10).toUpperCase()}`,
+        quoteVersion: revision,
+        validityStatus: "active",
         note: quote.note,
         availableDate: Timestamp.fromMillis(quote.availableDate),
         vehicleId,
@@ -735,6 +741,7 @@ function createDispatchCommands(admin) {
         bidId: bidRef.id,
         jobId,
         revision,
+        quoteReference: values.quoteReference,
         created: !existingBid,
       };
 

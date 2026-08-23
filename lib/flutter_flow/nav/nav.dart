@@ -13,6 +13,7 @@ import '/marketplace/oil_gas_marketplace.dart';
 import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
 import '/marketplace/marketplace_dispatch_page.dart';
+import '/marketplace/marketplace_dispatch_membership_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
 import '/marketplace/marketplace_public_information.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
@@ -133,6 +134,25 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => MarketplaceDispatchJobRoutePage(
             jobId: params.getParam<String>('jobId', ParamType.string) ?? '',
           ),
+        ),
+        FFRoute(
+          name: 'dispatchMembership',
+          path: '/payments/dispatch',
+          requireAuth: true,
+          builder: (context, params) =>
+              const MarketplaceDispatchMembershipPage(),
+        ),
+        FFRoute(
+          name: 'paymentSuccess',
+          path: '/payments/success',
+          builder: (context, params) =>
+              const MarketplacePaymentReturnPage(success: true),
+        ),
+        FFRoute(
+          name: 'paymentCancel',
+          path: '/payments/cancel',
+          builder: (context, params) =>
+              const MarketplacePaymentReturnPage(success: false),
         ),
         FFRoute(
           name: 'marketplaceTaxProfile',
@@ -359,15 +379,7 @@ class FFRoute {
                   builder: (context, _) => builder(context, ffParams),
                 )
               : builder(context, ffParams);
-          final child = appStateNotifier.loading
-              ? Container(
-                  color: Colors.transparent,
-                  child: Image.asset(
-                    'assets/images/pipe_buyer_logo.png',
-                    fit: BoxFit.contain,
-                  ),
-                )
-              : page;
+          final child = page; // Web/native startup owns the loading surface.
 
           final transitionInfo = state.transitionInfo;
           return transitionInfo.hasTransition

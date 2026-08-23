@@ -91,20 +91,38 @@ void main() {
     expect(monitor.diagnosticSummary, isNot(contains('buyer@example.com')));
   });
 
-  test('web bootstrap exposes real loader milestones and recovery controls',
-      () {
+  test('web bootstrap exposes the current single branded startup surface', () {
     final html = File('web/index.html').readAsStringSync();
 
     expect(html, contains('role="progressbar"'));
-    expect(html, contains('id="splash-percent"'));
-    expect(html, contains('id="splash-version"'));
-    expect(html, contains('Startup details'));
+    expect(html, contains('id="pipe-startup"'));
+    expect(html, contains('id="pipe-startup-progress"'));
+    expect(html, contains('id="pipe-service-truck"'));
+    expect(html, contains('id="pipe-pumpjack"'));
+    expect(html, contains('id="pipe-startup-error"'));
     expect(html, contains('onEntrypointLoaded'));
-    expect(html, contains('Flutter engine initialized'));
-    expect(html, contains('Repair cache and reload'));
-    expect(html, contains('navigator.serviceWorker.getRegistrations()'));
-    expect(html, contains('Reload application'));
-    expect(html, contains('flutter-first-frame'));
-    expect(html, contains('removeSplashFromWeb();'));
+    expect(
+      html,
+      contains("updatePipeStartup(34, 'Preparing application services')"),
+    );
+    expect(
+      html,
+      contains("updatePipeStartup(62, 'Starting secure services')"),
+    );
+    expect(
+      html,
+      contains("window.addEventListener('flutter-first-frame'"),
+    );
+    expect(
+      html,
+      contains('window.setTimeout(removePipeStartup, 1400)'),
+    );
+    expect(html, contains("updatePipeStartup(100, 'Pipe Buyer ready')"));
+
+    // The retired duplicate splash/repair surface must not be reintroduced.
+    expect(html, isNot(contains('id="splash-percent"')));
+    expect(html, isNot(contains('id="splash-version"')));
+    expect(html, isNot(contains('removeSplashFromWeb();')));
+    expect(html, isNot(contains('Repair cache and reload')));
   });
 }

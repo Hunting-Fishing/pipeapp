@@ -1,0 +1,84 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/marketplace/pipebuyer_directory_filter_setstate_preflight.dart';
+
+const entries = <DispatchDirectoryEntry>[
+  DispatchDirectoryEntry(
+    id: 'hotshot',
+    operatingName: 'Prairie Hotshot',
+    description: 'Hotshot and remote-site delivery.',
+    website: '',
+    businessTypeCode: 'owner_operator',
+    serviceCodes: ['transport_hotshot'],
+    serviceAreaLabel: 'Grande Prairie region',
+    availabilityCode: 'available_now',
+    emergencyCallout: true,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Grande Prairie, Alberta',
+    homeBasePoint: null,
+  ),
+  DispatchDirectoryEntry(
+    id: 'pilot',
+    operatingName: 'Northern Pilot Cars',
+    description: 'Pilot and escort support.',
+    website: '',
+    businessTypeCode: 'corporation',
+    serviceCodes: ['pilot_escort_vehicle'],
+    serviceAreaLabel: 'Peace River region',
+    availabilityCode: 'available_this_week',
+    emergencyCallout: false,
+    remoteSiteCapable: true,
+    homeBaseLabel: 'Peace River, Alberta',
+    homeBasePoint: null,
+  ),
+];
+
+Future<void> settleFilter(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 220));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets('Directory service filter debounce completes without setState Future exception', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final serviceDropdown = find.byType(DropdownButtonFormField<String>).first;
+    final dropdown = tester.widget<DropdownButtonFormField<String>>(serviceDropdown);
+    expect(dropdown.onChanged, isNotNull);
+
+    dropdown.onChanged!('transport_hotshot');
+    await settleFilter(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Prairie Hotshot'), findsOneWidget);
+    expect(find.text('Northern Pilot Cars'), findsNothing);
+
+    final refreshedDropdown = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>).first,
+    );
+    refreshedDropdown.onChanged!('pilot_escort_vehicle');
+    await tester.pump(const Duration(milliseconds: 40));
+    final rapidDropdown = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>).first,
+    );
+    rapidDropdown.onChanged!('transport_hotshot');
+    await settleFilter(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Prairie Hotshot'), findsOneWidget);
+    expect(find.text('Northern Pilot Cars'), findsNothing);
+  });
+}

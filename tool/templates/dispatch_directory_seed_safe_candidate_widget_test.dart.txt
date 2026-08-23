@@ -1,0 +1,41 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/marketplace/pipebuyer_directory_seed_safe_preflight.dart';
+
+void main() {
+  testWidgets('seeded Directory candidate renders without Firebase initialization', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const entries = <DispatchDirectoryEntry>[
+      DispatchDirectoryEntry(
+        id: 'seed-safe-hotshot',
+        operatingName: 'Seed Safe Hotshot',
+        description: 'Seed-only widget candidate.',
+        website: '',
+        businessTypeCode: 'owner_operator',
+        serviceCodes: ['transport_hotshot'],
+        serviceAreaLabel: 'Grande Prairie region',
+        availabilityCode: 'available_now',
+        emergencyCallout: true,
+        remoteSiteCapable: true,
+        homeBaseLabel: 'Grande Prairie, Alberta',
+        homeBasePoint: null,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MarketplaceDispatchDirectoryPage(seedEntries: entries),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Seed Safe Hotshot'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}

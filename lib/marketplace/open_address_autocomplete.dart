@@ -16,8 +16,10 @@ class OpenAddress {
   const OpenAddress({
     required this.label,
     required this.point,
+    this.name = '',
     this.street = '',
     this.city = '',
+    this.district = '',
     this.region = '',
     this.postalCode = '',
     this.country = '',
@@ -28,8 +30,10 @@ class OpenAddress {
   });
   final String label;
   final LatLng point;
+  final String name;
   final String street;
   final String city;
+  final String district;
   final String region;
   final String postalCode;
   final String country;
@@ -40,6 +44,65 @@ class OpenAddress {
 }
 
 enum OpenAddressSearchType { all, settlement, administrative }
+
+const _settlementPlaceTypes = {
+  'city',
+  'town',
+  'village',
+  'hamlet',
+  'locality',
+  'municipality',
+  'borough',
+};
+
+const _administrativePlaceTypes = {
+  'country',
+  'state',
+  'province',
+  'region',
+  'district',
+  'county',
+  'municipality',
+};
+
+bool openAddressMatchesSearchType(
+  OpenAddress item,
+  OpenAddressSearchType searchType,
+) =>
+    switch (searchType) {
+      OpenAddressSearchType.all => true,
+      OpenAddressSearchType.settlement =>
+        _settlementPlaceTypes.contains(item.placeType.toLowerCase()),
+      OpenAddressSearchType.administrative =>
+        _administrativePlaceTypes.contains(item.placeType.toLowerCase()),
+    };
+
+List<OpenAddress> dedupeOpenAddressResults(Iterable<OpenAddress> items) {
+  final byIdentity = <String, OpenAddress>{};
+  for (final item in items) {
+    final identityName = item.name.trim().isNotEmpty ? item.name : item.city;
+    final key = [
+      item.placeType,
+      identityName,
+      item.region,
+      item.country,
+    ].map(_normalizedOpenAddressPart).join('|');
+    final current = byIdentity[key];
+    if (current == null ||
+        (!_isOsmRelation(current.osmType) && _isOsmRelation(item.osmType))) {
+      byIdentity[key] = item;
+    }
+  }
+  return byIdentity.values.toList(growable: false);
+}
+
+String _normalizedOpenAddressPart(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
+
+bool _isOsmRelation(String value) {
+  final normalized = value.trim().toLowerCase();
+  return normalized == 'r' || normalized == 'relation';
+}
 
 Future<OpenAddress?> reverseOpenAddress(LatLng point) async {
   final base = Uri.parse(pipeBuyerGeocoderUrl);
@@ -59,7 +122,7 @@ Future<OpenAddress?> reverseOpenAddress(LatLng point) async {
   final data = jsonDecode(response.body) as Map<String, dynamic>;
   final features = data['features'] as List? ?? const [];
   if (features.isEmpty) return null;
-  return _openAddressFromFeature(
+  return openAddressFromPhotonFeature(
       Map<String, dynamic>.from(features.first as Map));
 }
 
@@ -199,18 +262,20 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
                         const SizedBox(width: 6),
                         Text(
                           'LOCATION RESULTS',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: PipeBuyerColors.orangePressed,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: .65,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: PipeBuyerColors.orangePressed,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: .65,
+                                  ),
                         ),
                         const Spacer(),
                         Text(
                           '${_results.length}',
-                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w900,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                  ),
                         ),
                       ],
                     ),
@@ -228,7 +293,7 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
                       itemBuilder: (_, index) {
                         final address = _results[index];
                         final secondary = [
-                          address.city,
+                          address.district,
                           address.region,
                           address.country,
                         ].where((part) => part.isNotEmpty).toSet().join(', ');
@@ -259,7 +324,8 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
                                 const SizedBox(width: 11),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         address.label,
@@ -366,31 +432,14 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
       }).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) throw StateError('Geocoder unavailable');
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = (data['features'] as List? ?? const [])
-          .map((raw) =>
-              _openAddressFromFeature(Map<String, dynamic>.from(raw as Map)))
+      final parsed = (data['features'] as List? ?? const [])
+          .map((raw) => openAddressFromPhotonFeature(
+                Map<String, dynamic>.from(raw as Map),
+              ))
           .where((item) => item.label.isNotEmpty)
-          .where((item) => switch (widget.searchType) {
-                OpenAddressSearchType.all => true,
-                OpenAddressSearchType.settlement => const [
-                    'city',
-                    'town',
-                    'village',
-                    'hamlet',
-                    'locality',
-                    'district',
-                    'county'
-                  ].contains(item.placeType),
-                OpenAddressSearchType.administrative => const [
-                    'country',
-                    'state',
-                    'province',
-                    'region',
-                    'district',
-                    'county'
-                  ].contains(item.placeType),
-              })
-          .toList();
+          .where(
+              (item) => openAddressMatchesSearchType(item, widget.searchType));
+      final results = dedupeOpenAddressResults(parsed);
       if (mounted && request == _request) setState(() => _results = results);
     } catch (_) {
       if (mounted && request == _request) setState(() => _results = const []);
@@ -403,7 +452,11 @@ class _OpenAddressAutocompleteState extends State<OpenAddressAutocomplete> {
 IconData _placeTypeIcon(String value) => switch (value.toLowerCase()) {
       'country' => Icons.public_outlined,
       'state' || 'province' || 'region' => Icons.map_outlined,
-      'city' || 'town' || 'village' || 'hamlet' || 'locality' =>
+      'city' ||
+      'town' ||
+      'village' ||
+      'hamlet' ||
+      'locality' =>
         Icons.location_city_outlined,
       'district' || 'county' => Icons.hub_outlined,
       _ => Icons.location_on_outlined,
@@ -419,29 +472,37 @@ String _placeTypeLabel(String value) {
       .join(' ');
 }
 
-OpenAddress _openAddressFromFeature(Map<String, dynamic> feature) {
+OpenAddress openAddressFromPhotonFeature(Map<String, dynamic> feature) {
   final properties =
       Map<String, dynamic>.from(feature['properties'] as Map? ?? const {});
   final geometry =
       Map<String, dynamic>.from(feature['geometry'] as Map? ?? const {});
   final coordinates = geometry['coordinates'] as List? ?? const [0, 0];
   String read(String key) => '${properties[key] ?? ''}'.trim();
+  final featureName = read('name');
+  final placeType = read('type').toLowerCase();
   final street = [read('housenumber'), read('street')]
       .where((value) => value.isNotEmpty)
       .join(' ');
-  final community = [
+  final explicitSettlement = [
     read('city'),
     read('town'),
     read('village'),
     read('hamlet'),
     read('locality'),
-    read('district'),
-    read('county'),
   ].firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  final settlement = explicitSettlement.isNotEmpty
+      ? explicitSettlement
+      : _settlementPlaceTypes.contains(placeType)
+          ? featureName
+          : '';
+  final district = [read('district'), read('county')]
+      .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   final parts = [
     street,
-    read('name'),
-    community,
+    featureName,
+    settlement,
+    district,
     read('state'),
     read('postcode'),
     read('country')
@@ -450,13 +511,15 @@ OpenAddress _openAddressFromFeature(Map<String, dynamic> feature) {
     label: parts.join(', '),
     point: LatLng(
         (coordinates[1] as num).toDouble(), (coordinates[0] as num).toDouble()),
+    name: featureName,
     street: street,
-    city: community,
+    city: settlement,
+    district: district,
     region: read('state'),
     postalCode: read('postcode'),
     country: read('country'),
     countryCode: read('countrycode').toUpperCase(),
-    placeType: read('type'),
+    placeType: placeType,
     osmType: read('osm_type'),
     osmId: read('osm_id'),
   );
