@@ -12,6 +12,7 @@
     "writer_branch",
     "risk_policy",
     "independent_review_required",
+    "preflight_verify_required",
     "knowledge",
     "quality",
     "timeouts",
@@ -27,6 +28,7 @@
     "writer_branch": { "type": "string", "minLength": 1 },
     "risk_policy": { "type": "string", "minLength": 1 },
     "independent_review_required": { "type": "boolean" },
+    "preflight_verify_required": { "type": "boolean" },
     "knowledge": {
       "type": "object",
       "required": ["always", "feature_registry"],
@@ -36,11 +38,7 @@
       },
       "additionalProperties": {
         "oneOf": [
-          {
-            "type": "array",
-            "items": { "type": "string" },
-            "uniqueItems": true
-          },
+          { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
           { "type": "string", "minLength": 1 }
         ]
       }
@@ -83,6 +81,8 @@
       "type": "object",
       "required": [
         "base_branch",
+        "remote_name",
+        "require_remote_freshness",
         "reuse_writer_branch",
         "allow_direct_main",
         "push_verified_commits_only",
@@ -90,6 +90,8 @@
       ],
       "properties": {
         "base_branch": { "type": "string", "minLength": 1 },
+        "remote_name": { "type": "string", "minLength": 1 },
+        "require_remote_freshness": { "type": "boolean" },
         "reuse_writer_branch": { "type": "boolean" },
         "allow_direct_main": { "type": "boolean" },
         "push_verified_commits_only": { "type": "boolean" },
