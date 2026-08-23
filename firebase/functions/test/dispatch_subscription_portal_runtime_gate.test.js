@@ -4,6 +4,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+  DISPATCH_PORTAL_CUSTOMER_UPDATES,
+  DISPATCH_PORTAL_PRICE_IDS,
+  DISPATCH_PORTAL_PRODUCT_ID,
 } = require("../dispatch_billing_portal_policy");
 const {
   createDispatchSubscriptionPortalRuntimeGate,
@@ -13,11 +16,17 @@ const {
 function storedProviderFeatures(overrides = {}) {
   return {
     paymentMethodUpdate: true,
+    customerUpdate: true,
+    customerUpdateAllowedUpdates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
     invoiceHistory: true,
     subscriptionCancel: true,
     subscriptionCancelMode: "at_period_end",
     subscriptionCancelProration: "none",
-    subscriptionUpdate: false,
+    subscriptionUpdate: true,
+    subscriptionUpdateAllowedUpdates: ["price"],
+    subscriptionUpdateProration: "none",
+    subscriptionUpdateProductId: DISPATCH_PORTAL_PRODUCT_ID,
+    subscriptionUpdatePriceIds: [...DISPATCH_PORTAL_PRICE_IDS],
     ...overrides,
   };
 }
@@ -42,13 +51,25 @@ function liveProviderPortal(overrides = {}) {
     livemode: true,
     features: {
       payment_method_update: {enabled: true},
+      customer_update: {
+        enabled: true,
+        allowed_updates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
+      },
       invoice_history: {enabled: true},
       subscription_cancel: {
         enabled: true,
         mode: "at_period_end",
         proration_behavior: "none",
       },
-      subscription_update: {enabled: false},
+      subscription_update: {
+        enabled: true,
+        default_allowed_updates: ["price"],
+        proration_behavior: "none",
+        products: [{
+          product: DISPATCH_PORTAL_PRODUCT_ID,
+          prices: [...DISPATCH_PORTAL_PRICE_IDS],
+        }],
+      },
     },
     ...overrides,
   };
@@ -101,7 +122,9 @@ test("runtime Portal decision requires complete stored proof bound to the exact 
     providerVerificationRevision: "old-policy",
   })).ready, false);
   assert.equal(dispatchBillingPortalRuntimeDecision(verifiedPortal({
-    providerVerifiedFeatures: storedProviderFeatures({subscriptionUpdate: true}),
+    providerVerifiedFeatures: storedProviderFeatures({
+      subscriptionUpdateAllowedUpdates: ["price", "quantity"],
+    }),
   })).ready, false);
   assert.equal(dispatchBillingPortalRuntimeDecision(verifiedPortal({
     providerVerifiedFeatures: {},
@@ -193,7 +216,7 @@ test("production gate re-reads exact live bpc before delegating", async () => {
   assert.deepEqual(result, {plan: "yearly"});
 });
 
-test("provider-side Portal drift blocks the action even when stored proof is green", async () => {
+test("provider-side Portal drift blocks quantity changes even when stored proof is green", async () => {
   let invoked = 0;
   const gate = createDispatchSubscriptionPortalRuntimeGate(
       fakeAdmin(verifiedPortal()),
@@ -206,13 +229,25 @@ test("provider-side Portal drift blocks the action even when stored proof is gre
         stripeRequest: async () => liveProviderPortal({
           features: {
             payment_method_update: {enabled: true},
+            customer_update: {
+              enabled: true,
+              allowed_updates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
+            },
             invoice_history: {enabled: true},
             subscription_cancel: {
               enabled: true,
               mode: "at_period_end",
               proration_behavior: "none",
             },
-            subscription_update: {enabled: true},
+            subscription_update: {
+              enabled: true,
+              default_allowed_updates: ["price", "quantity"],
+              proration_behavior: "none",
+              products: [{
+                product: DISPATCH_PORTAL_PRODUCT_ID,
+                prices: [...DISPATCH_PORTAL_PRICE_IDS],
+              }],
+            },
           },
         }),
       },
