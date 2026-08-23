@@ -284,7 +284,7 @@ exports.submitMarketplaceDisputeEvidence = onCall(
 );
 exports.acceptMarketplaceDispute = onCall(
     stripeCallableOptions,
-    stripeDisputeResponse.acceptMarketplaceDisputeEvidence,
+    stripeDisputeResponse.acceptMarketplaceDispute,
 );
 
 exports.stripeMarketplaceWebhook = onRequest(
