@@ -15,6 +15,13 @@ const {
 } = require("./dispatch_subscription_portal_runtime_gate");
 const {taxBillingPrepared} = require("./pending_tax_policy");
 const {
+  canadaSmallSupplierReadinessDecision,
+} = require("./canada_small_supplier_readiness_guard");
+const {
+  ASSESSMENT_COLLECTION,
+  CURRENT_ASSESSMENT_ID,
+} = require("./canada_small_supplier_runtime_gate");
+const {
   dispatchSubscriptionPublicStatus,
 } = require("./dispatch_subscription_status_policy");
 
@@ -44,14 +51,28 @@ function dispatchSubscriptionCatalog(config = stripeMarketplaceConfig) {
   });
 }
 
-function dispatchSubscriptionPublicBillingReady(readiness = {}, portal = {}) {
+function dispatchSubscriptionPublicTaxReady(readiness = {}, assessment = null) {
+  if (readiness.canadaGstHstSmallSupplier === true) {
+    return canadaSmallSupplierReadinessDecision(
+        readiness,
+        assessment,
+    ).authorized === true;
+  }
+  return taxBillingPrepared(readiness);
+}
+
+function dispatchSubscriptionPublicBillingReady(
+    readiness = {},
+    portal = {},
+    assessment = null,
+) {
   return readiness.stripeSubscriptionsEnabled === true &&
     readiness.stripeMode === "production" &&
     readiness.stripeWebhookVerified === true &&
     readiness.stripeSubscriptionLifecycleWebhookVerified === true &&
     readiness.stripeSubscriptionRecoveryVerified === true &&
     readiness.stripeReconciliationReady === true &&
-    taxBillingPrepared(readiness) &&
+    dispatchSubscriptionPublicTaxReady(readiness, assessment) &&
     dispatchBillingPortalRuntimeDecision(portal).ready === true;
 }
 
@@ -65,19 +86,26 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
     try {
       const uid = authUid(request);
       await rateLimit({db, admin, request, scope: "account"});
-      const [subscriptionSnapshot, portalSnapshot, readinessSnapshot] =
-        await Promise.all([
-          db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid).get(),
-          db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC).get(),
-          db.collection(CONFIG_COLLECTION).doc(PAYMENT_READINESS_DOC).get(),
-        ]);
+      const [
+        subscriptionSnapshot,
+        portalSnapshot,
+        readinessSnapshot,
+        assessmentSnapshot,
+      ] = await Promise.all([
+        db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid).get(),
+        db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC).get(),
+        db.collection(CONFIG_COLLECTION).doc(PAYMENT_READINESS_DOC).get(),
+        db.collection(ASSESSMENT_COLLECTION).doc(CURRENT_ASSESSMENT_ID).get(),
+      ]);
       const state = subscriptionSnapshot.exists ? subscriptionSnapshot.data() : {};
       const portalConfig = portalSnapshot.exists ? portalSnapshot.data() : {};
       const readiness = readinessSnapshot.exists ? readinessSnapshot.data() : {};
+      const assessment = assessmentSnapshot.exists ? assessmentSnapshot.data() : null;
       const publicState = dispatchSubscriptionPublicStatus(state);
       const billingAvailable = dispatchSubscriptionPublicBillingReady(
           readiness,
           portalConfig,
+          assessment,
       );
       return {
         ...publicState,
@@ -110,4 +138,5 @@ module.exports = {
   createDispatchSubscriptionStatusCommands,
   dispatchSubscriptionCatalog,
   dispatchSubscriptionPublicBillingReady,
+  dispatchSubscriptionPublicTaxReady,
 };
