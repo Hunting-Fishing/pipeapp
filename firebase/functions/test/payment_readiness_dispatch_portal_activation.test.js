@@ -5,6 +5,9 @@ const assert = require("node:assert/strict");
 const {
   createPaymentReadinessAdmin,
 } = require("../payment_readiness_admin");
+const {
+  DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+} = require("../dispatch_billing_portal_policy");
 
 const FieldValue = {serverTimestamp: () => "server-time"};
 
@@ -85,25 +88,61 @@ function currentReadiness() {
   };
 }
 
-test("Dispatch activation is blocked without an enabled reviewed Billing Portal", async () => {
+function verifiedPortal(overrides = {}) {
+  return {
+    enabled: true,
+    returnUrl: "https://pipebuyer.com/account/memberships",
+    stripePortalConfigurationId: "bpc_dispatchlive",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_dispatchlive",
+    providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    ...overrides,
+  };
+}
+
+test("Dispatch activation is blocked without an enabled provider-verified Billing Portal", async () => {
   const {firestore} = fakeAdmin({
     "platform_configuration/payment_provider_readiness": currentReadiness(),
   });
   const commands = createPaymentReadinessAdmin({firestore});
   await assert.rejects(
       () => commands.setPaymentProviderReadiness(request()),
-      /require an enabled, reviewed Stripe Billing Portal configuration/i,
+      /require an enabled, provider-verified Stripe Billing Portal configuration/i,
   );
 });
 
-test("Dispatch activation accepts a reviewed Billing Portal prerequisite", async () => {
+test("bpc-shaped identity without provider proof cannot authorize Dispatch activation", async () => {
+  const {firestore} = fakeAdmin({
+    "platform_configuration/payment_provider_readiness": currentReadiness(),
+    "platform_configuration/dispatch_billing_portal": verifiedPortal({
+      providerVerified: false,
+    }),
+  });
+  const commands = createPaymentReadinessAdmin({firestore});
+  await assert.rejects(
+      () => commands.setPaymentProviderReadiness(request()),
+      /provider-verified Stripe Billing Portal configuration/i,
+  );
+});
+
+test("provider proof must be bound to the exact current bpc identity", async () => {
+  const {firestore} = fakeAdmin({
+    "platform_configuration/payment_provider_readiness": currentReadiness(),
+    "platform_configuration/dispatch_billing_portal": verifiedPortal({
+      providerVerifiedConfigurationId: "bpc_otherlive",
+    }),
+  });
+  const commands = createPaymentReadinessAdmin({firestore});
+  await assert.rejects(
+      () => commands.setPaymentProviderReadiness(request()),
+      /provider-verified Stripe Billing Portal configuration/i,
+  );
+});
+
+test("Dispatch activation accepts the exact provider-verified Billing Portal prerequisite", async () => {
   const {firestore, db} = fakeAdmin({
     "platform_configuration/payment_provider_readiness": currentReadiness(),
-    "platform_configuration/dispatch_billing_portal": {
-      enabled: true,
-      returnUrl: "https://pipebuyer.com/account/memberships",
-      stripePortalConfigurationId: "bpc_dispatchlive",
-    },
+    "platform_configuration/dispatch_billing_portal": verifiedPortal(),
   });
   const commands = createPaymentReadinessAdmin({firestore});
   const result = await commands.setPaymentProviderReadiness(request());
