@@ -10,7 +10,7 @@ void main() {
         'lib/marketplace/marketplace_dispatch_subscription_readiness_view.dart',
       ).readAsStringSync();
 
-  test('Dispatch launch readiness uses only audited server controls', () {
+  test('Dispatch launch readiness uses one audited server snapshot', () {
     final controller = controllerSource();
     final view = viewSource();
     final page = File(
@@ -19,9 +19,10 @@ void main() {
     final combined = '$controller\n$view';
 
     expect(page, contains('MarketplaceDispatchSubscriptionLaunchReadinessPanel'));
-    expect(controller, contains("'getPaymentProviderReadiness'"));
-    expect(controller, contains("'getDispatchBillingPortalReadiness'"));
-    expect(controller, contains("'getCanadaGstHstThresholdAssessment'"));
+    expect(controller, contains("'getDispatchSubscriptionLaunchReadiness'"));
+    expect(controller, isNot(contains("'getPaymentProviderReadiness'")));
+    expect(controller, isNot(contains("'getDispatchBillingPortalReadiness'")));
+    expect(controller, isNot(contains("'getCanadaGstHstThresholdAssessment'")));
     expect(controller, contains("'verifyDispatchSubscriptionLifecycleWebhook'"));
     expect(controller, contains("'setPaymentProviderReadiness'"));
     expect(controller, contains("'stripeSubscriptionRecoveryVerified'"));
@@ -34,27 +35,29 @@ void main() {
     expect(combined, isNot(contains('.delete(')));
   });
 
-  test('Dispatch readiness requires provider-bound Portal proof and gives one next action', () {
+  test('Dispatch readiness renders the centralized eight stored prerequisites', () {
     final view = viewSource();
 
-    expect(view, contains("portal['providerVerified'] == true"));
-    expect(view, contains('providerVerifiedConfigurationId'));
-    expect(view, contains('providerVerificationRevision'));
-    expect(view, contains('LinearProgressIndicator'));
+    expect(view, contains("snapshot['featureFlagsReady'] == true"));
+    expect(view, contains("snapshot['productionModeReady'] == true"));
+    expect(view, contains("snapshot['portalReady'] == true"));
+    expect(view, contains("snapshot['coreWebhookReady'] == true"));
+    expect(view, contains("snapshot['lifecycleWebhookReady'] == true"));
+    expect(view, contains("snapshot['recoveryReady'] == true"));
+    expect(view, contains("snapshot['reconciliationReady'] == true"));
+    expect(view, contains("snapshot['taxReady'] == true"));
+    expect(view, contains('prerequisiteCount'));
+    expect(view, contains('Dispatch feature availability'));
+    expect(view, contains('Stripe production mode'));
     expect(view, contains('Recommended next action'));
     expect(view, contains('BILLING OFF'));
-    expect(view, contains('prerequisiteStates.length'));
     expect(view, contains('dispatchSubscriptionNextAction'));
   });
 
-  test('GST HST readiness requires server-projected small-supplier evidence', () {
-    final controller = controllerSource();
+  test('GST HST readiness consumes server-projected small-supplier evidence', () {
     final view = viewSource();
 
-    expect(controller, contains('_taxEvidence'));
-    expect(controller, contains('getCanadaGstHstThresholdAssessment'));
-    expect(controller, contains('taxEvidence: _taxEvidence'));
-    expect(view, contains("taxEvidence['smallSupplierBillingEvidenceReady'] == true"));
+    expect(view, contains("snapshot['smallSupplierBillingEvidenceReady'] == true"));
     expect(view, contains('smallSupplierBillingEvidenceReason'));
     expect(view, contains('smallSupplierAssessmentRevision'));
     expect(view, contains('smallSupplierBoundRevision'));
@@ -71,6 +74,7 @@ void main() {
       contains("import 'marketplace_dispatch_subscription_readiness_view.dart';"),
     );
     expect(controller, contains('MarketplaceDispatchSubscriptionReadinessView'));
+    expect(controller, contains('snapshot: _snapshot'));
     expect(controller, isNot(contains('LinearProgressIndicator')));
     expect(controller, isNot(contains('class _GateRow')));
     expect(controller, isNot(contains('class _StatusPill')));
