@@ -8,6 +8,8 @@ Dispatch Monthly and Yearly were represented by two separate LIVE Stripe Product
 
 The previous Billing Portal provider policy also required subscription updates to be disabled, so enabling customer plan switching would deliberately fail readiness.
 
+A deeper dependency was identified before enabling the Portal toggle: Stripe changes the Subscription **Price**, but the earlier Pipe Buyer lifecycle model read `metadata.dispatchPlan`. Stripe subscription metadata does not automatically change when a customer switches a Price in the Portal. Enabling switching without repairing that would allow a Yearly Stripe Price to coexist with a stale Monthly Pipe Buyer plan.
+
 ## Provider evidence before repair
 
 LIVE Pipe Buyer Stripe account: `acct_1U2QmKDkO07WMXyR`.
@@ -36,6 +38,8 @@ Canonical Dispatch catalog after repair:
 
 ## Application repair performed
 
+### Checkout and Customer identity
+
 `firebase/functions/stripe_marketplace_config.js`
 
 - Monthly and Yearly now intentionally share `prod_V2WkE5D16GhGaD`.
@@ -48,6 +52,42 @@ Canonical Dispatch catalog after repair:
 - First-time users still let Stripe create the first Customer.
 - A non-empty malformed stored Stripe Customer ID fails closed before provider creation.
 - Customer identity remains preserved across canceled/restartable subscription replacement.
+
+### Provider Price → Pipe Buyer plan synchronization
+
+`firebase/functions/dispatch_subscription_catalog_policy.js`
+
+Provider catalog revision: `2026-08-23-p2-v1-provider-price-plan`.
+
+- Canonical Monthly and Yearly plan names are derived from the exact reviewed live Stripe Price IDs.
+- A live Subscription is accepted only when it has exactly one Dispatch subscription item at quantity `1` on one of those two prices.
+- An unknown Price, conflicting Product, changed quantity, or multiple subscription items fails closed.
+- Invoice plan identity is derived from the Price actually billed on the Stripe invoice line, supporting both current `pricing.price_details` and compatible expanded Price shapes.
+
+`firebase/functions/dispatch_subscription_state.js`
+
+- `customer.subscription.updated` re-reads the current provider Subscription and derives `plan` from its current Price, not `metadata.dispatchPlan`.
+- `invoice.paid` and `invoice.payment_failed` likewise validate current provider catalog identity before changing entitlement/state.
+- Unapproved catalog drift removes entitlement and sets an explicit review-required state rather than silently accepting an unknown plan/quantity.
+- Checkout metadata remains useful as immutable Checkout-time audit context, but is no longer current plan authority.
+
+`firebase/functions/subscription_monetization.js`
+
+- Each paid invoice ledger derives its `plan` and `stripePriceId` from the Price actually billed on that invoice.
+- Affiliate commission accounting therefore follows invoice provider evidence, not stale Checkout metadata.
+- Invalid/missing Dispatch invoice Price evidence fails processing rather than creating an incorrect financial ledger.
+
+`firebase/functions/dispatch_subscription_reconciliation_policy.js`
+
+- Reconciliation compares stored plan/Price to the provider Invoice Price.
+- A stale metadata plan can no longer create a false mismatch after a legitimate Portal switch.
+- A wrong/unapproved provider Price can no longer reconcile BALANCED merely because metadata still says the expected plan.
+
+`firebase/functions/dispatch_subscription_reconciliation_commands.js`
+
+Reconciliation revision is now `2026-08-23-p2-v3-provider-price-plan` and records the provider plan, provider Price ID, and catalog-policy revision with the financial evidence.
+
+### Billing Portal policy
 
 `firebase/functions/dispatch_billing_portal_policy.js`
 
@@ -75,7 +115,7 @@ Stored provider proof is bound to those exact fields and identifiers. Runtime pr
 
 ## Tests updated
 
-Updated focused contracts cover:
+Focused contracts cover:
 
 - exact Portal provider policy;
 - no quantity switching;
@@ -85,9 +125,15 @@ Updated focused contracts cover:
 - replacement Checkout reuses existing Stripe Customer;
 - malformed Customer identity fails closed;
 - unified yearly Price is selected for Yearly Checkout;
-- provider verification and runtime drift checks;
+- provider Price changes update Pipe Buyer plan even when Stripe metadata remains stale;
+- unknown Price/quantity drift quarantines access;
+- invoice Price, not metadata plan, is financial plan authority;
+- reconciliation uses invoice Price evidence and records provider plan/Price;
+- provider verification and runtime Portal drift checks;
 - payment-readiness activation requires current exact provider proof;
 - production-readiness workflow contract.
+
+GitHub-hosted Actions remains a separate known runner/startup blocker. Do not alter billing logic merely to chase an Actions job that never starts. Full exact-commit local/repository acceptance remains required before merge/deploy.
 
 ## Remaining provider step
 
@@ -101,10 +147,14 @@ Required Dashboard state:
 - eligible Prices: Monthly `price_1U2SYGDkO07WMXyRm6xbprUn` and Yearly `price_1U7bTCDkO07WMXyRvLkWVHHu` only
 - plan-change proration: **none**
 
-After that Dashboard save, run `verifyDispatchBillingPortalConfiguration` against LIVE config `bpc_1U7aEmDkO07WMXyRjjSqn4SF`. The new provider revision must be recorded before Dispatch subscription Checkout can become financially ready.
+Current live config ID: `bpc_1U7aEmDkO07WMXyRjjSqn4SF`.
+
+After that Dashboard save, the v2 code must re-read and verify the exact LIVE configuration. The new provider revision must be recorded before Dispatch subscription Checkout can become financially ready.
 
 ## Do not repeat
 
 Do not create another yearly Dispatch Product. New Dispatch billing intervals belong under canonical Product `prod_V2WkE5D16GhGaD` unless a future reviewed migration explicitly changes the catalog.
 
 Do not remove Stripe Customer reuse from replacement Checkout. One Pipe Buyer user should retain one billing Customer identity unless an audited customer-identity repair explicitly replaces it.
+
+Do not use `metadata.dispatchPlan` as current subscription-plan authority. Current subscription state follows the live Subscription Price; invoice financial records follow the Price actually billed on that invoice.
