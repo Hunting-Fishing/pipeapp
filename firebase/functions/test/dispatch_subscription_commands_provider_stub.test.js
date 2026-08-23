@@ -120,6 +120,7 @@ test("first Dispatch Checkout uses stable attempt idempotency and persists singl
   assert.equal(state.checkoutAttempt, 1);
   assert.equal(state.stripeCheckoutSessionId, "cs_dispatch_first");
   assert.equal(state.stripeSubscriptionId, null);
+  assert.deepEqual(state.retiredStripeSubscriptionIds, []);
   const session = db.docs.get("subscription_checkout_sessions/cs_dispatch_first");
   assert.equal(session.checkoutAttempt, 1);
   assert.equal(session.plan, "monthly");
@@ -223,7 +224,7 @@ test("provider response cannot overwrite subscription created by faster webhook"
   assert.equal(state.stripeSubscriptionId, "sub_dispatch_race");
 });
 
-test("canceled subscription can start a clean replacement Checkout without stale subscription id", async () => {
+test("canceled subscription is retired before a clean replacement Checkout starts", async () => {
   const {commands, db} = fixture({
     state: {
       uid: "user-1",
@@ -233,6 +234,7 @@ test("canceled subscription can start a clean replacement Checkout without stale
       checkoutAttempt: 1,
       stripeSubscriptionId: "sub_dispatch_retired",
       stripeCustomerId: "cus_dispatch_existing",
+      retiredStripeSubscriptionIds: ["sub_dispatch_older"],
     },
     stripeRequest: async (call) => {
       assert.equal(call.idempotencyKey, "pipebuyer-dispatch-user-1-attempt-2");
@@ -249,6 +251,12 @@ test("canceled subscription can start a clean replacement Checkout without stale
   assert.equal(state.plan, "yearly");
   assert.equal(state.stripeSubscriptionId, null);
   assert.equal(state.stripeCustomerId, "cus_dispatch_existing");
+  assert.deepEqual(state.retiredStripeSubscriptionIds, [
+    "sub_dispatch_older",
+    "sub_dispatch_retired",
+  ]);
+  assert.equal(state.entitlementActive, false);
+  assert.equal(state.reviewRequired, false);
 });
 
 test("Dispatch Checkout URL is restricted to checkout.stripe.com", async () => {
