@@ -23,6 +23,16 @@ on:
           - disabled
           - observe
           - enforce
+      enable_dispatch:
+        description: Compile Dispatch into this exact release artifact
+        required: true
+        default: false
+        type: boolean
+      enable_paid_features:
+        description: Compile paid features into this exact release artifact
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -41,6 +51,8 @@ jobs:
     env:
       PIPE_ENV: ${{ inputs.environment }}
       PIPE_RELEASE_SHA: ${{ inputs.commit_sha }}
+      PIPE_ENABLE_DISPATCH: ${{ inputs.enable_dispatch && 'true' || 'false' }}
+      PIPE_ENABLE_PAID_FEATURES: ${{ inputs.enable_paid_features && 'true' || 'false' }}
       PIPE_FIREBASE_API_KEY: ${{ vars.PIPE_FIREBASE_API_KEY }}
       PIPE_FIREBASE_AUTH_DOMAIN: ${{ vars.PIPE_FIREBASE_AUTH_DOMAIN }}
       PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
@@ -85,6 +97,19 @@ jobs:
               exit 1
             fi
           done
+          for flag in PIPE_ENABLE_DISPATCH PIPE_ENABLE_PAID_FEATURES; do
+            case "${!flag}" in
+              true|false) ;;
+              *)
+                echo "::error::$flag must be exactly true or false."
+                exit 1
+                ;;
+            esac
+          done
+          if [[ "$PIPE_ENABLE_PAID_FEATURES" == "true" && "$PIPE_ENABLE_DISPATCH" != "true" ]]; then
+            echo "::error::The P2 paid Dispatch artifact requires enable_dispatch=true whenever enable_paid_features=true."
+            exit 1
+          fi
           if [[ "$PIPE_DEPLOY_ENVIRONMENT_GUARD" != "$PIPE_ENV" ]]; then
             echo "::error::The protected deployment environment guard does not match $PIPE_ENV."
             exit 1
@@ -222,6 +247,8 @@ jobs:
             --release \
             --dart-define=PIPE_ENV="$PIPE_ENV" \
             --dart-define=PIPE_RELEASE_SHA="$PIPE_RELEASE_SHA" \
+            --dart-define=PIPE_ENABLE_DISPATCH="$PIPE_ENABLE_DISPATCH" \
+            --dart-define=PIPE_ENABLE_PAID_FEATURES="$PIPE_ENABLE_PAID_FEATURES" \
             --dart-define=PIPE_FIREBASE_API_KEY="$PIPE_FIREBASE_API_KEY" \
             --dart-define=PIPE_FIREBASE_AUTH_DOMAIN="$PIPE_FIREBASE_AUTH_DOMAIN" \
             --dart-define=PIPE_FIREBASE_PROJECT_ID="$PIPE_FIREBASE_PROJECT_ID" \
@@ -255,6 +282,8 @@ jobs:
             --release-sha "$PIPE_RELEASE_SHA" \
             --firebase-project "$PIPE_FIREBASE_PROJECT_ID" \
             --app-check-mode "$PIPE_APP_CHECK_MODE" \
+            --dispatch-build-enabled "$PIPE_ENABLE_DISPATCH" \
+            --paid-features-build-enabled "$PIPE_ENABLE_PAID_FEATURES" \
             --output build/release-manifest.json \
             --require-web
           {
@@ -333,6 +362,8 @@ jobs:
             echo "- Commit: \`$PIPE_RELEASE_SHA\`"
             echo "- Firebase project: \`$PIPE_FIREBASE_PROJECT_ID\`"
             echo "- App Check mode: \`$PIPE_APP_CHECK_MODE\`"
+            echo "- Dispatch build approval: \`$PIPE_ENABLE_DISPATCH\`"
+            echo "- Paid features build approval: \`$PIPE_ENABLE_PAID_FEATURES\`"
             echo "- Workflow run: \`${{ github.run_id }}\`"
             echo "- Result: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
