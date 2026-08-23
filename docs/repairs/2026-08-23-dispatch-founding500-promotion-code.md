@@ -51,7 +51,8 @@ The server-owned promotion program has:
 - one claim document per Pipe Buyer UID
 - a prior/current/retired Dispatch subscription blocks another Founding grant
 - an expired/abandoned first Checkout can reuse the same user's already-counted claim rather than consuming another slot
-- a provider-creation failure releases a newly incremented slot when the same reservation is still safe to release
+- a provider-creation failure can release a newly incremented slot only before Stripe returns a real Checkout Session
+- once Stripe returns a `cs_...` Session ID, the reservation is retained even if later Firestore persistence fails, preventing the provider Session from existing while the 500-slot count is decremented underneath it
 
 This is a cap on Pipe Buyer account claims. It is not a claim that one human can never create multiple platform accounts; broader account-abuse controls remain a separate anti-fraud layer.
 
@@ -70,10 +71,41 @@ Stripe documents `subscription_data.trial_end` as the timestamp before the first
 
 The Dispatch subscription panel contains one optional **Pipe Buyer promo code** field before the Monthly/Yearly plan cards. The code is normalized before the authenticated callable request. Eligibility and trial duration remain server-authoritative.
 
+## LIVE Billing Portal trial-safety verification
+
+After the Dashboard changes were saved, LIVE Stripe configuration `bpc_1U7aEmDkO07WMXyRjjSqn4SF` was re-read on 2026-08-23.
+
+Provider-visible values now confirm:
+
+- configuration active: `true`
+- live mode: `true`
+- payment method updates: ON
+- customer updates: ON for Name, Email, Billing address, Phone, Tax ID
+- invoice history: ON
+- cancellation: ON at period end
+- cancellation proration: `none`
+- subscription update: ON
+- allowed subscription update field: `price` only
+- plan-change proration: `none`
+- trial update behavior: `continue_trial`
+- schedule-at-period-end conditions: empty
+- return URL: `https://pipebuyer.com/`
+
+This resolves the prior unsafe provider values `create_prorations` and `end_trial`.
+
+The connected Stripe read does not expose the selected subscription-update Product/Price list in its returned configuration payload. Therefore the exact Product/Price sub-gate is **not marked complete from this connector read alone**. The deployed Pipe Buyer provider verifier must still prove exactly one eligible Product (`prod_V2WkE5D16GhGaD`) with exactly the approved Monthly and Yearly Prices before stored Portal readiness is enabled.
+
+Billing Portal provider policy revision for this trial-safe behavior is:
+
+`2026-08-23-p2-v3-dispatch-trial-safe-switching`
+
 ## Regression coverage
 
 - `firebase/functions/test/dispatch_founding500_policy.test.js`
 - `firebase/functions/test/dispatch_subscription_promotion_code_policy.test.js`
+- `firebase/functions/test/dispatch_billing_portal_policy.test.js`
+- `firebase/functions/test/dispatch_billing_portal_verification_commands.test.js`
+- `firebase/functions/test/dispatch_subscription_portal_runtime_gate.test.js`
 - `test/marketplace_dispatch_subscription_client_test.dart`
 
 Full intentional manual Financial Safety / Callable Safety / Quality acceptance remains required before P2 deploy/activation.
@@ -82,7 +114,7 @@ Full intentional manual Financial Safety / Callable Safety / Quality acceptance 
 
 Public Dispatch subscription activation remains OFF. The live retired Stripe coupon had zero redemptions and created no Checkout Session, subscription, invoice, or charge.
 
-The Customer Portal must separately be saved and provider-verified with plan-change proration `none` before the Portal readiness gate can pass.
+The LIVE Portal behavioral controls are now saved and provider-visible. Stored Pipe Buyer Portal readiness still requires the accepted/deployed v3 verifier to prove the exact Product/Price catalog and persist its provider-bound evidence.
 
 ## Do not repeat
 
@@ -90,4 +122,6 @@ The Customer Portal must separately be saved and provider-verified with plan-cha
 - Do not reactivate `promo_1U7d2oDkO07WMXyRDdMQJAzN`.
 - Do not grant Founding 500 from client state or browser return.
 - Do not allow Founding 500 to stack with another Pipe Buyer entitlement/discount.
+- Do not release a Founding slot after Stripe has returned a real Checkout Session ID.
+- Do not mark the Portal Product/Price catalog provider-verified solely from a connector response that omits that field.
 - If the offer changes later, create a new versioned server policy and preserve this provider/code history for audit.
