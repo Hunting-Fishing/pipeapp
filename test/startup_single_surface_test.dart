@@ -34,7 +34,7 @@ void main() {
       source,
       isNot(contains('runApp(PipeStartupMonitorApp(monitor: startupMonitor));\n  AppDiagnostics.run')),
     );
-    expect(source, isNot(contains('Duration(milliseconds: 3000)'));
+    expect(source, isNot(contains('Duration(milliseconds: 3000)')));
     expect(source, contains('_appStateNotifier.stopShowingSplashImage();'));
   });
 }
