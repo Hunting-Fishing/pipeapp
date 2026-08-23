@@ -160,6 +160,7 @@ jobs:
             'ensureStripeSellerAccount',
             'createMarketplaceCheckout',
             'createDispatchSubscriptionCheckout',
+            'verifyDispatchSubscriptionLifecycleWebhook',
             'executeMarketplaceRefund',
             'stageMarketplaceDisputeEvidence',
             'processEligibleAffiliatePayouts',
