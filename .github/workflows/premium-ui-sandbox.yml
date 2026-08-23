@@ -1,13 +1,12 @@
-name: Premium UI Sandbox
+name: Premium UI Sandbox - Manual
 
 on:
-  push:
-    branches:
-      - pipebuyer-premium-ui
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      reason:
+        description: Why this UI verification run is needed
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -16,7 +15,7 @@ jobs:
   flutter-ui-check:
     name: Flutter UI validation
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -39,3 +38,7 @@ jobs:
 
       - name: Compile web sandbox
         run: flutter build web --release --dart-define=PIPE_ENV=local --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
+
+      - name: Record manual UI gate
+        run: |
+          echo "Premium UI Sandbox runs only by explicit workflow dispatch." >> "$GITHUB_STEP_SUMMARY"
