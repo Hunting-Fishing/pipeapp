@@ -9,6 +9,38 @@
   "risk_policy": ".autobuild/risk_policy.json",
   "independent_review_required": true,
   "preflight_verify_required": true,
+  "graduation": {
+    "required": true,
+    "evidence_path": ".agent-run/graduation.json",
+    "max_age_hours": 168,
+    "control_paths": [
+      ".autobuild/project.json",
+      ".autobuild/risk_policy.json",
+      ".autobuild/feature_contract.json",
+      "AGENTS.md",
+      "automation/agent/project.schema.json",
+      "automation/agent/result.schema.json",
+      "automation/agent/review.schema.json",
+      "automation/agent/task_prompt.md",
+      "automation/agent/review_prompt.md",
+      "tool/autonomous_build.ps1",
+      "tool/autonomous_build_v2.ps1",
+      "tool/autonomous_process.ps1",
+      "tool/autonomous_project.ps1",
+      "tool/autonomous_fingerprint.ps1",
+      "tool/autonomous_graduation.ps1",
+      "tool/autonomous_guard.ps1",
+      "tool/autonomous_builder_self_test.ps1",
+      "tool/autonomous_guard_test.ps1",
+      "tool/autonomous_recovery.ps1",
+      "tool/autonomous_recovery_test.ps1",
+      "tool/autonomous_runtime_fault_test.ps1",
+      "tool/autonomous_reviewer_fault_test.ps1",
+      "tool/autonomous_compatibility.mjs",
+      "tool/autonomous_compatibility_test.mjs",
+      "tool/verify.ps1"
+    ]
+  },
   "knowledge": {
     "always": [
       "docs/PROJECT_KNOWLEDGE_INDEX.md",
