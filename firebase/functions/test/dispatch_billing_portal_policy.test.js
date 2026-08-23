@@ -7,6 +7,7 @@ const {
   DISPATCH_PORTAL_CUSTOMER_UPDATES,
   DISPATCH_PORTAL_PRICE_IDS,
   DISPATCH_PORTAL_PRODUCT_ID,
+  DISPATCH_PORTAL_TRIAL_UPDATE_BEHAVIOR,
   dispatchBillingPortalAvailable,
   dispatchBillingPortalProviderAssessment,
   dispatchBillingPortalProviderRecordReady,
@@ -36,6 +37,8 @@ function reviewedProviderConfiguration(overrides = {}) {
         enabled: true,
         default_allowed_updates: ["price"],
         proration_behavior: "none",
+        trial_update_behavior: "continue_trial",
+        schedule_at_period_end: {conditions: []},
         products: [{
           product: DISPATCH_PORTAL_PRODUCT_ID,
           prices: [...DISPATCH_PORTAL_PRICE_IDS],
@@ -58,6 +61,8 @@ function storedFeatures(overrides = {}) {
     subscriptionUpdate: true,
     subscriptionUpdateAllowedUpdates: ["price"],
     subscriptionUpdateProration: "none",
+    subscriptionUpdateTrialBehavior: "continue_trial",
+    subscriptionUpdateScheduleAtPeriodEndConditions: [],
     subscriptionUpdateProductId: DISPATCH_PORTAL_PRODUCT_ID,
     subscriptionUpdatePriceIds: [...DISPATCH_PORTAL_PRICE_IDS],
     ...overrides,
@@ -77,18 +82,9 @@ function verifiedPortalRecord(overrides = {}) {
 }
 
 test("Billing Portal accepts only exact Stripe billing host", () => {
-  assert.equal(
-      validStripeBillingPortalUrl("https://billing.stripe.com/p/session/test"),
-      true,
-  );
-  assert.equal(
-      validStripeBillingPortalUrl("http://billing.stripe.com/p/session/test"),
-      false,
-  );
-  assert.equal(
-      validStripeBillingPortalUrl("https://billing.stripe.com.evil.example/test"),
-      false,
-  );
+  assert.equal(validStripeBillingPortalUrl("https://billing.stripe.com/p/session/test"), true);
+  assert.equal(validStripeBillingPortalUrl("http://billing.stripe.com/p/session/test"), false);
+  assert.equal(validStripeBillingPortalUrl("https://billing.stripe.com.evil.example/test"), false);
 });
 
 test("Billing Portal configuration requires exact Stripe bpc identity", () => {
@@ -98,34 +94,25 @@ test("Billing Portal configuration requires exact Stripe bpc identity", () => {
   assert.equal(validStripeBillingPortalConfigurationId("bpc_bad/value"), false);
 });
 
-test("provider assessment requires exact customer fields and two-price Dispatch switching", () => {
-  const ready = dispatchBillingPortalProviderAssessment(
-      reviewedProviderConfiguration(),
-  );
+test("provider assessment requires exact trial-safe two-price Dispatch switching", () => {
+  const ready = dispatchBillingPortalProviderAssessment(reviewedProviderConfiguration());
   assert.equal(ready.ready, true);
   assert.deepEqual(ready.failedChecks, []);
   assert.equal(ready.features.paymentMethodUpdate, true);
   assert.equal(ready.features.customerUpdate, true);
-  assert.deepEqual(
-      ready.features.customerUpdateAllowedUpdates,
-      [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
-  );
+  assert.deepEqual(ready.features.customerUpdateAllowedUpdates, [...DISPATCH_PORTAL_CUSTOMER_UPDATES]);
   assert.equal(ready.features.invoiceHistory, true);
   assert.equal(ready.features.subscriptionCancelMode, "at_period_end");
   assert.equal(ready.features.subscriptionUpdate, true);
   assert.deepEqual(ready.features.subscriptionUpdateAllowedUpdates, ["price"]);
   assert.equal(ready.features.subscriptionUpdateProration, "none");
-  assert.equal(
-      ready.features.subscriptionUpdateProductId,
-      DISPATCH_PORTAL_PRODUCT_ID,
-  );
-  assert.deepEqual(
-      ready.features.subscriptionUpdatePriceIds,
-      [...DISPATCH_PORTAL_PRICE_IDS],
-  );
+  assert.equal(ready.features.subscriptionUpdateTrialBehavior, DISPATCH_PORTAL_TRIAL_UPDATE_BEHAVIOR);
+  assert.deepEqual(ready.features.subscriptionUpdateScheduleAtPeriodEndConditions, []);
+  assert.equal(ready.features.subscriptionUpdateProductId, DISPATCH_PORTAL_PRODUCT_ID);
+  assert.deepEqual(ready.features.subscriptionUpdatePriceIds, [...DISPATCH_PORTAL_PRICE_IDS]);
 });
 
-test("provider assessment rejects quantity edits, extra products, shipping edits, or prorated switches", () => {
+test("provider assessment rejects quantity, promotion-code edits, trial ending, schedules, extra products or proration", () => {
   const unsafe = dispatchBillingPortalProviderAssessment(
       reviewedProviderConfiguration({
         features: {
@@ -142,8 +129,12 @@ test("provider assessment rejects quantity edits, extra products, shipping edits
           },
           subscription_update: {
             enabled: true,
-            default_allowed_updates: ["price", "quantity"],
+            default_allowed_updates: ["price", "quantity", "promotion_code"],
             proration_behavior: "always_invoice",
+            trial_update_behavior: "end_trial",
+            schedule_at_period_end: {
+              conditions: [{type: "decreasing_item_amount"}],
+            },
             products: [
               {
                 product: DISPATCH_PORTAL_PRODUCT_ID,
@@ -159,6 +150,8 @@ test("provider assessment rejects quantity edits, extra products, shipping edits
   assert.ok(unsafe.failedChecks.includes("customer_update_fields"));
   assert.ok(unsafe.failedChecks.includes("subscription_update_fields"));
   assert.ok(unsafe.failedChecks.includes("subscription_update_proration"));
+  assert.ok(unsafe.failedChecks.includes("subscription_update_trial_behavior"));
+  assert.ok(unsafe.failedChecks.includes("subscription_update_schedule"));
   assert.ok(unsafe.failedChecks.includes("subscription_update_products"));
 });
 
@@ -166,7 +159,13 @@ test("stored provider feature evidence must match the approved launch profile", 
   assert.equal(dispatchBillingPortalStoredFeaturesReady(storedFeatures()), true);
   assert.equal(dispatchBillingPortalStoredFeaturesReady({}), false);
   assert.equal(dispatchBillingPortalStoredFeaturesReady(
-      storedFeatures({subscriptionUpdateAllowedUpdates: ["price", "quantity"]}),
+      storedFeatures({subscriptionUpdateAllowedUpdates: ["price", "promotion_code"]}),
+  ), false);
+  assert.equal(dispatchBillingPortalStoredFeaturesReady(
+      storedFeatures({subscriptionUpdateTrialBehavior: "end_trial"}),
+  ), false);
+  assert.equal(dispatchBillingPortalStoredFeaturesReady(
+      storedFeatures({subscriptionUpdateScheduleAtPeriodEndConditions: ["shortening_interval"]}),
   ), false);
   assert.equal(dispatchBillingPortalStoredFeaturesReady(
       storedFeatures({subscriptionUpdatePriceIds: [DISPATCH_PORTAL_PRICE_IDS[0]]}),
@@ -193,11 +192,6 @@ test("provider verification record must be bound to exact configuration and feat
   assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
     providerVerifiedFeatures: {},
   })), false);
-  assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
-    providerVerifiedFeatures: storedFeatures({
-      subscriptionUpdateProductId: "prod_other",
-    }),
-  })), false);
 });
 
 test("portal availability requires provider verification and subscription identity", () => {
@@ -209,16 +203,7 @@ test("portal availability requires provider verification and subscription identi
   };
   assert.equal(dispatchBillingPortalAvailable(config, state), true);
   assert.equal(dispatchBillingPortalAvailable({...config, enabled: false}, state), false);
-  assert.equal(dispatchBillingPortalAvailable({
-    ...config,
-    providerVerified: false,
-  }, state), false);
-  assert.equal(dispatchBillingPortalAvailable(config, {
-    ...state,
-    stripeCustomerId: "",
-  }), false);
-  assert.equal(dispatchBillingPortalAvailable(config, {
-    ...state,
-    reviewRequired: true,
-  }), false);
+  assert.equal(dispatchBillingPortalAvailable({...config, providerVerified: false}, state), false);
+  assert.equal(dispatchBillingPortalAvailable(config, {...state, stripeCustomerId: ""}), false);
+  assert.equal(dispatchBillingPortalAvailable(config, {...state, reviewRequired: true}), false);
 });

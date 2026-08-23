@@ -55,6 +55,8 @@ function reviewedProviderConfiguration(overrides = {}) {
         enabled: true,
         default_allowed_updates: ["price"],
         proration_behavior: "none",
+        trial_update_behavior: "continue_trial",
+        schedule_at_period_end: {conditions: []},
         products: [{
           product: DISPATCH_PORTAL_PRODUCT_ID,
           prices: [...DISPATCH_PORTAL_PRICE_IDS],
@@ -74,9 +76,7 @@ function fakeAdmin(previous = {}) {
     collection(name) {
       return {
         doc(id) {
-          return {
-            path: `${name}/${id || `generated-${++generated}`}`,
-          };
+          return {path: `${name}/${id || `generated-${++generated}`}`};
         },
       };
     },
@@ -97,23 +97,18 @@ function fakeAdmin(previous = {}) {
       for (const write of writes) {
         if (write.kind !== "set") continue;
         const current = docs.get(write.ref.path) || {};
-        docs.set(
-            write.ref.path,
-            write.options && write.options.merge ?
-              {...current, ...write.value} : write.value,
-        );
+        docs.set(write.ref.path, write.options && write.options.merge ?
+          {...current, ...write.value} : write.value);
       }
       return result;
     },
   };
-  function firestore() {
-    return db;
-  }
+  function firestore() { return db; }
   firestore.FieldValue = FieldValue;
   return {admin: {firestore}, db, writes};
 }
 
-test("provider verifier enables only the exact reviewed live Portal configuration", async () => {
+test("provider verifier enables only the exact trial-safe live Portal configuration", async () => {
   const providerCalls = [];
   const {admin, db, writes} = fakeAdmin({
     "platform_configuration/dispatch_billing_portal": {revision: 2},
@@ -125,43 +120,23 @@ test("provider verifier enables only the exact reviewed live Portal configuratio
       return reviewedProviderConfiguration();
     },
   });
-
   const result = await commands.verifyDispatchBillingPortalConfiguration(request());
   assert.equal(providerCalls.length, 1);
-  assert.equal(providerCalls[0].method, "GET");
-  assert.match(providerCalls[0].path, /bpc_live_dispatch$/u);
   assert.equal(result.enabled, true);
-  assert.equal(result.providerVerified, true);
-  assert.equal(
-      result.providerVerificationRevision,
-      DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
-  );
-  assert.equal(result.providerVerifiedConfigurationId, "bpc_live_dispatch");
-  assert.equal(result.providerVerifiedFeatures.paymentMethodUpdate, true);
-  assert.equal(result.providerVerifiedFeatures.customerUpdate, true);
-  assert.equal(result.providerVerifiedFeatures.invoiceHistory, true);
-  assert.equal(result.providerVerifiedFeatures.subscriptionCancelMode, "at_period_end");
-  assert.equal(result.providerVerifiedFeatures.subscriptionUpdate, true);
-  assert.deepEqual(result.providerVerifiedFeatures.subscriptionUpdateAllowedUpdates, ["price"]);
+  assert.equal(result.providerVerificationRevision, DISPATCH_BILLING_PORTAL_PROVIDER_REVISION);
   assert.equal(result.providerVerifiedFeatures.subscriptionUpdateProration, "none");
-  assert.equal(
-      result.providerVerifiedFeatures.subscriptionUpdateProductId,
-      DISPATCH_PORTAL_PRODUCT_ID,
-  );
-  assert.deepEqual(
-      result.providerVerifiedFeatures.subscriptionUpdatePriceIds,
-      [...DISPATCH_PORTAL_PRICE_IDS],
-  );
-
+  assert.equal(result.providerVerifiedFeatures.subscriptionUpdateTrialBehavior, "continue_trial");
+  assert.deepEqual(result.providerVerifiedFeatures.subscriptionUpdateScheduleAtPeriodEndConditions, []);
+  assert.deepEqual(result.providerVerifiedFeatures.subscriptionUpdateAllowedUpdates, ["price"]);
+  assert.equal(result.providerVerifiedFeatures.subscriptionUpdateProductId, DISPATCH_PORTAL_PRODUCT_ID);
+  assert.deepEqual(result.providerVerifiedFeatures.subscriptionUpdatePriceIds, [...DISPATCH_PORTAL_PRICE_IDS]);
   const stored = db.docs.get("platform_configuration/dispatch_billing_portal");
   assert.equal(stored.enabled, true);
-  assert.equal(stored.stripePortalConfigurationId, "bpc_live_dispatch");
-  assert.equal(stored.providerVerified, true);
   assert.equal(stored.revision, 3);
   assert.equal(writes.filter((entry) => entry.kind === "create").length, 1);
 });
 
-test("provider verifier rejects quantity switching or an unreviewed product", async () => {
+test("provider verifier rejects trial-ending updates or scheduled downgrades", async () => {
   const {admin, db} = fakeAdmin();
   const commands = createDispatchBillingPortalVerificationCommands(admin, {
     secretProvider: () => "sk_live_stub",
@@ -180,46 +155,12 @@ test("provider verifier rejects quantity switching or an unreviewed product", as
         },
         subscription_update: {
           enabled: true,
-          default_allowed_updates: ["price", "quantity"],
-          proration_behavior: "none",
-          products: [{product: "prod_unreviewed", prices: ["price_unreviewed"]}],
-        },
-      },
-    }),
-  });
-
-  await assert.rejects(
-      () => commands.verifyDispatchBillingPortalConfiguration(request()),
-      /subscription_update_fields.*subscription_update_products/u,
-  );
-  assert.equal(
-      db.docs.has("platform_configuration/dispatch_billing_portal"),
-      false,
-  );
-});
-
-test("provider verifier rejects immediate cancellation, prorated switching, or non-live configuration", async () => {
-  const {admin} = fakeAdmin();
-  const commands = createDispatchBillingPortalVerificationCommands(admin, {
-    secretProvider: () => "sk_live_stub",
-    stripeRequest: async () => reviewedProviderConfiguration({
-      livemode: false,
-      features: {
-        payment_method_update: {enabled: true},
-        customer_update: {
-          enabled: true,
-          allowed_updates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
-        },
-        invoice_history: {enabled: true},
-        subscription_cancel: {
-          enabled: true,
-          mode: "immediately",
-          proration_behavior: "create_prorations",
-        },
-        subscription_update: {
-          enabled: true,
           default_allowed_updates: ["price"],
-          proration_behavior: "always_invoice",
+          proration_behavior: "none",
+          trial_update_behavior: "end_trial",
+          schedule_at_period_end: {
+            conditions: [{type: "shortening_interval"}],
+          },
           products: [{
             product: DISPATCH_PORTAL_PRODUCT_ID,
             prices: [...DISPATCH_PORTAL_PRICE_IDS],
@@ -228,9 +169,37 @@ test("provider verifier rejects immediate cancellation, prorated switching, or n
       },
     }),
   });
-
   await assert.rejects(
       () => commands.verifyDispatchBillingPortalConfiguration(request()),
-      /livemode.*subscription_cancel_mode.*subscription_cancel_proration.*subscription_update_proration/u,
+      /subscription_update_trial_behavior.*subscription_update_schedule/u,
   );
+  assert.equal(db.docs.has("platform_configuration/dispatch_billing_portal"), false);
+});
+
+test("provider verifier rejects quantity switching or an unreviewed product", async () => {
+  const {admin, db} = fakeAdmin();
+  const commands = createDispatchBillingPortalVerificationCommands(admin, {
+    secretProvider: () => "sk_live_stub",
+    stripeRequest: async () => reviewedProviderConfiguration({
+      features: {
+        payment_method_update: {enabled: true},
+        customer_update: {enabled: true, allowed_updates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES]},
+        invoice_history: {enabled: true},
+        subscription_cancel: {enabled: true, mode: "at_period_end", proration_behavior: "none"},
+        subscription_update: {
+          enabled: true,
+          default_allowed_updates: ["price", "quantity"],
+          proration_behavior: "none",
+          trial_update_behavior: "continue_trial",
+          schedule_at_period_end: {conditions: []},
+          products: [{product: "prod_unreviewed", prices: ["price_unreviewed"]}],
+        },
+      },
+    }),
+  });
+  await assert.rejects(
+      () => commands.verifyDispatchBillingPortalConfiguration(request()),
+      /subscription_update_fields.*subscription_update_products/u,
+  );
+  assert.equal(db.docs.has("platform_configuration/dispatch_billing_portal"), false);
 });

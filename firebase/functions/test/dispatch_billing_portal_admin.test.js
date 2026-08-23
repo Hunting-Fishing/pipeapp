@@ -59,9 +59,7 @@ function fakeAdmin(previous = {}) {
   function firestore() {
     return db;
   }
-  firestore.FieldValue = {
-    serverTimestamp: () => "SERVER_TIMESTAMP",
-  };
+  firestore.FieldValue = {serverTimestamp: () => "SERVER_TIMESTAMP"};
   return {admin: {firestore}, writes};
 }
 
@@ -77,12 +75,14 @@ function providerFeatures() {
     subscriptionUpdate: true,
     subscriptionUpdateAllowedUpdates: ["price"],
     subscriptionUpdateProration: "none",
+    subscriptionUpdateTrialBehavior: "continue_trial",
+    subscriptionUpdateScheduleAtPeriodEndConditions: [],
     subscriptionUpdateProductId: DISPATCH_PORTAL_PRODUCT_ID,
     subscriptionUpdatePriceIds: [...DISPATCH_PORTAL_PRICE_IDS],
   };
 }
 
-test("portal readiness normalization preserves current provider verification evidence", () => {
+test("portal readiness normalization preserves complete provider verification evidence", () => {
   const features = providerFeatures();
   assert.deepEqual(normalizePortalConfig({
     enabled: true,
@@ -158,9 +158,10 @@ test("emergency disable clears provider verification evidence", async () => {
   assert.equal(result.providerVerified, false);
   assert.equal(result.providerVerifiedConfigurationId, "");
   assert.equal(result.providerVerificationRevision, "");
+  assert.deepEqual(result.providerVerifiedFeatures.subscriptionUpdatePriceIds, []);
+  assert.equal(result.providerVerifiedFeatures.subscriptionUpdateTrialBehavior, "");
   const configWrite = writes.find(
-      (entry) => entry.operation === "set" &&
-        entry.ref.name === "platform_configuration",
+      (entry) => entry.operation === "set" && entry.ref.name === "platform_configuration",
   );
   assert.equal(configWrite.data.providerVerified, false);
   assert.equal(writes.filter((entry) => entry.operation === "create").length, 1);

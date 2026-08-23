@@ -3,7 +3,7 @@
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 
 const DISPATCH_BILLING_PORTAL_PROVIDER_REVISION =
-  "2026-08-23-p2-v2-dispatch-plan-switching";
+  "2026-08-23-p2-v3-dispatch-trial-safe-switching";
 const DISPATCH_PORTAL_PRODUCT_ID =
   stripeMarketplaceConfig.products.dispatchMonthlyCad.productId;
 const DISPATCH_PORTAL_PRICE_IDS = Object.freeze([
@@ -18,6 +18,7 @@ const DISPATCH_PORTAL_CUSTOMER_UPDATES = Object.freeze([
   "tax_id",
 ].sort());
 const DISPATCH_PORTAL_SUBSCRIPTION_UPDATES = Object.freeze(["price"]);
+const DISPATCH_PORTAL_TRIAL_UPDATE_BEHAVIOR = "continue_trial";
 
 function validStripeCustomerId(value) {
   return /^cus_[A-Za-z0-9]+$/u.test(String(value || "").trim());
@@ -61,6 +62,14 @@ function sameStringSet(actual, expected) {
     left.every((value, index) => value === right[index]);
 }
 
+function subscriptionScheduleConditions(subscriptionUpdate = {}) {
+  const schedule = subscriptionUpdate.schedule_at_period_end || {};
+  const conditions = Array.isArray(schedule.conditions) ? schedule.conditions : [];
+  return normalizedStringArray(
+      conditions.map((condition) => condition && condition.type),
+  );
+}
+
 function dispatchPortalProductsReady(products) {
   if (!Array.isArray(products) || products.length !== 1) return false;
   const entry = products[0] && typeof products[0] === "object" ? products[0] : {};
@@ -86,6 +95,12 @@ function dispatchBillingPortalStoredFeaturesReady(features = {}) {
         DISPATCH_PORTAL_SUBSCRIPTION_UPDATES,
     ) &&
     String(data.subscriptionUpdateProration || "") === "none" &&
+    String(data.subscriptionUpdateTrialBehavior || "") ===
+      DISPATCH_PORTAL_TRIAL_UPDATE_BEHAVIOR &&
+    sameStringSet(
+        data.subscriptionUpdateScheduleAtPeriodEndConditions,
+        [],
+    ) &&
     String(data.subscriptionUpdateProductId || "") ===
       DISPATCH_PORTAL_PRODUCT_ID &&
     sameStringSet(
@@ -112,6 +127,7 @@ function dispatchBillingPortalProviderAssessment(configuration = {}) {
   );
   const subscriptionProducts = Array.isArray(subscriptionUpdate.products) ?
     subscriptionUpdate.products : [];
+  const scheduleConditions = subscriptionScheduleConditions(subscriptionUpdate);
 
   if (!validStripeBillingPortalConfigurationId(configurationId)) {
     failedChecks.push("configuration_id");
@@ -151,6 +167,13 @@ function dispatchBillingPortalProviderAssessment(configuration = {}) {
   if (String(subscriptionUpdate.proration_behavior || "") !== "none") {
     failedChecks.push("subscription_update_proration");
   }
+  if (String(subscriptionUpdate.trial_update_behavior || "") !==
+      DISPATCH_PORTAL_TRIAL_UPDATE_BEHAVIOR) {
+    failedChecks.push("subscription_update_trial_behavior");
+  }
+  if (scheduleConditions.length !== 0) {
+    failedChecks.push("subscription_update_schedule");
+  }
   if (!dispatchPortalProductsReady(subscriptionProducts)) {
     failedChecks.push("subscription_update_products");
   }
@@ -176,6 +199,10 @@ function dispatchBillingPortalProviderAssessment(configuration = {}) {
         Object.freeze(subscriptionAllowedUpdates),
       subscriptionUpdateProration:
         String(subscriptionUpdate.proration_behavior || ""),
+      subscriptionUpdateTrialBehavior:
+        String(subscriptionUpdate.trial_update_behavior || ""),
+      subscriptionUpdateScheduleAtPeriodEndConditions:
+        Object.freeze(scheduleConditions),
       subscriptionUpdateProductId: stripeObjectId(reviewedProduct.product),
       subscriptionUpdatePriceIds: Object.freeze(
           normalizedStringArray(reviewedProduct.prices),
@@ -208,11 +235,13 @@ module.exports = {
   DISPATCH_PORTAL_PRICE_IDS,
   DISPATCH_PORTAL_PRODUCT_ID,
   DISPATCH_PORTAL_SUBSCRIPTION_UPDATES,
+  DISPATCH_PORTAL_TRIAL_UPDATE_BEHAVIOR,
   dispatchBillingPortalAvailable,
   dispatchBillingPortalProviderAssessment,
   dispatchBillingPortalProviderRecordReady,
   dispatchBillingPortalStoredFeaturesReady,
   dispatchPortalProductsReady,
+  subscriptionScheduleConditions,
   validStripeBillingPortalConfigurationId,
   validStripeBillingPortalUrl,
   validStripeCustomerId,

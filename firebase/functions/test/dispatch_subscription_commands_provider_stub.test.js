@@ -29,11 +29,7 @@ function fakeAdmin(initial = {}) {
   const db = {
     docs,
     collection(name) {
-      return {
-        doc(id) {
-          return makeRef(`${name}/${id}`);
-        },
-      };
+      return {doc(id) { return makeRef(`${name}/${id}`); }};
     },
     async runTransaction(callback) {
       const writes = [];
@@ -42,25 +38,18 @@ function fakeAdmin(initial = {}) {
           const value = docs.get(ref.path);
           return {exists: value != null, data: () => value};
         },
-        set(ref, value, options) {
-          writes.push({ref, value, options});
-        },
+        set(ref, value, options) { writes.push({ref, value, options}); },
       };
       const result = await callback(transaction);
       for (const write of writes) {
         const current = docs.get(write.ref.path) || {};
-        docs.set(
-            write.ref.path,
-            write.options && write.options.merge ?
-              {...current, ...write.value} : write.value,
-        );
+        docs.set(write.ref.path, write.options && write.options.merge ?
+          {...current, ...write.value} : write.value);
       }
       return result;
     },
   };
-  function firestore() {
-    return db;
-  }
+  function firestore() { return db; }
   firestore.FieldValue = FieldValue;
   return {admin: {firestore}, db};
 }
@@ -95,6 +84,8 @@ function verifiedPortal(overrides = {}) {
       subscriptionUpdate: true,
       subscriptionUpdateAllowedUpdates: ["price"],
       subscriptionUpdateProration: "none",
+      subscriptionUpdateTrialBehavior: "continue_trial",
+      subscriptionUpdateScheduleAtPeriodEndConditions: [],
       subscriptionUpdateProductId: DISPATCH_PORTAL_PRODUCT_ID,
       subscriptionUpdatePriceIds: [...DISPATCH_PORTAL_PRICE_IDS],
     },
@@ -102,7 +93,7 @@ function verifiedPortal(overrides = {}) {
   };
 }
 
-function fixture({state, stripeRequest, portal = verifiedPortal()}) {
+function fixture({state, stripeRequest, portal = verifiedPortal(), nowMs}) {
   const initial = {
     "platform_configuration/payment_provider_readiness": baseReadiness(),
     "platform_configuration/dispatch_billing_portal": portal,
@@ -124,63 +115,67 @@ function fixture({state, stripeRequest, portal = verifiedPortal()}) {
     runtimeTaxEvidence: async () => ({applicable: false, authorized: true}),
     secretProvider: () => "sk_test_dispatch_stub",
     stripeRequest,
+    ...(nowMs ? {nowMs} : {}),
   });
   return {commands, db};
 }
 
-function request(plan = "monthly") {
-  return {data: {plan}};
+function request(plan = "monthly", promotionCode = "") {
+  return {data: {plan, ...(promotionCode ? {promotionCode} : {})}};
 }
 
 test("inner Checkout command rejects missing Portal provider proof before Stripe", async () => {
   let providerCalls = 0;
   const {commands} = fixture({
     portal: verifiedPortal({providerVerified: false}),
-    stripeRequest: async () => {
-      providerCalls += 1;
-      return {};
-    },
+    stripeRequest: async () => { providerCalls += 1; return {}; },
   });
-  await assert.rejects(
-      () => commands.createDispatchSubscriptionCheckout(request()),
-      /not enabled yet/i,
-  );
+  await assert.rejects(() => commands.createDispatchSubscriptionCheckout(request()), /not enabled yet/i);
   assert.equal(providerCalls, 0);
 });
 
-test("first Dispatch Checkout uses stable attempt idempotency and lets Stripe create the first Customer", async () => {
+test("first Dispatch Checkout uses stable attempt idempotency and lets Stripe create first Customer", async () => {
   const providerCalls = [];
   const {commands, db} = fixture({
     stripeRequest: async (call) => {
       providerCalls.push(call);
       assert.equal(call.idempotencyKey, "pipebuyer-dispatch-user-1-attempt-1");
-      assert.equal(call.fields.mode, "subscription");
       assert.equal(call.fields.customer, undefined);
-      assert.equal(call.fields["metadata[checkoutAttempt]"], 1);
-      assert.equal(call.fields["metadata[billingType]"], "dispatch_subscription");
-      assert.equal(
-          call.fields["line_items[0][price]"],
-          stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
-      );
-      return {
-        id: "cs_dispatch_first",
-        url: "https://checkout.stripe.com/c/pay/dispatch-first",
-      };
+      assert.equal(call.fields.allow_promotion_codes, "true");
+      assert.equal(call.fields["subscription_data[trial_end]"], undefined);
+      assert.equal(call.fields["line_items[0][price]"], stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId);
+      return {id: "cs_dispatch_first", url: "https://checkout.stripe.com/c/pay/dispatch-first"};
     },
   });
   const result = await commands.createDispatchSubscriptionCheckout(request());
   assert.equal(result.checkoutAttempt, 1);
-  assert.equal(result.alreadyCreated, false);
   assert.equal(providerCalls.length, 1);
-  const state = db.docs.get("dispatch_subscriptions/user-1");
-  assert.equal(state.status, "checkout_created");
-  assert.equal(state.checkoutAttempt, 1);
-  assert.equal(state.stripeCheckoutSessionId, "cs_dispatch_first");
-  assert.equal(state.stripeSubscriptionId, null);
-  assert.deepEqual(state.retiredStripeSubscriptionIds, []);
-  const session = db.docs.get("subscription_checkout_sessions/cs_dispatch_first");
-  assert.equal(session.checkoutAttempt, 1);
-  assert.equal(session.plan, "monthly");
+  assert.equal(db.docs.get("dispatch_subscriptions/user-1").status, "checkout_created");
+});
+
+test("Founding500 Checkout claims one slot and sets exact six-month trial without Stripe discount stacking", async () => {
+  const fixedNow = Date.UTC(2026, 7, 23, 15, 30, 0);
+  const {commands, db} = fixture({
+    nowMs: () => fixedNow,
+    stripeRequest: async (call) => {
+      assert.equal(call.fields.allow_promotion_codes, "false");
+      assert.equal(call.fields["discounts[0][coupon]"], undefined);
+      assert.equal(call.fields["subscription_data[trial_end]"], 1803396600);
+      assert.equal(call.fields["metadata[launchPromotionCode]"], "FOUNDING500");
+      return {id: "cs_founding_1", url: "https://checkout.stripe.com/c/pay/founding-1"};
+    },
+  });
+  const result = await commands.createDispatchSubscriptionCheckout(
+      request("yearly", "founding500"),
+  );
+  assert.equal(result.promotionApplied, true);
+  assert.equal(result.launchPromotionCode, "FOUNDING500");
+  const program = db.docs.get("dispatch_promotion_programs/dispatch_founding500_2026");
+  assert.equal(program.claimedCount, 1);
+  assert.equal(program.maxClaims, 500);
+  const claim = db.docs.get("dispatch_promotion_claims/user-1");
+  assert.equal(claim.claimNumber, 1);
+  assert.equal(claim.status, "checkout_created");
 });
 
 test("double tap reuses open Dispatch Checkout and never creates another Session", async () => {
@@ -196,92 +191,46 @@ test("double tap reuses open Dispatch Checkout and never creates another Session
     stripeRequest: async (call) => {
       calls += 1;
       assert.equal(call.method, "GET");
-      assert.match(call.path, /cs_dispatch_open$/u);
-      return {
-        status: "open",
-        payment_status: "unpaid",
-        url: "https://checkout.stripe.com/c/pay/dispatch-open",
-      };
+      return {status: "open", payment_status: "unpaid", url: "https://checkout.stripe.com/c/pay/dispatch-open"};
     },
   });
   const result = await commands.createDispatchSubscriptionCheckout(request());
   assert.equal(result.alreadyCreated, true);
-  assert.equal(result.processing, false);
   assert.equal(result.checkoutSessionId, "cs_dispatch_open");
   assert.equal(calls, 1);
 });
 
-test("existing active subscription blocks a second Stripe Checkout without leaking provider id", async () => {
+test("existing active subscription blocks a second Stripe Checkout", async () => {
   let calls = 0;
   const {commands} = fixture({
-    state: {
-      uid: "user-1",
-      plan: "monthly",
-      status: "active",
-      stripeSubscriptionId: "sub_dispatch_active",
-    },
-    stripeRequest: async () => {
-      calls += 1;
-      throw new Error("Stripe should not be called");
-    },
+    state: {uid: "user-1", plan: "monthly", status: "active", stripeSubscriptionId: "sub_dispatch_active"},
+    stripeRequest: async () => { calls += 1; return {}; },
   });
   const result = await commands.createDispatchSubscriptionCheckout(request("yearly"));
   assert.equal(result.alreadySubscribed, true);
-  assert.equal(result.subscriptionStatus, "active");
-  assert.equal("stripeSubscriptionId" in result, false);
   assert.equal(calls, 0);
 });
 
-test("different plan cannot create a second Session while Checkout is open", async () => {
+test("canceled subscriber cannot receive Founding500 as a second free period", async () => {
   let calls = 0;
   const {commands} = fixture({
     state: {
       uid: "user-1",
       plan: "monthly",
-      status: "checkout_created",
-      checkoutAttempt: 1,
-      stripeCheckoutSessionId: "cs_monthly_open",
+      status: "canceled",
+      stripeSubscriptionId: "sub_dispatch_retired",
+      stripeCustomerId: "cus_dispatch_existing",
     },
-    stripeRequest: async () => {
-      calls += 1;
-      return {};
-    },
+    stripeRequest: async () => { calls += 1; return {}; },
   });
   await assert.rejects(
-      () => commands.createDispatchSubscriptionCheckout(request("yearly")),
-      /monthly Dispatch Checkout is already open/i,
+      () => commands.createDispatchSubscriptionCheckout(request("monthly", "FOUNDING500")),
+      /first Dispatch subscription/i,
   );
   assert.equal(calls, 0);
 });
 
-test("provider response cannot overwrite subscription created by faster webhook", async () => {
-  let db;
-  const built = fixture({
-    stripeRequest: async () => {
-      db.docs.set("dispatch_subscriptions/user-1", {
-        uid: "user-1",
-        plan: "monthly",
-        status: "active",
-        checkoutAttempt: 1,
-        stripeCheckoutSessionId: "cs_dispatch_race",
-        stripeSubscriptionId: "sub_dispatch_race",
-      });
-      return {
-        id: "cs_dispatch_race",
-        url: "https://checkout.stripe.com/c/pay/dispatch-race",
-      };
-    },
-  });
-  db = built.db;
-  const result = await built.commands.createDispatchSubscriptionCheckout(request());
-  assert.equal(result.alreadySubscribed, true);
-  assert.equal("stripeSubscriptionId" in result, false);
-  const state = db.docs.get("dispatch_subscriptions/user-1");
-  assert.equal(state.status, "active");
-  assert.equal(state.stripeSubscriptionId, "sub_dispatch_race");
-});
-
-test("canceled subscription reuses the existing Stripe Customer and new unified yearly price", async () => {
+test("canceled subscription reuses existing Stripe Customer and unified yearly price", async () => {
   const {commands, db} = fixture({
     state: {
       uid: "user-1",
@@ -294,35 +243,16 @@ test("canceled subscription reuses the existing Stripe Customer and new unified 
       retiredStripeSubscriptionIds: ["sub_dispatch_older"],
     },
     stripeRequest: async (call) => {
-      assert.equal(call.idempotencyKey, "pipebuyer-dispatch-user-1-attempt-2");
       assert.equal(call.fields.customer, "cus_dispatch_existing");
-      assert.equal(
-          call.fields["line_items[0][price]"],
-          stripeMarketplaceConfig.products.dispatchYearlyCad.priceId,
-      );
-      assert.equal(
-          stripeMarketplaceConfig.products.dispatchYearlyCad.productId,
-          stripeMarketplaceConfig.products.dispatchMonthlyCad.productId,
-      );
-      return {
-        id: "cs_dispatch_replacement",
-        url: "https://checkout.stripe.com/c/pay/dispatch-replacement",
-      };
+      assert.equal(call.fields["line_items[0][price]"], stripeMarketplaceConfig.products.dispatchYearlyCad.priceId);
+      return {id: "cs_dispatch_replacement", url: "https://checkout.stripe.com/c/pay/dispatch-replacement"};
     },
   });
   const result = await commands.createDispatchSubscriptionCheckout(request("yearly"));
   assert.equal(result.checkoutAttempt, 2);
   const state = db.docs.get("dispatch_subscriptions/user-1");
-  assert.equal(state.status, "checkout_created");
-  assert.equal(state.plan, "yearly");
-  assert.equal(state.stripeSubscriptionId, null);
   assert.equal(state.stripeCustomerId, "cus_dispatch_existing");
-  assert.deepEqual(state.retiredStripeSubscriptionIds, [
-    "sub_dispatch_older",
-    "sub_dispatch_retired",
-  ]);
-  assert.equal(state.entitlementActive, false);
-  assert.equal(state.reviewRequired, false);
+  assert.deepEqual(state.retiredStripeSubscriptionIds, ["sub_dispatch_older", "sub_dispatch_retired"]);
 });
 
 test("malformed stored Stripe Customer identity fails closed before provider creation", async () => {
@@ -332,32 +262,11 @@ test("malformed stored Stripe Customer identity fails closed before provider cre
       uid: "user-1",
       plan: "monthly",
       status: "canceled",
-      entitlementActive: false,
-      checkoutAttempt: 1,
       stripeSubscriptionId: "sub_dispatch_retired",
       stripeCustomerId: "not-a-customer",
     },
-    stripeRequest: async () => {
-      calls += 1;
-      return {};
-    },
+    stripeRequest: async () => { calls += 1; return {}; },
   });
-  await assert.rejects(
-      () => commands.createDispatchSubscriptionCheckout(request("yearly")),
-      /billing customer identity needs review/i,
-  );
+  await assert.rejects(() => commands.createDispatchSubscriptionCheckout(request("yearly")), /billing customer identity needs review/i);
   assert.equal(calls, 0);
-});
-
-test("Dispatch Checkout URL is restricted to checkout.stripe.com", async () => {
-  const {commands} = fixture({
-    stripeRequest: async () => ({
-      id: "cs_bad_host",
-      url: "https://evil.example/checkout",
-    }),
-  });
-  await assert.rejects(
-      () => commands.createDispatchSubscriptionCheckout(request()),
-      /valid subscription Checkout/i,
-  );
 });

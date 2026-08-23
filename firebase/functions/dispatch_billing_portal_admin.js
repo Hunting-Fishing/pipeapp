@@ -12,6 +12,12 @@ const {
 const CONFIG_COLLECTION = "platform_configuration";
 const PORTAL_DOC = "dispatch_billing_portal";
 
+function normalizedStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => String(item || "").trim())
+      .filter(Boolean))].sort();
+}
+
 function normalizePortalConfig(data = {}) {
   const features = data.providerVerifiedFeatures &&
     typeof data.providerVerifiedFeatures === "object" ?
@@ -29,12 +35,33 @@ function normalizePortalConfig(data = {}) {
       String(data.providerVerificationRevision || "").trim(),
     providerVerifiedFeatures: Object.freeze({
       paymentMethodUpdate: features.paymentMethodUpdate === true,
+      customerUpdate: features.customerUpdate === true,
+      customerUpdateAllowedUpdates: Object.freeze(
+          normalizedStringArray(features.customerUpdateAllowedUpdates),
+      ),
       invoiceHistory: features.invoiceHistory === true,
       subscriptionCancel: features.subscriptionCancel === true,
       subscriptionCancelMode: String(features.subscriptionCancelMode || ""),
       subscriptionCancelProration:
         String(features.subscriptionCancelProration || ""),
       subscriptionUpdate: features.subscriptionUpdate === true,
+      subscriptionUpdateAllowedUpdates: Object.freeze(
+          normalizedStringArray(features.subscriptionUpdateAllowedUpdates),
+      ),
+      subscriptionUpdateProration:
+        String(features.subscriptionUpdateProration || ""),
+      subscriptionUpdateTrialBehavior:
+        String(features.subscriptionUpdateTrialBehavior || ""),
+      subscriptionUpdateScheduleAtPeriodEndConditions: Object.freeze(
+          normalizedStringArray(
+              features.subscriptionUpdateScheduleAtPeriodEndConditions,
+          ),
+      ),
+      subscriptionUpdateProductId:
+        String(features.subscriptionUpdateProductId || "").trim(),
+      subscriptionUpdatePriceIds: Object.freeze(
+          normalizedStringArray(features.subscriptionUpdatePriceIds),
+      ),
     }),
     revision: Math.max(0, Number(data.revision || 0)),
   });
@@ -88,11 +115,19 @@ function createDispatchBillingPortalAdmin(admin) {
           providerVerificationRevision: "",
           providerVerifiedFeatures: {
             paymentMethodUpdate: false,
+            customerUpdate: false,
+            customerUpdateAllowedUpdates: [],
             invoiceHistory: false,
             subscriptionCancel: false,
             subscriptionCancelMode: "",
             subscriptionCancelProration: "",
             subscriptionUpdate: false,
+            subscriptionUpdateAllowedUpdates: [],
+            subscriptionUpdateProration: "",
+            subscriptionUpdateTrialBehavior: "",
+            subscriptionUpdateScheduleAtPeriodEndConditions: [],
+            subscriptionUpdateProductId: "",
+            subscriptionUpdatePriceIds: [],
           },
           revision,
         };
