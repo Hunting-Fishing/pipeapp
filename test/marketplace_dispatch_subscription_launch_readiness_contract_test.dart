@@ -3,41 +3,60 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  String controllerSource() => File(
+        'lib/marketplace/marketplace_dispatch_subscription_launch_readiness_panel.dart',
+      ).readAsStringSync();
+  String viewSource() => File(
+        'lib/marketplace/marketplace_dispatch_subscription_readiness_view.dart',
+      ).readAsStringSync();
+
   test('Dispatch launch readiness uses only audited server controls', () {
-    final panel = File(
-      'lib/marketplace/marketplace_dispatch_subscription_launch_readiness_panel.dart',
-    ).readAsStringSync();
+    final controller = controllerSource();
+    final view = viewSource();
     final page = File(
       'lib/marketplace/marketplace_dispatch_subscription_admin_page.dart',
     ).readAsStringSync();
+    final combined = '$controller\n$view';
 
     expect(page, contains('MarketplaceDispatchSubscriptionLaunchReadinessPanel'));
-    expect(panel, contains("'getPaymentProviderReadiness'"));
-    expect(panel, contains("'getDispatchBillingPortalReadiness'"));
-    expect(panel, contains("'verifyDispatchSubscriptionLifecycleWebhook'"));
-    expect(panel, contains("'setPaymentProviderReadiness'"));
-    expect(panel, contains("'stripeSubscriptionRecoveryVerified'"));
-    expect(panel, contains('I verified this'));
-    expect(panel, contains('Nothing on this card activates public subscriptions'));
-    expect(panel, isNot(contains("'stripeSubscriptionsEnabled': true")));
-    expect(panel, isNot(contains('FirebaseFirestore')));
-    expect(panel, isNot(contains('.set(')));
-    expect(panel, isNot(contains('.update(')));
-    expect(panel, isNot(contains('.delete(')));
+    expect(controller, contains("'getPaymentProviderReadiness'"));
+    expect(controller, contains("'getDispatchBillingPortalReadiness'"));
+    expect(controller, contains("'verifyDispatchSubscriptionLifecycleWebhook'"));
+    expect(controller, contains("'setPaymentProviderReadiness'"));
+    expect(controller, contains("'stripeSubscriptionRecoveryVerified'"));
+    expect(controller, contains('I verified this'));
+    expect(view, contains('Nothing on this card activates public subscriptions'));
+    expect(combined, isNot(contains("'stripeSubscriptionsEnabled': true")));
+    expect(combined, isNot(contains('FirebaseFirestore')));
+    expect(combined, isNot(contains('.set(')));
+    expect(combined, isNot(contains('.update(')));
+    expect(combined, isNot(contains('.delete(')));
   });
 
   test('Dispatch readiness requires provider-bound Portal proof and gives one next action', () {
-    final panel = File(
-      'lib/marketplace/marketplace_dispatch_subscription_launch_readiness_panel.dart',
-    ).readAsStringSync();
+    final view = viewSource();
 
-    expect(panel, contains("_portal['providerVerified'] == true"));
-    expect(panel, contains('providerVerifiedConfigurationId'));
-    expect(panel, contains('providerVerificationRevision'));
-    expect(panel, contains('LinearProgressIndicator'));
-    expect(panel, contains('Recommended next action'));
-    expect(panel, contains('BILLING OFF'));
-    expect(panel, contains('6 launch prerequisites'));
+    expect(view, contains("portal['providerVerified'] == true"));
+    expect(view, contains('providerVerifiedConfigurationId'));
+    expect(view, contains('providerVerificationRevision'));
+    expect(view, contains('LinearProgressIndicator'));
+    expect(view, contains('Recommended next action'));
+    expect(view, contains('BILLING OFF'));
+    expect(view, contains('prerequisiteStates.length'));
+    expect(view, contains('dispatchSubscriptionNextAction'));
+  });
+
+  test('stateful readiness controller delegates pure presentation to extracted view', () {
+    final controller = controllerSource();
+
+    expect(
+      controller,
+      contains("import 'marketplace_dispatch_subscription_readiness_view.dart';"),
+    );
+    expect(controller, contains('MarketplaceDispatchSubscriptionReadinessView'));
+    expect(controller, isNot(contains('LinearProgressIndicator')));
+    expect(controller, isNot(contains('class _GateRow')));
+    expect(controller, isNot(contains('class _StatusPill')));
   });
 
   test('Dispatch billing operations workspace stays focused and protected', () {
