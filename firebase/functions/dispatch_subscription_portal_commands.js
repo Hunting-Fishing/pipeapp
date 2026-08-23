@@ -10,6 +10,7 @@ const {safeConfiguredUrl, stripeFormRequest} = require("./stripe_checkout_comman
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 const {
   dispatchBillingPortalAvailable,
+  validStripeBillingPortalConfigurationId,
   validStripeBillingPortalUrl,
 } = require("./dispatch_billing_portal_policy");
 
@@ -44,11 +45,21 @@ function createDispatchSubscriptionPortalCommands(admin, options = {}) {
           config.returnUrl,
           "Dispatch Billing Portal return URL",
       );
+      const stripePortalConfigurationId = String(
+          config.stripePortalConfigurationId || "",
+      ).trim();
+      if (!validStripeBillingPortalConfigurationId(stripePortalConfigurationId)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Dispatch billing management is missing its reviewed Stripe Portal configuration.",
+        );
+      }
       const portal = await stripeRequest({
         secretKey: secretProvider(),
         path: "/v1/billing_portal/sessions",
         fields: {
           customer: String(state.stripeCustomerId),
+          configuration: stripePortalConfigurationId,
           return_url: returnUrl,
         },
       });
