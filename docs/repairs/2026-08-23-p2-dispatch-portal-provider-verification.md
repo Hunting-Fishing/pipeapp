@@ -21,6 +21,8 @@ Before this repair, an administrator could store an enabled Portal record with a
 
 That could create customer-management behavior different from the application policy even though the stored configuration ID looked valid.
 
+A second runtime gap was then identified during review: even valid provider proof can become stale if an operator changes the Stripe Portal configuration after Pipe Buyer verified it. Stored proof therefore cannot be the final runtime authority.
+
 ## Exact repair
 
 ### 1. Provider feature policy
@@ -152,6 +154,54 @@ It requires at least one active LIVE Portal configuration whose provider feature
 - `verifyDispatchSubscriptionLifecycleWebhook`;
 - `reconcileDispatchSubscriptionInvoice`.
 
+### 9. Stored proof is re-verified live at the client-exposed runtime boundary
+
+The same runtime wrapper now re-reads the exact stored `bpc_...` from Stripe immediately before:
+
+- `createDispatchSubscriptionCheckout`; and
+- `createDispatchBillingPortalSession`.
+
+If Stripe no longer returns the exact configuration or any launch feature has drifted, the action fails closed before the original billing handler executes.
+
+This specifically protects against post-verification provider drift such as:
+
+- turning Monthly ↔ Yearly plan switching on;
+- changing cancellation away from end-of-period;
+- enabling cancellation proration;
+- disabling payment-method update or invoice history;
+- disabling/deleting/replacing the Portal configuration.
+
+### 10. Authentication occurs before Firestore or Stripe provider re-read
+
+The runtime wrapper now requires an authenticated Firebase request before reading the Portal readiness document or calling Stripe.
+
+This closes a review-discovered ordering defect where an unauthenticated caller could otherwise cause provider reads before the wrapped Dispatch handler reached its own authentication/rate-limit controls.
+
+The wrapper performs only the minimal signed-in precheck. The original inner handlers remain authoritative for their complete account-security, feature-flag, tax, and abuse/rate-limit policy.
+
+A regression test proves an unauthenticated request causes:
+
+- zero Firestore Portal reads;
+- zero Stripe provider calls; and
+- zero inner-handler invocation.
+
+### 11. Dispatch Billing Operations UI made operator-oriented
+
+The dedicated admin workspace now presents:
+
+- a protected-financial-operations banner;
+- a constrained desktop/mobile reading width;
+- numbered Launch Readiness, Customer Billing Management, and Subscription Accounting sections;
+- six-prerequisite progress rather than a loose set of booleans;
+- a single recommended next action;
+- explicit `BILLING OFF` / `BILLING ON` status;
+- `PROVIDER VERIFIED` / `NOT VERIFIED` Portal status;
+- the exact verified Portal feature checklist;
+- current Invoice → InvoicePayment → PaymentIntent → Charge → Balance Transaction reconciliation language;
+- an explicit expected empty state before controlled Monthly/Yearly acceptance.
+
+The UI still contains no public subscription activation action and no direct authoritative Firestore financial writes.
+
 ## Verification contracts added/updated
 
 Coverage now includes:
@@ -164,10 +214,14 @@ Coverage now includes:
 - emergency disable clears proof;
 - activation rejects a valid-looking ID without provider proof;
 - exported Checkout gate rejects missing/stale proof before invoking the inner command;
+- live provider drift blocks both Checkout and Manage Billing;
+- unauthenticated requests cannot trigger Portal Firestore/Stripe reads;
 - Portal session rejects missing/mismatched proof;
 - provider verifier rejects plan switching, immediate cancellation, proration, and non-live configuration;
 - production audit checks launch-safe provider features;
-- Flutter Portal control uses callables only and cannot activate subscriptions.
+- Flutter Portal control uses callables only and cannot activate subscriptions;
+- Launch Readiness UI requires provider-bound Portal proof and exposes one recommended next action;
+- Dispatch Billing Operations retains its protected, focused section structure.
 
 Full Flutter/Functions/emulator execution is still required from the complete toolchain before merge/deploy.
 
@@ -182,6 +236,8 @@ The connected Stripe tool in this session exposes Portal configuration list/retr
 ## Do not repeat
 
 - Do not equate `bpc_...` format validation with provider configuration verification.
+- Do not treat stored provider proof as permanently valid; re-read Stripe before client-exposed billing actions.
+- Do not perform provider reads for an unauthenticated request.
 - Do not manually enable Portal readiness; only the Stripe-backed verifier may establish the ON state.
 - Do not reuse provider proof after changing the configuration ID or provider policy revision.
 - Do not enable subscription-update/plan switching in the first-release Portal configuration.
