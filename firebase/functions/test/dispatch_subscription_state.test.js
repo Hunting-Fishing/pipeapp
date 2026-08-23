@@ -6,6 +6,7 @@ const {
   createDispatchSubscriptionState,
   dispatchMetadata,
 } = require("../dispatch_subscription_state");
+const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 
 const FieldValue = {serverTimestamp: () => "server-time"};
 
@@ -49,9 +50,16 @@ function fakeAdmin(initial = {}) {
   return {admin: {firestore}, db};
 }
 
-const stripeConfig = {apiVersion: "2026-06-24.dahlia"};
+const stripeConfig = stripeMarketplaceConfig;
 
 function subscription(overrides = {}) {
+  const priceId = String(
+      overrides.priceId || stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+  );
+  const productId = String(
+      overrides.productId || stripeMarketplaceConfig.products.dispatchMonthlyCad.productId,
+  );
+  const quantity = overrides.quantity == null ? 1 : Number(overrides.quantity);
   return {
     id: "sub_dispatch",
     status: "active",
@@ -62,17 +70,37 @@ function subscription(overrides = {}) {
       dispatchPlan: "monthly",
       taxCollectionStatus: "registered",
     },
+    items: {
+      data: [{
+        quantity,
+        price: {id: priceId, product: productId},
+      }],
+    },
     ...overrides,
   };
 }
 
 function invoice(overrides = {}) {
+  const priceId = String(
+      overrides.priceId || stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+  );
   return {
     id: "in_dispatch",
     subscription: "sub_dispatch",
     customer: "cus_dispatch",
     amount_paid: 2500,
     currency: "cad",
+    lines: {
+      data: [{
+        quantity: 1,
+        pricing: {
+          price_details: {
+            price: priceId,
+            product: stripeMarketplaceConfig.products.dispatchMonthlyCad.productId,
+          },
+        },
+      }],
+    },
     parent: {
       subscription_details: {
         subscription: "sub_dispatch",
@@ -184,6 +212,11 @@ test("invoice.paid re-reads current Subscription and activates only active statu
   assert.equal(stored.entitlementActive, true);
   assert.equal(stored.status, "active");
   assert.equal(stored.billingStatus, "paid");
+  assert.equal(stored.plan, "monthly");
+  assert.equal(
+      stored.stripePriceId,
+      stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+  );
   assert.equal(stored.lastPaidInvoiceId, "in_dispatch");
 });
 
@@ -328,6 +361,71 @@ test("subscription.updated re-reads provider state so stale event snapshot canno
   assert.equal(stored.status, "active");
   assert.equal(stored.entitlementActive, true);
   assert.equal(stored.paymentIssue, false);
+});
+
+test("Portal price switch updates Pipe Buyer plan from provider Price even when metadata is stale", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": {
+      plan: "monthly",
+      status: "active",
+      entitlementActive: true,
+      stripeSubscriptionId: "sub_dispatch",
+    },
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({
+      status: "active",
+      priceId: stripeMarketplaceConfig.products.dispatchYearlyCad.priceId,
+      metadata: {
+        ...subscription().metadata,
+        dispatchPlan: "monthly",
+      },
+    }),
+  });
+  const result = await state.handleSubscriptionEvent(
+      subscription({status: "active"}),
+      "customer.subscription.updated",
+      "sk_test",
+  );
+  assert.equal(result.action, "updated");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.plan, "yearly");
+  assert.equal(
+      stored.stripePriceId,
+      stripeMarketplaceConfig.products.dispatchYearlyCad.priceId,
+  );
+  assert.equal(stored.entitlementActive, true);
+  assert.equal(stored.reviewRequired, false);
+});
+
+test("unapproved provider Price or quantity change fails closed and removes entitlement", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": {
+      plan: "monthly",
+      status: "active",
+      entitlementActive: true,
+      stripeSubscriptionId: "sub_dispatch",
+    },
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({
+      status: "active",
+      priceId: "price_unapproved",
+      quantity: 2,
+    }),
+  });
+  const result = await state.handleSubscriptionEvent(
+      subscription({status: "active"}),
+      "customer.subscription.updated",
+      "sk_test",
+  );
+  assert.equal(result.action, "review");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.entitlementActive, false);
+  assert.equal(stored.reviewRequired, true);
+  assert.equal(stored.reviewReason, "dispatch_subscription_catalog_review");
+  assert.ok(stored.providerCatalogFailedChecks.includes("dispatch_price"));
+  assert.ok(stored.providerCatalogFailedChecks.includes("subscription_quantity"));
 });
 
 test("current unpaid subscription update revokes entitlement", async () => {
