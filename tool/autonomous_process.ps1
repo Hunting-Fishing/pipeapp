@@ -99,6 +99,42 @@ function Invoke-TimedPowerShell {
     }
 }
 
+function Invoke-CodexStructured {
+    param(
+        [string]$Prompt,
+        [string]$ProjectRoot,
+        [string]$SchemaPath,
+        [string]$ResultPath,
+        [string]$LogPath,
+        [int]$TimeoutMinutes,
+        [int]$NoOutputMinutes,
+        [ValidateSet("workspace-write", "read-only")][string]$Sandbox
+    )
+
+    if (Test-Path -LiteralPath $ResultPath) { Remove-Item -LiteralPath $ResultPath -Force }
+    $promptPath = "$ResultPath.prompt.md"
+    Set-Content -LiteralPath $promptPath -Value $Prompt -Encoding UTF8
+
+    $rootEsc = Escape-SingleQuotedPowerShell $ProjectRoot
+    $schemaEsc = Escape-SingleQuotedPowerShell $SchemaPath
+    $resultEsc = Escape-SingleQuotedPowerShell $ResultPath
+    $promptEsc = Escape-SingleQuotedPowerShell $promptPath
+    $sandboxEsc = Escape-SingleQuotedPowerShell $Sandbox
+    $script = @"
+`$ErrorActionPreference = 'Stop'
+Set-Location -LiteralPath '$rootEsc'
+`$prompt = Get-Content -LiteralPath '$promptEsc' -Raw
+& codex exec --sandbox '$sandboxEsc' --json --output-schema '$schemaEsc' -o '$resultEsc' `$prompt
+exit `$LASTEXITCODE
+"@
+
+    return Invoke-TimedPowerShell `
+        -ScriptText $script `
+        -TimeoutMinutes $TimeoutMinutes `
+        -NoOutputMinutes $NoOutputMinutes `
+        -LogPath $LogPath
+}
+
 function Invoke-CodexWorker {
     param(
         [string]$Prompt,
@@ -110,27 +146,37 @@ function Invoke-CodexWorker {
         [int]$NoOutputMinutes
     )
 
-    if (Test-Path -LiteralPath $ResultPath) { Remove-Item -LiteralPath $ResultPath -Force }
-    $promptPath = "$ResultPath.prompt.md"
-    Set-Content -LiteralPath $promptPath -Value $Prompt -Encoding UTF8
-
-    $rootEsc = Escape-SingleQuotedPowerShell $ProjectRoot
-    $schemaEsc = Escape-SingleQuotedPowerShell $SchemaPath
-    $resultEsc = Escape-SingleQuotedPowerShell $ResultPath
-    $promptEsc = Escape-SingleQuotedPowerShell $promptPath
-    $script = @"
-`$ErrorActionPreference = 'Stop'
-Set-Location -LiteralPath '$rootEsc'
-`$prompt = Get-Content -LiteralPath '$promptEsc' -Raw
-& codex exec --sandbox workspace-write --json --output-schema '$schemaEsc' -o '$resultEsc' `$prompt
-exit `$LASTEXITCODE
-"@
-
-    return Invoke-TimedPowerShell `
-        -ScriptText $script `
+    return Invoke-CodexStructured `
+        -Prompt $Prompt `
+        -ProjectRoot $ProjectRoot `
+        -SchemaPath $SchemaPath `
+        -ResultPath $ResultPath `
+        -LogPath $LogPath `
         -TimeoutMinutes $TimeoutMinutes `
         -NoOutputMinutes $NoOutputMinutes `
-        -LogPath $LogPath
+        -Sandbox "workspace-write"
+}
+
+function Invoke-CodexReviewer {
+    param(
+        [string]$Prompt,
+        [string]$ProjectRoot,
+        [string]$SchemaPath,
+        [string]$ResultPath,
+        [string]$LogPath,
+        [int]$TimeoutMinutes,
+        [int]$NoOutputMinutes
+    )
+
+    return Invoke-CodexStructured `
+        -Prompt $Prompt `
+        -ProjectRoot $ProjectRoot `
+        -SchemaPath $SchemaPath `
+        -ResultPath $ResultPath `
+        -LogPath $LogPath `
+        -TimeoutMinutes $TimeoutMinutes `
+        -NoOutputMinutes $NoOutputMinutes `
+        -Sandbox "read-only"
 }
 
 function Invoke-ProjectCommand {
