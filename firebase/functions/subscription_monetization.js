@@ -3,6 +3,9 @@
 const {
   provisionalTaxReserveMinor,
 } = require("./pending_tax_policy");
+const {
+  dispatchInvoiceCatalogAssessment,
+} = require("./dispatch_subscription_catalog_policy");
 
 const SUBSCRIPTION_AFFILIATE_SHARE_BPS = 2000;
 const BASIS_POINTS = 10000;
@@ -105,10 +108,11 @@ function affiliateCommissionAccrualDecision({
   });
 }
 
-function createSubscriptionMonetization(admin, stripeConfig) {
+function createSubscriptionMonetization(admin, stripeConfig, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+  const retrieveSubscription = options.retrieveSubscription || retrieveStripeSubscription;
 
   async function handleDispatchInvoicePaid(invoice, secretKey) {
     const invoiceId = String(invoice && invoice.id || "");
@@ -117,7 +121,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) return;
     let metadata = identity.metadata;
     if (!metadata) {
-      const subscription = await retrieveStripeSubscription({
+      const subscription = await retrieveSubscription({
         secretKey,
         apiVersion: stripeConfig.apiVersion,
         subscriptionId,
@@ -125,6 +129,17 @@ function createSubscriptionMonetization(admin, stripeConfig) {
       metadata = subscription.metadata || {};
     }
     if (metadata.billingType !== "dispatch_subscription") return;
+
+    // The invoice Price is the authority for what was billed. Checkout metadata
+    // can remain "monthly" after a later Portal switch to Yearly, so it must not
+    // determine invoice accounting, reconciliation, or affiliate commission.
+    const catalog = dispatchInvoiceCatalogAssessment(invoice);
+    if (!catalog.ready) {
+      throw new Error(
+          `Dispatch invoice catalog evidence is invalid: ${catalog.failedChecks.join(",")}`,
+      );
+    }
+
     const uid = String(metadata.pipeBuyerUid || "").trim();
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
@@ -156,7 +171,12 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         invoiceId,
         subscriptionId,
         uid: uid || null,
-        plan: String(metadata.dispatchPlan || ""),
+        plan: catalog.plan,
+        stripePriceId: catalog.priceId,
+        stripeProductId: catalog.productId,
+        stripeSubscriptionQuantity: catalog.quantity,
+        providerCatalogRevision: catalog.revision,
+        checkoutMetadataPlan: String(metadata.dispatchPlan || ""),
         currency: String(invoice.currency || "cad").toUpperCase(),
         commissionBaseMinor: baseMinor,
         amountPaidMinor: Number(invoice.amount_paid || 0),
