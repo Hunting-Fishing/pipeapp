@@ -11,10 +11,17 @@ const {
 const {
   dispatchBillingPortalProviderRecordReady,
 } = require("./dispatch_billing_portal_policy");
+const {
+  dispatchSubscriptionFeatureReady,
+} = require("./dispatch_subscription_readiness_policy");
+const {
+  normalizePhase1FeatureFlags,
+} = require("./phase1_feature_flags");
 
 const READINESS_DOC = "payment_provider_readiness";
 const CONFIG_COLLECTION = "platform_configuration";
 const DISPATCH_BILLING_PORTAL_DOC = "dispatch_billing_portal";
+const PHASE1_FEATURES_DOC = "phase1_features";
 const SMALL_SUPPLIER_ASSESSMENT_COLLECTION = "tax_threshold_assessments";
 const SMALL_SUPPLIER_ASSESSMENT_DOC = "canada_gst_hst_current";
 const MODES = new Set(["disabled", "sandbox", "production"]);
@@ -288,7 +295,12 @@ function createPaymentReadinessAdmin(admin) {
         if (next.stripeSubscriptionsEnabled) {
           const portalRef = db.collection(CONFIG_COLLECTION)
               .doc(DISPATCH_BILLING_PORTAL_DOC);
-          const portalSnapshot = await transaction.get(portalRef);
+          const featureRef = db.collection(CONFIG_COLLECTION)
+              .doc(PHASE1_FEATURES_DOC);
+          const [portalSnapshot, featureSnapshot] = await Promise.all([
+            transaction.get(portalRef),
+            transaction.get(featureRef),
+          ]);
           const portal = portalSnapshot.exists ? portalSnapshot.data() : {};
           if (portal.enabled !== true ||
               !dispatchBillingPortalProviderRecordReady(portal)) {
@@ -301,6 +313,15 @@ function createPaymentReadinessAdmin(admin) {
               portal.returnUrl,
               "Dispatch Billing Portal return URL",
           );
+          const features = normalizePhase1FeatureFlags(
+              featureSnapshot.exists ? featureSnapshot.data() : null,
+          );
+          if (!dispatchSubscriptionFeatureReady(features)) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Live Dispatch subscriptions require both the Dispatch and paidFeatures feature flags to be enabled.",
+            );
+          }
         }
         let smallSupplierAssessmentRevision = null;
         if (next.canadaGstHstSmallSupplier) {
@@ -369,6 +390,7 @@ module.exports = {
   BOOLEAN_FIELDS,
   CONFIG_COLLECTION,
   DISPATCH_BILLING_PORTAL_DOC,
+  PHASE1_FEATURES_DOC,
   READINESS_DOC,
   SMALL_SUPPLIER_ASSESSMENT_COLLECTION,
   SMALL_SUPPLIER_ASSESSMENT_DOC,
