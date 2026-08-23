@@ -11,16 +11,16 @@ const {
   dispatchBillingPortalAvailable,
 } = require("./dispatch_billing_portal_policy");
 const {
-  dispatchBillingPortalRuntimeDecision,
-} = require("./dispatch_subscription_portal_runtime_gate");
-const {taxBillingPrepared} = require("./pending_tax_policy");
-const {
-  canadaSmallSupplierReadinessDecision,
-} = require("./canada_small_supplier_readiness_guard");
+  loadPhase1FeatureFlags,
+} = require("./phase1_feature_flags");
 const {
   ASSESSMENT_COLLECTION,
   CURRENT_ASSESSMENT_ID,
 } = require("./canada_small_supplier_runtime_gate");
+const {
+  dispatchSubscriptionStoredReadiness,
+  dispatchSubscriptionTaxReady,
+} = require("./dispatch_subscription_readiness_policy");
 const {
   dispatchSubscriptionPublicStatus,
 } = require("./dispatch_subscription_status_policy");
@@ -52,28 +52,21 @@ function dispatchSubscriptionCatalog(config = stripeMarketplaceConfig) {
 }
 
 function dispatchSubscriptionPublicTaxReady(readiness = {}, assessment = null) {
-  if (readiness.canadaGstHstSmallSupplier === true) {
-    return canadaSmallSupplierReadinessDecision(
-        readiness,
-        assessment,
-    ).authorized === true;
-  }
-  return taxBillingPrepared(readiness);
+  return dispatchSubscriptionTaxReady(readiness, assessment);
 }
 
 function dispatchSubscriptionPublicBillingReady(
     readiness = {},
     portal = {},
     assessment = null,
+    features = {},
 ) {
-  return readiness.stripeSubscriptionsEnabled === true &&
-    readiness.stripeMode === "production" &&
-    readiness.stripeWebhookVerified === true &&
-    readiness.stripeSubscriptionLifecycleWebhookVerified === true &&
-    readiness.stripeSubscriptionRecoveryVerified === true &&
-    readiness.stripeReconciliationReady === true &&
-    dispatchSubscriptionPublicTaxReady(readiness, assessment) &&
-    dispatchBillingPortalRuntimeDecision(portal).ready === true;
+  return dispatchSubscriptionStoredReadiness(
+      readiness,
+      portal,
+      assessment,
+      features,
+  ).publicBillingAvailable;
 }
 
 function createDispatchSubscriptionStatusCommands(admin, options = {}) {
@@ -81,6 +74,7 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
   const authUid = options.authUid || requireAuth;
   const rateLimit = options.rateLimit || enforceUserRateLimit;
   const catalog = options.catalog || (() => dispatchSubscriptionCatalog());
+  const loadFeatures = options.loadFeatureFlags || loadPhase1FeatureFlags;
 
   const getDispatchSubscriptionStatus = async (request) => {
     try {
@@ -91,26 +85,30 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
         portalSnapshot,
         readinessSnapshot,
         assessmentSnapshot,
+        features,
       ] = await Promise.all([
         db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid).get(),
         db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC).get(),
         db.collection(CONFIG_COLLECTION).doc(PAYMENT_READINESS_DOC).get(),
         db.collection(ASSESSMENT_COLLECTION).doc(CURRENT_ASSESSMENT_ID).get(),
+        loadFeatures(db),
       ]);
       const state = subscriptionSnapshot.exists ? subscriptionSnapshot.data() : {};
       const portalConfig = portalSnapshot.exists ? portalSnapshot.data() : {};
       const readiness = readinessSnapshot.exists ? readinessSnapshot.data() : {};
       const assessment = assessmentSnapshot.exists ? assessmentSnapshot.data() : null;
       const publicState = dispatchSubscriptionPublicStatus(state);
-      const billingAvailable = dispatchSubscriptionPublicBillingReady(
+      const storedReadiness = dispatchSubscriptionStoredReadiness(
           readiness,
           portalConfig,
           assessment,
+          features,
       );
       return {
         ...publicState,
-        billingAvailable,
-        canStartCheckout: billingAvailable && publicState.canStartCheckout,
+        billingAvailable: storedReadiness.publicBillingAvailable,
+        canStartCheckout:
+          storedReadiness.publicBillingAvailable && publicState.canStartCheckout,
         canManageBilling: dispatchBillingPortalAvailable(portalConfig, state),
         plans: catalog(),
       };
