@@ -23,7 +23,12 @@ test("charges one dollar per stick for a normal pipe sale", () => {
   assert.equal(fee.marketplaceFeeMinor, 100000);
   assert.equal(fee.marketplaceFee, 1000);
   assert.equal(fee.feePayer, "seller");
-  assert.equal(fee.affiliateCommissionMinor, 20000);
+  assert.equal(fee.affiliateShareBps, 500);
+  assert.equal(fee.affiliateCommissionMinor, 5000);
+  assert.equal(
+      fee.affiliateCommissionBasis,
+      "positive_net_eligible_pipe_buyer_revenue",
+  );
 });
 
 test("enforces the twenty-five dollar minimum on small pipe sales", () => {

@@ -3,13 +3,22 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  SUBSCRIPTION_AFFILIATE_SHARE_BPS,
   invoiceCommissionBaseMinor,
   subscriptionIdentityFromInvoice,
 } = require("../subscription_monetization");
 const {
+  affiliateEconomics,
+  dispatchBillingCostReserveMinor,
+} = require("../affiliate_revenue_policy");
+const {
   couponFromEntitlement,
   selectedPlan,
 } = require("../dispatch_subscription_commands");
+
+test("subscription affiliate share is five percent", () => {
+  assert.equal(SUBSCRIPTION_AFFILIATE_SHARE_BPS, 500);
+});
 
 test("subscription commission uses post-discount amount excluding tax", () => {
   assert.equal(invoiceCommissionBaseMinor({
@@ -17,6 +26,20 @@ test("subscription commission uses post-discount amount excluding tax", () => {
     total: 2100,
     subtotal: 2500,
   }), 2000);
+});
+
+test("Dispatch commission is based on net revenue after provider and Billing cost", () => {
+  const gross = 2500;
+  const billingReserve = dispatchBillingCostReserveMinor(gross);
+  const economics = affiliateEconomics({
+    grossPlatformRevenueMinor: gross,
+    paymentProviderFeeMinor: 103,
+    billingCostReserveMinor: billingReserve,
+    shareBps: SUBSCRIPTION_AFFILIATE_SHARE_BPS,
+  });
+  assert.equal(billingReserve, 25);
+  assert.equal(economics.commissionableRevenueMinor, 2372);
+  assert.equal(economics.commissionMinor, 118);
 });
 
 test("zero-dollar free invoices create a zero commission base", () => {

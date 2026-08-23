@@ -3,8 +3,14 @@
 const {
   provisionalTaxReserveMinor,
 } = require("./pending_tax_policy");
+const {
+  AFFILIATE_REVENUE_POLICY_REVISION,
+  AFFILIATE_SHARE_BPS,
+  affiliateEconomics,
+  dispatchBillingCostReserveMinor,
+} = require("./affiliate_revenue_policy");
 
-const SUBSCRIPTION_AFFILIATE_SHARE_BPS = 2000;
+const SUBSCRIPTION_AFFILIATE_SHARE_BPS = AFFILIATE_SHARE_BPS;
 const BASIS_POINTS = 10000;
 const SUBSCRIPTION_REFUND_WINDOW_DAYS = 30;
 
@@ -21,6 +27,36 @@ async function retrieveStripeSubscription({secretKey, apiVersion, subscriptionId
   const payload = await response.json();
   if (!response.ok) throw new Error("Stripe subscription retrieval failed.");
   return payload;
+}
+
+async function retrieveStripeChargeEconomics({secretKey, apiVersion, chargeId}) {
+  const response = await fetch(
+      `https://api.stripe.com/v1/charges/${encodeURIComponent(chargeId)}` +
+      "?expand[]=balance_transaction",
+      {
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          "Stripe-Version": apiVersion,
+        },
+      },
+  );
+  const payload = await response.json();
+  if (!response.ok) throw new Error("Stripe charge economics retrieval failed.");
+  const balanceTransaction = payload && payload.balance_transaction;
+  if (!balanceTransaction || typeof balanceTransaction !== "object") {
+    throw new Error("Stripe charge fee details are unavailable.");
+  }
+  const feeMinor = Number(balanceTransaction.fee);
+  if (!Number.isSafeInteger(feeMinor) || feeMinor < 0) {
+    throw new Error("Stripe charge fee details are invalid.");
+  }
+  return {
+    chargeId: String(payload.id || chargeId),
+    balanceTransactionId: String(balanceTransaction.id || ""),
+    currency: String(balanceTransaction.currency || payload.currency || "").toUpperCase(),
+    feeMinor,
+    netMinor: Number(balanceTransaction.net || 0),
+  };
 }
 
 function invoiceCommissionBaseMinor(invoice) {
@@ -93,19 +129,46 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
     const reserveMinor = provisionalTaxReserveMinor(baseMinor, taxStatus);
-    const commissionMinor = Math.floor(
-        baseMinor * SUBSCRIPTION_AFFILIATE_SHARE_BPS / BASIS_POINTS,
-    );
+    const billingReserveMinor = dispatchBillingCostReserveMinor(baseMinor);
+    const sourceChargeId = sourceChargeFromInvoice(invoice);
+    let providerCostReady = baseMinor === 0;
+    let providerFeeMinor = 0;
+    let providerBalanceTransactionId = "";
+    if (sourceChargeId) {
+      const charge = await retrieveStripeChargeEconomics({
+        secretKey,
+        apiVersion: stripeConfig.apiVersion,
+        chargeId: sourceChargeId,
+      });
+      const invoiceCurrency = String(invoice.currency || "cad").toUpperCase();
+      if (charge.currency && charge.currency !== invoiceCurrency) {
+        throw new Error("Dispatch provider cost currency requires financial review.");
+      }
+      providerCostReady = true;
+      providerFeeMinor = charge.feeMinor;
+      providerBalanceTransactionId = charge.balanceTransactionId;
+    }
+    // If a non-zero paid invoice has no provider-cost source yet, fail closed:
+    // no affiliate revenue is considered eligible until the cost can be
+    // reconciled. This prevents paying commission from unknown gross margin.
+    const economics = affiliateEconomics({
+      grossPlatformRevenueMinor: baseMinor,
+      paymentProviderFeeMinor: providerCostReady ? providerFeeMinor : baseMinor,
+      providerFeeRecoveredMinor: 0,
+      billingCostReserveMinor: billingReserveMinor,
+      provisionalTaxReserveMinor: reserveMinor,
+      shareBps: SUBSCRIPTION_AFFILIATE_SHARE_BPS,
+    });
+    const commissionMinor = economics.commissionMinor;
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
-    const sourceChargeId = sourceChargeFromInvoice(invoice);
     const eligibleAfter = Timestamp.fromMillis(
         Date.now() + SUBSCRIPTION_REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000,
     );
     await db.runTransaction(async (transaction) => {
       const existingInvoice = await transaction.get(invoiceRef);
-      const existingCommission = referrerUid && commissionMinor > 0 ?
+      const existingCommission = referrerUid ?
         await transaction.get(commissionRef) : null;
       transaction.set(invoiceRef, {
         invoiceId,
@@ -114,6 +177,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         plan: String(metadata.dispatchPlan || ""),
         currency: String(invoice.currency || "cad").toUpperCase(),
         commissionBaseMinor: baseMinor,
+        commissionableRevenueMinor: economics.commissionableRevenueMinor,
         amountPaidMinor: Number(invoice.amount_paid || 0),
         taxMinor: Math.max(0, Number(invoice.total || 0) - baseMinor),
         taxCollectionStatus: taxStatus,
@@ -122,6 +186,11 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         taxReserveStatus: taxStatus === "registration_pending" ?
           "provisional_pending_cra" :
           "not_required",
+        paymentProviderCostStatus: providerCostReady ? "reconciled" : "review_required",
+        paymentProviderFeeMinor: providerFeeMinor,
+        stripeBalanceTransactionId: providerBalanceTransactionId || null,
+        billingCostReserveMinor: billingReserveMinor,
+        affiliateRevenuePolicyRevision: AFFILIATE_REVENUE_POLICY_REVISION,
         sourceChargeId: sourceChargeId || null,
         status: "paid",
         paidAt: FieldValue.serverTimestamp(),
@@ -130,8 +199,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
         }),
       }, {merge: true});
-      if (referrerUid && commissionMinor > 0 &&
-          existingCommission && !existingCommission.exists) {
+      if (referrerUid && existingCommission && !existingCommission.exists) {
         transaction.create(commissionRef, {
           type: "dispatch_subscription_share",
           invoiceId,
@@ -140,11 +208,20 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           referrerUid,
           currency: String(invoice.currency || "cad").toUpperCase(),
           revenueBaseMinor: baseMinor,
+          grossPlatformRevenueMinor: economics.grossPlatformRevenueMinor,
+          paymentProviderFeeMinor: providerFeeMinor,
+          billingCostReserveMinor: billingReserveMinor,
+          provisionalTaxReserveMinor: reserveMinor,
+          commissionableRevenueMinor: economics.commissionableRevenueMinor,
+          affiliateRevenuePolicyRevision: economics.policyRevision,
           commissionShareBps: SUBSCRIPTION_AFFILIATE_SHARE_BPS,
           commissionMinor,
+          adjustedCommissionMinor: commissionMinor,
           sourceChargeId: sourceChargeId || null,
-          status: "pending_refund_window",
-          eligibleAfter,
+          status: !providerCostReady && baseMinor > 0 ?
+            "eligible_financial_review_required" :
+            commissionMinor > 0 ? "pending_refund_window" : "void_no_eligible_revenue",
+          eligibleAfter: commissionMinor > 0 && providerCostReady ? eligibleAfter : null,
           payoutProvider: "stripe_connect",
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
@@ -187,6 +264,7 @@ module.exports = {
   SUBSCRIPTION_REFUND_WINDOW_DAYS,
   createSubscriptionMonetization,
   invoiceCommissionBaseMinor,
+  retrieveStripeChargeEconomics,
   retrieveStripeSubscription,
   sourceChargeFromInvoice,
   subscriptionIdentityFromInvoice,

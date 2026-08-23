@@ -10,6 +10,10 @@ const {
   fromMinorUnits,
   launchMarketplaceFeeSchedule,
 } = require("./marketplace_fee_policy");
+const {
+  AFFILIATE_REVENUE_POLICY_REVISION,
+  DISPATCH_BILLING_COST_RESERVE_BPS,
+} = require("./affiliate_revenue_policy");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 
 function moneyMap(minorByCurrency = {}) {
@@ -35,6 +39,15 @@ function feeCatalog() {
       sharePercent: Number(
           (Number(schedule.affiliateShareBps) * 100 / BASIS_POINTS).toFixed(2),
       ),
+      revenuePolicyRevision: AFFILIATE_REVENUE_POLICY_REVISION,
+      commissionBasis: String(schedule.affiliateCommissionBasis),
+      basisDescription:
+        "5% of positive net eligible Pipe Buyer revenue after applicable " +
+        "payment-provider costs, tax reserves, refunds, chargebacks, credits, " +
+        "and other pass-through costs. Customer taxes and seller sale proceeds " +
+        "are never affiliate revenue.",
+      dispatchBillingCostReserveBps: DISPATCH_BILLING_COST_RESERVE_BPS,
+      refundHoldDays: 30,
     },
     pipe: {
       unitFeeByCurrency: moneyMap(schedule.pipe.unitFeeMinorByCurrency),
