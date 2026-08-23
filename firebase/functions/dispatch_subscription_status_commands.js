@@ -8,6 +8,9 @@ const {
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
+  dispatchBillingPortalAvailable,
+} = require("./dispatch_billing_portal_policy");
+const {
   dispatchSubscriptionPublicStatus,
 } = require("./dispatch_subscription_status_policy");
 
@@ -44,12 +47,15 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
     try {
       const uid = authUid(request);
       await rateLimit({db, admin, request, scope: "account"});
-      const snapshot = await db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION)
-          .doc(uid)
-          .get();
-      const state = snapshot.exists ? snapshot.data() : {};
+      const [subscriptionSnapshot, portalSnapshot] = await Promise.all([
+        db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid).get(),
+        db.collection("platform_configuration").doc("dispatch_billing_portal").get(),
+      ]);
+      const state = subscriptionSnapshot.exists ? subscriptionSnapshot.data() : {};
+      const portalConfig = portalSnapshot.exists ? portalSnapshot.data() : {};
       return {
         ...dispatchSubscriptionPublicStatus(state),
+        canManageBilling: dispatchBillingPortalAvailable(portalConfig, state),
         plans: catalog(),
       };
     } catch (error) {
