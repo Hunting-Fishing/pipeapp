@@ -176,6 +176,7 @@ jobs:
             'createMarketplaceCheckout',
             'createDispatchSubscriptionCheckout',
             'createDispatchBillingPortalSession',
+            'getDispatchSubscriptionLaunchReadiness',
             'verifyDispatchBillingPortalConfiguration',
             'verifyDispatchSubscriptionLifecycleWebhook',
             'reconcileDispatchSubscriptionInvoice',
