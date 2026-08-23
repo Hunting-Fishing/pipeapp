@@ -82,6 +82,10 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
             MarketplaceAdaptiveLayout.extendNavigationRail(availableWidth);
 
         if (useRail) {
+          final pageWidth = _contentWidthAfterRail(
+            availableWidth,
+            extendRail,
+          );
           return Scaffold(
             key: scaffoldKey,
             backgroundColor: effectiveBackground,
@@ -184,11 +188,10 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
                   Expanded(
                     child: _MarketplaceCanvas(
                       backgroundColor: effectiveBackground,
-                      child: _ConstrainedMarketplaceBody(
-                        availableWidth: _contentWidthAfterRail(
-                          availableWidth,
-                          extendRail,
-                        ),
+                      child: _MarketplacePrimaryActionLayer(
+                        availableWidth: pageWidth,
+                        showListNow: selectedPageIndex == 1,
+                        onListNow: () => onDestinationSelected(2),
                         child: body,
                       ),
                     ),
@@ -207,8 +210,10 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
           body: SafeArea(
             child: _MarketplaceCanvas(
               backgroundColor: effectiveBackground,
-              child: _ConstrainedMarketplaceBody(
+              child: _MarketplacePrimaryActionLayer(
                 availableWidth: availableWidth,
+                showListNow: selectedPageIndex == 1,
+                onListNow: () => onDestinationSelected(2),
                 child: body,
               ),
             ),
@@ -473,6 +478,90 @@ class _MarketplaceCanvas extends StatelessWidget {
           ),
         ),
         child: child,
+      );
+}
+
+class _MarketplacePrimaryActionLayer extends StatelessWidget {
+  const _MarketplacePrimaryActionLayer({
+    required this.availableWidth,
+    required this.showListNow,
+    required this.onListNow,
+    required this.child,
+  });
+
+  static const _compactActionBreakpoint = 720.0;
+
+  final double availableWidth;
+  final bool showListNow;
+  final VoidCallback onListNow;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = _ConstrainedMarketplaceBody(
+      availableWidth: availableWidth,
+      child: child,
+    );
+    if (!showListNow) return content;
+
+    if (availableWidth < _compactActionBreakpoint) {
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _MarketplaceListNowButton(onPressed: onListNow),
+            ),
+          ),
+          Expanded(child: content),
+        ],
+      );
+    }
+
+    final contentWidth =
+        MarketplaceAdaptiveLayout.constrainedContentWidth(availableWidth);
+    final rightInset = contentWidth > 0 && availableWidth > contentWidth
+        ? ((availableWidth - contentWidth) / 2) + 16
+        : 16.0;
+
+    return Stack(
+      children: [
+        content,
+        Positioned(
+          top: 12,
+          right: rightInset,
+          child: _MarketplaceListNowButton(onPressed: onListNow),
+        ),
+      ],
+    );
+  }
+}
+
+class _MarketplaceListNowButton extends StatelessWidget {
+  const _MarketplaceListNowButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => FilledButton.icon(
+        key: const Key('marketplace-list-now'),
+        onPressed: onPressed,
+        icon: const Icon(Icons.add_box_outlined, size: 20),
+        label: const Text('List Now'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          backgroundColor: PipeBuyerColors.orange,
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
       );
 }
 

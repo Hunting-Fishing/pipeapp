@@ -135,6 +135,40 @@ void main() {
     expect(selectedPage, 7);
   });
 
+  testWidgets('shows List Now on Marketplace browse and opens the list page',
+      (tester) async {
+    int? selectedPage;
+    await pumpShell(
+      tester,
+      width: 1000,
+      selectedPageIndex: 1,
+      onDestinationSelected: (value) => selectedPage = value,
+    );
+
+    final listNow = find.byKey(const Key('marketplace-list-now'));
+    expect(listNow, findsOneWidget);
+    expect(find.text('List Now'), findsOneWidget);
+
+    await tester.tap(listNow);
+    await tester.pump();
+
+    expect(selectedPage, 2);
+  });
+
+  testWidgets('keeps List Now off non-Marketplace pages', (tester) async {
+    await pumpShell(tester, width: 1000, selectedPageIndex: 0);
+
+    expect(find.byKey(const Key('marketplace-list-now')), findsNothing);
+  });
+
+  testWidgets('keeps List Now visible without overlaying compact page content',
+      (tester) async {
+    await pumpShell(tester, width: 390, selectedPageIndex: 1);
+
+    expect(find.byKey(const Key('marketplace-list-now')), findsOneWidget);
+    expect(find.byKey(const Key('marketplace-body')), findsOneWidget);
+  });
+
   testWidgets('pins the rail footer below desktop destinations',
       (tester) async {
     await pumpShell(
