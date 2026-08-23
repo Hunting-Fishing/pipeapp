@@ -119,6 +119,7 @@ test("first Dispatch Checkout uses stable attempt idempotency and persists singl
   assert.equal(state.status, "checkout_created");
   assert.equal(state.checkoutAttempt, 1);
   assert.equal(state.stripeCheckoutSessionId, "cs_dispatch_first");
+  assert.equal(state.stripeSubscriptionId, null);
   const session = db.docs.get("subscription_checkout_sessions/cs_dispatch_first");
   assert.equal(session.checkoutAttempt, 1);
   assert.equal(session.plan, "monthly");
@@ -152,7 +153,7 @@ test("double tap reuses open Dispatch Checkout and never creates another Session
   assert.equal(calls, 1);
 });
 
-test("existing active subscription blocks a second Stripe Checkout", async () => {
+test("existing active subscription blocks a second Stripe Checkout without leaking provider id", async () => {
   let calls = 0;
   const {commands} = fixture({
     state: {
@@ -168,7 +169,8 @@ test("existing active subscription blocks a second Stripe Checkout", async () =>
   });
   const result = await commands.createDispatchSubscriptionCheckout(request("yearly"));
   assert.equal(result.alreadySubscribed, true);
-  assert.equal(result.stripeSubscriptionId, "sub_dispatch_active");
+  assert.equal(result.subscriptionStatus, "active");
+  assert.equal("stripeSubscriptionId" in result, false);
   assert.equal(calls, 0);
 });
 
@@ -215,10 +217,38 @@ test("provider response cannot overwrite subscription created by faster webhook"
   db = built.db;
   const result = await built.commands.createDispatchSubscriptionCheckout(request());
   assert.equal(result.alreadySubscribed, true);
-  assert.equal(result.stripeSubscriptionId, "sub_dispatch_race");
+  assert.equal("stripeSubscriptionId" in result, false);
   const state = db.docs.get("dispatch_subscriptions/user-1");
   assert.equal(state.status, "active");
   assert.equal(state.stripeSubscriptionId, "sub_dispatch_race");
+});
+
+test("canceled subscription can start a clean replacement Checkout without stale subscription id", async () => {
+  const {commands, db} = fixture({
+    state: {
+      uid: "user-1",
+      plan: "monthly",
+      status: "canceled",
+      entitlementActive: false,
+      checkoutAttempt: 1,
+      stripeSubscriptionId: "sub_dispatch_retired",
+      stripeCustomerId: "cus_dispatch_existing",
+    },
+    stripeRequest: async (call) => {
+      assert.equal(call.idempotencyKey, "pipebuyer-dispatch-user-1-attempt-2");
+      return {
+        id: "cs_dispatch_replacement",
+        url: "https://checkout.stripe.com/c/pay/dispatch-replacement",
+      };
+    },
+  });
+  const result = await commands.createDispatchSubscriptionCheckout(request("yearly"));
+  assert.equal(result.checkoutAttempt, 2);
+  const state = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(state.status, "checkout_created");
+  assert.equal(state.plan, "yearly");
+  assert.equal(state.stripeSubscriptionId, null);
+  assert.equal(state.stripeCustomerId, "cus_dispatch_existing");
 });
 
 test("Dispatch Checkout URL is restricted to checkout.stripe.com", async () => {
