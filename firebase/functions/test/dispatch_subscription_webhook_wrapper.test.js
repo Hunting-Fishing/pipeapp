@@ -117,8 +117,9 @@ test("invoice.payment_failed is handled even though legacy core has no lifecycle
   const wrapper = createDispatchSubscriptionWebhookWrapper(admin, {
     secretProvider: () => "sk_test",
     dispatchState: {
-      async handleInvoicePaymentFailed() {
+      async handleInvoicePaymentFailed(_invoice, secret) {
         failedCalls += 1;
+        assert.equal(secret, "sk_test");
       },
     },
     innerHandler: async (_request, response) => response.status(200).send("OK"),
@@ -129,13 +130,40 @@ test("invoice.payment_failed is handled even though legacy core has no lifecycle
   assert.equal(response.statusCode, 200);
 });
 
+test("subscription update receives Stripe secret for current provider re-read", async () => {
+  const {admin} = fakeAdmin();
+  let receivedType = "";
+  let receivedSecret = "";
+  const wrapper = createDispatchSubscriptionWebhookWrapper(admin, {
+    secretProvider: () => "sk_test_current_state",
+    dispatchState: {
+      async handleSubscriptionEvent(_subscription, type, secret) {
+        receivedType = type;
+        receivedSecret = secret;
+      },
+    },
+    innerHandler: async (_request, response) => response.status(200).send("OK"),
+  });
+  const response = responseRecorder();
+  await wrapper(request(event("customer.subscription.updated", {
+    id: "sub_updated",
+    status: "past_due",
+    metadata: dispatchMetadata,
+  })), response);
+  assert.equal(receivedType, "customer.subscription.updated");
+  assert.equal(receivedSecret, "sk_test_current_state");
+  assert.equal(response.statusCode, 200);
+});
+
 test("subscription deletion reaches authoritative lifecycle state writer", async () => {
   const {admin} = fakeAdmin();
   let receivedType = "";
   const wrapper = createDispatchSubscriptionWebhookWrapper(admin, {
+    secretProvider: () => "sk_test",
     dispatchState: {
-      async handleSubscriptionEvent(_subscription, type) {
+      async handleSubscriptionEvent(_subscription, type, secret) {
         receivedType = type;
+        assert.equal(secret, "sk_test");
       },
     },
     innerHandler: async (_request, response) => response.status(200).send("OK"),
