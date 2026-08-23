@@ -8,9 +8,13 @@ const {
 const {
   canadaSmallSupplierAssessmentDecision,
 } = require("./canada_small_supplier_readiness_guard");
+const {
+  validStripeBillingPortalConfigurationId,
+} = require("./dispatch_billing_portal_policy");
 
 const READINESS_DOC = "payment_provider_readiness";
 const CONFIG_COLLECTION = "platform_configuration";
+const DISPATCH_BILLING_PORTAL_DOC = "dispatch_billing_portal";
 const SMALL_SUPPLIER_ASSESSMENT_COLLECTION = "tax_threshold_assessments";
 const SMALL_SUPPLIER_ASSESSMENT_DOC = "canada_gst_hst_current";
 const MODES = new Set(["disabled", "sandbox", "production"]);
@@ -281,6 +285,25 @@ function createPaymentReadinessAdmin(admin) {
             request.data && request.data.patch,
             {confirmProduction: request.data && request.data.confirmProduction === true},
         );
+        if (next.stripeSubscriptionsEnabled) {
+          const portalRef = db.collection(CONFIG_COLLECTION)
+              .doc(DISPATCH_BILLING_PORTAL_DOC);
+          const portalSnapshot = await transaction.get(portalRef);
+          const portal = portalSnapshot.exists ? portalSnapshot.data() : {};
+          if (portal.enabled !== true ||
+              !validStripeBillingPortalConfigurationId(
+                  portal.stripePortalConfigurationId,
+              )) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Live Dispatch subscriptions require an enabled, reviewed Stripe Billing Portal configuration.",
+            );
+          }
+          safeHttpsPipeBuyerUrl(
+              portal.returnUrl,
+              "Dispatch Billing Portal return URL",
+          );
+        }
         let smallSupplierAssessmentRevision = null;
         if (next.canadaGstHstSmallSupplier) {
           const assessmentRef = db.collection(SMALL_SUPPLIER_ASSESSMENT_COLLECTION)
@@ -347,6 +370,7 @@ function createPaymentReadinessAdmin(admin) {
 module.exports = {
   BOOLEAN_FIELDS,
   CONFIG_COLLECTION,
+  DISPATCH_BILLING_PORTAL_DOC,
   READINESS_DOC,
   SMALL_SUPPLIER_ASSESSMENT_COLLECTION,
   SMALL_SUPPLIER_ASSESSMENT_DOC,
