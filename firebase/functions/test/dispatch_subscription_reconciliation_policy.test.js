@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const {
   dispatchSubscriptionInvoiceReconciliationState,
 } = require("../dispatch_subscription_reconciliation_policy");
+const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 
 function stored(overrides = {}) {
   return {
@@ -12,6 +13,7 @@ function stored(overrides = {}) {
     subscriptionId: "sub_dispatch_1",
     uid: "user-1",
     plan: "monthly",
+    stripePriceId: stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
     currency: "CAD",
     commissionBaseMinor: 2500,
     amountPaidMinor: 2500,
@@ -23,6 +25,9 @@ function stored(overrides = {}) {
 }
 
 function invoice(overrides = {}) {
+  const priceId = String(
+      overrides.priceId || stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+  );
   return {
     id: "in_dispatch_1",
     status: "paid",
@@ -30,6 +35,17 @@ function invoice(overrides = {}) {
     total: 2500,
     total_excluding_tax: 2500,
     currency: "cad",
+    lines: {
+      data: [{
+        quantity: 1,
+        pricing: {
+          price_details: {
+            price: priceId,
+            product: stripeMarketplaceConfig.products.dispatchMonthlyCad.productId,
+          },
+        },
+      }],
+    },
     parent: {
       subscription_details: {
         subscription: "sub_dispatch_1",
@@ -102,6 +118,11 @@ test("positive Dispatch invoice balances InvoicePayment PaymentIntent Charge and
   });
   assert.equal(result.balanced, true);
   assert.deepEqual(result.failedChecks, []);
+  assert.equal(result.providerPlan, "monthly");
+  assert.equal(
+      result.providerStripePriceId,
+      stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+  );
   assert.equal(result.stripeInvoicePaymentId, "inpay_dispatch_1");
   assert.equal(result.stripePaymentIntentId, "pi_dispatch_1");
   assert.equal(result.stripeChargeId, "ch_dispatch_1");
@@ -109,6 +130,21 @@ test("positive Dispatch invoice balances InvoicePayment PaymentIntent Charge and
   assert.equal(result.providerFeeMinor, 103);
   assert.equal(result.providerNetMinor, 2397);
   assert.equal(result.providerDifferenceMinor, 0);
+});
+
+test("yearly invoice remains balanced when Checkout metadata still says monthly", () => {
+  const yearlyPrice = stripeMarketplaceConfig.products.dispatchYearlyCad.priceId;
+  const result = dispatchSubscriptionInvoiceReconciliationState({
+    stored: stored({plan: "yearly", stripePriceId: yearlyPrice}),
+    invoice: invoice({priceId: yearlyPrice}),
+    invoicePayment: invoicePayment(),
+    paymentIntent: paymentIntent(),
+    charge: charge(),
+    balanceTransaction: balance(),
+  });
+  assert.equal(result.balanced, true);
+  assert.equal(result.providerPlan, "yearly");
+  assert.equal(result.providerStripePriceId, yearlyPrice);
 });
 
 test("stored and provider amount mismatch can never report balanced", () => {
@@ -148,6 +184,22 @@ test("wrong Dispatch subscription metadata is quarantined as mismatch", () => {
   });
   assert.equal(result.balanced, false);
   assert.ok(result.failedChecks.includes("billingTypeMatches"));
+});
+
+test("wrong invoice Price is never balanced even when metadata plan matches", () => {
+  const result = dispatchSubscriptionInvoiceReconciliationState({
+    stored: stored(),
+    invoice: invoice({
+      priceId: stripeMarketplaceConfig.products.dispatchYearlyCad.priceId,
+    }),
+    invoicePayment: invoicePayment(),
+    paymentIntent: paymentIntent(),
+    charge: charge(),
+    balanceTransaction: balance(),
+  });
+  assert.equal(result.balanced, false);
+  assert.ok(result.failedChecks.includes("planMatches"));
+  assert.ok(result.failedChecks.includes("stripePriceMatches"));
 });
 
 test("wrong InvoicePayment PaymentIntent link is never balanced", () => {
