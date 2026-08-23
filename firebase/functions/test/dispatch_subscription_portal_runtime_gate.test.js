@@ -10,6 +10,18 @@ const {
   dispatchBillingPortalRuntimeDecision,
 } = require("../dispatch_subscription_portal_runtime_gate");
 
+function storedProviderFeatures(overrides = {}) {
+  return {
+    paymentMethodUpdate: true,
+    invoiceHistory: true,
+    subscriptionCancel: true,
+    subscriptionCancelMode: "at_period_end",
+    subscriptionCancelProration: "none",
+    subscriptionUpdate: false,
+    ...overrides,
+  };
+}
+
 function verifiedPortal(overrides = {}) {
   return {
     enabled: true,
@@ -18,6 +30,7 @@ function verifiedPortal(overrides = {}) {
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_dispatch",
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    providerVerifiedFeatures: storedProviderFeatures(),
     ...overrides,
   };
 }
@@ -74,7 +87,7 @@ function fakeAdmin(portal, counters = null) {
   };
 }
 
-test("runtime Portal decision requires stored provider proof bound to the exact bpc", () => {
+test("runtime Portal decision requires complete stored proof bound to the exact bpc", () => {
   const ready = dispatchBillingPortalRuntimeDecision(verifiedPortal());
   assert.equal(ready.ready, true);
   assert.equal(ready.configurationId, "bpc_live_dispatch");
@@ -86,6 +99,12 @@ test("runtime Portal decision requires stored provider proof bound to the exact 
   })).ready, false);
   assert.equal(dispatchBillingPortalRuntimeDecision(verifiedPortal({
     providerVerificationRevision: "old-policy",
+  })).ready, false);
+  assert.equal(dispatchBillingPortalRuntimeDecision(verifiedPortal({
+    providerVerifiedFeatures: storedProviderFeatures({subscriptionUpdate: true}),
+  })).ready, false);
+  assert.equal(dispatchBillingPortalRuntimeDecision(verifiedPortal({
+    providerVerifiedFeatures: {},
   })).ready, false);
 });
 
