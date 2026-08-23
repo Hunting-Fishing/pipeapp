@@ -8,6 +8,9 @@ const {
   invoicePaymentIntentId,
   objectId,
 } = require("./dispatch_subscription_invoice_payment_policy");
+const {
+  dispatchInvoiceCatalogAssessment,
+} = require("./dispatch_subscription_catalog_policy");
 
 function safeInteger(value) {
   const amount = Number(value);
@@ -34,6 +37,7 @@ function dispatchSubscriptionInvoiceReconciliationState({
   const expectedSubscriptionId = String(stored.subscriptionId || "");
   const expectedUid = String(stored.uid || "");
   const expectedPlan = String(stored.plan || "");
+  const expectedStripePriceId = String(stored.stripePriceId || "");
   const expectedPaymentIntentId = String(stored.stripePaymentIntentId || "");
   const expectedSourceChargeId = String(stored.sourceChargeId || "");
 
@@ -48,6 +52,7 @@ function dispatchSubscriptionInvoiceReconciliationState({
   const providerCurrency = normalizedCurrency(invoice.currency);
   const identity = subscriptionIdentityFromInvoice(invoice);
   const metadata = identity.metadata || {};
+  const providerCatalog = dispatchInvoiceCatalogAssessment(invoice);
 
   const invoicePaymentId = objectId(invoicePayment);
   const invoicePaymentInvoiceId = objectId(invoicePayment && invoicePayment.invoice);
@@ -90,8 +95,11 @@ function dispatchSubscriptionInvoiceReconciliationState({
     billingTypeMatches:
       String(metadata.billingType || "") === "dispatch_subscription",
     uidMatches: !expectedUid || String(metadata.pipeBuyerUid || "") === expectedUid,
+    providerCatalogReady: providerCatalog.ready === true,
     planMatches:
-      !expectedPlan || String(metadata.dispatchPlan || "") === expectedPlan,
+      !expectedPlan || providerCatalog.plan === expectedPlan,
+    stripePriceMatches:
+      !expectedStripePriceId || providerCatalog.priceId === expectedStripePriceId,
     amountPaidValid:
       expectedAmountPaidMinor != null && expectedAmountPaidMinor >= 0,
     amountPaidMatches: providerAmountPaidMinor === expectedAmountPaidMinor,
@@ -169,6 +177,9 @@ function dispatchSubscriptionInvoiceReconciliationState({
     expectedTaxMinor,
     providerInvoiceTotalMinor: providerTotalMinor,
     providerInvoiceAmountPaidMinor: providerAmountPaidMinor,
+    providerPlan: providerCatalog.plan,
+    providerStripePriceId: providerCatalog.priceId,
+    providerCatalogRevision: providerCatalog.revision,
     providerGrossMinor,
     providerFeeMinor,
     providerNetMinor,
