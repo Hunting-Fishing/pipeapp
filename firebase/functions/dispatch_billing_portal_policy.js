@@ -8,6 +8,10 @@ function validStripeSubscriptionId(value) {
   return /^sub_[A-Za-z0-9]+$/u.test(String(value || "").trim());
 }
 
+function validStripeBillingPortalConfigurationId(value) {
+  return /^bpc_[A-Za-z0-9]+$/u.test(String(value || "").trim());
+}
+
 function validStripeBillingPortalUrl(value) {
   try {
     const url = new URL(String(value || "").trim());
@@ -22,6 +26,7 @@ function validStripeBillingPortalUrl(value) {
 
 function dispatchBillingPortalAvailable(config = {}, state = {}) {
   return config.enabled === true &&
+    validStripeBillingPortalConfigurationId(config.stripePortalConfigurationId) &&
     state.reviewRequired !== true &&
     validStripeCustomerId(state.stripeCustomerId) &&
     validStripeSubscriptionId(state.stripeSubscriptionId);
@@ -29,6 +34,7 @@ function dispatchBillingPortalAvailable(config = {}, state = {}) {
 
 module.exports = {
   dispatchBillingPortalAvailable,
+  validStripeBillingPortalConfigurationId,
   validStripeBillingPortalUrl,
   validStripeCustomerId,
   validStripeSubscriptionId,
