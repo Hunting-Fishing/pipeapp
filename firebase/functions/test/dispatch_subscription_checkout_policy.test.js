@@ -3,11 +3,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  MAX_RETIRED_SUBSCRIPTION_IDS,
   dispatchCheckoutIdempotencyKey,
   dispatchPostProviderPersistenceDecision,
+  dispatchRetiredSubscriptionIds,
   dispatchSubscriptionCheckoutState,
   existingDispatchCheckoutDecision,
+  isDispatchRetiredSubscriptionId,
   nextDispatchCheckoutAttempt,
+  nextDispatchRetiredSubscriptionIds,
 } = require("../dispatch_subscription_checkout_policy");
 
 test("existing Stripe subscription blocks a second subscription Checkout", () => {
@@ -38,6 +42,41 @@ test("canceled or expired subscription state may start a new Checkout", () => {
     status: "incomplete_expired",
     stripeSubscriptionId: "sub_old",
   }), "create");
+});
+
+test("retired subscription ids are normalized, deduplicated and bounded", () => {
+  const many = Array.from(
+      {length: MAX_RETIRED_SUBSCRIPTION_IDS + 3},
+      (_, index) => `sub_${index}`,
+  );
+  const normalized = dispatchRetiredSubscriptionIds({
+    retiredStripeSubscriptionIds: ["bad", many[0], many[0], ...many],
+  });
+  assert.equal(normalized.length, MAX_RETIRED_SUBSCRIPTION_IDS);
+  assert.equal(normalized.at(-1), many.at(-1));
+  assert.equal(normalized.includes("bad"), false);
+});
+
+test("restart moves current subscription into retired ledger exactly once", () => {
+  const next = nextDispatchRetiredSubscriptionIds({
+    stripeSubscriptionId: "sub_current",
+    retiredStripeSubscriptionIds: ["sub_older", "sub_current"],
+  });
+  assert.deepEqual(next, ["sub_older", "sub_current"]);
+  assert.equal(
+      isDispatchRetiredSubscriptionId(
+          {retiredStripeSubscriptionIds: next},
+          "sub_current",
+      ),
+      true,
+  );
+  assert.equal(
+      isDispatchRetiredSubscriptionId(
+          {retiredStripeSubscriptionIds: next},
+          "sub_unknown",
+      ),
+      false,
+  );
 });
 
 test("Dispatch idempotency is stable per server-owned logical attempt", () => {
