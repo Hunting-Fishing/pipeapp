@@ -8,9 +8,20 @@ const {
 const {
   canadaSmallSupplierAssessmentDecision,
 } = require("./canada_small_supplier_readiness_guard");
+const {
+  dispatchBillingPortalProviderRecordReady,
+} = require("./dispatch_billing_portal_policy");
+const {
+  dispatchSubscriptionFeatureReady,
+} = require("./dispatch_subscription_readiness_policy");
+const {
+  normalizePhase1FeatureFlags,
+} = require("./phase1_feature_flags");
 
 const READINESS_DOC = "payment_provider_readiness";
 const CONFIG_COLLECTION = "platform_configuration";
+const DISPATCH_BILLING_PORTAL_DOC = "dispatch_billing_portal";
+const PHASE1_FEATURES_DOC = "phase1_features";
 const SMALL_SUPPLIER_ASSESSMENT_COLLECTION = "tax_threshold_assessments";
 const SMALL_SUPPLIER_ASSESSMENT_DOC = "canada_gst_hst_current";
 const MODES = new Set(["disabled", "sandbox", "production"]);
@@ -19,6 +30,9 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeCheckoutEnabled",
   "stripeFeeBillingEnabled",
   "stripeSubscriptionsEnabled",
+  "stripeSubscriptionRecoveryVerified",
+  "stripeSubscriptionLifecycleWebhookVerified",
+  "dispatchAffiliateCommissionAccrualEnabled",
   "stripeWebhookVerified",
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
@@ -139,12 +153,25 @@ function validateReadiness(next, options = {}) {
   if (next.stripeSubscriptionsEnabled && !(
     next.stripeMode === "production" &&
     next.stripeWebhookVerified &&
+    next.stripeSubscriptionLifecycleWebhookVerified &&
+    next.stripeSubscriptionRecoveryVerified &&
     taxBillingPrepared(next) &&
     next.stripeReconciliationReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and an authorized GST/HST billing state.",
+        "Live Dispatch subscriptions require production mode, verified core and subscription lifecycle webhooks, verified subscription recovery settings, reconciliation readiness, and an authorized GST/HST billing state.",
+    );
+  }
+  if (next.dispatchAffiliateCommissionAccrualEnabled && !(
+    next.stripeMode === "production" &&
+    next.stripeSubscriptionsEnabled &&
+    next.stripeWebhookVerified &&
+    next.stripeReconciliationReady
+  )) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Dispatch affiliate commission accrual requires live Dispatch subscriptions, production mode, verified webhooks, and reconciliation readiness.",
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
@@ -203,6 +230,12 @@ function applyPatch(current, patch, options = {}) {
       throw new HttpsError("invalid-argument", `Unsupported readiness field: ${key}`);
     }
   }
+  if (patch.stripeSubscriptionLifecycleWebhookVerified === true) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Subscription lifecycle webhook readiness can only be enabled by live Stripe endpoint verification.",
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, "stripeMode")) {
     next.stripeMode = String(patch.stripeMode || "");
   }
@@ -259,6 +292,37 @@ function createPaymentReadinessAdmin(admin) {
             request.data && request.data.patch,
             {confirmProduction: request.data && request.data.confirmProduction === true},
         );
+        if (next.stripeSubscriptionsEnabled) {
+          const portalRef = db.collection(CONFIG_COLLECTION)
+              .doc(DISPATCH_BILLING_PORTAL_DOC);
+          const featureRef = db.collection(CONFIG_COLLECTION)
+              .doc(PHASE1_FEATURES_DOC);
+          const [portalSnapshot, featureSnapshot] = await Promise.all([
+            transaction.get(portalRef),
+            transaction.get(featureRef),
+          ]);
+          const portal = portalSnapshot.exists ? portalSnapshot.data() : {};
+          if (portal.enabled !== true ||
+              !dispatchBillingPortalProviderRecordReady(portal)) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Live Dispatch subscriptions require an enabled, provider-verified Stripe Billing Portal configuration.",
+            );
+          }
+          safeHttpsPipeBuyerUrl(
+              portal.returnUrl,
+              "Dispatch Billing Portal return URL",
+          );
+          const features = normalizePhase1FeatureFlags(
+              featureSnapshot.exists ? featureSnapshot.data() : null,
+          );
+          if (!dispatchSubscriptionFeatureReady(features)) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Live Dispatch subscriptions require both the Dispatch and paidFeatures feature flags to be enabled.",
+            );
+          }
+        }
         let smallSupplierAssessmentRevision = null;
         if (next.canadaGstHstSmallSupplier) {
           const assessmentRef = db.collection(SMALL_SUPPLIER_ASSESSMENT_COLLECTION)
@@ -325,6 +389,8 @@ function createPaymentReadinessAdmin(admin) {
 module.exports = {
   BOOLEAN_FIELDS,
   CONFIG_COLLECTION,
+  DISPATCH_BILLING_PORTAL_DOC,
+  PHASE1_FEATURES_DOC,
   READINESS_DOC,
   SMALL_SUPPLIER_ASSESSMENT_COLLECTION,
   SMALL_SUPPLIER_ASSESSMENT_DOC,

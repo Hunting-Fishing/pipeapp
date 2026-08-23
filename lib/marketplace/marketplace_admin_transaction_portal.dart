@@ -118,7 +118,7 @@ class _MarketplaceAdminTransactionPortalState
     }
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Row(
@@ -152,6 +152,10 @@ class _MarketplaceAdminTransactionPortalState
                 icon: Icon(Icons.receipt_long_outlined),
                 text: 'Transaction Records',
               ),
+              Tab(
+                icon: Icon(Icons.local_shipping_outlined),
+                text: 'Dispatch Billing',
+              ),
             ],
           ),
         ),
@@ -161,9 +165,60 @@ class _MarketplaceAdminTransactionPortalState
             MarketplaceTaxComplianceAdminPage(),
             MarketplaceWeightCatalogAdminPage(),
             MarketplaceTransactionRecordsPanel(),
+            _DispatchBillingShortcut(),
           ],
         ),
       ),
     );
   }
+}
+
+class _DispatchBillingShortcut extends StatelessWidget {
+  const _DispatchBillingShortcut();
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: PipeBuyerSectionCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.local_shipping_outlined,
+                    size: 48,
+                    color: PipeBuyerColors.orange,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Dispatch Billing Operations',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Open the protected Dispatch subscription workspace for launch readiness, Billing Portal controls, webhook verification, and Stripe ↔ Firestore reconciliation.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          height: 1.45,
+                        ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(context).pushNamed(
+                      '/admin/dispatch-billing',
+                    ),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Open Dispatch Billing Operations'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }

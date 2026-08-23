@@ -20,6 +20,10 @@ const {
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
+  dispatchBillingPortalProviderRecordReady,
+  validStripeCustomerId,
+} = require("./dispatch_billing_portal_policy");
+const {
   automaticTaxEnabled,
   taxBillingPrepared,
   taxCollectionStatus,
@@ -27,6 +31,32 @@ const {
 const {
   requireCanadaSmallSupplierRuntimeEvidence,
 } = require("./canada_small_supplier_runtime_gate");
+const {
+  FOUNDING500_CODE,
+  FOUNDING500_MAX_CLAIMS,
+  FOUNDING500_POLICY_REVISION,
+  FOUNDING500_PROGRAM_ID,
+  founding500PriorSubscriptionExists,
+  founding500TrialEndUnix,
+  normalizeDispatchLaunchCode,
+} = require("./dispatch_founding500_policy");
+const {
+  dispatchCheckoutIdempotencyKey,
+  dispatchCheckoutSessionId,
+  dispatchPostProviderPersistenceDecision,
+  dispatchStripeSubscriptionId,
+  dispatchSubscriptionCheckoutState,
+  existingDispatchCheckoutDecision,
+  nextDispatchCheckoutAttempt,
+  nextDispatchRetiredSubscriptionIds,
+} = require("./dispatch_subscription_checkout_policy");
+
+const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
+const SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION =
+  "subscription_checkout_sessions";
+const DISPATCH_BILLING_PORTAL_DOC = "dispatch_billing_portal";
+const DISPATCH_PROMOTION_PROGRAMS_COLLECTION = "dispatch_promotion_programs";
+const DISPATCH_PROMOTION_CLAIMS_COLLECTION = "dispatch_promotion_claims";
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -40,10 +70,63 @@ function selectedPlan(value) {
   return plan;
 }
 
+function selectedLaunchCode(value) {
+  const code = normalizeDispatchLaunchCode(value);
+  if (!code) return "";
+  if (!/^[A-Z0-9-]{1,64}$/u.test(code)) {
+    throw new HttpsError("invalid-argument", "The Pipe Buyer promo code is invalid.");
+  }
+  if (code !== FOUNDING500_CODE) {
+    throw new HttpsError(
+        "invalid-argument",
+        "This Pipe Buyer launch code is not recognized. Other Stripe promotion codes can be entered on the secure Stripe page.",
+    );
+  }
+  return code;
+}
+
+function validStripeCheckoutUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && url.hostname === "checkout.stripe.com";
+  } catch (_) {
+    return false;
+  }
+}
+
+function dispatchCheckoutCustomerFields(state = {}) {
+  const customerId = String(state.stripeCustomerId || "").trim();
+  if (!customerId) return {};
+  if (!validStripeCustomerId(customerId)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "The stored Dispatch billing customer identity needs review before another Checkout can start.",
+    );
+  }
+  return {customer: customerId};
+}
+
+function dispatchBillingPortalRuntimeReady(portalConfig) {
+  const data = portalConfig && typeof portalConfig === "object" ? portalConfig : {};
+  if (data.enabled !== true ||
+      !dispatchBillingPortalProviderRecordReady(data)) {
+    return false;
+  }
+  try {
+    safeConfiguredUrl(data.returnUrl, "Dispatch Billing Portal return URL");
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 function requireSubscriptionReady(readiness) {
   if (!readiness.stripeSubscriptionsEnabled ||
       readiness.stripeMode !== "production" ||
       readiness.stripeWebhookVerified !== true ||
+      readiness.stripeSubscriptionLifecycleWebhookVerified !== true ||
+      readiness.stripeSubscriptionRecoveryVerified !== true ||
+      readiness.dispatchBillingPortalReady !== true ||
       readiness.stripeReconciliationReady !== true ||
       !taxBillingPrepared(readiness)) {
     throw new HttpsError(
@@ -65,23 +148,183 @@ function couponFromEntitlement(entitlement) {
   return null;
 }
 
-function createDispatchSubscriptionCommands(admin) {
+function dispatchPromotionCodeEntryEnabled(couponId, launchTrialApplied = false) {
+  return !String(couponId || "").trim() && launchTrialApplied !== true;
+}
+
+function createDispatchSubscriptionCommands(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+  const authUid = options.authUid || requireAuth;
+  const rateLimit = options.rateLimit || enforceUserRateLimit;
+  const loadFeatureFlags = options.loadFeatureFlags || loadPhase1FeatureFlags;
+  const requireFeature = options.requireFeature || requirePhase1Feature;
+  const providerReadiness = options.loadProviderReadiness || loadProviderReadiness;
+  const stripeRequest = options.stripeRequest || stripeFormRequest;
+  const secretProvider = options.secretProvider || (() => stripeSecretKey.value());
+  const runtimeTaxEvidence = options.runtimeTaxEvidence ||
+    requireCanadaSmallSupplierRuntimeEvidence;
+  const nowMs = options.nowMs || (() => Date.now());
+
+  async function reserveFounding500Claim({uid, state, checkoutAttempt}) {
+    if (founding500PriorSubscriptionExists(state)) {
+      throw new HttpsError(
+          "failed-precondition",
+          "The Founding 500 offer is limited to a user's first Dispatch subscription.",
+      );
+    }
+    const programRef = db.collection(DISPATCH_PROMOTION_PROGRAMS_COLLECTION)
+        .doc(FOUNDING500_PROGRAM_ID);
+    const claimRef = db.collection(DISPATCH_PROMOTION_CLAIMS_COLLECTION).doc(uid);
+    const trialEndUnix = founding500TrialEndUnix(nowMs());
+    return db.runTransaction(async (transaction) => {
+      const programSnapshot = await transaction.get(programRef);
+      const claimSnapshot = await transaction.get(claimRef);
+      const program = programSnapshot.exists ? programSnapshot.data() : {};
+      const claim = claimSnapshot.exists ? claimSnapshot.data() : {};
+
+      if (programSnapshot.exists) {
+        const maxClaims = Number(program.maxClaims);
+        const claimedCount = Number(program.claimedCount);
+        if (program.active === false) {
+          throw new HttpsError(
+              "resource-exhausted",
+              "The Founding 500 offer is no longer available.",
+          );
+        }
+        if (String(program.code || "") !== FOUNDING500_CODE ||
+            String(program.policyRevision || "") !==
+              FOUNDING500_POLICY_REVISION ||
+            maxClaims !== FOUNDING500_MAX_CLAIMS ||
+            !Number.isSafeInteger(claimedCount) ||
+            claimedCount < 0 || claimedCount > maxClaims) {
+          throw new HttpsError(
+              "failed-precondition",
+              "The Founding 500 promotion configuration needs review.",
+          );
+        }
+      }
+
+      if (claimSnapshot.exists &&
+          String(claim.programId || "") === FOUNDING500_PROGRAM_ID &&
+          String(claim.status || "") !== "released") {
+        transaction.set(claimRef, {
+          code: FOUNDING500_CODE,
+          policyRevision: FOUNDING500_POLICY_REVISION,
+          status: "reserved",
+          checkoutAttempt,
+          trialEndUnix,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        return {
+          claimRef,
+          claimNumber: Number(claim.claimNumber || 0),
+          trialEndUnix,
+          incremented: false,
+        };
+      }
+
+      const claimedCount = programSnapshot.exists ?
+        Number(program.claimedCount) : 0;
+      if (claimedCount >= FOUNDING500_MAX_CLAIMS) {
+        throw new HttpsError(
+            "resource-exhausted",
+            "All 500 Founding Dispatch offers have been claimed.",
+        );
+      }
+      const nextClaimNumber = claimedCount + 1;
+      transaction.set(programRef, {
+        programId: FOUNDING500_PROGRAM_ID,
+        code: FOUNDING500_CODE,
+        policyRevision: FOUNDING500_POLICY_REVISION,
+        active: true,
+        maxClaims: FOUNDING500_MAX_CLAIMS,
+        claimedCount: nextClaimNumber,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(programSnapshot.exists ? {} : {
+          createdAt: FieldValue.serverTimestamp(),
+        }),
+      }, {merge: true});
+      transaction.set(claimRef, {
+        uid,
+        programId: FOUNDING500_PROGRAM_ID,
+        code: FOUNDING500_CODE,
+        policyRevision: FOUNDING500_POLICY_REVISION,
+        claimNumber: nextClaimNumber,
+        status: "reserved",
+        checkoutAttempt,
+        trialEndUnix,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(claimSnapshot.exists ? {} : {
+          createdAt: FieldValue.serverTimestamp(),
+        }),
+      }, {merge: true});
+      return {
+        claimRef,
+        claimNumber: nextClaimNumber,
+        trialEndUnix,
+        incremented: true,
+      };
+    });
+  }
+
+  async function releaseFounding500Claim(reservation, checkoutAttempt) {
+    if (!reservation || reservation.incremented !== true) return;
+    const programRef = db.collection(DISPATCH_PROMOTION_PROGRAMS_COLLECTION)
+        .doc(FOUNDING500_PROGRAM_ID);
+    const claimRef = db.collection(DISPATCH_PROMOTION_CLAIMS_COLLECTION)
+        .doc(String(reservation.uid || ""));
+    await db.runTransaction(async (transaction) => {
+      const claimSnapshot = await transaction.get(claimRef);
+      const programSnapshot = await transaction.get(programRef);
+      if (!claimSnapshot.exists || !programSnapshot.exists) return;
+      const claim = claimSnapshot.data();
+      const program = programSnapshot.data();
+      if (String(claim.status || "") !== "reserved" ||
+          Number(claim.checkoutAttempt) !== Number(checkoutAttempt) ||
+          Number(claim.claimNumber) !== Number(reservation.claimNumber)) {
+        return;
+      }
+      const claimedCount = Number(program.claimedCount);
+      if (!Number.isSafeInteger(claimedCount) || claimedCount < 1) return;
+      transaction.set(programRef, {
+        claimedCount: claimedCount - 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      transaction.set(claimRef, {
+        status: "released",
+        releasedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+    });
+  }
 
   const createDispatchSubscriptionCheckout = async (request) => {
+    let foundingReservation = null;
+    let checkoutAttemptForReservation = null;
+    let providerSessionCreated = false;
     try {
-      const uid = requireAuth(request);
-      await enforceUserRateLimit({db, admin, request, scope: "account"});
-      const flags = await loadPhase1FeatureFlags(db);
-      requirePhase1Feature(flags, "dispatch");
-      requirePhase1Feature(flags, "paidFeatures");
-      const readinessSnapshot = await db.collection("platform_configuration")
-          .doc("payment_provider_readiness").get();
+      const uid = authUid(request);
+      await rateLimit({db, admin, request, scope: "account"});
+      const flags = await loadFeatureFlags(db);
+      requireFeature(flags, "dispatch");
+      requireFeature(flags, "paidFeatures");
+      const [readinessSnapshot, portalSnapshot] = await Promise.all([
+        db.collection("platform_configuration")
+            .doc("payment_provider_readiness").get(),
+        db.collection("platform_configuration")
+            .doc(DISPATCH_BILLING_PORTAL_DOC).get(),
+      ]);
       const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
+      const portalData = portalSnapshot.exists ? portalSnapshot.data() : {};
       const readiness = {
-        ...(await loadProviderReadiness(db)),
+        ...(await providerReadiness(db)),
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
+        stripeSubscriptionRecoveryVerified:
+          readinessData.stripeSubscriptionRecoveryVerified === true,
+        stripeSubscriptionLifecycleWebhookVerified:
+          readinessData.stripeSubscriptionLifecycleWebhookVerified === true,
+        dispatchBillingPortalReady: dispatchBillingPortalRuntimeReady(portalData),
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
         stripeTaxPendingBillingApproved:
@@ -93,10 +336,89 @@ function createDispatchSubscriptionCommands(admin) {
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
-      await requireCanadaSmallSupplierRuntimeEvidence(db, readiness);
+      await runtimeTaxEvidence(db, readiness);
       requireSubscriptionReady(readiness);
-      const collectionStatus = taxCollectionStatus(readiness);
+
       const plan = selectedPlan(request.data && request.data.plan);
+      const launchCode = selectedLaunchCode(
+          request.data && request.data.promotionCode,
+      );
+      const stateRef = db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid);
+      const stateSnapshot = await stateRef.get();
+      const state = stateSnapshot.exists ? stateSnapshot.data() : {};
+      const localState = dispatchSubscriptionCheckoutState(state);
+
+      if (localState === "existing_subscription") {
+        return {
+          alreadySubscribed: true,
+          processing: false,
+          plan: String(state.plan || ""),
+          subscriptionStatus: String(state.status || ""),
+        };
+      }
+      if (localState === "inconsistent") {
+        throw new HttpsError(
+            "failed-precondition",
+            "The current Dispatch subscription payment state needs review before another Checkout can start.",
+        );
+      }
+      if (localState === "active_checkout") {
+        const existingPlan = String(state.plan || "");
+        if (existingPlan && existingPlan !== plan) {
+          throw new HttpsError(
+              "failed-precondition",
+              `A ${existingPlan} Dispatch Checkout is already open. Complete it or let it expire before switching plans.`,
+          );
+        }
+        const existingSessionId = dispatchCheckoutSessionId(state);
+        const existingSession = await stripeRequest({
+          secretKey: secretProvider(),
+          path: `/v1/checkout/sessions/${encodeURIComponent(existingSessionId)}`,
+          method: "GET",
+        });
+        const existingUrl = String(existingSession.url || "");
+        const decision = existingDispatchCheckoutDecision({
+          localStatus: state.status,
+          providerStatus: existingSession.status,
+          paymentStatus: existingSession.payment_status,
+          checkoutUrlValid: validStripeCheckoutUrl(existingUrl),
+        });
+        if (decision.action === "processing") {
+          return {
+            alreadySubscribed: false,
+            alreadyCreated: true,
+            processing: true,
+            plan,
+            checkoutSessionId: existingSessionId,
+            taxCollectionStatus: taxCollectionStatus(readiness),
+          };
+        }
+        if (decision.action === "reuse") {
+          return {
+            alreadySubscribed: false,
+            alreadyCreated: true,
+            processing: false,
+            plan,
+            checkoutSessionId: existingSessionId,
+            checkoutUrl: existingUrl,
+            taxCollectionStatus: taxCollectionStatus(readiness),
+          };
+        }
+        if (decision.action === "invalid_url") {
+          throw new HttpsError(
+              "failed-precondition",
+              "The existing Stripe Dispatch Checkout link is unavailable.",
+          );
+        }
+        if (decision.action === "review") {
+          throw new HttpsError(
+              "failed-precondition",
+              "The existing Dispatch subscription Checkout needs review before another Checkout can start.",
+          );
+        }
+      }
+
+      const collectionStatus = taxCollectionStatus(readiness);
       const priceId = plan === "monthly" ?
         stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId :
         stripeMarketplaceConfig.products.dispatchYearlyCad.priceId;
@@ -114,33 +436,70 @@ function createDispatchSubscriptionCommands(admin) {
       ]);
       const entitlement = entitlementSnapshot.exists ? entitlementSnapshot.data() : null;
       const couponId = couponFromEntitlement(entitlement);
+      if (launchCode && couponId) {
+        throw new HttpsError(
+            "failed-precondition",
+            "A special Dispatch entitlement is already assigned to this account; launch promotions cannot be stacked.",
+        );
+      }
       const referrerUid = relationshipSnapshot.exists ?
         String(relationshipSnapshot.data().referrerUid || "").trim() : "";
-      const checkout = await stripeFormRequest({
-        secretKey: stripeSecretKey.value(),
+      const attempt = nextDispatchCheckoutAttempt(state);
+      checkoutAttemptForReservation = attempt;
+      if (launchCode === FOUNDING500_CODE) {
+        foundingReservation = await reserveFounding500Claim({
+          uid,
+          state,
+          checkoutAttempt: attempt,
+        });
+        foundingReservation.uid = uid;
+      }
+      const launchTrialApplied = foundingReservation != null;
+      const checkout = await stripeRequest({
+        secretKey: secretProvider(),
         path: "/v1/checkout/sessions",
-        idempotencyKey: `pipebuyer-dispatch-${uid}-${plan}-${Date.now()}`,
+        idempotencyKey: dispatchCheckoutIdempotencyKey(uid, attempt),
         fields: {
           mode: "subscription",
           success_url: successUrl,
           cancel_url: cancelUrl,
           client_reference_id: uid,
+          ...dispatchCheckoutCustomerFields(state),
           billing_address_collection: "required",
-          allow_promotion_codes: "false",
+          allow_promotion_codes:
+            dispatchPromotionCodeEntryEnabled(couponId, launchTrialApplied) ?
+              "true" : "false",
           "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
           "line_items[0][price]": priceId,
           "line_items[0][quantity]": 1,
           ...(couponId ? {"discounts[0][coupon]": couponId} : {}),
+          ...(launchTrialApplied ? {
+            "subscription_data[trial_end]": foundingReservation.trialEndUnix,
+          } : {}),
           "metadata[billingType]": "dispatch_subscription",
           "metadata[pipeBuyerUid]": uid,
           "metadata[dispatchPlan]": plan,
+          "metadata[checkoutAttempt]": attempt,
           "metadata[taxCollectionStatus]": collectionStatus,
           ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
+          ...(launchTrialApplied ? {
+            "metadata[launchPromotionCode]": FOUNDING500_CODE,
+            "metadata[launchPromotionClaimNumber]":
+              foundingReservation.claimNumber,
+            "metadata[launchPromotionTrialEnd]":
+              foundingReservation.trialEndUnix,
+          } : {}),
           ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
           "subscription_data[metadata][billingType]": "dispatch_subscription",
           "subscription_data[metadata][pipeBuyerUid]": uid,
           "subscription_data[metadata][dispatchPlan]": plan,
           "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
+          ...(launchTrialApplied ? {
+            "subscription_data[metadata][launchPromotionCode]":
+              FOUNDING500_CODE,
+            "subscription_data[metadata][launchPromotionClaimNumber]":
+              foundingReservation.claimNumber,
+          } : {}),
           ...(referrerUid ? {
             "subscription_data[metadata][affiliateReferrerUid]": referrerUid,
           } : {}),
@@ -148,30 +507,140 @@ function createDispatchSubscriptionCommands(admin) {
       });
       const sessionId = String(checkout.id || "");
       const checkoutUrl = String(checkout.url || "");
-      if (!sessionId.startsWith("cs_") || !checkoutUrl.startsWith("https://")) {
-        throw new HttpsError("internal", "Stripe did not return a valid subscription checkout.");
+      providerSessionCreated = sessionId.startsWith("cs_");
+      if (!providerSessionCreated || !validStripeCheckoutUrl(checkoutUrl)) {
+        throw new HttpsError("internal", "Stripe did not return a valid subscription Checkout.");
       }
-      await db.collection("subscription_checkout_sessions").doc(sessionId).set({
-        uid,
-        plan,
-        priceId,
-        couponId: couponId || null,
-        referrerUid: referrerUid || null,
-        taxCollectionStatus: collectionStatus,
-        taxExposureReviewRequired: collectionStatus === "registration_pending",
-        automaticTaxEnabled: automaticTaxEnabled(readiness),
-        status: "created",
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+
+      const sessionRef = db.collection(SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION)
+          .doc(sessionId);
+      const persistence = await db.runTransaction(async (transaction) => {
+        const currentSnapshot = await transaction.get(stateRef);
+        const current = currentSnapshot.exists ? currentSnapshot.data() : {};
+        const decision = dispatchPostProviderPersistenceDecision({
+          currentStatus: current.status,
+          currentSessionId: dispatchCheckoutSessionId(current),
+          currentAttempt: current.checkoutAttempt,
+          createdSessionId: sessionId,
+          createdAttempt: attempt,
+          currentSubscriptionId: dispatchStripeSubscriptionId(current),
+        });
+
+        transaction.set(sessionRef, {
+          uid,
+          plan,
+          priceId,
+          checkoutAttempt: attempt,
+          couponId: couponId || null,
+          launchPromotionCode: launchTrialApplied ? FOUNDING500_CODE : null,
+          launchPromotionClaimNumber: launchTrialApplied ?
+            foundingReservation.claimNumber : null,
+          trialEndUnix: launchTrialApplied ?
+            foundingReservation.trialEndUnix : null,
+          referrerUid: referrerUid || null,
+          taxCollectionStatus: collectionStatus,
+          taxExposureReviewRequired: collectionStatus === "registration_pending",
+          automaticTaxEnabled: automaticTaxEnabled(readiness),
+          status: "created",
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        if (launchTrialApplied) {
+          transaction.set(foundingReservation.claimRef, {
+            status: "checkout_created",
+            checkoutSessionId: sessionId,
+            checkoutAttempt: attempt,
+            plan,
+            trialEndUnix: foundingReservation.trialEndUnix,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+        }
+
+        if (decision !== "checkout_created") {
+          return {decision};
+        }
+        const retiredStripeSubscriptionIds =
+          nextDispatchRetiredSubscriptionIds(current);
+        transaction.set(stateRef, {
+          uid,
+          plan,
+          priceId,
+          status: "checkout_created",
+          checkoutAttempt: attempt,
+          stripeCheckoutSessionId: sessionId,
+          stripeSubscriptionId: null,
+          retiredStripeSubscriptionIds,
+          entitlementActive: false,
+          paymentIssue: false,
+          reviewRequired: false,
+          reviewReason: null,
+          conflictingStripeSubscriptionId: null,
+          taxCollectionStatus: collectionStatus,
+          promotionCouponId: couponId || null,
+          launchPromotionCode: launchTrialApplied ? FOUNDING500_CODE : null,
+          launchPromotionClaimNumber: launchTrialApplied ?
+            foundingReservation.claimNumber : null,
+          launchPromotionTrialEndUnix: launchTrialApplied ?
+            foundingReservation.trialEndUnix : null,
+          affiliateReferrerUid: referrerUid || null,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(currentSnapshot.exists ? {} : {
+            createdAt: FieldValue.serverTimestamp(),
+          }),
+        }, {merge: true});
+        return {decision: "checkout_created"};
       });
+
+      if (persistence.decision === "existing_subscription") {
+        return {
+          alreadySubscribed: true,
+          processing: false,
+          plan,
+        };
+      }
+      if (persistence.decision === "processing") {
+        return {
+          alreadySubscribed: false,
+          alreadyCreated: true,
+          processing: true,
+          plan,
+          checkoutSessionId: sessionId,
+          taxCollectionStatus: collectionStatus,
+        };
+      }
+      if (persistence.decision === "superseded") {
+        throw new HttpsError(
+            "failed-precondition",
+            "A newer Dispatch subscription Checkout already exists. Refresh and try again.",
+        );
+      }
+
       return {
         checkoutSessionId: sessionId,
         checkoutUrl,
         plan,
-        promotionApplied: Boolean(couponId),
+        checkoutAttempt: attempt,
+        alreadyCreated: false,
+        alreadySubscribed: false,
+        processing: false,
+        promotionApplied: Boolean(couponId || launchTrialApplied),
+        launchPromotionCode: launchTrialApplied ? FOUNDING500_CODE : null,
+        trialEndUnix: launchTrialApplied ? foundingReservation.trialEndUnix : null,
         taxCollectionStatus: collectionStatus,
       };
     } catch (error) {
+      if (foundingReservation &&
+          checkoutAttemptForReservation != null &&
+          providerSessionCreated !== true) {
+        try {
+          await releaseFounding500Claim(
+              foundingReservation,
+              checkoutAttemptForReservation,
+          );
+        } catch (releaseError) {
+          console.error("Founding 500 reservation release failed", releaseError);
+        }
+      }
       if (error instanceof HttpsError) throw error;
       if (error instanceof AccountSecurityError) {
         throw new HttpsError(error.code, error.message);
@@ -185,8 +654,18 @@ function createDispatchSubscriptionCommands(admin) {
 }
 
 module.exports = {
+  DISPATCH_BILLING_PORTAL_DOC,
+  DISPATCH_PROMOTION_CLAIMS_COLLECTION,
+  DISPATCH_PROMOTION_PROGRAMS_COLLECTION,
+  DISPATCH_SUBSCRIPTIONS_COLLECTION,
+  SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION,
   couponFromEntitlement,
   createDispatchSubscriptionCommands,
+  dispatchBillingPortalRuntimeReady,
+  dispatchCheckoutCustomerFields,
+  dispatchPromotionCodeEntryEnabled,
   requireSubscriptionReady,
+  selectedLaunchCode,
   selectedPlan,
+  validStripeCheckoutUrl,
 };

@@ -11,6 +11,7 @@ import {
   hashDirectory,
   hashRelativeFiles,
   isValidPublicSupportEmail,
+  parseBooleanFlag,
   readFunctionSources,
   resolveFunctionEntrypoint,
   validateReleaseInputs,
@@ -161,6 +162,42 @@ test("App Check rollout modes are explicit and production fails closed", () => {
       }),
       /Unsupported App Check mode/u,
   );
+});
+
+test("client feature build approvals parse only exact booleans", () => {
+  assert.equal(parseBooleanFlag(true), true);
+  assert.equal(parseBooleanFlag(false), false);
+  assert.equal(parseBooleanFlag("true"), true);
+  assert.equal(parseBooleanFlag("FALSE"), false);
+  assert.throws(() => parseBooleanFlag("yes", "dispatch"), /exactly true or false/u);
+});
+
+test("release validation accepts independent explicit feature build approvals", () => {
+  assert.doesNotThrow(() => validateReleaseInputs({
+    environment: "production",
+    releaseSha: "9".repeat(40),
+    firebaseProjectId: "pipe-production",
+    publicSupportEmail: "support@pipebuyer.com",
+    appCheckMode: "enforce",
+    dispatchBuildEnabled: true,
+    paidFeaturesBuildEnabled: true,
+  }));
+  assert.doesNotThrow(() => validateReleaseInputs({
+    environment: "staging",
+    releaseSha: "8".repeat(40),
+    firebaseProjectId: "pipe-staging",
+    publicSupportEmail: "support@pipebuyer.com",
+    appCheckMode: "disabled",
+    dispatchBuildEnabled: false,
+    paidFeaturesBuildEnabled: true,
+  }));
+  assert.throws(() => validateReleaseInputs({
+    environment: "staging",
+    releaseSha: "7".repeat(40),
+    firebaseProjectId: "pipe-staging",
+    publicSupportEmail: "support@pipebuyer.com",
+    dispatchBuildEnabled: "true",
+  }), /build approvals must be boolean/u);
 });
 
 test("controlled release manifests reject uncommitted tracked source", () => {

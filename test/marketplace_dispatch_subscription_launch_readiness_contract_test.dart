@@ -1,0 +1,95 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  String controllerSource() => File(
+        'lib/marketplace/marketplace_dispatch_subscription_launch_readiness_panel.dart',
+      ).readAsStringSync();
+  String viewSource() => File(
+        'lib/marketplace/marketplace_dispatch_subscription_readiness_view.dart',
+      ).readAsStringSync();
+
+  test('Dispatch launch readiness uses one audited server snapshot', () {
+    final controller = controllerSource();
+    final view = viewSource();
+    final page = File(
+      'lib/marketplace/marketplace_dispatch_subscription_admin_page.dart',
+    ).readAsStringSync();
+    final combined = '$controller\n$view';
+
+    expect(page, contains('MarketplaceDispatchSubscriptionLaunchReadinessPanel'));
+    expect(controller, contains("'getDispatchSubscriptionLaunchReadiness'"));
+    expect(controller, isNot(contains("'getPaymentProviderReadiness'")));
+    expect(controller, isNot(contains("'getDispatchBillingPortalReadiness'")));
+    expect(controller, isNot(contains("'getCanadaGstHstThresholdAssessment'")));
+    expect(controller, contains("'verifyDispatchSubscriptionLifecycleWebhook'"));
+    expect(controller, contains("'setPaymentProviderReadiness'"));
+    expect(controller, contains("'stripeSubscriptionRecoveryVerified'"));
+    expect(controller, contains('I verified this'));
+    expect(view, contains('Nothing on this card activates public subscriptions'));
+    expect(combined, isNot(contains("'stripeSubscriptionsEnabled': true")));
+    expect(combined, isNot(contains('FirebaseFirestore')));
+    expect(combined, isNot(contains('.set(')));
+    expect(combined, isNot(contains('.update(')));
+    expect(combined, isNot(contains('.delete(')));
+  });
+
+  test('Dispatch readiness renders the centralized eight stored prerequisites', () {
+    final view = viewSource();
+
+    expect(view, contains("snapshot['featureFlagsReady'] == true"));
+    expect(view, contains("snapshot['productionModeReady'] == true"));
+    expect(view, contains("snapshot['portalReady'] == true"));
+    expect(view, contains("snapshot['coreWebhookReady'] == true"));
+    expect(view, contains("snapshot['lifecycleWebhookReady'] == true"));
+    expect(view, contains("snapshot['recoveryReady'] == true"));
+    expect(view, contains("snapshot['reconciliationReady'] == true"));
+    expect(view, contains("snapshot['taxReady'] == true"));
+    expect(view, contains('prerequisiteCount'));
+    expect(view, contains('Dispatch feature availability'));
+    expect(view, contains('Stripe production mode'));
+    expect(view, contains('Recommended next action'));
+    expect(view, contains('BILLING OFF'));
+    expect(view, contains('dispatchSubscriptionNextAction'));
+  });
+
+  test('GST HST readiness consumes server-projected small-supplier evidence', () {
+    final view = viewSource();
+
+    expect(view, contains("snapshot['smallSupplierBillingEvidenceReady'] == true"));
+    expect(view, contains('smallSupplierBillingEvidenceReason'));
+    expect(view, contains('smallSupplierAssessmentRevision'));
+    expect(view, contains('smallSupplierBoundRevision'));
+    expect(view, contains('dispatchTaxReadinessDetail'));
+    expect(view, contains('assessment is stale'));
+    expect(view, contains('threshold has been exceeded'));
+  });
+
+  test('stateful readiness controller delegates pure presentation to extracted view', () {
+    final controller = controllerSource();
+
+    expect(
+      controller,
+      contains("import 'marketplace_dispatch_subscription_readiness_view.dart';"),
+    );
+    expect(controller, contains('MarketplaceDispatchSubscriptionReadinessView'));
+    expect(controller, contains('snapshot: _snapshot'));
+    expect(controller, isNot(contains('LinearProgressIndicator')));
+    expect(controller, isNot(contains('class _GateRow')));
+    expect(controller, isNot(contains('class _StatusPill')));
+  });
+
+  test('Dispatch billing operations workspace stays focused and protected', () {
+    final page = File(
+      'lib/marketplace/marketplace_dispatch_subscription_admin_page.dart',
+    ).readAsStringSync();
+
+    expect(page, contains('Protected financial operations'));
+    expect(page, contains('maxWidth: 1080'));
+    expect(page, contains("number: '1'"));
+    expect(page, contains("number: '2'"));
+    expect(page, contains("number: '3'"));
+    expect(page, contains('It does not contain a public subscription-activation button'));
+  });
+}

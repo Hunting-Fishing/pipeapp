@@ -1,16 +1,15 @@
 /// Compile-time safety policy for the Phase 1 client.
 ///
-/// Server-controlled feature configuration will be added before Gate 0 closes.
-/// These defaults fail closed so a production build cannot accidentally expose
-/// regulated listings or unimplemented paid workflows. Marketplace inventory
-/// always comes from the configured backend; demo listings are not compiled in.
+/// Remote feature configuration remains the operational kill switch. Features
+/// that carry higher financial or regulatory risk also require an explicit
+/// build-time opt-in so a production artifact cannot expose them accidentally.
 class Phase1FeaturePolicy {
   const Phase1FeaturePolicy({
     required this.environment,
     required this.regulatedListingsRequested,
     required this.paidFeaturesRequested,
     this.auctionsRequested = true,
-    this.dispatchRequested = true,
+    this.dispatchRequested = false,
   });
 
   static const current = Phase1FeaturePolicy(
@@ -32,7 +31,7 @@ class Phase1FeaturePolicy {
     ),
     dispatchRequested: bool.fromEnvironment(
       'PIPE_ENABLE_DISPATCH',
-      defaultValue: true,
+      defaultValue: false,
     ),
   );
 
@@ -47,7 +46,11 @@ class Phase1FeaturePolicy {
   bool get regulatedListingsEnabled =>
       !isProduction && regulatedListingsRequested;
 
-  bool get paidFeaturesEnabled => !isProduction && paidFeaturesRequested;
+  /// Paid workflows are allowed in production only through an explicit build
+  /// approval. The remote `paidFeatures` flag remains a second, immediate kill
+  /// switch, so compiling an approved artifact does not by itself enable paid
+  /// features for users.
+  bool get paidFeaturesEnabled => paidFeaturesRequested;
 
   /// Auctions and Dispatch remain available during development, but a
   /// production artifact must explicitly opt in at build time. The remote

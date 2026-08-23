@@ -13,6 +13,7 @@ import '/marketplace/oil_gas_marketplace.dart';
 import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
 import '/marketplace/marketplace_dispatch_page.dart';
+import '/marketplace/marketplace_dispatch_subscription_admin_page.dart';
 import '/marketplace/marketplace_external_settlement_admin_page.dart';
 import '/marketplace/marketplace_external_settlement_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
@@ -149,6 +150,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           requireAuth: true,
           builder: (context, params) =>
               const MarketplaceExternalSettlementAdminPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.dispatchBillingAdminRouteName,
+          path: MarketplaceDeepLinks.dispatchBillingAdminPath,
+          requireAuth: true,
+          builder: (context, params) =>
+              const MarketplaceDispatchSubscriptionAdminPage(),
         ),
         FFRoute(
           name: 'marketplaceTaxProfile',

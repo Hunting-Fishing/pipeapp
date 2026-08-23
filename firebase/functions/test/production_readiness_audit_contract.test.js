@@ -1,0 +1,38 @@
+"use strict";
+
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+test("production readiness audit verifies Dispatch provider controls", () => {
+  const source = fs.readFileSync(
+      path.join(__dirname, "../../../.github/workflows/production-readiness-audit.yml"),
+      "utf8",
+  );
+  assert.match(source, /\/v1\/billing_portal\/configurations\?limit=100/u);
+  assert.match(source, /payment_method_update/u);
+  assert.match(source, /customer_update/u);
+  assert.match(source, /address.*email.*name.*phone.*tax_id/u);
+  assert.match(source, /invoice_history/u);
+  assert.match(source, /subscription_cancel/u);
+  assert.match(source, /at_period_end/u);
+  assert.match(source, /proration_behavior/u);
+  assert.match(source, /subscription_update/u);
+  assert.match(source, /default_allowed_updates/u);
+  assert.match(source, /sameSet\(update\.default_allowed_updates, \['price'\]\)/u);
+  assert.match(source, /prod_V2WkE5D16GhGaD/u);
+  assert.match(source, /price_1U2SYGDkO07WMXyRm6xbprUn/u);
+  assert.match(source, /price_1U7bTCDkO07WMXyRvLkWVHHu/u);
+  assert.match(source, /invoice\.paid/u);
+  assert.match(source, /invoice\.payment_failed/u);
+  assert.match(source, /customer\.subscription\.updated/u);
+  assert.match(source, /customer\.subscription\.deleted/u);
+  assert.match(source, /getDispatchSubscriptionLaunchReadiness/u);
+  assert.match(source, /verifyDispatchBillingPortalConfiguration/u);
+  assert.match(source, /verifyDispatchSubscriptionLifecycleWebhook/u);
+  assert.match(source, /createDispatchBillingPortalSession/u);
+  assert.match(source, /reconcileDispatchSubscriptionInvoice/u);
+  assert.match(source, /No launch-safe live Stripe Billing Portal configuration exists/u);
+  assert.match(source, /Dispatch subscription webhook events are incomplete/u);
+});

@@ -1,22 +1,12 @@
-name: OAuth Branding
+name: OAuth Branding - Manual
 
 on:
-  pull_request:
-    paths:
-      - 'web/**'
-      - 'firebase.json'
-      - 'lib/main.dart'
-      - 'tool/oauth_branding_test.mjs'
-      - '.github/workflows/oauth-branding.yml'
-  push:
-    branches:
-      - main
-    paths:
-      - 'web/**'
-      - 'firebase.json'
-      - 'lib/main.dart'
-      - 'tool/oauth_branding_test.mjs'
-      - '.github/workflows/oauth-branding.yml'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why this branding verification run is needed
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -34,3 +24,6 @@ jobs:
           node-version: 22
       - name: Simulate Google OAuth branding checks
         run: node --test tool/oauth_branding_test.mjs
+      - name: Record manual branding gate
+        run: |
+          echo "OAuth Branding runs only by explicit workflow dispatch." >> "$GITHUB_STEP_SUMMARY"

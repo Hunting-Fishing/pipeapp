@@ -40,6 +40,30 @@ const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
+  createDispatchSubscriptionPortalRuntimeGate,
+} = require("./dispatch_subscription_portal_runtime_gate");
+const {
+  createDispatchSubscriptionStatusCommands,
+} = require("./dispatch_subscription_status_commands");
+const {
+  createDispatchSubscriptionPortalCommands,
+} = require("./dispatch_subscription_portal_commands");
+const {
+  createDispatchSubscriptionReconciliationCommands,
+} = require("./dispatch_subscription_reconciliation_commands");
+const {
+  createDispatchSubscriptionAdminCommands,
+} = require("./dispatch_subscription_admin_commands");
+const {
+  createDispatchSubscriptionLaunchReadinessCommands,
+} = require("./dispatch_subscription_launch_readiness_commands");
+const {
+  createDispatchBillingPortalAdmin,
+} = require("./dispatch_billing_portal_admin");
+const {
+  createDispatchBillingPortalVerificationCommands,
+} = require("./dispatch_billing_portal_verification_commands");
+const {
   createCanadaSmallSupplierThresholdCommands,
 } = require("./canada_small_supplier_threshold_commands");
 const {
@@ -67,6 +91,31 @@ const externalSettlementReceiptCommands =
 const externalSettlementReconciliationCommands =
     createExternalSettlementReconciliationCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const createDispatchSubscriptionCheckout =
+    createDispatchSubscriptionPortalRuntimeGate(
+        admin,
+        dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+        {actionLabel: "Dispatch subscription checkout"},
+    );
+const dispatchSubscriptionStatusCommands =
+    createDispatchSubscriptionStatusCommands(admin);
+const dispatchSubscriptionPortalCommands =
+    createDispatchSubscriptionPortalCommands(admin);
+const createDispatchBillingPortalSession =
+    createDispatchSubscriptionPortalRuntimeGate(
+        admin,
+        dispatchSubscriptionPortalCommands.createDispatchBillingPortalSession,
+        {actionLabel: "Dispatch billing management"},
+    );
+const dispatchSubscriptionReconciliationCommands =
+    createDispatchSubscriptionReconciliationCommands(admin);
+const dispatchSubscriptionAdminCommands =
+    createDispatchSubscriptionAdminCommands(admin);
+const dispatchSubscriptionLaunchReadinessCommands =
+    createDispatchSubscriptionLaunchReadinessCommands(admin);
+const dispatchBillingPortalAdmin = createDispatchBillingPortalAdmin(admin);
+const dispatchBillingPortalVerificationCommands =
+    createDispatchBillingPortalVerificationCommands(admin);
 const canadaSmallSupplierThresholdCommands =
     createCanadaSmallSupplierThresholdCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
@@ -112,10 +161,6 @@ async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
           ["blocked_seller_recovery", "refund_retry_required"].includes(
               String(financialCase.status || ""),
           )) {
-        // Re-enter the approved refund executor so seller recovery is retried
-        // against the requested refund's projected exposure. Using the generic
-        // rebalance here would see only already-completed refunds and could
-        // incorrectly restore funds before the pending refund is issued.
         return marketplaceFinancialResolution.executeMarketplaceRefund(request);
       }
     }
@@ -123,9 +168,6 @@ async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
   return marketplaceFinancialResolution.retryMarketplaceSellerRecovery(request);
 }
 
-// Override the legacy transaction callable with a financial guard while
-// preserving its existing policy acceptance, authorization, rate limiting,
-// command validation, and idempotency behavior.
 exports.updateMarketplaceTransaction = onCall(
     protectedCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
@@ -160,6 +202,26 @@ exports.getCanadaGstHstThresholdAssessment = onCall(
 exports.setCanadaGstHstThresholdAssessment = onCall(
     protectedCallableOptions,
     canadaSmallSupplierThresholdCommands.setCanadaGstHstThresholdAssessment,
+);
+exports.getDispatchSubscriptionStatus = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionStatusCommands.getDispatchSubscriptionStatus,
+);
+exports.getDispatchSubscriptionLaunchReadiness = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionLaunchReadinessCommands.getDispatchSubscriptionLaunchReadiness,
+);
+exports.getDispatchSubscriptionReconciliationQueue = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionAdminCommands.getDispatchSubscriptionReconciliationQueue,
+);
+exports.getDispatchBillingPortalReadiness = onCall(
+    protectedCallableOptions,
+    dispatchBillingPortalAdmin.getDispatchBillingPortalReadiness,
+);
+exports.setDispatchBillingPortalReadiness = onCall(
+    protectedCallableOptions,
+    dispatchBillingPortalAdmin.setDispatchBillingPortalReadiness,
 );
 
 const stripeCallableOptions = Object.freeze({
@@ -197,7 +259,23 @@ exports.reconcileExternalSettlementFee = onCall(
 );
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
-    dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+    createDispatchSubscriptionCheckout,
+);
+exports.createDispatchBillingPortalSession = onCall(
+    stripeCallableOptions,
+    createDispatchBillingPortalSession,
+);
+exports.verifyDispatchBillingPortalConfiguration = onCall(
+    stripeCallableOptions,
+    dispatchBillingPortalVerificationCommands.verifyDispatchBillingPortalConfiguration,
+);
+exports.reconcileDispatchSubscriptionInvoice = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionReconciliationCommands.reconcileDispatchSubscriptionInvoice,
+);
+exports.verifyDispatchSubscriptionLifecycleWebhook = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionLaunchReadinessCommands.verifyDispatchSubscriptionLifecycleWebhook,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,
@@ -226,24 +304,4 @@ exports.stripeMarketplaceWebhook = onRequest(
       cors: false,
     },
     stripeWebhookHandler,
-);
-
-exports.processEligibleAffiliatePayouts = onSchedule(
-    {
-      schedule: "every day 06:15",
-      timeZone: "America/Vancouver",
-      secrets: [stripeSecretKey.name],
-    },
-    affiliatePayouts.processEligibleAffiliatePayouts,
-);
-
-exports.onMarketplaceTransactionCreatedMonetization = onDocumentCreated(
-    {
-      document: "marketplace_transactions/{transactionId}",
-      retry: true,
-    },
-    async (event) => marketplaceMonetization.snapshotAcceptedTransaction({
-      transactionId: event.params.transactionId,
-      transactionData: event.data && event.data.data(),
-    }),
 );

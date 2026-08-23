@@ -122,13 +122,30 @@ function productionInnerHandler(admin) {
   const {
     createStripeWebhookHandler,
   } = require("./stripe_webhook");
+  const {
+    createDispatchSubscriptionState,
+  } = require("./dispatch_subscription_state");
+  const {
+    createDispatchSubscriptionWebhookWrapper,
+  } = require("./dispatch_subscription_webhook_wrapper");
+  const {
+    stripeMarketplaceConfig,
+  } = require("./stripe_marketplace_config");
   const financialResolution = createMarketplaceFinancialResolution(admin);
   const refundGate = createMarketplaceRefundWebhookGate(
       admin,
       financialResolution,
   );
-  return createStripeWebhookHandler(admin, {
+  const coreWebhookHandler = createStripeWebhookHandler(admin, {
     marketplaceFinancialResolution: refundGate,
+  });
+  const dispatchSubscriptionState = createDispatchSubscriptionState(
+      admin,
+      stripeMarketplaceConfig,
+  );
+  return createDispatchSubscriptionWebhookWrapper(admin, {
+    innerHandler: coreWebhookHandler,
+    dispatchState: dispatchSubscriptionState,
   });
 }
 

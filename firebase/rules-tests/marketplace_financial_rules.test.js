@@ -71,6 +71,24 @@ beforeEach(async () => {
       marketplaceFeeProviderFeeMinor: 100,
       marketplaceFeeProviderNetMinor: 2400,
     });
+    await setDoc(doc(db, "dispatch_subscriptions", "subscriber"), {
+      plan: "monthly",
+      status: "active",
+      entitlementActive: true,
+      stripeCheckoutSessionId: "cs_dispatch_rules",
+      stripeSubscriptionId: "sub_dispatch_rules",
+      stripeCustomerId: "cus_dispatch_rules",
+    });
+    await setDoc(doc(
+        db,
+        "subscription_checkout_sessions",
+        "cs_dispatch_rules",
+    ), {
+      uid: "subscriber",
+      plan: "monthly",
+      status: "active",
+      stripeSubscriptionId: "sub_dispatch_rules",
+    });
   });
 });
 
@@ -139,6 +157,44 @@ test("clients cannot mutate authoritative settlement financial state", async () 
     ), {
       marketplaceFeeStatus: "collected",
       stripeMarketplaceFeeChargeId: "ch_client_forged",
+    }));
+  }
+});
+
+test("Dispatch subscription provider state is never client-readable", async () => {
+  for (const [uid, claims] of [
+    ["subscriber", undefined],
+    ["outsider", undefined],
+    ["admin-user", administratorClaims],
+  ]) {
+    const db = testEnvironment.authenticatedContext(uid, claims).firestore();
+    await assertFails(getDoc(doc(db, "dispatch_subscriptions", "subscriber")));
+    await assertFails(getDoc(doc(
+        db,
+        "subscription_checkout_sessions",
+        "cs_dispatch_rules",
+    )));
+  }
+});
+
+test("clients cannot forge Dispatch entitlement or Checkout provider evidence", async () => {
+  for (const [uid, claims] of [
+    ["subscriber", undefined],
+    ["admin-user", administratorClaims],
+  ]) {
+    const db = testEnvironment.authenticatedContext(uid, claims).firestore();
+    await assertFails(updateDoc(doc(db, "dispatch_subscriptions", "subscriber"), {
+      status: "active",
+      entitlementActive: true,
+      stripeSubscriptionId: "sub_client_forged",
+    }));
+    await assertFails(updateDoc(doc(
+        db,
+        "subscription_checkout_sessions",
+        "cs_dispatch_rules",
+    ), {
+      status: "active",
+      stripeSubscriptionId: "sub_client_forged",
     }));
   }
 });

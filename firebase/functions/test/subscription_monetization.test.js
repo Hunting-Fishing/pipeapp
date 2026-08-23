@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  affiliateCommissionAccrualDecision,
   invoiceCommissionBaseMinor,
   subscriptionIdentityFromInvoice,
 } = require("../subscription_monetization");
@@ -25,6 +26,54 @@ test("zero-dollar free invoices create a zero commission base", () => {
     total: 0,
     subtotal: 2500,
   }), 0);
+});
+
+test("referred Dispatch invoice does not accrue commission while accrual is disabled", () => {
+  assert.deepEqual(affiliateCommissionAccrualDecision({
+    referrerUid: "referrer-1",
+    baseMinor: 5000,
+    dispatchAffiliateCommissionAccrualEnabled: false,
+  }), {
+    enabled: false,
+    status: "disabled_by_readiness",
+    commissionMinor: 0,
+  });
+});
+
+test("enabled Dispatch affiliate program accrues configured share", () => {
+  assert.deepEqual(affiliateCommissionAccrualDecision({
+    referrerUid: "referrer-1",
+    baseMinor: 5000,
+    dispatchAffiliateCommissionAccrualEnabled: true,
+  }), {
+    enabled: true,
+    status: "accrued",
+    commissionMinor: 1000,
+  });
+});
+
+test("100 percent discount creates no affiliate commission even when accrual is enabled", () => {
+  assert.deepEqual(affiliateCommissionAccrualDecision({
+    referrerUid: "referrer-1",
+    baseMinor: 0,
+    dispatchAffiliateCommissionAccrualEnabled: true,
+  }), {
+    enabled: true,
+    status: "zero_base",
+    commissionMinor: 0,
+  });
+});
+
+test("invoice without a referrer creates no affiliate commission obligation", () => {
+  assert.deepEqual(affiliateCommissionAccrualDecision({
+    referrerUid: "",
+    baseMinor: 5000,
+    dispatchAffiliateCommissionAccrualEnabled: true,
+  }), {
+    enabled: false,
+    status: "no_referrer",
+    commissionMinor: 0,
+  });
 });
 
 test("reads immutable subscription metadata from invoice parent", () => {
