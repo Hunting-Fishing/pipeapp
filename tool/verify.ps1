@@ -38,8 +38,8 @@ $releaseToolScripts = @(
   (Join-Path $workspace 'tool\autonomous_guard.ps1'),
   (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1'),
   (Join-Path $workspace 'tool\autonomous_guard_test.ps1'),
-  (Join-Path $workspace 'tool\autonomous_recovery.ps1'),
-  (Join-Path $workspace 'tool\autonomous_recovery_test.ps1'),
+  (Join-Path $workspace 'tool\autonomous_recovery_safe.ps1'),
+  (Join-Path $workspace 'tool\autonomous_recovery_safe_test.ps1'),
   (Join-Path $workspace 'tool\autonomous_runtime_fault_test.ps1'),
   (Join-Path $workspace 'tool\autonomous_reviewer_fault_test.ps1')
 )
@@ -61,8 +61,8 @@ Write-Host 'Testing autonomous builder governance and configuration'
 Write-Host 'Testing autonomous guard fail-closed behavior'
 & (Join-Path $workspace 'tool\autonomous_guard_test.ps1')
 
-Write-Host 'Testing interrupted-run recovery and refusal paths'
-& (Join-Path $workspace 'tool\autonomous_recovery_test.ps1')
+Write-Host 'Testing interrupted-run stash recovery and refusal paths'
+& (Join-Path $workspace 'tool\autonomous_recovery_safe_test.ps1')
 
 Write-Host 'Testing automatic compatibility inventory logic'
 node --test tool/autonomous_compatibility_test.mjs
