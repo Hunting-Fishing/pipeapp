@@ -6,6 +6,7 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
+const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   dispatchSubscriptionPublicStatus,
 } = require("./dispatch_subscription_status_policy");
@@ -16,10 +17,28 @@ function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
 }
 
+function dispatchSubscriptionCatalog(config = stripeMarketplaceConfig) {
+  const monthly = config.products.dispatchMonthlyCad;
+  const yearly = config.products.dispatchYearlyCad;
+  return Object.freeze({
+    monthly: Object.freeze({
+      currency: String(monthly.currency || "CAD").toUpperCase(),
+      unitAmountMinor: Number(monthly.unitAmountMinor),
+      interval: "month",
+    }),
+    yearly: Object.freeze({
+      currency: String(yearly.currency || "CAD").toUpperCase(),
+      unitAmountMinor: Number(yearly.unitAmountMinor),
+      interval: "year",
+    }),
+  });
+}
+
 function createDispatchSubscriptionStatusCommands(admin, options = {}) {
   const db = admin.firestore();
   const authUid = options.authUid || requireAuth;
   const rateLimit = options.rateLimit || enforceUserRateLimit;
+  const catalog = options.catalog || (() => dispatchSubscriptionCatalog());
 
   const getDispatchSubscriptionStatus = async (request) => {
     try {
@@ -29,7 +48,10 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
           .doc(uid)
           .get();
       const state = snapshot.exists ? snapshot.data() : {};
-      return dispatchSubscriptionPublicStatus(state);
+      return {
+        ...dispatchSubscriptionPublicStatus(state),
+        plans: catalog(),
+      };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       if (error instanceof AccountSecurityError) {
@@ -49,4 +71,5 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
 module.exports = {
   DISPATCH_SUBSCRIPTIONS_COLLECTION,
   createDispatchSubscriptionStatusCommands,
+  dispatchSubscriptionCatalog,
 };
