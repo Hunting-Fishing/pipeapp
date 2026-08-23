@@ -13,6 +13,7 @@ function ready(overrides = {}) {
     stripeWebhookVerified: true,
     stripeSubscriptionLifecycleWebhookVerified: true,
     stripeSubscriptionRecoveryVerified: true,
+    dispatchBillingPortalReady: true,
     stripeReconciliationReady: true,
     stripeTaxReady: true,
     stripeTaxRegistrationPending: false,
@@ -35,6 +36,15 @@ test("Dispatch checkout requires verified subscription recovery settings", () =>
   assert.throws(
       () => requireSubscriptionReady(ready({
         stripeSubscriptionRecoveryVerified: false,
+      })),
+      /not enabled yet/i,
+  );
+});
+
+test("Dispatch checkout requires live Billing Portal readiness", () => {
+  assert.throws(
+      () => requireSubscriptionReady(ready({
+        dispatchBillingPortalReady: false,
       })),
       /not enabled yet/i,
   );
