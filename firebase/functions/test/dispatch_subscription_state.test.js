@@ -83,6 +83,21 @@ function invoice(overrides = {}) {
   };
 }
 
+function replacementState() {
+  return {
+    uid: "user-1",
+    plan: "yearly",
+    status: "checkout_created",
+    checkoutAttempt: 2,
+    stripeCheckoutSessionId: "cs_replacement",
+    stripeSubscriptionId: null,
+    retiredStripeSubscriptionIds: ["sub_retired"],
+    entitlementActive: false,
+    paymentIssue: false,
+    reviewRequired: false,
+  };
+}
+
 test("only Dispatch subscription metadata is accepted", () => {
   assert.equal(dispatchMetadata({metadata: {billingType: "other"}}), null);
   assert.equal(dispatchMetadata(subscription()).uid, "user-1");
@@ -120,6 +135,30 @@ test("late Checkout completion cannot downgrade invoice-paid active state", asyn
   });
   assert.equal(result.action, "preserve_active");
   assert.equal(db.docs.get("dispatch_subscriptions/user-1").status, "active");
+});
+
+test("retired Checkout completion is recorded but cannot overwrite replacement Checkout", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": replacementState(),
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig);
+  const result = await state.handleCheckoutSession({
+    id: "cs_retired_late",
+    customer: "cus_retired",
+    subscription: "sub_retired",
+    metadata: subscription({
+      id: "sub_retired",
+      customer: "cus_retired",
+    }).metadata,
+  });
+  assert.equal(result.action, "ignored_retired");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.status, "checkout_created");
+  assert.equal(stored.plan, "yearly");
+  assert.equal(stored.stripeCheckoutSessionId, "cs_replacement");
+  assert.equal(stored.stripeSubscriptionId, null);
+  const session = db.docs.get("subscription_checkout_sessions/cs_retired_late");
+  assert.equal(session.status, "retired_ignored");
 });
 
 test("invoice.paid re-reads current Subscription and activates only active status", async () => {
@@ -187,6 +226,36 @@ test("paid invoice with unknown provider status is quarantined for review", asyn
   assert.equal(stored.reviewReason, "paid_invoice_subscription_status_review");
 });
 
+test("late paid invoice from retired subscription cannot activate replacement state", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": replacementState(),
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({
+      id: "sub_retired",
+      status: "active",
+      customer: "cus_retired",
+    }),
+  });
+  const result = await state.handleInvoicePaid(invoice({
+    id: "in_retired_late",
+    subscription: "sub_retired",
+    parent: {
+      subscription_details: {
+        subscription: "sub_retired",
+        metadata: subscription().metadata,
+      },
+    },
+  }), "sk_test");
+  assert.equal(result.action, "ignored_retired");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.status, "checkout_created");
+  assert.equal(stored.plan, "yearly");
+  assert.equal(stored.entitlementActive, false);
+  assert.equal(stored.stripeSubscriptionId, null);
+  assert.equal(stored.lastPaidInvoiceId, undefined);
+});
+
 test("failed invoice in past_due state flags payment issue without arbitrary access cutoff", async () => {
   const {admin, db} = fakeAdmin({
     "dispatch_subscriptions/user-1": {
@@ -204,6 +273,34 @@ test("failed invoice in past_due state flags payment issue without arbitrary acc
   assert.equal(stored.status, "past_due");
   assert.equal(stored.entitlementActive, true);
   assert.equal(stored.paymentIssue, true);
+});
+
+test("late failed invoice from retired subscription cannot alter replacement state", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": replacementState(),
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({
+      id: "sub_retired",
+      status: "unpaid",
+      customer: "cus_retired",
+    }),
+  });
+  const result = await state.handleInvoicePaymentFailed(invoice({
+    id: "in_retired_failed",
+    subscription: "sub_retired",
+    parent: {
+      subscription_details: {
+        subscription: "sub_retired",
+        metadata: subscription().metadata,
+      },
+    },
+  }), "sk_test");
+  assert.equal(result.action, "ignored_retired");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.status, "checkout_created");
+  assert.equal(stored.paymentIssue, false);
+  assert.equal(stored.lastFailedInvoiceId, undefined);
 });
 
 test("subscription.updated re-reads provider state so stale event snapshot cannot downgrade access", async () => {
@@ -271,6 +368,49 @@ test("subscription deletion revokes entitlement", async () => {
   const stored = db.docs.get("dispatch_subscriptions/user-1");
   assert.equal(stored.entitlementActive, false);
   assert.equal(stored.status, "canceled");
+});
+
+test("late retired subscription deletion cannot cancel replacement Checkout", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": replacementState(),
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig);
+  const result = await state.handleSubscriptionEvent(
+      subscription({
+        id: "sub_retired",
+        status: "active",
+        customer: "cus_retired",
+      }),
+      "customer.subscription.deleted",
+      "sk_test",
+  );
+  assert.equal(result.action, "ignored_retired");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.status, "checkout_created");
+  assert.equal(stored.plan, "yearly");
+  assert.equal(stored.stripeSubscriptionId, null);
+});
+
+test("late retired subscription update cannot replace current Checkout state", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": replacementState(),
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({
+      id: "sub_retired",
+      status: "active",
+      customer: "cus_retired",
+    }),
+  });
+  const result = await state.handleSubscriptionEvent(
+      subscription({id: "sub_retired", status: "past_due"}),
+      "customer.subscription.updated",
+      "sk_test",
+  );
+  assert.equal(result.action, "ignored_retired");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.status, "checkout_created");
+  assert.equal(stored.entitlementActive, false);
 });
 
 test("canceled subscription may be replaced by current new subscription lifecycle", async () => {
