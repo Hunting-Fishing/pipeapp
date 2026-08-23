@@ -13,6 +13,7 @@ import '/marketplace/oil_gas_marketplace.dart';
 import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
 import '/marketplace/marketplace_dispatch_page.dart';
+import '/marketplace/marketplace_dispatch_subscription_admin_page.dart';
 import '/marketplace/marketplace_external_settlement_admin_page.dart';
 import '/marketplace/marketplace_external_settlement_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
@@ -55,8 +56,9 @@ class AppStateNotifier extends ChangeNotifier {
   void setRedirectLocationIfUnset(String loc) => _redirectLocation ??= loc;
   void clearRedirectLocation() => _redirectLocation = null;
 
-  /// Mark as not needing to notify on a sign in / out when we intend
-  /// to perform subsequent actions (such as navigation) afterwards.
+  /// Mark as not needing to notify on auth change
+  /// sign in or sign out happens. This is useful when the app is launched or on an unexpected logout. However, this must be turned off when we
+  /// intend to sign in/out and then navigate or perform any actions after.
   /// Otherwise, this will trigger a refresh and interrupt the action(s).
   void updateNotifyOnAuthChange(bool notify) => notifyOnAuthChange = notify;
 
@@ -149,6 +151,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           requireAuth: true,
           builder: (context, params) =>
               const MarketplaceExternalSettlementAdminPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.dispatchBillingAdminRouteName,
+          path: MarketplaceDeepLinks.dispatchBillingAdminPath,
+          requireAuth: true,
+          builder: (context, params) =>
+              const MarketplaceDispatchSubscriptionAdminPage(),
         ),
         FFRoute(
           name: 'marketplaceTaxProfile',
