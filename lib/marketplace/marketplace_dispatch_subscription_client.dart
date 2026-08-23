@@ -68,6 +68,7 @@ class MarketplaceDispatchSubscriptionStatus {
     required this.checkoutOpen,
     required this.processing,
     required this.alreadySubscribed,
+    required this.billingAvailable,
     required this.canStartCheckout,
     required this.canManageBilling,
     required this.monthly,
@@ -84,6 +85,7 @@ class MarketplaceDispatchSubscriptionStatus {
   final bool checkoutOpen;
   final bool processing;
   final bool alreadySubscribed;
+  final bool billingAvailable;
   final bool canStartCheckout;
   final bool canManageBilling;
   final MarketplaceDispatchSubscriptionPlan monthly;
@@ -127,6 +129,8 @@ class MarketplaceDispatchSubscriptionStatus {
       checkoutOpen: requiredBool('checkoutOpen'),
       processing: requiredBool('processing'),
       alreadySubscribed: requiredBool('alreadySubscribed'),
+      // Missing on an older backend deployment means unavailable, not enabled.
+      billingAvailable: data['billingAvailable'] == true,
       canStartCheckout: requiredBool('canStartCheckout'),
       canManageBilling: requiredBool('canManageBilling'),
       monthly: MarketplaceDispatchSubscriptionPlan.fromMap(
