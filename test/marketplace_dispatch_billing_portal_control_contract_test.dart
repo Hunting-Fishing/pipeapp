@@ -46,7 +46,22 @@ void main() {
     expect(source, isNot(contains('stripeSubscriptionsEnabled')));
   });
 
-  test('Dispatch operations page composes Portal verification with readiness', () {
+  test('Dispatch operations page keeps Portal and readiness cards synchronized', () {
+    final portal = File(
+      'lib/marketplace/marketplace_dispatch_billing_portal_control.dart',
+    ).readAsStringSync();
+    final page = File(
+      'lib/marketplace/marketplace_dispatch_subscription_admin_page.dart',
+    ).readAsStringSync();
+
+    expect(portal, contains('final VoidCallback? onChanged'));
+    expect(portal, contains('widget.onChanged?.call()'));
+    expect(page, contains('_operationsRevision'));
+    expect(page, contains('ValueKey(\'dispatch-readiness-$_operationsRevision\')'));
+    expect(page, contains('onChanged: _refreshOperationCards'));
+  });
+
+  test('Dispatch operations page provides controlled acceptance guidance', () {
     final source = File(
       'lib/marketplace/marketplace_dispatch_subscription_admin_page.dart',
     ).readAsStringSync();
@@ -54,5 +69,9 @@ void main() {
     expect(source, contains('MarketplaceDispatchBillingPortalControl'));
     expect(source, contains('MarketplaceDispatchSubscriptionLaunchReadinessPanel'));
     expect(source, contains('MarketplaceAdministratorState.authorized'));
+    expect(source, contains('Controlled acceptance sequence'));
+    expect(source, contains('CAD 25 Monthly payment'));
+    expect(source, contains('CAD 300 Yearly payment'));
+    expect(source, contains('Public activation comes last'));
   });
 }
