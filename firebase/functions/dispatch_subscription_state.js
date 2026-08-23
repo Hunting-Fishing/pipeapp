@@ -12,6 +12,10 @@ const {
 const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
 const SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION =
   "subscription_checkout_sessions";
+const ENTITLEMENT_ACTIVATION_STATUSES = Object.freeze(new Set([
+  "active",
+  "trialing",
+]));
 
 function objectId(value) {
   if (typeof value === "string") return value;
@@ -112,7 +116,14 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
   }
 
   async function handleInvoicePaid(invoice, secretKey) {
-    const subscription = await subscriptionFromInvoice(invoice, secretKey);
+    // Invoice payment is necessary evidence, but it is not sufficient to grant
+    // access. Always retrieve the current Stripe Subscription so entitlement is
+    // based on the provider lifecycle state rather than invoice metadata alone.
+    const subscription = await subscriptionFromInvoice(
+        invoice,
+        secretKey,
+        {always: true},
+    );
     const metadata = dispatchMetadata(subscription);
     if (!metadata) return {handled: false};
     const invoiceId = String(invoice.id || "");
@@ -138,24 +149,43 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
         }, {merge: true});
         return {handled: true, action: "review"};
       }
+
+      const lifecycle = dispatchSubscriptionLifecycleDecision(
+          subscription.status,
+          current.entitlementActive === true,
+      );
+      const activatesEntitlement =
+        ENTITLEMENT_ACTIVATION_STATUSES.has(lifecycle.status) &&
+        lifecycle.entitlementActive === true &&
+        lifecycle.reviewRequired !== true;
+      const billingStatus = activatesEntitlement ?
+        "paid" : `paid_provider_${lifecycle.status}`.slice(0, 80);
+      const reviewReason = lifecycle.reviewRequired ?
+        "paid_invoice_subscription_status_review" : null;
+
       transaction.set(stateRef, {
         uid: metadata.uid,
         plan: metadata.plan || String(current.plan || ""),
-        status: String(subscription.status || "active") || "active",
-        billingStatus: "paid",
+        status: lifecycle.status,
+        billingStatus,
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: objectId(subscription.customer || invoice.customer) || null,
         taxCollectionStatus: metadata.taxCollectionStatus,
-        entitlementActive: true,
-        paymentIssue: false,
-        reviewRequired: false,
+        entitlementActive: lifecycle.entitlementActive,
+        paymentIssue: lifecycle.paymentIssue,
+        reviewRequired: lifecycle.reviewRequired,
+        ...(reviewReason ? {reviewReason} : {}),
         lastPaidInvoiceId: invoiceId,
         lastInvoiceAmountPaidMinor: Number(invoice.amount_paid || 0),
         lastInvoiceCurrency: String(invoice.currency || "cad").toUpperCase(),
         lastInvoicePaidAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
-      return {handled: true, action: "activated"};
+      return {
+        handled: true,
+        action: activatesEntitlement ?
+          "activated" : lifecycle.reviewRequired ? "review" : "paid_state_updated",
+      };
     });
   }
 
@@ -266,6 +296,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
 
 module.exports = {
   DISPATCH_SUBSCRIPTIONS_COLLECTION,
+  ENTITLEMENT_ACTIVATION_STATUSES,
   SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION,
   createDispatchSubscriptionState,
   dispatchMetadata,
