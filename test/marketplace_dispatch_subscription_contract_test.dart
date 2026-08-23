@@ -34,6 +34,21 @@ void main() {
     expect(client, contains("uri.host == 'checkout.stripe.com'"));
   });
 
+  test('billing management is server-gated and Stripe-host validated', () {
+    final panel = File(
+      'lib/marketplace/marketplace_dispatch_subscription_panel.dart',
+    ).readAsStringSync();
+    final client = File(
+      'lib/marketplace/marketplace_dispatch_subscription_client.dart',
+    ).readAsStringSync();
+
+    expect(panel, contains('status.canManageBilling'));
+    expect(panel, contains('_client.createBillingPortal()'));
+    expect(panel, contains('Manage billing or cancel in Stripe'));
+    expect(client, contains("'createDispatchBillingPortalSession'"));
+    expect(client, contains("uri.host == 'billing.stripe.com'"));
+  });
+
   test('Dispatch membership UI has no direct authoritative Firestore write', () {
     final panel = File(
       'lib/marketplace/marketplace_dispatch_subscription_panel.dart',
