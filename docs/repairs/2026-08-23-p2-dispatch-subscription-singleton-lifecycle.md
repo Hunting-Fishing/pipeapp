@@ -12,11 +12,12 @@ The original Dispatch subscription Checkout command used an idempotency key cont
 
 Every repeated tap, browser retry, or concurrent callable invocation therefore became a different Stripe operation. The application also had no single authoritative per-user Dispatch subscription record. Checkout Sessions and paid invoices were recorded separately, but there was no one server-owned state that could answer whether the user already had an open Checkout, an active subscription, a payment problem, or a canceled subscription.
 
-Additional lifecycle audit found three related integrity defects:
+Additional lifecycle audit found four related integrity defects:
 
 1. `invoice.paid` could activate Dispatch access from invoice metadata without re-reading the current Stripe Subscription status;
-2. `customer.subscription.updated` could apply an out-of-order event snapshot and overwrite a newer provider state; and
-3. a legitimate replacement subscription after cancellation could be mistaken for a second live subscription because the retired `sub_` id remained in the singleton state when the new Checkout began.
+2. `customer.subscription.updated` could apply an out-of-order event snapshot and overwrite a newer provider state;
+3. a legitimate replacement subscription after cancellation could be mistaken for a second live subscription because the retired `sub_` id remained in the singleton state when the new Checkout began; and
+4. after that retired id was cleared for a replacement Checkout, a very late Checkout/invoice/subscription webhook from the retired subscription could still overwrite the new replacement attempt because there was no durable way to identify the old provider subscription as retired.
 
 Finally, the existing membership UI only displayed informational Dispatch cards. It did not start the server Checkout command, expose provider-authoritative status, or provide a controlled billing-management/cancellation path.
 
@@ -28,7 +29,7 @@ Added server-owned singleton state:
 
 `dispatch_subscriptions/{uid}`
 
-This record owns the current Checkout attempt, provider Session, subscription/customer identity, plan, provider lifecycle status, entitlement state, payment-issue flag, and operational-review state.
+This record owns the current Checkout attempt, provider Session, subscription/customer identity, plan, provider lifecycle status, entitlement state, payment-issue flag, operational-review state, and a bounded retired-subscription ledger used only for stale-event rejection.
 
 Clients do not read or write this document directly. A sanitized callable projection is used for the UI.
 
@@ -45,7 +46,8 @@ Added `dispatch_subscription_checkout_policy.js`.
 - An unresolved existing Stripe subscription blocks creation of a second subscription.
 - Provider/write races preserve newer processing/subscription state instead of overwriting it with stale `checkout_created` state.
 - Stripe Checkout links must use exact HTTPS `checkout.stripe.com`.
-- When a canceled or `incomplete_expired` subscription legitimately starts a replacement Checkout, the retired `stripeSubscriptionId` is cleared before the replacement webhook arrives.
+- When a canceled or `incomplete_expired` subscription legitimately starts a replacement Checkout, the prior subscription id is moved into `retiredStripeSubscriptionIds` before `stripeSubscriptionId` is cleared.
+- The retired-id ledger is normalized, deduplicated, and bounded to the 10 most recent Stripe subscription ids.
 - `unpaid` and other unresolved subscription states are not silently replaceable.
 - User-facing Checkout responses no longer return Stripe subscription IDs.
 
@@ -66,7 +68,9 @@ Checkout browser return does **not** grant membership.
 
 `invoice.paid` is now treated as necessary payment evidence, not sufficient entitlement evidence. Every paid invoice re-reads the current Stripe Subscription. Access is activated only when the current provider status is explicitly entitlement-eligible (`active` or `trialing`). A paid invoice whose current Subscription is `unpaid` does not grant access; an unknown current provider status is quarantined for review.
 
-Stripe does not guarantee webhook delivery order. Therefore `customer.subscription.updated` does not trust the potentially stale event snapshot for entitlement. The server re-reads the current Stripe Subscription before changing access. `customer.subscription.deleted` remains a terminal cancellation signal for that subscription id. This prevents a late `past_due` snapshot from rolling a currently active provider state backward.
+Stripe does not guarantee webhook delivery order. Therefore `customer.subscription.updated` does not trust the potentially stale event snapshot for entitlement. The server re-reads the current Stripe Subscription before changing access. `customer.subscription.deleted` remains a terminal cancellation signal for the current subscription id.
+
+Every Dispatch Checkout-completion, paid-invoice, failed-invoice, subscription-update, and subscription-deletion path now checks the bounded retired-subscription ledger before mutating the singleton. Events belonging to a retired provider subscription return `ignored_retired`; a late retired Checkout Session is retained as `retired_ignored` audit evidence but cannot change the replacement Checkout/subscription state.
 
 The lifecycle wrapper executes inside the already claimed/signed Stripe webhook path. If the Dispatch state update or provider re-read fails, the webhook event is marked failed and returns HTTP 500 so Stripe can retry; the inner financial webhook is not allowed to mark that failed lifecycle event processed.
 
@@ -80,7 +84,7 @@ Added `getDispatchSubscriptionStatus`.
 
 The callable returns only UI-safe state such as plan, provider status, entitlement, payment issue, review state, Checkout availability, Billing Portal availability, and the configured Monthly/Yearly billing catalog.
 
-It does **not** expose Stripe customer IDs, subscription IDs, or Checkout provider identifiers.
+It does **not** expose Stripe customer IDs, subscription IDs, Checkout provider identifiers, or the retired-subscription ledger.
 
 Monthly/Yearly displayed prices are read from the server Stripe catalog instead of duplicated as authoritative client constants.
 
@@ -114,9 +118,9 @@ The existing account menu `Memberships & upgrades` entry now opens a small combi
 
 ## Verification executed
 
-Focused Node 22 execution of the pure Dispatch safety policies: **17 tests passed, 0 failed**.
+Focused Node 22 execution of the pure Dispatch safety policies: **17 tests passed, 0 failed** before the retired-event extension.
 
-This focused run covers:
+That focused run covers:
 
 - deterministic attempt idempotency;
 - open Checkout reuse classification;
@@ -136,9 +140,20 @@ This focused run covers:
 - exact Stripe Billing Portal host validation;
 - explicit portal readiness/provider-identity gating.
 
-Repository tests have also been added/expanded for the real Dispatch Checkout command, paid-invoice current-provider status re-read, stale subscription-update protection, replacement lifecycle, lifecycle state writer, webhook wrapper, public status projection, Billing Portal policy, Flutter client parsing/URL validation, memberships integration, and Firestore provider-state denial.
+Additional executable retired-subscription harness after the final stale-event repair: **6 tests passed, 0 failed**. It proves:
 
-These repository tests are **committed but not represented as fully executed** until the exact branch is run through `tool/verify.ps1` / Firebase emulators / Flutter in a complete local checkout.
+- retired subscription ids remain bounded;
+- a late retired Checkout completion cannot overwrite the replacement Checkout;
+- a late retired paid invoice cannot activate the replacement state;
+- a late retired failed invoice cannot set the replacement payment-issue state;
+- a late retired subscription deletion cannot cancel the replacement Checkout; and
+- a late retired subscription update cannot replace the current Checkout state.
+
+Node syntax checks also passed for the updated Checkout policy, lifecycle policy, and the exercised Dispatch subscription state module in the focused harness.
+
+Repository tests have also been added/expanded for the real Dispatch Checkout command, retired-id persistence, paid-invoice current-provider status re-read, stale subscription-update protection, retired webhook rejection, replacement lifecycle, lifecycle state writer, webhook wrapper, public status projection, Billing Portal policy, Flutter client parsing/URL validation, memberships integration, and Firestore provider-state denial.
+
+The repository-wide tests are **committed but not represented as fully executed** until the exact branch is run through `tool/verify.ps1` / Firebase emulators / Flutter in a complete local checkout. This ChatGPT execution sandbox still cannot resolve `github.com`, so a native clone cannot be created here even though the repository is currently public.
 
 ## Acceptance still required
 
@@ -154,7 +169,7 @@ Before enabling live Dispatch subscriptions:
 5. Run controlled Monthly and Yearly Stripe subscription payments.
 6. Prove repeated taps/retries produce one logical Checkout/subscription.
 7. Prove `invoice.paid` plus an entitlement-eligible current Subscription activates access and browser return alone does not.
-8. Prove failed payment, recovery, cancellation, replacement, and deletion lifecycle behavior.
+8. Prove failed payment, recovery, cancellation, replacement, retired-event rejection, and deletion lifecycle behavior.
 9. Reconcile the controlled invoice/Charge/provider fee evidence with Firestore.
 10. Complete web/mobile colleague visual acceptance before production activation.
 
@@ -164,9 +179,9 @@ Before enabling live Dispatch subscriptions:
 - Do not infer paid subscription access from browser redirects or from `invoice.paid` alone without checking current Subscription state.
 - Do not trust webhook delivery order for entitlement state when a current provider read is available.
 - Do not store separate Checkout/invoice records without one authoritative per-user subscription state.
-- Do not leave a retired subscription id attached to a new replacement Checkout.
+- Do not merely clear a retired subscription id when replacement starts; retain a bounded retired-id ledger so delayed provider events can be rejected deterministically.
 - Do not let the Flutter client directly write Dispatch entitlement or Stripe provider identity.
 - Do not create a second subscription while an existing subscription or open Checkout is unresolved.
-- Do not expose Stripe customer/subscription IDs in user-facing status or Checkout responses.
+- Do not expose Stripe customer/subscription IDs or retired provider identities in user-facing status or Checkout responses.
 - Do not enable the Billing Portal button until Stripe Portal configuration and the audited Pipe Buyer readiness control both agree.
 - Do not mark P2 financially complete until the controlled provider lifecycle and reconciliation evidence are recorded.
