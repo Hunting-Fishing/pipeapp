@@ -16,9 +16,7 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
     extends State<MarketplaceDispatchSubscriptionLaunchReadinessPanel> {
   final MarketplaceCommandClient _commands = MarketplaceCommandClient();
 
-  Map<String, dynamic> _readiness = const {};
-  Map<String, dynamic> _portal = const {};
-  Map<String, dynamic> _taxEvidence = const {};
+  Map<String, dynamic> _snapshot = const {};
   bool _loading = true;
   bool _working = false;
   String? _error;
@@ -38,17 +36,12 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
       });
     }
     try {
-      final responses = await Future.wait([
-        _commands.execute('getPaymentProviderReadiness', const {}),
-        _commands.execute('getDispatchBillingPortalReadiness', const {}),
-        _commands.execute('getCanadaGstHstThresholdAssessment', const {}),
-      ]);
+      final snapshot = await _commands.execute(
+        'getDispatchSubscriptionLaunchReadiness',
+        const {},
+      );
       if (!mounted) return;
-      setState(() {
-        _readiness = responses[0];
-        _portal = responses[1];
-        _taxEvidence = responses[2];
-      });
+      setState(() => _snapshot = snapshot);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -101,7 +94,7 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
   }
 
   Future<void> _toggleRecoveryVerification() => _setRecoveryVerified(
-        _readiness['stripeSubscriptionRecoveryVerified'] != true,
+        _snapshot['recoveryReady'] != true,
       );
 
   Future<void> _setRecoveryVerified(bool verified) async {
@@ -180,9 +173,7 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
     }
 
     return MarketplaceDispatchSubscriptionReadinessView(
-      readiness: _readiness,
-      portal: _portal,
-      taxEvidence: _taxEvidence,
+      snapshot: _snapshot,
       working: _working,
       error: _error,
       resultMessage: _resultMessage,
