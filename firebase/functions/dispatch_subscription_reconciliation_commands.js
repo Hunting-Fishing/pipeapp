@@ -7,9 +7,13 @@ const {
 } = require("./administrator_authorization");
 const {
   dispatchSubscriptionInvoiceReconciliationState,
-  objectId,
 } = require("./dispatch_subscription_reconciliation_policy");
-const {sourceChargeFromInvoice} = require("./subscription_monetization");
+const {
+  invoicePaymentIntentId,
+  invoicePaymentsPath,
+  objectId,
+  paidInvoicePayments,
+} = require("./dispatch_subscription_invoice_payment_policy");
 
 const INVOICE_COLLECTION = "dispatch_subscription_invoices";
 const RECONCILIATION_COLLECTION = "dispatch_subscription_reconciliations";
@@ -44,13 +48,7 @@ function defaultSecretKeyProvider() {
   return stripeSecretKey.value();
 }
 
-function reconciliationRecord({
-  invoiceId,
-  administratorUid,
-  state,
-  chargeId,
-  balanceTransactionId,
-}) {
+function reconciliationRecord({invoiceId, administratorUid, state}) {
   return {
     invoiceId,
     administratorUid,
@@ -69,9 +67,11 @@ function reconciliationRecord({
     invoiceDifferenceMinor: state.invoiceDifferenceMinor,
     providerDifferenceMinor: state.providerDifferenceMinor,
     zeroAmount: state.zeroAmount,
-    stripeChargeId: chargeId || null,
-    stripeBalanceTransactionId: balanceTransactionId || null,
-    reconciliationRevision: "2026-08-23-p2-v1",
+    stripeInvoicePaymentId: state.stripeInvoicePaymentId || null,
+    stripePaymentIntentId: state.stripePaymentIntentId || null,
+    stripeChargeId: state.stripeChargeId || null,
+    stripeBalanceTransactionId: state.stripeBalanceTransactionId || null,
+    reconciliationRevision: "2026-08-23-p2-v2-invoice-payment",
   };
 }
 
@@ -108,59 +108,86 @@ function createDispatchSubscriptionReconciliationCommands(admin, options = {}) {
       }
 
       const secretKey = secretKeyProvider();
-      const providerInvoice = await stripeRequest({
-        secretKey,
-        path: `/v1/invoices/${encodeURIComponent(invoiceId)}`,
-        method: "GET",
-      });
+      const [providerInvoice, invoicePaymentList] = await Promise.all([
+        stripeRequest({
+          secretKey,
+          path: `/v1/invoices/${encodeURIComponent(invoiceId)}`,
+          method: "GET",
+        }),
+        stripeRequest({
+          secretKey,
+          path: invoicePaymentsPath(invoiceId),
+          method: "GET",
+        }),
+      ]);
 
-      const providerChargeId = sourceChargeFromInvoice(providerInvoice);
-      const storedAmountPaidMinor = Number(stored.amountPaidMinor);
-      const positivePayment = Number.isSafeInteger(storedAmountPaidMinor) &&
-        storedAmountPaidMinor > 0;
+      if (invoicePaymentList && invoicePaymentList.has_more === true) {
+        throw new HttpsError(
+            "failed-precondition",
+            "This Dispatch invoice has more provider payment records than the automatic-subscription reconciliation model supports. Manual financial review is required.",
+        );
+      }
+
+      const paidPayments = paidInvoicePayments(invoicePaymentList, invoiceId);
+      const providerAmountPaidMinor = Number(providerInvoice.amount_paid);
+      const providerPositivePayment = Number.isSafeInteger(providerAmountPaidMinor) &&
+        providerAmountPaidMinor > 0;
+      if (paidPayments.length > 1) {
+        throw new HttpsError(
+            "failed-precondition",
+            "This Dispatch invoice has multiple paid Stripe InvoicePayment records. Manual financial review is required before reconciliation.",
+        );
+      }
+      if (providerPositivePayment && paidPayments.length !== 1) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Stripe has not exposed the single paid InvoicePayment required to reconcile this Dispatch invoice yet.",
+        );
+      }
+
+      const invoicePayment = paidPayments[0] || null;
+      let paymentIntent = null;
       let charge = null;
       let balanceTransaction = null;
-      let balanceTransactionId = "";
 
-      if (providerChargeId) {
+      if (providerPositivePayment) {
+        const paymentIntentId = requiredProviderId(
+            invoicePaymentIntentId(invoicePayment),
+            "pi_",
+            "The paid Stripe InvoicePayment is not backed by a PaymentIntent that Pipe Buyer can reconcile.",
+        );
+        paymentIntent = await stripeRequest({
+          secretKey,
+          path: `/v1/payment_intents/${encodeURIComponent(paymentIntentId)}`,
+          method: "GET",
+        });
         const chargeId = requiredProviderId(
-            providerChargeId,
+            objectId(paymentIntent.latest_charge),
             "ch_",
-            "Stripe returned an invalid Charge reference for this Dispatch invoice.",
+            "Stripe has not attached a Charge to this paid Dispatch PaymentIntent yet.",
         );
         charge = await stripeRequest({
           secretKey,
           path: `/v1/charges/${encodeURIComponent(chargeId)}`,
           method: "GET",
         });
-        const providerBalanceTransactionId = objectId(charge.balance_transaction);
-        if (providerBalanceTransactionId) {
-          balanceTransactionId = requiredProviderId(
-              providerBalanceTransactionId,
-              "txn_",
-              "Stripe returned an invalid Balance Transaction reference for this Dispatch invoice.",
-          );
-          balanceTransaction = await stripeRequest({
-            secretKey,
-            path: `/v1/balance_transactions/${encodeURIComponent(balanceTransactionId)}`,
-            method: "GET",
-          });
-        } else if (positivePayment) {
-          throw new HttpsError(
-              "failed-precondition",
-              "Stripe has not attached a Balance Transaction to this paid Dispatch invoice yet.",
-          );
-        }
-      } else if (positivePayment) {
-        throw new HttpsError(
-            "failed-precondition",
-            "Stripe has not attached a Charge to this paid Dispatch invoice yet.",
+        const balanceTransactionId = requiredProviderId(
+            objectId(charge.balance_transaction),
+            "txn_",
+            "Stripe has not attached a Balance Transaction to this paid Dispatch Charge yet.",
         );
+        balanceTransaction = await stripeRequest({
+          secretKey,
+          path: `/v1/balance_transactions/${encodeURIComponent(balanceTransactionId)}`,
+          method: "GET",
+        });
       }
 
       const state = dispatchSubscriptionInvoiceReconciliationState({
         stored,
         invoice: providerInvoice,
+        invoicePayment,
+        paymentIntent,
         charge,
         balanceTransaction,
       });
@@ -168,8 +195,6 @@ function createDispatchSubscriptionReconciliationCommands(admin, options = {}) {
         invoiceId,
         administratorUid,
         state,
-        chargeId: providerChargeId,
-        balanceTransactionId,
       });
       const timestamp = FieldValue.serverTimestamp();
       const reconciliationRef = db.collection(RECONCILIATION_COLLECTION)
@@ -191,7 +216,10 @@ function createDispatchSubscriptionReconciliationCommands(admin, options = {}) {
           reconciliationStatus: record.status,
           reconciliationFailedChecks: record.failedChecks,
           reconciliationRevision: record.reconciliationRevision,
-          stripeBalanceTransactionId: balanceTransactionId || null,
+          stripeInvoicePaymentId: record.stripeInvoicePaymentId,
+          stripePaymentIntentId: record.stripePaymentIntentId,
+          sourceChargeId: record.stripeChargeId,
+          stripeBalanceTransactionId: record.stripeBalanceTransactionId,
           providerGrossMinor: state.providerGrossMinor,
           providerFeeMinor: state.providerFeeMinor,
           providerNetMinor: state.providerNetMinor,
