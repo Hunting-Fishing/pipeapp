@@ -16,6 +16,11 @@ const base = normalizeReadiness({
   checkoutCancelUrl: "https://pipebuyer.com/payments/cancel",
 });
 
+const subscriptionControls = Object.freeze({
+  stripeSubscriptionRecoveryVerified: true,
+  stripeSubscriptionLifecycleWebhookVerified: true,
+});
+
 test("production mode requires explicit confirmation", () => {
   assert.throws(
       () => applyPatch(base, {stripeMode: "production"}),
@@ -54,9 +59,39 @@ test("full marketplace checkout still requires active tax registration", () => {
   assert.equal(ready.stripeCheckoutEnabled, true);
 });
 
+test("Dispatch subscriptions require lifecycle webhook and recovery verification", () => {
+  const candidate = {
+    ...base,
+    stripeMode: "production",
+    stripeSubscriptionsEnabled: true,
+    stripeWebhookVerified: true,
+    canadaGstHstSmallSupplier: true,
+    stripeReconciliationReady: true,
+  };
+  assert.throws(
+      () => validateReadiness(candidate, {confirmProduction: true}),
+      /subscription lifecycle webhooks.*subscription recovery settings/i,
+  );
+  assert.throws(
+      () => validateReadiness({
+        ...candidate,
+        stripeSubscriptionLifecycleWebhookVerified: true,
+      }, {confirmProduction: true}),
+      /subscription recovery settings/i,
+  );
+  const ready = validateReadiness({
+    ...candidate,
+    ...subscriptionControls,
+  }, {confirmProduction: true});
+  assert.equal(ready.stripeSubscriptionsEnabled, true);
+  assert.equal(ready.stripeSubscriptionRecoveryVerified, true);
+  assert.equal(ready.stripeSubscriptionLifecycleWebhookVerified, true);
+});
+
 test("Canadian small supplier mode can authorize Dispatch subscriptions", () => {
   const ready = validateReadiness({
     ...base,
+    ...subscriptionControls,
     stripeMode: "production",
     stripeSubscriptionsEnabled: true,
     stripeWebhookVerified: true,
@@ -83,6 +118,7 @@ test("Dispatch affiliate accrual is a separate audited control", () => {
 
   const ready = validateReadiness({
     ...base,
+    ...subscriptionControls,
     stripeMode: "production",
     stripeSubscriptionsEnabled: true,
     dispatchAffiliateCommissionAccrualEnabled: true,
@@ -97,6 +133,7 @@ test("Dispatch affiliate accrual is a separate audited control", () => {
 test("affiliate payout pause does not disable approved Dispatch accrual", () => {
   const ready = validateReadiness({
     ...base,
+    ...subscriptionControls,
     stripeMode: "production",
     stripeSubscriptionsEnabled: true,
     dispatchAffiliateCommissionAccrualEnabled: true,
@@ -126,6 +163,7 @@ test("pending registration alone cannot authorize Dispatch subscriptions", () =>
   assert.throws(
       () => validateReadiness({
         ...base,
+        ...subscriptionControls,
         stripeMode: "production",
         stripeSubscriptionsEnabled: true,
         stripeWebhookVerified: true,
@@ -136,6 +174,7 @@ test("pending registration alone cannot authorize Dispatch subscriptions", () =>
   );
   const ready = validateReadiness({
     ...base,
+    ...subscriptionControls,
     stripeMode: "production",
     stripeSubscriptionsEnabled: true,
     stripeWebhookVerified: true,
