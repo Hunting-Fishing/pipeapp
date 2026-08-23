@@ -34,6 +34,33 @@ void main() {
     expect(client, contains("uri.host == 'checkout.stripe.com'"));
   });
 
+  test('customer purchase actions follow server-projected billing availability', () {
+    final panel = File(
+      'lib/marketplace/marketplace_dispatch_subscription_panel.dart',
+    ).readAsStringSync();
+    final client = File(
+      'lib/marketplace/marketplace_dispatch_subscription_client.dart',
+    ).readAsStringSync();
+
+    expect(client, contains('final bool billingAvailable'));
+    expect(client, contains("billingAvailable: data['billingAvailable'] == true"));
+    expect(panel, contains('status.billingAvailable &&'));
+    expect(panel, contains('Dispatch subscriptions are not open yet'));
+    expect(panel, contains('Subscriptions not available yet'));
+  });
+
+  test('customer status refreshes automatically after returning from Stripe', () {
+    final panel = File(
+      'lib/marketplace/marketplace_dispatch_subscription_panel.dart',
+    ).readAsStringSync();
+
+    expect(panel, contains('with WidgetsBindingObserver'));
+    expect(panel, contains('WidgetsBinding.instance.addObserver(this)'));
+    expect(panel, contains('WidgetsBinding.instance.removeObserver(this)'));
+    expect(panel, contains('AppLifecycleState.resumed'));
+    expect(panel, contains('_load();'));
+  });
+
   test('billing management is server-gated and Stripe-host validated', () {
     final panel = File(
       'lib/marketplace/marketplace_dispatch_subscription_panel.dart',
@@ -45,6 +72,7 @@ void main() {
     expect(panel, contains('status.canManageBilling'));
     expect(panel, contains('_client.createBillingPortal()'));
     expect(panel, contains('Manage billing or cancel in Stripe'));
+    expect(panel, contains('Secure billing management is temporarily unavailable'));
     expect(client, contains("'createDispatchBillingPortalSession'"));
     expect(client, contains("uri.host == 'billing.stripe.com'"));
   });
@@ -74,6 +102,7 @@ void main() {
     expect(panel, contains('status.monthly'));
     expect(panel, contains('status.yearly'));
     expect(panel, contains('catalog.formattedPrice'));
+    expect(panel, contains('Final tax treatment'));
     expect(client, contains("data['plans']"));
     expect(client, contains("data['unitAmountMinor']"));
   });
