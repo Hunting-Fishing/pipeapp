@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "required_paths": [
+    "README.md",
+    "lib/core/design/pipe_buyer_theme.dart",
+    "tool/verify.ps1",
+    "docs/FEATURE_REGISTRY.md",
+    "docs/PAYMENTS_EXECUTION_TRACKER.md",
+    "firebase/functions/package.json"
+  ],
+  "required_text": [
+    {
+      "path": "lib/core/design/pipe_buyer_theme.dart",
+      "pattern": "abstract final class PipeBuyerTheme"
+    },
+    {
+      "path": "README.md",
+      "pattern": "Pipe Buyer"
+    }
+  ]
+}
