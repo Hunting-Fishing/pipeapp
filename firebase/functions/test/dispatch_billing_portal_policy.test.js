@@ -3,10 +3,43 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
   dispatchBillingPortalAvailable,
+  dispatchBillingPortalProviderAssessment,
+  dispatchBillingPortalProviderRecordReady,
   validStripeBillingPortalConfigurationId,
   validStripeBillingPortalUrl,
 } = require("../dispatch_billing_portal_policy");
+
+function reviewedProviderConfiguration(overrides = {}) {
+  return {
+    id: "bpc_test123",
+    livemode: true,
+    active: true,
+    features: {
+      payment_method_update: {enabled: true},
+      invoice_history: {enabled: true},
+      subscription_cancel: {
+        enabled: true,
+        mode: "at_period_end",
+        proration_behavior: "none",
+      },
+      subscription_update: {enabled: false},
+    },
+    ...overrides,
+  };
+}
+
+function verifiedPortalRecord(overrides = {}) {
+  return {
+    enabled: true,
+    stripePortalConfigurationId: "bpc_test123",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_test123",
+    providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    ...overrides,
+  };
+}
 
 test("Billing Portal accepts only exact Stripe billing host", () => {
   assert.equal(
@@ -30,11 +63,52 @@ test("Billing Portal configuration requires exact Stripe bpc identity", () => {
   assert.equal(validStripeBillingPortalConfigurationId("bpc_bad/value"), false);
 });
 
-test("portal availability requires explicit readiness, reviewed configuration, and provider identity", () => {
-  const config = {
-    enabled: true,
-    stripePortalConfigurationId: "bpc_test123",
-  };
+test("provider assessment requires the exact launch-safe Portal features", () => {
+  const ready = dispatchBillingPortalProviderAssessment(
+      reviewedProviderConfiguration(),
+  );
+  assert.equal(ready.ready, true);
+  assert.deepEqual(ready.failedChecks, []);
+  assert.equal(ready.features.paymentMethodUpdate, true);
+  assert.equal(ready.features.invoiceHistory, true);
+  assert.equal(ready.features.subscriptionCancelMode, "at_period_end");
+  assert.equal(ready.features.subscriptionUpdate, false);
+
+  const unsafe = dispatchBillingPortalProviderAssessment(
+      reviewedProviderConfiguration({
+        features: {
+          payment_method_update: {enabled: true},
+          invoice_history: {enabled: true},
+          subscription_cancel: {
+            enabled: true,
+            mode: "immediately",
+            proration_behavior: "create_prorations",
+          },
+          subscription_update: {enabled: true},
+        },
+      }),
+  );
+  assert.equal(unsafe.ready, false);
+  assert.ok(unsafe.failedChecks.includes("subscription_cancel_mode"));
+  assert.ok(unsafe.failedChecks.includes("subscription_cancel_proration"));
+  assert.ok(unsafe.failedChecks.includes("subscription_update_disabled"));
+});
+
+test("provider verification record must be bound to the exact configuration", () => {
+  assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord()), true);
+  assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
+    providerVerifiedConfigurationId: "bpc_other123",
+  })), false);
+  assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
+    providerVerificationRevision: "old-policy",
+  })), false);
+  assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
+    providerVerified: false,
+  })), false);
+});
+
+test("portal availability requires provider verification and subscription identity", () => {
+  const config = verifiedPortalRecord();
   const state = {
     stripeCustomerId: "cus_test123",
     stripeSubscriptionId: "sub_test123",
@@ -42,7 +116,10 @@ test("portal availability requires explicit readiness, reviewed configuration, a
   };
   assert.equal(dispatchBillingPortalAvailable(config, state), true);
   assert.equal(dispatchBillingPortalAvailable({...config, enabled: false}, state), false);
-  assert.equal(dispatchBillingPortalAvailable({enabled: true}, state), false);
+  assert.equal(dispatchBillingPortalAvailable({
+    ...config,
+    providerVerified: false,
+  }, state), false);
   assert.equal(dispatchBillingPortalAvailable(config, {
     ...state,
     stripeCustomerId: "",
