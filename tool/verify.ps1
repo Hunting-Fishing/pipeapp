@@ -90,6 +90,18 @@ Assert-NativeSuccess 'Functions validation'
 npm audit --omit=dev --audit-level=high --prefix firebase/functions
 Assert-NativeSuccess 'Functions production dependency audit'
 
+Write-Host 'Validating Firebase Agent Functions'
+if (-not $SkipDependencyRestore) {
+  npm ci --prefix firebase/agent-functions
+  Assert-NativeSuccess 'Agent Functions dependency restore'
+}
+npm run lint --prefix firebase/agent-functions
+Assert-NativeSuccess 'Agent Functions lint validation'
+npm run check --prefix firebase/agent-functions
+Assert-NativeSuccess 'Agent Functions validation'
+npm audit --omit=dev --audit-level=high --prefix firebase/agent-functions
+Assert-NativeSuccess 'Agent Functions production dependency audit'
+
 if (-not $SkipRulesEmulator) {
   $java = Get-Command java -ErrorAction SilentlyContinue
   if (-not $java) {
