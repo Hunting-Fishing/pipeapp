@@ -172,10 +172,10 @@ function missingMembers(before, after) {
   return before.filter((value) => !afterSet.has(value));
 }
 
-export function compareCompatibilitySurface(root) {
-  const beforeRoutes = routeInventoryAtRevision(root, "HEAD");
+export function compareCompatibilitySurface(root, baselineRevision = "HEAD") {
+  const beforeRoutes = routeInventoryAtRevision(root, baselineRevision);
   const afterRoutes = currentRouteInventory(root);
-  const beforeFunctions = functionInventoryAtRevision(root, "HEAD");
+  const beforeFunctions = functionInventoryAtRevision(root, baselineRevision);
   const afterFunctions = currentFunctionInventory(root);
   const missingRoutes = missingMembers(beforeRoutes, afterRoutes);
   const missingFunctions = [];
@@ -192,6 +192,7 @@ export function compareCompatibilitySurface(root) {
 
   return {
     passed: missingRoutes.length === 0 && missingFunctions.length === 0,
+    baselineRevision,
     before: {
       routeCount: beforeRoutes.length,
       functionCount: Object.values(beforeFunctions).flat().length,
@@ -207,17 +208,20 @@ export function compareCompatibilitySurface(root) {
 
 function main() {
   const root = path.resolve(process.argv[2] || process.cwd());
-  const result = compareCompatibilitySurface(root);
+  const baselineRevision = String(
+      process.argv[3] || process.env.PIPE_COMPATIBILITY_BASELINE || "HEAD",
+  ).trim();
+  const result = compareCompatibilitySurface(root, baselineRevision);
   if (!result.passed) {
-    console.error("Autonomous compatibility preservation failed.");
+    console.error(`Autonomous compatibility preservation failed against ${baselineRevision}.`);
     for (const route of result.missingRoutes) console.error(`  missing route: ${route}`);
     for (const name of result.missingFunctions) console.error(`  missing Function: ${name}`);
     process.exitCode = 1;
     return;
   }
-  console.log("Autonomous compatibility preservation passed.");
-  console.log(`  Routes    : ${result.after.routeCount} (HEAD ${result.before.routeCount})`);
-  console.log(`  Functions : ${result.after.functionCount} (HEAD ${result.before.functionCount})`);
+  console.log(`Autonomous compatibility preservation passed against ${baselineRevision}.`);
+  console.log(`  Routes    : ${result.after.routeCount} (baseline ${result.before.routeCount})`);
+  console.log(`  Functions : ${result.after.functionCount} (baseline ${result.before.functionCount})`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
