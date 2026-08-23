@@ -95,11 +95,18 @@ const createDispatchSubscriptionCheckout =
     createDispatchSubscriptionPortalRuntimeGate(
         admin,
         dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+        {actionLabel: "Dispatch subscription checkout"},
     );
 const dispatchSubscriptionStatusCommands =
     createDispatchSubscriptionStatusCommands(admin);
 const dispatchSubscriptionPortalCommands =
     createDispatchSubscriptionPortalCommands(admin);
+const createDispatchBillingPortalSession =
+    createDispatchSubscriptionPortalRuntimeGate(
+        admin,
+        dispatchSubscriptionPortalCommands.createDispatchBillingPortalSession,
+        {actionLabel: "Dispatch billing management"},
+    );
 const dispatchSubscriptionReconciliationCommands =
     createDispatchSubscriptionReconciliationCommands(admin);
 const dispatchSubscriptionAdminCommands =
@@ -252,7 +259,7 @@ exports.createDispatchSubscriptionCheckout = onCall(
 );
 exports.createDispatchBillingPortalSession = onCall(
     stripeCallableOptions,
-    dispatchSubscriptionPortalCommands.createDispatchBillingPortalSession,
+    createDispatchBillingPortalSession,
 );
 exports.verifyDispatchBillingPortalConfiguration = onCall(
     stripeCallableOptions,
