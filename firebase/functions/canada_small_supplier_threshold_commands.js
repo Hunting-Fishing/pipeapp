@@ -113,6 +113,8 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
           Number(readiness.canadaGstHstSmallSupplierAssessmentRevision || 0),
         stripeFeeBillingEnabled: readiness.stripeFeeBillingEnabled === true,
         stripeSubscriptionsEnabled: readiness.stripeSubscriptionsEnabled === true,
+        dispatchAffiliateCommissionAccrualEnabled:
+          readiness.dispatchAffiliateCommissionAccrualEnabled === true,
         stripeTaxReady: readiness.stripeTaxReady === true,
         stripeTaxRegistrationPending:
           readiness.stripeTaxRegistrationPending === true,
@@ -181,6 +183,7 @@ function createCanadaSmallSupplierThresholdCommands(admin) {
             canadaGstHstSmallSupplierAssessmentRevision: null,
             stripeFeeBillingEnabled: false,
             stripeSubscriptionsEnabled: false,
+            dispatchAffiliateCommissionAccrualEnabled: false,
             revision: readinessRevision,
             lastChangedByUid: administratorUid,
             lastChangeReason:
