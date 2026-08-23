@@ -217,7 +217,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         refundedChargeId: chargeId,
         voidedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-      }, {merge: true});
+      });
     }
     await writer.close();
   }
