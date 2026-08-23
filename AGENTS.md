@@ -4,104 +4,118 @@ These instructions apply to autonomous or interactive coding agents working in t
 
 ## Role
 
-Act as a repository engineering worker for Pipe Buyer. Inspect the real source, tests, configuration, project knowledge, and recent history before changing code. Never infer that a feature is complete merely because a screen, stub, provider object, or document exists.
+Act as a repository engineering worker for Pipe Buyer. Inspect the real source, tests, configuration, project knowledge, risk policy, and recent history before changing code. Never infer that a feature is complete merely because a screen, stub, provider object, document, or test exists.
 
 The repository already contains a Firebase Cloud Function named `agent`. That function is a fail-closed application-side administrative endpoint. **Do not repurpose, enable, or broaden that Cloud Function to perform repository development.** Repository development runs from a developer workspace and remains separate from production runtime automation.
 
 ## Project configuration
 
-Read `.autobuild/project.json` before autonomous work. It defines the reusable writer branch, knowledge files, verification command, source-size/change budgets, timeouts, and human-only safety gates for this project.
+Read `.autobuild/project.json` and `.autobuild/risk_policy.json` before autonomous work. They define the reusable writer branch, knowledge files, verification command, source/document/change budgets, timeouts, path-risk escalation, independent review, and human-only safety gates.
 
 The autonomous-builder engine is intended to be reusable across projects. Project-specific knowledge and rules belong in the target repository; orchestration logic should remain portable.
 
 ## Knowledge hierarchy
 
-Use the newest explicit operator direction first. Then use the project knowledge in this order:
+Read `docs/PROJECT_KNOWLEDGE_INDEX.md` first. It is the authoritative index and conflict-resolution guide.
 
-1. `docs/PRODUCT_VISION.md` — intended finished product and capability outcome.
+Core project truth includes:
+
+1. `docs/PRODUCT_VISION.md` — intended finished product.
 2. `docs/MASTER_ROADMAP.md` — ordered cross-domain roadmap index.
-3. `docs/ARCHITECTURE.md` — client/server/data/refactoring boundaries.
-4. `docs/QUALITY_GATES.md` — source size, change budget, refactoring and verification law.
-5. `docs/DECISION_REGISTER.md` — durable decisions that must not be silently reinterpreted.
-6. `docs/FEATURE_REGISTRY.md` — compatibility inventory for existing capabilities.
-7. Domain-specific sources:
-   - `docs/PAYMENTS_EXECUTION_TRACKER.md` for payments, subscriptions, Stripe, tax, refunds, disputes, and reconciliation;
-   - `docs/PHASE_1_1_EXPERIENCE_UPGRADE.md` and `docs/DESIGN_SYSTEM.md` for UI/product experience;
-   - `docs/PHASE_2_PROGRESS_AUDIT.md` for Marketplace, Wanted Ads, Offers, Auctions, Dispatch, analytics, and acceptance;
-   - `docs/ENGINEERING_CONTROL_BASELINE.md` and relevant runbooks for security, release, and operations.
-8. `README.md`, schemas, tests, implementation code, and Git history as implementation evidence.
+3. `docs/ARCHITECTURE.md` — system/refactor boundaries.
+4. `docs/QUALITY_GATES.md` — autonomous size/scope/verification law.
+5. `docs/DEFINITION_OF_DONE.md` — completion standard.
+6. `docs/NON_FUNCTIONAL_REQUIREMENTS.md` — reliability, performance, accessibility, security, privacy, operability, and cost expectations.
+7. `docs/DECISION_REGISTER.md` — durable decisions.
+8. `docs/RISK_REGISTER.md` — active engineering/product risks.
+9. `docs/FEATURE_REGISTRY.md` and `docs/CONTRACTS_AND_COMPATIBILITY.md` — compatibility inventory.
+10. Relevant domain sources for UI, payments, Marketplace, data, security, providers, release, and operations.
+11. README, schemas, tests, implementation, and Git history as evidence of current behavior.
 
-Do not load every domain document blindly when one domain is being changed. Read the always-on knowledge first, then the relevant domain-specific sources.
+Do not load every domain document blindly. Read always-on knowledge, then the relevant domain-specific sources.
 
-When documents conflict, prefer the newest explicit operator direction and the newest domain-specific source. Record unresolved contradictions rather than silently choosing a risky interpretation.
+When sources conflict, use the authority rules in the knowledge index and record unresolved contradictions rather than silently choosing a risky interpretation.
+
+## Risk model
+
+Every increment must be classified `low`, `medium`, `high`, or `critical` before editing.
+
+- `LOW`: localized, reversible work with limited blast radius.
+- `MEDIUM`: normal application behavior/refactor with meaningful regression surface.
+- `HIGH`: security, data/schema, dependency/provider, payment/billing, release/CI, broad compatibility, or other material-impact work.
+- `CRITICAL`: production activation, live money movement, secrets, destructive production data mutation, legal/tax declaration, security disablement, or another irreversible/high-consequence action.
+
+Autonomous workers may prepare bounded high-risk code/tests on the writer branch when safely verifiable. They must not perform critical actions.
 
 ## Autonomous task selection
 
 For each autonomous iteration:
 
-1. Read core knowledge, relevant domain knowledge, the implementation, tests, and recent history.
-2. Classify unfinished work as one of:
-   - `code-now`: can be completed and verified in the current development workspace;
-   - `external-toolchain`: needs a local emulator/compiler/SDK/device/tool that is unavailable;
-   - `credentials`: needs a secret or authenticated provider operation not safely available;
-   - `provider-dashboard`: needs Stripe, Firebase Console, App/Play Store, DNS, email provider, or similar evidence/action;
-   - `production`: changes live configuration, deployment, public activation, or money movement;
-   - `legal-tax`: requires legal, tax, accounting, registration, licensing, or policy ownership;
-   - `ambiguous-policy`: product/business decision is not established.
-3. Select the highest-priority `code-now` item that advances the active roadmap coherently.
+1. Read core knowledge, relevant domain knowledge, implementation, tests, feature/compatibility inventory, risk register, and recent history.
+2. Classify unfinished work as `code-now`, `external-toolchain`, `credentials`, `provider-dashboard`, `production`, `legal-tax`, `ambiguous-policy`, or another explicit human-only blocker.
+3. Select the highest-priority safe `code-now` item that advances the active roadmap coherently.
 4. A blocked item does not authorize marking it complete; record it and continue to another safe item when possible.
 5. Implement exactly one bounded increment per invocation.
-6. Update a tracker only when the tracker wording is actually supported by repository evidence and required verification.
+6. Update a tracker only when its wording is actually supported by repository and required acceptance evidence.
 
-If no safe `code-now` work remains, return a human blocker instead of fabricating progress.
+If no safe work remains, return a human blocker instead of fabricating progress.
 
 ## Mandatory safety boundaries
 
 Never autonomously:
 
 - merge to `main`, force-push, rewrite history, or delete branches;
-- deploy Firebase, Cloud Functions, Hosting, App Check, Firestore Rules/indexes, or any production release;
-- activate public production, paid features, regulated property workflows, escrow/trust custody, carrier settlement, or marketplace money movement;
-- create or mutate live Stripe customers, subscriptions, invoices, charges, refunds, transfers, disputes, coupons, products, prices, payment links, or webhook subscriptions;
-- change live tax registrations, tax-readiness claims, GST/HST/PST treatment, legal entity declarations, or accounting ownership;
-- expose, print, copy, rotate, or commit secrets, API keys, webhook secrets, service-account credentials, or tokens;
-- send production email/SMS/push notifications or trigger other irreversible third-party side effects;
-- weaken authentication, MFA, App Check, authorization, Firestore/Storage Rules, callable boundaries, idempotency, moderation, audit history, quotas, feature gates, or release controls to make a test pass;
-- delete, skip, mute, or materially relax tests simply to obtain a green result;
-- run destructive Git commands such as `git reset --hard`, `git clean -fd`, or commands that discard operator work.
+- deploy Firebase, Functions, Hosting, App Check, Rules/indexes, or any production release;
+- activate public production, paid features, regulated workflows, escrow/trust custody, carrier settlement, or marketplace money movement;
+- create or mutate live Stripe customers, subscriptions, invoices, charges, refunds, transfers, disputes, coupons, products, prices, payment links, or webhooks;
+- enable/upgrade a paid provider, increase production minimum instances, purchase credits, or create unapproved recurring spend;
+- change live tax registrations, tax-readiness claims, legal entity declarations, or accounting ownership;
+- expose, print, copy, rotate, or commit secrets, private keys, service-account credentials, tokens, or sensitive user data;
+- send production email/SMS/push notifications or trigger irreversible third-party side effects;
+- weaken authentication, MFA, App Check, authorization, Rules, signature verification, idempotency, moderation, audit history, quotas, feature gates, or release controls to make a test pass;
+- delete, skip, mute, or materially relax tests merely to obtain green output;
+- run destructive Git commands such as `git reset --hard`, `git clean -fd`, or commands that discard operator work;
+- execute destructive production data migrations/backfills/cleanup.
 
-Production-facing code, tests, runbooks, migrations, and evidence tooling may be prepared, but activation remains human controlled.
+Production-facing code, tests, runbooks, dry-run tooling, migrations, and evidence tooling may be prepared, but activation remains human controlled.
 
 ## Engineering rules
 
 - Inspect before editing. Search for an existing implementation before adding a second path.
-- Preserve all working routes, commands, Functions, roles, feature flags, security contracts, lifecycle states, and user workflows unless an explicit tracked deprecation exists.
-- Read `docs/FEATURE_REGISTRY.md` before significant refactors.
-- Read `docs/DESIGN_SYSTEM.md` before UI work.
-- Reuse theme tokens and shared components instead of introducing local competing design systems.
+- Preserve working routes, commands, Functions, roles, flags, security contracts, lifecycle states, records, and user workflows unless an explicit tracked deprecation exists.
+- Read the compatibility/feature registry before significant refactors.
+- Read the design system before UI work.
+- Read data policy before schema/migration/backfill work.
+- Read dependency/provider and cost governance before package/provider changes.
+- Read security/privacy engineering before privileged/private-data changes.
+- Read payment tracker/governance before billing/payment/reconciliation changes.
+- Reuse established design/architecture patterns instead of creating competing systems.
 - Prefer the smallest coherent change that moves one tracked gate forward.
-- Do not combine broad refactoring with unrelated product behavior in one autonomous increment.
-- For risky refactors, characterize behavior first, extract one responsibility, verify, commit, then continue in a later increment.
-- Ordinary hand-written source must follow the configured size budget: 600 lines is a ceiling, not a target. Do not grow an existing source file that is already above the ceiling.
-- Prefer files roughly 150–350 lines when responsibility permits; do not create artificial fragmentation solely to meet a number.
-- Preserve server-authoritative financial calculations, immutable snapshots, privileged state transitions, and participant privacy.
-- Keep client behavior fail-closed when provider evidence is absent.
+- Do not combine broad refactoring with unrelated product behavior.
+- For risky refactors, characterize behavior first, extract one responsibility, verify, commit, then continue later.
+- Ordinary hand-written source and new knowledge documents follow configured size budgets. 600 lines is a ceiling, not a target.
+- Do not grow legacy source already above the ceiling; split/reduce it.
+- Prefer focused files roughly 150–350 lines when responsibility permits; do not create artificial fragmentation solely for line count.
+- Preserve server-authoritative financial calculations, immutable snapshots, privileged state transitions, privacy, idempotency, and audit evidence.
 - Avoid mock/demo production paths unless a test fixture explicitly requires them.
-- Do not add a dependency when existing dependencies or platform libraries are sufficient.
-- Durable project decisions are appended to `docs/DECISION_REGISTER.md`; supersede old decisions rather than erasing the rationale.
-- Keep generated/temp autonomous-run artifacts out of commits.
-- Do not create commits, branches, tags, PRs, merges, or pushes from inside the coding-agent turn; the outer runner owns Git writes after verification.
-- Read-only subagents may be used for discovery/review. Avoid parallel writer agents against the same worktree.
+- Do not add a dependency when existing dependencies/platform libraries are sufficient.
+- Durable decisions are appended/superseded in the decision register rather than silently erased.
+- Keep autonomous run artifacts out of commits.
+- Worker turns do not create branches/commits/PRs/pushes/merges; the supervisor owns verified Git writes.
+- Multiple writer agents must not operate on the same worktree. One supervisor owns the single-writer lock.
 
-## Verification
+## Verification and independent review
 
-Run focused tests for changed behavior during the coding turn.
+Run focused tests for changed behavior during the coding turn. High-risk changes require meaningful negative-path coverage.
 
-Before a verified autonomous commit, the outer runner must run:
+Before an autonomous commit, the supervisor must pass:
 
-1. the autonomous quality guard (`tool/autonomous_guard.ps1` for Pipe Buyer);
-2. the complete verification command configured in `.autobuild/project.json` (`.\tool\verify.ps1` for Pipe Buyer).
+1. machine autonomous guard, including scope/size/secret/feature/risk consistency checks;
+2. independent read-only reviewer that did not author the change;
+3. complete project verification command from `.autobuild/project.json`.
 
-If either fails, repair only root causes associated with the current increment or a directly exposed defect required for that increment. If the failure is unrelated or requires an unavailable external toolchain, report the blocker and leave the increment uncommitted.
+A reviewer may block functionality loss, risk under-classification, security/data/billing defects, missing high-risk tests, architecture/design drift, or knowledge conflicts even when focused tests pass.
 
-For payment work, completion evidence must agree across applicable UI, server-authoritative calculation, provider contract, webhook/event processing, Firestore ledger/state, failure handling, reconciliation logic, and acceptance tests. Code presence alone is not completion.
+If any gate fails, repair only root causes associated with the current increment or a directly exposed defect required for that increment. Do not bypass or weaken the gate.
+
+For payment work, completion evidence must agree across UI, server-authoritative calculation, provider contract, webhook/event processing, Firestore ledger/state, failure handling, reconciliation, tax/legal gates, and controlled acceptance. Code presence alone is never completion.
