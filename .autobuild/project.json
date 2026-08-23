@@ -8,6 +8,7 @@
   "writer_branch": "agent/autobuild",
   "risk_policy": ".autobuild/risk_policy.json",
   "independent_review_required": true,
+  "preflight_verify_required": true,
   "knowledge": {
     "always": [
       "docs/PROJECT_KNOWLEDGE_INDEX.md",
@@ -94,6 +95,8 @@
   },
   "git": {
     "base_branch": "main",
+    "remote_name": "origin",
+    "require_remote_freshness": true,
     "reuse_writer_branch": true,
     "allow_direct_main": false,
     "push_verified_commits_only": true,
