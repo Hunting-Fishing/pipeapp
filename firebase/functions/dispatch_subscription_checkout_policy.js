@@ -12,6 +12,11 @@ const ACTIVE_CHECKOUT_STATUSES = Object.freeze(new Set([
   "checkout_created",
   "processing",
 ]));
+const RESTARTABLE_SUBSCRIPTION_STATUSES = Object.freeze(new Set([
+  "canceled",
+  "incomplete_expired",
+]));
+const MAX_RETIRED_SUBSCRIPTION_IDS = 10;
 
 function dispatchCheckoutAttempt(state) {
   const value = Number(state && state.checkoutAttempt);
@@ -32,6 +37,30 @@ function dispatchStripeSubscriptionId(state) {
   return value.startsWith("sub_") ? value : "";
 }
 
+function dispatchRetiredSubscriptionIds(state = {}) {
+  const raw = Array.isArray(state.retiredStripeSubscriptionIds) ?
+    state.retiredStripeSubscriptionIds : [];
+  const normalized = [];
+  for (const value of raw) {
+    const id = String(value || "").trim();
+    if (!id.startsWith("sub_") || normalized.includes(id)) continue;
+    normalized.push(id);
+  }
+  return normalized.slice(-MAX_RETIRED_SUBSCRIPTION_IDS);
+}
+
+function nextDispatchRetiredSubscriptionIds(state = {}) {
+  const ids = dispatchRetiredSubscriptionIds(state);
+  const current = dispatchStripeSubscriptionId(state);
+  if (current && !ids.includes(current)) ids.push(current);
+  return ids.slice(-MAX_RETIRED_SUBSCRIPTION_IDS);
+}
+
+function isDispatchRetiredSubscriptionId(state, subscriptionId) {
+  const id = String(subscriptionId || "").trim();
+  return Boolean(id) && dispatchRetiredSubscriptionIds(state).includes(id);
+}
+
 function dispatchSubscriptionCheckoutState(state = {}) {
   const status = String(state.status || "").trim();
   const subscriptionId = dispatchStripeSubscriptionId(state);
@@ -42,7 +71,7 @@ function dispatchSubscriptionCheckoutState(state = {}) {
   if (ACTIVE_CHECKOUT_STATUSES.has(status)) {
     return sessionId ? "active_checkout" : "inconsistent";
   }
-  if (subscriptionId && !new Set(["canceled", "incomplete_expired"]).has(status)) {
+  if (subscriptionId && !RESTARTABLE_SUBSCRIPTION_STATUSES.has(status)) {
     return "existing_subscription";
   }
   return "create";
@@ -101,12 +130,17 @@ function dispatchPostProviderPersistenceDecision({
 module.exports = {
   ACTIVE_CHECKOUT_STATUSES,
   ACTIVE_SUBSCRIPTION_STATUSES,
+  MAX_RETIRED_SUBSCRIPTION_IDS,
+  RESTARTABLE_SUBSCRIPTION_STATUSES,
   dispatchCheckoutAttempt,
   dispatchCheckoutIdempotencyKey,
   dispatchCheckoutSessionId,
   dispatchPostProviderPersistenceDecision,
+  dispatchRetiredSubscriptionIds,
   dispatchStripeSubscriptionId,
   dispatchSubscriptionCheckoutState,
   existingDispatchCheckoutDecision,
+  isDispatchRetiredSubscriptionId,
   nextDispatchCheckoutAttempt,
+  nextDispatchRetiredSubscriptionIds,
 };
