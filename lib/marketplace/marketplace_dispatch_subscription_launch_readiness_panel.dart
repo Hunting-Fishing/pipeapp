@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 
 class MarketplaceDispatchSubscriptionLaunchReadinessPanel
@@ -104,7 +105,7 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
             builder: (context) => AlertDialog(
               title: const Text('Confirm Stripe recovery verification'),
               content: const Text(
-                'Confirm only after reviewing the live Stripe Dashboard and verifying the intended Smart Retry policy and failed-payment customer email settings. This records an audited production-readiness assertion; it does not enable subscriptions.',
+                'Confirm only after reviewing the LIVE Stripe Dashboard and verifying the intended Smart Retry policy and failed-payment customer email settings. This records an audited production-readiness assertion; it does not enable subscriptions.',
               ),
               actions: [
                 TextButton(
@@ -173,6 +174,17 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
 
     final portalEnabled = _portal['enabled'] == true;
     final portalId = '${_portal['stripePortalConfigurationId'] ?? ''}'.trim();
+    final portalProviderVerified = _portal['providerVerified'] == true;
+    final portalVerifiedId =
+        '${_portal['providerVerifiedConfigurationId'] ?? ''}'.trim();
+    final portalProviderRevision =
+        '${_portal['providerVerificationRevision'] ?? ''}'.trim();
+    final portalReady = portalEnabled &&
+        portalProviderVerified &&
+        portalId.startsWith('bpc_') &&
+        portalVerifiedId == portalId &&
+        portalProviderRevision.isNotEmpty;
+
     final coreWebhook = _readiness['stripeWebhookVerified'] == true;
     final lifecycle =
         _readiness['stripeSubscriptionLifecycleWebhookVerified'] == true;
@@ -183,13 +195,26 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
         _readiness['canadaGstHstSmallSupplier'] == true ||
         (_readiness['stripeTaxRegistrationPending'] == true &&
             _readiness['stripeTaxPendingBillingApproved'] == true);
-    final providerPrerequisites = portalEnabled &&
-        portalId.startsWith('bpc_') &&
-        coreWebhook &&
-        lifecycle &&
-        recovery &&
-        reconciliation &&
-        taxPrepared;
+
+    final prerequisiteStates = <bool>[
+      portalReady,
+      coreWebhook,
+      lifecycle,
+      recovery,
+      reconciliation,
+      taxPrepared,
+    ];
+    final readyCount = prerequisiteStates.where((ready) => ready).length;
+    final providerPrerequisites = readyCount == prerequisiteStates.length;
+    final nextAction = _nextAction(
+      portalReady: portalReady,
+      coreWebhook: coreWebhook,
+      lifecycle: lifecycle,
+      recovery: recovery,
+      reconciliation: reconciliation,
+      taxPrepared: taxPrepared,
+      subscriptions: subscriptions,
+    );
 
     return Card(
       child: Padding(
@@ -197,21 +222,63 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Dispatch launch readiness',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.fact_check_outlined,
+                  color: PipeBuyerColors.industrialBlue,
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Dispatch launch readiness',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Production prerequisites only. Nothing on this card activates public subscriptions.',
+                        style: TextStyle(
+                          color: PipeBuyerColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _StatusPill(
+                  label: subscriptions ? 'BILLING ON' : 'BILLING OFF',
+                  ready: subscriptions,
+                ),
+              ],
             ),
-            const SizedBox(height: 5),
-            const Text(
-              'Prerequisite verification only. This panel cannot activate public subscriptions.',
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: readyCount / prerequisiteStates.length,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '$readyCount/${prerequisiteStates.length} verified',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             _GateRow(
               label: 'Stripe Billing Portal',
-              ready: portalEnabled && portalId.startsWith('bpc_'),
-              detail: portalId.isEmpty
-                  ? 'No reviewed bpc_ configuration recorded'
-                  : portalId,
+              ready: portalReady,
+              detail: portalReady
+                  ? 'Provider-verified and bound to $portalId'
+                  : 'Create the LIVE Portal configuration, then verify it with Stripe below',
             ),
             _GateRow(
               label: 'Core signed webhook',
@@ -222,14 +289,14 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
               label: 'Subscription lifecycle events',
               ready: lifecycle,
               detail: lifecycle
-                  ? 'Provider-verified against live Stripe endpoint'
-                  : 'Live provider verification required',
+                  ? 'Provider-verified against the live Stripe endpoint'
+                  : 'Receiver deployment + live provider verification required',
             ),
             _GateRow(
               label: 'Smart Retry + failed-payment email',
               ready: recovery,
               detail: recovery
-                  ? 'Administrator Dashboard verification recorded'
+                  ? 'Administrator LIVE Dashboard review recorded'
                   : 'Stripe Dashboard review required',
             ),
             _GateRow(
@@ -242,35 +309,59 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
               ready: taxPrepared,
               detail: taxPrepared ? 'Authorized billing state' : 'Not prepared',
             ),
-            _GateRow(
-              label: 'Dispatch subscriptions',
-              ready: subscriptions,
-              detail: subscriptions ? 'ENABLED' : 'OFF',
-            ),
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).dividerColor),
-                borderRadius: BorderRadius.circular(10),
+                color: (providerPrerequisites
+                        ? PipeBuyerColors.success
+                        : PipeBuyerColors.warning)
+                    .withValues(alpha: .07),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: (providerPrerequisites
+                          ? PipeBuyerColors.success
+                          : PipeBuyerColors.warning)
+                      .withValues(alpha: .25),
+                ),
               ),
-              child: Text(
-                providerPrerequisites
-                    ? 'Provider prerequisites are ready for the controlled acceptance phase. Public activation remains a separate audited action.'
-                    : 'Controlled subscription acceptance remains blocked until every prerequisite above is green.',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    providerPrerequisites
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.route_outlined,
+                    color: providerPrerequisites
+                        ? PipeBuyerColors.success
+                        : PipeBuyerColors.warning,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          providerPrerequisites
+                              ? 'Prerequisites ready'
+                              : 'Recommended next action',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(nextAction),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             if (_resultMessage != null) ...[
               const SizedBox(height: 10),
-              Text(_resultMessage!),
+              _MessageBox(message: _resultMessage!, error: false),
             ],
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+              _MessageBox(message: _error!, error: true),
             ],
             const SizedBox(height: 12),
             Wrap(
@@ -280,7 +371,11 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
                 OutlinedButton.icon(
                   onPressed: _working ? null : _verifyLifecycleWebhook,
                   icon: const Icon(Icons.verified_user_outlined),
-                  label: const Text('Verify live lifecycle webhook'),
+                  label: Text(
+                    lifecycle
+                        ? 'Re-verify lifecycle webhook'
+                        : 'Verify live lifecycle webhook',
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: _working
@@ -311,6 +406,39 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
   }
 }
 
+String _nextAction({
+  required bool portalReady,
+  required bool coreWebhook,
+  required bool lifecycle,
+  required bool recovery,
+  required bool reconciliation,
+  required bool taxPrepared,
+  required bool subscriptions,
+}) {
+  if (!portalReady) {
+    return 'Create and review the LIVE Stripe Billing Portal, then use Verify & enable Billing Portal below.';
+  }
+  if (!coreWebhook) {
+    return 'Verify the core signed Stripe webhook before subscription billing is considered.';
+  }
+  if (!lifecycle) {
+    return 'After the accepted receiver is deployed, add the required Stripe subscription lifecycle events and run provider verification.';
+  }
+  if (!recovery) {
+    return 'Review Smart Retry and failed-payment customer emails in the LIVE Stripe Dashboard, then record that review.';
+  }
+  if (!reconciliation) {
+    return 'Complete the provider reconciliation readiness gate before controlled live acceptance.';
+  }
+  if (!taxPrepared) {
+    return 'Complete the current authorized GST/HST billing state before collecting Dispatch subscription revenue.';
+  }
+  if (!subscriptions) {
+    return 'All prerequisites are green. Proceed only with the documented controlled acceptance window; public activation remains a separate audited decision.';
+  }
+  return 'Dispatch subscriptions are enabled. Continue monitoring provider lifecycle, reconciliation, tax, and customer billing-management readiness.';
+}
+
 class _GateRow extends StatelessWidget {
   const _GateRow({
     required this.label,
@@ -324,16 +452,16 @@ class _GateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              ready ? Icons.check_circle_rounded : Icons.cancel_outlined,
+              ready ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
               size: 20,
               color: ready
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.error,
+                  ? PipeBuyerColors.success
+                  : PipeBuyerColors.muted,
             ),
             const SizedBox(width: 9),
             Expanded(
@@ -341,11 +469,70 @@ class _GateRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  Text(detail, style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 1),
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                      color: PipeBuyerColors.muted,
+                      fontSize: 11.5,
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
       );
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.ready});
+
+  final String label;
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = ready ? PipeBuyerColors.success : PipeBuyerColors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: .28)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          letterSpacing: .3,
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageBox extends StatelessWidget {
+  const _MessageBox({required this.message, required this.error});
+
+  final String message;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = error ? PipeBuyerColors.danger : PipeBuyerColors.success;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
 }
