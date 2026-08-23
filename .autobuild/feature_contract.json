@@ -1,12 +1,24 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "required_paths": [
     "README.md",
     "lib/core/design/pipe_buyer_theme.dart",
+    "lib/flutter_flow/nav/nav.dart",
+    "lib/marketplace/marketplace_deep_links.dart",
+    "firebase/functions/package.json",
+    "firebase/functions/production_bootstrap.js",
+    "firebase/functions/bootstrap.js",
+    "firebase/functions/index.js",
+    "firestore.rules",
+    "storage.rules",
+    "firebase/FIRESTORE_SCHEMA.md",
     "tool/verify.ps1",
+    "tool/function_parity_test.mjs",
+    "tool/release_manifest_test.mjs",
     "docs/FEATURE_REGISTRY.md",
+    "docs/CONTRACTS_AND_COMPATIBILITY.md",
     "docs/PAYMENTS_EXECUTION_TRACKER.md",
-    "firebase/functions/package.json"
+    "docs/FIREBASE_ENVIRONMENTS_AND_DEPLOYMENT.md"
   ],
   "required_text": [
     {
@@ -16,6 +28,74 @@
     {
       "path": "README.md",
       "pattern": "Pipe Buyer"
+    },
+    {
+      "path": "lib/marketplace/marketplace_deep_links.dart",
+      "pattern": "static const listingRouteName = 'marketplace-listing'"
+    },
+    {
+      "path": "lib/marketplace/marketplace_deep_links.dart",
+      "pattern": "static const conversationRouteName = 'marketplace-conversation'"
+    },
+    {
+      "path": "lib/marketplace/marketplace_deep_links.dart",
+      "pattern": "static const dispatchJobRouteName = 'dispatch-job'"
+    },
+    {
+      "path": "lib/flutter_flow/nav/nav.dart",
+      "pattern": "path: '/listings/:listingId'"
+    },
+    {
+      "path": "lib/flutter_flow/nav/nav.dart",
+      "pattern": "path: '/conversations/:conversationId'"
+    },
+    {
+      "path": "lib/flutter_flow/nav/nav.dart",
+      "pattern": "path: '/dispatch/jobs/:jobId'"
+    },
+    {
+      "path": "firebase/functions/package.json",
+      "pattern": "\"main\": \"production_bootstrap.js\""
+    },
+    {
+      "path": "firebase/functions/index.js",
+      "pattern": "exports.createMarketplaceOffer = onCall("
+    },
+    {
+      "path": "firebase/functions/index.js",
+      "pattern": "exports.createMarketplaceListing = onCall("
+    },
+    {
+      "path": "firebase/functions/index.js",
+      "pattern": "exports.createDispatchJob = onCall("
+    },
+    {
+      "path": "firebase/functions/index.js",
+      "pattern": "exports.placeAuctionBid = onCall("
+    },
+    {
+      "path": "firebase/functions/index.js",
+      "pattern": "exports.manageWantedMatch = onCall("
+    },
+    {
+      "path": "firebase/functions/bootstrap.js",
+      "pattern": "exports.createMarketplaceCheckout = onCall("
+    },
+    {
+      "path": "firebase/functions/bootstrap.js",
+      "pattern": "exports.createExternalSettlementFeeCheckout = onCall("
+    },
+    {
+      "path": "firebase/functions/bootstrap.js",
+      "pattern": "exports.createDispatchSubscriptionCheckout = onCall("
+    },
+    {
+      "path": "firebase/functions/bootstrap.js",
+      "pattern": "exports.stripeMarketplaceWebhook = onRequest("
+    },
+    {
+      "path": "firebase/functions/bootstrap.js",
+      "pattern": "exports.executeMarketplaceRefund = onCall("
     }
   ]
 }
