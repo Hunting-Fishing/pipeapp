@@ -41,7 +41,11 @@ function createDispatchSubscriptionWebhookWrapper(admin, options = {}) {
         "customer.subscription.updated",
         "customer.subscription.deleted",
       ].includes(type)) {
-        await dispatchState.handleSubscriptionEvent(object, type);
+        await dispatchState.handleSubscriptionEvent(
+            object,
+            type,
+            secretProvider(),
+        );
       }
     } catch (error) {
       console.error("Dispatch subscription webhook state update failed", {
