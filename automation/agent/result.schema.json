@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pipe Buyer Autonomous Build Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "task",
+    "source_doc",
+    "source_item",
+    "summary",
+    "changed_files",
+    "verification",
+    "requires_human",
+    "blocker_classification",
+    "human_reason",
+    "next_task",
+    "commit_message"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["continue", "blocked", "complete"]
+    },
+    "task": {
+      "type": "string"
+    },
+    "source_doc": {
+      "type": "string"
+    },
+    "source_item": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "result", "evidence"],
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": ["passed", "failed", "not-run"]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requires_human": {
+      "type": "boolean"
+    },
+    "blocker_classification": {
+      "type": "string",
+      "enum": [
+        "none",
+        "external-toolchain",
+        "credentials",
+        "provider-dashboard",
+        "production",
+        "legal-tax",
+        "ambiguous-policy"
+      ]
+    },
+    "human_reason": {
+      "type": "string"
+    },
+    "next_task": {
+      "type": "string"
+    },
+    "commit_message": {
+      "type": "string"
+    }
+  }
+}
