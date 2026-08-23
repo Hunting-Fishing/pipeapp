@@ -75,4 +75,50 @@ void main() {
       contains('registration is pending'),
     );
   });
+
+  test('next action surfaces feature flags before financial provider gates', () {
+    final action = dispatchSubscriptionNextAction(
+      featureFlagsReady: false,
+      productionModeReady: false,
+      portalReady: false,
+      coreWebhook: false,
+      lifecycle: false,
+      recovery: false,
+      reconciliation: false,
+      taxPrepared: false,
+      subscriptions: false,
+    );
+    expect(action, contains('Dispatch and paidFeatures feature flags'));
+  });
+
+  test('next action surfaces production mode after feature flags', () {
+    final action = dispatchSubscriptionNextAction(
+      featureFlagsReady: true,
+      productionModeReady: false,
+      portalReady: false,
+      coreWebhook: false,
+      lifecycle: false,
+      recovery: false,
+      reconciliation: false,
+      taxPrepared: false,
+      subscriptions: false,
+    );
+    expect(action, contains('Stripe production-mode readiness'));
+  });
+
+  test('all prerequisites green still keeps public activation separate', () {
+    final action = dispatchSubscriptionNextAction(
+      featureFlagsReady: true,
+      productionModeReady: true,
+      portalReady: true,
+      coreWebhook: true,
+      lifecycle: true,
+      recovery: true,
+      reconciliation: true,
+      taxPrepared: true,
+      subscriptions: false,
+    );
+    expect(action, contains('controlled acceptance window'));
+    expect(action, contains('public activation remains a separate audited decision'));
+  });
 }
