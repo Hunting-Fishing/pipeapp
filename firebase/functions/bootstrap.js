@@ -40,6 +40,9 @@ const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
+  createDispatchSubscriptionPortalRuntimeGate,
+} = require("./dispatch_subscription_portal_runtime_gate");
+const {
   createDispatchSubscriptionStatusCommands,
 } = require("./dispatch_subscription_status_commands");
 const {
@@ -88,6 +91,11 @@ const externalSettlementReceiptCommands =
 const externalSettlementReconciliationCommands =
     createExternalSettlementReconciliationCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const createDispatchSubscriptionCheckout =
+    createDispatchSubscriptionPortalRuntimeGate(
+        admin,
+        dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+    );
 const dispatchSubscriptionStatusCommands =
     createDispatchSubscriptionStatusCommands(admin);
 const dispatchSubscriptionPortalCommands =
@@ -240,7 +248,7 @@ exports.reconcileExternalSettlementFee = onCall(
 );
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
-    dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+    createDispatchSubscriptionCheckout,
 );
 exports.createDispatchBillingPortalSession = onCall(
     stripeCallableOptions,
@@ -276,7 +284,7 @@ exports.submitMarketplaceDisputeEvidence = onCall(
 );
 exports.acceptMarketplaceDispute = onCall(
     stripeCallableOptions,
-    stripeDisputeResponse.acceptMarketplaceDispute,
+    stripeDisputeResponse.acceptMarketplaceDisputeEvidence,
 );
 
 exports.stripeMarketplaceWebhook = onRequest(
