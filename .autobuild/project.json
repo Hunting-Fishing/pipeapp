@@ -1,6 +1,5 @@
 {
-  "$schema": "../automation/agent/project.schema.json",
-  "schema_version": 2,
+  "schema_version": 3,
   "project_id": "pipe-buyer",
   "project_name": "Pipe Buyer",
   "agent_policy": "AGENTS.md",
@@ -9,38 +8,6 @@
   "risk_policy": ".autobuild/risk_policy.json",
   "independent_review_required": true,
   "preflight_verify_required": true,
-  "graduation": {
-    "required": true,
-    "evidence_path": ".agent-run/graduation.json",
-    "max_age_hours": 168,
-    "control_paths": [
-      ".autobuild/project.json",
-      ".autobuild/risk_policy.json",
-      ".autobuild/feature_contract.json",
-      "AGENTS.md",
-      "automation/agent/project.schema.json",
-      "automation/agent/result.schema.json",
-      "automation/agent/review.schema.json",
-      "automation/agent/task_prompt.md",
-      "automation/agent/review_prompt.md",
-      "tool/autonomous_build.ps1",
-      "tool/autonomous_build_v2.ps1",
-      "tool/autonomous_process.ps1",
-      "tool/autonomous_project.ps1",
-      "tool/autonomous_fingerprint.ps1",
-      "tool/autonomous_graduation.ps1",
-      "tool/autonomous_guard.ps1",
-      "tool/autonomous_builder_self_test.ps1",
-      "tool/autonomous_guard_test.ps1",
-      "tool/autonomous_recovery_safe.ps1",
-      "tool/autonomous_recovery_safe_test.ps1",
-      "tool/autonomous_runtime_fault_test.ps1",
-      "tool/autonomous_reviewer_fault_test.ps1",
-      "tool/autonomous_compatibility.mjs",
-      "tool/autonomous_compatibility_test.mjs",
-      "tool/verify.ps1"
-    ]
-  },
   "knowledge": {
     "always": [
       "docs/PROJECT_KNOWLEDGE_INDEX.md",
@@ -71,10 +38,10 @@
       "docs/COST_AND_BILLING_GOVERNANCE.md"
     ],
     "marketplace": ["docs/PHASE_2_PROGRESS_AUDIT.md"],
-    "data": ["docs/DATA_CHANGE_POLICY.md","firebase/FIRESTORE_SCHEMA.md","docs/FIREBASE_BACKUP_RESTORE_RUNBOOK.md"],
-    "security": ["docs/SECURITY_AND_PRIVACY_ENGINEERING.md","docs/ENGINEERING_CONTROL_BASELINE.md","docs/APP_CHECK_ROLLOUT.md"],
-    "providers": ["docs/DEPENDENCY_AND_PROVIDER_POLICY.md","docs/COST_AND_BILLING_GOVERNANCE.md"],
-    "release": ["docs/RELEASE_GOVERNANCE.md","docs/FIREBASE_ENVIRONMENTS_AND_DEPLOYMENT.md","docs/OBSERVABILITY_AND_INCIDENTS.md","docs/GITHUB_ACTIONS_DIAGNOSIS.md"],
+    "data": ["docs/DATA_CHANGE_POLICY.md", "firebase/FIRESTORE_SCHEMA.md", "docs/FIREBASE_BACKUP_RESTORE_RUNBOOK.md"],
+    "security": ["docs/SECURITY_AND_PRIVACY_ENGINEERING.md", "docs/ENGINEERING_CONTROL_BASELINE.md", "docs/APP_CHECK_ROLLOUT.md"],
+    "providers": ["docs/DEPENDENCY_AND_PROVIDER_POLICY.md", "docs/COST_AND_BILLING_GOVERNANCE.md"],
+    "release": ["docs/RELEASE_GOVERNANCE.md", "docs/FIREBASE_ENVIRONMENTS_AND_DEPLOYMENT.md", "docs/OBSERVABILITY_AND_INCIDENTS.md", "docs/GITHUB_ACTIONS_DIAGNOSIS.md"],
     "technical_debt": ["docs/TECH_DEBT_REGISTER.md"],
     "feature_registry": "docs/FEATURE_REGISTRY.md"
   },
@@ -84,10 +51,16 @@
     "max_document_lines": 600,
     "max_files_touched": 12,
     "max_changed_lines": 800,
-    "source_extensions": [".dart",".js",".mjs",".ts",".tsx",".ps1",".py"],
-    "generated_path_markers": ["/generated/",".g.dart",".freezed.dart","package-lock.json","pubspec.lock"]
+    "source_extensions": [".dart", ".js", ".mjs", ".ts", ".tsx", ".ps1", ".py"],
+    "generated_path_markers": ["/generated/", ".g.dart", ".freezed.dart", "package-lock.json", "pubspec.lock"]
   },
-  "timeouts": {"worker_minutes":35,"no_output_minutes":10,"review_minutes":20,"verify_minutes":45,"repair_minutes":25},
+  "timeouts": {
+    "worker_minutes": 35,
+    "no_output_minutes": 10,
+    "review_minutes": 20,
+    "verify_minutes": 45,
+    "repair_minutes": 25
+  },
   "git": {
     "base_branch": "main",
     "remote_name": "origin",
@@ -102,5 +75,34 @@
     "live_provider_mutations": "human-only",
     "merge_to_main": "human-only",
     "critical_risk_changes": "human-only"
+  },
+  "graduation": {
+    "required": true,
+    "evidence_path": ".agent-run/graduation.json",
+    "max_age_hours": 168,
+    "project_control_paths": [
+      ".autobuild/project.json",
+      ".autobuild/risk_policy.json",
+      ".autobuild/feature_contract.json",
+      ".autobuild/reviewer_fault_cases.json",
+      "AGENTS.md",
+      "docs/PROJECT_KNOWLEDGE_INDEX.md",
+      "docs/PRODUCT_VISION.md",
+      "docs/MASTER_ROADMAP.md",
+      "docs/SHIP_72_HOUR_PLAN.md",
+      "docs/ARCHITECTURE.md",
+      "docs/DESIGN_SYSTEM.md",
+      "docs/QUALITY_GATES.md",
+      "docs/FEATURE_REGISTRY.md",
+      "docs/DECISION_REGISTER.md",
+      "docs/PAYMENTS_CURRENT_CONFIGURATION.md",
+      "tool/autonomous_compatibility.mjs",
+      "tool/autonomous_compatibility_test.mjs",
+      "tool/verify.ps1"
+    ],
+    "project_fault_test_commands": [
+      "node --test tool/autonomous_compatibility_test.mjs"
+    ],
+    "reviewer_fault_cases_path": ".autobuild/reviewer_fault_cases.json"
   }
 }
