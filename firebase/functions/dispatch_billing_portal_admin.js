@@ -5,20 +5,33 @@ const {
   AdministratorAuthorizationError,
   requireAdministrator,
 } = require("./administrator_authorization");
-const {safeConfiguredUrl} = require("./stripe_checkout_commands");
-const {
-  validStripeBillingPortalConfigurationId,
-} = require("./dispatch_billing_portal_policy");
 
 const CONFIG_COLLECTION = "platform_configuration";
 const PORTAL_DOC = "dispatch_billing_portal";
 
 function normalizePortalConfig(data = {}) {
+  const features = data.providerVerifiedFeatures &&
+    typeof data.providerVerifiedFeatures === "object" ?
+    data.providerVerifiedFeatures : {};
   return Object.freeze({
     enabled: data.enabled === true,
     returnUrl: String(data.returnUrl || ""),
     stripePortalConfigurationId:
       String(data.stripePortalConfigurationId || "").trim(),
+    providerVerified: data.providerVerified === true,
+    providerVerifiedConfigurationId:
+      String(data.providerVerifiedConfigurationId || "").trim(),
+    providerVerificationRevision:
+      String(data.providerVerificationRevision || "").trim(),
+    providerVerifiedFeatures: Object.freeze({
+      paymentMethodUpdate: features.paymentMethodUpdate === true,
+      invoiceHistory: features.invoiceHistory === true,
+      subscriptionCancel: features.subscriptionCancel === true,
+      subscriptionCancelMode: String(features.subscriptionCancelMode || ""),
+      subscriptionCancelProration:
+        String(features.subscriptionCancelProration || ""),
+      subscriptionUpdate: features.subscriptionUpdate === true,
+    }),
     revision: Math.max(0, Number(data.revision || 0)),
   });
 }
@@ -50,28 +63,10 @@ function createDispatchBillingPortalAdmin(admin) {
             "A concise Billing Portal readiness reason is required.",
         );
       }
-      const enabled = request.data && request.data.enabled === true;
-      if (enabled && request.data.confirmProduction !== true) {
+      if (request.data && request.data.enabled === true) {
         throw new HttpsError(
             "failed-precondition",
-            "Enabling the live Dispatch Billing Portal requires explicit production confirmation.",
-        );
-      }
-      const requestedReturnUrl = String(
-          request.data && request.data.returnUrl || "",
-      ).trim();
-      const returnUrl = enabled || requestedReturnUrl ? safeConfiguredUrl(
-          requestedReturnUrl,
-          "Dispatch Billing Portal return URL",
-      ) : "";
-      const stripePortalConfigurationId = String(
-          request.data && request.data.stripePortalConfigurationId || "",
-      ).trim();
-      if ((enabled || stripePortalConfigurationId) &&
-          !validStripeBillingPortalConfigurationId(stripePortalConfigurationId)) {
-        throw new HttpsError(
-            "failed-precondition",
-            "A reviewed Stripe Billing Portal configuration ID is required before the live Dispatch portal can be enabled.",
+            "Live Dispatch Billing Portal readiness can only be enabled after server-side Stripe provider verification.",
         );
       }
 
@@ -81,9 +76,20 @@ function createDispatchBillingPortalAdmin(admin) {
         const previous = normalizePortalConfig(snapshot.exists ? snapshot.data() : {});
         const revision = previous.revision + 1;
         const next = {
-          enabled,
-          returnUrl,
-          stripePortalConfigurationId,
+          enabled: false,
+          returnUrl: "",
+          stripePortalConfigurationId: "",
+          providerVerified: false,
+          providerVerifiedConfigurationId: "",
+          providerVerificationRevision: "",
+          providerVerifiedFeatures: {
+            paymentMethodUpdate: false,
+            invoiceHistory: false,
+            subscriptionCancel: false,
+            subscriptionCancelMode: "",
+            subscriptionCancelProration: "",
+            subscriptionUpdate: false,
+          },
           revision,
         };
         transaction.set(ref, {
