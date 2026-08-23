@@ -34,6 +34,7 @@ $engineFiles = @(
     "tool/autonomous_build.ps1",
     "tool/autonomous_build_v2.ps1",
     "tool/autonomous_process.ps1",
+    "tool/autonomous_project.ps1",
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
     "tool/autonomous_guard_test.ps1",
@@ -87,10 +88,8 @@ foreach ($property in $config.knowledge.PSObject.Properties) {
         }
     }
 }
-
 foreach ($relative in $knowledgePaths | Sort-Object -Unique) {
-    $full = Join-Path $ProjectRoot $relative
-    Assert-True (Test-Path -LiteralPath $full -PathType Leaf) "Configured knowledge file is missing: $relative"
+    Assert-True (Test-Path -LiteralPath (Join-Path $ProjectRoot $relative) -PathType Leaf) "Configured knowledge file is missing: $relative"
 }
 
 foreach ($pattern in @($risk.forbidden_path_patterns) + @($risk.secret_content_patterns)) {
@@ -105,16 +104,9 @@ foreach ($rule in @($risk.path_risk_rules)) {
 
 $resultRequired = @($resultSchema.required | ForEach-Object { [string]$_ })
 foreach ($field in @(
-    "risk_level",
-    "risk_reasons",
-    "knowledge_used",
-    "compatibility_checks",
-    "data_change",
-    "dependency_change",
-    "provider_change",
-    "security_change",
-    "billing_change",
-    "rollback_notes"
+    "risk_level", "risk_reasons", "knowledge_used", "compatibility_checks",
+    "data_change", "dependency_change", "provider_change", "security_change",
+    "billing_change", "rollback_notes"
 )) {
     Assert-True ($resultRequired -contains $field) "Worker result schema is missing required safety field: $field"
 }
@@ -123,7 +115,6 @@ $reviewRequired = @($reviewSchema.required | ForEach-Object { [string]$_ })
 foreach ($field in @("verdict", "risk_level", "findings", "functionality_loss_risk", "security_risk", "data_integrity_risk", "billing_financial_risk", "missing_tests")) {
     Assert-True ($reviewRequired -contains $field) "Review schema is missing required safety field: $field"
 }
-
 Assert-True ($null -ne $projectSchema.properties.risk_policy) "Project schema must include risk_policy."
 Assert-True ($null -ne $projectSchema.properties.independent_review_required) "Project schema must include independent_review_required."
 
@@ -131,6 +122,7 @@ $powerShellScripts = @(
     "tool/autonomous_build.ps1",
     "tool/autonomous_build_v2.ps1",
     "tool/autonomous_process.ps1",
+    "tool/autonomous_project.ps1",
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
     "tool/autonomous_guard_test.ps1"
@@ -152,8 +144,10 @@ $wrapper = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_bui
 Assert-True ($wrapper.Contains("autonomous_build_v2.ps1")) "Stable autonomous_build.ps1 wrapper must delegate to V2 supervisor."
 
 $supervisor = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_build_v2.ps1") -Raw
+$projectHelper = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_project.ps1") -Raw
 Assert-True ($supervisor.Contains("Invoke-CodexReviewer")) "V2 supervisor must invoke the independent reviewer."
-Assert-True ($supervisor.Contains("supervisor.lock")) "V2 supervisor must implement a single-writer lock."
+Assert-True ($supervisor.Contains("Enter-AutonomousSingleWriterLock")) "V2 supervisor must acquire the single-writer lock."
+Assert-True ($projectHelper.Contains("supervisor.lock")) "Project helper must implement the single-writer lock file."
 Assert-True ($supervisor.Contains("-ResultPath '$resultEsc'")) "V2 supervisor must pass worker result metadata into the autonomous guard."
 
 $featureContractPath = Join-Path $ProjectRoot ".autobuild/feature_contract.json"
@@ -161,6 +155,13 @@ if (Test-Path -LiteralPath $featureContractPath) {
     $contract = Read-JsonFile -Path $featureContractPath
     foreach ($relative in @($contract.required_paths)) {
         Assert-True (Test-Path -LiteralPath (Join-Path $ProjectRoot ([string]$relative))) "Feature contract required path missing: $relative"
+    }
+    foreach ($rule in @($contract.required_text)) {
+        $relative = [string]$rule.path
+        $full = Join-Path $ProjectRoot $relative
+        Assert-True (Test-Path -LiteralPath $full -PathType Leaf) "Feature contract required text file missing: $relative"
+        $text = Get-Content -LiteralPath $full -Raw
+        Assert-True ($text.Contains([string]$rule.pattern)) "Feature contract anchor '$($rule.pattern)' missing from $relative"
     }
 }
 
@@ -173,9 +174,7 @@ try {
     try {
         $secondLock = [System.IO.File]::Open($lockTestPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
     }
-    catch {
-        $secondFailed = $true
-    }
+    catch { $secondFailed = $true }
     Assert-True $secondFailed "Exclusive single-writer file lock did not reject a second owner."
 }
 finally {
