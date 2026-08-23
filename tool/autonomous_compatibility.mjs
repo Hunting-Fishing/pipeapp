@@ -1,6 +1,7 @@
 import {execFileSync} from "node:child_process";
 import {existsSync, readFileSync} from "node:fs";
 import path from "node:path";
+import {pathToFileURL} from "node:url";
 
 function normalize(value) {
   return value.split(path.sep).join("/");
@@ -219,4 +220,6 @@ function main() {
   console.log(`  Functions : ${result.after.functionCount} (HEAD ${result.before.functionCount})`);
 }
 
-if (import.meta.url === new URL(`file://${process.argv[1]}`).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main();
+}
