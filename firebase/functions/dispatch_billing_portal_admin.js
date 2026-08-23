@@ -6,6 +6,9 @@ const {
   requireAdministrator,
 } = require("./administrator_authorization");
 const {safeConfiguredUrl} = require("./stripe_checkout_commands");
+const {
+  validStripeBillingPortalConfigurationId,
+} = require("./dispatch_billing_portal_policy");
 
 const CONFIG_COLLECTION = "platform_configuration";
 const PORTAL_DOC = "dispatch_billing_portal";
@@ -14,6 +17,8 @@ function normalizePortalConfig(data = {}) {
   return Object.freeze({
     enabled: data.enabled === true,
     returnUrl: String(data.returnUrl || ""),
+    stripePortalConfigurationId:
+      String(data.stripePortalConfigurationId || "").trim(),
     revision: Math.max(0, Number(data.revision || 0)),
   });
 }
@@ -59,12 +64,28 @@ function createDispatchBillingPortalAdmin(admin) {
           requestedReturnUrl,
           "Dispatch Billing Portal return URL",
       ) : "";
+      const stripePortalConfigurationId = String(
+          request.data && request.data.stripePortalConfigurationId || "",
+      ).trim();
+      if ((enabled || stripePortalConfigurationId) &&
+          !validStripeBillingPortalConfigurationId(stripePortalConfigurationId)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "A reviewed Stripe Billing Portal configuration ID is required before the live Dispatch portal can be enabled.",
+        );
+      }
+
       const ref = db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC);
       return db.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(ref);
         const previous = normalizePortalConfig(snapshot.exists ? snapshot.data() : {});
         const revision = previous.revision + 1;
-        const next = {enabled, returnUrl, revision};
+        const next = {
+          enabled,
+          returnUrl,
+          stripePortalConfigurationId,
+          revision,
+        };
         transaction.set(ref, {
           ...next,
           lastChangedByUid: administratorUid,
