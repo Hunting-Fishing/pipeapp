@@ -21,8 +21,12 @@ const {
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   automaticTaxEnabled,
+  taxBillingPrepared,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
+const {
+  requireCanadaSmallSupplierRuntimeEvidence,
+} = require("./canada_small_supplier_runtime_gate");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -37,13 +41,11 @@ function selectedPlan(value) {
 }
 
 function requireSubscriptionReady(readiness) {
-  const taxPrepared = readiness.stripeTaxReady === true ||
-    readiness.stripeTaxRegistrationPending === true;
   if (!readiness.stripeSubscriptionsEnabled ||
       readiness.stripeMode !== "production" ||
       readiness.stripeWebhookVerified !== true ||
       readiness.stripeReconciliationReady !== true ||
-      !taxPrepared) {
+      !taxBillingPrepared(readiness)) {
     throw new HttpsError(
         "failed-precondition",
         "Dispatch subscription checkout is not enabled yet.",
@@ -82,9 +84,16 @@ function createDispatchSubscriptionCommands(admin) {
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          readinessData.stripeTaxPendingBillingApproved === true,
+        canadaGstHstSmallSupplier:
+          readinessData.canadaGstHstSmallSupplier === true,
+        canadaGstHstSmallSupplierAssessmentRevision:
+          readinessData.canadaGstHstSmallSupplierAssessmentRevision,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
+      await requireCanadaSmallSupplierRuntimeEvidence(db, readiness);
       requireSubscriptionReady(readiness);
       const collectionStatus = taxCollectionStatus(readiness);
       const plan = selectedPlan(request.data && request.data.plan);

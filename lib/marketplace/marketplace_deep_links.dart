@@ -12,11 +12,15 @@ class MarketplaceDeepLinks {
   static const profileRouteName = 'marketplace-profile';
   static const conversationRouteName = 'marketplace-conversation';
   static const dispatchJobRouteName = 'dispatch-job';
+  static const settlementRouteName = 'marketplace-settlements';
+  static const settlementAdminRouteName = 'marketplace-settlement-admin';
   static const privacyRouteName = 'public-privacy';
   static const termsRouteName = 'public-terms';
   static const supportRouteName = 'public-support';
   static const accountDeletionRouteName = 'public-account-deletion';
 
+  static const settlementPath = '/account/settlements';
+  static const settlementAdminPath = '/admin/settlement-fees';
   static const privacyPath = '/privacy';
   static const termsPath = '/terms';
   static const supportPath = '/support';

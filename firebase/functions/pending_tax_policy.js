@@ -5,10 +5,20 @@ const PROVISIONAL_TAX_RESERVE_BPS = 1500;
 
 function taxCollectionStatus(readiness = {}) {
   if (readiness.stripeTaxReady === true) return "registered";
+  if (readiness.canadaGstHstSmallSupplier === true) {
+    return "small_supplier_unregistered";
+  }
   if (readiness.stripeTaxRegistrationPending === true) {
     return "registration_pending";
   }
   return "not_ready";
+}
+
+function taxBillingPrepared(readiness = {}) {
+  return readiness.stripeTaxReady === true ||
+    readiness.canadaGstHstSmallSupplier === true ||
+    (readiness.stripeTaxRegistrationPending === true &&
+      readiness.stripeTaxPendingBillingApproved === true);
 }
 
 function automaticTaxEnabled(readiness = {}) {
@@ -29,5 +39,6 @@ module.exports = {
   PROVISIONAL_TAX_RESERVE_BPS,
   automaticTaxEnabled,
   provisionalTaxReserveMinor,
+  taxBillingPrepared,
   taxCollectionStatus,
 };

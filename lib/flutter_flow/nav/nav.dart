@@ -13,6 +13,8 @@ import '/marketplace/oil_gas_marketplace.dart';
 import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
 import '/marketplace/marketplace_dispatch_page.dart';
+import '/marketplace/marketplace_external_settlement_admin_page.dart';
+import '/marketplace/marketplace_external_settlement_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
 import '/marketplace/marketplace_public_information.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
@@ -68,8 +70,8 @@ class AppStateNotifier extends ChangeNotifier {
     if (notifyOnAuthChange && shouldUpdate) {
       notifyListeners();
     }
-    // Once again mark the notifier as needing to notify on auth change
-    // (in order to catch any future updates).
+    // Once again mark as needing to notify on auth change
+    // (in order to catch any future changes).
     updateNotifyOnAuthChange(true);
   }
 
@@ -133,6 +135,20 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => MarketplaceDispatchJobRoutePage(
             jobId: params.getParam<String>('jobId', ParamType.string) ?? '',
           ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.settlementRouteName,
+          path: MarketplaceDeepLinks.settlementPath,
+          requireAuth: true,
+          builder: (context, params) =>
+              const MarketplaceExternalSettlementPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.settlementAdminRouteName,
+          path: MarketplaceDeepLinks.settlementAdminPath,
+          requireAuth: true,
+          builder: (context, params) =>
+              const MarketplaceExternalSettlementAdminPage(),
         ),
         FFRoute(
           name: 'marketplaceTaxProfile',
@@ -248,7 +264,7 @@ extension GoRouterExtensions on GoRouter {
 extension _GoRouterStateExtensions on GoRouterState {
   Map<String, dynamic> get extraMap =>
       extra != null ? extra as Map<String, dynamic> : {};
-  Map<String, dynamic> get allParams => <String, dynamic>{}
+  Map<String, dynamic> get allParams => <String, dynamic>{
     ..addAll(pathParameters)
     ..addAll(uri.queryParameters)
     ..addAll(extraMap);

@@ -5,9 +5,14 @@ const {
   AdministratorAuthorizationError,
   requireAdministrator,
 } = require("./administrator_authorization");
+const {
+  canadaSmallSupplierAssessmentDecision,
+} = require("./canada_small_supplier_readiness_guard");
 
 const READINESS_DOC = "payment_provider_readiness";
 const CONFIG_COLLECTION = "platform_configuration";
+const SMALL_SUPPLIER_ASSESSMENT_COLLECTION = "tax_threshold_assessments";
+const SMALL_SUPPLIER_ASSESSMENT_DOC = "canada_gst_hst_current";
 const MODES = new Set(["disabled", "sandbox", "production"]);
 const BOOLEAN_FIELDS = Object.freeze([
   "stripeConnectOnboardingEnabled",
@@ -17,6 +22,8 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeWebhookVerified",
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
+  "stripeTaxPendingBillingApproved",
+  "canadaGstHstSmallSupplier",
   "stripeReconciliationReady",
   "affiliatePayoutsEnabled",
   "marketplaceFinancialResolutionEnabled",
@@ -61,7 +68,9 @@ function normalizeReadiness(data = {}) {
 
 function taxBillingPrepared(next) {
   return next.stripeTaxReady === true ||
-    next.stripeTaxRegistrationPending === true;
+    next.canadaGstHstSmallSupplier === true ||
+    (next.stripeTaxRegistrationPending === true &&
+      next.stripeTaxPendingBillingApproved === true);
 }
 
 function validateReadiness(next, options = {}) {
@@ -74,16 +83,34 @@ function validateReadiness(next, options = {}) {
         "Production mode requires explicit confirmation.",
     );
   }
-  if (next.stripeTaxReady && next.stripeTaxRegistrationPending) {
+  const taxIdentityStates = [
+    next.stripeTaxReady === true,
+    next.stripeTaxRegistrationPending === true,
+    next.canadaGstHstSmallSupplier === true,
+  ].filter(Boolean).length;
+  if (taxIdentityStates > 1) {
     throw new HttpsError(
         "failed-precondition",
-        "Tax registration cannot be both pending and ready.",
+        "GST/HST status must be exactly one of registered, registration pending, or Canadian small supplier.",
     );
   }
   if (next.stripeTaxRegistrationPending && next.stripeMode !== "production") {
     throw new HttpsError(
         "failed-precondition",
         "Pending tax registration may only be used with production billing.",
+    );
+  }
+  if (next.canadaGstHstSmallSupplier && next.stripeMode !== "production") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Canadian small-supplier billing status may only be used with production billing.",
+    );
+  }
+  if (next.stripeTaxPendingBillingApproved &&
+      !next.stripeTaxRegistrationPending) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Pending-tax billing approval may only be enabled while tax registration is explicitly pending.",
     );
   }
   if (next.stripeCheckoutEnabled && !(
@@ -106,7 +133,7 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace fee billing requires production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
+        "Marketplace fee billing requires production mode, verified webhooks, reconciliation readiness, and an authorized GST/HST billing state.",
     );
   }
   if (next.stripeSubscriptionsEnabled && !(
@@ -117,7 +144,7 @@ function validateReadiness(next, options = {}) {
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode, verified webhooks, tax-ready or tax-registration-pending status, and reconciliation readiness.",
+        "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and an authorized GST/HST billing state.",
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
@@ -232,10 +259,31 @@ function createPaymentReadinessAdmin(admin) {
             request.data && request.data.patch,
             {confirmProduction: request.data && request.data.confirmProduction === true},
         );
-        const revision = Math.max(0, Number(snapshot.exists && snapshot.data().revision || 0)) + 1;
+        let smallSupplierAssessmentRevision = null;
+        if (next.canadaGstHstSmallSupplier) {
+          const assessmentRef = db.collection(SMALL_SUPPLIER_ASSESSMENT_COLLECTION)
+              .doc(SMALL_SUPPLIER_ASSESSMENT_DOC);
+          const assessmentSnapshot = await transaction.get(assessmentRef);
+          const decision = canadaSmallSupplierAssessmentDecision(
+              assessmentSnapshot.exists ? assessmentSnapshot.data() : null,
+          );
+          if (!decision.authorized) {
+            throw new HttpsError(
+                "failed-precondition",
+                `Canadian small-supplier billing requires a valid audited threshold assessment (${decision.reason}).`,
+            );
+          }
+          smallSupplierAssessmentRevision = decision.revision;
+        }
+        const revision = Math.max(
+            0,
+            Number(snapshot.exists && snapshot.data().revision || 0),
+        ) + 1;
         transaction.set(ref, {
           ...next,
           revision,
+          canadaGstHstSmallSupplierAssessmentRevision:
+            smallSupplierAssessmentRevision,
           lastChangedByUid: administratorUid,
           lastChangeReason: reason,
           updatedAt: FieldValue.serverTimestamp(),
@@ -247,9 +295,16 @@ function createPaymentReadinessAdmin(admin) {
           revision,
           previous: current,
           next,
+          canadaGstHstSmallSupplierAssessmentRevision:
+            smallSupplierAssessmentRevision,
           createdAt: FieldValue.serverTimestamp(),
         });
-        return {revision, readiness: next};
+        return {
+          revision,
+          readiness: next,
+          canadaGstHstSmallSupplierAssessmentRevision:
+            smallSupplierAssessmentRevision,
+        };
       });
     } catch (error) {
       if (error instanceof HttpsError) throw error;
@@ -269,6 +324,10 @@ function createPaymentReadinessAdmin(admin) {
 
 module.exports = {
   BOOLEAN_FIELDS,
+  CONFIG_COLLECTION,
+  READINESS_DOC,
+  SMALL_SUPPLIER_ASSESSMENT_COLLECTION,
+  SMALL_SUPPLIER_ASSESSMENT_DOC,
   URL_FIELDS,
   applyPatch,
   createPaymentReadinessAdmin,

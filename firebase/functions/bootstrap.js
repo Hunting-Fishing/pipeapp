@@ -31,8 +31,17 @@ const {
   createExternalSettlementCommands,
 } = require("./external_settlement_commands");
 const {
+  createExternalSettlementReceiptCommands,
+} = require("./external_settlement_receipt_commands");
+const {
+  createExternalSettlementReconciliationCommands,
+} = require("./external_settlement_reconciliation_commands");
+const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
+const {
+  createCanadaSmallSupplierThresholdCommands,
+} = require("./canada_small_supplier_threshold_commands");
 const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
@@ -53,7 +62,13 @@ const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
+const externalSettlementReceiptCommands =
+    createExternalSettlementReceiptCommands(admin);
+const externalSettlementReconciliationCommands =
+    createExternalSettlementReconciliationCommands(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const canadaSmallSupplierThresholdCommands =
+    createCanadaSmallSupplierThresholdCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
 const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
@@ -138,6 +153,14 @@ exports.cancelMarketplaceRefundRequest = onCall(
     protectedCallableOptions,
     marketplaceFinancialResolution.cancelMarketplaceRefundRequest,
 );
+exports.getCanadaGstHstThresholdAssessment = onCall(
+    protectedCallableOptions,
+    canadaSmallSupplierThresholdCommands.getCanadaGstHstThresholdAssessment,
+);
+exports.setCanadaGstHstThresholdAssessment = onCall(
+    protectedCallableOptions,
+    canadaSmallSupplierThresholdCommands.setCanadaGstHstThresholdAssessment,
+);
 
 const stripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
@@ -163,6 +186,14 @@ exports.createMarketplaceCheckout = onCall(
 exports.createExternalSettlementFeeCheckout = onCall(
     stripeCallableOptions,
     externalSettlementCommands.createExternalSettlementFeeCheckout,
+);
+exports.getExternalSettlementFeeReceipt = onCall(
+    stripeCallableOptions,
+    externalSettlementReceiptCommands.getExternalSettlementFeeReceipt,
+);
+exports.reconcileExternalSettlementFee = onCall(
+    stripeCallableOptions,
+    externalSettlementReconciliationCommands.reconcileExternalSettlementFee,
 );
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,

@@ -32,12 +32,16 @@ $env:PIPE_ENFORCE_APP_CHECK = 'false'
 # discovering a Node 22 Functions entrypoint. The CLI officially supports this
 # override; keep it bounded so a genuinely broken module still fails quickly.
 $env:FUNCTIONS_DISCOVERY_TIMEOUT = '30000'
+$integrationCommand = @(
+  'node firebase/functions/integration/callable_integration.mjs',
+  'node firebase/functions/integration/external_settlement_callable_integration.mjs'
+) -join ' && '
 $arguments = @(
   'emulators:exec',
   '--project', 'demo-pipe-buyer-integration',
   '--config', 'firebase.json',
   '--only', 'auth,firestore,functions,storage',
-  'node firebase/functions/integration/callable_integration.mjs'
+  $integrationCommand
 )
 
 if ($nodeMajor -eq 22 -and (Get-Command firebase -ErrorAction SilentlyContinue)) {

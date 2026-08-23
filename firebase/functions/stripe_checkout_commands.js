@@ -18,6 +18,10 @@ const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   createMarketplaceTaxCompliance,
 } = require("./marketplace_tax_compliance");
+const {taxBillingPrepared} = require("./pending_tax_policy");
+const {
+  hasStartedExternalSettlement,
+} = require("./marketplace_payment_path_guard");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -57,13 +61,11 @@ function requireCheckoutReady(readiness) {
 }
 
 function requirePlatformFeeBillingReady(readiness) {
-  const taxPrepared = readiness.stripeTaxReady === true ||
-    readiness.stripeTaxRegistrationPending === true;
   const ready =
     readiness.stripeMode === "production" &&
     readiness.stripeFeeBillingEnabled &&
     readiness.stripeWebhookVerified &&
-    taxPrepared &&
+    taxBillingPrepared(readiness) &&
     readiness.stripeReconciliationReady;
   if (!ready) {
     throw new HttpsError(
@@ -169,6 +171,12 @@ function createStripeCheckoutCommands(admin) {
         throw new HttpsError(
             "permission-denied",
             "Only the buyer can start the marketplace payment.",
+        );
+      }
+      if (hasStartedExternalSettlement(sale)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "This transaction is already using external settlement.",
         );
       }
       if (!["pending_completion", "pending_payment"].includes(String(sale.status))) {

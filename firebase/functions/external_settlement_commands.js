@@ -24,6 +24,24 @@ const {
   provisionalTaxReserveMinor,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
+const {
+  requireCanadaSmallSupplierRuntimeEvidence,
+} = require("./canada_small_supplier_runtime_gate");
+const {
+  externalSettlementFullyConfirmed,
+  hasStartedStripeMarketplaceCheckout,
+} = require("./marketplace_payment_path_guard");
+const {
+  externalFeeCheckoutAttempt,
+  externalFeeCheckoutIdempotencyKey,
+  externalFeeCheckoutSessionId,
+  externalFeeCheckoutState,
+  nextExternalFeeCheckoutAttempt,
+} = require("./external_settlement_fee_checkout_policy");
+const {
+  existingExternalFeeSessionDecision,
+  externalFeePostProviderPersistenceDecision,
+} = require("./external_settlement_fee_provider_policy");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -46,17 +64,33 @@ function participantRole(sale, uid) {
   );
 }
 
-function createExternalSettlementCommands(admin) {
+function validStripeCheckoutUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && url.hostname === "checkout.stripe.com";
+  } catch (_) {
+    return false;
+  }
+}
+
+function createExternalSettlementCommands(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
+  const authUid = options.authUid || requireAuth;
+  const rateLimit = options.rateLimit || enforceUserRateLimit;
+  const loadFeatureFlags = options.loadFeatureFlags || loadPhase1FeatureFlags;
+  const requireFeature = options.requireFeature || requirePhase1Feature;
+  const providerReadiness = options.loadProviderReadiness || loadProviderReadiness;
+  const stripeRequest = options.stripeRequest || stripeFormRequest;
+  const secretProvider = options.secretProvider || (() => stripeSecretKey.value());
 
   const confirmExternalSettlement = async (request) => {
     try {
-      const uid = requireAuth(request);
-      await enforceUserRateLimit({db, admin, request, scope: "offers"});
-      const flags = await loadPhase1FeatureFlags(db);
-      requirePhase1Feature(flags, "marketplace");
-      requirePhase1Feature(flags, "offers");
+      const uid = authUid(request);
+      await rateLimit({db, admin, request, scope: "offers"});
+      const flags = await loadFeatureFlags(db);
+      requireFeature(flags, "marketplace");
+      requireFeature(flags, "offers");
       const transactionId = transactionIdFromRequest(request);
       const transactionRef = db.collection("marketplace_transactions")
           .doc(transactionId);
@@ -73,7 +107,7 @@ function createExternalSettlementCommands(admin) {
               "This transaction cannot switch to external settlement.",
           );
         }
-        if (sale.paymentProviderStatus === "paid" || sale.stripePaymentIntentId) {
+        if (hasStartedStripeMarketplaceCheckout(sale)) {
           throw new HttpsError(
               "failed-precondition",
               "A Stripe marketplace payment has already started for this transaction.",
@@ -118,23 +152,30 @@ function createExternalSettlementCommands(admin) {
 
   const createExternalSettlementFeeCheckout = async (request) => {
     try {
-      const uid = requireAuth(request);
-      await enforceUserRateLimit({db, admin, request, scope: "offers"});
-      const flags = await loadPhase1FeatureFlags(db);
-      requirePhase1Feature(flags, "marketplace");
-      requirePhase1Feature(flags, "offers");
-      requirePhase1Feature(flags, "paidFeatures");
+      const uid = authUid(request);
+      await rateLimit({db, admin, request, scope: "offers"});
+      const flags = await loadFeatureFlags(db);
+      requireFeature(flags, "marketplace");
+      requireFeature(flags, "offers");
+      requireFeature(flags, "paidFeatures");
       const readinessSnapshot = await db.collection("platform_configuration")
           .doc("payment_provider_readiness").get();
       const readinessData = readinessSnapshot.exists ? readinessSnapshot.data() : {};
       const readiness = {
-        ...(await loadProviderReadiness(db)),
+        ...(await providerReadiness(db)),
         stripeFeeBillingEnabled: readinessData.stripeFeeBillingEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          readinessData.stripeTaxPendingBillingApproved === true,
+        canadaGstHstSmallSupplier:
+          readinessData.canadaGstHstSmallSupplier === true,
+        canadaGstHstSmallSupplierAssessmentRevision:
+          readinessData.canadaGstHstSmallSupplierAssessmentRevision,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
+      await requireCanadaSmallSupplierRuntimeEvidence(db, readiness);
       requirePlatformFeeBillingReady(readiness);
       const collectionStatus = taxCollectionStatus(readiness);
       const transactionId = transactionIdFromRequest(request);
@@ -151,21 +192,84 @@ function createExternalSettlementCommands(admin) {
             "The seller is responsible for the current Pipe Buyer marketplace fee.",
         );
       }
-      if (sale.paymentMethod !== "external_settlement" ||
-          sale.externalSettlementBuyerConfirmed !== true ||
-          sale.externalSettlementSellerConfirmed !== true) {
+      if (hasStartedStripeMarketplaceCheckout(sale)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "This transaction is already using Stripe marketplace checkout.",
+        );
+      }
+      if (!externalSettlementFullyConfirmed(sale)) {
         throw new HttpsError(
             "failed-precondition",
             "Both parties must confirm external settlement before the marketplace fee is billed.",
         );
       }
-      if (sale.marketplaceFeeStatus === "collected") {
+
+      const localCheckoutState = externalFeeCheckoutState(sale);
+      if (localCheckoutState === "paid") {
         return {
           transactionId,
           alreadyPaid: true,
-          checkoutSessionId: String(sale.stripeMarketplaceFeeSessionId || ""),
+          checkoutSessionId: externalFeeCheckoutSessionId(sale),
         };
       }
+      if (localCheckoutState === "inconsistent") {
+        throw new HttpsError(
+            "failed-precondition",
+            "The marketplace fee payment state needs review before another checkout can start.",
+        );
+      }
+
+      if (localCheckoutState === "active") {
+        const existingSessionId = externalFeeCheckoutSessionId(sale);
+        const existingSession = await stripeRequest({
+          secretKey: secretProvider(),
+          path: `/v1/checkout/sessions/${encodeURIComponent(existingSessionId)}`,
+          method: "GET",
+        });
+        const existingUrl = String(existingSession.url || "");
+        const decision = existingExternalFeeSessionDecision({
+          localFeeStatus: sale.marketplaceFeeStatus,
+          providerStatus: existingSession.status,
+          paymentStatus: existingSession.payment_status,
+          checkoutUrlValid: validStripeCheckoutUrl(existingUrl),
+        });
+
+        if (decision.action === "processing") {
+          return {
+            transactionId,
+            checkoutSessionId: existingSessionId,
+            alreadyPaid: false,
+            alreadyCreated: true,
+            processing: true,
+            taxCollectionStatus: collectionStatus,
+          };
+        }
+        if (decision.action === "reuse") {
+          return {
+            transactionId,
+            checkoutSessionId: existingSessionId,
+            checkoutUrl: existingUrl,
+            alreadyPaid: false,
+            alreadyCreated: true,
+            processing: false,
+            taxCollectionStatus: collectionStatus,
+          };
+        }
+        if (decision.action === "invalid_url") {
+          throw new HttpsError(
+              "failed-precondition",
+              "The existing Stripe fee checkout link is unavailable.",
+          );
+        }
+        if (decision.action === "review") {
+          throw new HttpsError(
+              "failed-precondition",
+              "The existing marketplace fee payment needs review before another checkout can start.",
+          );
+        }
+      }
+
       const fee = sale.marketplaceFeeSnapshot || {};
       const feeMinor = Number(fee.marketplaceFeeMinor);
       if (!Number.isSafeInteger(feeMinor) || feeMinor <= 0) {
@@ -189,10 +293,11 @@ function createExternalSettlementCommands(admin) {
           feeMinor,
           collectionStatus,
       );
-      const session = await stripeFormRequest({
-        secretKey: stripeSecretKey.value(),
+      const attempt = nextExternalFeeCheckoutAttempt(sale);
+      const session = await stripeRequest({
+        secretKey: secretProvider(),
         path: "/v1/checkout/sessions",
-        idempotencyKey: `pipebuyer-external-fee-${transactionId}-${sale.revision || 1}`,
+        idempotencyKey: externalFeeCheckoutIdempotencyKey(transactionId, attempt),
         fields: {
           mode: "payment",
           success_url: successUrl,
@@ -212,30 +317,109 @@ function createExternalSettlementCommands(admin) {
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
           "metadata[sellerUid]": String(sale.sellerUid || ""),
           "metadata[taxCollectionStatus]": collectionStatus,
+          "metadata[checkoutAttempt]": attempt,
         },
       });
       const sessionId = String(session.id || "");
       const checkoutUrl = String(session.url || "");
-      if (!sessionId.startsWith("cs_") || !checkoutUrl.startsWith("https://")) {
+      if (!sessionId.startsWith("cs_") || !validStripeCheckoutUrl(checkoutUrl)) {
         throw new HttpsError("internal", "Stripe did not return a valid fee checkout session.");
       }
-      await transactionRef.set({
-        marketplaceFeeStatus: "checkout_created",
-        stripeMarketplaceFeeSessionId: sessionId,
-        marketplaceFeeTaxCollectionStatus: collectionStatus,
-        marketplaceFeeTaxExposureReviewRequired:
-          collectionStatus === "registration_pending",
-        marketplaceFeeProvisionalTaxReserveIfCollectedMinor:
-          reserveIfCollectedMinor,
-        marketplaceFeeAutomaticTaxEnabled: automaticTaxEnabled(readiness),
-        marketplaceFeeCheckoutCreatedAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, {merge: true});
+
+      const attemptRef = transactionRef.collection("marketplace_fee_checkout_attempts")
+          .doc(String(attempt).padStart(4, "0"));
+      const persistedState = await db.runTransaction(async (firestoreTransaction) => {
+        const currentSnapshot = await firestoreTransaction.get(transactionRef);
+        if (!currentSnapshot.exists) {
+          throw new HttpsError("not-found", "This marketplace transaction is unavailable.");
+        }
+        const current = currentSnapshot.data();
+        const currentStatus = String(current.marketplaceFeeStatus || "");
+        const currentSessionId = externalFeeCheckoutSessionId(current);
+        const currentAttempt = externalFeeCheckoutAttempt(current);
+
+        firestoreTransaction.set(attemptRef, {
+          attempt,
+          stripeCheckoutSessionId: sessionId,
+          status: "checkout_created",
+          feeMinor,
+          currency: String(fee.currency || sale.currency || "CAD").toUpperCase(),
+          taxCollectionStatus: collectionStatus,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+
+        const persistenceDecision = externalFeePostProviderPersistenceDecision({
+          currentStatus,
+          currentSessionId,
+          currentAttempt,
+          createdSessionId: sessionId,
+          createdAttempt: attempt,
+        });
+        if (persistenceDecision !== "checkout_created") {
+          return persistenceDecision;
+        }
+
+        firestoreTransaction.set(transactionRef, {
+          marketplaceFeeStatus: "checkout_created",
+          marketplaceFeeCheckoutAttempt: attempt,
+          stripeMarketplaceFeeSessionId: sessionId,
+          marketplaceFeeTaxCollectionStatus: collectionStatus,
+          marketplaceFeeTaxExposureReviewRequired:
+            collectionStatus === "registration_pending",
+          marketplaceFeeProvisionalTaxReserveIfCollectedMinor:
+            reserveIfCollectedMinor,
+          marketplaceFeeAutomaticTaxEnabled: automaticTaxEnabled(readiness),
+          marketplaceFeeCheckoutCreatedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        return "checkout_created";
+      });
+
+      if (persistedState === "paid") {
+        return {
+          transactionId,
+          checkoutSessionId: sessionId,
+          alreadyPaid: true,
+        };
+      }
+      if (persistedState === "processing") {
+        return {
+          transactionId,
+          checkoutSessionId: sessionId,
+          alreadyPaid: false,
+          alreadyCreated: true,
+          processing: true,
+          taxCollectionStatus: collectionStatus,
+        };
+      }
+      if (persistedState === "payment_failed") {
+        return {
+          transactionId,
+          checkoutSessionId: sessionId,
+          alreadyPaid: false,
+          alreadyCreated: true,
+          processing: false,
+          paymentFailed: true,
+          taxCollectionStatus: collectionStatus,
+        };
+      }
+      if (persistedState === "superseded") {
+        throw new HttpsError(
+            "failed-precondition",
+            "A newer marketplace fee checkout already exists. Refresh and try again.",
+        );
+      }
+
       return {
         transactionId,
         checkoutSessionId: sessionId,
         checkoutUrl,
         alreadyPaid: false,
+        alreadyCreated: false,
+        processing: false,
+        paymentFailed: false,
+        checkoutAttempt: attempt,
         taxCollectionStatus: collectionStatus,
       };
     } catch (error) {
@@ -260,4 +444,5 @@ function createExternalSettlementCommands(admin) {
 module.exports = {
   createExternalSettlementCommands,
   participantRole,
+  validStripeCheckoutUrl,
 };

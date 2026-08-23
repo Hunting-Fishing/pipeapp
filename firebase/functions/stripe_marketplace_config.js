@@ -3,7 +3,10 @@
 // Non-secret Stripe object identifiers created for Pipe Buyer. Secret keys and
 // webhook signing secrets belong in Google Cloud Secret Manager only.
 const stripeMarketplaceConfig = Object.freeze({
-  apiVersion: "2026-06-24.preview",
+  // Production monetary requests and Accounts v2 use the same GA API family as
+  // the live webhook endpoint. Do not switch production billing back to the
+  // public-preview channel without an explicit reviewed Stripe dependency.
+  apiVersion: "2026-06-24.dahlia",
   accountCountry: "CA",
   products: Object.freeze({
     dispatchMonthlyCad: Object.freeze({
