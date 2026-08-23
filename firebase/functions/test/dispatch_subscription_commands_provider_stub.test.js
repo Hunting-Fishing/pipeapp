@@ -61,6 +61,8 @@ function fakeAdmin(initial = {}) {
 function baseReadiness() {
   return {
     stripeSubscriptionsEnabled: true,
+    stripeSubscriptionRecoveryVerified: true,
+    stripeSubscriptionLifecycleWebhookVerified: true,
     checkoutSuccessUrl: "https://pipebuyer.com/payments/success",
     checkoutCancelUrl: "https://pipebuyer.com/payments/cancel",
     canadaGstHstSmallSupplier: false,
