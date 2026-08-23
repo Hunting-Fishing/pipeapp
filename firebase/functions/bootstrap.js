@@ -43,6 +43,12 @@ const {
   createDispatchSubscriptionStatusCommands,
 } = require("./dispatch_subscription_status_commands");
 const {
+  createDispatchSubscriptionPortalCommands,
+} = require("./dispatch_subscription_portal_commands");
+const {
+  createDispatchBillingPortalAdmin,
+} = require("./dispatch_billing_portal_admin");
+const {
   createCanadaSmallSupplierThresholdCommands,
 } = require("./canada_small_supplier_threshold_commands");
 const {
@@ -72,6 +78,9 @@ const externalSettlementReconciliationCommands =
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
 const dispatchSubscriptionStatusCommands =
     createDispatchSubscriptionStatusCommands(admin);
+const dispatchSubscriptionPortalCommands =
+    createDispatchSubscriptionPortalCommands(admin);
+const dispatchBillingPortalAdmin = createDispatchBillingPortalAdmin(admin);
 const canadaSmallSupplierThresholdCommands =
     createCanadaSmallSupplierThresholdCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
@@ -170,6 +179,14 @@ exports.getDispatchSubscriptionStatus = onCall(
     protectedCallableOptions,
     dispatchSubscriptionStatusCommands.getDispatchSubscriptionStatus,
 );
+exports.getDispatchBillingPortalReadiness = onCall(
+    protectedCallableOptions,
+    dispatchBillingPortalAdmin.getDispatchBillingPortalReadiness,
+);
+exports.setDispatchBillingPortalReadiness = onCall(
+    protectedCallableOptions,
+    dispatchBillingPortalAdmin.setDispatchBillingPortalReadiness,
+);
 
 const stripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
@@ -207,6 +224,10 @@ exports.reconcileExternalSettlementFee = onCall(
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
     dispatchSubscriptionCommands.createDispatchSubscriptionCheckout,
+);
+exports.createDispatchBillingPortalSession = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionPortalCommands.createDispatchBillingPortalSession,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,
