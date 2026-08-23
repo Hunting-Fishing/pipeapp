@@ -5,6 +5,9 @@ const assert = require("node:assert/strict");
 const {
   createDispatchSubscriptionCommands,
 } = require("../dispatch_subscription_commands");
+const {
+  DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+} = require("../dispatch_billing_portal_policy");
 
 const FieldValue = {serverTimestamp: () => "server-time"};
 
@@ -69,14 +72,30 @@ function baseReadiness() {
   };
 }
 
-function fixture({state, stripeRequest}) {
+function verifiedPortal(overrides = {}) {
+  return {
+    enabled: true,
+    returnUrl: "https://pipebuyer.com/account/memberships",
+    stripePortalConfigurationId: "bpc_dispatch_live",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_dispatch_live",
+    providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    providerVerifiedFeatures: {
+      paymentMethodUpdate: true,
+      invoiceHistory: true,
+      subscriptionCancel: true,
+      subscriptionCancelMode: "at_period_end",
+      subscriptionCancelProration: "none",
+      subscriptionUpdate: false,
+    },
+    ...overrides,
+  };
+}
+
+function fixture({state, stripeRequest, portal = verifiedPortal()}) {
   const initial = {
     "platform_configuration/payment_provider_readiness": baseReadiness(),
-    "platform_configuration/dispatch_billing_portal": {
-      enabled: true,
-      returnUrl: "https://pipebuyer.com/account/memberships",
-      stripePortalConfigurationId: "bpc_dispatch_live",
-    },
+    "platform_configuration/dispatch_billing_portal": portal,
   };
   if (state) initial["dispatch_subscriptions/user-1"] = state;
   const {admin, db} = fakeAdmin(initial);
@@ -102,6 +121,22 @@ function fixture({state, stripeRequest}) {
 function request(plan = "monthly") {
   return {data: {plan}};
 }
+
+test("inner Checkout command rejects missing Portal provider proof before Stripe", async () => {
+  let providerCalls = 0;
+  const {commands} = fixture({
+    portal: verifiedPortal({providerVerified: false}),
+    stripeRequest: async () => {
+      providerCalls += 1;
+      return {};
+    },
+  });
+  await assert.rejects(
+      () => commands.createDispatchSubscriptionCheckout(request()),
+      /not enabled yet/i,
+  );
+  assert.equal(providerCalls, 0);
+});
 
 test("first Dispatch Checkout uses stable attempt idempotency and persists singleton state", async () => {
   const providerCalls = [];
