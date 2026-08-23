@@ -1,158 +1,132 @@
-# Autonomous Builder Readiness / Graduation Audit
+# Pipe Buyer Autonomous-Development Readiness
 
-Status: READY TO EXECUTE GRADUATION — NOT YET APPROVED FOR UNATTENDED MULTI-HOUR DEVELOPMENT
+Status: **PROJECT ADAPTER PREPARED — CENTRAL ENGINE GRADUATION NOT YET EXECUTED**
 
-## Standard
+## Scope
 
-No software-development agent can be guaranteed to make zero mistakes. Pipe Buyer therefore requires fail-closed, independently reviewed, test-backed, recoverable development with human-controlled merge and production activation.
+This checklist is for Pipe Buyer as a target of the central 366 Autonomous Builder. Generic engine implementation and engine fault suites live in `Hunting-Fishing/366-AI-Software-Homebrew/autonomous-builder`.
 
-The infrastructure required to test that standard is now implemented. `tool/autonomous_build.ps1` refuses to start a worker unless current control files have valid, recent graduation evidence from `tool/autonomous_graduation.ps1`.
+Pipe Buyer is responsible for project truth, compatibility, verification, and domain-specific reviewer fault cases. The central engine is responsible for orchestration, containment, generic guard/recovery behavior, independent-review execution, and graduation evidence.
 
-## A. Architecture and project knowledge
+## A. Project knowledge
 
-- [x] Central-engine + per-project adapter architecture defined.
-- [x] Product vision, master roadmap, 48–72 hour ship plan, architecture and design system exist.
-- [x] Definition of Done, test strategy and non-functional requirements exist.
+- [x] Product Vision exists.
+- [x] Master Roadmap exists.
+- [x] Active 48–72 hour ship plan exists.
+- [x] Architecture and Design System exist.
+- [x] Definition of Done, test strategy, and non-functional requirements exist.
 - [x] Feature registry and compatibility contract exist.
-- [x] Decision/risk/technical-debt registers exist.
-- [x] Data, security/privacy, dependency/provider, cost/billing, release and incident policies exist.
-- [x] Current source-controlled payment architecture is reconciled in `PAYMENTS_CURRENT_CONFIGURATION.md` without claiming live provider evidence.
+- [x] Decision, risk, and technical-debt registers exist.
+- [x] Data, security/privacy, dependency/provider, cost/billing, release, and incident policies exist.
+- [x] Current source-controlled payment architecture is summarized without claiming live provider evidence.
 
-## B. Scope and code structure
+## B. Target adapter
 
-- [x] Ordinary source ceiling: 600 lines.
+- [x] `.autobuild/project.json` uses central schema version 3.
+- [x] Reusable writer branch is `agent/autobuild`.
+- [x] Direct autonomous `main` editing is disabled.
+- [x] Single-writer operation required.
+- [x] `.autobuild/risk_policy.json` classifies Pipe-specific high-risk paths.
+- [x] `.autobuild/feature_contract.json` protects critical Pipe Buyer anchors.
+- [x] `.autobuild/reviewer_fault_cases.json` contains real Pipe-specific regression/security/billing seeds.
+- [x] Pipe project-control paths are fingerprinted for graduation.
+- [x] Production activation, live-provider mutation, merge to main, and critical-risk actions remain human-only.
+
+## C. Source/refactoring controls
+
+- [x] Ordinary hand-written source ceiling: 600 lines.
 - [x] Refactor warning: 450 lines.
-- [x] Knowledge-document ceiling: 600 lines.
-- [x] Legacy oversized source may not grow; refactoring is expected before adding substantial responsibility.
-- [x] Increment budget: maximum 12 files / 800 changed lines for Pipe Buyer.
-- [x] Broad refactor + unrelated feature behavior is prohibited.
-- [x] Characterization-first high-risk refactoring is required.
+- [x] Engineering-document ceiling: 600 lines.
+- [x] Increment budget: 12 files / 800 changed lines.
+- [x] Legacy oversized source may shrink but may not grow when touched.
+- [x] Broad refactor mixed with unrelated feature behavior is prohibited.
+- [x] High-risk refactoring requires behavior/compatibility evidence.
 
-## C. Git/worktree and crash safety
+## D. Pipe-specific functionality preservation
 
-- [x] Direct autonomous `main` writes disabled.
-- [x] Reusable writer branch configured as `agent/autobuild`.
-- [x] Timestamp branch proliferation removed from normal flow.
-- [x] Force-push/history rewrite and autonomous merge prohibited.
-- [x] Clean worktree required.
-- [x] Remote freshness/divergence checks implemented.
-- [x] Exclusive single-writer lock implemented.
-- [x] Interrupted autonomous work has stash-preserving recovery; ambiguous/operator-owned changes fail closed and are not touched.
-- [x] Recovery refusal/success fault suite implemented.
-- [ ] Real cross-process contention test executed on target Windows workstation.
-- [ ] Interrupted supervisor recovery executed on target workstation and evidence inspected.
+- [x] Feature Registry exists.
+- [x] Machine feature anchors exist.
+- [x] Route compatibility inventory exists.
+- [x] Firebase Function export inventory exists across configured codebases/re-export chains.
+- [x] Compatibility tests cover additive/removal/codebase-loss behavior.
+- [x] PR CI is configured to compare route/Function surfaces against the PR base SHA once GitHub supplies a runner.
+- [x] Function parity and release-manifest controls remain part of verification.
+- [ ] High-value user-journey regression coverage reviewed before broad autonomous refactoring begins.
 
-## D. Worker containment
+## E. Pipe-specific verification
 
-- [x] Worker hard timeout configured.
-- [x] No-output watchdog configured.
-- [x] Repair attempts bounded.
-- [x] Reviewer and full-verification timeouts configured.
-- [x] Persistent run state/logs implemented.
-- [x] Worker cannot branch/commit/push/merge/deploy.
-- [x] Real-process timeout/stall/lock fault harness implemented in `autonomous_runtime_fault_test.ps1`.
-- [ ] Runtime fault harness executed successfully on target workstation.
+`tool/verify.ps1` remains the complete target-project gate and includes:
 
-## E. Integrity / self-modification protection
+- [x] Flutter SDK inspection.
+- [x] Pipe release-tool syntax validation.
+- [x] route/Function compatibility tests.
+- [x] Dart analysis.
+- [x] Flutter tests.
+- [x] OAuth/release-manifest/Function-parity/acceptance controls.
+- [x] both Firebase Function codebases lint/check/audit.
+- [x] Firestore/Storage Rules emulator tests.
+- [x] authenticated callable integration tests.
+- [x] web release build and release-manifest generation.
+- [ ] Complete gate executed successfully on the target Windows workstation after separation from the central engine.
 
-- [x] Machine path-risk policy implemented.
-- [x] Risk under-classification blocks commit.
-- [x] Critical-risk autonomous commit prohibited.
-- [x] Forbidden credential paths and secret-like content checked.
-- [x] Merge-conflict markers and `git diff --check` enforced.
-- [x] Project/agent governance, verification, graduation, sprint-plan and payment-reconciliation files protected from worker edits.
-- [x] All `.github/workflows/` changes prohibited from ordinary autonomous workers.
-- [x] Worker cannot edit the readiness checklist and self-approve graduation.
-- [x] Guard fault-injection suite implemented.
-- [ ] Guard fault suite executed successfully on target workstation.
+## F. Project reviewer graduation cases
 
-## F. Functionality preservation
+The central engine's generic reviewer harness will consume `.autobuild/reviewer_fault_cases.json` in disposable worktrees.
 
-- [x] Feature registry and machine anchors exist.
-- [x] Automatic compatibility checker inventories active `FFRoute` name/path signatures.
-- [x] Automatic compatibility checker inventories Firebase Function exports across configured codebases and re-export chains.
-- [x] Autonomous uncommitted increments are compared against `HEAD`; removal of an existing route or Function export fails.
-- [x] Pull-request CI is configured to compare route/Function surfaces against the PR base SHA.
-- [x] Compatibility checker has additive/removal/codebase-removal fault tests.
-- [x] Existing Function parity and release-manifest controls retained.
-- [ ] High-value user-journey regression coverage audited before broad autonomous refactoring.
+- [x] Listing deep-link loss case defined.
+- [x] Administrator MFA bypass case defined.
+- [x] Dispatch monthly billing amount corruption case defined.
+- [ ] Real local Codex reviewer blocks listing regression.
+- [ ] Real local Codex reviewer blocks MFA bypass.
+- [ ] Real local Codex reviewer blocks billing corruption.
 
-## G. Independent review
+## G. Billing/provider boundaries
 
-- [x] Separate read-only reviewer prompt/schema implemented.
-- [x] Reviewer runs after deterministic guard and before full project verification.
-- [x] Error/critical finding or increased risk blocks commit.
-- [x] Seeded reviewer graduation harness implemented for:
-  - functionality/deep-link loss;
-  - administrator MFA/security bypass;
-  - Dispatch monthly billing-price corruption.
-- [ ] All three seeded reviewer cases executed and blocked by the real local Codex reviewer.
+- [x] Payment tracker remains authoritative.
+- [x] Source-controlled Dispatch subscription architecture and payment readiness boundaries documented.
+- [x] Payment/provider paths auto-escalate risk.
+- [x] Live Stripe/provider mutations remain prohibited to unattended workers.
+- [x] Redirect success is not entitlement/payment authority by policy.
+- [ ] Live provider readiness values, secret bindings, tax registrations, Dashboard objects, and controlled live acceptance verified before production activation.
 
-## H. Verification
+These external items do not prevent isolated code-only autonomous development.
 
-- [x] Builder PowerShell syntax is part of local and remote verification.
-- [x] Builder static governance self-test is required.
-- [x] Guard, stash-recovery and compatibility fault tests are required.
-- [x] Flutter analyzer/tests required.
-- [x] Both Firebase Function codebases lint/check/audit required.
-- [x] Firestore/Storage emulator and callable integration tests required.
-- [x] Web release build, Function parity and release-manifest tests required.
-- [x] GitHub Quality workflow now includes autonomous governance and PR-base compatibility controls once a runner executes.
-- [ ] Complete `tool/verify.ps1` passes on the target Windows workstation from the current control branch.
-- [ ] GitHub Quality/iOS checks execute real steps and pass.
+## H. Central-engine graduation against Pipe Buyer
 
-## I. GitHub Actions blocker
+Run graduation from the separate 366 AI Builder clone. It must prove:
 
-- [x] Zero-step Actions failures classified as pre-runner/account/platform execution failures rather than repository test-step failures. See `GITHUB_ACTIONS_DIAGNOSIS.md`.
-- [ ] Exact GitHub account/platform restriction resolved.
-- [ ] New Quality run receives a runner, emits step logs and passes.
+- [ ] central engine self-test passes;
+- [ ] generic source/risk guard fault suite passes;
+- [ ] interrupted-run recovery fault suite passes;
+- [ ] hard-timeout containment passes;
+- [ ] no-output watchdog containment passes;
+- [ ] exclusive writer-lock contention passes;
+- [ ] complete Pipe Buyer `tool/verify.ps1` passes;
+- [ ] configured Pipe compatibility fault command passes;
+- [ ] all Pipe-specific reviewer fault cases are blocked;
+- [ ] target worktree remains clean and HEAD unchanged;
+- [ ] engine + project fingerprints and Codex version evidence are issued.
 
-Local graduation may authorize isolated autonomous development while this remote infrastructure issue is unresolved. It does not authorize merge to `main` or production release without required remote evidence.
+Graduation evidence is stored under ignored `.agent-run/` and expires according to `.autobuild/project.json`. Engine changes, project-control changes, or a Codex version change invalidate it.
 
-## J. Billing/payment boundaries
+## I. Calibration
 
-- [x] Payment tracker remains authoritative for completion.
-- [x] Source-controlled Dispatch CA$25 monthly / CA$300 yearly architecture, webhook authority, external-fee flow and readiness gates reconciled.
-- [x] Live provider/money mutations prohibited.
-- [x] Payment changes auto-escalate to HIGH risk and require focused tests, rollback notes, independent review and full verification.
-- [x] Redirect success cannot be treated as entitlement authority by policy; provider/webhook evidence remains authoritative.
-- [ ] Live Stripe readiness values, secret bindings, active Dashboard objects, tax registrations and live acceptance independently verified before activation.
+After graduation:
 
-These external items do not prevent code-only autonomous payment work.
+- [ ] One bounded watched worker completes with a verified commit.
+- [ ] Resulting diff independently inspected for functionality loss/unexpected files.
+- [ ] Two-task supervised run completes.
+- [ ] One-hour unattended run completes as expected.
+- [ ] Longer multi-hour run completes without branch proliferation or false completion.
 
-## K. One-command infrastructure graduation
+## J. GitHub Actions
 
-`tool/autonomous_graduation.ps1` is implemented and must pass all of the following before the normal autonomous entry point will run:
+- [x] Previous zero-step failures are classified as pre-runner/account/platform execution failures rather than known repository-test failures.
+- [ ] GitHub account/platform restriction resolved.
+- [ ] Quality and iOS jobs receive runners and pass real steps.
 
-1. complete clean-baseline `tool/verify.ps1`;
-2. deterministic guard/recovery/compatibility suites;
-3. real hard-timeout containment;
-4. real no-output watchdog containment;
-5. real cross-process writer-lock contention;
-6. seeded independent-reviewer functionality/security/billing defects;
-7. clean worktree and unchanged HEAD after tests;
-8. control fingerprint and Codex CLI version evidence.
-
-Graduation evidence expires after 168 hours and is invalidated immediately if any fingerprinted control file or Codex CLI version changes.
-
-- [ ] Infrastructure graduation command executed and evidence issued.
-- [ ] One bounded worker run completed while watched.
-- [ ] Its diff independently inspected; no unexpected functionality/file loss.
-- [ ] Two-task supervised run completed.
-- [ ] One-hour unattended calibration completed.
-- [ ] Three-hour unattended calibration completed.
-
-## L. Multi-project portability
-
-- [x] Engine accepts `-ProjectPath` and target-specific knowledge remains in the target repo.
-- [x] Portable project/risk/onboarding templates exist.
-- [ ] Reusable engine extracted to dedicated repository after Pipe Buyer is stable.
-- [ ] Second materially different project onboarded and safety tests repeated.
-
-These portability tasks must not delay the 48–72 hour Pipe Buyer operational sprint.
+The local central-engine graduation can authorize isolated development while this infrastructure issue remains unresolved. It does not authorize merge/release without the required remote evidence.
 
 ## Approval boundary
 
-After graduation, the system is approved only for **bounded isolated development**. Human review/merge, production activation, live provider money movement, legal/tax declarations and critical-risk actions remain human controlled.
-
-Re-run graduation after any control fingerprint change, Codex CLI version change, material missed regression, unsafe billing/provider behavior, secret/data incident, repeated reviewer miss, runner corruption/race, or significant engine architecture change.
+Successful graduation approves only **bounded isolated development on the writer branch**. Human review/merge, production activation, live provider/money operations, legal/tax declarations, and critical-risk actions remain human-controlled.
