@@ -7,6 +7,9 @@ const {
 } = require("../payment_readiness_admin");
 const {
   DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+  DISPATCH_PORTAL_CUSTOMER_UPDATES,
+  DISPATCH_PORTAL_PRICE_IDS,
+  DISPATCH_PORTAL_PRODUCT_ID,
 } = require("../dispatch_billing_portal_policy");
 
 const FieldValue = {serverTimestamp: () => "server-time"};
@@ -106,11 +109,17 @@ function verifiedPortal(overrides = {}) {
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
     providerVerifiedFeatures: {
       paymentMethodUpdate: true,
+      customerUpdate: true,
+      customerUpdateAllowedUpdates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
       invoiceHistory: true,
       subscriptionCancel: true,
       subscriptionCancelMode: "at_period_end",
       subscriptionCancelProration: "none",
-      subscriptionUpdate: false,
+      subscriptionUpdate: true,
+      subscriptionUpdateAllowedUpdates: ["price"],
+      subscriptionUpdateProration: "none",
+      subscriptionUpdateProductId: DISPATCH_PORTAL_PRODUCT_ID,
+      subscriptionUpdatePriceIds: [...DISPATCH_PORTAL_PRICE_IDS],
     },
     ...overrides,
   };
@@ -163,6 +172,24 @@ test("missing stored provider features cannot authorize Dispatch activation", as
     "platform_configuration/payment_provider_readiness": currentReadiness(),
     "platform_configuration/dispatch_billing_portal": verifiedPortal({
       providerVerifiedFeatures: {},
+    }),
+    "platform_configuration/phase1_features": enabledFeatures(),
+  });
+  const commands = createPaymentReadinessAdmin({firestore});
+  await assert.rejects(
+      () => commands.setPaymentProviderReadiness(request()),
+      /provider-verified Stripe Billing Portal configuration/i,
+  );
+});
+
+test("quantity-changing Portal proof cannot authorize Dispatch activation", async () => {
+  const {firestore} = fakeAdmin({
+    "platform_configuration/payment_provider_readiness": currentReadiness(),
+    "platform_configuration/dispatch_billing_portal": verifiedPortal({
+      providerVerifiedFeatures: {
+        ...verifiedPortal().providerVerifiedFeatures,
+        subscriptionUpdateAllowedUpdates: ["price", "quantity"],
+      },
     }),
     "platform_configuration/phase1_features": enabledFeatures(),
   });
