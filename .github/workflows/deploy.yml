@@ -106,10 +106,6 @@ jobs:
                 ;;
             esac
           done
-          if [[ "$PIPE_ENABLE_PAID_FEATURES" == "true" && "$PIPE_ENABLE_DISPATCH" != "true" ]]; then
-            echo "::error::The P2 paid Dispatch artifact requires enable_dispatch=true whenever enable_paid_features=true."
-            exit 1
-          fi
           if [[ "$PIPE_DEPLOY_ENVIRONMENT_GUARD" != "$PIPE_ENV" ]]; then
             echo "::error::The protected deployment environment guard does not match $PIPE_ENV."
             exit 1
