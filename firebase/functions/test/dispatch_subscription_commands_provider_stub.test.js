@@ -72,6 +72,11 @@ function baseReadiness() {
 function fixture({state, stripeRequest}) {
   const initial = {
     "platform_configuration/payment_provider_readiness": baseReadiness(),
+    "platform_configuration/dispatch_billing_portal": {
+      enabled: true,
+      returnUrl: "https://pipebuyer.com/account/memberships",
+      stripePortalConfigurationId: "bpc_dispatch_live",
+    },
   };
   if (state) initial["dispatch_subscriptions/user-1"] = state;
   const {admin, db} = fakeAdmin(initial);
