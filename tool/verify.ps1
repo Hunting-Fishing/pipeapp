@@ -7,17 +7,13 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Assert-NativeSuccess([string]$Operation) {
-  if ($LASTEXITCODE -ne 0) {
-    throw "$Operation failed with exit code $LASTEXITCODE."
-  }
+  if ($LASTEXITCODE -ne 0) { throw "$Operation failed with exit code $LASTEXITCODE." }
 }
 
 $workspace = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $workspace
 $releaseSha = (git rev-parse HEAD 2>$null)
-if (-not $releaseSha) {
-  $releaseSha = 'local'
-}
+if (-not $releaseSha) { $releaseSha = 'local' }
 $diagnosticDefines = @(
   '--dart-define=PIPE_ENV=local-verification',
   "--dart-define=PIPE_RELEASE_SHA=$releaseSha"
@@ -37,19 +33,21 @@ $releaseToolScripts = @(
   (Join-Path $workspace 'tool\autonomous_build_v2.ps1'),
   (Join-Path $workspace 'tool\autonomous_process.ps1'),
   (Join-Path $workspace 'tool\autonomous_project.ps1'),
+  (Join-Path $workspace 'tool\autonomous_fingerprint.ps1'),
+  (Join-Path $workspace 'tool\autonomous_graduation.ps1'),
   (Join-Path $workspace 'tool\autonomous_guard.ps1'),
   (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1'),
   (Join-Path $workspace 'tool\autonomous_guard_test.ps1'),
   (Join-Path $workspace 'tool\autonomous_recovery.ps1'),
-  (Join-Path $workspace 'tool\autonomous_recovery_test.ps1')
+  (Join-Path $workspace 'tool\autonomous_recovery_test.ps1'),
+  (Join-Path $workspace 'tool\autonomous_runtime_fault_test.ps1'),
+  (Join-Path $workspace 'tool\autonomous_reviewer_fault_test.ps1')
 )
 foreach ($scriptPath in $releaseToolScripts) {
   $tokens = $null
   $parseErrors = $null
   [System.Management.Automation.Language.Parser]::ParseFile(
-    $scriptPath,
-    [ref]$tokens,
-    [ref]$parseErrors
+    $scriptPath, [ref]$tokens, [ref]$parseErrors
   ) | Out-Null
   if ($parseErrors.Count -gt 0) {
     $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
@@ -135,10 +133,7 @@ if (-not $SkipRulesEmulator) {
     }
   }
   if (-not $java) {
-    throw (
-      'Firestore rules tests require Java 21. Install Android Studio or a ' +
-      'JDK, then ensure java.exe is on PATH.'
-    )
+    throw 'Firestore rules tests require Java 21. Install Android Studio or a JDK, then ensure java.exe is on PATH.'
   }
   if (-not $SkipDependencyRestore) {
     npm ci --prefix firebase/rules-tests
@@ -148,20 +143,11 @@ if (-not $SkipRulesEmulator) {
   Assert-NativeSuccess 'Firestore rules-test dependency audit'
   $firebaseCli = Get-Command firebase -ErrorAction SilentlyContinue
   if ($firebaseCli) {
-    firebase emulators:exec `
-      --project demo-pipe-buyer-rules `
-      --config firebase.json `
-      --only firestore,storage `
-      'npm test --prefix firebase/rules-tests'
-    Assert-NativeSuccess 'Firestore security rules tests'
+    firebase emulators:exec --project demo-pipe-buyer-rules --config firebase.json --only firestore,storage 'npm test --prefix firebase/rules-tests'
   } else {
-    npx --yes firebase-tools@15.25.0 emulators:exec `
-      --project demo-pipe-buyer-rules `
-      --config firebase.json `
-      --only firestore,storage `
-      'npm test --prefix firebase/rules-tests'
-    Assert-NativeSuccess 'Firestore security rules tests'
+    npx --yes firebase-tools@15.25.0 emulators:exec --project demo-pipe-buyer-rules --config firebase.json --only firestore,storage 'npm test --prefix firebase/rules-tests'
   }
+  Assert-NativeSuccess 'Firestore security rules tests'
 
   Write-Host 'Testing authenticated callable workflows and retries'
   & (Join-Path $workspace 'tool\callable_emulator_integration.ps1')
@@ -172,11 +158,7 @@ if (-not $SkipWebBuild) {
   flutter build web --release @diagnosticDefines
   Assert-NativeSuccess 'Flutter web release build'
   Write-Host 'Recording the verified release manifest'
-  node tool/release_manifest.mjs `
-    --environment local-verification `
-    --release-sha $releaseSha `
-    --output build/release-manifest.json `
-    --require-web
+  node tool/release_manifest.mjs --environment local-verification --release-sha $releaseSha --output build/release-manifest.json --require-web
   Assert-NativeSuccess 'Release manifest generation'
 }
 
