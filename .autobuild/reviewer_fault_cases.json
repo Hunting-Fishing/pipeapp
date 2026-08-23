@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "listing-deep-link-regression",
+      "path": "lib/marketplace/marketplace_deep_links.dart",
+      "old_text": "'/listings/${Uri.encodeComponent(_requiredId(listingId))}'",
+      "new_text": "'/listing-broken/${Uri.encodeComponent(_requiredId(listingId))}'",
+      "expected_category": "functionality-loss",
+      "expected_risk_field": "functionality_loss_risk"
+    },
+    {
+      "name": "administrator-mfa-bypass",
+      "path": "lib/marketplace/marketplace_admin_access.dart",
+      "old_text": "return MarketplaceAdministratorState.mfaRequired;",
+      "new_text": "return MarketplaceAdministratorState.authorized;",
+      "expected_category": "security",
+      "expected_risk_field": "security_risk"
+    },
+    {
+      "name": "dispatch-monthly-price-corruption",
+      "path": "firebase/functions/stripe_marketplace_config.js",
+      "old_text": "unitAmountMinor: 2500,",
+      "new_text": "unitAmountMinor: 250,",
+      "expected_category": "billing",
+      "expected_risk_field": "billing_financial_risk"
+    }
+  ]
+}
