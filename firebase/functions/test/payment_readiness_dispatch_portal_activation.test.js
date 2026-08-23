@@ -88,6 +88,14 @@ function currentReadiness() {
   };
 }
 
+function enabledFeatures(overrides = {}) {
+  return {
+    dispatch: true,
+    paidFeatures: true,
+    ...overrides,
+  };
+}
+
 function verifiedPortal(overrides = {}) {
   return {
     enabled: true,
@@ -111,6 +119,7 @@ function verifiedPortal(overrides = {}) {
 test("Dispatch activation is blocked without an enabled provider-verified Billing Portal", async () => {
   const {firestore} = fakeAdmin({
     "platform_configuration/payment_provider_readiness": currentReadiness(),
+    "platform_configuration/phase1_features": enabledFeatures(),
   });
   const commands = createPaymentReadinessAdmin({firestore});
   await assert.rejects(
@@ -125,6 +134,7 @@ test("bpc-shaped identity without provider proof cannot authorize Dispatch activ
     "platform_configuration/dispatch_billing_portal": verifiedPortal({
       providerVerified: false,
     }),
+    "platform_configuration/phase1_features": enabledFeatures(),
   });
   const commands = createPaymentReadinessAdmin({firestore});
   await assert.rejects(
@@ -139,6 +149,7 @@ test("provider proof must be bound to the exact current bpc identity", async () 
     "platform_configuration/dispatch_billing_portal": verifiedPortal({
       providerVerifiedConfigurationId: "bpc_otherlive",
     }),
+    "platform_configuration/phase1_features": enabledFeatures(),
   });
   const commands = createPaymentReadinessAdmin({firestore});
   await assert.rejects(
@@ -153,6 +164,7 @@ test("missing stored provider features cannot authorize Dispatch activation", as
     "platform_configuration/dispatch_billing_portal": verifiedPortal({
       providerVerifiedFeatures: {},
     }),
+    "platform_configuration/phase1_features": enabledFeatures(),
   });
   const commands = createPaymentReadinessAdmin({firestore});
   await assert.rejects(
@@ -161,10 +173,24 @@ test("missing stored provider features cannot authorize Dispatch activation", as
   );
 });
 
-test("Dispatch activation accepts the exact provider-verified Billing Portal prerequisite", async () => {
+test("Dispatch activation is blocked when paidFeatures or Dispatch is off", async () => {
+  const {firestore} = fakeAdmin({
+    "platform_configuration/payment_provider_readiness": currentReadiness(),
+    "platform_configuration/dispatch_billing_portal": verifiedPortal(),
+    "platform_configuration/phase1_features": enabledFeatures({paidFeatures: false}),
+  });
+  const commands = createPaymentReadinessAdmin({firestore});
+  await assert.rejects(
+      () => commands.setPaymentProviderReadiness(request()),
+      /Dispatch and paidFeatures feature flags/i,
+  );
+});
+
+test("Dispatch activation accepts exact Portal proof and enabled feature flags", async () => {
   const {firestore, db} = fakeAdmin({
     "platform_configuration/payment_provider_readiness": currentReadiness(),
     "platform_configuration/dispatch_billing_portal": verifiedPortal(),
+    "platform_configuration/phase1_features": enabledFeatures(),
   });
   const commands = createPaymentReadinessAdmin({firestore});
   const result = await commands.setPaymentProviderReadiness(request());
