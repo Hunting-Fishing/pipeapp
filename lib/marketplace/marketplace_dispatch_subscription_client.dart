@@ -8,6 +8,14 @@ bool isValidStripeCheckoutUrl(String value) {
       uri.userInfo.isEmpty;
 }
 
+bool isValidStripeBillingPortalUrl(String value) {
+  final uri = Uri.tryParse(value.trim());
+  return uri != null &&
+      uri.scheme == 'https' &&
+      uri.host == 'billing.stripe.com' &&
+      uri.userInfo.isEmpty;
+}
+
 class MarketplaceDispatchSubscriptionPlan {
   const MarketplaceDispatchSubscriptionPlan({
     required this.currency,
@@ -61,6 +69,7 @@ class MarketplaceDispatchSubscriptionStatus {
     required this.processing,
     required this.alreadySubscribed,
     required this.canStartCheckout,
+    required this.canManageBilling,
     required this.monthly,
     required this.yearly,
   });
@@ -76,6 +85,7 @@ class MarketplaceDispatchSubscriptionStatus {
   final bool processing;
   final bool alreadySubscribed;
   final bool canStartCheckout;
+  final bool canManageBilling;
   final MarketplaceDispatchSubscriptionPlan monthly;
   final MarketplaceDispatchSubscriptionPlan yearly;
 
@@ -118,6 +128,7 @@ class MarketplaceDispatchSubscriptionStatus {
       processing: requiredBool('processing'),
       alreadySubscribed: requiredBool('alreadySubscribed'),
       canStartCheckout: requiredBool('canStartCheckout'),
+      canManageBilling: requiredBool('canManageBilling'),
       monthly: MarketplaceDispatchSubscriptionPlan.fromMap(
         Map<String, dynamic>.from(rawMonthly),
       ),
@@ -172,6 +183,22 @@ class MarketplaceDispatchCheckoutResult {
   }
 }
 
+class MarketplaceDispatchBillingPortalResult {
+  const MarketplaceDispatchBillingPortalResult({required this.portalUrl});
+
+  final String portalUrl;
+
+  factory MarketplaceDispatchBillingPortalResult.fromMap(
+    Map<String, dynamic> data,
+  ) {
+    final portalUrl = '${data['portalUrl'] ?? ''}'.trim();
+    if (!isValidStripeBillingPortalUrl(portalUrl)) {
+      throw StateError('The secure Stripe billing management link is invalid.');
+    }
+    return MarketplaceDispatchBillingPortalResult(portalUrl: portalUrl);
+  }
+}
+
 class MarketplaceDispatchSubscriptionClient {
   MarketplaceDispatchSubscriptionClient({MarketplaceCommandClient? commands})
       : _commands = commands ?? MarketplaceCommandClient();
@@ -197,5 +224,14 @@ class MarketplaceDispatchSubscriptionClient {
       timeout: const Duration(seconds: 45),
     );
     return MarketplaceDispatchCheckoutResult.fromMap(data);
+  }
+
+  Future<MarketplaceDispatchBillingPortalResult> createBillingPortal() async {
+    final data = await _commands.execute(
+      'createDispatchBillingPortalSession',
+      const <String, Object?>{},
+      timeout: const Duration(seconds: 30),
+    );
+    return MarketplaceDispatchBillingPortalResult.fromMap(data);
   }
 }
