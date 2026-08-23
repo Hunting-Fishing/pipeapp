@@ -2,9 +2,12 @@
 
 const {
   invoiceCommissionBaseMinor,
-  sourceChargeFromInvoice,
   subscriptionIdentityFromInvoice,
 } = require("./subscription_monetization");
+const {
+  invoicePaymentIntentId,
+  objectId,
+} = require("./dispatch_subscription_invoice_payment_policy");
 
 function safeInteger(value) {
   const amount = Number(value);
@@ -15,14 +18,11 @@ function normalizedCurrency(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function objectId(value) {
-  if (typeof value === "string") return value;
-  return String(value && value.id || "");
-}
-
 function dispatchSubscriptionInvoiceReconciliationState({
   stored = {},
   invoice = {},
+  invoicePayment = null,
+  paymentIntent = null,
   charge = null,
   balanceTransaction = null,
 } = {}) {
@@ -34,6 +34,7 @@ function dispatchSubscriptionInvoiceReconciliationState({
   const expectedSubscriptionId = String(stored.subscriptionId || "");
   const expectedUid = String(stored.uid || "");
   const expectedPlan = String(stored.plan || "");
+  const expectedPaymentIntentId = String(stored.stripePaymentIntentId || "");
   const expectedSourceChargeId = String(stored.sourceChargeId || "");
 
   const providerAmountPaidMinor = safeInteger(invoice.amount_paid);
@@ -47,8 +48,27 @@ function dispatchSubscriptionInvoiceReconciliationState({
   const providerCurrency = normalizedCurrency(invoice.currency);
   const identity = subscriptionIdentityFromInvoice(invoice);
   const metadata = identity.metadata || {};
-  const providerSourceChargeId = sourceChargeFromInvoice(invoice);
-  const zeroAmount = expectedAmountPaidMinor === 0;
+
+  const invoicePaymentId = objectId(invoicePayment);
+  const invoicePaymentInvoiceId = objectId(invoicePayment && invoicePayment.invoice);
+  const invoicePaymentAmountPaidMinor = safeInteger(
+      invoicePayment && invoicePayment.amount_paid,
+  );
+  const invoicePaymentCurrency = normalizedCurrency(
+      invoicePayment && invoicePayment.currency,
+  );
+  const providerPaymentIntentId = invoicePaymentIntentId(invoicePayment);
+  const paymentIntentAmountReceivedMinor = safeInteger(
+      paymentIntent && paymentIntent.amount_received,
+  );
+  const providerSourceChargeId = objectId(paymentIntent && paymentIntent.latest_charge);
+
+  const expectedZero = expectedAmountPaidMinor === 0;
+  const providerZero = providerAmountPaidMinor === 0;
+  const zeroAmount = expectedZero && providerZero;
+  const paymentEvidenceRequired =
+    (expectedAmountPaidMinor != null && expectedAmountPaidMinor > 0) ||
+    (providerAmountPaidMinor != null && providerAmountPaidMinor > 0);
 
   const chargeAmountMinor = safeInteger(charge && charge.amount);
   const chargeCurrency = normalizedCurrency(charge && charge.currency);
@@ -60,11 +80,6 @@ function dispatchSubscriptionInvoiceReconciliationState({
     safeInteger(balanceTransaction && balanceTransaction.fee);
   const providerNetMinor = zeroAmount ? 0 :
     safeInteger(balanceTransaction && balanceTransaction.net);
-
-  const providerInvoiceChargeExpectation = zeroAmount ?
-    !providerSourceChargeId : providerSourceChargeId.startsWith("ch_");
-  const storedChargeExpectation = zeroAmount ?
-    !expectedSourceChargeId : expectedSourceChargeId.startsWith("ch_");
 
   const checks = Object.freeze({
     storedPaid: String(stored.status || "") === "paid",
@@ -92,24 +107,50 @@ function dispatchSubscriptionInvoiceReconciliationState({
       providerCommissionBaseMinor != null && providerTaxMinor != null &&
       providerTotalMinor != null &&
       providerCommissionBaseMinor + providerTaxMinor === providerTotalMinor,
-    providerChargeExpectation: providerInvoiceChargeExpectation,
-    storedChargeExpectation,
-    sourceChargeMatches: providerSourceChargeId === expectedSourceChargeId,
-    chargeIdMatches: zeroAmount ||
+    zeroAmountProviderPaymentAbsent:
+      !zeroAmount || !invoicePayment && !paymentIntent && !charge && !balanceTransaction,
+    invoicePaymentPresent: !paymentEvidenceRequired || invoicePaymentId.startsWith("inpay_"),
+    invoicePaymentPaid:
+      !paymentEvidenceRequired || String(invoicePayment && invoicePayment.status || "") === "paid",
+    invoicePaymentInvoiceMatches:
+      !paymentEvidenceRequired || invoicePaymentInvoiceId === expectedInvoiceId,
+    invoicePaymentAmountMatches:
+      !paymentEvidenceRequired || invoicePaymentAmountPaidMinor === providerAmountPaidMinor,
+    invoicePaymentCurrencyMatches:
+      !paymentEvidenceRequired || invoicePaymentCurrency === expectedCurrency,
+    invoicePaymentTypeSupported:
+      !paymentEvidenceRequired || providerPaymentIntentId.startsWith("pi_"),
+    storedPaymentIntentConsistent:
+      !expectedPaymentIntentId || expectedPaymentIntentId === providerPaymentIntentId,
+    paymentIntentIdMatches:
+      !paymentEvidenceRequired || String(paymentIntent && paymentIntent.id || "") ===
+        providerPaymentIntentId,
+    paymentIntentSucceeded:
+      !paymentEvidenceRequired || String(paymentIntent && paymentIntent.status || "") ===
+        "succeeded",
+    paymentIntentAmountMatches:
+      !paymentEvidenceRequired || paymentIntentAmountReceivedMinor ===
+        providerAmountPaidMinor,
+    paymentIntentChargePresent:
+      !paymentEvidenceRequired || providerSourceChargeId.startsWith("ch_"),
+    storedChargeConsistent:
+      !expectedSourceChargeId || expectedSourceChargeId === providerSourceChargeId,
+    chargeIdMatches: !paymentEvidenceRequired ||
       String(charge && charge.id || "") === providerSourceChargeId,
-    chargePaid: zeroAmount || charge && charge.paid === true,
-    chargeAmountMatches: zeroAmount ||
-      chargeAmountMinor === expectedAmountPaidMinor,
-    chargeCurrencyMatches: zeroAmount || chargeCurrency === expectedCurrency,
-    balanceTransactionLinked: zeroAmount ||
+    chargePaid: !paymentEvidenceRequired || charge && charge.paid === true,
+    chargeAmountMatches: !paymentEvidenceRequired ||
+      chargeAmountMinor === providerAmountPaidMinor,
+    chargeCurrencyMatches: !paymentEvidenceRequired ||
+      chargeCurrency === expectedCurrency,
+    balanceTransactionLinked: !paymentEvidenceRequired ||
       chargeBalanceTransactionId.startsWith("txn_") &&
       chargeBalanceTransactionId === balanceTransactionId,
-    balanceAmountMatches: zeroAmount ||
+    balanceAmountMatches: !paymentEvidenceRequired ||
       providerGrossMinor === chargeAmountMinor,
-    balanceCurrencyMatches: zeroAmount ||
+    balanceCurrencyMatches: !paymentEvidenceRequired ||
       normalizedCurrency(balanceTransaction && balanceTransaction.currency) ===
         expectedCurrency,
-    balanceArithmeticMatches: zeroAmount ||
+    balanceArithmeticMatches: !paymentEvidenceRequired ||
       providerGrossMinor != null && providerFeeMinor != null &&
       providerNetMinor != null &&
       providerGrossMinor - providerFeeMinor === providerNetMinor,
@@ -131,6 +172,8 @@ function dispatchSubscriptionInvoiceReconciliationState({
     providerGrossMinor,
     providerFeeMinor,
     providerNetMinor,
+    stripeInvoicePaymentId: invoicePaymentId,
+    stripePaymentIntentId: providerPaymentIntentId,
     stripeChargeId: providerSourceChargeId,
     stripeBalanceTransactionId: balanceTransactionId,
     invoiceDifferenceMinor:
@@ -147,6 +190,5 @@ function dispatchSubscriptionInvoiceReconciliationState({
 module.exports = {
   dispatchSubscriptionInvoiceReconciliationState,
   normalizedCurrency,
-  objectId,
   safeInteger,
 };
