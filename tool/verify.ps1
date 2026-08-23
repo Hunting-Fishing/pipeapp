@@ -36,7 +36,8 @@ $releaseToolScripts = @(
   (Join-Path $workspace 'tool\autonomous_build.ps1'),
   (Join-Path $workspace 'tool\autonomous_build_v2.ps1'),
   (Join-Path $workspace 'tool\autonomous_process.ps1'),
-  (Join-Path $workspace 'tool\autonomous_guard.ps1')
+  (Join-Path $workspace 'tool\autonomous_guard.ps1'),
+  (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1')
 )
 foreach ($scriptPath in $releaseToolScripts) {
   $tokens = $null
@@ -51,6 +52,9 @@ foreach ($scriptPath in $releaseToolScripts) {
     throw "PowerShell syntax failed for $scriptPath`: $details"
   }
 }
+
+Write-Host 'Testing autonomous builder governance and configuration'
+& (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1') -ProjectRoot $workspace
 
 if (-not $SkipDependencyRestore) {
   Write-Host 'Restoring Flutter dependencies'
