@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const {
   dispatchCheckoutWebhookDecision,
   dispatchSubscriptionLifecycleDecision,
+  dispatchSubscriptionReplacementAllowed,
 } = require("../dispatch_subscription_lifecycle_policy");
 
 test("active and trialing provider status activate Dispatch entitlement", () => {
@@ -55,6 +56,7 @@ test("unknown provider status preserves state but requires review", () => {
 
 test("late Checkout completion cannot downgrade active paid subscription", () => {
   const decision = dispatchCheckoutWebhookDecision({
+    status: "active",
     entitlementActive: true,
     stripeSubscriptionId: "sub_live",
   }, {
@@ -63,8 +65,9 @@ test("late Checkout completion cannot downgrade active paid subscription", () =>
   assert.equal(decision.action, "preserve_active");
 });
 
-test("different subscription id from Checkout is quarantined for review", () => {
+test("different live subscription id from Checkout is quarantined for review", () => {
   const decision = dispatchCheckoutWebhookDecision({
+    status: "active",
     entitlementActive: true,
     stripeSubscriptionId: "sub_expected",
   }, {
@@ -72,6 +75,33 @@ test("different subscription id from Checkout is quarantined for review", () => 
   });
   assert.equal(decision.action, "review");
   assert.equal(decision.reason, "subscription_conflict");
+});
+
+test("canceled subscription may be replaced by a new provider subscription", () => {
+  const current = {
+    status: "canceled",
+    entitlementActive: false,
+    stripeSubscriptionId: "sub_retired",
+  };
+  assert.equal(dispatchSubscriptionReplacementAllowed(current), true);
+  const decision = dispatchCheckoutWebhookDecision(current, {
+    subscription: "sub_replacement",
+  });
+  assert.equal(decision.action, "processing");
+  assert.equal(decision.stripeSubscriptionId, "sub_replacement");
+});
+
+test("unpaid subscription cannot be silently replaced", () => {
+  const current = {
+    status: "unpaid",
+    entitlementActive: false,
+    stripeSubscriptionId: "sub_unpaid",
+  };
+  assert.equal(dispatchSubscriptionReplacementAllowed(current), false);
+  const decision = dispatchCheckoutWebhookDecision(current, {
+    subscription: "sub_other",
+  });
+  assert.equal(decision.action, "review");
 });
 
 test("normal Checkout completion moves singleton toward processing", () => {
