@@ -210,6 +210,7 @@ function createExternalSettlementCommands(admin) {
             transactionId,
             checkoutSessionId: existingSessionId,
             checkoutUrl: existingUrl,
+            alreadyPaid: false,
             alreadyCreated: true,
             awaitingWebhook: false,
             taxCollectionStatus: collectionStatus,
@@ -219,6 +220,7 @@ function createExternalSettlementCommands(admin) {
           return {
             transactionId,
             checkoutSessionId: existingSessionId,
+            alreadyPaid: false,
             alreadyCreated: true,
             awaitingWebhook: true,
             taxCollectionStatus: collectionStatus,
@@ -291,6 +293,7 @@ function createExternalSettlementCommands(admin) {
         checkoutSessionId: sessionId,
         checkoutUrl,
         checkoutAttempt,
+        alreadyPaid: false,
         alreadyCreated: false,
         awaitingWebhook: false,
         taxCollectionStatus: collectionStatus,
