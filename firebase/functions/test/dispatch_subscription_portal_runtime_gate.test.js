@@ -22,6 +22,25 @@ function verifiedPortal(overrides = {}) {
   };
 }
 
+function liveProviderPortal(overrides = {}) {
+  return {
+    id: "bpc_live_dispatch",
+    active: true,
+    livemode: true,
+    features: {
+      payment_method_update: {enabled: true},
+      invoice_history: {enabled: true},
+      subscription_cancel: {
+        enabled: true,
+        mode: "at_period_end",
+        proration_behavior: "none",
+      },
+      subscription_update: {enabled: false},
+    },
+    ...overrides,
+  };
+}
+
 function fakeAdmin(portal) {
   return {
     firestore() {
@@ -47,8 +66,10 @@ function fakeAdmin(portal) {
   };
 }
 
-test("runtime Portal decision requires provider proof bound to the exact bpc", () => {
-  assert.equal(dispatchBillingPortalRuntimeDecision(verifiedPortal()).ready, true);
+test("runtime Portal decision requires stored provider proof bound to the exact bpc", () => {
+  const ready = dispatchBillingPortalRuntimeDecision(verifiedPortal());
+  assert.equal(ready.ready, true);
+  assert.equal(ready.configurationId, "bpc_live_dispatch");
   assert.equal(dispatchBillingPortalRuntimeDecision(verifiedPortal({
     providerVerified: false,
   })).ready, false);
@@ -68,32 +89,83 @@ test("runtime Portal decision rejects unsafe return URL", () => {
   assert.equal(decision.reason, "return_url_invalid");
 });
 
-test("production gate blocks Checkout before invoking inner handler", async () => {
+test("production gate blocks before provider request when stored proof is invalid", async () => {
   let invoked = 0;
+  let providerCalls = 0;
   const gate = createDispatchSubscriptionPortalRuntimeGate(
       fakeAdmin(verifiedPortal({providerVerified: false})),
       async () => {
         invoked += 1;
         return {ok: true};
       },
+      {
+        secretProvider: () => "sk_live_stub",
+        stripeRequest: async () => {
+          providerCalls += 1;
+          return liveProviderPortal();
+        },
+      },
   );
   await assert.rejects(
       () => gate({data: {plan: "monthly"}}),
       /provider-verified Billing Portal configuration/i,
   );
+  assert.equal(providerCalls, 0);
   assert.equal(invoked, 0);
 });
 
-test("production gate delegates only after provider Portal proof passes", async () => {
+test("production gate re-reads exact live bpc before delegating", async () => {
   let invoked = 0;
+  const providerCalls = [];
   const gate = createDispatchSubscriptionPortalRuntimeGate(
       fakeAdmin(verifiedPortal()),
       async (request) => {
         invoked += 1;
         return {plan: request.data.plan};
       },
+      {
+        secretProvider: () => "sk_live_stub",
+        stripeRequest: async (call) => {
+          providerCalls.push(call);
+          return liveProviderPortal();
+        },
+      },
   );
   const result = await gate({data: {plan: "yearly"}});
   assert.equal(invoked, 1);
+  assert.equal(providerCalls.length, 1);
+  assert.equal(providerCalls[0].method, "GET");
+  assert.match(providerCalls[0].path, /bpc_live_dispatch$/u);
   assert.deepEqual(result, {plan: "yearly"});
+});
+
+test("provider-side Portal drift blocks the action even when stored proof is green", async () => {
+  let invoked = 0;
+  const gate = createDispatchSubscriptionPortalRuntimeGate(
+      fakeAdmin(verifiedPortal()),
+      async () => {
+        invoked += 1;
+        return {ok: true};
+      },
+      {
+        secretProvider: () => "sk_live_stub",
+        stripeRequest: async () => liveProviderPortal({
+          features: {
+            payment_method_update: {enabled: true},
+            invoice_history: {enabled: true},
+            subscription_cancel: {
+              enabled: true,
+              mode: "at_period_end",
+              proration_behavior: "none",
+            },
+            subscription_update: {enabled: true},
+          },
+        }),
+      },
+  );
+  await assert.rejects(
+      () => gate({data: {plan: "monthly"}}),
+      /no longer matches the approved launch policy/i,
+  );
+  assert.equal(invoked, 0);
 });
