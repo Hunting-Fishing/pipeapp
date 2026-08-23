@@ -139,7 +139,6 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           processing: false,
           plan: String(state.plan || ""),
           subscriptionStatus: String(state.status || ""),
-          stripeSubscriptionId: dispatchStripeSubscriptionId(state),
         };
       }
       if (localState === "inconsistent") {
@@ -292,10 +291,7 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
         }, {merge: true});
 
         if (decision !== "checkout_created") {
-          return {
-            decision,
-            subscriptionId: dispatchStripeSubscriptionId(current),
-          };
+          return {decision};
         }
         transaction.set(stateRef, {
           uid,
@@ -304,6 +300,10 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           status: "checkout_created",
           checkoutAttempt: attempt,
           stripeCheckoutSessionId: sessionId,
+          // A new Checkout is only allowed when no unresolved subscription is
+          // active. Clear any retired subscription id so the replacement
+          // webhook is not falsely treated as a second live subscription.
+          stripeSubscriptionId: null,
           taxCollectionStatus: collectionStatus,
           promotionCouponId: couponId || null,
           affiliateReferrerUid: referrerUid || null,
@@ -312,7 +312,7 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
             createdAt: FieldValue.serverTimestamp(),
           }),
         }, {merge: true});
-        return {decision: "checkout_created", subscriptionId: ""};
+        return {decision: "checkout_created"};
       });
 
       if (persistence.decision === "existing_subscription") {
@@ -320,7 +320,6 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           alreadySubscribed: true,
           processing: false,
           plan,
-          stripeSubscriptionId: persistence.subscriptionId,
         };
       }
       if (persistence.decision === "processing") {
