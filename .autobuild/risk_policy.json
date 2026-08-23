@@ -22,6 +22,7 @@
     "docs/SECURITY_AND_PRIVACY_ENGINEERING.md",
     "docs/RELEASE_GOVERNANCE.md",
     "docs/OBSERVABILITY_AND_INCIDENTS.md",
+    "docs/AUTONOMOUS_BUILDER_READINESS.md",
     "automation/agent/project.schema.json",
     "automation/agent/result.schema.json",
     "automation/agent/review.schema.json",
@@ -34,6 +35,10 @@
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
     "tool/autonomous_guard_test.ps1",
+    "tool/autonomous_recovery.ps1",
+    "tool/autonomous_recovery_test.ps1",
+    "tool/autonomous_compatibility.mjs",
+    "tool/autonomous_compatibility_test.mjs",
     "tool/verify.ps1"
   ],
   "forbidden_path_patterns": [
