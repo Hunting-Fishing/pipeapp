@@ -67,6 +67,8 @@ function requireSubscriptionReady(readiness) {
   if (!readiness.stripeSubscriptionsEnabled ||
       readiness.stripeMode !== "production" ||
       readiness.stripeWebhookVerified !== true ||
+      readiness.stripeSubscriptionLifecycleWebhookVerified !== true ||
+      readiness.stripeSubscriptionRecoveryVerified !== true ||
       readiness.stripeReconciliationReady !== true ||
       !taxBillingPrepared(readiness)) {
     throw new HttpsError(
@@ -114,6 +116,10 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
       const readiness = {
         ...(await providerReadiness(db)),
         stripeSubscriptionsEnabled: readinessData.stripeSubscriptionsEnabled === true,
+        stripeSubscriptionRecoveryVerified:
+          readinessData.stripeSubscriptionRecoveryVerified === true,
+        stripeSubscriptionLifecycleWebhookVerified:
+          readinessData.stripeSubscriptionLifecycleWebhookVerified === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
         stripeTaxPendingBillingApproved:
