@@ -4,7 +4,7 @@ Status: active engineering contract
 
 ## Intent
 
-Autonomous development is allowed to move quickly only when each increment is small, reviewable, behavior-preserving unless intentionally changed, and verified against the real repository.
+Autonomous development is allowed to move quickly only when each increment is bounded, reviewable, behavior-preserving unless intentionally changed, correctly risk-classified, and verified against the real repository.
 
 ## Source-size policy
 
@@ -14,19 +14,25 @@ For ordinary hand-written source files:
 - 350–450 lines: acceptable;
 - 450–550 lines: refactoring candidate;
 - 550–600 lines: do not add substantial new responsibility;
-- over 600 lines: oversized; do not increase it and prefer a behavior-preserving extraction before adding features.
+- over 600 lines: oversized; do not increase it and prefer behavior-preserving extraction before adding features.
 
 The 600-line threshold is a ceiling, not a target.
 
-Generated files, lockfiles, large fixtures, derived schemas, and other configured generated artifacts are exempt.
+Generated files, lockfiles, large fixtures, derived schemas, and configured generated artifacts are exempt.
 
-### Legacy oversized files
+### Legacy oversized source
 
-An existing file above the ceiling does not make the whole repository permanently red. The autonomous guard compares the working copy to `HEAD`:
+- new ordinary source over the ceiling fails;
+- existing oversized source that grows or fails to shrink when modified fails;
+- existing oversized source that shrinks may proceed while remaining technical debt.
 
-- a new ordinary source file above the ceiling fails;
-- an existing oversized source file that grows fails;
-- an existing oversized source file that shrinks may proceed while remaining a technical-debt item.
+## Documentation-size policy
+
+New tracked knowledge/planning Markdown files must remain at or below the configured documentation ceiling (600 lines for Pipe Buyer).
+
+Legacy oversized documentation may be updated only without increasing its line count; split it in a dedicated documentation refactor instead of continuously growing one giant tracker.
+
+The master roadmap and knowledge index should link domain detail rather than copy it.
 
 ## Refactoring policy
 
@@ -35,20 +41,19 @@ Refactors must preserve behavior unless a tracked task explicitly changes behavi
 Required sequence for high-risk extraction:
 
 1. inspect current behavior and callers;
-2. identify routes, callbacks, server commands, persistence, security, and tests at risk;
+2. identify routes, callbacks, commands, persistence, security, and tests at risk;
 3. add/confirm characterization tests where coverage is weak;
 4. extract one coherent responsibility;
 5. preserve external interfaces where practical;
 6. run focused tests;
 7. run autonomous guard;
-8. run the complete project verification command;
-9. commit only after both pass.
+8. pass independent read-only review;
+9. run complete project verification;
+10. commit only after all gates pass.
 
 Do not combine a broad refactor and unrelated feature behavior in one autonomous increment.
 
 ## Change-budget policy
-
-Default autonomous increment budget is configured in `.autobuild/project.json`.
 
 Current Pipe Buyer defaults:
 
@@ -58,86 +63,144 @@ Current Pipe Buyer defaults:
 - no production activation;
 - no unrelated cleanup bundled into the increment.
 
-These are safety budgets. If a legitimate mechanical extraction exceeds one, split it into sequential verified commits rather than silently broadening the task.
+These are safety budgets. Split legitimate larger work into sequential verified commits.
+
+## Risk-classification gate
+
+Every worker result declares `low`, `medium`, `high`, or `critical` risk plus reasons.
+
+`.autobuild/risk_policy.json` independently escalates risk based on changed paths. The worker may classify higher than the path policy but never lower.
+
+Typical `HIGH` areas include:
+
+- Functions/server authority;
+- Firestore/Storage Rules and schema/migrations;
+- authentication/admin/App Check/private data;
+- payments/billing/tax/reconciliation;
+- dependencies/providers;
+- CI/release/deployment;
+- broad compatibility changes.
+
+`CRITICAL` live/irreversible actions are human-only and cannot become autonomous commits merely because code/tests are present.
+
+## Secret and repository-integrity gate
+
+The autonomous guard rejects:
+
+- configured forbidden credential/secret paths;
+- secret-like key/token content patterns;
+- unresolved merge-conflict markers;
+- `git diff --check` failures;
+- missing machine feature anchors;
+- risk metadata inconsistent with changed paths.
+
+Secret scanning is defense-in-depth, not permission to put credentials into files that happen not to match a pattern.
 
 ## Feature-preservation policy
 
-`docs/FEATURE_REGISTRY.md` is a compatibility index.
+`docs/FEATURE_REGISTRY.md` and `docs/CONTRACTS_AND_COMPATIBILITY.md` are compatibility references.
 
-Before changing a registered capability, identify the relevant:
+Before changing a capability, identify relevant UI entry points, routes, server commands/Functions, persisted records, security/roles, lifecycle states, tests, and provider gates.
 
-- UI entry points;
-- routes/navigation;
-- server commands/Functions;
-- persisted collections/documents;
-- security/role requirements;
-- lifecycle states;
-- tests;
-- external/provider gates.
-
-Absence of a feature from the registry does not authorize deletion. Existing working behavior remains part of the compatibility surface unless an explicit deprecation decision exists.
+Absence from the registry does not authorize deletion. Existing working behavior remains part of the compatibility surface unless an explicit deprecation decision exists.
 
 ## Design-quality policy
 
 For UI work, read `docs/DESIGN_SYSTEM.md` before editing.
 
-Autonomous UI work must:
-
-- reuse existing theme tokens and shared components;
-- avoid local one-off palettes and competing component patterns;
-- preserve loading/empty/error/offline/denied/retry behavior;
-- consider phone, tablet, and desktop/web layouts;
-- preserve accessibility semantics and text scaling;
-- separate visual refactors from unrelated behavior changes.
+Autonomous UI work must reuse existing theme tokens/components; avoid one-off palettes/patterns; preserve loading/empty/error/offline/denied/retry states; consider phone/tablet/desktop; preserve accessibility semantics/text scaling; and separate visual refactors from unrelated behavior changes.
 
 ## Testing policy
 
-Every behavior-changing increment requires focused verification appropriate to the change. The outer runner then executes the project-wide verification command from `.autobuild/project.json`.
+`docs/TEST_STRATEGY.md` is authoritative for testing layers.
 
-Tests must not be deleted, skipped, muted, or materially weakened merely to obtain a green result.
+Every behavior-changing increment requires focused verification appropriate to the change. High-risk changes require negative-path coverage. The outer supervisor then executes the complete repository verification command.
 
-When a failing test reveals an unrelated pre-existing defect, record the blocker rather than performing an unbounded repair unrelated to the current increment.
+Tests must not be deleted, skipped, muted, or materially weakened merely to obtain green output.
+
+A repeated retry of a flaky/failing test without root-cause classification is not acceptance evidence.
+
+## Independent review gate
+
+After the machine guard and before full verification, a separate read-only reviewer inspects the uncommitted diff.
+
+The reviewer did not author the change and specifically looks for:
+
+- functionality loss/regression;
+- security/privacy weakening;
+- data-integrity/migration gaps;
+- billing/financial/provider mismatch;
+- compatibility breakage;
+- design/accessibility drift;
+- performance/cost amplification;
+- missing high-risk tests;
+- architecture duplication/drift;
+- documentation claims unsupported by evidence;
+- risk under-classification.
+
+Any error/critical finding, likely functionality loss, material knowledge conflict, or reviewer-raised risk above the worker declaration blocks the commit until repaired/reviewed again.
+
+## Change-type declaration gate
+
+Worker results explicitly declare whether the increment changes:
+
+- data/schema/migration behavior;
+- dependencies;
+- providers;
+- security/privacy boundaries;
+- billing/payment behavior.
+
+Path-based guard rules verify these declarations for known high-risk areas. High-risk results also record rollback/recovery implications and at least one passed focused verification.
 
 ## Information-preservation policy
 
 Do not silently erase project intent.
 
-- durable decisions are appended to `docs/DECISION_REGISTER.md`;
-- replaced decisions are marked superseded rather than deleted;
-- domain trackers remain the task-level evidence source;
-- `docs/MASTER_ROADMAP.md` indexes them without copying all details;
-- feature completion claims require the evidence named by the source tracker.
+- durable decisions are appended/superseded in `docs/DECISION_REGISTER.md`;
+- domain trackers remain task-level evidence;
+- `docs/MASTER_ROADMAP.md` indexes rather than duplicates detail;
+- `docs/PROJECT_KNOWLEDGE_INDEX.md` defines authority and retrieval;
+- risk/debt registers retain known unresolved issues;
+- feature completion claims require evidence named by the source tracker and Definition of Done.
 
 ## Timeout and recovery policy
 
 A multi-hour autonomous session consists of bounded worker invocations.
 
-Current project defaults:
+Current defaults:
 
 - worker: 35 minutes;
+- no-output watchdog: 10 minutes;
+- independent review: 20 minutes;
 - repair: 25 minutes;
 - full verification: 45 minutes.
 
-A timed-out increment must not create a verified commit. Prior verified commits remain intact. The runner records state/logs so the next run can diagnose or resume without replaying completed work.
+A timed-out/stalled worker or reviewer cannot create a verified commit. Prior verified commits remain intact. State/logs remain under `.agent-run/`.
 
-## Git policy
+## Single-writer/Git policy
 
-Use the configured reusable writer branch (`agent/autobuild`) instead of creating a new timestamp branch for every run.
+Use the configured reusable writer branch (`agent/autobuild`) rather than timestamp branches for normal work.
 
+- one supervisor holds an exclusive worktree lock;
 - commits are checkpoints;
 - push only verified commits when remote backup is enabled;
 - no autonomous merge to `main`;
-- no force-push or history rewrite;
-- recovery branches are exceptional, not routine.
+- no force-push/history rewrite;
+- recovery branches are exceptional.
 
 ## Final autonomous commit gate
 
 A commit is eligible only when:
 
 1. one bounded task is represented;
-2. working-tree scope passes autonomous guard budgets;
-3. ordinary source-size rules pass;
-4. focused tests pass;
-5. the complete repository verification command passes;
-6. no human/provider/production evidence has been fabricated;
-7. the result record accurately names what changed and what remains open.
+2. working-tree scope passes change budgets;
+3. source/document-size rules pass;
+4. no forbidden secret/path/integrity issue is detected;
+5. risk/change metadata matches the diff;
+6. compatibility checks are recorded;
+7. focused tests pass;
+8. independent read-only review passes;
+9. complete repository verification passes;
+10. no human/provider/production evidence is fabricated;
+11. critical live/irreversible actions remain unperformed;
+12. the structured result accurately states what changed, risks, rollback implications, and remaining gates.
