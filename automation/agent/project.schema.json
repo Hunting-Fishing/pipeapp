@@ -10,6 +10,8 @@
     "agent_policy",
     "verify_command",
     "writer_branch",
+    "risk_policy",
+    "independent_review_required",
     "knowledge",
     "quality",
     "timeouts",
@@ -23,20 +25,24 @@
     "agent_policy": { "type": "string", "minLength": 1 },
     "verify_command": { "type": "string", "minLength": 1 },
     "writer_branch": { "type": "string", "minLength": 1 },
+    "risk_policy": { "type": "string", "minLength": 1 },
+    "independent_review_required": { "type": "boolean" },
     "knowledge": {
       "type": "object",
       "required": ["always", "feature_registry"],
       "properties": {
         "always": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "ui": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "payments": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "marketplace": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
         "feature_registry": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": {
-        "type": "array",
-        "items": { "type": "string" },
-        "uniqueItems": true
+        "oneOf": [
+          {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          { "type": "string", "minLength": 1 }
+        ]
       }
     },
     "quality": {
@@ -44,6 +50,7 @@
       "required": [
         "max_source_lines",
         "refactor_warning_lines",
+        "max_document_lines",
         "max_files_touched",
         "max_changed_lines",
         "source_extensions",
@@ -52,6 +59,7 @@
       "properties": {
         "max_source_lines": { "type": "integer", "minimum": 100 },
         "refactor_warning_lines": { "type": "integer", "minimum": 50 },
+        "max_document_lines": { "type": "integer", "minimum": 100 },
         "max_files_touched": { "type": "integer", "minimum": 1 },
         "max_changed_lines": { "type": "integer", "minimum": 1 },
         "source_extensions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
@@ -61,10 +69,11 @@
     },
     "timeouts": {
       "type": "object",
-      "required": ["worker_minutes", "no_output_minutes", "verify_minutes", "repair_minutes"],
+      "required": ["worker_minutes", "no_output_minutes", "review_minutes", "verify_minutes", "repair_minutes"],
       "properties": {
         "worker_minutes": { "type": "integer", "minimum": 1, "maximum": 240 },
         "no_output_minutes": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "review_minutes": { "type": "integer", "minimum": 1, "maximum": 120 },
         "verify_minutes": { "type": "integer", "minimum": 1, "maximum": 240 },
         "repair_minutes": { "type": "integer", "minimum": 1, "maximum": 240 }
       },
@@ -72,22 +81,30 @@
     },
     "git": {
       "type": "object",
-      "required": ["base_branch", "reuse_writer_branch", "allow_direct_main", "push_verified_commits_only"],
+      "required": [
+        "base_branch",
+        "reuse_writer_branch",
+        "allow_direct_main",
+        "push_verified_commits_only",
+        "single_writer_required"
+      ],
       "properties": {
         "base_branch": { "type": "string", "minLength": 1 },
         "reuse_writer_branch": { "type": "boolean" },
         "allow_direct_main": { "type": "boolean" },
-        "push_verified_commits_only": { "type": "boolean" }
+        "push_verified_commits_only": { "type": "boolean" },
+        "single_writer_required": { "type": "boolean" }
       },
       "additionalProperties": false
     },
     "safety": {
       "type": "object",
-      "required": ["production_activation", "live_provider_mutations", "merge_to_main"],
+      "required": ["production_activation", "live_provider_mutations", "merge_to_main", "critical_risk_changes"],
       "properties": {
         "production_activation": { "enum": ["human-only"] },
         "live_provider_mutations": { "enum": ["human-only"] },
-        "merge_to_main": { "enum": ["human-only"] }
+        "merge_to_main": { "enum": ["human-only"] },
+        "critical_risk_changes": { "enum": ["human-only"] }
       },
       "additionalProperties": false
     }
