@@ -14,7 +14,6 @@
     "sk_live_[A-Za-z0-9]{16,}",
     "rk_live_[A-Za-z0-9]{16,}",
     "gh[pousr]_[A-Za-z0-9]{20,}",
-    "AIza[0-9A-Za-z_-]{35}",
     "sk-proj-[A-Za-z0-9_-]{20,}"
   ],
   "path_risk_rules": [
