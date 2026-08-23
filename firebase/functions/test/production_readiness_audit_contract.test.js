@@ -22,6 +22,7 @@ test("production readiness audit verifies Dispatch provider controls", () => {
   assert.match(source, /invoice\.payment_failed/u);
   assert.match(source, /customer\.subscription\.updated/u);
   assert.match(source, /customer\.subscription\.deleted/u);
+  assert.match(source, /getDispatchSubscriptionLaunchReadiness/u);
   assert.match(source, /verifyDispatchBillingPortalConfiguration/u);
   assert.match(source, /verifyDispatchSubscriptionLifecycleWebhook/u);
   assert.match(source, /createDispatchBillingPortalSession/u);
