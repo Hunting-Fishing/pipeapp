@@ -122,7 +122,7 @@ test("late Checkout completion cannot downgrade invoice-paid active state", asyn
   assert.equal(db.docs.get("dispatch_subscriptions/user-1").status, "active");
 });
 
-test("invoice.paid is authoritative for activating Dispatch entitlement", async () => {
+test("invoice.paid re-reads current Subscription and activates only active status", async () => {
   const {admin, db} = fakeAdmin({
     "dispatch_subscriptions/user-1": {
       status: "processing",
@@ -130,13 +130,61 @@ test("invoice.paid is authoritative for activating Dispatch entitlement", async 
       stripeSubscriptionId: "sub_dispatch",
     },
   });
-  const state = createDispatchSubscriptionState(admin, stripeConfig);
+  let retrievals = 0;
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async ({subscriptionId}) => {
+      retrievals += 1;
+      assert.equal(subscriptionId, "sub_dispatch");
+      return subscription({status: "active"});
+    },
+  });
   const result = await state.handleInvoicePaid(invoice(), "sk_test");
+  assert.equal(retrievals, 1);
   assert.equal(result.action, "activated");
   const stored = db.docs.get("dispatch_subscriptions/user-1");
   assert.equal(stored.entitlementActive, true);
+  assert.equal(stored.status, "active");
   assert.equal(stored.billingStatus, "paid");
   assert.equal(stored.lastPaidInvoiceId, "in_dispatch");
+});
+
+test("paid invoice cannot activate an unpaid provider subscription", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": {
+      status: "processing",
+      entitlementActive: false,
+      stripeSubscriptionId: "sub_dispatch",
+    },
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({status: "unpaid"}),
+  });
+  const result = await state.handleInvoicePaid(invoice(), "sk_test");
+  assert.equal(result.action, "paid_state_updated");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.status, "unpaid");
+  assert.equal(stored.entitlementActive, false);
+  assert.equal(stored.paymentIssue, true);
+  assert.equal(stored.billingStatus, "paid_provider_unpaid");
+});
+
+test("paid invoice with unknown provider status is quarantined for review", async () => {
+  const {admin, db} = fakeAdmin({
+    "dispatch_subscriptions/user-1": {
+      status: "processing",
+      entitlementActive: false,
+      stripeSubscriptionId: "sub_dispatch",
+    },
+  });
+  const state = createDispatchSubscriptionState(admin, stripeConfig, {
+    retrieveSubscription: async () => subscription({status: "mystery_state"}),
+  });
+  const result = await state.handleInvoicePaid(invoice(), "sk_test");
+  assert.equal(result.action, "review");
+  const stored = db.docs.get("dispatch_subscriptions/user-1");
+  assert.equal(stored.entitlementActive, false);
+  assert.equal(stored.reviewRequired, true);
+  assert.equal(stored.reviewReason, "paid_invoice_subscription_status_review");
 });
 
 test("failed invoice in past_due state flags payment issue without arbitrary access cutoff", async () => {
