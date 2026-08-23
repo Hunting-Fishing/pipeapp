@@ -440,6 +440,26 @@ try {
       (await db.doc(`dispatch_carriers/${carrier.uid}`).get()).data().status,
       "active",
   );
+  await db.doc(`dispatch_memberships/${carrier.uid}`).set({
+    ownerUid: carrier.uid,
+    active: true,
+    status: "active",
+    renewalStatus: "paid",
+    paymentIssue: false,
+    plan: "monthly",
+    subscriptionId: `sub_integration_${now}`,
+    stripeCustomerId: `cus_integration_${now}`,
+    currentPeriodStart: Timestamp.fromMillis(
+        now - 24 * 60 * 60 * 1000,
+    ),
+    currentPeriodEnd: Timestamp.fromMillis(
+        now + 30 * 24 * 60 * 60 * 1000,
+    ),
+    lastPaidInvoiceId: `in_integration_${now}`,
+    createdAt: Timestamp.fromMillis(now - 24 * 60 * 60 * 1000),
+    updatedAt: Timestamp.fromMillis(now),
+  });
+
   await assertCollectionSize("account_phone_registry", 3);
   assert.deepEqual(
       await call("syncAccountVerification", unverified.token, {}),
