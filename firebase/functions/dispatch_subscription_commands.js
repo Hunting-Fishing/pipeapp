@@ -122,6 +122,10 @@ function couponFromEntitlement(entitlement) {
   return null;
 }
 
+function dispatchPromotionCodeEntryEnabled(couponId) {
+  return !String(couponId || "").trim();
+}
+
 function createDispatchSubscriptionCommands(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -280,7 +284,8 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           client_reference_id: uid,
           ...dispatchCheckoutCustomerFields(state),
           billing_address_collection: "required",
-          allow_promotion_codes: "false",
+          allow_promotion_codes:
+            dispatchPromotionCodeEntryEnabled(couponId) ? "true" : "false",
           "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
           "line_items[0][price]": priceId,
           "line_items[0][quantity]": 1,
@@ -426,6 +431,7 @@ module.exports = {
   createDispatchSubscriptionCommands,
   dispatchBillingPortalRuntimeReady,
   dispatchCheckoutCustomerFields,
+  dispatchPromotionCodeEntryEnabled,
   requireSubscriptionReady,
   selectedPlan,
   validStripeCheckoutUrl,
