@@ -19,6 +19,8 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeCheckoutEnabled",
   "stripeFeeBillingEnabled",
   "stripeSubscriptionsEnabled",
+  "stripeSubscriptionRecoveryVerified",
+  "stripeSubscriptionLifecycleWebhookVerified",
   "dispatchAffiliateCommissionAccrualEnabled",
   "stripeWebhookVerified",
   "stripeTaxReady",
@@ -140,12 +142,14 @@ function validateReadiness(next, options = {}) {
   if (next.stripeSubscriptionsEnabled && !(
     next.stripeMode === "production" &&
     next.stripeWebhookVerified &&
+    next.stripeSubscriptionLifecycleWebhookVerified &&
+    next.stripeSubscriptionRecoveryVerified &&
     taxBillingPrepared(next) &&
     next.stripeReconciliationReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and an authorized GST/HST billing state.",
+        "Live Dispatch subscriptions require production mode, verified core and subscription lifecycle webhooks, verified subscription recovery settings, reconciliation readiness, and an authorized GST/HST billing state.",
     );
   }
   if (next.dispatchAffiliateCommissionAccrualEnabled && !(
