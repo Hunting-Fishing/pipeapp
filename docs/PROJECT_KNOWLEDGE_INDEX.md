@@ -4,7 +4,9 @@ Status: active engineering index
 
 ## Purpose
 
-This file tells autonomous and human engineers where product truth lives. It is an index, not a duplicate roadmap. When two sources disagree, do not silently choose; apply the authority order below and record unresolved conflicts.
+This file tells autonomous and human engineers where Pipe Buyer product truth lives. It is an index, not a duplicate roadmap. When two sources disagree, do not silently choose; apply the authority order below and record unresolved conflicts.
+
+The reusable Autonomous Builder engine lives outside this repository in `Hunting-Fishing/366-AI-Software-Homebrew/autonomous-builder`. This repository owns the Pipe Buyer adapter, knowledge, compatibility contracts, and project verification.
 
 ## Authority order
 
@@ -35,15 +37,17 @@ A newer implementation does not override a documented safety or product decision
 - `docs/FEATURE_REGISTRY.md` — durable capability inventory.
 - `docs/CONTRACTS_AND_COMPATIBILITY.md` — routes, commands, data, lifecycle, and backward-compatibility rules.
 - `.autobuild/feature_contract.json` — machine-readable critical anchors.
-- `tool/autonomous_compatibility.mjs` — compares the working tree to HEAD and rejects removal of existing GoRouter/FFRoute signatures or Firebase Function exports while allowing additive work.
+- `.autobuild/reviewer_fault_cases.json` — Pipe-specific seeded reviewer graduation cases.
+- `tool/autonomous_compatibility.mjs` — compares route/Function compatibility surfaces and rejects accidental removals.
 - Tests, Rules tests, Function parity controls, and release manifests — executable compatibility evidence.
 
 ## Quality and testing
 
 - `docs/TEST_STRATEGY.md` — testing layers and regression policy.
 - `docs/TECH_DEBT_REGISTER.md` — known debt that should be reduced without turning unrelated work into rewrites.
-- `tool/verify.ps1` — complete repository verification gate.
-- `tool/autonomous_recovery.ps1` — quarantines provably interrupted unverified work and restores the last verified commit before a resumed autonomous run; ambiguous dirty work remains operator-owned and fails closed.
+- `tool/verify.ps1` — complete Pipe Buyer verification gate consumed by the central engine.
+
+Generic worker containment, crash recovery, risk guarding, independent reviewer orchestration, and engine fault tests are owned by the central 366 Autonomous Builder, not by Pipe Buyer.
 
 ## UI and product experience
 
@@ -54,9 +58,9 @@ A newer implementation does not override a documented safety or product decision
 ## Payments, billing, tax, and provider money flows
 
 - `docs/PAYMENTS_EXECUTION_TRACKER.md` — payment implementation/evidence queue and authoritative completion state.
-- `docs/PAYMENTS_CURRENT_CONFIGURATION.md` — concise current source-controlled Stripe/checkout/webhook architecture and immediate code-capable queue; does not claim live provider evidence.
+- `docs/PAYMENTS_CURRENT_CONFIGURATION.md` — current source-controlled Stripe/checkout/webhook architecture; does not claim live provider evidence.
 - `docs/PHASE_1_BILLING_BOUNDARY.md` — cloud billing versus product payment boundary.
-- `docs/COST_AND_BILLING_GOVERNANCE.md` — spend controls, provider cost ownership, and autonomous no-spend rules.
+- `docs/COST_AND_BILLING_GOVERNANCE.md` — spend controls and autonomous no-spend rules.
 - `docs/MARKETPLACE_REFUND_DISPUTE_RUNBOOK.md` — refund/dispute operations.
 - `docs/MARKETPLACE_TAX_INFORMATION_AND_EXEMPTION_TERMS.md` — tax information boundaries.
 
@@ -85,14 +89,16 @@ A newer implementation does not override a documented safety or product decision
 
 - `docs/DEPENDENCY_AND_PROVIDER_POLICY.md` — package/provider selection, lockfiles, cost, licensing, failure modes, and exit strategy.
 
-## Autonomous builder configuration
+## Autonomous Builder adapter
 
-- `.autobuild/project.json` — project-specific builder configuration.
-- `.autobuild/risk_policy.json` — machine-readable path/risk escalation and protected-governance rules.
-- `AGENTS.md` — repository worker constitution.
-- `docs/AUTONOMOUS_BUILD_AGENT.md` — supervisor operation and extraction plan.
-- `docs/AUTONOMOUS_BUILDER_READINESS.md` — graduation evidence checklist; workers cannot edit or self-approve it.
+- `.autobuild/project.json` — Pipe Buyer adapter for central engine schema v3.
+- `.autobuild/risk_policy.json` — Pipe-specific risk escalation and protected-governance rules.
+- `.autobuild/feature_contract.json` — critical project anchors.
+- `.autobuild/reviewer_fault_cases.json` — Pipe-specific reviewer fault cases.
+- `AGENTS.md` — Pipe Buyer worker constitution.
+- `docs/AUTONOMOUS_BUILD_AGENT.md` — how this project connects to the central 366 engine.
+- `docs/AUTONOMOUS_BUILDER_READINESS.md` — Pipe-specific graduation/calibration checklist.
 
 ## Documentation rule
 
-Do not create a new authoritative document when an existing source can be extended cleanly. New documents should have one clear responsibility and should remain below the configured documentation size ceiling. Detailed historical evidence belongs in domain runbooks or append-only registers rather than duplicated summaries.
+Do not create a new authoritative document when an existing source can be extended cleanly. New documents should have one clear responsibility and remain below the configured documentation size ceiling. Historical evidence belongs in domain runbooks or append-only registers rather than duplicated summaries.
