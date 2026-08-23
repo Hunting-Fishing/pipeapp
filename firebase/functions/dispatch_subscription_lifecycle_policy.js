@@ -11,6 +11,10 @@ const ENTITLEMENT_OFF_STATUSES = Object.freeze(new Set([
   "incomplete_expired",
   "paused",
 ]));
+const REPLACEABLE_SUBSCRIPTION_STATUSES = Object.freeze(new Set([
+  "canceled",
+  "incomplete_expired",
+]));
 
 function dispatchSubscriptionLifecycleDecision(
     providerStatus,
@@ -49,6 +53,11 @@ function dispatchSubscriptionLifecycleDecision(
   });
 }
 
+function dispatchSubscriptionReplacementAllowed(current = {}) {
+  return current.entitlementActive !== true &&
+    REPLACEABLE_SUBSCRIPTION_STATUSES.has(String(current.status || "").trim());
+}
+
 function dispatchCheckoutWebhookDecision(current = {}, session = {}) {
   const currentSubscriptionId = String(current.stripeSubscriptionId || "");
   const eventSubscriptionId = typeof session.subscription === "string" ?
@@ -60,7 +69,8 @@ function dispatchCheckoutWebhookDecision(current = {}, session = {}) {
     return Object.freeze({action: "preserve_active"});
   }
   if (currentSubscriptionId.startsWith("sub_") &&
-      eventSubscriptionId && currentSubscriptionId !== eventSubscriptionId) {
+      eventSubscriptionId && currentSubscriptionId !== eventSubscriptionId &&
+      !dispatchSubscriptionReplacementAllowed(current)) {
     return Object.freeze({action: "review", reason: "subscription_conflict"});
   }
   return Object.freeze({
@@ -73,6 +83,8 @@ function dispatchCheckoutWebhookDecision(current = {}, session = {}) {
 module.exports = {
   ENTITLEMENT_OFF_STATUSES,
   ENTITLEMENT_ON_STATUSES,
+  REPLACEABLE_SUBSCRIPTION_STATUSES,
   dispatchCheckoutWebhookDecision,
   dispatchSubscriptionLifecycleDecision,
+  dispatchSubscriptionReplacementAllowed,
 };
