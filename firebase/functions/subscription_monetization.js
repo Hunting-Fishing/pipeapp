@@ -68,6 +68,43 @@ function sourceChargeFromInvoice(invoice) {
   return "";
 }
 
+function affiliateCommissionAccrualDecision({
+  referrerUid = "",
+  baseMinor = 0,
+  affiliatePayoutsEnabled = false,
+} = {}) {
+  const normalizedReferrerUid = String(referrerUid || "").trim();
+  const normalizedBaseMinor = Number(baseMinor);
+  if (!normalizedReferrerUid) {
+    return Object.freeze({
+      enabled: false,
+      status: "no_referrer",
+      commissionMinor: 0,
+    });
+  }
+  if (affiliatePayoutsEnabled !== true) {
+    return Object.freeze({
+      enabled: false,
+      status: "disabled_by_readiness",
+      commissionMinor: 0,
+    });
+  }
+  if (!Number.isSafeInteger(normalizedBaseMinor) || normalizedBaseMinor <= 0) {
+    return Object.freeze({
+      enabled: true,
+      status: "zero_base",
+      commissionMinor: 0,
+    });
+  }
+  return Object.freeze({
+    enabled: true,
+    status: "accrued",
+    commissionMinor: Math.floor(
+        normalizedBaseMinor * SUBSCRIPTION_AFFILIATE_SHARE_BPS / BASIS_POINTS,
+    ),
+  });
+}
+
 function createSubscriptionMonetization(admin, stripeConfig) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -93,9 +130,16 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
     const reserveMinor = provisionalTaxReserveMinor(baseMinor, taxStatus);
-    const commissionMinor = Math.floor(
-        baseMinor * SUBSCRIPTION_AFFILIATE_SHARE_BPS / BASIS_POINTS,
-    );
+    const readinessSnapshot = await db.collection("platform_configuration")
+        .doc("payment_provider_readiness")
+        .get();
+    const readiness = readinessSnapshot.exists ? readinessSnapshot.data() : {};
+    const accrual = affiliateCommissionAccrualDecision({
+      referrerUid,
+      baseMinor,
+      affiliatePayoutsEnabled: readiness.affiliatePayoutsEnabled === true,
+    });
+    const commissionMinor = accrual.commissionMinor;
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const commissionRef = db.collection("affiliate_commission_ledger")
         .doc(`subscription_${invoiceId}`);
@@ -105,7 +149,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
     );
     await db.runTransaction(async (transaction) => {
       const existingInvoice = await transaction.get(invoiceRef);
-      const existingCommission = referrerUid && commissionMinor > 0 ?
+      const existingCommission = accrual.status === "accrued" && commissionMinor > 0 ?
         await transaction.get(commissionRef) : null;
       transaction.set(invoiceRef, {
         invoiceId,
@@ -122,6 +166,8 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         taxReserveStatus: taxStatus === "registration_pending" ?
           "provisional_pending_cra" :
           "not_required",
+        affiliateCommissionAccrualStatus: accrual.status,
+        affiliateCommissionMinor: commissionMinor,
         sourceChargeId: sourceChargeId || null,
         status: "paid",
         paidAt: FieldValue.serverTimestamp(),
@@ -130,7 +176,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
           createdAt: FieldValue.serverTimestamp(),
         }),
       }, {merge: true});
-      if (referrerUid && commissionMinor > 0 &&
+      if (accrual.status === "accrued" && commissionMinor > 0 &&
           existingCommission && !existingCommission.exists) {
         transaction.create(commissionRef, {
           type: "dispatch_subscription_share",
@@ -185,6 +231,7 @@ module.exports = {
   BASIS_POINTS,
   SUBSCRIPTION_AFFILIATE_SHARE_BPS,
   SUBSCRIPTION_REFUND_WINDOW_DAYS,
+  affiliateCommissionAccrualDecision,
   createSubscriptionMonetization,
   invoiceCommissionBaseMinor,
   retrieveStripeSubscription,
