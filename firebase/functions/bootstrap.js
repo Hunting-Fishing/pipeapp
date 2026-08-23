@@ -46,6 +46,9 @@ const {
   createDispatchSubscriptionPortalCommands,
 } = require("./dispatch_subscription_portal_commands");
 const {
+  createDispatchSubscriptionReconciliationCommands,
+} = require("./dispatch_subscription_reconciliation_commands");
+const {
   createDispatchBillingPortalAdmin,
 } = require("./dispatch_billing_portal_admin");
 const {
@@ -80,6 +83,8 @@ const dispatchSubscriptionStatusCommands =
     createDispatchSubscriptionStatusCommands(admin);
 const dispatchSubscriptionPortalCommands =
     createDispatchSubscriptionPortalCommands(admin);
+const dispatchSubscriptionReconciliationCommands =
+    createDispatchSubscriptionReconciliationCommands(admin);
 const dispatchBillingPortalAdmin = createDispatchBillingPortalAdmin(admin);
 const canadaSmallSupplierThresholdCommands =
     createCanadaSmallSupplierThresholdCommands(admin);
@@ -126,10 +131,6 @@ async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
           ["blocked_seller_recovery", "refund_retry_required"].includes(
               String(financialCase.status || ""),
           )) {
-        // Re-enter the approved refund executor so seller recovery is retried
-        // against the requested refund's projected exposure. Using the generic
-        // rebalance here would see only already-completed refunds and could
-        // incorrectly restore funds before the pending refund is issued.
         return marketplaceFinancialResolution.executeMarketplaceRefund(request);
       }
     }
@@ -137,9 +138,6 @@ async function retryMarketplaceSellerRecoveryWithRefundGuard(request) {
   return marketplaceFinancialResolution.retryMarketplaceSellerRecovery(request);
 }
 
-// Override the legacy transaction callable with a financial guard while
-// preserving its existing policy acceptance, authorization, rate limiting,
-// command validation, and idempotency behavior.
 exports.updateMarketplaceTransaction = onCall(
     protectedCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
@@ -229,6 +227,10 @@ exports.createDispatchBillingPortalSession = onCall(
     stripeCallableOptions,
     dispatchSubscriptionPortalCommands.createDispatchBillingPortalSession,
 );
+exports.reconcileDispatchSubscriptionInvoice = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionReconciliationCommands.reconcileDispatchSubscriptionInvoice,
+);
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,
     marketplaceFinancialResolution.executeMarketplaceRefund,
@@ -256,24 +258,4 @@ exports.stripeMarketplaceWebhook = onRequest(
       cors: false,
     },
     stripeWebhookHandler,
-);
-
-exports.processEligibleAffiliatePayouts = onSchedule(
-    {
-      schedule: "every day 06:15",
-      timeZone: "America/Vancouver",
-      secrets: [stripeSecretKey.name],
-    },
-    affiliatePayouts.processEligibleAffiliatePayouts,
-);
-
-exports.onMarketplaceTransactionCreatedMonetization = onDocumentCreated(
-    {
-      document: "marketplace_transactions/{transactionId}",
-      retry: true,
-    },
-    async (event) => marketplaceMonetization.snapshotAcceptedTransaction({
-      transactionId: event.params.transactionId,
-      transactionData: event.data && event.data.data(),
-    }),
 );
