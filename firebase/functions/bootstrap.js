@@ -58,6 +58,9 @@ const {
   createDispatchBillingPortalAdmin,
 } = require("./dispatch_billing_portal_admin");
 const {
+  createDispatchBillingPortalVerificationCommands,
+} = require("./dispatch_billing_portal_verification_commands");
+const {
   createCanadaSmallSupplierThresholdCommands,
 } = require("./canada_small_supplier_threshold_commands");
 const {
@@ -96,6 +99,8 @@ const dispatchSubscriptionAdminCommands =
 const dispatchSubscriptionLaunchReadinessCommands =
     createDispatchSubscriptionLaunchReadinessCommands(admin);
 const dispatchBillingPortalAdmin = createDispatchBillingPortalAdmin(admin);
+const dispatchBillingPortalVerificationCommands =
+    createDispatchBillingPortalVerificationCommands(admin);
 const canadaSmallSupplierThresholdCommands =
     createCanadaSmallSupplierThresholdCommands(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
@@ -240,6 +245,10 @@ exports.createDispatchSubscriptionCheckout = onCall(
 exports.createDispatchBillingPortalSession = onCall(
     stripeCallableOptions,
     dispatchSubscriptionPortalCommands.createDispatchBillingPortalSession,
+);
+exports.verifyDispatchBillingPortalConfiguration = onCall(
+    stripeCallableOptions,
+    dispatchBillingPortalVerificationCommands.verifyDispatchBillingPortalConfiguration,
 );
 exports.reconcileDispatchSubscriptionInvoice = onCall(
     stripeCallableOptions,
