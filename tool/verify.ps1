@@ -36,6 +36,7 @@ $releaseToolScripts = @(
   (Join-Path $workspace 'tool\autonomous_build.ps1'),
   (Join-Path $workspace 'tool\autonomous_build_v2.ps1'),
   (Join-Path $workspace 'tool\autonomous_process.ps1'),
+  (Join-Path $workspace 'tool\autonomous_project.ps1'),
   (Join-Path $workspace 'tool\autonomous_guard.ps1'),
   (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1'),
   (Join-Path $workspace 'tool\autonomous_guard_test.ps1')
