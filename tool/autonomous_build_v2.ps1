@@ -56,6 +56,17 @@ function Read-AgentResult {
     return $raw | ConvertFrom-Json
 }
 
+function Get-RiskRank {
+    param([string]$Risk)
+    switch ($Risk.ToLowerInvariant()) {
+        "low" { return 1 }
+        "medium" { return 2 }
+        "high" { return 3 }
+        "critical" { return 4 }
+        default { throw "Unknown risk level: $Risk" }
+    }
+}
+
 function Ensure-RunExclusion {
     param([string]$RepoRoot)
     $excludePath = Join-Path $RepoRoot ".git/info/exclude"
@@ -89,6 +100,7 @@ function Assert-ProjectKnowledge {
 
     $paths = New-Object System.Collections.Generic.List[string]
     $paths.Add([string]$Config.agent_policy)
+    $paths.Add([string]$Config.risk_policy)
     foreach ($item in @($Config.knowledge.always)) { $paths.Add([string]$item) }
     $paths.Add([string]$Config.knowledge.feature_registry)
 
@@ -159,8 +171,10 @@ if (-not (Get-Command codex -ErrorAction SilentlyContinue)) {
 $engineRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $schemaPath = Join-Path $engineRoot "automation/agent/result.schema.json"
 $taskPromptPath = Join-Path $engineRoot "automation/agent/task_prompt.md"
+$reviewSchemaPath = Join-Path $engineRoot "automation/agent/review.schema.json"
+$reviewPromptPath = Join-Path $engineRoot "automation/agent/review_prompt.md"
 $guardPathInEngine = Join-Path $engineRoot "tool/autonomous_guard.ps1"
-foreach ($required in @($schemaPath, $taskPromptPath)) {
+foreach ($required in @($schemaPath, $taskPromptPath, $reviewSchemaPath, $reviewPromptPath)) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "Autonomous builder engine file is missing: $required"
     }
@@ -211,7 +225,29 @@ $runDir = Join-Path $projectRoot ".agent-run"
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 $statePath = Join-Path $runDir "state.json"
 
+$runLock = $null
+if ([bool]$config.git.single_writer_required) {
+    $lockPath = Join-Path $runDir "supervisor.lock"
+    try {
+        $runLock = [System.IO.File]::Open(
+            $lockPath,
+            [System.IO.FileMode]::OpenOrCreate,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None
+        )
+        $runLock.SetLength(0)
+        $lockText = "pid=$PID`nproject=$projectRoot`nbranch=$currentBranch`nstarted=$(Get-Date -Format o)`n"
+        $lockBytes = [Text.Encoding]::UTF8.GetBytes($lockText)
+        $runLock.Write($lockBytes, 0, $lockBytes.Length)
+        $runLock.Flush()
+    }
+    catch {
+        throw "Another autonomous supervisor appears to own this worktree. Single-writer lock could not be acquired: $lockPath"
+    }
+}
+
 $basePrompt = Get-Content -LiteralPath $taskPromptPath -Raw
+$baseReviewPrompt = Get-Content -LiteralPath $reviewPromptPath -Raw
 $startedAt = Get-Date
 $deadline = $startedAt.AddHours($Hours)
 $completedTasks = 0
@@ -240,15 +276,19 @@ $state = @{
     last_task = ""
     next_task = $lastNextTask
     last_verified_commit = (& git rev-parse HEAD).Trim()
+    last_review_verdict = ""
+    last_review_risk = ""
     stop_reason = ""
 }
 Write-State -Path $statePath -State $state
 
 $workerMinutes = [int]$config.timeouts.worker_minutes
 $repairMinutes = [int]$config.timeouts.repair_minutes
+$reviewMinutes = [int]$config.timeouts.review_minutes
 $verifyMinutes = [int]$config.timeouts.verify_minutes
 $noOutputMinutes = [int]$config.timeouts.no_output_minutes
 $verifyCommand = [string]$config.verify_command
+$reviewRequired = [bool]$config.independent_review_required
 
 Write-Host ""
 Write-Host "Autonomous Builder V2 started"
@@ -258,6 +298,7 @@ Write-Host "  Branch     : $currentBranch"
 Write-Host "  Time budget: $Hours hour(s)"
 Write-Host "  Task limit : $MaxTasks"
 Write-Host "  Worker cap : $workerMinutes minute(s)"
+Write-Host "  Review cap : $reviewMinutes minute(s)"
 Write-Host "  Push       : $($Push.IsPresent)"
 Write-Host "  Run state  : $statePath"
 Write-Host ""
@@ -281,8 +322,8 @@ $basePrompt
 - Reusable writer branch: $currentBranch
 - Approximate supervisor time remaining: $remainingMinutes minute(s)
 - Previous suggested next task: $lastNextTask
-- The outer supervisor will run the autonomous guard and project verification after your focused tests.
-- The outer supervisor, not you, creates commits only after both gates pass.
+- The outer supervisor will run the autonomous guard, an independent read-only review, and project verification after your focused tests.
+- The outer supervisor, not you, creates commits only after all gates pass.
 - Runtime logs/state are under `.agent-run/`; do not edit or commit them.
 "@
 
@@ -307,6 +348,7 @@ $basePrompt
     }
 
     $result = Read-AgentResult -Path $resultPath
+    $activeResultPath = $resultPath
     $state.last_task = [string]$result.task
     $state.next_task = [string]$result.next_task
     $lastNextTask = [string]$result.next_task
@@ -315,6 +357,7 @@ $basePrompt
     Write-Host "Task       : $($result.task)"
     Write-Host "Status     : $($result.status)"
     Write-Host "Source     : $($result.source_doc) :: $($result.source_item)"
+    Write-Host "Risk       : $($result.risk_level)"
     Write-Host "Refactor   : $($result.refactor_mode)"
 
     $dirty = Get-WorkingTreeText
@@ -329,6 +372,7 @@ $basePrompt
     $verified = $false
     $repairAttempt = 0
     $failureLog = ""
+    $gateStopReason = ""
 
     while (-not $verified) {
         $gateStamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -340,10 +384,61 @@ $basePrompt
         Write-Host "Running autonomous quality guard..."
         $guardEsc = Escape-SingleQuotedPowerShell $guardPath
         $rootEsc = Escape-SingleQuotedPowerShell $projectRoot
-        $guardCommand = "& '$guardEsc' -ProjectRoot '$rootEsc'"
+        $resultEsc = Escape-SingleQuotedPowerShell $activeResultPath
+        $guardCommand = "& '$guardEsc' -ProjectRoot '$rootEsc' -ResultPath '$resultEsc'"
         $guard = Invoke-ProjectCommand -ProjectRoot $projectRoot -CommandText $guardCommand -TimeoutMinutes 10 -LogPath $guardLog
 
-        if ($guard.ExitCode -eq 0) {
+        if ($guard.ExitCode -eq 0 -and $reviewRequired) {
+            $state.phase = "independent-review"
+            Write-State -Path $statePath -State $state
+            $reviewResultPath = Join-Path $runDir "review-$iteration-attempt-$repairAttempt-$gateStamp.json"
+            $reviewLog = Join-Path $runDir "review-$iteration-attempt-$repairAttempt-$gateStamp.log"
+            $relativeWorkerResult = ".agent-run/$([System.IO.Path]::GetFileName($activeResultPath))"
+            $reviewPrompt = @"
+$baseReviewPrompt
+
+## Supervisor review context
+
+- Target project: $($config.project_name)
+- Worker task: $($result.task)
+- Worker declared risk: $($result.risk_level)
+- Worker structured result: `$relativeWorkerResult`
+- Review the uncommitted diff against HEAD. Do not edit it.
+"@
+
+            Write-Host "Running independent read-only review..."
+            $reviewRun = Invoke-CodexReviewer `
+                -Prompt $reviewPrompt `
+                -ProjectRoot $projectRoot `
+                -SchemaPath $reviewSchemaPath `
+                -ResultPath $reviewResultPath `
+                -LogPath $reviewLog `
+                -TimeoutMinutes $reviewMinutes `
+                -NoOutputMinutes $noOutputMinutes
+
+            if ($reviewRun.ExitCode -ne 0) {
+                $gateStopReason = if ($reviewRun.TimedOut) { "independent reviewer timed out" } elseif ($reviewRun.Stalled) { "independent reviewer stalled" } else { "independent reviewer exited with code $($reviewRun.ExitCode)" }
+                $failureLog = $reviewLog
+                break
+            }
+
+            $reviewResult = Read-AgentResult -Path $reviewResultPath
+            $state.last_review_verdict = [string]$reviewResult.verdict
+            $state.last_review_risk = [string]$reviewResult.risk_level
+            Write-State -Path $statePath -State $state
+            Write-Host "Review     : $($reviewResult.verdict) / $($reviewResult.risk_level)"
+
+            $reviewBlocks = ([string]$reviewResult.verdict -eq "block")
+            $reviewRaisedRisk = (Get-RiskRank -Risk ([string]$reviewResult.risk_level)) -gt (Get-RiskRank -Risk ([string]$result.risk_level))
+            if ($reviewBlocks -or $reviewRaisedRisk) {
+                $failureLog = $reviewResultPath
+            }
+        }
+        elseif ($guard.ExitCode -ne 0) {
+            $failureLog = $guardLog
+        }
+
+        if ($guard.ExitCode -eq 0 -and [string]::IsNullOrWhiteSpace($failureLog) -and [string]::IsNullOrWhiteSpace($gateStopReason)) {
             $state.phase = "full-verification"
             Write-State -Path $statePath -State $state
             Write-Host "Running project verification..."
@@ -354,10 +449,8 @@ $basePrompt
             }
             $failureLog = $verifyLog
         }
-        else {
-            $failureLog = $guardLog
-        }
 
+        if (-not [string]::IsNullOrWhiteSpace($gateStopReason)) { break }
         if ($repairAttempt -ge $MaxRepairAttempts) { break }
         $repairAttempt++
         $repairStamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -366,11 +459,11 @@ $basePrompt
         $relativeFailureLog = ".agent-run/$([System.IO.Path]::GetFileName($failureLog))"
 
         $repairPrompt = @"
-Read `.autobuild/project.json`, the configured agent policy, and the relevant quality/architecture knowledge. You are repairing only the current increment: `$($result.task)`.
+Read `.autobuild/project.json`, `docs/PROJECT_KNOWLEDGE_INDEX.md`, the configured agent policy, and relevant quality/risk/domain knowledge. You are repairing only the current increment: `$($result.task)`.
 
-A supervisor gate failed. Inspect `$relativeFailureLog` and the current Git diff. Fix only root causes associated with this increment or a directly exposed defect required for it to pass.
+A supervisor guard, independent review, or full verification gate failed. Inspect `$relativeFailureLog` and the current Git diff. Fix only root causes associated with this increment or a directly exposed defect required for it to pass.
 
-Do not weaken tests, feature-preservation anchors, source-size rules, change budgets, security, or product contracts. If the increment is too large, reduce/split the current work rather than bypassing the gate. Do not commit, branch, push, merge, deploy, or perform live-provider actions.
+Do not weaken tests, feature-preservation anchors, source/document size rules, change budgets, risk classification, security, financial/data invariants, or product contracts. If the increment is too large, reduce/split the current work rather than bypassing the gate. Do not commit, branch, push, merge, deploy, spend money, or perform live-provider actions.
 
 Return only the structured result required by the engine result schema.
 "@
@@ -388,17 +481,19 @@ Return only the structured result required by the engine result schema.
             -NoOutputMinutes $noOutputMinutes
 
         if ($repair.ExitCode -ne 0) {
-            $stopReason = "repair worker failed or timed out with code $($repair.ExitCode)"
+            $gateStopReason = "repair worker failed or timed out with code $($repair.ExitCode)"
             break
         }
         $result = Read-AgentResult -Path $repairResultPath
+        $activeResultPath = $repairResultPath
+        $failureLog = ""
     }
 
     if (-not $verified) {
         $failurePatch = Join-Path $runDir "failed-iteration-$iteration.patch"
         @(& git diff --binary) | Set-Content -LiteralPath $failurePatch
         Assert-LastExitCode "git diff --binary"
-        $stopReason = "quality gates still failing; changes left uncommitted. Patch: $failurePatch"
+        $stopReason = if (-not [string]::IsNullOrWhiteSpace($gateStopReason)) { $gateStopReason } else { "quality/review gates still failing; changes left uncommitted. Patch: $failurePatch" }
         Write-Warning $stopReason
         break
     }
@@ -448,6 +543,11 @@ $state.completed_tasks = $completedTasks
 $state.last_verified_commit = $currentSha
 $state.stop_reason = $stopReason
 Write-State -Path $statePath -State $state
+
+if ($null -ne $runLock) {
+    $runLock.Dispose()
+    $runLock = $null
+}
 
 Write-Host ""
 Write-Host "Autonomous Builder V2 finished"
