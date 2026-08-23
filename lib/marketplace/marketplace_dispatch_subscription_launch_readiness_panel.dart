@@ -18,6 +18,7 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
 
   Map<String, dynamic> _readiness = const {};
   Map<String, dynamic> _portal = const {};
+  Map<String, dynamic> _taxEvidence = const {};
   bool _loading = true;
   bool _working = false;
   String? _error;
@@ -40,11 +41,13 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
       final responses = await Future.wait([
         _commands.execute('getPaymentProviderReadiness', const {}),
         _commands.execute('getDispatchBillingPortalReadiness', const {}),
+        _commands.execute('getCanadaGstHstThresholdAssessment', const {}),
       ]);
       if (!mounted) return;
       setState(() {
         _readiness = responses[0];
         _portal = responses[1];
+        _taxEvidence = responses[2];
       });
     } catch (error) {
       if (!mounted) return;
@@ -179,6 +182,7 @@ class _MarketplaceDispatchSubscriptionLaunchReadinessPanelState
     return MarketplaceDispatchSubscriptionReadinessView(
       readiness: _readiness,
       portal: _portal,
+      taxEvidence: _taxEvidence,
       working: _working,
       error: _error,
       resultMessage: _resultMessage,
