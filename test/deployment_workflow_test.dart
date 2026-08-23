@@ -16,6 +16,41 @@ void main() {
     expect(workflow, contains('git merge-base --is-ancestor'));
   });
 
+  test('client Dispatch and paid build approvals are explicit and default off', () {
+    expect(workflow, contains('enable_dispatch:'));
+    expect(workflow, contains('enable_paid_features:'));
+    expect(
+      RegExp(r'enable_dispatch:[\s\S]*?default: false').hasMatch(workflow),
+      isTrue,
+    );
+    expect(
+      RegExp(r'enable_paid_features:[\s\S]*?default: false').hasMatch(workflow),
+      isTrue,
+    );
+    expect(workflow, contains('PIPE_ENABLE_DISPATCH:'));
+    expect(workflow, contains('PIPE_ENABLE_PAID_FEATURES:'));
+    expect(
+      workflow,
+      contains('--dart-define=PIPE_ENABLE_DISPATCH="$PIPE_ENABLE_DISPATCH"'),
+    );
+    expect(
+      workflow,
+      contains(
+        '--dart-define=PIPE_ENABLE_PAID_FEATURES="$PIPE_ENABLE_PAID_FEATURES"',
+      ),
+    );
+    expect(
+      workflow,
+      contains('--dispatch-build-enabled "$PIPE_ENABLE_DISPATCH"'),
+    );
+    expect(
+      workflow,
+      contains('--paid-features-build-enabled "$PIPE_ENABLE_PAID_FEATURES"'),
+    );
+    expect(workflow, contains('Dispatch build approval:'));
+    expect(workflow, contains('Paid features build approval:'));
+  });
+
   test('both jobs require the matching protected environment guard', () {
     expect(
       'PIPE_DEPLOY_ENVIRONMENT_GUARD:'.allMatches(workflow),
