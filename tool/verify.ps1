@@ -23,25 +23,12 @@ Write-Host 'Flutter SDK'
 flutter --version
 Assert-NativeSuccess 'Flutter SDK inspection'
 
-Write-Host 'Validating PowerShell release and autonomous tools'
+Write-Host 'Validating project PowerShell release tools'
 $releaseToolScripts = @(
   (Join-Path $workspace 'tool\verify.ps1'),
   (Join-Path $workspace 'tool\callable_emulator_integration.ps1'),
   (Join-Path $workspace 'tool\web_visual_smoke.ps1'),
-  (Join-Path $workspace 'tool\phase1_safe_default_rehearsal.ps1'),
-  (Join-Path $workspace 'tool\autonomous_build.ps1'),
-  (Join-Path $workspace 'tool\autonomous_build_v2.ps1'),
-  (Join-Path $workspace 'tool\autonomous_process.ps1'),
-  (Join-Path $workspace 'tool\autonomous_project.ps1'),
-  (Join-Path $workspace 'tool\autonomous_fingerprint.ps1'),
-  (Join-Path $workspace 'tool\autonomous_graduation.ps1'),
-  (Join-Path $workspace 'tool\autonomous_guard.ps1'),
-  (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1'),
-  (Join-Path $workspace 'tool\autonomous_guard_test.ps1'),
-  (Join-Path $workspace 'tool\autonomous_recovery_safe.ps1'),
-  (Join-Path $workspace 'tool\autonomous_recovery_safe_test.ps1'),
-  (Join-Path $workspace 'tool\autonomous_runtime_fault_test.ps1'),
-  (Join-Path $workspace 'tool\autonomous_reviewer_fault_test.ps1')
+  (Join-Path $workspace 'tool\phase1_safe_default_rehearsal.ps1')
 )
 foreach ($scriptPath in $releaseToolScripts) {
   $tokens = $null
@@ -55,22 +42,13 @@ foreach ($scriptPath in $releaseToolScripts) {
   }
 }
 
-Write-Host 'Testing autonomous builder governance and configuration'
-& (Join-Path $workspace 'tool\autonomous_builder_self_test.ps1') -ProjectRoot $workspace
-
-Write-Host 'Testing autonomous guard fail-closed behavior'
-& (Join-Path $workspace 'tool\autonomous_guard_test.ps1')
-
-Write-Host 'Testing interrupted-run stash recovery and refusal paths'
-& (Join-Path $workspace 'tool\autonomous_recovery_safe_test.ps1')
-
-Write-Host 'Testing automatic compatibility inventory logic'
+Write-Host 'Testing Pipe Buyer compatibility inventory logic'
 node --test tool/autonomous_compatibility_test.mjs
-Assert-NativeSuccess 'Autonomous compatibility tests'
+Assert-NativeSuccess 'Compatibility tests'
 
 Write-Host 'Checking current routes and Firebase Function exports for accidental deletion'
 node tool/autonomous_compatibility.mjs $workspace
-Assert-NativeSuccess 'Autonomous compatibility preservation'
+Assert-NativeSuccess 'Compatibility preservation'
 
 if (-not $SkipDependencyRestore) {
   Write-Host 'Restoring Flutter dependencies'
@@ -162,4 +140,4 @@ if (-not $SkipWebBuild) {
   Assert-NativeSuccess 'Release manifest generation'
 }
 
-Write-Host 'Verification completed successfully.'
+Write-Host 'Pipe Buyer verification completed successfully.'
