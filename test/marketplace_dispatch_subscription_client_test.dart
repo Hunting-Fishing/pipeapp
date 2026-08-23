@@ -54,6 +54,15 @@ void main() {
     expect(status.billingAvailable, isTrue);
   });
 
+  test('Pipe Buyer launch codes normalize safely before callable request', () {
+    expect(normalizeDispatchLaunchCodeForRequest(' founding500 '), 'FOUNDING500');
+    expect(normalizeDispatchLaunchCodeForRequest(''), '');
+    expect(
+      () => normalizeDispatchLaunchCodeForRequest('bad code!'),
+      throwsArgumentError,
+    );
+  });
+
   test('billing availability is fail-closed when an older backend omits it', () {
     final payload = statusPayload()..remove('billingAvailable');
     final status = MarketplaceDispatchSubscriptionStatus.fromMap(payload);

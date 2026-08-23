@@ -32,6 +32,15 @@ const {
   requireCanadaSmallSupplierRuntimeEvidence,
 } = require("./canada_small_supplier_runtime_gate");
 const {
+  FOUNDING500_CODE,
+  FOUNDING500_MAX_CLAIMS,
+  FOUNDING500_POLICY_REVISION,
+  FOUNDING500_PROGRAM_ID,
+  founding500PriorSubscriptionExists,
+  founding500TrialEndUnix,
+  normalizeDispatchLaunchCode,
+} = require("./dispatch_founding500_policy");
+const {
   dispatchCheckoutIdempotencyKey,
   dispatchCheckoutSessionId,
   dispatchPostProviderPersistenceDecision,
@@ -46,6 +55,8 @@ const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
 const SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION =
   "subscription_checkout_sessions";
 const DISPATCH_BILLING_PORTAL_DOC = "dispatch_billing_portal";
+const DISPATCH_PROMOTION_PROGRAMS_COLLECTION = "dispatch_promotion_programs";
+const DISPATCH_PROMOTION_CLAIMS_COLLECTION = "dispatch_promotion_claims";
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -57,6 +68,21 @@ function selectedPlan(value) {
     throw new HttpsError("invalid-argument", "The Dispatch subscription plan is invalid.");
   }
   return plan;
+}
+
+function selectedLaunchCode(value) {
+  const code = normalizeDispatchLaunchCode(value);
+  if (!code) return "";
+  if (!/^[A-Z0-9-]{1,64}$/u.test(code)) {
+    throw new HttpsError("invalid-argument", "The Pipe Buyer promo code is invalid.");
+  }
+  if (code !== FOUNDING500_CODE) {
+    throw new HttpsError(
+        "invalid-argument",
+        "This Pipe Buyer launch code is not recognized. Other Stripe promotion codes can be entered on the secure Stripe page.",
+    );
+  }
+  return code;
 }
 
 function validStripeCheckoutUrl(value) {
@@ -122,8 +148,8 @@ function couponFromEntitlement(entitlement) {
   return null;
 }
 
-function dispatchPromotionCodeEntryEnabled(couponId) {
-  return !String(couponId || "").trim();
+function dispatchPromotionCodeEntryEnabled(couponId, launchTrialApplied = false) {
+  return !String(couponId || "").trim() && launchTrialApplied !== true;
 }
 
 function createDispatchSubscriptionCommands(admin, options = {}) {
@@ -138,8 +164,144 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
   const secretProvider = options.secretProvider || (() => stripeSecretKey.value());
   const runtimeTaxEvidence = options.runtimeTaxEvidence ||
     requireCanadaSmallSupplierRuntimeEvidence;
+  const nowMs = options.nowMs || (() => Date.now());
+
+  async function reserveFounding500Claim({uid, state, checkoutAttempt}) {
+    if (founding500PriorSubscriptionExists(state)) {
+      throw new HttpsError(
+          "failed-precondition",
+          "The Founding 500 offer is limited to a user's first Dispatch subscription.",
+      );
+    }
+    const programRef = db.collection(DISPATCH_PROMOTION_PROGRAMS_COLLECTION)
+        .doc(FOUNDING500_PROGRAM_ID);
+    const claimRef = db.collection(DISPATCH_PROMOTION_CLAIMS_COLLECTION).doc(uid);
+    const trialEndUnix = founding500TrialEndUnix(nowMs());
+    return db.runTransaction(async (transaction) => {
+      const programSnapshot = await transaction.get(programRef);
+      const claimSnapshot = await transaction.get(claimRef);
+      const program = programSnapshot.exists ? programSnapshot.data() : {};
+      const claim = claimSnapshot.exists ? claimSnapshot.data() : {};
+
+      if (programSnapshot.exists) {
+        const maxClaims = Number(program.maxClaims);
+        const claimedCount = Number(program.claimedCount);
+        if (program.active === false) {
+          throw new HttpsError(
+              "resource-exhausted",
+              "The Founding 500 offer is no longer available.",
+          );
+        }
+        if (String(program.code || "") !== FOUNDING500_CODE ||
+            String(program.policyRevision || "") !==
+              FOUNDING500_POLICY_REVISION ||
+            maxClaims !== FOUNDING500_MAX_CLAIMS ||
+            !Number.isSafeInteger(claimedCount) ||
+            claimedCount < 0 || claimedCount > maxClaims) {
+          throw new HttpsError(
+              "failed-precondition",
+              "The Founding 500 promotion configuration needs review.",
+          );
+        }
+      }
+
+      if (claimSnapshot.exists &&
+          String(claim.programId || "") === FOUNDING500_PROGRAM_ID &&
+          String(claim.status || "") !== "released") {
+        transaction.set(claimRef, {
+          code: FOUNDING500_CODE,
+          policyRevision: FOUNDING500_POLICY_REVISION,
+          status: "reserved",
+          checkoutAttempt,
+          trialEndUnix,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        return {
+          claimRef,
+          claimNumber: Number(claim.claimNumber || 0),
+          trialEndUnix,
+          incremented: false,
+        };
+      }
+
+      const claimedCount = programSnapshot.exists ?
+        Number(program.claimedCount) : 0;
+      if (claimedCount >= FOUNDING500_MAX_CLAIMS) {
+        throw new HttpsError(
+            "resource-exhausted",
+            "All 500 Founding Dispatch offers have been claimed.",
+        );
+      }
+      const nextClaimNumber = claimedCount + 1;
+      transaction.set(programRef, {
+        programId: FOUNDING500_PROGRAM_ID,
+        code: FOUNDING500_CODE,
+        policyRevision: FOUNDING500_POLICY_REVISION,
+        active: true,
+        maxClaims: FOUNDING500_MAX_CLAIMS,
+        claimedCount: nextClaimNumber,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(programSnapshot.exists ? {} : {
+          createdAt: FieldValue.serverTimestamp(),
+        }),
+      }, {merge: true});
+      transaction.set(claimRef, {
+        uid,
+        programId: FOUNDING500_PROGRAM_ID,
+        code: FOUNDING500_CODE,
+        policyRevision: FOUNDING500_POLICY_REVISION,
+        claimNumber: nextClaimNumber,
+        status: "reserved",
+        checkoutAttempt,
+        trialEndUnix,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(claimSnapshot.exists ? {} : {
+          createdAt: FieldValue.serverTimestamp(),
+        }),
+      }, {merge: true});
+      return {
+        claimRef,
+        claimNumber: nextClaimNumber,
+        trialEndUnix,
+        incremented: true,
+      };
+    });
+  }
+
+  async function releaseFounding500Claim(reservation, checkoutAttempt) {
+    if (!reservation || reservation.incremented !== true) return;
+    const programRef = db.collection(DISPATCH_PROMOTION_PROGRAMS_COLLECTION)
+        .doc(FOUNDING500_PROGRAM_ID);
+    const claimRef = db.collection(DISPATCH_PROMOTION_CLAIMS_COLLECTION)
+        .doc(String(reservation.uid || ""));
+    await db.runTransaction(async (transaction) => {
+      const claimSnapshot = await transaction.get(claimRef);
+      const programSnapshot = await transaction.get(programRef);
+      if (!claimSnapshot.exists || !programSnapshot.exists) return;
+      const claim = claimSnapshot.data();
+      const program = programSnapshot.data();
+      if (String(claim.status || "") !== "reserved" ||
+          Number(claim.checkoutAttempt) !== Number(checkoutAttempt) ||
+          Number(claim.claimNumber) !== Number(reservation.claimNumber)) {
+        return;
+      }
+      const claimedCount = Number(program.claimedCount);
+      if (!Number.isSafeInteger(claimedCount) || claimedCount < 1) return;
+      transaction.set(programRef, {
+        claimedCount: claimedCount - 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      transaction.set(claimRef, {
+        status: "released",
+        releasedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+    });
+  }
 
   const createDispatchSubscriptionCheckout = async (request) => {
+    let foundingReservation = null;
+    let checkoutAttemptForReservation = null;
     try {
       const uid = authUid(request);
       await rateLimit({db, admin, request, scope: "account"});
@@ -177,6 +339,9 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
       requireSubscriptionReady(readiness);
 
       const plan = selectedPlan(request.data && request.data.plan);
+      const launchCode = selectedLaunchCode(
+          request.data && request.data.promotionCode,
+      );
       const stateRef = db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid);
       const stateSnapshot = await stateRef.get();
       const state = stateSnapshot.exists ? stateSnapshot.data() : {};
@@ -270,9 +435,25 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
       ]);
       const entitlement = entitlementSnapshot.exists ? entitlementSnapshot.data() : null;
       const couponId = couponFromEntitlement(entitlement);
+      if (launchCode && couponId) {
+        throw new HttpsError(
+            "failed-precondition",
+            "A special Dispatch entitlement is already assigned to this account; launch promotions cannot be stacked.",
+        );
+      }
       const referrerUid = relationshipSnapshot.exists ?
         String(relationshipSnapshot.data().referrerUid || "").trim() : "";
       const attempt = nextDispatchCheckoutAttempt(state);
+      checkoutAttemptForReservation = attempt;
+      if (launchCode === FOUNDING500_CODE) {
+        foundingReservation = await reserveFounding500Claim({
+          uid,
+          state,
+          checkoutAttempt: attempt,
+        });
+        foundingReservation.uid = uid;
+      }
+      const launchTrialApplied = foundingReservation != null;
       const checkout = await stripeRequest({
         secretKey: secretProvider(),
         path: "/v1/checkout/sessions",
@@ -285,22 +466,39 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           ...dispatchCheckoutCustomerFields(state),
           billing_address_collection: "required",
           allow_promotion_codes:
-            dispatchPromotionCodeEntryEnabled(couponId) ? "true" : "false",
+            dispatchPromotionCodeEntryEnabled(couponId, launchTrialApplied) ?
+              "true" : "false",
           "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
           "line_items[0][price]": priceId,
           "line_items[0][quantity]": 1,
           ...(couponId ? {"discounts[0][coupon]": couponId} : {}),
+          ...(launchTrialApplied ? {
+            "subscription_data[trial_end]": foundingReservation.trialEndUnix,
+          } : {}),
           "metadata[billingType]": "dispatch_subscription",
           "metadata[pipeBuyerUid]": uid,
           "metadata[dispatchPlan]": plan,
           "metadata[checkoutAttempt]": attempt,
           "metadata[taxCollectionStatus]": collectionStatus,
           ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
+          ...(launchTrialApplied ? {
+            "metadata[launchPromotionCode]": FOUNDING500_CODE,
+            "metadata[launchPromotionClaimNumber]":
+              foundingReservation.claimNumber,
+            "metadata[launchPromotionTrialEnd]":
+              foundingReservation.trialEndUnix,
+          } : {}),
           ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
           "subscription_data[metadata][billingType]": "dispatch_subscription",
           "subscription_data[metadata][pipeBuyerUid]": uid,
           "subscription_data[metadata][dispatchPlan]": plan,
           "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
+          ...(launchTrialApplied ? {
+            "subscription_data[metadata][launchPromotionCode]":
+              FOUNDING500_CODE,
+            "subscription_data[metadata][launchPromotionClaimNumber]":
+              foundingReservation.claimNumber,
+          } : {}),
           ...(referrerUid ? {
             "subscription_data[metadata][affiliateReferrerUid]": referrerUid,
           } : {}),
@@ -332,6 +530,11 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           priceId,
           checkoutAttempt: attempt,
           couponId: couponId || null,
+          launchPromotionCode: launchTrialApplied ? FOUNDING500_CODE : null,
+          launchPromotionClaimNumber: launchTrialApplied ?
+            foundingReservation.claimNumber : null,
+          trialEndUnix: launchTrialApplied ?
+            foundingReservation.trialEndUnix : null,
           referrerUid: referrerUid || null,
           taxCollectionStatus: collectionStatus,
           taxExposureReviewRequired: collectionStatus === "registration_pending",
@@ -340,6 +543,16 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
+        if (launchTrialApplied) {
+          transaction.set(foundingReservation.claimRef, {
+            status: "checkout_created",
+            checkoutSessionId: sessionId,
+            checkoutAttempt: attempt,
+            plan,
+            trialEndUnix: foundingReservation.trialEndUnix,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+        }
 
         if (decision !== "checkout_created") {
           return {decision};
@@ -353,10 +566,6 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           status: "checkout_created",
           checkoutAttempt: attempt,
           stripeCheckoutSessionId: sessionId,
-          // A new Checkout is only allowed when no unresolved subscription is
-          // active. Move a restartable prior subscription into a bounded
-          // retired-id ledger before clearing the live provider identity. Late
-          // webhooks for that old subscription can then be ignored safely.
           stripeSubscriptionId: null,
           retiredStripeSubscriptionIds,
           entitlementActive: false,
@@ -366,6 +575,11 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           conflictingStripeSubscriptionId: null,
           taxCollectionStatus: collectionStatus,
           promotionCouponId: couponId || null,
+          launchPromotionCode: launchTrialApplied ? FOUNDING500_CODE : null,
+          launchPromotionClaimNumber: launchTrialApplied ?
+            foundingReservation.claimNumber : null,
+          launchPromotionTrialEndUnix: launchTrialApplied ?
+            foundingReservation.trialEndUnix : null,
           affiliateReferrerUid: referrerUid || null,
           updatedAt: FieldValue.serverTimestamp(),
           ...(currentSnapshot.exists ? {} : {
@@ -407,10 +621,22 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
         alreadyCreated: false,
         alreadySubscribed: false,
         processing: false,
-        promotionApplied: Boolean(couponId),
+        promotionApplied: Boolean(couponId || launchTrialApplied),
+        launchPromotionCode: launchTrialApplied ? FOUNDING500_CODE : null,
+        trialEndUnix: launchTrialApplied ? foundingReservation.trialEndUnix : null,
         taxCollectionStatus: collectionStatus,
       };
     } catch (error) {
+      if (foundingReservation && checkoutAttemptForReservation != null) {
+        try {
+          await releaseFounding500Claim(
+              foundingReservation,
+              checkoutAttemptForReservation,
+          );
+        } catch (releaseError) {
+          console.error("Founding 500 reservation release failed", releaseError);
+        }
+      }
       if (error instanceof HttpsError) throw error;
       if (error instanceof AccountSecurityError) {
         throw new HttpsError(error.code, error.message);
@@ -425,6 +651,8 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
 
 module.exports = {
   DISPATCH_BILLING_PORTAL_DOC,
+  DISPATCH_PROMOTION_CLAIMS_COLLECTION,
+  DISPATCH_PROMOTION_PROGRAMS_COLLECTION,
   DISPATCH_SUBSCRIPTIONS_COLLECTION,
   SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION,
   couponFromEntitlement,
@@ -433,6 +661,7 @@ module.exports = {
   dispatchCheckoutCustomerFields,
   dispatchPromotionCodeEntryEnabled,
   requireSubscriptionReady,
+  selectedLaunchCode,
   selectedPlan,
   validStripeCheckoutUrl,
 };

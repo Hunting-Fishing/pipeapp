@@ -22,6 +22,7 @@ class _MarketplaceDispatchSubscriptionPanelState
     extends State<MarketplaceDispatchSubscriptionPanel>
     with WidgetsBindingObserver {
   late final MarketplaceDispatchSubscriptionClient _client;
+  final TextEditingController _promotionCodeController = TextEditingController();
   MarketplaceDispatchSubscriptionStatus? _status;
   bool _loading = true;
   bool _workingBilling = false;
@@ -40,6 +41,7 @@ class _MarketplaceDispatchSubscriptionPanelState
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _promotionCodeController.dispose();
     super.dispose();
   }
 
@@ -87,7 +89,10 @@ class _MarketplaceDispatchSubscriptionPanelState
       _error = null;
     });
     try {
-      final result = await _client.createCheckout(plan);
+      final result = await _client.createCheckout(
+        plan,
+        promotionCode: _promotionCodeController.text,
+      );
       if (!mounted) return;
       if (result.alreadySubscribed || result.processing) {
         await _load();
@@ -105,7 +110,7 @@ class _MarketplaceDispatchSubscriptionPanelState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Complete payment in Stripe, then return to Pipe Buyer. Dispatch access updates automatically from the payment provider.',
+            'Complete secure setup in Stripe, then return to Pipe Buyer. Dispatch access updates automatically from the payment provider.',
           ),
         ),
       );
@@ -167,6 +172,10 @@ class _MarketplaceDispatchSubscriptionPanelState
       );
     }
 
+    final promoEnabled = status.canStartCheckout &&
+        _workingPlan == null &&
+        !_workingBilling;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -197,6 +206,23 @@ class _MarketplaceDispatchSubscriptionPanelState
         if (_error != null) ...[
           const SizedBox(height: 10),
           MarketplaceDispatchInlineError(message: _error!),
+        ],
+        if (!status.alreadySubscribed) ...[
+          const SizedBox(height: 14),
+          TextField(
+            controller: _promotionCodeController,
+            enabled: promoEnabled,
+            textCapitalization: TextCapitalization.characters,
+            textInputAction: TextInputAction.done,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              labelText: 'Pipe Buyer promo code (optional)',
+              hintText: 'Enter your launch code',
+              helperText: 'Promo eligibility is checked securely before Stripe opens.',
+              prefixIcon: Icon(Icons.local_offer_outlined),
+              border: OutlineInputBorder(),
+            ),
+          ),
         ],
         const SizedBox(height: 14),
         LayoutBuilder(

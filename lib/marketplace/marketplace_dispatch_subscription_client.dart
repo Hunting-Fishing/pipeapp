@@ -16,6 +16,16 @@ bool isValidStripeBillingPortalUrl(String value) {
       uri.userInfo.isEmpty;
 }
 
+String normalizeDispatchLaunchCodeForRequest(String value) {
+  final normalized = value.trim().toUpperCase();
+  if (normalized.isEmpty) return '';
+  if (normalized.length > 64 ||
+      !RegExp(r'^[A-Z0-9-]+$').hasMatch(normalized)) {
+    throw ArgumentError.value(value, 'promotionCode', 'Enter a valid promo code.');
+  }
+  return normalized;
+}
+
 class MarketplaceDispatchSubscriptionPlan {
   const MarketplaceDispatchSubscriptionPlan({
     required this.currency,
@@ -129,7 +139,6 @@ class MarketplaceDispatchSubscriptionStatus {
       checkoutOpen: requiredBool('checkoutOpen'),
       processing: requiredBool('processing'),
       alreadySubscribed: requiredBool('alreadySubscribed'),
-      // Missing on an older backend deployment means unavailable, not enabled.
       billingAvailable: data['billingAvailable'] == true,
       canStartCheckout: requiredBool('canStartCheckout'),
       canManageBilling: requiredBool('canManageBilling'),
@@ -217,14 +226,21 @@ class MarketplaceDispatchSubscriptionClient {
     return MarketplaceDispatchSubscriptionStatus.fromMap(data);
   }
 
-  Future<MarketplaceDispatchCheckoutResult> createCheckout(String plan) async {
+  Future<MarketplaceDispatchCheckoutResult> createCheckout(
+    String plan, {
+    String promotionCode = '',
+  }) async {
     final normalized = plan.trim().toLowerCase();
     if (!const {'monthly', 'yearly'}.contains(normalized)) {
       throw ArgumentError.value(plan, 'plan', 'Choose Monthly or Yearly.');
     }
+    final code = normalizeDispatchLaunchCodeForRequest(promotionCode);
     final data = await _commands.execute(
       'createDispatchSubscriptionCheckout',
-      <String, Object?>{'plan': normalized},
+      <String, Object?>{
+        'plan': normalized,
+        if (code.isNotEmpty) 'promotionCode': code,
+      },
       timeout: const Duration(seconds: 45),
     );
     return MarketplaceDispatchCheckoutResult.fromMap(data);
