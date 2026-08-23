@@ -49,6 +49,9 @@ const {
   createDispatchSubscriptionReconciliationCommands,
 } = require("./dispatch_subscription_reconciliation_commands");
 const {
+  createDispatchSubscriptionAdminCommands,
+} = require("./dispatch_subscription_admin_commands");
+const {
   createDispatchBillingPortalAdmin,
 } = require("./dispatch_billing_portal_admin");
 const {
@@ -85,6 +88,8 @@ const dispatchSubscriptionPortalCommands =
     createDispatchSubscriptionPortalCommands(admin);
 const dispatchSubscriptionReconciliationCommands =
     createDispatchSubscriptionReconciliationCommands(admin);
+const dispatchSubscriptionAdminCommands =
+    createDispatchSubscriptionAdminCommands(admin);
 const dispatchBillingPortalAdmin = createDispatchBillingPortalAdmin(admin);
 const canadaSmallSupplierThresholdCommands =
     createCanadaSmallSupplierThresholdCommands(admin);
@@ -176,6 +181,10 @@ exports.setCanadaGstHstThresholdAssessment = onCall(
 exports.getDispatchSubscriptionStatus = onCall(
     protectedCallableOptions,
     dispatchSubscriptionStatusCommands.getDispatchSubscriptionStatus,
+);
+exports.getDispatchSubscriptionReconciliationQueue = onCall(
+    protectedCallableOptions,
+    dispatchSubscriptionAdminCommands.getDispatchSubscriptionReconciliationQueue,
 );
 exports.getDispatchBillingPortalReadiness = onCall(
     protectedCallableOptions,
