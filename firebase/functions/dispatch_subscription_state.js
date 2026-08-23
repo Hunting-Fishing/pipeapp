@@ -12,6 +12,9 @@ const {
   dispatchSubscriptionLifecycleDecision,
   dispatchSubscriptionReplacementAllowed,
 } = require("./dispatch_subscription_lifecycle_policy");
+const {
+  dispatchSubscriptionCatalogAssessment,
+} = require("./dispatch_subscription_catalog_policy");
 
 const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
 const SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION =
@@ -35,10 +38,29 @@ function dispatchMetadata(value) {
   if (!uid) return null;
   return {
     uid,
+    // Metadata records the Checkout-time selection for audit only. Current
+    // lifecycle state derives Monthly/Yearly from the live Stripe Price.
+    checkoutPlan: String(metadata.dispatchPlan || "").trim(),
     plan: String(metadata.dispatchPlan || "").trim(),
     taxCollectionStatus: String(
         metadata.taxCollectionStatus || "registered",
     ).trim(),
+  };
+}
+
+function catalogReviewPatch(assessment, FieldValue, extra = {}) {
+  return {
+    entitlementActive: false,
+    paymentIssue: true,
+    reviewRequired: true,
+    reviewReason: "dispatch_subscription_catalog_review",
+    providerCatalogRevision: assessment.revision,
+    providerCatalogFailedChecks: assessment.failedChecks,
+    stripePriceId: assessment.priceId || null,
+    stripeProductId: assessment.productId || null,
+    stripeSubscriptionQuantity: assessment.quantity,
+    ...extra,
+    updatedAt: FieldValue.serverTimestamp(),
   };
 }
 
@@ -92,7 +114,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
           isDispatchRetiredSubscriptionId(current, eventSubscriptionId)) {
         transaction.set(sessionRef, {
           uid: metadata.uid,
-          plan: metadata.plan,
+          plan: metadata.checkoutPlan,
           status: "retired_ignored",
           stripeSubscriptionId: eventSubscriptionId,
           updatedAt: FieldValue.serverTimestamp(),
@@ -102,7 +124,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
       const decision = dispatchCheckoutWebhookDecision(current, session);
       transaction.set(sessionRef, {
         uid: metadata.uid,
-        plan: metadata.plan,
+        plan: metadata.checkoutPlan,
         status: "completed",
         stripeSubscriptionId: eventSubscriptionId || null,
         updatedAt: FieldValue.serverTimestamp(),
@@ -122,7 +144,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
       }
       transaction.set(stateRef, {
         uid: metadata.uid,
-        plan: metadata.plan || String(current.plan || ""),
+        plan: metadata.checkoutPlan || String(current.plan || ""),
         status: "processing",
         billingStatus: "checkout_complete",
         stripeCheckoutSessionId: sessionId,
@@ -141,8 +163,8 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
 
   async function handleInvoicePaid(invoice, secretKey) {
     // Invoice payment is necessary evidence, but it is not sufficient to grant
-    // access. Always retrieve the current Stripe Subscription so entitlement is
-    // based on the provider lifecycle state rather than invoice metadata alone.
+    // access. Always retrieve the current Stripe Subscription so entitlement and
+    // plan are based on provider lifecycle + current Price, not stale metadata.
     const subscription = await subscriptionFromInvoice(
         invoice,
         secretKey,
@@ -150,6 +172,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     );
     const metadata = dispatchMetadata(subscription);
     if (!metadata) return {handled: false};
+    const catalog = dispatchSubscriptionCatalogAssessment(subscription);
     const invoiceId = String(invoice.id || "");
     const subscriptionId = String(subscription.id || "");
     if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) {
@@ -176,6 +199,20 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
         }, {merge: true});
         return {handled: true, action: "review"};
       }
+      if (!catalog.ready) {
+        transaction.set(stateRef, catalogReviewPatch(catalog, FieldValue, {
+          uid: metadata.uid,
+          status: "review_required",
+          billingStatus: "provider_catalog_review",
+          stripeSubscriptionId: subscriptionId,
+          stripeCustomerId: objectId(subscription.customer || invoice.customer) || null,
+          lastPaidInvoiceId: invoiceId,
+          lastInvoiceAmountPaidMinor: Number(invoice.amount_paid || 0),
+          lastInvoiceCurrency: String(invoice.currency || "cad").toUpperCase(),
+          lastInvoicePaidAt: FieldValue.serverTimestamp(),
+        }), {merge: true});
+        return {handled: true, action: "review"};
+      }
 
       const lifecycle = dispatchSubscriptionLifecycleDecision(
           subscription.status,
@@ -192,16 +229,22 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
 
       transaction.set(stateRef, {
         uid: metadata.uid,
-        plan: metadata.plan || String(current.plan || ""),
+        plan: catalog.plan,
         status: lifecycle.status,
         billingStatus,
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: objectId(subscription.customer || invoice.customer) || null,
+        stripePriceId: catalog.priceId,
+        stripeProductId: catalog.productId ||
+          stripeConfig.products.dispatchMonthlyCad.productId,
+        stripeSubscriptionQuantity: catalog.quantity,
+        providerCatalogRevision: catalog.revision,
+        providerCatalogFailedChecks: [],
         taxCollectionStatus: metadata.taxCollectionStatus,
         entitlementActive: lifecycle.entitlementActive,
         paymentIssue: lifecycle.paymentIssue,
         reviewRequired: lifecycle.reviewRequired,
-        ...(reviewReason ? {reviewReason} : {}),
+        ...(reviewReason ? {reviewReason} : {reviewReason: null}),
         lastPaidInvoiceId: invoiceId,
         lastInvoiceAmountPaidMinor: Number(invoice.amount_paid || 0),
         lastInvoiceCurrency: String(invoice.currency || "cad").toUpperCase(),
@@ -224,6 +267,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     );
     const metadata = dispatchMetadata(subscription);
     if (!metadata) return {handled: false};
+    const catalog = dispatchSubscriptionCatalogAssessment(subscription);
     const invoiceId = String(invoice.id || "");
     const subscriptionId = String(subscription.id || "");
     if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) {
@@ -250,17 +294,35 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
         }, {merge: true});
         return {handled: true, action: "review"};
       }
+      if (!catalog.ready) {
+        transaction.set(stateRef, catalogReviewPatch(catalog, FieldValue, {
+          uid: metadata.uid,
+          status: "review_required",
+          billingStatus: "provider_catalog_review",
+          stripeSubscriptionId: subscriptionId,
+          stripeCustomerId: objectId(subscription.customer || invoice.customer) || null,
+          lastFailedInvoiceId: invoiceId,
+          lastInvoicePaymentFailedAt: FieldValue.serverTimestamp(),
+        }), {merge: true});
+        return {handled: true, action: "review"};
+      }
       const lifecycle = dispatchSubscriptionLifecycleDecision(
           subscription.status,
           current.entitlementActive === true,
       );
       transaction.set(stateRef, {
         uid: metadata.uid,
-        plan: metadata.plan || String(current.plan || ""),
+        plan: catalog.plan,
         status: lifecycle.status,
         billingStatus: "payment_failed",
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: objectId(subscription.customer || invoice.customer) || null,
+        stripePriceId: catalog.priceId,
+        stripeProductId: catalog.productId ||
+          stripeConfig.products.dispatchMonthlyCad.productId,
+        stripeSubscriptionQuantity: catalog.quantity,
+        providerCatalogRevision: catalog.revision,
+        providerCatalogFailedChecks: [],
         entitlementActive: lifecycle.entitlementActive,
         paymentIssue: true,
         reviewRequired: lifecycle.reviewRequired,
@@ -278,12 +340,13 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
 
     // Stripe does not guarantee webhook delivery order. For update events,
     // ignore the potentially stale event snapshot and re-read the current
-    // Subscription before changing entitlement. A deleted event is itself the
-    // authoritative terminal cancellation signal for that subscription id.
+    // Subscription before changing entitlement or plan. A deleted event is
+    // itself the authoritative terminal cancellation signal for that ID.
     const providerSubscription = eventType === "customer.subscription.updated" ?
       await retrieveCurrentSubscription(eventSubscriptionId, secretKey) : subscription;
     const metadata = dispatchMetadata(providerSubscription);
     if (!metadata) return {handled: false};
+    const catalog = dispatchSubscriptionCatalogAssessment(providerSubscription);
     const subscriptionId = String(providerSubscription.id || "");
     const stateRef = db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION)
         .doc(metadata.uid);
@@ -308,19 +371,40 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
       }
       const providerStatus = eventType === "customer.subscription.deleted" ?
         "canceled" : String(providerSubscription.status || "");
+      if (!catalog.ready) {
+        transaction.set(stateRef, catalogReviewPatch(catalog, FieldValue, {
+          uid: metadata.uid,
+          status: eventType === "customer.subscription.deleted" ?
+            "canceled" : String(current.status || "review_required"),
+          billingStatus: "provider_catalog_review",
+          stripeSubscriptionId: subscriptionId,
+          stripeCustomerId: objectId(providerSubscription.customer) || null,
+          paymentIssue: eventType !== "customer.subscription.deleted",
+          lastSubscriptionEventType: eventType,
+          subscriptionStateUpdatedAt: FieldValue.serverTimestamp(),
+        }), {merge: true});
+        return {handled: true, action: "review"};
+      }
       const lifecycle = dispatchSubscriptionLifecycleDecision(
           providerStatus,
           current.entitlementActive === true,
       );
       transaction.set(stateRef, {
         uid: metadata.uid,
-        plan: metadata.plan || String(current.plan || ""),
+        plan: catalog.plan,
         status: lifecycle.status,
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: objectId(providerSubscription.customer) || null,
+        stripePriceId: catalog.priceId,
+        stripeProductId: catalog.productId ||
+          stripeConfig.products.dispatchMonthlyCad.productId,
+        stripeSubscriptionQuantity: catalog.quantity,
+        providerCatalogRevision: catalog.revision,
+        providerCatalogFailedChecks: [],
         entitlementActive: lifecycle.entitlementActive,
         paymentIssue: lifecycle.paymentIssue,
         reviewRequired: lifecycle.reviewRequired,
+        ...(lifecycle.reviewRequired ? {} : {reviewReason: null}),
         lastSubscriptionEventType: eventType,
         subscriptionStateUpdatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -341,6 +425,7 @@ module.exports = {
   DISPATCH_SUBSCRIPTIONS_COLLECTION,
   ENTITLEMENT_ACTIVATION_STATUSES,
   SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION,
+  catalogReviewPatch,
   createDispatchSubscriptionState,
   dispatchMetadata,
   objectId,
