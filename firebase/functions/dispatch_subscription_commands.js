@@ -302,6 +302,7 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
   const createDispatchSubscriptionCheckout = async (request) => {
     let foundingReservation = null;
     let checkoutAttemptForReservation = null;
+    let providerSessionCreated = false;
     try {
       const uid = authUid(request);
       await rateLimit({db, admin, request, scope: "account"});
@@ -506,7 +507,8 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
       });
       const sessionId = String(checkout.id || "");
       const checkoutUrl = String(checkout.url || "");
-      if (!sessionId.startsWith("cs_") || !validStripeCheckoutUrl(checkoutUrl)) {
+      providerSessionCreated = sessionId.startsWith("cs_");
+      if (!providerSessionCreated || !validStripeCheckoutUrl(checkoutUrl)) {
         throw new HttpsError("internal", "Stripe did not return a valid subscription Checkout.");
       }
 
@@ -627,7 +629,9 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
         taxCollectionStatus: collectionStatus,
       };
     } catch (error) {
-      if (foundingReservation && checkoutAttemptForReservation != null) {
+      if (foundingReservation &&
+          checkoutAttemptForReservation != null &&
+          providerSessionCreated !== true) {
         try {
           await releaseFounding500Claim(
               foundingReservation,
