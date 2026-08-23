@@ -9,12 +9,16 @@ This checklist is the release boundary for P2. Do not mark Dispatch subscription
 ## Current deliberate state
 
 - Public Dispatch subscription activation: **OFF**
+- Dedicated admin route: **registered at `/admin/dispatch-billing`**
+- Admin-dashboard menu shortcut: **pending analyzer-backed integration**
 - Live Stripe Billing Portal configuration: **not created yet**
 - Pipe Buyer Billing Portal readiness: **OFF**
-- Missing subscription lifecycle webhook events: **deliberately not enabled yet**
+- Subscription recovery verification: **not recorded yet**
+- Subscription lifecycle webhook verification: **provider-verifier implemented; live events deliberately incomplete until receiver deployment**
 - Controlled Monthly payment: **not run**
 - Controlled Yearly payment: **not run**
 - Live BALANCED reconciliation: **not proven**
+- Legacy direct-write live-billing activation workflows: **retired; audited readiness control is authoritative**
 
 The live Stripe catalog itself is already prepared:
 
@@ -38,7 +42,9 @@ Do not continue to provider configuration until the exact final P2 commit passes
 - [ ] callable/Auth/Firestore/Functions emulator acceptance passes.
 - [ ] Dispatch subscription reconciliation tests pass.
 - [ ] Dispatch Billing Portal configuration-ID tests pass.
-- [ ] dedicated Dispatch Billing Operations page/route compiles.
+- [ ] Dispatch launch-readiness/provider-verification tests pass.
+- [ ] dedicated Dispatch Billing Operations page and `/admin/dispatch-billing` route compile.
+- [ ] admin-dashboard shortcut to Dispatch Billing Operations is integrated without expanding/reconstructing unrelated billing logic.
 - [ ] no client can directly mutate `dispatch_subscriptions`, subscription invoices, provider identities, reconciliation records, or financial readiness state.
 
 Record the accepted commit SHA here:
@@ -57,6 +63,8 @@ The production deploy workflow requires the production commit to be contained in
 - [ ] `getDispatchSubscriptionReconciliationQueue` is deployed.
 - [ ] `createDispatchBillingPortalSession` is deployed.
 - [ ] `getDispatchBillingPortalReadiness` / `setDispatchBillingPortalReadiness` are deployed.
+- [ ] `verifyDispatchSubscriptionLifecycleWebhook` is deployed.
+- [ ] the production-readiness audit includes live Billing Portal, lifecycle-event, and lifecycle-verifier deployment checks.
 
 Record deployment evidence:
 
@@ -72,8 +80,11 @@ Required initial behavior:
 - [ ] customer can view invoice/billing history.
 - [ ] customer can cancel the Dispatch subscription.
 - [ ] cancellation is configured to end at the end of the current billing period unless Pipe Buyer deliberately approves a different policy.
-- [ ] arbitrary Monthly ↔ Yearly plan switching is **not** enabled for first release unless a reviewed proration/change policy exists.
+- [ ] Monthly ↔ Yearly subscription plan/price switching is **OFF for the first release**.
+- [ ] arbitrary product/price changes are disabled.
 - [ ] branding/support information is reviewed.
+
+**Why plan switching is OFF:** current Dispatch lifecycle state reads the Pipe Buyer plan from Dispatch subscription metadata. It does not yet derive and validate Monthly/Yearly from the live Stripe Price ID on every subscription update. Enabling Portal price changes before a separate provider-price-to-plan synchronization and proration policy exists could create Stripe/Pipe Buyer plan drift.
 
 Capture the exact Stripe configuration ID:
 
@@ -82,21 +93,27 @@ Capture the exact Stripe configuration ID:
 Then use the MFA-admin Pipe Buyer readiness command to store that exact `bpc_...` ID and reviewed Pipe Buyer HTTPS return URL. Do not rely on Stripe's unspecified/default Portal configuration.
 
 - [ ] Pipe Buyer portal readiness audit records the exact `bpc_...` ID.
-- [ ] emergency disable has been verified to work without needing a valid return URL/configuration.
+- [ ] the Portal readiness record is enabled.
+- [ ] emergency Portal disable has been verified to work without needing a valid return URL/configuration.
+- [ ] confirm that disabling Portal readiness blocks **new** Dispatch Checkout while preserving existing provider/ledger evidence.
+
+Live Dispatch subscription activation cannot pass the server readiness validator or Checkout runtime gate without this reviewed Portal configuration.
 
 ## Gate 4 — verify Stripe Billing recovery settings
 
-These are live Stripe Dashboard settings and must be reviewed there; do not infer them from application code.
+These are live Stripe Dashboard settings and must be reviewed there; do not infer them from application code. The currently available Stripe API surface does not expose these Dashboard controls as provider-readable evidence.
 
 - [ ] Smart Retries / automatic retry policy is enabled with a reviewed retry window.
 - [ ] failed-payment customer emails are enabled.
 - [ ] upcoming renewal / invoice emails are reviewed if used.
 - [ ] card/payment-method update path points customers to the reviewed Billing Portal.
 - [ ] final subscription state after exhausted retries is reviewed against Pipe Buyer's entitlement policy.
+- [ ] from `/admin/dispatch-billing`, choose **Record recovery verification** only after completing the Dashboard review.
+- [ ] `stripeSubscriptionRecoveryVerified == true` is visible in the audited payment-readiness state.
 
-Capture screenshots or operational notes in the release evidence. Do not put Stripe secrets in GitHub.
+Capture screenshots or operational notes in the release evidence. Do not put Stripe secrets in GitHub. This flag is an audited operator assertion, not provider-authored evidence, and must be revoked if the Dashboard recovery policy changes before re-review.
 
-## Gate 5 — add subscription lifecycle webhook events only after receiver deployment
+## Gate 5 — add and provider-verify subscription lifecycle webhook events only after receiver deployment
 
 Current production endpoint already receives `invoice.paid`. Only after Gate 2 is verified, add:
 
@@ -106,18 +123,36 @@ Current production endpoint already receives `invoice.paid`. Only after Gate 2 i
 
 After changing the endpoint:
 
-- [ ] confirm endpoint remains enabled.
+- [ ] confirm endpoint remains enabled and live.
 - [ ] confirm signing secret is unchanged/valid in Google Cloud Secret Manager.
+- [ ] from `/admin/dispatch-billing`, run **Verify live lifecycle webhook**.
+- [ ] `verifyDispatchSubscriptionLifecycleWebhook` re-reads the exact live Stripe endpoint.
+- [ ] provider verification reports no missing required lifecycle events.
+- [ ] `stripeSubscriptionLifecycleWebhookVerified == true` is written by the server/provider verifier; do not manually assert it.
 - [ ] send or observe a controlled event and prove the deployed receiver claims/processes it.
 - [ ] verify a receiver failure returns retryable failure rather than silently marking the Stripe event processed.
 
-Do **not** add the events before the receiver is deployed.
+Do **not** add the events before the receiver is deployed. An administrator may revoke lifecycle readiness to false immediately, but cannot manually set it true.
 
-## Gate 6 — controlled live Monthly acceptance
+## Gate 6 — verify the complete Dispatch launch-readiness set
+
+From the dedicated MFA-admin Dispatch Billing Operations page, verify every prerequisite independently:
+
+- [ ] exact reviewed Billing Portal `bpc_...` is ready.
+- [ ] core signed webhook is verified.
+- [ ] subscription lifecycle events are provider-verified.
+- [ ] Smart Retry/failed-payment email recovery review is recorded.
+- [ ] provider reconciliation readiness is true.
+- [ ] authorized GST/HST billing state is current.
+- [ ] public `stripeSubscriptionsEnabled` remains OFF until the controlled acceptance window begins.
+
+The launch-readiness panel is prerequisite-only. It intentionally has no public subscription-activation button.
+
+## Gate 7 — controlled live Monthly acceptance
 
 Run this while Pipe Buyer is still in the controlled pre-public/soft-launch window.
 
-Temporarily enable the audited Dispatch subscription readiness gate only for the controlled acceptance window, run the test immediately, and disable it again if the broader public launch is not yet approved.
+Temporarily enable the audited Dispatch subscription readiness gate only for the controlled acceptance window, run the test immediately, and disable it again if the broader public launch is not yet approved. The readiness command must fail closed unless Gates 3–6 remain satisfied.
 
 Test account must not have an existing unresolved Dispatch subscription.
 
@@ -138,7 +173,7 @@ Record:
 
 `MONTHLY_INVOICE_ID = in_______________________________`
 
-## Gate 7 — Monthly provider-backed reconciliation
+## Gate 8 — Monthly provider-backed reconciliation
 
 From Dispatch Billing Operations, run:
 
@@ -173,7 +208,7 @@ Record:
 
 `MONTHLY_BALANCE_TRANSACTION_ID = txn_____________________`
 
-## Gate 8 — payment failure and recovery lifecycle
+## Gate 9 — payment failure and recovery lifecycle
 
 Use Stripe-supported controlled testing or the safest available provider method after the initial live acceptance.
 
@@ -185,10 +220,11 @@ Prove:
 - [ ] exhausted/terminal `unpaid` removes entitlement.
 - [ ] stale/out-of-order subscription update cannot roll a newer state backward.
 
-## Gate 9 — Billing Portal cancellation and replacement
+## Gate 10 — Billing Portal cancellation and replacement
 
 - [ ] active subscriber opens only `https://billing.stripe.com/...` from Pipe Buyer.
 - [ ] Portal session uses the exact audited `bpc_...` configuration.
+- [ ] Portal does not offer Monthly ↔ Yearly plan switching.
 - [ ] cancel at period end is reflected by Stripe lifecycle events.
 - [ ] entitlement remains correct through the paid-through period according to approved policy.
 - [ ] terminal cancellation removes entitlement.
@@ -196,7 +232,7 @@ Prove:
 - [ ] retired Stripe subscription ID is preserved in the bounded retired ledger.
 - [ ] very late retired Checkout/invoice/update/delete events are ignored for singleton mutation.
 
-## Gate 10 — controlled live Yearly acceptance
+## Gate 11 — controlled live Yearly acceptance
 
 Repeat the controlled acceptance using the Yearly plan.
 
@@ -215,7 +251,7 @@ Record:
 
 `YEARLY_BALANCE_TRANSACTION_ID = txn_____________________`
 
-## Gate 11 — 100% promotional invoice acceptance
+## Gate 12 — 100% promotional invoice acceptance
 
 Use only an approved test entitlement; do not grant a promotion solely to manufacture evidence.
 
@@ -230,7 +266,7 @@ For a legitimate free promotion:
 - [ ] affiliate commission = 0.
 - [ ] reconciliation is BALANCED only if the zero-dollar evidence is exact.
 
-## Gate 12 — operator and visual acceptance
+## Gate 13 — operator and visual acceptance
 
 - [ ] Monthly purchase UX is understandable on mobile.
 - [ ] Yearly purchase UX is understandable on mobile.
@@ -238,21 +274,24 @@ For a legitimate free promotion:
 - [ ] processing state tells user not to restart payment.
 - [ ] payment issue language is understandable.
 - [ ] Manage billing/cancel opens Stripe Portal only when available.
+- [ ] Dispatch Billing Operations shows prerequisite readiness separately from activation.
 - [ ] administrator can see BALANCED/MISMATCH and Stripe fee/net without seeing unnecessary customer provider IDs.
 - [ ] colleague soft-launch review is signed off.
 
-## Gate 13 — final production activation
+## Gate 14 — final production activation
 
 Only after all prior gates are recorded:
 
 - [ ] approved GST/HST readiness evidence is current.
-- [ ] production webhook lifecycle events are enabled and verified.
-- [ ] Billing Portal readiness references the exact reviewed live `bpc_...` configuration.
-- [ ] Smart Retry/email recovery settings are verified.
+- [ ] `stripeSubscriptionLifecycleWebhookVerified == true` from live provider verification.
+- [ ] Billing Portal readiness references the exact reviewed live `bpc_...` configuration and Portal remains enabled.
+- [ ] `stripeSubscriptionRecoveryVerified == true` after current Dashboard recovery review.
+- [ ] Smart Retry/email recovery settings have not changed since the recorded review.
 - [ ] Monthly and Yearly each have controlled real provider evidence.
 - [ ] Monthly and Yearly each reconcile BALANCED with zero differences.
 - [ ] no unresolved duplicate/review state exists.
-- [ ] `stripeSubscriptionsEnabled` is deliberately enabled for public production.
+- [ ] Portal Monthly ↔ Yearly plan switching remains disabled unless a separate approved synchronization/proration release has been completed.
+- [ ] `stripeSubscriptionsEnabled` is deliberately enabled for public production through the audited readiness control.
 - [ ] release activation reason and administrator identity are recorded in the payment readiness audit.
 
 ## Emergency rollback
@@ -260,11 +299,12 @@ Only after all prior gates are recorded:
 If any financial acceptance fails:
 
 1. disable `stripeSubscriptionsEnabled` through the audited readiness control;
-2. if required, disable Dispatch Billing Portal readiness separately;
-3. do not delete provider/ledger evidence;
-4. preserve webhook/reconciliation/audit records;
-5. identify the root cause before changing code;
-6. record the exact repair and verification in `docs/repairs/`;
-7. rerun the failed gate and the adjacent financial gates before reactivation.
+2. if required, disable Dispatch Billing Portal readiness separately (this also blocks new Dispatch Checkout at runtime);
+3. revoke `stripeSubscriptionRecoveryVerified` or lifecycle readiness when the corresponding provider configuration is no longer trusted;
+4. do not delete provider/ledger evidence;
+5. preserve webhook/reconciliation/audit records;
+6. identify the root cause before changing code;
+7. record the exact repair and verification in `docs/repairs/`;
+8. rerun the failed gate and the adjacent financial gates before reactivation.
 
 Do not fix a reconciliation mismatch by editing Firestore to make the numbers agree. Provider evidence and application records must be reconciled through the server-authoritative repair path.
