@@ -28,11 +28,11 @@ test("zero-dollar free invoices create a zero commission base", () => {
   }), 0);
 });
 
-test("referred Dispatch invoice does not accrue commission while affiliate payouts are disabled", () => {
+test("referred Dispatch invoice does not accrue commission while accrual is disabled", () => {
   assert.deepEqual(affiliateCommissionAccrualDecision({
     referrerUid: "referrer-1",
     baseMinor: 5000,
-    affiliatePayoutsEnabled: false,
+    dispatchAffiliateCommissionAccrualEnabled: false,
   }), {
     enabled: false,
     status: "disabled_by_readiness",
@@ -40,11 +40,11 @@ test("referred Dispatch invoice does not accrue commission while affiliate payou
   });
 });
 
-test("enabled affiliate program accrues configured Dispatch share", () => {
+test("enabled Dispatch affiliate program accrues configured share", () => {
   assert.deepEqual(affiliateCommissionAccrualDecision({
     referrerUid: "referrer-1",
     baseMinor: 5000,
-    affiliatePayoutsEnabled: true,
+    dispatchAffiliateCommissionAccrualEnabled: true,
   }), {
     enabled: true,
     status: "accrued",
@@ -52,11 +52,11 @@ test("enabled affiliate program accrues configured Dispatch share", () => {
   });
 });
 
-test("100 percent discount creates no affiliate commission even when program is enabled", () => {
+test("100 percent discount creates no affiliate commission even when accrual is enabled", () => {
   assert.deepEqual(affiliateCommissionAccrualDecision({
     referrerUid: "referrer-1",
     baseMinor: 0,
-    affiliatePayoutsEnabled: true,
+    dispatchAffiliateCommissionAccrualEnabled: true,
   }), {
     enabled: true,
     status: "zero_base",
@@ -68,7 +68,7 @@ test("invoice without a referrer creates no affiliate commission obligation", ()
   assert.deepEqual(affiliateCommissionAccrualDecision({
     referrerUid: "",
     baseMinor: 5000,
-    affiliatePayoutsEnabled: true,
+    dispatchAffiliateCommissionAccrualEnabled: true,
   }), {
     enabled: false,
     status: "no_referrer",
