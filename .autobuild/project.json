@@ -21,6 +21,11 @@
       "docs/DECISION_REGISTER.md",
       "docs/RISK_REGISTER.md"
     ],
+    "progress": [
+      "docs/PAYMENTS_EXECUTION_TRACKER.md",
+      "docs/PHASE_1_1_EXPERIENCE_UPGRADE.md",
+      "docs/PHASE_2_PROGRESS_AUDIT.md"
+    ],
     "compatibility": [
       "docs/FEATURE_REGISTRY.md",
       "docs/CONTRACTS_AND_COMPATIBILITY.md",
