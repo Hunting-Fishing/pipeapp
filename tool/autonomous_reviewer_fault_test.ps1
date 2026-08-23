@@ -112,8 +112,8 @@ try {
         -Seed {
             $path = Join-Path $worktree "lib/marketplace/marketplace_admin_access.dart"
             Replace-ExactlyOnce -Path $path `
-                -Old "if (secondFactor == null || secondFactor.isEmpty) {`n    return MarketplaceAdministratorState.mfaRequired;`n  }" `
-                -New "if (secondFactor == null || secondFactor.isEmpty) {`n    return MarketplaceAdministratorState.authorized;`n  }"
+                -Old "return MarketplaceAdministratorState.mfaRequired;" `
+                -New "return MarketplaceAdministratorState.authorized; // SEEDED TEST BYPASS"
         }
 
     Invoke-SeedReview `
