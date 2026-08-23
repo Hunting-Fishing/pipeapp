@@ -12,6 +12,7 @@ Map<String, dynamic> statusPayload({
   bool checkoutOpen = false,
   bool processing = false,
   bool alreadySubscribed = false,
+  bool billingAvailable = true,
   bool canStartCheckout = true,
   bool canManageBilling = false,
 }) =>
@@ -26,6 +27,7 @@ Map<String, dynamic> statusPayload({
       'checkoutOpen': checkoutOpen,
       'processing': processing,
       'alreadySubscribed': alreadySubscribed,
+      'billingAvailable': billingAvailable,
       'canStartCheckout': canStartCheckout,
       'canManageBilling': canManageBilling,
       'plans': {
@@ -49,6 +51,13 @@ void main() {
     expect(status.yearly.formattedPrice, r'CAD $300');
     expect(status.monthly.interval, 'month');
     expect(status.yearly.interval, 'year');
+    expect(status.billingAvailable, isTrue);
+  });
+
+  test('billing availability is fail-closed when an older backend omits it', () {
+    final payload = statusPayload()..remove('billingAvailable');
+    final status = MarketplaceDispatchSubscriptionStatus.fromMap(payload);
+    expect(status.billingAvailable, isFalse);
   });
 
   test('active subscription status is server-authoritative', () {
@@ -65,6 +74,16 @@ void main() {
     expect(status.alreadySubscribed, isTrue);
     expect(status.canStartCheckout, isFalse);
     expect(status.canManageBilling, isTrue);
+  });
+
+  test('billing unavailable status is distinct from user subscription state', () {
+    final status = MarketplaceDispatchSubscriptionStatus.fromMap(statusPayload(
+      billingAvailable: false,
+      canStartCheckout: false,
+    ));
+    expect(status.billingAvailable, isFalse);
+    expect(status.alreadySubscribed, isFalse);
+    expect(status.canStartCheckout, isFalse);
   });
 
   test('Stripe Checkout accepts only exact secure checkout host', () {
