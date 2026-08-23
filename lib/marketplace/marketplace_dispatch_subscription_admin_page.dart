@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'marketplace_admin_access.dart';
+import 'marketplace_dispatch_billing_portal_control.dart';
 import 'marketplace_dispatch_subscription_admin_panel.dart';
 import 'marketplace_dispatch_subscription_launch_readiness_panel.dart';
 
@@ -80,6 +81,8 @@ class _MarketplaceDispatchSubscriptionAdminPageState
               padding: const EdgeInsets.all(16),
               children: const [
                 MarketplaceDispatchSubscriptionLaunchReadinessPanel(),
+                SizedBox(height: 12),
+                MarketplaceDispatchBillingPortalControl(),
                 SizedBox(height: 12),
                 _DispatchReconciliationExplanation(),
                 SizedBox(height: 12),
