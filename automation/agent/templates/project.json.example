@@ -1,0 +1,61 @@
+{
+  "$schema": "../path/to/autonomous-builder/automation/agent/project.schema.json",
+  "schema_version": 2,
+  "project_id": "replace-me",
+  "project_name": "Replace Me",
+  "agent_policy": "AGENTS.md",
+  "verify_command": ".\\tool\\verify.ps1",
+  "writer_branch": "agent/autobuild",
+  "knowledge": {
+    "always": [
+      "docs/PRODUCT_VISION.md",
+      "docs/MASTER_ROADMAP.md",
+      "docs/ARCHITECTURE.md",
+      "docs/QUALITY_GATES.md",
+      "docs/DECISION_REGISTER.md"
+    ],
+    "ui": [
+      "docs/DESIGN_SYSTEM.md"
+    ],
+    "feature_registry": "docs/FEATURE_REGISTRY.md"
+  },
+  "quality": {
+    "max_source_lines": 600,
+    "refactor_warning_lines": 450,
+    "max_files_touched": 12,
+    "max_changed_lines": 800,
+    "source_extensions": [
+      ".dart",
+      ".js",
+      ".mjs",
+      ".ts",
+      ".tsx",
+      ".ps1",
+      ".py"
+    ],
+    "generated_path_markers": [
+      "/generated/",
+      ".g.dart",
+      ".freezed.dart",
+      "package-lock.json",
+      "pubspec.lock"
+    ]
+  },
+  "timeouts": {
+    "worker_minutes": 35,
+    "no_output_minutes": 10,
+    "verify_minutes": 45,
+    "repair_minutes": 25
+  },
+  "git": {
+    "base_branch": "main",
+    "reuse_writer_branch": true,
+    "allow_direct_main": false,
+    "push_verified_commits_only": true
+  },
+  "safety": {
+    "production_activation": "human-only",
+    "live_provider_mutations": "human-only",
+    "merge_to_main": "human-only"
+  }
+}
