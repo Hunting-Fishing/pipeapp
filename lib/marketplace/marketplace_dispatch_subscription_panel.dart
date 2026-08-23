@@ -24,6 +24,7 @@ class _MarketplaceDispatchSubscriptionPanelState
   late final MarketplaceDispatchSubscriptionClient _client;
   MarketplaceDispatchSubscriptionStatus? _status;
   bool _loading = true;
+  bool _workingBilling = false;
   String? _workingPlan;
   String? _error;
 
@@ -59,7 +60,7 @@ class _MarketplaceDispatchSubscriptionPanelState
   }
 
   Future<void> _checkout(String plan) async {
-    if (_workingPlan != null) return;
+    if (_workingPlan != null || _workingBilling) return;
     setState(() {
       _workingPlan = plan;
       _error = null;
@@ -101,6 +102,34 @@ class _MarketplaceDispatchSubscriptionPanelState
     }
   }
 
+  Future<void> _manageBilling() async {
+    if (_workingBilling || _workingPlan != null) return;
+    setState(() {
+      _workingBilling = true;
+      _error = null;
+    });
+    try {
+      final result = await _client.createBillingPortal();
+      final launched = await launchUrl(
+        Uri.parse(result.portalUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        throw StateError('Secure Stripe billing management could not be opened.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Dispatch billing management could not be opened.',
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _workingBilling = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading && _status == null) {
@@ -118,6 +147,23 @@ class _MarketplaceDispatchSubscriptionPanelState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _CurrentDispatchMembership(status: status, onRefresh: _load),
+        if (status.canManageBilling) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _workingBilling ? null : _manageBilling,
+            icon: _workingBilling
+                ? const SizedBox.square(
+                    dimension: 17,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.manage_accounts_outlined),
+            label: Text(
+              _workingBilling
+                  ? 'Opening secure billing…'
+                  : 'Manage billing or cancel in Stripe',
+            ),
+          ),
+        ],
         if (_error != null) ...[
           const SizedBox(height: 10),
           _InlineError(message: _error!),
@@ -135,7 +181,8 @@ class _MarketplaceDispatchSubscriptionPanelState
                 status: status,
                 working: _workingPlan == 'monthly',
                 disabledByOtherWork:
-                    _workingPlan != null && _workingPlan != 'monthly',
+                    _workingBilling ||
+                    (_workingPlan != null && _workingPlan != 'monthly'),
                 onCheckout: () => _checkout('monthly'),
               ),
               _DispatchPlanCard(
@@ -147,7 +194,8 @@ class _MarketplaceDispatchSubscriptionPanelState
                 status: status,
                 working: _workingPlan == 'yearly',
                 disabledByOtherWork:
-                    _workingPlan != null && _workingPlan != 'yearly',
+                    _workingBilling ||
+                    (_workingPlan != null && _workingPlan != 'yearly'),
                 onCheckout: () => _checkout('yearly'),
               ),
             ];
@@ -289,6 +337,15 @@ class _CurrentDispatchMembership extends StatelessWidget {
       icon: Icons.open_in_new_rounded,
     );
   }
+  if (status.alreadySubscribed) {
+    return (
+      title: '$planLabel subscription not active',
+      message:
+          'Stripe still has an existing subscription in ${status.providerStatus}. Resolve billing before starting another subscription.',
+      color: Colors.deepOrange,
+      icon: Icons.warning_amber_rounded,
+    );
+  }
   if (status.paymentIssue) {
     return (
       title: 'Membership inactive — payment issue',
@@ -347,15 +404,20 @@ class _DispatchPlanCard extends StatelessWidget {
         !status.alreadySubscribed &&
         !blockedByOpenOtherPlan &&
         (status.canStartCheckout || continueCheckout);
+    final existingLabel = status.entitlementActive
+        ? 'Current membership'
+        : 'Existing subscription needs billing attention';
     final buttonLabel = working
         ? 'Opening secure Checkout…'
         : continueCheckout
             ? 'Continue secure Checkout'
-            : status.alreadySubscribed && isCurrentPlan
-                ? 'Current membership'
-                : blockedByOpenOtherPlan
-                    ? 'Finish ${status.plan} Checkout first'
-                    : 'Choose $title';
+            : status.alreadySubscribed && (isCurrentPlan || status.plan.isEmpty)
+                ? existingLabel
+                : status.alreadySubscribed
+                    ? 'Existing ${status.plan} subscription'
+                    : blockedByOpenOtherPlan
+                        ? 'Finish ${status.plan} Checkout first'
+                        : 'Choose $title';
 
     return Container(
       padding: const EdgeInsets.all(15),
