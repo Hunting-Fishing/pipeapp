@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 
 class MarketplaceDispatchBillingPortalControl extends StatefulWidget {
@@ -91,7 +92,7 @@ class _MarketplaceDispatchBillingPortalControlState
     final returnUrl = _returnUrl.text.trim();
     if (!_validConfigurationId(configurationId)) {
       setState(() {
-        _error = 'Enter the exact live Stripe Billing Portal bpc_ configuration ID.';
+        _error = 'Enter the exact LIVE Stripe Billing Portal bpc_ configuration ID.';
       });
       return;
     }
@@ -107,7 +108,7 @@ class _MarketplaceDispatchBillingPortalControlState
           builder: (context) => AlertDialog(
             title: const Text('Verify live Stripe Billing Portal'),
             content: Text(
-              'Stripe will be re-read before Pipe Buyer enables this Portal configuration. Continue only after creating $configurationId in LIVE mode. It must allow payment-method updates and invoice history, cancel at the end of the billing period with no proration, and keep Monthly ↔ Yearly plan switching disabled.',
+              'Pipe Buyer will re-read $configurationId directly from Stripe before enabling it. Continue only after creating this configuration in LIVE mode. It must allow payment-method updates and invoice history, cancel at the end of the billing period with no proration, and keep Monthly ↔ Yearly plan switching disabled.',
             ),
             actions: [
               TextButton(
@@ -170,7 +171,7 @@ class _MarketplaceDispatchBillingPortalControlState
           builder: (context) => AlertDialog(
             title: const Text('Disable Dispatch Billing Portal?'),
             content: const Text(
-              'This revokes the stored provider verification and blocks new Dispatch subscription Checkout. Existing Stripe subscription and accounting evidence is preserved.',
+              'This revokes the stored provider verification and blocks new Dispatch subscription Checkout. Existing Stripe subscriptions and accounting evidence are preserved.',
             ),
             actions: [
               TextButton(
@@ -203,7 +204,8 @@ class _MarketplaceDispatchBillingPortalControlState
       );
       if (!mounted) return;
       setState(() {
-        _message = 'Dispatch Billing Portal readiness was disabled and provider proof revoked.';
+        _message =
+            'Dispatch Billing Portal readiness was disabled and provider proof revoked.';
       });
       await _load();
     } catch (error) {
@@ -236,9 +238,18 @@ class _MarketplaceDispatchBillingPortalControlState
         '${_portal['stripePortalConfigurationId'] ?? ''}'.trim();
     final verifiedConfiguration =
         '${_portal['providerVerifiedConfigurationId'] ?? ''}'.trim();
+    final verificationRevision =
+        '${_portal['providerVerificationRevision'] ?? ''}'.trim();
+    final featuresRaw = _portal['providerVerifiedFeatures'];
+    final features = featuresRaw is Map
+        ? Map<String, dynamic>.from(featuresRaw)
+        : const <String, dynamic>{};
     final exactBinding = storedConfiguration.isNotEmpty &&
         verifiedConfiguration == storedConfiguration;
-    final ready = enabled && providerVerified && exactBinding;
+    final ready = enabled &&
+        providerVerified &&
+        exactBinding &&
+        verificationRevision.isNotEmpty;
 
     return Card(
       child: Padding(
@@ -247,31 +258,98 @@ class _MarketplaceDispatchBillingPortalControlState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   ready ? Icons.verified_rounded : Icons.settings_outlined,
+                  color: ready
+                      ? PipeBuyerColors.success
+                      : PipeBuyerColors.industrialBlue,
                 ),
                 const SizedBox(width: 10),
                 const Expanded(
-                  child: Text(
-                    'Stripe Billing Portal verification',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stripe Billing Portal verification',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Pipe Buyer verifies the exact LIVE Stripe configuration; a bpc_ ID by itself is not treated as readiness.',
+                        style: TextStyle(
+                          color: PipeBuyerColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                _PortalStatusBadge(ready: ready),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              ready
-                  ? 'Provider-verified and bound to $storedConfiguration.'
-                  : 'Enter the exact LIVE bpc_ configuration after creating it in Stripe Dashboard. Pipe Buyer will verify its provider features before enabling it.',
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
+            if (ready)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.success.withValues(alpha: .06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: PipeBuyerColors.success.withValues(alpha: .22),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SelectableText(
+                      storedConfiguration,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 7),
+                    _FeatureCheck(
+                      label: 'Payment-method updates',
+                      ready: features['paymentMethodUpdate'] == true,
+                    ),
+                    _FeatureCheck(
+                      label: 'Invoice history',
+                      ready: features['invoiceHistory'] == true,
+                    ),
+                    _FeatureCheck(
+                      label: 'Cancellation at period end',
+                      ready: features['subscriptionCancel'] == true &&
+                          '${features['subscriptionCancelMode'] ?? ''}' ==
+                              'at_period_end',
+                    ),
+                    _FeatureCheck(
+                      label: 'Cancellation proration disabled',
+                      ready:
+                          '${features['subscriptionCancelProration'] ?? ''}' ==
+                              'none',
+                    ),
+                    _FeatureCheck(
+                      label: 'Monthly ↔ Yearly plan switching disabled',
+                      ready: features['subscriptionUpdate'] != true,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'This configuration is re-checked live with Stripe before a new Dispatch Checkout or Manage Billing session is allowed.',
+                      style: TextStyle(
+                        color: PipeBuyerColors.muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (ready) const SizedBox(height: 12),
             TextField(
               controller: _configurationId,
               enabled: !_working,
               decoration: const InputDecoration(
                 labelText: 'Stripe Portal configuration ID',
+                helperText: 'Copy the exact LIVE configuration ID from Stripe.',
                 hintText: 'bpc_...',
                 border: OutlineInputBorder(),
               ),
@@ -282,6 +360,7 @@ class _MarketplaceDispatchBillingPortalControlState
               enabled: !_working,
               decoration: const InputDecoration(
                 labelText: 'Pipe Buyer return URL',
+                helperText: 'HTTPS on pipebuyer.com or an approved Pipe Buyer subdomain.',
                 hintText: 'https://pipebuyer.com/account',
                 border: OutlineInputBorder(),
               ),
@@ -289,18 +368,15 @@ class _MarketplaceDispatchBillingPortalControlState
             const SizedBox(height: 10),
             const Text(
               'Required Stripe features: payment-method update ON • invoice history ON • cancellation at period end • cancellation proration NONE • subscription/plan update OFF.',
-              style: TextStyle(fontSize: 12),
+              style: TextStyle(color: PipeBuyerColors.muted, fontSize: 11.5),
             ),
             if (_message != null) ...[
               const SizedBox(height: 10),
-              Text(_message!),
+              _PortalMessage(message: _message!, error: false),
             ],
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+              _PortalMessage(message: _error!, error: true),
             ],
             const SizedBox(height: 12),
             Wrap(
@@ -310,7 +386,11 @@ class _MarketplaceDispatchBillingPortalControlState
                 FilledButton.icon(
                   onPressed: _working ? null : _verifyAndEnable,
                   icon: const Icon(Icons.verified_user_outlined),
-                  label: const Text('Verify & enable Billing Portal'),
+                  label: Text(
+                    ready
+                        ? 'Re-verify with Stripe'
+                        : 'Verify & enable Billing Portal',
+                  ),
                 ),
                 if (enabled)
                   OutlinedButton.icon(
@@ -327,6 +407,84 @@ class _MarketplaceDispatchBillingPortalControlState
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PortalStatusBadge extends StatelessWidget {
+  const _PortalStatusBadge({required this.ready});
+
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = ready ? PipeBuyerColors.success : PipeBuyerColors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: .28)),
+      ),
+      child: Text(
+        ready ? 'PROVIDER VERIFIED' : 'NOT VERIFIED',
+        style: TextStyle(
+          color: color,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureCheck extends StatelessWidget {
+  const _FeatureCheck({required this.label, required this.ready});
+
+  final String label;
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Icon(
+              ready ? Icons.check_circle_rounded : Icons.cancel_outlined,
+              size: 17,
+              color: ready ? PipeBuyerColors.success : PipeBuyerColors.danger,
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 11.5),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _PortalMessage extends StatelessWidget {
+  const _PortalMessage({required this.message, required this.error});
+
+  final String message;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = error ? PipeBuyerColors.danger : PipeBuyerColors.success;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
       ),
     );
   }
