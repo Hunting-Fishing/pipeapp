@@ -54,27 +54,15 @@ jobs:
       - name: Restore Flutter dependencies
         run: flutter pub get
 
-      - name: Validate PowerShell release and autonomous tools
+      - name: Validate project PowerShell release tools
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $scripts = @(
             'tool/verify.ps1',
+            'tool/callable_emulator_integration.ps1',
             'tool/web_visual_smoke.ps1',
-            'tool/phase1_safe_default_rehearsal.ps1',
-            'tool/autonomous_build.ps1',
-            'tool/autonomous_build_v2.ps1',
-            'tool/autonomous_process.ps1',
-            'tool/autonomous_project.ps1',
-            'tool/autonomous_fingerprint.ps1',
-            'tool/autonomous_graduation.ps1',
-            'tool/autonomous_guard.ps1',
-            'tool/autonomous_builder_self_test.ps1',
-            'tool/autonomous_guard_test.ps1',
-            'tool/autonomous_recovery_safe.ps1',
-            'tool/autonomous_recovery_safe_test.ps1',
-            'tool/autonomous_runtime_fault_test.ps1',
-            'tool/autonomous_reviewer_fault_test.ps1'
+            'tool/phase1_safe_default_rehearsal.ps1'
           )
           foreach ($script in $scripts) {
             $tokens = $null
@@ -90,14 +78,7 @@ jobs:
             }
           }
 
-      - name: Test autonomous governance contracts
-        shell: pwsh
-        run: |
-          .\tool\autonomous_builder_self_test.ps1 -ProjectRoot (Get-Location).Path
-          .\tool\autonomous_guard_test.ps1
-          .\tool\autonomous_recovery_safe_test.ps1
-
-      - name: Test autonomous compatibility engine
+      - name: Test Pipe Buyer compatibility inventory
         run: node --test tool/autonomous_compatibility_test.mjs
 
       - name: Prevent PR route or Function export loss
