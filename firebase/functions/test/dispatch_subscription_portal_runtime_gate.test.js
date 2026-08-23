@@ -41,11 +41,19 @@ function liveProviderPortal(overrides = {}) {
   };
 }
 
-function fakeAdmin(portal) {
+function authenticatedRequest(data = {}) {
+  return {
+    auth: {uid: "user-1", token: {}},
+    data,
+  };
+}
+
+function fakeAdmin(portal, counters = null) {
   return {
     firestore() {
       return {
         collection(name) {
+          if (counters) counters.firestoreReads += 1;
           assert.equal(name, "platform_configuration");
           return {
             doc(id) {
@@ -89,6 +97,33 @@ test("runtime Portal decision rejects unsafe return URL", () => {
   assert.equal(decision.reason, "return_url_invalid");
 });
 
+test("unauthenticated request cannot trigger Firestore or Stripe provider reads", async () => {
+  const counters = {firestoreReads: 0, providerCalls: 0, invoked: 0};
+  const gate = createDispatchSubscriptionPortalRuntimeGate(
+      fakeAdmin(verifiedPortal(), counters),
+      async () => {
+        counters.invoked += 1;
+        return {ok: true};
+      },
+      {
+        secretProvider: () => "sk_live_stub",
+        stripeRequest: async () => {
+          counters.providerCalls += 1;
+          return liveProviderPortal();
+        },
+      },
+  );
+  await assert.rejects(
+      () => gate({data: {plan: "monthly"}}),
+      /sign in before using Dispatch billing/i,
+  );
+  assert.deepEqual(counters, {
+    firestoreReads: 0,
+    providerCalls: 0,
+    invoked: 0,
+  });
+});
+
 test("production gate blocks before provider request when stored proof is invalid", async () => {
   let invoked = 0;
   let providerCalls = 0;
@@ -107,7 +142,7 @@ test("production gate blocks before provider request when stored proof is invali
       },
   );
   await assert.rejects(
-      () => gate({data: {plan: "monthly"}}),
+      () => gate(authenticatedRequest({plan: "monthly"})),
       /provider-verified Billing Portal configuration/i,
   );
   assert.equal(providerCalls, 0);
@@ -131,7 +166,7 @@ test("production gate re-reads exact live bpc before delegating", async () => {
         },
       },
   );
-  const result = await gate({data: {plan: "yearly"}});
+  const result = await gate(authenticatedRequest({plan: "yearly"}));
   assert.equal(invoked, 1);
   assert.equal(providerCalls.length, 1);
   assert.equal(providerCalls[0].method, "GET");
@@ -164,7 +199,7 @@ test("provider-side Portal drift blocks the action even when stored proof is gre
       },
   );
   await assert.rejects(
-      () => gate({data: {plan: "monthly"}}),
+      () => gate(authenticatedRequest({plan: "monthly"})),
       /no longer matches the approved launch policy/i,
   );
   assert.equal(invoked, 0);
