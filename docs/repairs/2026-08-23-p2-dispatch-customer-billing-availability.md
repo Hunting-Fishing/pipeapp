@@ -20,6 +20,8 @@ The actual Checkout callable would fail closed, but that still produced a poor c
 
 This was a projection mismatch between the customer UI and the server financial gate, not a Checkout authorization defect.
 
+A second projection gap was found while reviewing GST/HST parity: in Canadian small-supplier mode, a readiness boolean alone is not sufficient. Checkout revalidates the exact bound threshold-assessment revision immediately before billing. The customer status projection also needed to fail closed when that assessment was missing, stale, exceeded, unattested, or revision-mismatched.
+
 ## Exact repair
 
 ### 1. Keep account-state eligibility separate
@@ -34,7 +36,8 @@ It still answers whether the user's current subscription/Checkout state is compa
 
 - `dispatch_subscriptions/{uid}`;
 - `platform_configuration/dispatch_billing_portal`;
-- `platform_configuration/payment_provider_readiness`.
+- `platform_configuration/payment_provider_readiness`;
+- `tax_threshold_assessments/canada_gst_hst_current`.
 
 `dispatchSubscriptionPublicBillingReady()` requires the same stored production prerequisites used by Dispatch billing:
 
@@ -47,6 +50,8 @@ It still answers whether the user's current subscription/Checkout state is compa
 - authorized GST/HST billing state;
 - provider-verified current Billing Portal record with a safe Pipe Buyer return URL.
 
+For small-supplier mode, `dispatchSubscriptionPublicTaxReady()` additionally uses `canadaSmallSupplierReadinessDecision()` so the current assessment must be authorized and its revision must exactly match `canadaGstHstSmallSupplierAssessmentRevision`.
+
 The status response now includes:
 
 `billingAvailable`
@@ -55,7 +60,7 @@ and returns:
 
 `canStartCheckout = billingAvailable && accountStateCanStartCheckout`
 
-The actual Checkout runtime remains more authoritative and re-reads the live Stripe Portal configuration before money movement. The public status projection deliberately does not call Stripe on every UI refresh.
+The actual Checkout runtime remains more authoritative: it re-reads the live Stripe Portal configuration and independently runs the billing-time small-supplier evidence gate before money movement. The public status projection deliberately does not call Stripe on every UI refresh.
 
 ### 3. Existing subscribers are preserved when new sales are OFF
 
@@ -95,6 +100,23 @@ If an older backend response omits that new field, Flutter treats it as `false`,
 
 Returning from Checkout still never grants entitlement by itself.
 
+### 6. Customer panel presentation was separated from payment orchestration
+
+To prevent future visual work from repeatedly touching Checkout/Portal orchestration, pure customer presentation was extracted to:
+
+`lib/marketplace/marketplace_dispatch_subscription_components.dart`
+
+The stateful `marketplace_dispatch_subscription_panel.dart` now owns only:
+
+- status loading;
+- app-resume refresh;
+- Checkout launch;
+- Billing Portal launch;
+- working/error state;
+- responsive composition.
+
+The extracted component file owns status presentation, plan cards, billing-unavailable presentation, error/empty presentation, and plan benefits.
+
 ## Verification added/updated
 
 Coverage now includes:
@@ -102,11 +124,14 @@ Coverage now includes:
 - public billing availability requires all stored Dispatch launch prerequisites;
 - public sales OFF forces `billingAvailable == false` and `canStartCheckout == false`;
 - fully ready billing + eligible user allows Checkout projection;
+- small-supplier mode requires an exact authorized assessment revision;
+- missing/stale/exceeded small-supplier evidence keeps purchase unavailable;
 - existing active subscriber remains active when new purchases are disabled;
 - Flutter treats a missing `billingAvailable` field as unavailable;
 - customer plan buttons depend on `status.billingAvailable`;
 - customer UI exposes a non-error not-open-yet state;
 - app lifecycle resume triggers a server status refresh;
+- stateful payment orchestration delegates presentation to the extracted components module;
 - customer Flutter contains no direct authoritative financial Firestore writes.
 
 Full Flutter/Functions/emulator execution remains required from the complete repository toolchain.
@@ -114,8 +139,10 @@ Full Flutter/Functions/emulator execution remains required from the complete rep
 ## Do not repeat
 
 - Do not derive a customer purchase button only from the user's subscription state; platform financial readiness must also permit the sale.
+- Do not treat Canadian small-supplier mode as ready from a boolean alone; the current audited assessment and exact bound revision must agree.
 - Do not solve a server/UI readiness mismatch by catching the Checkout rejection and showing friendlier text. Fix the projection.
 - Do not let a missing new readiness field default to enabled during staged deployment.
 - Do not revoke or rewrite existing subscriber entitlement merely because new subscription sales are paused.
 - Do not make the status endpoint call Stripe on every normal UI refresh; stored public readiness may drive presentation while the actual financial action performs the final live provider re-check.
 - Do not grant membership because the app resumed or returned from Stripe; resume only refreshes server-authoritative state.
+- Do not move plan-card visual changes back into the stateful payment-orchestration panel unless the behavior genuinely requires it.
