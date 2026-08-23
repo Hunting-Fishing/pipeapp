@@ -6,6 +6,9 @@ const {
   createDispatchBillingPortalAdmin,
   normalizePortalConfig,
 } = require("../dispatch_billing_portal_admin");
+const {
+  DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+} = require("../dispatch_billing_portal_policy");
 
 function administratorRequest(data) {
   return {
@@ -59,14 +62,14 @@ function fakeAdmin(previous = {}) {
   return {admin: {firestore}, writes};
 }
 
-test("portal readiness normalization preserves provider verification evidence", () => {
+test("portal readiness normalization preserves current provider verification evidence", () => {
   assert.deepEqual(normalizePortalConfig({
     enabled: true,
     returnUrl: "https://pipebuyer.com/account",
     stripePortalConfigurationId: "bpc_live_1",
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_1",
-    providerVerificationRevision: "provider-v1",
+    providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
     providerVerifiedFeatures: {
       paymentMethodUpdate: true,
       invoiceHistory: true,
@@ -82,7 +85,7 @@ test("portal readiness normalization preserves provider verification evidence", 
     stripePortalConfigurationId: "bpc_live_1",
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_1",
-    providerVerificationRevision: "provider-v1",
+    providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
     providerVerifiedFeatures: {
       paymentMethodUpdate: true,
       invoiceHistory: true,
@@ -93,6 +96,20 @@ test("portal readiness normalization preserves provider verification evidence", 
     },
     revision: 4,
   });
+});
+
+test("stale provider verification is rendered fail-closed", () => {
+  const normalized = normalizePortalConfig({
+    enabled: true,
+    returnUrl: "https://pipebuyer.com/account",
+    stripePortalConfigurationId: "bpc_live_1",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_live_1",
+    providerVerificationRevision: "old-policy",
+    revision: 4,
+  });
+  assert.equal(normalized.enabled, false);
+  assert.equal(normalized.providerVerified, false);
 });
 
 test("manual Billing Portal enablement is rejected without provider verification", async () => {
@@ -110,14 +127,14 @@ test("manual Billing Portal enablement is rejected without provider verification
   );
 });
 
-test("emergency disable clears stale provider verification evidence", async () => {
+test("emergency disable clears provider verification evidence", async () => {
   const {admin, writes} = fakeAdmin({
     enabled: true,
     returnUrl: "https://pipebuyer.com/account",
     stripePortalConfigurationId: "bpc_live_1",
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_1",
-    providerVerificationRevision: "provider-v1",
+    providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
     revision: 1,
   });
   const commands = createDispatchBillingPortalAdmin(admin);
