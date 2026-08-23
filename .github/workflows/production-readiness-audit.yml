@@ -86,6 +86,19 @@ jobs:
             if (!response.ok) throw new Error(`Stripe credential validation failed (${response.status}).`);
             return payload;
           }
+          function safeDispatchPortal(item) {
+            const features = item && item.features || {};
+            const cancel = features.subscription_cancel || {};
+            return item && item.active === true && item.livemode === true &&
+              features.payment_method_update &&
+              features.payment_method_update.enabled === true &&
+              features.invoice_history &&
+              features.invoice_history.enabled === true &&
+              cancel.enabled === true && cancel.mode === 'at_period_end' &&
+              String(cancel.proration_behavior || 'none') === 'none' &&
+              features.subscription_update &&
+              features.subscription_update.enabled === false;
+          }
           (async () => {
             const [account, balance, endpoints, portalConfigurations] = await Promise.all([
               stripe('/v1/account'),
@@ -108,8 +121,9 @@ jobs:
             const receivesAllEvents = enabledEvents.has('*');
             const missingSubscriptionEvents = receivesAllEvents ? [] :
               requiredSubscriptionEvents.filter((event) => !enabledEvents.has(event));
-            const activePortalConfigurations = (portalConfigurations.data || [])
-              .filter((item) => item.active !== false);
+            const livePortalConfigurations = (portalConfigurations.data || [])
+              .filter((item) => item.active === true && item.livemode === true);
+            const safePortalConfigurations = livePortalConfigurations.filter(safeDispatchPortal);
             fs.appendFileSync(
               process.env.GITHUB_STEP_SUMMARY,
               [
@@ -118,8 +132,9 @@ jobs:
                 `Production webhook endpoint: **${endpoint ? 'ENABLED' : 'MISSING'}**`,
                 `Dispatch subscription lifecycle events: **${missingSubscriptionEvents.length === 0 ? 'VERIFIED' : 'INCOMPLETE'}**`,
                 `Missing lifecycle events: ${missingSubscriptionEvents.length === 0 ? 'none' : missingSubscriptionEvents.join(', ')}`,
-                `Live Billing Portal configurations: **${activePortalConfigurations.length}**`,
-                `Portal configuration IDs: ${activePortalConfigurations.length === 0 ? 'none' : activePortalConfigurations.map((item) => item.id).join(', ')}`,
+                `Active live Billing Portal configurations: **${livePortalConfigurations.length}**`,
+                `Launch-safe Dispatch Portal configurations: **${safePortalConfigurations.length}**`,
+                `Launch-safe Portal configuration IDs: ${safePortalConfigurations.length === 0 ? 'none' : safePortalConfigurations.map((item) => item.id).join(', ')}`,
                 '',
               ].join('\n'),
             );
@@ -129,8 +144,8 @@ jobs:
             if (missingSubscriptionEvents.length > 0) {
               throw new Error(`Dispatch subscription webhook events are incomplete: ${missingSubscriptionEvents.join(', ')}`);
             }
-            if (activePortalConfigurations.length === 0) {
-              throw new Error('No live Stripe Billing Portal configuration exists for Dispatch billing management.');
+            if (safePortalConfigurations.length === 0) {
+              throw new Error('No launch-safe live Stripe Billing Portal configuration exists for Dispatch billing management.');
             }
           })().catch((error) => {
             console.error(error.message);
@@ -160,12 +175,17 @@ jobs:
             'ensureStripeSellerAccount',
             'createMarketplaceCheckout',
             'createDispatchSubscriptionCheckout',
+            'createDispatchBillingPortalSession',
+            'verifyDispatchBillingPortalConfiguration',
             'verifyDispatchSubscriptionLifecycleWebhook',
+            'reconcileDispatchSubscriptionInvoice',
             'executeMarketplaceRefund',
             'stageMarketplaceDisputeEvidence',
             'processEligibleAffiliatePayouts',
             'getPaymentProviderReadiness',
             'setPaymentProviderReadiness',
+            'getDispatchBillingPortalReadiness',
+            'setDispatchBillingPortalReadiness',
           ];
           let missing = 0;
           for (const name of required) {
