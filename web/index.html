@@ -92,8 +92,16 @@
       object-fit: contain;
     }
 
+    .pipe-startup-title {
+      margin: 10px 0 0;
+      color: var(--pipe-ink);
+      font-size: 20px;
+      font-weight: 850;
+      letter-spacing: -.2px;
+    }
+
     #pipe-startup-status {
-      margin-top: 24px;
+      margin-top: 14px;
       color: var(--pipe-ink);
       font-size: 15px;
       font-weight: 800;
@@ -202,6 +210,37 @@
       text-transform: uppercase;
     }
 
+    .pipe-startup-identity {
+      max-width: 620px;
+      margin-top: 10px;
+      color: var(--pipe-muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .pipe-startup-identity strong {
+      color: var(--pipe-ink);
+    }
+
+    .pipe-startup-links {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 6px;
+    }
+
+    .pipe-startup-links a {
+      color: var(--pipe-ink);
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .pipe-startup-links a:hover,
+    .pipe-startup-links a:focus-visible {
+      color: var(--pipe-orange);
+      text-decoration: underline;
+    }
+
     #pipe-startup-error {
       display: none;
       max-width: 520px;
@@ -219,7 +258,9 @@
     @media (max-width: 600px) {
       #pipe-startup { padding: 18px; }
       .pipe-startup-logo { width: min(94vw, 620px); }
-      #pipe-startup-status { margin-top: 18px; font-size: 14px; }
+      .pipe-startup-title { font-size: 18px; }
+      #pipe-startup-status { margin-top: 12px; font-size: 14px; }
+      .pipe-startup-identity { font-size: 10px; }
     }
   </style>
 
@@ -266,6 +307,7 @@
         src="assets/assets/images/pipe_buyer_logo.png"
         alt="Pipe Buyer"
         onerror="this.onerror=null;this.src='splash/img/light-4x.png';">
+      <h1 class="pipe-startup-title">Pipe Buyer</h1>
       <div id="pipe-startup-status">Preparing Pipe Buyer</div>
       <div class="pipe-service-route" aria-hidden="true">
         <div class="pipe-startup-track" role="progressbar" aria-label="Application startup progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="4">
@@ -304,6 +346,14 @@
         </div>
       </div>
       <div class="pipe-startup-label">Industrial Marketplace · Dispatch · Timed Buying</div>
+      <div class="pipe-startup-identity">
+        <strong>Application Purpose &amp; Identity:</strong>
+        Pipe Buyer is a B2B industrial marketplace for pipe, OCTG, equipment, buildings, vehicles and heavy machinery, with timed auctions and freight trucking dispatch across the United States and Canada.
+        <div class="pipe-startup-links">
+          <a href="https://www.pipebuyer.com/privacy">Privacy</a>
+          <a href="https://www.pipebuyer.com/terms">Terms</a>
+        </div>
+      </div>
       <div id="pipe-startup-error"></div>
     </div>
   </div>
