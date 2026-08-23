@@ -5,9 +5,7 @@ import '../core/design/pipe_buyer_theme.dart';
 class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
   const MarketplaceDispatchSubscriptionReadinessView({
     super.key,
-    required this.readiness,
-    required this.portal,
-    required this.taxEvidence,
+    required this.snapshot,
     required this.working,
     required this.error,
     required this.resultMessage,
@@ -16,9 +14,7 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
     required this.onRefresh,
   });
 
-  final Map<String, dynamic> readiness;
-  final Map<String, dynamic> portal;
-  final Map<String, dynamic> taxEvidence;
+  final Map<String, dynamic> snapshot;
   final bool working;
   final String? error;
   final String? resultMessage;
@@ -28,61 +24,47 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final portalEnabled = portal['enabled'] == true;
-    final portalId = '${portal['stripePortalConfigurationId'] ?? ''}'.trim();
-    final portalProviderVerified = portal['providerVerified'] == true;
-    final portalVerifiedId =
-        '${portal['providerVerifiedConfigurationId'] ?? ''}'.trim();
-    final portalProviderRevision =
-        '${portal['providerVerificationRevision'] ?? ''}'.trim();
-    final portalReady = portalEnabled &&
-        portalProviderVerified &&
-        portalId.startsWith('bpc_') &&
-        portalVerifiedId == portalId &&
-        portalProviderRevision.isNotEmpty;
+    final featureFlagsReady = snapshot['featureFlagsReady'] == true;
+    final dispatchFeatureEnabled = snapshot['dispatchFeatureEnabled'] == true;
+    final paidFeaturesEnabled = snapshot['paidFeaturesEnabled'] == true;
+    final productionModeReady = snapshot['productionModeReady'] == true;
+    final portalReady = snapshot['portalReady'] == true;
+    final portalId = '${snapshot['portalConfigurationId'] ?? ''}'.trim();
+    final coreWebhook = snapshot['coreWebhookReady'] == true;
+    final lifecycle = snapshot['lifecycleWebhookReady'] == true;
+    final recovery = snapshot['recoveryReady'] == true;
+    final reconciliation = snapshot['reconciliationReady'] == true;
+    final taxPrepared = snapshot['taxReady'] == true;
+    final subscriptions = snapshot['subscriptionsEnabled'] == true;
+    final providerPrerequisites = snapshot['prerequisitesReady'] == true;
+    final readyCount = (snapshot['readyCount'] as num?)?.toInt() ?? 0;
+    final prerequisiteCount =
+        (snapshot['prerequisiteCount'] as num?)?.toInt() ?? 8;
 
-    final coreWebhook = readiness['stripeWebhookVerified'] == true;
-    final lifecycle =
-        readiness['stripeSubscriptionLifecycleWebhookVerified'] == true;
-    final recovery = readiness['stripeSubscriptionRecoveryVerified'] == true;
-    final reconciliation = readiness['stripeReconciliationReady'] == true;
-    final subscriptions = readiness['stripeSubscriptionsEnabled'] == true;
-
-    final stripeTaxReady = readiness['stripeTaxReady'] == true;
+    final stripeTaxReady = snapshot['stripeTaxReady'] == true;
     final smallSupplierActive =
-        readiness['canadaGstHstSmallSupplier'] == true;
+        snapshot['canadaGstHstSmallSupplier'] == true;
     final smallSupplierEvidenceReady =
-        taxEvidence['smallSupplierBillingEvidenceReady'] == true;
+        snapshot['smallSupplierBillingEvidenceReady'] == true;
     final pendingTaxApproved =
-        readiness['stripeTaxRegistrationPending'] == true &&
-            readiness['stripeTaxPendingBillingApproved'] == true;
-    final taxPrepared = stripeTaxReady ||
-        (smallSupplierActive && smallSupplierEvidenceReady) ||
-        pendingTaxApproved;
+        snapshot['stripeTaxRegistrationPending'] == true &&
+            snapshot['stripeTaxPendingBillingApproved'] == true;
     final taxDetail = dispatchTaxReadinessDetail(
       stripeTaxReady: stripeTaxReady,
       smallSupplierActive: smallSupplierActive,
       smallSupplierEvidenceReady: smallSupplierEvidenceReady,
       pendingTaxApproved: pendingTaxApproved,
       evidenceReason:
-          '${taxEvidence['smallSupplierBillingEvidenceReason'] ?? ''}'.trim(),
+          '${snapshot['smallSupplierBillingEvidenceReason'] ?? ''}'.trim(),
       assessmentRevision:
-          (taxEvidence['smallSupplierAssessmentRevision'] as num?)?.toInt() ?? 0,
+          (snapshot['smallSupplierAssessmentRevision'] as num?)?.toInt() ?? 0,
       boundRevision:
-          (taxEvidence['smallSupplierBoundRevision'] as num?)?.toInt() ?? 0,
+          (snapshot['smallSupplierBoundRevision'] as num?)?.toInt() ?? 0,
     );
 
-    final prerequisiteStates = <bool>[
-      portalReady,
-      coreWebhook,
-      lifecycle,
-      recovery,
-      reconciliation,
-      taxPrepared,
-    ];
-    final readyCount = prerequisiteStates.where((ready) => ready).length;
-    final providerPrerequisites = readyCount == prerequisiteStates.length;
     final nextAction = dispatchSubscriptionNextAction(
+      featureFlagsReady: featureFlagsReady,
+      productionModeReady: productionModeReady,
       portalReady: portalReady,
       coreWebhook: coreWebhook,
       lifecycle: lifecycle,
@@ -116,7 +98,7 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
                       ),
                       SizedBox(height: 3),
                       Text(
-                        'Production prerequisites only. Nothing on this card activates public subscriptions.',
+                        'Server-projected production prerequisites only. Nothing on this card activates public subscriptions.',
                         style: TextStyle(
                           color: PipeBuyerColors.muted,
                           fontSize: 12,
@@ -136,19 +118,35 @@ class MarketplaceDispatchSubscriptionReadinessView extends StatelessWidget {
               children: [
                 Expanded(
                   child: LinearProgressIndicator(
-                    value: readyCount / prerequisiteStates.length,
+                    value: prerequisiteCount <= 0
+                        ? 0
+                        : (readyCount / prerequisiteCount).clamp(0.0, 1.0),
                     minHeight: 8,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '$readyCount/${prerequisiteStates.length} verified',
+                  '$readyCount/$prerequisiteCount verified',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ],
             ),
             const SizedBox(height: 14),
+            _GateRow(
+              label: 'Dispatch feature availability',
+              ready: featureFlagsReady,
+              detail: featureFlagsReady
+                  ? 'Dispatch and paidFeatures are enabled'
+                  : 'dispatch=${dispatchFeatureEnabled ? 'ON' : 'OFF'} • paidFeatures=${paidFeaturesEnabled ? 'ON' : 'OFF'}',
+            ),
+            _GateRow(
+              label: 'Stripe production mode',
+              ready: productionModeReady,
+              detail: productionModeReady
+                  ? 'Production billing mode is selected'
+                  : 'Production billing mode is not ready',
+            ),
             _GateRow(
               label: 'Stripe Billing Portal',
               ready: portalReady,
@@ -319,6 +317,8 @@ String dispatchTaxReadinessDetail({
 }
 
 String dispatchSubscriptionNextAction({
+  required bool featureFlagsReady,
+  required bool productionModeReady,
   required bool portalReady,
   required bool coreWebhook,
   required bool lifecycle,
@@ -327,6 +327,12 @@ String dispatchSubscriptionNextAction({
   required bool taxPrepared,
   required bool subscriptions,
 }) {
+  if (!featureFlagsReady) {
+    return 'Enable the reviewed Dispatch and paidFeatures feature flags before subscription acceptance.';
+  }
+  if (!productionModeReady) {
+    return 'Complete the audited Stripe production-mode readiness step before subscription acceptance.';
+  }
   if (!portalReady) {
     return 'Create and review the LIVE Stripe Billing Portal, then use Verify & enable Billing Portal below.';
   }
