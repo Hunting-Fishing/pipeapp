@@ -7,6 +7,7 @@ const {
   invoiceIdFromRequest,
   requiredProviderId,
 } = require("../dispatch_subscription_reconciliation_commands");
+const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 
 function administratorRequest(invoiceId = "in_dispatch_1") {
   return {
@@ -28,6 +29,7 @@ function storedInvoice(overrides = {}) {
     subscriptionId: "sub_dispatch_1",
     uid: "user-1",
     plan: "monthly",
+    stripePriceId: stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
     currency: "CAD",
     commissionBaseMinor: 2500,
     amountPaidMinor: 2500,
@@ -83,6 +85,17 @@ function providerInvoice({zero = false, wrongBillingType = false} = {}) {
     total: zero ? 0 : 2500,
     total_excluding_tax: zero ? 0 : 2500,
     currency: "cad",
+    lines: {
+      data: [{
+        quantity: 1,
+        pricing: {
+          price_details: {
+            price: stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+            product: stripeMarketplaceConfig.products.dispatchMonthlyCad.productId,
+          },
+        },
+      }],
+    },
     parent: {
       subscription_details: {
         subscription: "sub_dispatch_1",
@@ -165,7 +178,7 @@ function providerFixture({
   return {calls, stripeRequest};
 }
 
-test("paid Dispatch invoice re-reads InvoicePayment PaymentIntent Charge and Balance Transaction and records balanced evidence", async () => {
+test("paid Dispatch invoice re-reads provider evidence and records balanced Price-backed plan", async () => {
   const {admin, writes} = fakeAdmin(storedInvoice());
   const provider = providerFixture();
   const commands = createDispatchSubscriptionReconciliationCommands(admin, {
@@ -179,6 +192,12 @@ test("paid Dispatch invoice re-reads InvoicePayment PaymentIntent Charge and Bal
 
   assert.equal(result.balanced, true);
   assert.equal(result.status, "balanced");
+  assert.equal(result.providerPlan, "monthly");
+  assert.equal(
+      result.providerStripePriceId,
+      stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+  );
+  assert.equal(result.reconciliationRevision, "2026-08-23-p2-v3-provider-price-plan");
   assert.equal(result.providerGrossMinor, 2500);
   assert.equal(result.providerFeeMinor, 103);
   assert.equal(result.providerNetMinor, 2397);
@@ -199,6 +218,11 @@ test("paid Dispatch invoice re-reads InvoicePayment PaymentIntent Charge and Bal
   );
   assert.equal(invoiceWrite.data.reconciliationStatus, "balanced");
   assert.equal(invoiceWrite.data.providerFeeMinor, 103);
+  assert.equal(invoiceWrite.data.reconciledProviderPlan, "monthly");
+  assert.equal(
+      invoiceWrite.data.reconciledStripePriceId,
+      stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+  );
   assert.equal(invoiceWrite.data.stripeInvoicePaymentId, "inpay_dispatch_1");
   assert.equal(invoiceWrite.data.stripePaymentIntentId, "pi_dispatch_1");
   assert.equal(invoiceWrite.data.sourceChargeId, "ch_dispatch_1");
