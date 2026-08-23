@@ -6,22 +6,51 @@
   "agent_policy": "AGENTS.md",
   "verify_command": ".\\tool\\verify.ps1",
   "writer_branch": "agent/autobuild",
+  "risk_policy": ".autobuild/risk_policy.json",
+  "independent_review_required": true,
   "knowledge": {
     "always": [
+      "docs/PROJECT_KNOWLEDGE_INDEX.md",
       "docs/PRODUCT_VISION.md",
       "docs/MASTER_ROADMAP.md",
       "docs/ARCHITECTURE.md",
       "docs/QUALITY_GATES.md",
-      "docs/DECISION_REGISTER.md"
+      "docs/DEFINITION_OF_DONE.md",
+      "docs/NON_FUNCTIONAL_REQUIREMENTS.md",
+      "docs/DECISION_REGISTER.md",
+      "docs/RISK_REGISTER.md"
+    ],
+    "compatibility": [
+      "docs/FEATURE_REGISTRY.md",
+      "docs/CONTRACTS_AND_COMPATIBILITY.md",
+      "docs/TEST_STRATEGY.md"
     ],
     "ui": [
       "docs/DESIGN_SYSTEM.md"
+    ],
+    "data": [
+      "docs/DATA_CHANGE_POLICY.md"
+    ],
+    "security": [
+      "docs/SECURITY_AND_PRIVACY_ENGINEERING.md"
+    ],
+    "providers": [
+      "docs/DEPENDENCY_AND_PROVIDER_POLICY.md",
+      "docs/COST_AND_BILLING_GOVERNANCE.md"
+    ],
+    "release": [
+      "docs/RELEASE_GOVERNANCE.md",
+      "docs/OBSERVABILITY_AND_INCIDENTS.md"
+    ],
+    "technical_debt": [
+      "docs/TECH_DEBT_REGISTER.md"
     ],
     "feature_registry": "docs/FEATURE_REGISTRY.md"
   },
   "quality": {
     "max_source_lines": 600,
     "refactor_warning_lines": 450,
+    "max_document_lines": 600,
     "max_files_touched": 12,
     "max_changed_lines": 800,
     "source_extensions": [
@@ -44,6 +73,7 @@
   "timeouts": {
     "worker_minutes": 35,
     "no_output_minutes": 10,
+    "review_minutes": 20,
     "verify_minutes": 45,
     "repair_minutes": 25
   },
@@ -51,11 +81,13 @@
     "base_branch": "main",
     "reuse_writer_branch": true,
     "allow_direct_main": false,
-    "push_verified_commits_only": true
+    "push_verified_commits_only": true,
+    "single_writer_required": true
   },
   "safety": {
     "production_activation": "human-only",
     "live_provider_mutations": "human-only",
-    "merge_to_main": "human-only"
+    "merge_to_main": "human-only",
+    "critical_risk_changes": "human-only"
   }
 }
