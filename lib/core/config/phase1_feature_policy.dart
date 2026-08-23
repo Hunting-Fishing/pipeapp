@@ -9,7 +9,7 @@ class Phase1FeaturePolicy {
     required this.regulatedListingsRequested,
     required this.paidFeaturesRequested,
     this.auctionsRequested = true,
-    this.dispatchRequested = true,
+    this.dispatchRequested = false,
   });
 
   static const current = Phase1FeaturePolicy(
@@ -31,7 +31,7 @@ class Phase1FeaturePolicy {
     ),
     dispatchRequested: bool.fromEnvironment(
       'PIPE_ENABLE_DISPATCH',
-      defaultValue: true,
+      defaultValue: false,
     ),
   );
 
