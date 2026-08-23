@@ -71,8 +71,8 @@ jobs:
             'tool/autonomous_guard.ps1',
             'tool/autonomous_builder_self_test.ps1',
             'tool/autonomous_guard_test.ps1',
-            'tool/autonomous_recovery.ps1',
-            'tool/autonomous_recovery_test.ps1',
+            'tool/autonomous_recovery_safe.ps1',
+            'tool/autonomous_recovery_safe_test.ps1',
             'tool/autonomous_runtime_fault_test.ps1',
             'tool/autonomous_reviewer_fault_test.ps1'
           )
@@ -95,7 +95,7 @@ jobs:
         run: |
           .\tool\autonomous_builder_self_test.ps1 -ProjectRoot (Get-Location).Path
           .\tool\autonomous_guard_test.ps1
-          .\tool\autonomous_recovery_test.ps1
+          .\tool\autonomous_recovery_safe_test.ps1
 
       - name: Test autonomous compatibility engine
         run: node --test tool/autonomous_compatibility_test.mjs
