@@ -43,6 +43,14 @@ const validConfig = Object.freeze({
   providerVerified: true,
   providerVerifiedConfigurationId: "bpc_live_1",
   providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+  providerVerifiedFeatures: Object.freeze({
+    paymentMethodUpdate: true,
+    invoiceHistory: true,
+    subscriptionCancel: true,
+    subscriptionCancelMode: "at_period_end",
+    subscriptionCancelProration: "none",
+    subscriptionUpdate: false,
+  }),
 });
 const validState = Object.freeze({
   stripeCustomerId: "cus_live_1",
@@ -78,6 +86,31 @@ test("missing provider proof fails before Portal session provider call", async (
   const commands = createDispatchSubscriptionPortalCommands(
       fakeAdmin({
         config: {...validConfig, providerVerified: false},
+        state: validState,
+      }),
+      {
+        authUid: () => "user-1",
+        rateLimit: async () => {},
+        secretProvider: () => "sk_test_injected",
+        stripeRequest: async () => {
+          providerCalls += 1;
+          return {};
+        },
+      },
+  );
+
+  await assert.rejects(
+      commands.createDispatchBillingPortalSession({data: {}}),
+      /not available/i,
+  );
+  assert.equal(providerCalls, 0);
+});
+
+test("missing stored feature evidence fails before Portal session provider call", async () => {
+  let providerCalls = 0;
+  const commands = createDispatchSubscriptionPortalCommands(
+      fakeAdmin({
+        config: {...validConfig, providerVerifiedFeatures: {}},
         state: validState,
       }),
       {
