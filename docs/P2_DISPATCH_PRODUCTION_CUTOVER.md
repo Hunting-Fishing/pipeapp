@@ -4,13 +4,14 @@ Date prepared: 2026-08-23
 Owner: Pipe Buyer financial/admin operations  
 Scope: Dispatch Monthly CAD 25 and Dispatch Yearly CAD 300 recurring subscriptions
 
-This checklist is the release boundary for P2. Do not mark Dispatch subscriptions financially production-ready because a button, Stripe Product, Price, Checkout Session, or webhook handler exists. Completion requires repository acceptance, deployed receiver parity, provider lifecycle evidence, Firestore state, reconciliation, and operator review to agree.
+This checklist is the release boundary for P2. Do not mark Dispatch subscriptions financially production-ready because a button, Stripe Product, Price, Checkout Session, webhook handler, or `bpc_...` identifier exists. Completion requires repository acceptance, deployed receiver parity, provider lifecycle evidence, Firestore state, reconciliation, and operator review to agree.
 
 ## Current deliberate state
 
 - Public Dispatch subscription activation: **OFF**
 - Dedicated admin route: **registered at `/admin/dispatch-billing`**
-- Admin-dashboard menu shortcut: **pending analyzer-backed integration**
+- Main account/admin navigation: **implemented in code; Flutter analyzer/rendered acceptance still pending**
+- Dispatch Billing Operations Portal control: **implemented; provider-backed verification required**
 - Live Stripe Billing Portal configuration: **not created yet**
 - Pipe Buyer Billing Portal readiness: **OFF**
 - Subscription recovery verification: **not recorded yet**
@@ -41,10 +42,10 @@ Do not continue to provider configuration until the exact final P2 commit passes
 - [ ] Firestore rules tests pass.
 - [ ] callable/Auth/Firestore/Functions emulator acceptance passes.
 - [ ] Dispatch subscription reconciliation tests pass.
-- [ ] Dispatch Billing Portal configuration-ID tests pass.
+- [ ] Dispatch Billing Portal provider-verification tests pass.
 - [ ] Dispatch launch-readiness/provider-verification tests pass.
 - [ ] dedicated Dispatch Billing Operations page and `/admin/dispatch-billing` route compile.
-- [ ] admin-dashboard shortcut to Dispatch Billing Operations is integrated without expanding/reconstructing unrelated billing logic.
+- [ ] admin-only account-menu/Administration Portal shortcuts compile and navigate to Dispatch Billing Operations without weakening MFA/admin authorization.
 - [ ] no client can directly mutate `dispatch_subscriptions`, subscription invoices, provider identities, reconciliation records, or financial readiness state.
 
 Record the accepted commit SHA here:
@@ -59,29 +60,32 @@ The production deploy workflow requires the production commit to be contained in
 - [ ] production deployment runs from the accepted `main` commit.
 - [ ] deployed-function parity confirms the expected callable/webhook surface.
 - [ ] `stripeMarketplaceWebhook` is deployed with the Dispatch lifecycle receiver.
+- [ ] `createDispatchSubscriptionCheckout` is deployed with the provider-Portal runtime gate.
 - [ ] `reconcileDispatchSubscriptionInvoice` is deployed.
 - [ ] `getDispatchSubscriptionReconciliationQueue` is deployed.
 - [ ] `createDispatchBillingPortalSession` is deployed.
 - [ ] `getDispatchBillingPortalReadiness` / `setDispatchBillingPortalReadiness` are deployed.
+- [ ] `verifyDispatchBillingPortalConfiguration` is deployed.
 - [ ] `verifyDispatchSubscriptionLifecycleWebhook` is deployed.
-- [ ] the production-readiness audit includes live Billing Portal, lifecycle-event, and lifecycle-verifier deployment checks.
+- [ ] the production-readiness audit includes live Portal feature, lifecycle-event, and verifier deployment checks.
 
 Record deployment evidence:
 
 `P2_DEPLOYED_SHA = ________________________________`
 
-## Gate 3 — configure Stripe Billing Portal in LIVE mode
+## Gate 3 — create and provider-verify Stripe Billing Portal in LIVE mode
 
-Create one reviewed live Billing Portal configuration in Stripe Dashboard.
+Create one reviewed LIVE Billing Portal configuration in Stripe Dashboard.
 
-Required initial behavior:
+Required launch behavior:
 
-- [ ] customer can update payment method.
-- [ ] customer can view invoice/billing history.
-- [ ] customer can cancel the Dispatch subscription.
-- [ ] cancellation is configured to end at the end of the current billing period unless Pipe Buyer deliberately approves a different policy.
-- [ ] Monthly ↔ Yearly subscription plan/price switching is **OFF for the first release**.
-- [ ] arbitrary product/price changes are disabled.
+- [ ] customer payment-method update is ON.
+- [ ] invoice/billing history is ON.
+- [ ] subscription cancellation is ON.
+- [ ] cancellation mode is **at the end of the current billing period**.
+- [ ] cancellation proration behavior is **none**.
+- [ ] Monthly ↔ Yearly subscription plan/price switching is OFF.
+- [ ] arbitrary subscription/product/price updates are OFF.
 - [ ] branding/support information is reviewed.
 
 **Why plan switching is OFF:** current Dispatch lifecycle state reads the Pipe Buyer plan from Dispatch subscription metadata. It does not yet derive and validate Monthly/Yearly from the live Stripe Price ID on every subscription update. Enabling Portal price changes before a separate provider-price-to-plan synchronization and proration policy exists could create Stripe/Pipe Buyer plan drift.
@@ -90,14 +94,36 @@ Capture the exact Stripe configuration ID:
 
 `STRIPE_DISPATCH_PORTAL_CONFIGURATION = bpc________________________`
 
-Then use the MFA-admin Pipe Buyer readiness command to store that exact `bpc_...` ID and reviewed Pipe Buyer HTTPS return URL. Do not rely on Stripe's unspecified/default Portal configuration.
+Then open `/admin/dispatch-billing` and use **Verify & enable Billing Portal**.
 
-- [ ] Pipe Buyer portal readiness audit records the exact `bpc_...` ID.
-- [ ] the Portal readiness record is enabled.
-- [ ] emergency Portal disable has been verified to work without needing a valid return URL/configuration.
-- [ ] confirm that disabling Portal readiness blocks **new** Dispatch Checkout while preserving existing provider/ledger evidence.
+Enter:
 
-Live Dispatch subscription activation cannot pass the server readiness validator or Checkout runtime gate without this reviewed Portal configuration.
+- the exact LIVE `bpc_...` ID;
+- the reviewed Pipe Buyer HTTPS return URL.
+
+The server must re-read `/v1/billing_portal/configurations/{bpc}` using the production Stripe secret. Pipe Buyer must not enable Portal readiness merely because the ID has the correct prefix.
+
+Provider verification must prove:
+
+- [ ] returned Stripe configuration ID exactly equals the requested `bpc_...`.
+- [ ] configuration is LIVE mode.
+- [ ] configuration is active.
+- [ ] payment-method update is enabled.
+- [ ] invoice history is enabled.
+- [ ] cancellation is enabled.
+- [ ] cancellation mode is `at_period_end`.
+- [ ] cancellation proration is `none`.
+- [ ] subscription update is disabled.
+- [ ] Pipe Buyer records the current Portal provider-policy revision.
+- [ ] provider proof is bound to the exact stored `bpc_...` ID.
+- [ ] Portal readiness audit records administrator, reason, exact configuration, sanitized provider features, and timestamps.
+
+`setDispatchBillingPortalReadiness` is **not** an enable path. It is retained only for emergency disable/revocation. Only `verifyDispatchBillingPortalConfiguration` may establish Portal readiness.
+
+- [ ] emergency disable has been verified to clear the stored Portal provider proof.
+- [ ] confirm that disabling Portal readiness blocks new Dispatch Checkout while preserving existing provider/ledger evidence.
+
+Live Dispatch subscription activation cannot pass the server readiness validator, exported Checkout runtime gate, or customer Portal session path without current provider proof.
 
 ## Gate 4 — verify Stripe Billing recovery settings
 
@@ -138,7 +164,7 @@ Do **not** add the events before the receiver is deployed. An administrator may 
 
 From the dedicated MFA-admin Dispatch Billing Operations page, verify every prerequisite independently:
 
-- [ ] exact reviewed Billing Portal `bpc_...` is ready.
+- [ ] exact reviewed Billing Portal `bpc_...` is provider-verified under the current Portal policy revision.
 - [ ] core signed webhook is verified.
 - [ ] subscription lifecycle events are provider-verified.
 - [ ] Smart Retry/failed-payment email recovery review is recorded.
@@ -146,7 +172,7 @@ From the dedicated MFA-admin Dispatch Billing Operations page, verify every prer
 - [ ] authorized GST/HST billing state is current.
 - [ ] public `stripeSubscriptionsEnabled` remains OFF until the controlled acceptance window begins.
 
-The launch-readiness panel is prerequisite-only. It intentionally has no public subscription-activation button.
+The launch-readiness panel and Portal verifier are prerequisite controls. They intentionally have no public subscription-activation button.
 
 ## Gate 7 — controlled live Monthly acceptance
 
@@ -223,7 +249,7 @@ Prove:
 ## Gate 10 — Billing Portal cancellation and replacement
 
 - [ ] active subscriber opens only `https://billing.stripe.com/...` from Pipe Buyer.
-- [ ] Portal session uses the exact audited `bpc_...` configuration.
+- [ ] Portal session uses the exact provider-verified `bpc_...` configuration.
 - [ ] Portal does not offer Monthly ↔ Yearly plan switching.
 - [ ] cancel at period end is reflected by Stripe lifecycle events.
 - [ ] entitlement remains correct through the paid-through period according to approved policy.
@@ -273,8 +299,9 @@ For a legitimate free promotion:
 - [ ] open Checkout is clearly shown instead of creating another payment.
 - [ ] processing state tells user not to restart payment.
 - [ ] payment issue language is understandable.
-- [ ] Manage billing/cancel opens Stripe Portal only when available.
+- [ ] Manage billing/cancel opens Stripe Portal only when provider verification is current.
 - [ ] Dispatch Billing Operations shows prerequisite readiness separately from activation.
+- [ ] Portal control clearly shows provider verification and emergency disable.
 - [ ] administrator can see BALANCED/MISMATCH and Stripe fee/net without seeing unnecessary customer provider IDs.
 - [ ] colleague soft-launch review is signed off.
 
@@ -284,7 +311,7 @@ Only after all prior gates are recorded:
 
 - [ ] approved GST/HST readiness evidence is current.
 - [ ] `stripeSubscriptionLifecycleWebhookVerified == true` from live provider verification.
-- [ ] Billing Portal readiness references the exact reviewed live `bpc_...` configuration and Portal remains enabled.
+- [ ] Billing Portal readiness references the exact live `bpc_...` and its provider proof is current under the current Portal policy revision.
 - [ ] `stripeSubscriptionRecoveryVerified == true` after current Dashboard recovery review.
 - [ ] Smart Retry/email recovery settings have not changed since the recorded review.
 - [ ] Monthly and Yearly each have controlled real provider evidence.
@@ -299,7 +326,7 @@ Only after all prior gates are recorded:
 If any financial acceptance fails:
 
 1. disable `stripeSubscriptionsEnabled` through the audited readiness control;
-2. if required, disable Dispatch Billing Portal readiness separately (this also blocks new Dispatch Checkout at runtime);
+2. if required, disable Dispatch Billing Portal readiness separately; this revokes Portal provider proof and blocks new Dispatch Checkout;
 3. revoke `stripeSubscriptionRecoveryVerified` or lifecycle readiness when the corresponding provider configuration is no longer trusted;
 4. do not delete provider/ledger evidence;
 5. preserve webhook/reconciliation/audit records;
