@@ -7,6 +7,7 @@ const {
   dispatchBillingPortalAvailable,
   dispatchBillingPortalProviderAssessment,
   dispatchBillingPortalProviderRecordReady,
+  dispatchBillingPortalStoredFeaturesReady,
   validStripeBillingPortalConfigurationId,
   validStripeBillingPortalUrl,
 } = require("../dispatch_billing_portal_policy");
@@ -30,6 +31,18 @@ function reviewedProviderConfiguration(overrides = {}) {
   };
 }
 
+function storedFeatures(overrides = {}) {
+  return {
+    paymentMethodUpdate: true,
+    invoiceHistory: true,
+    subscriptionCancel: true,
+    subscriptionCancelMode: "at_period_end",
+    subscriptionCancelProration: "none",
+    subscriptionUpdate: false,
+    ...overrides,
+  };
+}
+
 function verifiedPortalRecord(overrides = {}) {
   return {
     enabled: true,
@@ -37,6 +50,7 @@ function verifiedPortalRecord(overrides = {}) {
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_test123",
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    providerVerifiedFeatures: storedFeatures(),
     ...overrides,
   };
 }
@@ -94,7 +108,18 @@ test("provider assessment requires the exact launch-safe Portal features", () =>
   assert.ok(unsafe.failedChecks.includes("subscription_update_disabled"));
 });
 
-test("provider verification record must be bound to the exact configuration", () => {
+test("stored provider feature evidence must match the approved launch profile", () => {
+  assert.equal(dispatchBillingPortalStoredFeaturesReady(storedFeatures()), true);
+  assert.equal(dispatchBillingPortalStoredFeaturesReady({}), false);
+  assert.equal(dispatchBillingPortalStoredFeaturesReady(
+      storedFeatures({subscriptionUpdate: true}),
+  ), false);
+  assert.equal(dispatchBillingPortalStoredFeaturesReady(
+      storedFeatures({subscriptionCancelMode: "immediately"}),
+  ), false);
+});
+
+test("provider verification record must be bound to exact configuration and features", () => {
   assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord()), true);
   assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
     providerVerifiedConfigurationId: "bpc_other123",
@@ -104,6 +129,12 @@ test("provider verification record must be bound to the exact configuration", ()
   })), false);
   assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
     providerVerified: false,
+  })), false);
+  assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
+    providerVerifiedFeatures: {},
+  })), false);
+  assert.equal(dispatchBillingPortalProviderRecordReady(verifiedPortalRecord({
+    providerVerifiedFeatures: storedFeatures({subscriptionUpdate: true}),
   })), false);
 });
 
