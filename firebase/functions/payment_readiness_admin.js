@@ -9,7 +9,7 @@ const {
   canadaSmallSupplierAssessmentDecision,
 } = require("./canada_small_supplier_readiness_guard");
 const {
-  validStripeBillingPortalConfigurationId,
+  dispatchBillingPortalProviderRecordReady,
 } = require("./dispatch_billing_portal_policy");
 
 const READINESS_DOC = "payment_provider_readiness";
@@ -291,12 +291,10 @@ function createPaymentReadinessAdmin(admin) {
           const portalSnapshot = await transaction.get(portalRef);
           const portal = portalSnapshot.exists ? portalSnapshot.data() : {};
           if (portal.enabled !== true ||
-              !validStripeBillingPortalConfigurationId(
-                  portal.stripePortalConfigurationId,
-              )) {
+              !dispatchBillingPortalProviderRecordReady(portal)) {
             throw new HttpsError(
                 "failed-precondition",
-                "Live Dispatch subscriptions require an enabled, reviewed Stripe Billing Portal configuration.",
+                "Live Dispatch subscriptions require an enabled, provider-verified Stripe Billing Portal configuration.",
             );
           }
           safeHttpsPipeBuyerUrl(
