@@ -6,8 +6,12 @@ const {
   PRODUCTION_WEBHOOK_URL,
   REQUIRED_DISPATCH_SUBSCRIPTION_EVENTS,
   createDispatchSubscriptionLaunchReadinessCommands,
+  dispatchSubscriptionLaunchReadinessProjection,
   dispatchSubscriptionLifecycleWebhookAssessment,
 } = require("../dispatch_subscription_launch_readiness_commands");
+const {
+  DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+} = require("../dispatch_billing_portal_policy");
 
 const FieldValue = {serverTimestamp: () => "server-time"};
 
@@ -19,7 +23,15 @@ function fakeAdmin(initial = {}) {
     collection(name) {
       return {
         doc(id) {
-          return {path: `${name}/${id || `generated-${++generated}`}`};
+          const resolvedId = id || `generated-${++generated}`;
+          const ref = {path: `${name}/${resolvedId}`};
+          return {
+            ...ref,
+            async get() {
+              const value = docs.get(ref.path);
+              return {exists: value != null, data: () => value};
+            },
+          };
         },
       };
     },
@@ -67,6 +79,38 @@ function endpoint(overrides = {}) {
   };
 }
 
+function verifiedPortal() {
+  return {
+    enabled: true,
+    returnUrl: "https://pipebuyer.com/account",
+    stripePortalConfigurationId: "bpc_live_dispatch",
+    providerVerified: true,
+    providerVerifiedConfigurationId: "bpc_live_dispatch",
+    providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    providerVerifiedFeatures: {
+      paymentMethodUpdate: true,
+      invoiceHistory: true,
+      subscriptionCancel: true,
+      subscriptionCancelMode: "at_period_end",
+      subscriptionCancelProration: "none",
+      subscriptionUpdate: false,
+    },
+  };
+}
+
+function readyReadiness(overrides = {}) {
+  return {
+    stripeMode: "production",
+    stripeSubscriptionsEnabled: false,
+    stripeWebhookVerified: true,
+    stripeSubscriptionLifecycleWebhookVerified: true,
+    stripeSubscriptionRecoveryVerified: true,
+    stripeReconciliationReady: true,
+    stripeTaxReady: true,
+    ...overrides,
+  };
+}
+
 test("lifecycle assessment requires the exact live endpoint and all events", () => {
   const ready = dispatchSubscriptionLifecycleWebhookAssessment({
     data: [endpoint()],
@@ -88,6 +132,49 @@ test("lifecycle assessment requires the exact live endpoint and all events", () 
     data: [endpoint({livemode: false})],
   });
   assert.equal(wrongMode.verified, false);
+});
+
+test("launch projection exposes all eight prerequisites separately from activation", () => {
+  const projection = dispatchSubscriptionLaunchReadinessProjection({
+    readiness: readyReadiness(),
+    portal: verifiedPortal(),
+    features: {dispatch: true, paidFeatures: true},
+  });
+  assert.equal(projection.readyCount, 8);
+  assert.equal(projection.prerequisiteCount, 8);
+  assert.equal(projection.prerequisitesReady, true);
+  assert.equal(projection.subscriptionsEnabled, false);
+  assert.equal(projection.publicBillingAvailable, false);
+  assert.equal(projection.featureFlagsReady, true);
+  assert.equal(projection.productionModeReady, true);
+  assert.equal(projection.portalReady, true);
+});
+
+test("launch projection fails closed when paidFeatures is disabled", () => {
+  const projection = dispatchSubscriptionLaunchReadinessProjection({
+    readiness: readyReadiness(),
+    portal: verifiedPortal(),
+    features: {dispatch: true, paidFeatures: false},
+  });
+  assert.equal(projection.featureFlagsReady, false);
+  assert.equal(projection.prerequisitesReady, false);
+  assert.equal(projection.readyCount, 7);
+});
+
+test("MFA admin launch snapshot reads current server evidence", async () => {
+  const {admin} = fakeAdmin({
+    "platform_configuration/payment_provider_readiness": readyReadiness(),
+    "platform_configuration/dispatch_billing_portal": verifiedPortal(),
+  });
+  const commands = createDispatchSubscriptionLaunchReadinessCommands(admin, {
+    requireAdministrator: () => "admin-1",
+    loadFeatureFlags: async () => ({dispatch: true, paidFeatures: true}),
+  });
+  const result = await commands.getDispatchSubscriptionLaunchReadiness({});
+  assert.equal(result.prerequisitesReady, true);
+  assert.equal(result.readyCount, 8);
+  assert.equal(result.portalConfigurationId, "bpc_live_dispatch");
+  assert.equal(result.subscriptionsEnabled, false);
 });
 
 test("provider verification records verified lifecycle readiness and audit", async () => {
