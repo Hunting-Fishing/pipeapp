@@ -25,6 +25,7 @@
     "docs/SECURITY_AND_PRIVACY_ENGINEERING.md",
     "docs/RELEASE_GOVERNANCE.md",
     "docs/OBSERVABILITY_AND_INCIDENTS.md",
+    "docs/GITHUB_ACTIONS_DIAGNOSIS.md",
     "docs/AUTONOMOUS_BUILDER_READINESS.md",
     "automation/agent/project.schema.json",
     "automation/agent/result.schema.json",
@@ -40,8 +41,8 @@
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
     "tool/autonomous_guard_test.ps1",
-    "tool/autonomous_recovery.ps1",
-    "tool/autonomous_recovery_test.ps1",
+    "tool/autonomous_recovery_safe.ps1",
+    "tool/autonomous_recovery_safe_test.ps1",
     "tool/autonomous_runtime_fault_test.ps1",
     "tool/autonomous_reviewer_fault_test.ps1",
     "tool/autonomous_compatibility.mjs",
@@ -61,6 +62,7 @@
     "sk_live_[A-Za-z0-9]{16,}",
     "rk_live_[A-Za-z0-9]{16,}",
     "gh[pousr]_[A-Za-z0-9]{20,}",
+    "AIza[0-9A-Za-z_-]{35}",
     "sk-proj-[A-Za-z0-9_-]{20,}"
   ],
   "path_risk_rules": [
