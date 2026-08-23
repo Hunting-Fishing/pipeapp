@@ -7,6 +7,7 @@ const {
 const {
   dispatchCheckoutWebhookDecision,
   dispatchSubscriptionLifecycleDecision,
+  dispatchSubscriptionReplacementAllowed,
 } = require("./dispatch_subscription_lifecycle_policy");
 
 const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
@@ -44,6 +45,18 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
   const retrieveSubscription = options.retrieveSubscription ||
     retrieveStripeSubscription;
 
+  async function retrieveCurrentSubscription(subscriptionId, secretKey) {
+    const current = await retrieveSubscription({
+      secretKey,
+      apiVersion: stripeConfig.apiVersion,
+      subscriptionId,
+    });
+    if (String(current && current.id || "") !== subscriptionId) {
+      throw new Error("Stripe returned an unexpected Dispatch subscription.");
+    }
+    return current;
+  }
+
   async function subscriptionFromInvoice(invoice, secretKey, {always = false} = {}) {
     const identity = subscriptionIdentityFromInvoice(invoice);
     const subscriptionId = String(identity.subscriptionId || "");
@@ -56,11 +69,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
         customer: invoice.customer,
       };
     }
-    return retrieveSubscription({
-      secretKey,
-      apiVersion: stripeConfig.apiVersion,
-      subscriptionId,
-    });
+    return retrieveCurrentSubscription(subscriptionId, secretKey);
   }
 
   async function handleCheckoutSession(session) {
@@ -139,7 +148,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
       const currentSubscriptionId = String(current.stripeSubscriptionId || "");
       if (currentSubscriptionId.startsWith("sub_") &&
           currentSubscriptionId !== subscriptionId &&
-          current.entitlementActive === true) {
+          !dispatchSubscriptionReplacementAllowed(current)) {
         transaction.set(stateRef, {
           reviewRequired: true,
           reviewReason: "paid_invoice_subscription_conflict",
@@ -209,7 +218,8 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
       const current = currentSnapshot.exists ? currentSnapshot.data() : {};
       const currentSubscriptionId = String(current.stripeSubscriptionId || "");
       if (currentSubscriptionId.startsWith("sub_") &&
-          currentSubscriptionId !== subscriptionId) {
+          currentSubscriptionId !== subscriptionId &&
+          !dispatchSubscriptionReplacementAllowed(current)) {
         transaction.set(stateRef, {
           reviewRequired: true,
           reviewReason: "failed_invoice_subscription_conflict",
@@ -241,11 +251,19 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     });
   }
 
-  async function handleSubscriptionEvent(subscription, eventType) {
-    const metadata = dispatchMetadata(subscription);
+  async function handleSubscriptionEvent(subscription, eventType, secretKey) {
+    const eventSubscriptionId = String(subscription && subscription.id || "");
+    if (!eventSubscriptionId.startsWith("sub_")) return {handled: false};
+
+    // Stripe does not guarantee webhook delivery order. For update events,
+    // ignore the potentially stale event snapshot and re-read the current
+    // Subscription before changing entitlement. A deleted event is itself the
+    // authoritative terminal cancellation signal for that subscription id.
+    const providerSubscription = eventType === "customer.subscription.updated" ?
+      await retrieveCurrentSubscription(eventSubscriptionId, secretKey) : subscription;
+    const metadata = dispatchMetadata(providerSubscription);
     if (!metadata) return {handled: false};
-    const subscriptionId = String(subscription.id || "");
-    if (!subscriptionId.startsWith("sub_")) return {handled: false};
+    const subscriptionId = String(providerSubscription.id || "");
     const stateRef = db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION)
         .doc(metadata.uid);
     return db.runTransaction(async (transaction) => {
@@ -253,7 +271,8 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
       const current = currentSnapshot.exists ? currentSnapshot.data() : {};
       const currentSubscriptionId = String(current.stripeSubscriptionId || "");
       if (currentSubscriptionId.startsWith("sub_") &&
-          currentSubscriptionId !== subscriptionId) {
+          currentSubscriptionId !== subscriptionId &&
+          !dispatchSubscriptionReplacementAllowed(current)) {
         transaction.set(stateRef, {
           reviewRequired: true,
           reviewReason: "subscription_event_conflict",
@@ -264,7 +283,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
         return {handled: true, action: "review"};
       }
       const providerStatus = eventType === "customer.subscription.deleted" ?
-        "canceled" : String(subscription.status || "");
+        "canceled" : String(providerSubscription.status || "");
       const lifecycle = dispatchSubscriptionLifecycleDecision(
           providerStatus,
           current.entitlementActive === true,
@@ -274,7 +293,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
         plan: metadata.plan || String(current.plan || ""),
         status: lifecycle.status,
         stripeSubscriptionId: subscriptionId,
-        stripeCustomerId: objectId(subscription.customer) || null,
+        stripeCustomerId: objectId(providerSubscription.customer) || null,
         entitlementActive: lifecycle.entitlementActive,
         paymentIssue: lifecycle.paymentIssue,
         reviewRequired: lifecycle.reviewRequired,
