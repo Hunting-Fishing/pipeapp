@@ -11,10 +11,17 @@ const {
   dispatchBillingPortalAvailable,
 } = require("./dispatch_billing_portal_policy");
 const {
+  dispatchBillingPortalRuntimeDecision,
+} = require("./dispatch_subscription_portal_runtime_gate");
+const {taxBillingPrepared} = require("./pending_tax_policy");
+const {
   dispatchSubscriptionPublicStatus,
 } = require("./dispatch_subscription_status_policy");
 
 const DISPATCH_SUBSCRIPTIONS_COLLECTION = "dispatch_subscriptions";
+const CONFIG_COLLECTION = "platform_configuration";
+const PAYMENT_READINESS_DOC = "payment_provider_readiness";
+const PORTAL_DOC = "dispatch_billing_portal";
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -37,6 +44,17 @@ function dispatchSubscriptionCatalog(config = stripeMarketplaceConfig) {
   });
 }
 
+function dispatchSubscriptionPublicBillingReady(readiness = {}, portal = {}) {
+  return readiness.stripeSubscriptionsEnabled === true &&
+    readiness.stripeMode === "production" &&
+    readiness.stripeWebhookVerified === true &&
+    readiness.stripeSubscriptionLifecycleWebhookVerified === true &&
+    readiness.stripeSubscriptionRecoveryVerified === true &&
+    readiness.stripeReconciliationReady === true &&
+    taxBillingPrepared(readiness) &&
+    dispatchBillingPortalRuntimeDecision(portal).ready === true;
+}
+
 function createDispatchSubscriptionStatusCommands(admin, options = {}) {
   const db = admin.firestore();
   const authUid = options.authUid || requireAuth;
@@ -47,14 +65,24 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
     try {
       const uid = authUid(request);
       await rateLimit({db, admin, request, scope: "account"});
-      const [subscriptionSnapshot, portalSnapshot] = await Promise.all([
-        db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid).get(),
-        db.collection("platform_configuration").doc("dispatch_billing_portal").get(),
-      ]);
+      const [subscriptionSnapshot, portalSnapshot, readinessSnapshot] =
+        await Promise.all([
+          db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION).doc(uid).get(),
+          db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC).get(),
+          db.collection(CONFIG_COLLECTION).doc(PAYMENT_READINESS_DOC).get(),
+        ]);
       const state = subscriptionSnapshot.exists ? subscriptionSnapshot.data() : {};
       const portalConfig = portalSnapshot.exists ? portalSnapshot.data() : {};
+      const readiness = readinessSnapshot.exists ? readinessSnapshot.data() : {};
+      const publicState = dispatchSubscriptionPublicStatus(state);
+      const billingAvailable = dispatchSubscriptionPublicBillingReady(
+          readiness,
+          portalConfig,
+      );
       return {
-        ...dispatchSubscriptionPublicStatus(state),
+        ...publicState,
+        billingAvailable,
+        canStartCheckout: billingAvailable && publicState.canStartCheckout,
         canManageBilling: dispatchBillingPortalAvailable(portalConfig, state),
         plans: catalog(),
       };
@@ -75,7 +103,11 @@ function createDispatchSubscriptionStatusCommands(admin, options = {}) {
 }
 
 module.exports = {
+  CONFIG_COLLECTION,
   DISPATCH_SUBSCRIPTIONS_COLLECTION,
+  PAYMENT_READINESS_DOC,
+  PORTAL_DOC,
   createDispatchSubscriptionStatusCommands,
   dispatchSubscriptionCatalog,
+  dispatchSubscriptionPublicBillingReady,
 };
