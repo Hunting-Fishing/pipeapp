@@ -21,6 +21,7 @@ const {
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   dispatchBillingPortalProviderRecordReady,
+  validStripeCustomerId,
 } = require("./dispatch_billing_portal_policy");
 const {
   automaticTaxEnabled,
@@ -65,6 +66,18 @@ function validStripeCheckoutUrl(value) {
   } catch (_) {
     return false;
   }
+}
+
+function dispatchCheckoutCustomerFields(state = {}) {
+  const customerId = String(state.stripeCustomerId || "").trim();
+  if (!customerId) return {};
+  if (!validStripeCustomerId(customerId)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "The stored Dispatch billing customer identity needs review before another Checkout can start.",
+    );
+  }
+  return {customer: customerId};
 }
 
 function dispatchBillingPortalRuntimeReady(portalConfig) {
@@ -265,6 +278,7 @@ function createDispatchSubscriptionCommands(admin, options = {}) {
           success_url: successUrl,
           cancel_url: cancelUrl,
           client_reference_id: uid,
+          ...dispatchCheckoutCustomerFields(state),
           billing_address_collection: "required",
           allow_promotion_codes: "false",
           "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
@@ -411,6 +425,7 @@ module.exports = {
   couponFromEntitlement,
   createDispatchSubscriptionCommands,
   dispatchBillingPortalRuntimeReady,
+  dispatchCheckoutCustomerFields,
   requireSubscriptionReady,
   selectedPlan,
   validStripeCheckoutUrl,
