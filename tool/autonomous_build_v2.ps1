@@ -20,10 +20,13 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $processHelpers = Join-Path $PSScriptRoot "autonomous_process.ps1"
-if (-not (Test-Path -LiteralPath $processHelpers)) {
-    throw "Autonomous process helpers are missing: $processHelpers"
+$projectHelpers = Join-Path $PSScriptRoot "autonomous_project.ps1"
+foreach ($helper in @($processHelpers, $projectHelpers)) {
+    if (-not (Test-Path -LiteralPath $helper)) {
+        throw "Autonomous helper file is missing: $helper"
+    }
+    . $helper
 }
-. $processHelpers
 
 function Assert-LastExitCode {
     param([string]$Operation)
@@ -56,17 +59,6 @@ function Read-AgentResult {
     return $raw | ConvertFrom-Json
 }
 
-function Get-RiskRank {
-    param([string]$Risk)
-    switch ($Risk.ToLowerInvariant()) {
-        "low" { return 1 }
-        "medium" { return 2 }
-        "high" { return 3 }
-        "critical" { return 4 }
-        default { throw "Unknown risk level: $Risk" }
-    }
-}
-
 function Ensure-RunExclusion {
     param([string]$RepoRoot)
     $excludePath = Join-Path $RepoRoot ".git/info/exclude"
@@ -84,81 +76,9 @@ function Ensure-RunExclusion {
 }
 
 function Write-State {
-    param(
-        [string]$Path,
-        [hashtable]$State
-    )
+    param([string]$Path, [hashtable]$State)
     $State.updated_at = (Get-Date).ToString("o")
     $State | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $Path -Encoding UTF8
-}
-
-function Assert-ProjectKnowledge {
-    param(
-        [string]$ProjectRoot,
-        [object]$Config
-    )
-
-    $paths = New-Object System.Collections.Generic.List[string]
-    $paths.Add([string]$Config.agent_policy)
-    $paths.Add([string]$Config.risk_policy)
-    foreach ($item in @($Config.knowledge.always)) { $paths.Add([string]$item) }
-    $paths.Add([string]$Config.knowledge.feature_registry)
-
-    foreach ($relative in $paths | Sort-Object -Unique) {
-        $full = Join-Path $ProjectRoot $relative
-        if (-not (Test-Path -LiteralPath $full)) {
-            throw "Configured project knowledge is missing: $relative"
-        }
-    }
-}
-
-function Select-WriterBranch {
-    param(
-        [string]$DesiredBranch,
-        [string]$BaseBranch,
-        [bool]$AllowDirectMain
-    )
-
-    if (-not $AllowDirectMain -and $DesiredBranch -in @("main", "master")) {
-        throw "Refusing to use $DesiredBranch as an autonomous writer branch."
-    }
-
-    $current = (& git branch --show-current).Trim()
-    Assert-LastExitCode "git branch --show-current"
-    if ([string]::IsNullOrWhiteSpace($current)) {
-        throw "Detached HEAD is not supported."
-    }
-
-    & git show-ref --verify --quiet "refs/heads/$DesiredBranch"
-    $localExists = ($LASTEXITCODE -eq 0)
-
-    if (-not $localExists) {
-        & git show-ref --verify --quiet "refs/remotes/origin/$DesiredBranch"
-        $remoteExists = ($LASTEXITCODE -eq 0)
-        if ($remoteExists) {
-            Invoke-Git @("switch", "-c", $DesiredBranch, "--track", "origin/$DesiredBranch")
-        }
-        else {
-            Invoke-Git @("switch", $BaseBranch)
-            Invoke-Git @("switch", "-c", $DesiredBranch)
-        }
-    }
-    elseif ($current -ne $DesiredBranch) {
-        Invoke-Git @("switch", $DesiredBranch)
-    }
-
-    & git merge-base --is-ancestor $BaseBranch $DesiredBranch
-    $baseAlreadyIncluded = ($LASTEXITCODE -eq 0)
-    if (-not $baseAlreadyIncluded) {
-        Write-Host "Synchronizing $BaseBranch into reusable writer branch $DesiredBranch..."
-        & git merge --no-edit $BaseBranch
-        if ($LASTEXITCODE -ne 0) {
-            & git merge --abort 2>$null
-            throw "Could not synchronize $BaseBranch into $DesiredBranch without conflicts. Resolve branch synchronization manually."
-        }
-    }
-
-    return $DesiredBranch
 }
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -195,7 +115,7 @@ if (-not (Test-Path -LiteralPath $configPath)) {
     throw "Target project is not configured for Autonomous Builder V2: $configPath"
 }
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-Assert-ProjectKnowledge -ProjectRoot $projectRoot -Config $config
+Assert-AutonomousProjectKnowledge -ProjectRoot $projectRoot -Config $config
 
 $guardPath = Join-Path $projectRoot "tool/autonomous_guard.ps1"
 if (-not (Test-Path -LiteralPath $guardPath)) {
@@ -210,7 +130,7 @@ if (-not [string]::IsNullOrWhiteSpace($dirty)) {
 
 $desiredBranch = if ([string]::IsNullOrWhiteSpace($Branch)) { [string]$config.writer_branch } else { $Branch }
 $baseBranch = [string]$config.git.base_branch
-$currentBranch = Select-WriterBranch `
+$currentBranch = Select-AutonomousWriterBranch `
     -DesiredBranch $desiredBranch `
     -BaseBranch $baseBranch `
     -AllowDirectMain ([bool]$config.git.allow_direct_main)
@@ -224,27 +144,11 @@ Ensure-RunExclusion -RepoRoot $projectRoot
 $runDir = Join-Path $projectRoot ".agent-run"
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 $statePath = Join-Path $runDir "state.json"
-
-$runLock = $null
-if ([bool]$config.git.single_writer_required) {
-    $lockPath = Join-Path $runDir "supervisor.lock"
-    try {
-        $runLock = [System.IO.File]::Open(
-            $lockPath,
-            [System.IO.FileMode]::OpenOrCreate,
-            [System.IO.FileAccess]::ReadWrite,
-            [System.IO.FileShare]::None
-        )
-        $runLock.SetLength(0)
-        $lockText = "pid=$PID`nproject=$projectRoot`nbranch=$currentBranch`nstarted=$(Get-Date -Format o)`n"
-        $lockBytes = [Text.Encoding]::UTF8.GetBytes($lockText)
-        $runLock.Write($lockBytes, 0, $lockBytes.Length)
-        $runLock.Flush()
-    }
-    catch {
-        throw "Another autonomous supervisor appears to own this worktree. Single-writer lock could not be acquired: $lockPath"
-    }
-}
+$runLock = Enter-AutonomousSingleWriterLock `
+    -RunDirectory $runDir `
+    -ProjectRoot $projectRoot `
+    -CurrentBranch $currentBranch `
+    -Required ([bool]$config.git.single_writer_required)
 
 $basePrompt = Get-Content -LiteralPath $taskPromptPath -Raw
 $baseReviewPrompt = Get-Content -LiteralPath $reviewPromptPath -Raw
@@ -429,7 +333,7 @@ $baseReviewPrompt
             Write-Host "Review     : $($reviewResult.verdict) / $($reviewResult.risk_level)"
 
             $reviewBlocks = ([string]$reviewResult.verdict -eq "block")
-            $reviewRaisedRisk = (Get-RiskRank -Risk ([string]$reviewResult.risk_level)) -gt (Get-RiskRank -Risk ([string]$result.risk_level))
+            $reviewRaisedRisk = (Get-AutonomousRiskRank -Risk ([string]$reviewResult.risk_level)) -gt (Get-AutonomousRiskRank -Risk ([string]$result.risk_level))
             if ($reviewBlocks -or $reviewRaisedRisk) {
                 $failureLog = $reviewResultPath
             }
