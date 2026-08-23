@@ -17,6 +17,7 @@ class MarketplaceDispatchSubscriptionAdminPage extends StatefulWidget {
 class _MarketplaceDispatchSubscriptionAdminPageState
     extends State<MarketplaceDispatchSubscriptionAdminPage> {
   late Future<MarketplaceAdministratorState> _access;
+  int _operationsRevision = 0;
 
   @override
   void initState() {
@@ -28,6 +29,11 @@ class _MarketplaceDispatchSubscriptionAdminPageState
     setState(() {
       _access = marketplaceAdministratorState(forceRefresh: true);
     });
+  }
+
+  void _refreshOperationCards() {
+    if (!mounted) return;
+    setState(() => _operationsRevision += 1);
   }
 
   @override
@@ -62,40 +68,46 @@ class _MarketplaceDispatchSubscriptionAdminPageState
                 Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1080),
-                    child: const Column(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _OperationsSafetyBanner(),
-                        SizedBox(height: 16),
-                        _SectionHeading(
+                        const _OperationsSafetyBanner(),
+                        const SizedBox(height: 16),
+                        const _SectionHeading(
                           number: '1',
                           title: 'Launch readiness',
                           description:
                               'Review the complete prerequisite chain and the recommended next action.',
                         ),
-                        SizedBox(height: 8),
-                        MarketplaceDispatchSubscriptionLaunchReadinessPanel(),
-                        SizedBox(height: 18),
-                        _SectionHeading(
+                        const SizedBox(height: 8),
+                        MarketplaceDispatchSubscriptionLaunchReadinessPanel(
+                          key: ValueKey('dispatch-readiness-$_operationsRevision'),
+                        ),
+                        const SizedBox(height: 18),
+                        const _SectionHeading(
                           number: '2',
                           title: 'Customer billing management',
                           description:
                               'Verify the exact LIVE Stripe Billing Portal configuration before it can be trusted by Checkout or Manage Billing.',
                         ),
-                        SizedBox(height: 8),
-                        MarketplaceDispatchBillingPortalControl(),
-                        SizedBox(height: 18),
-                        _SectionHeading(
+                        const SizedBox(height: 8),
+                        MarketplaceDispatchBillingPortalControl(
+                          onChanged: _refreshOperationCards,
+                        ),
+                        const SizedBox(height: 18),
+                        const _SectionHeading(
                           number: '3',
                           title: 'Subscription accounting',
                           description:
                               'Reconcile recorded paid invoices against current Stripe provider evidence.',
                         ),
-                        SizedBox(height: 8),
-                        _DispatchReconciliationExplanation(),
-                        SizedBox(height: 10),
-                        MarketplaceDispatchSubscriptionAdminPanel(),
-                        SizedBox(height: 24),
+                        const SizedBox(height: 8),
+                        const _DispatchReconciliationExplanation(),
+                        const SizedBox(height: 10),
+                        const MarketplaceDispatchSubscriptionAdminPanel(),
+                        const SizedBox(height: 18),
+                        const _ControlledAcceptanceGuide(),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -281,6 +293,45 @@ class _DispatchReconciliationExplanation extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      );
+}
+
+class _ControlledAcceptanceGuide extends StatelessWidget {
+  const _ControlledAcceptanceGuide();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: PipeBuyerColors.warning.withValues(alpha: .06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: PipeBuyerColors.warning.withValues(alpha: .25),
+          ),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.rule_folder_outlined, color: PipeBuyerColors.warning),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Controlled acceptance sequence',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'After the full repository/emulator gate passes and the accepted receiver is deployed: verify the LIVE Billing Portal → review Smart Retry/email recovery → add and provider-verify lifecycle events → run the controlled CAD 25 Monthly payment → require BALANCED reconciliation → prove failure/cancellation/replacement → run the CAD 300 Yearly payment → require BALANCED reconciliation. Public activation comes last.',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
 }
