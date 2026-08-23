@@ -7,7 +7,11 @@ const {
 } = require("../dispatch_subscription_commands");
 const {
   DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+  DISPATCH_PORTAL_CUSTOMER_UPDATES,
+  DISPATCH_PORTAL_PRICE_IDS,
+  DISPATCH_PORTAL_PRODUCT_ID,
 } = require("../dispatch_billing_portal_policy");
+const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 
 const FieldValue = {serverTimestamp: () => "server-time"};
 
@@ -82,11 +86,17 @@ function verifiedPortal(overrides = {}) {
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
     providerVerifiedFeatures: {
       paymentMethodUpdate: true,
+      customerUpdate: true,
+      customerUpdateAllowedUpdates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
       invoiceHistory: true,
       subscriptionCancel: true,
       subscriptionCancelMode: "at_period_end",
       subscriptionCancelProration: "none",
-      subscriptionUpdate: false,
+      subscriptionUpdate: true,
+      subscriptionUpdateAllowedUpdates: ["price"],
+      subscriptionUpdateProration: "none",
+      subscriptionUpdateProductId: DISPATCH_PORTAL_PRODUCT_ID,
+      subscriptionUpdatePriceIds: [...DISPATCH_PORTAL_PRICE_IDS],
     },
     ...overrides,
   };
@@ -138,15 +148,20 @@ test("inner Checkout command rejects missing Portal provider proof before Stripe
   assert.equal(providerCalls, 0);
 });
 
-test("first Dispatch Checkout uses stable attempt idempotency and persists singleton state", async () => {
+test("first Dispatch Checkout uses stable attempt idempotency and lets Stripe create the first Customer", async () => {
   const providerCalls = [];
   const {commands, db} = fixture({
     stripeRequest: async (call) => {
       providerCalls.push(call);
       assert.equal(call.idempotencyKey, "pipebuyer-dispatch-user-1-attempt-1");
       assert.equal(call.fields.mode, "subscription");
+      assert.equal(call.fields.customer, undefined);
       assert.equal(call.fields["metadata[checkoutAttempt]"], 1);
       assert.equal(call.fields["metadata[billingType]"], "dispatch_subscription");
+      assert.equal(
+          call.fields["line_items[0][price]"],
+          stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId,
+      );
       return {
         id: "cs_dispatch_first",
         url: "https://checkout.stripe.com/c/pay/dispatch-first",
@@ -266,7 +281,7 @@ test("provider response cannot overwrite subscription created by faster webhook"
   assert.equal(state.stripeSubscriptionId, "sub_dispatch_race");
 });
 
-test("canceled subscription is retired before a clean replacement Checkout starts", async () => {
+test("canceled subscription reuses the existing Stripe Customer and new unified yearly price", async () => {
   const {commands, db} = fixture({
     state: {
       uid: "user-1",
@@ -280,6 +295,15 @@ test("canceled subscription is retired before a clean replacement Checkout start
     },
     stripeRequest: async (call) => {
       assert.equal(call.idempotencyKey, "pipebuyer-dispatch-user-1-attempt-2");
+      assert.equal(call.fields.customer, "cus_dispatch_existing");
+      assert.equal(
+          call.fields["line_items[0][price]"],
+          stripeMarketplaceConfig.products.dispatchYearlyCad.priceId,
+      );
+      assert.equal(
+          stripeMarketplaceConfig.products.dispatchYearlyCad.productId,
+          stripeMarketplaceConfig.products.dispatchMonthlyCad.productId,
+      );
       return {
         id: "cs_dispatch_replacement",
         url: "https://checkout.stripe.com/c/pay/dispatch-replacement",
@@ -299,6 +323,30 @@ test("canceled subscription is retired before a clean replacement Checkout start
   ]);
   assert.equal(state.entitlementActive, false);
   assert.equal(state.reviewRequired, false);
+});
+
+test("malformed stored Stripe Customer identity fails closed before provider creation", async () => {
+  let calls = 0;
+  const {commands} = fixture({
+    state: {
+      uid: "user-1",
+      plan: "monthly",
+      status: "canceled",
+      entitlementActive: false,
+      checkoutAttempt: 1,
+      stripeSubscriptionId: "sub_dispatch_retired",
+      stripeCustomerId: "not-a-customer",
+    },
+    stripeRequest: async () => {
+      calls += 1;
+      return {};
+    },
+  });
+  await assert.rejects(
+      () => commands.createDispatchSubscriptionCheckout(request("yearly")),
+      /billing customer identity needs review/i,
+  );
+  assert.equal(calls, 0);
 });
 
 test("Dispatch Checkout URL is restricted to checkout.stripe.com", async () => {
