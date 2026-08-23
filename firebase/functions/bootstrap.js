@@ -52,6 +52,9 @@ const {
   createDispatchSubscriptionAdminCommands,
 } = require("./dispatch_subscription_admin_commands");
 const {
+  createDispatchSubscriptionLaunchReadinessCommands,
+} = require("./dispatch_subscription_launch_readiness_commands");
+const {
   createDispatchBillingPortalAdmin,
 } = require("./dispatch_billing_portal_admin");
 const {
@@ -90,6 +93,8 @@ const dispatchSubscriptionReconciliationCommands =
     createDispatchSubscriptionReconciliationCommands(admin);
 const dispatchSubscriptionAdminCommands =
     createDispatchSubscriptionAdminCommands(admin);
+const dispatchSubscriptionLaunchReadinessCommands =
+    createDispatchSubscriptionLaunchReadinessCommands(admin);
 const dispatchBillingPortalAdmin = createDispatchBillingPortalAdmin(admin);
 const canadaSmallSupplierThresholdCommands =
     createCanadaSmallSupplierThresholdCommands(admin);
@@ -239,6 +244,10 @@ exports.createDispatchBillingPortalSession = onCall(
 exports.reconcileDispatchSubscriptionInvoice = onCall(
     stripeCallableOptions,
     dispatchSubscriptionReconciliationCommands.reconcileDispatchSubscriptionInvoice,
+);
+exports.verifyDispatchSubscriptionLifecycleWebhook = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionLaunchReadinessCommands.verifyDispatchSubscriptionLifecycleWebhook,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,
