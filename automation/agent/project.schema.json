@@ -61,9 +61,10 @@
     },
     "timeouts": {
       "type": "object",
-      "required": ["worker_minutes", "verify_minutes", "repair_minutes"],
+      "required": ["worker_minutes", "no_output_minutes", "verify_minutes", "repair_minutes"],
       "properties": {
         "worker_minutes": { "type": "integer", "minimum": 1, "maximum": 240 },
+        "no_output_minutes": { "type": "integer", "minimum": 1, "maximum": 120 },
         "verify_minutes": { "type": "integer", "minimum": 1, "maximum": 240 },
         "repair_minutes": { "type": "integer", "minimum": 1, "maximum": 240 }
       },
@@ -71,8 +72,9 @@
     },
     "git": {
       "type": "object",
-      "required": ["reuse_writer_branch", "allow_direct_main", "push_verified_commits_only"],
+      "required": ["base_branch", "reuse_writer_branch", "allow_direct_main", "push_verified_commits_only"],
       "properties": {
+        "base_branch": { "type": "string", "minLength": 1 },
         "reuse_writer_branch": { "type": "boolean" },
         "allow_direct_main": { "type": "boolean" },
         "push_verified_commits_only": { "type": "boolean" }
