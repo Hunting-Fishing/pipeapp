@@ -5,6 +5,9 @@ const {
   subscriptionIdentityFromInvoice,
 } = require("./subscription_monetization");
 const {
+  isDispatchRetiredSubscriptionId,
+} = require("./dispatch_subscription_checkout_policy");
+const {
   dispatchCheckoutWebhookDecision,
   dispatchSubscriptionLifecycleDecision,
   dispatchSubscriptionReplacementAllowed,
@@ -77,6 +80,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     if (!metadata) return {handled: false};
     const sessionId = String(session.id || "");
     if (!sessionId.startsWith("cs_")) return {handled: false};
+    const eventSubscriptionId = objectId(session.subscription);
     const stateRef = db.collection(DISPATCH_SUBSCRIPTIONS_COLLECTION)
         .doc(metadata.uid);
     const sessionRef = db.collection(SUBSCRIPTION_CHECKOUT_SESSIONS_COLLECTION)
@@ -84,12 +88,23 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     return db.runTransaction(async (transaction) => {
       const currentSnapshot = await transaction.get(stateRef);
       const current = currentSnapshot.exists ? currentSnapshot.data() : {};
+      if (eventSubscriptionId.startsWith("sub_") &&
+          isDispatchRetiredSubscriptionId(current, eventSubscriptionId)) {
+        transaction.set(sessionRef, {
+          uid: metadata.uid,
+          plan: metadata.plan,
+          status: "retired_ignored",
+          stripeSubscriptionId: eventSubscriptionId,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        return {handled: true, action: "ignored_retired"};
+      }
       const decision = dispatchCheckoutWebhookDecision(current, session);
       transaction.set(sessionRef, {
         uid: metadata.uid,
         plan: metadata.plan,
         status: "completed",
-        stripeSubscriptionId: objectId(session.subscription) || null,
+        stripeSubscriptionId: eventSubscriptionId || null,
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       if (decision.action === "preserve_active") {
@@ -99,7 +114,7 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
         transaction.set(stateRef, {
           reviewRequired: true,
           reviewReason: decision.reason,
-          conflictingStripeSubscriptionId: objectId(session.subscription) || null,
+          conflictingStripeSubscriptionId: eventSubscriptionId || null,
           lastCheckoutSessionId: sessionId,
           updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
@@ -145,6 +160,9 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     return db.runTransaction(async (transaction) => {
       const currentSnapshot = await transaction.get(stateRef);
       const current = currentSnapshot.exists ? currentSnapshot.data() : {};
+      if (isDispatchRetiredSubscriptionId(current, subscriptionId)) {
+        return {handled: true, action: "ignored_retired"};
+      }
       const currentSubscriptionId = String(current.stripeSubscriptionId || "");
       if (currentSubscriptionId.startsWith("sub_") &&
           currentSubscriptionId !== subscriptionId &&
@@ -216,6 +234,9 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     return db.runTransaction(async (transaction) => {
       const currentSnapshot = await transaction.get(stateRef);
       const current = currentSnapshot.exists ? currentSnapshot.data() : {};
+      if (isDispatchRetiredSubscriptionId(current, subscriptionId)) {
+        return {handled: true, action: "ignored_retired"};
+      }
       const currentSubscriptionId = String(current.stripeSubscriptionId || "");
       if (currentSubscriptionId.startsWith("sub_") &&
           currentSubscriptionId !== subscriptionId &&
@@ -269,6 +290,9 @@ function createDispatchSubscriptionState(admin, stripeConfig, options = {}) {
     return db.runTransaction(async (transaction) => {
       const currentSnapshot = await transaction.get(stateRef);
       const current = currentSnapshot.exists ? currentSnapshot.data() : {};
+      if (isDispatchRetiredSubscriptionId(current, subscriptionId)) {
+        return {handled: true, action: "ignored_retired"};
+      }
       const currentSubscriptionId = String(current.stripeSubscriptionId || "");
       if (currentSubscriptionId.startsWith("sub_") &&
           currentSubscriptionId !== subscriptionId &&
