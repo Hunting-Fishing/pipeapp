@@ -17,25 +17,37 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Assert-LastExitCode {
+function Invoke-LoggedNative {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$CommandName
+        [string]$Command,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$CommandArgs,
+
+        [string]$LogPath = ""
     )
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "$CommandName failed with exit code $LASTEXITCODE."
+    if ([string]::IsNullOrWhiteSpace($LogPath)) {
+        & $Command @CommandArgs
     }
+    else {
+        & $Command @CommandArgs 2>&1 | Tee-Object -FilePath $LogPath
+    }
+
+    return $LASTEXITCODE
 }
 
 function Invoke-Git {
     param(
         [Parameter(Mandatory = $true)]
-        [string[]]$Arguments
+        [string[]]$GitArgs
     )
 
-    & git @Arguments
-    Assert-LastExitCode "git $($Arguments -join ' ')"
+    $exitCode = Invoke-LoggedNative -Command "git" -CommandArgs $GitArgs
+    if ($exitCode -ne 0) {
+        throw "git $($GitArgs -join ' ') failed with exit code $exitCode."
+    }
 }
 
 function Invoke-CodexIteration {
@@ -53,11 +65,11 @@ function Invoke-CodexIteration {
         [string]$EventLogPath
     )
 
-    if (Test-Path $ResultPath) {
+    if (Test-Path -LiteralPath $ResultPath) {
         Remove-Item -LiteralPath $ResultPath -Force
     }
 
-    $arguments = @(
+    $codexArgs = @(
         "exec",
         "--sandbox", "workspace-write",
         "--json",
@@ -66,21 +78,7 @@ function Invoke-CodexIteration {
         $Prompt
     )
 
-    & codex @arguments 2>&1 | Tee-Object -FilePath $EventLogPath
-    return $LASTEXITCODE
-}
-
-function Invoke-FullVerification {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$VerifyScript,
-
-        [Parameter(Mandatory = $true)]
-        [string]$LogPath
-    )
-
-    & $VerifyScript 2>&1 | Tee-Object -FilePath $LogPath
-    return $LASTEXITCODE
+    return Invoke-LoggedNative -Command "codex" -CommandArgs $codexArgs -LogPath $EventLogPath
 }
 
 function Read-AgentResult {
@@ -103,7 +101,10 @@ function Read-AgentResult {
 
 function Get-WorkingTreeText {
     $statusLines = @(& git status --porcelain)
-    Assert-LastExitCode "git status --porcelain"
+    if ($LASTEXITCODE -ne 0) {
+        throw "git status --porcelain failed with exit code $LASTEXITCODE."
+    }
+
     return ($statusLines -join [Environment]::NewLine).Trim()
 }
 
@@ -137,8 +138,21 @@ if (-not (Get-Command codex -ErrorAction SilentlyContinue)) {
     throw "Codex CLI is required but was not found on PATH. Install/authenticate Codex before starting the autonomous runner."
 }
 
+$verificationShell = $null
+if (Get-Command powershell.exe -ErrorAction SilentlyContinue) {
+    $verificationShell = "powershell.exe"
+}
+elseif (Get-Command pwsh -ErrorAction SilentlyContinue) {
+    $verificationShell = "pwsh"
+}
+else {
+    throw "A PowerShell executable is required to run tool/verify.ps1."
+}
+
 $repoRoot = (& git rev-parse --show-toplevel).Trim()
-Assert-LastExitCode "git rev-parse --show-toplevel"
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($repoRoot)) {
+    throw "This command must be run inside the Pipe Buyer Git repository."
+}
 Set-Location -LiteralPath $repoRoot
 
 $verifyScript = Join-Path $repoRoot "tool/verify.ps1"
@@ -158,30 +172,30 @@ if (-not [string]::IsNullOrWhiteSpace($initialDirty)) {
 }
 
 $currentBranch = (& git branch --show-current).Trim()
-Assert-LastExitCode "git branch --show-current"
-if ([string]::IsNullOrWhiteSpace($currentBranch)) {
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($currentBranch)) {
     throw "Autonomous mode requires a named Git branch; detached HEAD is not supported."
 }
 
-if ($currentBranch -in @("main", "master")) {
-    if ([string]::IsNullOrWhiteSpace($Branch)) {
-        $Branch = "agent/autobuild-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+if (-not [string]::IsNullOrWhiteSpace($Branch)) {
+    if ($Branch -in @("main", "master")) {
+        throw "Refusing to use main/master as an autonomous build branch."
     }
 
-    Invoke-Git @("switch", "-c", $Branch)
-    $currentBranch = $Branch
+    if ($Branch -ne $currentBranch) {
+        & git show-ref --verify --quiet "refs/heads/$Branch"
+        $branchExists = ($LASTEXITCODE -eq 0)
+        if ($branchExists) {
+            Invoke-Git -GitArgs @("switch", $Branch)
+        }
+        else {
+            Invoke-Git -GitArgs @("switch", "-c", $Branch)
+        }
+        $currentBranch = $Branch
+    }
 }
-elseif (-not [string]::IsNullOrWhiteSpace($Branch) -and $Branch -ne $currentBranch) {
-    & git show-ref --verify --quiet "refs/heads/$Branch"
-    $branchExists = ($LASTEXITCODE -eq 0)
-
-    if ($branchExists) {
-        Invoke-Git @("switch", $Branch)
-    }
-    else {
-        Invoke-Git @("switch", "-c", $Branch)
-    }
-
+elseif ($currentBranch -notlike "agent/autobuild-*") {
+    $Branch = "agent/autobuild-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+    Invoke-Git -GitArgs @("switch", "-c", $Branch)
     $currentBranch = $Branch
 }
 
@@ -235,7 +249,6 @@ $basePrompt
 
     Write-Host "=== Iteration $iteration / $MaxTasks ==="
     $codexExit = Invoke-CodexIteration -Prompt $prompt -SchemaPath $schemaPath -ResultPath $resultPath -EventLogPath $eventLogPath
-
     if ($codexExit -ne 0) {
         $stopReason = "Codex exited with code $codexExit"
         Write-Warning $stopReason
@@ -248,7 +261,6 @@ $basePrompt
     Write-Host "Source : $($result.source_doc) :: $($result.source_item)"
 
     $dirty = Get-WorkingTreeText
-
     if ([string]::IsNullOrWhiteSpace($dirty)) {
         if ($result.status -eq "complete") {
             $stopReason = "agent reports no safe unfinished code work"
@@ -264,29 +276,30 @@ $basePrompt
         break
     }
 
-    $verifyAttempt = 0
     $verified = $false
+    $repairAttempt = 0
 
-    while ($verifyAttempt -le $MaxRepairAttempts -and -not $verified) {
+    while (-not $verified) {
         $verifyStamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $verifyLog = Join-Path $runDir "verify-$iteration-attempt-$verifyAttempt-$verifyStamp.log"
+        $verifyLog = Join-Path $runDir "verify-$iteration-attempt-$repairAttempt-$verifyStamp.log"
+        $verifyArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $verifyScript)
 
         Write-Host "Running full repository quality gate..."
-        $verifyExit = Invoke-FullVerification -VerifyScript $verifyScript -LogPath $verifyLog
+        $verifyExit = Invoke-LoggedNative -Command $verificationShell -CommandArgs $verifyArgs -LogPath $verifyLog
         if ($verifyExit -eq 0) {
             $verified = $true
             break
         }
 
-        if ($verifyAttempt -ge $MaxRepairAttempts) {
+        if ($repairAttempt -ge $MaxRepairAttempts) {
             break
         }
 
-        $verifyAttempt++
+        $repairAttempt++
         $repairStamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $repairResultPath = Join-Path $runDir "repair-result-$iteration-$verifyAttempt-$repairStamp.json"
-        $repairEventLog = Join-Path $runDir "repair-codex-$iteration-$verifyAttempt-$repairStamp.jsonl"
-        $relativeVerifyLog = [System.IO.Path]::GetRelativePath($repoRoot, $verifyLog).Replace("\", "/")
+        $repairResultPath = Join-Path $runDir "repair-result-$iteration-$repairAttempt-$repairStamp.json"
+        $repairEventLog = Join-Path $runDir "repair-codex-$iteration-$repairAttempt-$repairStamp.jsonl"
+        $relativeVerifyLog = ".agent-run/$([System.IO.Path]::GetFileName($verifyLog))"
 
         $repairPrompt = @"
 Read `AGENTS.md` and obey it. You are repairing only the current autonomous increment: `$($result.task)`.
@@ -298,7 +311,7 @@ Do not delete, mute, skip, or weaken tests. Do not broaden product scope. Do not
 Return only the structured result required by `automation/agent/result.schema.json`.
 "@
 
-        Write-Host "Quality gate failed; starting repair attempt $verifyAttempt of $MaxRepairAttempts..."
+        Write-Host "Quality gate failed; starting repair attempt $repairAttempt of $MaxRepairAttempts..."
         $repairExit = Invoke-CodexIteration -Prompt $repairPrompt -SchemaPath $schemaPath -ResultPath $repairResultPath -EventLogPath $repairEventLog
         if ($repairExit -ne 0) {
             $stopReason = "Codex repair attempt exited with code $repairExit"
@@ -310,8 +323,12 @@ Return only the structured result required by `automation/agent/result.schema.js
 
     if (-not $verified) {
         $failurePatch = Join-Path $runDir "failed-iteration-$iteration.patch"
-        & git diff --binary | Set-Content -LiteralPath $failurePatch
-        Assert-LastExitCode "git diff --binary"
+        $patchLines = @(& git diff --binary)
+        if ($LASTEXITCODE -ne 0) {
+            throw "git diff --binary failed with exit code $LASTEXITCODE."
+        }
+        $patchLines | Set-Content -LiteralPath $failurePatch
+
         $stopReason = "full quality gate still failing; changes left uncommitted for review. Patch: $failurePatch"
         Write-Warning $stopReason
         break
@@ -335,12 +352,12 @@ Return only the structured result required by `automation/agent/result.schema.js
         $commitMessage = "agent: $commitMessage"
     }
 
-    Invoke-Git @("add", "-A")
-    Invoke-Git @("commit", "-m", $commitMessage)
+    Invoke-Git -GitArgs @("add", "-A")
+    Invoke-Git -GitArgs @("commit", "-m", $commitMessage)
     $completedTasks++
 
     if ($Push) {
-        Invoke-Git @("push", "-u", "origin", $currentBranch)
+        Invoke-Git -GitArgs @("push", "-u", "origin", $currentBranch)
     }
 
     Write-Host "Verified commit created: $commitMessage"
@@ -360,7 +377,9 @@ Return only the structured result required by `automation/agent/result.schema.js
 $finishedAt = Get-Date
 $elapsed = $finishedAt - $startedAt
 $currentSha = (& git rev-parse HEAD).Trim()
-Assert-LastExitCode "git rev-parse HEAD"
+if ($LASTEXITCODE -ne 0) {
+    throw "git rev-parse HEAD failed with exit code $LASTEXITCODE."
+}
 
 Write-Host ""
 Write-Host "Pipe Buyer autonomous build finished"
