@@ -26,8 +26,9 @@ function dispatchPlanForPriceId(priceId) {
 function catalogAssessment({priceId = "", productId = "", quantity = null} = {}) {
   const failedChecks = [];
   const plan = dispatchPlanForPriceId(priceId);
+  const normalizedProductId = String(productId || "").trim();
   if (!plan) failedChecks.push("dispatch_price");
-  if (productId && productId !== DISPATCH_PRODUCT_ID) {
+  if (normalizedProductId && normalizedProductId !== DISPATCH_PRODUCT_ID) {
     failedChecks.push("dispatch_product");
   }
   if (!Number.isSafeInteger(quantity) || quantity !== 1) {
@@ -39,7 +40,9 @@ function catalogAssessment({priceId = "", productId = "", quantity = null} = {})
     failedChecks: Object.freeze(failedChecks),
     plan,
     priceId,
-    productId,
+    // A recognized canonical Price is sufficient to identify its canonical
+    // Product even when Stripe returns the Price as an unexpanded ID.
+    productId: plan && !normalizedProductId ? DISPATCH_PRODUCT_ID : normalizedProductId,
     quantity: Number.isSafeInteger(quantity) ? quantity : null,
   });
 }
@@ -129,14 +132,10 @@ function dispatchInvoiceCatalogAssessment(invoice) {
     });
   }
   const line = dispatchLines[0];
-  const assessment = catalogAssessment({
+  return catalogAssessment({
     priceId: invoiceLinePriceId(line),
     productId: invoiceLineProductId(line),
     quantity: Number(line && line.quantity),
-  });
-  return Object.freeze({
-    ...assessment,
-    failedChecks: assessment.failedChecks,
   });
 }
 
