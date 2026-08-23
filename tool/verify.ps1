@@ -27,12 +27,16 @@ Write-Host 'Flutter SDK'
 flutter --version
 Assert-NativeSuccess 'Flutter SDK inspection'
 
-Write-Host 'Validating PowerShell release tools'
+Write-Host 'Validating PowerShell release and autonomous tools'
 $releaseToolScripts = @(
   (Join-Path $workspace 'tool\verify.ps1'),
   (Join-Path $workspace 'tool\callable_emulator_integration.ps1'),
   (Join-Path $workspace 'tool\web_visual_smoke.ps1'),
-  (Join-Path $workspace 'tool\phase1_safe_default_rehearsal.ps1')
+  (Join-Path $workspace 'tool\phase1_safe_default_rehearsal.ps1'),
+  (Join-Path $workspace 'tool\autonomous_build.ps1'),
+  (Join-Path $workspace 'tool\autonomous_build_v2.ps1'),
+  (Join-Path $workspace 'tool\autonomous_process.ps1'),
+  (Join-Path $workspace 'tool\autonomous_guard.ps1')
 )
 foreach ($scriptPath in $releaseToolScripts) {
   $tokens = $null
