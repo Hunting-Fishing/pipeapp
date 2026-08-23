@@ -56,9 +56,8 @@ class AppStateNotifier extends ChangeNotifier {
   void setRedirectLocationIfUnset(String loc) => _redirectLocation ??= loc;
   void clearRedirectLocation() => _redirectLocation = null;
 
-  /// Mark as not needing to notify on auth change
-  /// sign in or sign out happens. This is useful when the app is launched or on an unexpected logout. However, this must be turned off when we
-  /// intend to sign in/out and then navigate or perform any actions after.
+  /// Mark as not needing to notify on a sign in / out when we intend
+  /// to perform subsequent actions (such as navigation) afterwards.
   /// Otherwise, this will trigger a refresh and interrupt the action(s).
   void updateNotifyOnAuthChange(bool notify) => notifyOnAuthChange = notify;
 
