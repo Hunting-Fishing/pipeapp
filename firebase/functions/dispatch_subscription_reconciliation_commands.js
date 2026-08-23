@@ -61,6 +61,9 @@ function reconciliationRecord({invoiceId, administratorUid, state}) {
     expectedTaxMinor: state.expectedTaxMinor,
     providerInvoiceTotalMinor: state.providerInvoiceTotalMinor,
     providerInvoiceAmountPaidMinor: state.providerInvoiceAmountPaidMinor,
+    providerPlan: state.providerPlan || null,
+    providerStripePriceId: state.providerStripePriceId || null,
+    providerCatalogRevision: state.providerCatalogRevision || null,
     providerGrossMinor: state.providerGrossMinor,
     providerFeeMinor: state.providerFeeMinor,
     providerNetMinor: state.providerNetMinor,
@@ -71,7 +74,7 @@ function reconciliationRecord({invoiceId, administratorUid, state}) {
     stripePaymentIntentId: state.stripePaymentIntentId || null,
     stripeChargeId: state.stripeChargeId || null,
     stripeBalanceTransactionId: state.stripeBalanceTransactionId || null,
-    reconciliationRevision: "2026-08-23-p2-v2-invoice-payment",
+    reconciliationRevision: "2026-08-23-p2-v3-provider-price-plan",
   };
 }
 
@@ -216,6 +219,9 @@ function createDispatchSubscriptionReconciliationCommands(admin, options = {}) {
           reconciliationStatus: record.status,
           reconciliationFailedChecks: record.failedChecks,
           reconciliationRevision: record.reconciliationRevision,
+          reconciledProviderPlan: record.providerPlan,
+          reconciledStripePriceId: record.providerStripePriceId,
+          reconciledProviderCatalogRevision: record.providerCatalogRevision,
           stripeInvoicePaymentId: record.stripeInvoicePaymentId,
           stripePaymentIntentId: record.stripePaymentIntentId,
           sourceChargeId: record.stripeChargeId,
