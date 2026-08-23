@@ -52,10 +52,13 @@ function createDispatchBillingPortalAdmin(admin) {
             "Enabling the live Dispatch Billing Portal requires explicit production confirmation.",
         );
       }
-      const returnUrl = safeConfiguredUrl(
-          request.data && request.data.returnUrl,
+      const requestedReturnUrl = String(
+          request.data && request.data.returnUrl || "",
+      ).trim();
+      const returnUrl = enabled || requestedReturnUrl ? safeConfiguredUrl(
+          requestedReturnUrl,
           "Dispatch Billing Portal return URL",
-      );
+      ) : "";
       const ref = db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC);
       return db.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(ref);
