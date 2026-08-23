@@ -47,39 +47,32 @@ void main() {
     expect(gradle, contains('Android release signing is not configured'));
   });
 
-  test('quality gate compiles the iOS release target on macOS', () {
-    final workflow = source('.github/workflows/quality.yml');
+  test('manual mobile release workflow owns the iOS build', () {
+    final quality = source('.github/workflows/quality.yml');
+    final mobileRelease = source('.github/workflows/mobile-release-candidate.yml');
     final pubspec = source('pubspec.yaml');
-    expect(workflow, contains('ios-compile:'));
-    expect(workflow, contains('name: Compile iOS release target'));
-    expect(workflow, contains('runs-on: macos-15'));
-    expect(workflow, contains('flutter config --enable-swift-package-manager'));
-    expect(workflow, contains('flutter build ios'));
-    expect(workflow, contains('--release'));
-    expect(workflow, contains('--no-codesign'));
-    expect(workflow, contains('build/ios/iphoneos/Runner.app'));
-    expect(
-      workflow,
-      contains(
-        'Signing: intentionally disabled; this is compile evidence, '
-        'not a distributable candidate',
-      ),
-    );
+
+    expect(quality, contains('workflow_dispatch:'));
+    expect(quality, contains('runs-on: ubuntu-latest'));
+    expect(quality, isNot(contains('ios-compile:')));
+    expect(quality, isNot(contains('runs-on: macos-15')));
+
+    expect(mobileRelease, contains('workflow_dispatch:'));
+    expect(mobileRelease, contains('ios:'));
+    expect(mobileRelease, contains('name: Build signed Apple IPA'));
+    expect(mobileRelease, contains('runs-on: macos-15'));
+    expect(mobileRelease, contains('flutter build ipa'));
+
     expect(pubspec, contains('flutter_native_splash: ^2.4.8'));
     expect(pubspec, contains('sign_in_with_apple: 8.1.0'));
     expect(pubspec, contains('sqflite: 2.4.3'));
     expect(pubspec, contains('sqflite_common: 2.5.11'));
   });
 
-  test('quality gate cancels superseded runs for the same PR or ref', () {
+  test('manual quality gate cancels superseded runs for the same ref', () {
     final workflow = source('.github/workflows/quality.yml');
     expect(workflow, contains('concurrency:'));
-    expect(
-      workflow,
-      contains(
-        r'group: quality-${{ github.event.pull_request.number || github.ref }}',
-      ),
-    );
+    expect(workflow, contains(r'group: quality-manual-${{ github.ref }}'));
     expect(workflow, contains('cancel-in-progress: true'));
   });
 
