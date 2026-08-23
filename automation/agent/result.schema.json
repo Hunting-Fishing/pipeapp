@@ -11,8 +11,22 @@
     "summary",
     "changed_files",
     "knowledge_used",
+    "risk_level",
+    "risk_reasons",
     "refactor_mode",
     "compatibility_notes",
+    "compatibility_checks",
+    "data_change",
+    "data_change_notes",
+    "dependency_change",
+    "dependency_change_notes",
+    "provider_change",
+    "provider_change_notes",
+    "security_change",
+    "security_change_notes",
+    "billing_change",
+    "billing_change_notes",
+    "rollback_notes",
     "verification",
     "requires_human",
     "blocker_classification",
@@ -39,13 +53,36 @@
       "items": { "type": "string" },
       "uniqueItems": true
     },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "risk_reasons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
     "refactor_mode": {
       "type": "string",
       "enum": ["none", "behavior-preserving", "behavior-changing"]
     },
-    "compatibility_notes": {
-      "type": "string"
+    "compatibility_notes": { "type": "string" },
+    "compatibility_checks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
     },
+    "data_change": { "type": "boolean" },
+    "data_change_notes": { "type": "string" },
+    "dependency_change": { "type": "boolean" },
+    "dependency_change_notes": { "type": "string" },
+    "provider_change": { "type": "boolean" },
+    "provider_change_notes": { "type": "string" },
+    "security_change": { "type": "boolean" },
+    "security_change_notes": { "type": "string" },
+    "billing_change": { "type": "boolean" },
+    "billing_change_notes": { "type": "string" },
+    "rollback_notes": { "type": "string" },
     "verification": {
       "type": "array",
       "items": {
@@ -72,7 +109,12 @@
         "provider-dashboard",
         "production",
         "legal-tax",
-        "ambiguous-policy"
+        "ambiguous-policy",
+        "security",
+        "data-risk",
+        "financial-risk",
+        "release-risk",
+        "knowledge-conflict"
       ]
     },
     "human_reason": { "type": "string" },
