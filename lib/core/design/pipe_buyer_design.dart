@@ -1,8 +1,8 @@
-/// Canonical import for the Pipe Buyer formal marketplace design system.
-///
-/// Feature screens should prefer this barrel while the formal presentation
-/// layer is integrated around existing marketplace, Firebase and Dispatch
-/// behavior. The design modules remain presentation-only.
+// Canonical import for the Pipe Buyer formal marketplace design system.
+//
+// Feature screens should prefer this barrel while the formal presentation
+// layer is integrated around existing marketplace, Firebase and Dispatch
+// behavior. The design modules remain presentation-only.
 
 export 'pipe_buyer_account_components.dart';
 export 'pipe_buyer_analytics_components.dart';
