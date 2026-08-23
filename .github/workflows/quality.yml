@@ -16,9 +16,6 @@ concurrency:
 jobs:
   verify:
     runs-on: windows-latest
-    # Windows cold runners can spend more than 35 minutes installing the
-    # Android and Firebase toolchains before the emulator suites begin. Keep
-    # the full production gate and give it an evidence-based completion budget.
     timeout-minutes: 75
     env:
       FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
@@ -26,6 +23,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
@@ -55,14 +54,27 @@ jobs:
       - name: Restore Flutter dependencies
         run: flutter pub get
 
-      - name: Validate PowerShell release tools
+      - name: Validate PowerShell release and autonomous tools
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $scripts = @(
             'tool/verify.ps1',
             'tool/web_visual_smoke.ps1',
-            'tool/phase1_safe_default_rehearsal.ps1'
+            'tool/phase1_safe_default_rehearsal.ps1',
+            'tool/autonomous_build.ps1',
+            'tool/autonomous_build_v2.ps1',
+            'tool/autonomous_process.ps1',
+            'tool/autonomous_project.ps1',
+            'tool/autonomous_fingerprint.ps1',
+            'tool/autonomous_graduation.ps1',
+            'tool/autonomous_guard.ps1',
+            'tool/autonomous_builder_self_test.ps1',
+            'tool/autonomous_guard_test.ps1',
+            'tool/autonomous_recovery.ps1',
+            'tool/autonomous_recovery_test.ps1',
+            'tool/autonomous_runtime_fault_test.ps1',
+            'tool/autonomous_reviewer_fault_test.ps1'
           )
           foreach ($script in $scripts) {
             $tokens = $null
@@ -77,6 +89,22 @@ jobs:
               throw "PowerShell syntax failed for $script`: $details"
             }
           }
+
+      - name: Test autonomous governance contracts
+        shell: pwsh
+        run: |
+          .\tool\autonomous_builder_self_test.ps1 -ProjectRoot (Get-Location).Path
+          .\tool\autonomous_guard_test.ps1
+          .\tool\autonomous_recovery_test.ps1
+
+      - name: Test autonomous compatibility engine
+        run: node --test tool/autonomous_compatibility_test.mjs
+
+      - name: Prevent PR route or Function export loss
+        run: >
+          node tool/autonomous_compatibility.mjs
+          .
+          ${{ github.event.pull_request.base.sha || github.sha }}
 
       - name: Analyze application and tests
         run: dart analyze lib test
