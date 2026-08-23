@@ -11,9 +11,23 @@ const {
 const {
   stripeFormRequest,
 } = require("./stripe_checkout_commands");
+const {
+  loadPhase1FeatureFlags,
+} = require("./phase1_feature_flags");
+const {
+  ASSESSMENT_COLLECTION,
+  CURRENT_ASSESSMENT_ID,
+} = require("./canada_small_supplier_runtime_gate");
+const {
+  smallSupplierBillingEvidence,
+} = require("./canada_small_supplier_threshold_commands");
+const {
+  dispatchSubscriptionStoredReadiness,
+} = require("./dispatch_subscription_readiness_policy");
 
 const CONFIG_COLLECTION = "platform_configuration";
 const READINESS_DOC = "payment_provider_readiness";
+const PORTAL_DOC = "dispatch_billing_portal";
 const PRODUCTION_WEBHOOK_URL =
   "https://us-central1-flutter-flow-pipe.cloudfunctions.net/stripeMarketplaceWebhook";
 const REQUIRED_DISPATCH_SUBSCRIPTION_EVENTS = Object.freeze([
@@ -55,6 +69,38 @@ function dispatchSubscriptionLifecycleWebhookAssessment(
   });
 }
 
+function dispatchSubscriptionLaunchReadinessProjection({
+  readiness = {},
+  portal = {},
+  assessment = null,
+  features = {},
+} = {}) {
+  const stored = dispatchSubscriptionStoredReadiness(
+      readiness,
+      portal,
+      assessment,
+      features,
+  );
+  const taxEvidence = smallSupplierBillingEvidence(readiness, assessment);
+  return Object.freeze({
+    ...stored,
+    portalConfigurationId:
+      String(portal.stripePortalConfigurationId || "").trim(),
+    smallSupplierBillingEvidenceApplicable: taxEvidence.applicable,
+    smallSupplierBillingEvidenceReady: taxEvidence.ready,
+    smallSupplierBillingEvidenceReason: taxEvidence.reason,
+    smallSupplierAssessmentRevision: taxEvidence.assessmentRevision,
+    smallSupplierBoundRevision: taxEvidence.boundRevision,
+    stripeTaxReady: readiness.stripeTaxReady === true,
+    canadaGstHstSmallSupplier:
+      readiness.canadaGstHstSmallSupplier === true,
+    stripeTaxRegistrationPending:
+      readiness.stripeTaxRegistrationPending === true,
+    stripeTaxPendingBillingApproved:
+      readiness.stripeTaxPendingBillingApproved === true,
+  });
+}
+
 function createDispatchSubscriptionLaunchReadinessCommands(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -62,6 +108,36 @@ function createDispatchSubscriptionLaunchReadinessCommands(admin, options = {}) 
   const stripeRequest = options.stripeRequest || stripeFormRequest;
   const secretProvider = options.secretProvider || (() => stripeSecretKey.value());
   const webhookUrl = options.webhookUrl || PRODUCTION_WEBHOOK_URL;
+  const loadFeatures = options.loadFeatureFlags || loadPhase1FeatureFlags;
+
+  const getDispatchSubscriptionLaunchReadiness = async (request) => {
+    try {
+      authorize(request);
+      const [readinessSnapshot, portalSnapshot, assessmentSnapshot, features] =
+        await Promise.all([
+          db.collection(CONFIG_COLLECTION).doc(READINESS_DOC).get(),
+          db.collection(CONFIG_COLLECTION).doc(PORTAL_DOC).get(),
+          db.collection(ASSESSMENT_COLLECTION).doc(CURRENT_ASSESSMENT_ID).get(),
+          loadFeatures(db),
+        ]);
+      return dispatchSubscriptionLaunchReadinessProjection({
+        readiness: readinessSnapshot.exists ? readinessSnapshot.data() : {},
+        portal: portalSnapshot.exists ? portalSnapshot.data() : {},
+        assessment: assessmentSnapshot.exists ? assessmentSnapshot.data() : null,
+        features,
+      });
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error instanceof AdministratorAuthorizationError) {
+        throw new HttpsError(error.code, error.message);
+      }
+      console.error("Dispatch subscription launch readiness lookup failed", error);
+      throw new HttpsError(
+          "internal",
+          "Dispatch subscription launch readiness could not be loaded.",
+      );
+    }
+  };
 
   const verifyDispatchSubscriptionLifecycleWebhook = async (request) => {
     try {
@@ -122,14 +198,19 @@ function createDispatchSubscriptionLaunchReadinessCommands(admin, options = {}) 
     }
   };
 
-  return {verifyDispatchSubscriptionLifecycleWebhook};
+  return {
+    getDispatchSubscriptionLaunchReadiness,
+    verifyDispatchSubscriptionLifecycleWebhook,
+  };
 }
 
 module.exports = {
   CONFIG_COLLECTION,
+  PORTAL_DOC,
   PRODUCTION_WEBHOOK_URL,
   READINESS_DOC,
   REQUIRED_DISPATCH_SUBSCRIPTION_EVENTS,
   createDispatchSubscriptionLaunchReadinessCommands,
+  dispatchSubscriptionLaunchReadinessProjection,
   dispatchSubscriptionLifecycleWebhookAssessment,
 };
