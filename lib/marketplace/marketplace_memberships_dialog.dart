@@ -69,7 +69,7 @@ class MarketplaceMembershipsDialog extends StatelessWidget {
                   ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final artwork = const SizedBox(
+                      const artwork = SizedBox(
                         width: 180,
                         child: MarketplaceSubscriptionArtwork(
                           planTitle: 'VIP Membership',
@@ -77,44 +77,42 @@ class MarketplaceMembershipsDialog extends StatelessWidget {
                           height: 120,
                         ),
                       );
-                      final details = Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'VIP MEMBERSHIP',
-                              style: TextStyle(
-                                color: Color(0xFFFFC44D),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: .9,
-                              ),
+                      final details = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'VIP MEMBERSHIP',
+                            style: TextStyle(
+                              color: Color(0xFFFFC44D),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .9,
                             ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Marketplace priority access',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                              ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Marketplace priority access',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
                             ),
-                            const SizedBox(height: 5),
-                            const Text(
-                              '24-hour early listing access, priority alerts and the VIP marketplace experience.',
-                              style: TextStyle(color: Colors.white70, height: 1.35),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            '24-hour early listing access, priority alerts and the VIP marketplace experience.',
+                            style: TextStyle(color: Colors.white70, height: 1.35),
+                          ),
+                          const SizedBox(height: 10),
+                          OutlinedButton.icon(
+                            onPressed: () => _openVip(context),
+                            icon: const Icon(Icons.workspace_premium_outlined),
+                            label: const Text('View VIP details'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFFFC44D),
                             ),
-                            const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                              onPressed: () => _openVip(context),
-                              icon: const Icon(Icons.workspace_premium_outlined),
-                              label: const Text('View VIP details'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFFFC44D),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       );
                       if (constraints.maxWidth >= 620) {
                         return Row(
@@ -122,7 +120,7 @@ class MarketplaceMembershipsDialog extends StatelessWidget {
                           children: [
                             artwork,
                             const SizedBox(width: 16),
-                            details,
+                            Expanded(child: details),
                           ],
                         );
                       }
@@ -131,7 +129,7 @@ class MarketplaceMembershipsDialog extends StatelessWidget {
                         children: [
                           artwork,
                           const SizedBox(height: 10),
-                          SizedBox(child: details),
+                          details,
                         ],
                       );
                     },
