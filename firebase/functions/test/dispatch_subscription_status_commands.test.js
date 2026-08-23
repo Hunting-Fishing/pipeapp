@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const {
   createDispatchSubscriptionStatusCommands,
   dispatchSubscriptionPublicBillingReady,
+  dispatchSubscriptionPublicTaxReady,
 } = require("../dispatch_subscription_status_commands");
 const {
   DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
@@ -30,16 +31,44 @@ function readyBilling(overrides = {}) {
     stripeSubscriptionLifecycleWebhookVerified: true,
     stripeSubscriptionRecoveryVerified: true,
     stripeReconciliationReady: true,
-    canadaGstHstSmallSupplier: true,
+    stripeTaxReady: true,
     ...overrides,
   };
 }
 
-function fakeAdmin({subscription = null, portal = verifiedPortal(), readiness = readyBilling()} = {}) {
+function validSmallSupplierAssessment(overrides = {}) {
+  return {
+    worldwideAndAssociatedIncluded: true,
+    singleQuarterCadMinor: 1000000,
+    rollingFourQuarterCadMinor: 2000000,
+    thresholdCadMinor: 3000000,
+    exceeded: false,
+    requiresRegistrationReview: false,
+    revision: 7,
+    ...overrides,
+  };
+}
+
+function smallSupplierBilling(overrides = {}) {
+  return readyBilling({
+    stripeTaxReady: false,
+    canadaGstHstSmallSupplier: true,
+    canadaGstHstSmallSupplierAssessmentRevision: 7,
+    ...overrides,
+  });
+}
+
+function fakeAdmin({
+  subscription = null,
+  portal = verifiedPortal(),
+  readiness = readyBilling(),
+  assessment = null,
+} = {}) {
   const docs = new Map([
     ["dispatch_subscriptions/user-1", subscription],
     ["platform_configuration/dispatch_billing_portal", portal],
     ["platform_configuration/payment_provider_readiness", readiness],
+    ["tax_threshold_assessments/canada_gst_hst_current", assessment],
   ]);
   const db = {
     collection(name) {
@@ -98,6 +127,33 @@ test("public billing readiness requires every Dispatch launch prerequisite", () 
   );
 });
 
+test("small-supplier presentation readiness requires exact audited assessment binding", () => {
+  const readiness = smallSupplierBilling();
+  const assessment = validSmallSupplierAssessment();
+  assert.equal(
+      dispatchSubscriptionPublicTaxReady(readiness, assessment),
+      true,
+  );
+  assert.equal(
+      dispatchSubscriptionPublicTaxReady(readiness, null),
+      false,
+  );
+  assert.equal(
+      dispatchSubscriptionPublicTaxReady(
+          readiness,
+          validSmallSupplierAssessment({revision: 8}),
+      ),
+      false,
+  );
+  assert.equal(
+      dispatchSubscriptionPublicTaxReady(
+          readiness,
+          validSmallSupplierAssessment({rollingFourQuarterCadMinor: 3000001}),
+      ),
+      false,
+  );
+});
+
 test("status disables purchase before public billing readiness is enabled", async () => {
   const commands = createDispatchSubscriptionStatusCommands(
       fakeAdmin({
@@ -127,6 +183,39 @@ test("status enables purchase only when user state and billing readiness both al
   const result = await commands.getDispatchSubscriptionStatus({auth: {uid: "user-1"}});
   assert.equal(result.billingAvailable, true);
   assert.equal(result.canStartCheckout, true);
+});
+
+test("status fails closed when small-supplier assessment is missing or stale", async () => {
+  const missingAssessmentCommands = createDispatchSubscriptionStatusCommands(
+      fakeAdmin({readiness: smallSupplierBilling()}),
+      {
+        authUid: () => "user-1",
+        rateLimit: async () => {},
+        catalog,
+      },
+  );
+  const missing = await missingAssessmentCommands.getDispatchSubscriptionStatus({
+    auth: {uid: "user-1"},
+  });
+  assert.equal(missing.billingAvailable, false);
+  assert.equal(missing.canStartCheckout, false);
+
+  const validCommands = createDispatchSubscriptionStatusCommands(
+      fakeAdmin({
+        readiness: smallSupplierBilling(),
+        assessment: validSmallSupplierAssessment(),
+      }),
+      {
+        authUid: () => "user-1",
+        rateLimit: async () => {},
+        catalog,
+      },
+  );
+  const valid = await validCommands.getDispatchSubscriptionStatus({
+    auth: {uid: "user-1"},
+  });
+  assert.equal(valid.billingAvailable, true);
+  assert.equal(valid.canStartCheckout, true);
 });
 
 test("active subscriber remains active even when new purchases are disabled", async () => {
