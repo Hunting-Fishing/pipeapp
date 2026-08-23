@@ -11,6 +11,18 @@ const {
   DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
 } = require("../dispatch_billing_portal_policy");
 
+function storedPortalFeatures(overrides = {}) {
+  return {
+    paymentMethodUpdate: true,
+    invoiceHistory: true,
+    subscriptionCancel: true,
+    subscriptionCancelMode: "at_period_end",
+    subscriptionCancelProration: "none",
+    subscriptionUpdate: false,
+    ...overrides,
+  };
+}
+
 function verifiedPortal(overrides = {}) {
   return {
     enabled: true,
@@ -19,6 +31,7 @@ function verifiedPortal(overrides = {}) {
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_dispatch",
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    providerVerifiedFeatures: storedPortalFeatures(),
     ...overrides,
   };
 }
@@ -122,6 +135,15 @@ test("public billing readiness requires every Dispatch launch prerequisite", () 
       dispatchSubscriptionPublicBillingReady(
           readyBilling(),
           verifiedPortal({providerVerified: false}),
+      ),
+      false,
+  );
+  assert.equal(
+      dispatchSubscriptionPublicBillingReady(
+          readyBilling(),
+          verifiedPortal({
+            providerVerifiedFeatures: storedPortalFeatures({subscriptionUpdate: true}),
+          }),
       ),
       false,
   );
