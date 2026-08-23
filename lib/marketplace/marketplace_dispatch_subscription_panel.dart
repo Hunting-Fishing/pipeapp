@@ -27,6 +27,7 @@ class _MarketplaceDispatchSubscriptionPanelState
   bool _workingBilling = false;
   String? _workingPlan;
   String? _error;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _MarketplaceDispatchSubscriptionPanelState
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     if (mounted) {
       setState(() {
         _loading = true;
@@ -61,10 +63,10 @@ class _MarketplaceDispatchSubscriptionPanelState
     }
     try {
       final status = await _client.getStatus();
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() => _status = status);
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _error = marketplaceCommandErrorMessage(
           error,
@@ -72,7 +74,9 @@ class _MarketplaceDispatchSubscriptionPanelState
         );
       });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
