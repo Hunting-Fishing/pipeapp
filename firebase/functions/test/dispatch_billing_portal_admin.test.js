@@ -8,6 +8,9 @@ const {
 } = require("../dispatch_billing_portal_admin");
 const {
   DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+  DISPATCH_PORTAL_CUSTOMER_UPDATES,
+  DISPATCH_PORTAL_PRICE_IDS,
+  DISPATCH_PORTAL_PRODUCT_ID,
 } = require("../dispatch_billing_portal_policy");
 
 function administratorRequest(data) {
@@ -62,7 +65,25 @@ function fakeAdmin(previous = {}) {
   return {admin: {firestore}, writes};
 }
 
+function providerFeatures() {
+  return {
+    paymentMethodUpdate: true,
+    customerUpdate: true,
+    customerUpdateAllowedUpdates: [...DISPATCH_PORTAL_CUSTOMER_UPDATES],
+    invoiceHistory: true,
+    subscriptionCancel: true,
+    subscriptionCancelMode: "at_period_end",
+    subscriptionCancelProration: "none",
+    subscriptionUpdate: true,
+    subscriptionUpdateAllowedUpdates: ["price"],
+    subscriptionUpdateProration: "none",
+    subscriptionUpdateProductId: DISPATCH_PORTAL_PRODUCT_ID,
+    subscriptionUpdatePriceIds: [...DISPATCH_PORTAL_PRICE_IDS],
+  };
+}
+
 test("portal readiness normalization preserves current provider verification evidence", () => {
+  const features = providerFeatures();
   assert.deepEqual(normalizePortalConfig({
     enabled: true,
     returnUrl: "https://pipebuyer.com/account",
@@ -70,14 +91,7 @@ test("portal readiness normalization preserves current provider verification evi
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_1",
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
-    providerVerifiedFeatures: {
-      paymentMethodUpdate: true,
-      invoiceHistory: true,
-      subscriptionCancel: true,
-      subscriptionCancelMode: "at_period_end",
-      subscriptionCancelProration: "none",
-      subscriptionUpdate: false,
-    },
+    providerVerifiedFeatures: features,
     revision: 4,
   }), {
     enabled: true,
@@ -86,14 +100,7 @@ test("portal readiness normalization preserves current provider verification evi
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_1",
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
-    providerVerifiedFeatures: {
-      paymentMethodUpdate: true,
-      invoiceHistory: true,
-      subscriptionCancel: true,
-      subscriptionCancelMode: "at_period_end",
-      subscriptionCancelProration: "none",
-      subscriptionUpdate: false,
-    },
+    providerVerifiedFeatures: features,
     revision: 4,
   });
 });
@@ -135,6 +142,7 @@ test("emergency disable clears provider verification evidence", async () => {
     providerVerified: true,
     providerVerifiedConfigurationId: "bpc_live_1",
     providerVerificationRevision: DISPATCH_BILLING_PORTAL_PROVIDER_REVISION,
+    providerVerifiedFeatures: providerFeatures(),
     revision: 1,
   });
   const commands = createDispatchBillingPortalAdmin(admin);
