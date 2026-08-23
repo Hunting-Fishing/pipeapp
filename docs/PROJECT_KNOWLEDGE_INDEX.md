@@ -11,7 +11,7 @@ This file tells autonomous and human engineers where product truth lives. It is 
 1. Explicit current operator decision recorded in `docs/DECISION_REGISTER.md`.
 2. Safety, legal, financial, security, data-integrity, and production controls.
 3. Domain-specific active tracker or runbook.
-4. `docs/PRODUCT_VISION.md` and `docs/MASTER_ROADMAP.md`.
+4. `docs/PRODUCT_VISION.md`, `docs/MASTER_ROADMAP.md`, and the active accelerated ship plan.
 5. `docs/ARCHITECTURE.md`, `docs/DESIGN_SYSTEM.md`, and `docs/QUALITY_GATES.md`.
 6. `docs/FEATURE_REGISTRY.md` and compatibility contracts.
 7. Implementation and tests as evidence of current behavior, not automatic proof of intended behavior.
@@ -22,6 +22,7 @@ A newer implementation does not override a documented safety or product decision
 
 - `docs/PRODUCT_VISION.md` — intended finished product.
 - `docs/MASTER_ROADMAP.md` — ordered workstream index.
+- `docs/SHIP_72_HOUR_PLAN.md` — current acceleration priority and operational sprint scope.
 - `docs/ARCHITECTURE.md` — system boundaries and refactor contract.
 - `docs/QUALITY_GATES.md` — autonomous change limits and verification rules.
 - `docs/DEFINITION_OF_DONE.md` — what must be true before work is called complete.
@@ -34,6 +35,7 @@ A newer implementation does not override a documented safety or product decision
 - `docs/FEATURE_REGISTRY.md` — durable capability inventory.
 - `docs/CONTRACTS_AND_COMPATIBILITY.md` — routes, commands, data, lifecycle, and backward-compatibility rules.
 - `.autobuild/feature_contract.json` — machine-readable critical anchors.
+- `tool/autonomous_compatibility.mjs` — compares the working tree to HEAD and rejects removal of existing GoRouter/FFRoute signatures or Firebase Function exports while allowing additive work.
 - Tests, Rules tests, Function parity controls, and release manifests — executable compatibility evidence.
 
 ## Quality and testing
@@ -41,6 +43,7 @@ A newer implementation does not override a documented safety or product decision
 - `docs/TEST_STRATEGY.md` — testing layers and regression policy.
 - `docs/TECH_DEBT_REGISTER.md` — known debt that should be reduced without turning unrelated work into rewrites.
 - `tool/verify.ps1` — complete repository verification gate.
+- `tool/autonomous_recovery.ps1` — quarantines provably interrupted unverified work and restores the last verified commit before a resumed autonomous run; ambiguous dirty work remains operator-owned and fails closed.
 
 ## UI and product experience
 
@@ -50,7 +53,8 @@ A newer implementation does not override a documented safety or product decision
 
 ## Payments, billing, tax, and provider money flows
 
-- `docs/PAYMENTS_EXECUTION_TRACKER.md` — payment implementation/evidence queue.
+- `docs/PAYMENTS_EXECUTION_TRACKER.md` — payment implementation/evidence queue and authoritative completion state.
+- `docs/PAYMENTS_CURRENT_CONFIGURATION.md` — concise current source-controlled Stripe/checkout/webhook architecture and immediate code-capable queue; does not claim live provider evidence.
 - `docs/PHASE_1_BILLING_BOUNDARY.md` — cloud billing versus product payment boundary.
 - `docs/COST_AND_BILLING_GOVERNANCE.md` — spend controls, provider cost ownership, and autonomous no-spend rules.
 - `docs/MARKETPLACE_REFUND_DISPUTE_RUNBOOK.md` — refund/dispute operations.
@@ -84,9 +88,10 @@ A newer implementation does not override a documented safety or product decision
 ## Autonomous builder configuration
 
 - `.autobuild/project.json` — project-specific builder configuration.
-- `.autobuild/risk_policy.json` — machine-readable path/risk escalation rules.
+- `.autobuild/risk_policy.json` — machine-readable path/risk escalation and protected-governance rules.
 - `AGENTS.md` — repository worker constitution.
 - `docs/AUTONOMOUS_BUILD_AGENT.md` — supervisor operation and extraction plan.
+- `docs/AUTONOMOUS_BUILDER_READINESS.md` — graduation evidence checklist; workers cannot edit or self-approve it.
 
 ## Documentation rule
 
