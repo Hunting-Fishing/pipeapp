@@ -20,7 +20,8 @@ class MarketplaceDispatchSubscriptionPanel extends StatefulWidget {
 }
 
 class _MarketplaceDispatchSubscriptionPanelState
-    extends State<MarketplaceDispatchSubscriptionPanel> {
+    extends State<MarketplaceDispatchSubscriptionPanel>
+    with WidgetsBindingObserver {
   late final MarketplaceDispatchSubscriptionClient _client;
   MarketplaceDispatchSubscriptionStatus? _status;
   bool _loading = true;
@@ -31,8 +32,25 @@ class _MarketplaceDispatchSubscriptionPanelState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _client = widget.client ?? MarketplaceDispatchSubscriptionClient();
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        _workingPlan == null &&
+        !_workingBilling) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -84,7 +102,7 @@ class _MarketplaceDispatchSubscriptionPanelState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Complete payment in Stripe. Dispatch access updates from the payment provider automatically.',
+            'Complete payment in Stripe, then return to Pipe Buyer. Dispatch access updates automatically from the payment provider.',
           ),
         ),
       );
@@ -163,6 +181,9 @@ class _MarketplaceDispatchSubscriptionPanelState
                   : 'Manage billing or cancel in Stripe',
             ),
           ),
+        ] else if (status.alreadySubscribed) ...[
+          const SizedBox(height: 10),
+          const _BillingManagementUnavailable(),
         ],
         if (_error != null) ...[
           const SizedBox(height: 10),
@@ -329,6 +350,15 @@ class _CurrentDispatchMembership extends StatelessWidget {
       icon: Icons.hourglass_top_rounded,
     );
   }
+  if (status.checkoutOpen && !status.billingAvailable) {
+    return (
+      title: 'Checkout temporarily unavailable',
+      message:
+          'Your existing Checkout is preserved. Dispatch purchasing is temporarily unavailable; refresh later before continuing.',
+      color: PipeBuyerColors.warning,
+      icon: Icons.pause_circle_outline_rounded,
+    );
+  }
   if (status.checkoutOpen) {
     return (
       title: '$planLabel Checkout open',
@@ -360,6 +390,15 @@ class _CurrentDispatchMembership extends StatelessWidget {
       message: 'No active Dispatch membership is currently confirmed.',
       color: PipeBuyerColors.muted,
       icon: Icons.cancel_outlined,
+    );
+  }
+  if (!status.billingAvailable) {
+    return (
+      title: 'Dispatch subscriptions are not open yet',
+      message:
+          'You can review Monthly and Yearly plans below. Secure purchasing will be available when Pipe Buyer billing is ready.',
+      color: PipeBuyerColors.industrialBlue,
+      icon: Icons.schedule_outlined,
     );
   }
   return (
@@ -398,7 +437,8 @@ class _DispatchPlanCard extends StatelessWidget {
     final isCurrentPlan = status.plan == plan;
     final continueCheckout = status.checkoutOpen && isCurrentPlan;
     final blockedByOpenOtherPlan = status.checkoutOpen && !isCurrentPlan;
-    final canPress = !disabledByOtherWork &&
+    final canPress = status.billingAvailable &&
+        !disabledByOtherWork &&
         !status.reviewRequired &&
         !status.processing &&
         !status.alreadySubscribed &&
@@ -409,15 +449,18 @@ class _DispatchPlanCard extends StatelessWidget {
         : 'Existing subscription needs billing attention';
     final buttonLabel = working
         ? 'Opening secure Checkout…'
-        : continueCheckout
-            ? 'Continue secure Checkout'
-            : status.alreadySubscribed && (isCurrentPlan || status.plan.isEmpty)
-                ? existingLabel
-                : status.alreadySubscribed
-                    ? 'Existing ${status.plan} subscription'
-                    : blockedByOpenOtherPlan
-                        ? 'Finish ${status.plan} Checkout first'
-                        : 'Choose $title';
+        : !status.billingAvailable && !status.alreadySubscribed
+            ? 'Subscriptions not available yet'
+            : continueCheckout
+                ? 'Continue secure Checkout'
+                : status.alreadySubscribed &&
+                        (isCurrentPlan || status.plan.isEmpty)
+                    ? existingLabel
+                    : status.alreadySubscribed
+                        ? 'Existing ${status.plan} subscription'
+                        : blockedByOpenOtherPlan
+                            ? 'Finish ${status.plan} Checkout first'
+                            : 'Choose $title';
 
     return Container(
       padding: const EdgeInsets.all(15),
@@ -462,6 +505,11 @@ class _DispatchPlanCard extends StatelessWidget {
               fontWeight: FontWeight.w900,
               color: PipeBuyerColors.industrialBlue,
             ),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            'Final tax treatment is confirmed by the approved Pipe Buyer billing state and secure Stripe Checkout.',
+            style: TextStyle(color: PipeBuyerColors.muted, fontSize: 10.5),
           ),
           const SizedBox(height: 10),
           const _Benefit(text: 'Load, carrier, quote and awarded-job workflows'),
@@ -510,6 +558,32 @@ class _Benefit extends StatelessWidget {
               child: Text(
                 text,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _BillingManagementUnavailable extends StatelessWidget {
+  const _BillingManagementUnavailable();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: PipeBuyerColors.warning.withValues(alpha: .07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: PipeBuyerColors.warning.withValues(alpha: .25)),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.manage_accounts_outlined, color: PipeBuyerColors.warning),
+            SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                'Secure billing management is temporarily unavailable. Your subscription state is preserved. Refresh later or contact Pipe Buyer support if you need billing assistance.',
               ),
             ),
           ],
