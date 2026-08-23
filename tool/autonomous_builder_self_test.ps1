@@ -38,6 +38,10 @@ $engineFiles = @(
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
     "tool/autonomous_guard_test.ps1",
+    "tool/autonomous_recovery.ps1",
+    "tool/autonomous_recovery_test.ps1",
+    "tool/autonomous_compatibility.mjs",
+    "tool/autonomous_compatibility_test.mjs",
     "automation/agent/project.schema.json",
     "automation/agent/result.schema.json",
     "automation/agent/review.schema.json",
@@ -62,6 +66,7 @@ Assert-True ([int]$config.schema_version -eq 2) "Project schema_version must be 
 Assert-True (-not [bool]$config.git.allow_direct_main) "Autonomous direct-main writes must remain disabled."
 Assert-True ([bool]$config.git.single_writer_required) "Single-writer protection must remain enabled."
 Assert-True ([bool]$config.independent_review_required) "Independent review must remain enabled."
+Assert-True ([bool]$config.preflight_verify_required) "Clean-baseline verification must remain enabled."
 Assert-True ([string]$config.safety.production_activation -eq "human-only") "Production activation must remain human-only."
 Assert-True ([string]$config.safety.live_provider_mutations -eq "human-only") "Live provider mutations must remain human-only."
 Assert-True ([string]$config.safety.merge_to_main -eq "human-only") "Merge to main must remain human-only."
@@ -117,6 +122,7 @@ foreach ($field in @("verdict", "risk_level", "findings", "functionality_loss_ri
 }
 Assert-True ($null -ne $projectSchema.properties.risk_policy) "Project schema must include risk_policy."
 Assert-True ($null -ne $projectSchema.properties.independent_review_required) "Project schema must include independent_review_required."
+Assert-True ($null -ne $projectSchema.properties.preflight_verify_required) "Project schema must include preflight_verify_required."
 
 $powerShellScripts = @(
     "tool/autonomous_build.ps1",
@@ -125,7 +131,9 @@ $powerShellScripts = @(
     "tool/autonomous_project.ps1",
     "tool/autonomous_guard.ps1",
     "tool/autonomous_builder_self_test.ps1",
-    "tool/autonomous_guard_test.ps1"
+    "tool/autonomous_guard_test.ps1",
+    "tool/autonomous_recovery.ps1",
+    "tool/autonomous_recovery_test.ps1"
 )
 foreach ($relative in $powerShellScripts) {
     $full = Join-Path $ProjectRoot $relative
@@ -140,8 +148,14 @@ foreach ($relative in $powerShellScripts) {
     Assert-True ($lines -le [int]$config.quality.max_source_lines) "Builder source $relative is $lines lines; exceeds project source ceiling."
 }
 
+foreach ($relative in @("tool/autonomous_compatibility.mjs", "tool/autonomous_compatibility_test.mjs")) {
+    $lines = Get-LineCount -Path (Join-Path $ProjectRoot $relative)
+    Assert-True ($lines -le [int]$config.quality.max_source_lines) "Builder source $relative is $lines lines; exceeds project source ceiling."
+}
+
 $wrapper = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_build.ps1") -Raw
 Assert-True ($wrapper.Contains("autonomous_build_v2.ps1")) "Stable autonomous_build.ps1 wrapper must delegate to V2 supervisor."
+Assert-True ($wrapper.Contains("autonomous_recovery.ps1")) "Stable autonomous_build.ps1 wrapper must perform interrupted-run recovery before V2 startup."
 
 $supervisor = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_build_v2.ps1") -Raw
 $projectHelper = Get-Content -LiteralPath (Join-Path $ProjectRoot "tool/autonomous_project.ps1") -Raw
@@ -149,6 +163,17 @@ Assert-True ($supervisor.Contains("Invoke-CodexReviewer")) "V2 supervisor must i
 Assert-True ($supervisor.Contains("Enter-AutonomousSingleWriterLock")) "V2 supervisor must acquire the single-writer lock."
 Assert-True ($projectHelper.Contains("supervisor.lock")) "Project helper must implement the single-writer lock file."
 Assert-True ($supervisor.Contains("-ResultPath '$resultEsc'")) "V2 supervisor must pass worker result metadata into the autonomous guard."
+
+$protected = @($risk.protected_governance_paths | ForEach-Object { [string]$_ })
+foreach ($requiredProtected in @(
+    "docs/AUTONOMOUS_BUILDER_READINESS.md",
+    "tool/autonomous_build.ps1",
+    "tool/autonomous_recovery.ps1",
+    "tool/autonomous_compatibility.mjs",
+    "tool/verify.ps1"
+)) {
+    Assert-True ($protected -contains $requiredProtected) "Protected-governance list is missing $requiredProtected"
+}
 
 $featureContractPath = Join-Path $ProjectRoot ".autobuild/feature_contract.json"
 if (Test-Path -LiteralPath $featureContractPath) {
