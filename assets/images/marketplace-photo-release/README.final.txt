@@ -1,0 +1,1 @@
+Final icon release uses semantic production paths only. This file is release metadata and does not participate in runtime artwork resolution.
