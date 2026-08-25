@@ -1,0 +1,1 @@
+STAGING — do not deploy until the photo asset commit is complete and verified.
