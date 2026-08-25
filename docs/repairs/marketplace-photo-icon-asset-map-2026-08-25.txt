@@ -1,0 +1,1 @@
+Release mapping is intentionally path-stable: approved photo artwork replaces existing semantic industrial icon assets. Temporary upload names remain local build inputs and are not production filenames.

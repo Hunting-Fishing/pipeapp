@@ -1,0 +1,3 @@
+Pipe Buyer Marketplace photo icon release.
+Production art is written to the existing semantic industrial icon asset paths so temporary ChatGPT/upload filenames do not become production filenames.
+See docs/repairs/2026-08-25-marketplace-photo-icon-release.md for scope and verification.
