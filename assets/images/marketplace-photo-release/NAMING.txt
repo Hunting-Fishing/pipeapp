@@ -1,0 +1,1 @@
+Temporary ChatGPT source filenames are not production names. Production uses the existing semantic category/equipment asset paths.
