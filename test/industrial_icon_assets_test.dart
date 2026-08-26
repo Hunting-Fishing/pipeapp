@@ -5,6 +5,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/industrial_icon_assets.dart';
 import 'package:pipe_app/marketplace/oil_gas_marketplace.dart';
 
+Future<void> _waitForIndustrialArtwork(WidgetTester tester) async {
+  // Photo-backed SVG wrappers decode embedded raster data asynchronously on
+  // the engine side. pumpAndSettle() advances fake time while the loading
+  // spinner keeps scheduling frames, so it can hit its virtual timeout before
+  // the decoder receives enough wall-clock time. Give the decoder bounded real
+  // time, pump the completed frame, and still fail if artwork never finishes.
+  await tester.pump();
+  for (var attempt = 0; attempt < 40; attempt++) {
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pump(const Duration(milliseconds: 50));
+    if (find.byType(CircularProgressIndicator).evaluate().isEmpty) return;
+  }
+
+  expect(
+    find.byType(CircularProgressIndicator),
+    findsNothing,
+    reason: 'Industrial artwork did not finish loading after 2 seconds of '
+        'wall-clock decoder time.',
+  );
+}
+
 void main() {
   test('industrial icon resolver maps primary marketplace categories', () {
     expect(IndustrialIconAssets.forLabel('Pipe, Tubing & Materials'),
@@ -118,7 +141,7 @@ void main() {
                 subtitle: 'Escort and route support',
                 icon: Icons.assistant_direction_outlined,
                 assetPath: IndustrialIconAssets.escortPickup))));
-    await tester.pumpAndSettle();
+    await _waitForIndustrialArtwork(tester);
 
     expect(find.text('Pilot truck'), findsOneWidget);
     expect(find.text('Escort and route support'), findsOneWidget);
@@ -153,9 +176,11 @@ void main() {
                                     IndustrialIconAssets.forVehicleType(type))))
                         .toList(),
                     onChanged: (_) {})))));
-    await tester.pumpAndSettle();
+    await _waitForIndustrialArtwork(tester);
     await tester.tap(find.byType(DropdownButtonFormField<String>));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await _waitForIndustrialArtwork(tester);
 
     for (final type in types.skip(1)) {
       expect(find.text(type), findsOneWidget);
@@ -212,7 +237,7 @@ void main() {
                         size: 72,
                         fallback: const Icon(Icons.error_outline)))
                     .toList()))));
-    await tester.pumpAndSettle();
+    await _waitForIndustrialArtwork(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.byType(IndustrialAssetIcon), findsNWidgets(10));
@@ -247,7 +272,7 @@ void main() {
                             size: 32,
                             fallback: const Icon(Icons.error_outline)))
                         .toList())))));
-    await tester.pumpAndSettle();
+    await _waitForIndustrialArtwork(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.byType(IndustrialAssetIcon), findsNWidgets(59));
@@ -282,7 +307,7 @@ void main() {
                             size: 32,
                             fallback: const Icon(Icons.error_outline)))
                         .toList())))));
-    await tester.pumpAndSettle();
+    await _waitForIndustrialArtwork(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.byType(IndustrialAssetIcon), findsNWidgets(132));
