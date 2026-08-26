@@ -273,3 +273,32 @@ Avoid repeated V1/V2/V3-style repair chains when a stable integration path can b
 - restoration of deterministic generated plugin files before release Git checks,
 - separate production deployment status from post-deploy proof status,
 - recording the root cause and successful fix here.
+
+## 2026-08-27 - Firebase non-interactive deploy stopped on reviewed retry policies
+
+<!-- FIREBASE-RETRY-POLICY-DEPLOY-FIX-2026-08-27 -->
+
+### Symptom
+
+The verified staging workflow reached the real Firebase deployment after dependency restore, analyzer, Flutter tests, Functions validation, Firestore and Storage rules tests, authenticated callable integration tests, web build, release-manifest generation, and Firebase authentication all passed.
+
+Firebase then stopped before creating Functions with:
+
+`Pass the --force option to deploy functions with a failure policy`
+
+The affected reviewed event Functions intentionally declare `retry: true`.
+
+### Root cause
+
+The protected workflow uses Firebase CLI 15.25.0 with `--non-interactive`. The CLI requires explicit acknowledgement before the first deployment of retry-enabled Functions. The workflow encoded the retry policies and tested retry behavior but did not encode that deployment acknowledgement.
+
+This was not a Marketplace application failure, Storage failure, Flutter failure, or Firebase authentication failure.
+
+### Permanent repair
+
+- Keep the reviewed `retry: true` policies intact.
+- The exact-release Firebase deployment command includes one deliberate `--force` immediately before `--non-interactive`.
+- `test/deployment_workflow_test.dart` requires exactly one workflow force acknowledgement at the reviewed deploy location.
+- The existing release manifest and post-deploy Function parity checks remain mandatory.
+- Do not use ad-hoc `firebase deploy --force` commands as a substitute for the protected workflow.
+- Because Firebase `--force` can also approve removal of Functions absent from canonical source, GitHub source and Function parity remain the release source of truth.
