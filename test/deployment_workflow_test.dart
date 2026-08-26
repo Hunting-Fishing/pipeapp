@@ -44,19 +44,23 @@ void main() {
   test('deployment uses Firebase CI token and exact Firebase project guards',
       () {
     expect(workflow, contains('permissions:\n  contents: read'));
-    expect(workflow, contains(r'FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}'));
+    expect(
+        workflow, contains(r'FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}'));
     expect(workflow, isNot(contains('service_account_key')));
     expect(workflow, contains('flutter-flow-pipe'));
     expect(workflow, contains('Staging cannot deploy to the production'));
-    expect(workflow, contains('App Check is disabled for this production release'));
+    expect(workflow,
+        contains('App Check is disabled for this production release'));
   });
 
-  test('web worker keeps release source clean and Flutter cache hashes exact', () {
+  test('web worker keeps release source clean and Flutter cache hashes exact',
+      () {
     final generationIndex = workflow.indexOf(
       'node tool/configure_firebase_messaging_worker.mjs',
     );
     final webBuildIndex = workflow.indexOf('flutter build web');
-    final restoreIndex = workflow.indexOf('restore_worker\n          trap - EXIT');
+    final restoreIndex =
+        workflow.indexOf('restore_worker\n          trap - EXIT');
     final manifestIndex = workflow.indexOf('node tool/release_manifest.mjs');
 
     expect(generationIndex, greaterThan(-1));
@@ -107,8 +111,12 @@ void main() {
     expect(
       workflow,
       contains(
-        '--non-interactive 2>&1 | tee build/firebase-deploy.log',
+        '--force \\\n            --non-interactive 2>&1 | tee build/firebase-deploy.log',
       ),
+    );
+    expect(
+      '            --force \\\n'.allMatches(workflow),
+      hasLength(1),
     );
     expect(
       workflow,

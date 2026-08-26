@@ -286,6 +286,7 @@ jobs:
             --config firebase.json \
             --only auth,hosting,functions,firestore:rules,firestore:indexes,storage \
             --message "Pipe Buyer $PIPE_ENV $PIPE_RELEASE_SHA workflow ${{ github.run_id }}" \
+            --force \
             --non-interactive 2>&1 | tee build/firebase-deploy.log
 
       - name: Prove deployed Function parity
