@@ -45,6 +45,7 @@ import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
+import 'marketplace_catalog_photo_assets.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_offer_analysis.dart';
@@ -662,7 +663,10 @@ class CatalogIcon extends StatelessWidget {
     final icon = marketplaceIconFor(label);
     return IndustrialAssetIcon(
         label: label,
-        assetPath: IndustrialIconAssets.forLabel(label) ??
+        assetPath: MarketplaceCatalogPhotoAssets.forProductType(
+                fallbackLabel, label) ??
+            MarketplaceCatalogPhotoAssets.forCategory(label) ??
+            IndustrialIconAssets.forLabel(label) ??
             IndustrialIconAssets.forLabel(fallbackLabel),
         size: size,
         borderRadius: size < 28 ? 4 : 7,
@@ -2040,7 +2044,9 @@ class _HomeCategoryStrip extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final item = categories[index];
-          final assetPath = IndustrialIconAssets.forLabel(item.name);
+          final assetPath =
+              MarketplaceCatalogPhotoAssets.forCategory(item.name) ??
+                  IndustrialIconAssets.forLabel(item.name);
           return InkWell(
             onTap: () => onCategory(item.name),
             borderRadius: BorderRadius.circular(18),
@@ -3224,7 +3230,9 @@ class _CategoryPickerTile extends StatelessWidget {
             Expanded(
                 child: _MarketplaceArtworkPanel(
                     label: label,
-                    assetPath: IndustrialIconAssets.forLabel(label),
+                    assetPath:
+                        MarketplaceCatalogPhotoAssets.forCategory(label) ??
+                            IndustrialIconAssets.forLabel(label),
                     fallbackIcon: icon,
                     borderRadius: 0)),
             Padding(
@@ -3264,7 +3272,11 @@ class _ListingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fallbackAssetPath = listing.transactionType == 'Wanted / Seeking'
         ? IndustrialIconAssets.wantedEquipment
-        : IndustrialIconAssets.forLabel(listing.title) ??
+        : MarketplaceCatalogPhotoAssets.forProductType(
+                listing.category, listing.productType) ??
+            IndustrialIconAssets.forLabel(listing.productType) ??
+            IndustrialIconAssets.forLabel(listing.title) ??
+            MarketplaceCatalogPhotoAssets.forCategory(listing.category) ??
             IndustrialIconAssets.forLabel(listing.category);
     Widget fallbackArtwork() => _MarketplaceArtworkPanel(
           label: listing.title,
@@ -3703,8 +3715,15 @@ class _ListingDetailsState extends State<_ListingDetails> {
                             label: listing.title,
                             assetPath: _isWanted
                                 ? IndustrialIconAssets.wantedEquipment
-                                : IndustrialIconAssets.forLabel(
+                                : MarketplaceCatalogPhotoAssets.forProductType(
+                                        listing.category,
+                                        listing.productType) ??
+                                    IndustrialIconAssets.forLabel(
+                                        listing.productType) ??
+                                    IndustrialIconAssets.forLabel(
                                         listing.title) ??
+                                    MarketplaceCatalogPhotoAssets.forCategory(
+                                        listing.category) ??
                                     IndustrialIconAssets.forLabel(
                                         listing.category),
                             size: 136,
@@ -3717,9 +3736,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                             width: double.infinity,
                             height: 150,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
-                                child: Icon(listing.icon,
-                                    size: 90, color: _orange))))),
+                            errorBuilder: (_, __, ___) => Center(child: Icon(listing.icon, size: 90, color: _orange))))),
             const SizedBox(height: 20),
             Text(listing.category.toUpperCase(),
                 style: const TextStyle(
@@ -7030,12 +7047,13 @@ class _AddListingPageState extends State<_AddListingPage> {
                 value: _type,
                 decoration: InputDecoration(
                     labelText: 'Product type',
-                    prefixIcon: CatalogIcon(label: _type)),
+                    prefixIcon: CatalogIcon(
+                        label: _type, fallbackLabel: _category)),
                 items: (selected?.types ?? const <String>[])
                     .map((item) => DropdownMenuItem(
                         value: item,
                         child: Row(children: [
-                          CatalogIcon(label: item, size: 20),
+                          CatalogIcon(label: item, fallbackLabel: _category, size: 20),
                           const SizedBox(width: 9),
                           Text(item)
                         ])))

@@ -205,12 +205,17 @@ void main() {
     }
   });
 
-  test('complete industrial package is installed', () {
+  test('shared industrial package remains 264 assets', () {
     final files = Directory('assets/images/industrial_icons')
         .listSync(recursive: true)
         .whereType<File>()
-        .where((file) => file.path.toLowerCase().endsWith('.svg'))
-        .toList();
+        .where((file) {
+      final path =
+          file.path.replaceAll(Platform.pathSeparator, '/').toLowerCase();
+      return path.endsWith('.svg') &&
+          !path.contains('/26-marketplace-catalog-photos/');
+    }).toList();
+
     expect(files, hasLength(264));
   });
 

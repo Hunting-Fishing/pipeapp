@@ -1,0 +1,112 @@
+﻿air-compressor.svg
+backhoe.svg
+bale-feeder.svg
+bathroom-unit.svg
+boom-lift.svg
+buffalo-bison-panel.svg
+bulldozer.svg
+casing.svg
+cattle-panel.svg
+chemical-tank.svg
+compactor.svg
+container-office.svg
+continuous-fence.svg
+corral-panel.svg
+crane.svg
+crew-shack.svg
+custom-pipe-fabrication.svg
+drilling-rig.svg
+drill-pipe.svg
+drill-stem.svg
+drop-deck.svg
+excavator.svg
+farm-gate.svg
+fence-post.svg
+fittings.svg
+flanges.svg
+flatbed-trailer.svg
+forklift.svg
+frac-tank.svg
+fuel-tank.svg
+generator.svg
+grader.svg
+guard-shack.svg
+ibc-tote.svg
+light-tower.svg
+line-pipe.svg
+livestock-shelter.svg
+loader.svg
+lowboy-trailer.svg
+lunchroom.svg
+material-cage.svg
+modular-building.svg
+octg.svg
+other-not-listed.svg
+portable-buildings-other-not-listed.svg
+portable-office.svg
+propane-tank.svg
+rig-mat.svg
+roll-off-truck.svg
+scissor-lift.svg
+semi-truck.svg
+skid-steer.svg
+spill-kit.svg
+steel-plate.svg
+step-deck.svg
+storage-unit.svg
+sucker-rod.svg
+tanks-containers-other-not-listed.svg
+tank-skid.svg
+tool-room.svg
+transport-hauling-other-not-listed.svg
+vacuum-truck.svg
+vault-tank.svg
+water-tank.svg
+water-truck.svg
+welding-machine.svg
+winch-truck.svg
+
+============================================================
+MARKETPLACE-CATALOG-PHOTO-INTEGRATION-FIX-2026-08-27
+============================================================
+
+VERIFIED FINAL ARCHITECTURE
+
+Asset packages:
+- Shared IndustrialIconAssets package: 264 SVG files.
+- MarketplaceCatalogPhotoAssets package: 67 SVG files.
+- Combined files physically below industrial_icons: 331 SVG files.
+
+Marketplace integration:
+- MarketplaceCatalogPhotoAssets owns Marketplace catalog photographs.
+- Category selectors resolve Marketplace category photographs.
+- Product selectors resolve using category + product type.
+- Generator remains category-aware.
+- Other / not listed remains category-aware.
+- Listing cards use exact catalog product artwork when seller media is absent.
+- Listing details use exact catalog product artwork when seller media is absent.
+- Existing IndustrialIconAssets remains the controlled fallback.
+- Wanted listings retain dedicated Wanted artwork.
+- Browse, Sell, Auctions, and Dispatch workflow artwork remains separate.
+
+Regression-test repair:
+- industrial_icon_assets_test.dart previously recursively counted every SVG
+  below assets/images/industrial_icons and therefore counted the new dedicated
+  Marketplace package.
+- The shared-industrial package regression now explicitly excludes
+  26-marketplace-catalog-photos.
+- Do NOT change the shared industrial expected count from 264 to 331.
+- MarketplaceCatalogPhotoAssets has its own independent 67-file regression
+  test.
+
+Verified:
+- Shared IndustrialIconAssets tests passed.
+- Marketplace catalog asset tests passed.
+- Marketplace integration tests passed.
+- Production analyzer passed.
+- git diff --check passed.
+
+Repair rule:
+Do not flatten Marketplace photographic resolution into a label-only global
+IndustrialIconAssets resolver. Product artwork requires category + product
+type because labels can be ambiguous.
