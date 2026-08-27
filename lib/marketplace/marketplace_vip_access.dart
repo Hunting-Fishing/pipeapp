@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
-import 'industrial_icon_assets.dart';
 
 const marketplaceVipEarlyAccessDuration = Duration(hours: 24);
 
@@ -360,7 +360,8 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                       _SubscriptionPlanCard(
                         title: 'VIP Membership',
                         eyebrow: 'MARKETPLACE PRIORITY',
-                        artworkLabel: 'Pipe, Tubing & Materials',
+                        artworkAsset:
+                            'assets/images/membership_vip_subscription.svg',
                         icon: Icons.workspace_premium_rounded,
                         premium: true,
                         benefits: [
@@ -372,7 +373,8 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                       _SubscriptionPlanCard(
                         title: 'Dispatch Monthly',
                         eyebrow: 'FLEXIBLE DISPATCH ACCESS',
-                        artworkLabel: 'Transport & Hauling',
+                        artworkAsset:
+                            'assets/images/membership_dispatch_monthly_subscription.svg',
                         icon: Icons.local_shipping_outlined,
                         benefits: [
                           'Dispatch membership billed monthly when provider checkout is enabled',
@@ -383,7 +385,8 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                       _SubscriptionPlanCard(
                         title: 'Dispatch Yearly',
                         eyebrow: 'ANNUAL DISPATCH ACCESS',
-                        artworkLabel: 'Semi Truck',
+                        artworkAsset:
+                            'assets/images/membership_dispatch_yearly_subscription.svg',
                         icon: Icons.calendar_month_outlined,
                         benefits: [
                           'Annual Dispatch membership option',
@@ -428,7 +431,7 @@ class _SubscriptionPlanCard extends StatelessWidget {
   const _SubscriptionPlanCard({
     required this.title,
     required this.eyebrow,
-    required this.artworkLabel,
+    required this.artworkAsset,
     required this.icon,
     required this.benefits,
     this.premium = false,
@@ -436,7 +439,7 @@ class _SubscriptionPlanCard extends StatelessWidget {
 
   final String title;
   final String eyebrow;
-  final String artworkLabel;
+  final String artworkAsset;
   final IconData icon;
   final List<String> benefits;
   final bool premium;
@@ -457,31 +460,39 @@ class _SubscriptionPlanCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: 130,
-              width: double.infinity,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: premium
-                      ? Colors.white.withValues(alpha: .04)
-                      : PipeBuyerColors.canvas,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: IndustrialAssetIcon(
-                    label: artworkLabel,
-                    size: 112,
-                    borderRadius: 12,
-                    fallback: Icon(
-                      icon,
-                      size: 58,
+            LayoutBuilder(
+              builder: (context, artworkConstraints) {
+                final cardWidth = artworkConstraints.maxWidth;
+                final artworkHeight =
+                    (cardWidth * .82).clamp(220.0, 280.0).toDouble();
+                final artworkMaxWidth =
+                    (cardWidth * .72).clamp(160.0, 240.0).toDouble();
+                return SizedBox(
+                  key: ValueKey('membership-artwork-$title'),
+                  height: artworkHeight,
+                  width: double.infinity,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
                       color: premium
-                          ? const Color(0xFFFFB21A)
-                          : PipeBuyerColors.orange,
+                          ? Colors.white.withValues(alpha: .04)
+                          : PipeBuyerColors.canvas,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: SizedBox(
+                        width: artworkMaxWidth,
+                        height: artworkHeight - 12,
+                        child: SvgPicture.asset(
+                          artworkAsset,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                          semanticsLabel: '$title membership artwork',
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
             const SizedBox(height: 13),
             Text(
