@@ -1,0 +1,79 @@
+name: Firebase release pointer
+
+on:
+  push:
+    branches:
+      - release/firebase-staging
+      - release/firebase-production
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: firebase-release-pointer-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch verified Firebase deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Resolve release environment
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${GITHUB_REF_NAME}" in
+            release/firebase-staging)
+              echo "environment=staging" >> "$GITHUB_OUTPUT"
+              echo "app_check_mode=disabled" >> "$GITHUB_OUTPUT"
+              ;;
+            release/firebase-production)
+              echo "environment=production" >> "$GITHUB_OUTPUT"
+              echo "app_check_mode=disabled" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unsupported Firebase release pointer: ${GITHUB_REF_NAME}"
+              exit 1
+              ;;
+          esac
+
+      - name: Validate exact release commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "${GITHUB_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Release pointer did not resolve to a full Git commit SHA."
+            exit 1
+          fi
+          echo "Firebase release pointer: ${GITHUB_REF_NAME}"
+          echo "Exact release commit: ${GITHUB_SHA}"
+
+      - name: Dispatch existing verified Firebase workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ENVIRONMENT: ${{ steps.release.outputs.environment }}
+          APP_CHECK_MODE: ${{ steps.release.outputs.app_check_mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run deploy.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            --field environment="${RELEASE_ENVIRONMENT}" \
+            --field commit_sha="${GITHUB_SHA}" \
+            --field app_check_mode="${APP_CHECK_MODE}"
+
+          {
+            echo "## Firebase release dispatched"
+            echo ""
+            echo "- Pointer: \`${GITHUB_REF_NAME}\`"
+            echo "- Environment: \`${RELEASE_ENVIRONMENT}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Verified workflow: \`deploy.yml\`"
+            echo ""
+            echo "The existing protected Firebase deployment workflow now owns validation, build, tests, Firebase deployment, and release evidence."
+          } >> "$GITHUB_STEP_SUMMARY"
