@@ -52,7 +52,17 @@ jobs:
 
       - name: Verify repair formatting
         run: |
-          dart format --output=none --set-exit-if-changed \
+          dart format \
+            lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_subscription_billing_policy.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_dispatch_membership_page.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/marketplace_payout_settings_security_contract_test.dart \
+            test/marketplace_subscription_billing_policy_test.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart \
+            test/marketplace_dispatch_membership_page_test.dart
+          git diff --exit-code -- \
             lib/marketplace/marketplace_payout_settings.dart \
             lib/marketplace/marketplace_subscription_billing_policy.dart \
             lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
