@@ -27,7 +27,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Apply exact subscription const compile repair
+      - name: Apply indentation-safe subscription const compile repair
         run: python3 tool/repair_subscription_const_widgets_20260829.py
 
       - name: Resolve package language version
