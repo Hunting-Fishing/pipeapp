@@ -8,14 +8,18 @@ on:
     branches:
       - main
     paths:
+      - 'firebase/functions/dispatch_subscription_commands.js'
+      - 'firebase/functions/test/subscription_monetization.test.js'
       - 'lib/marketplace/marketplace_payout_settings.dart'
       - 'lib/marketplace/marketplace_subscription_billing_policy.dart'
       - 'lib/marketplace/marketplace_dispatch_subscription_checkout.dart'
+      - 'lib/marketplace/marketplace_dispatch_membership_page.dart'
       - 'lib/marketplace/marketplace_vip_subscription_checkout.dart'
       - 'test/marketplace_payout_settings_security_contract_test.dart'
       - 'test/marketplace_subscription_billing_policy_test.dart'
       - 'test/marketplace_subscription_native_billing_contract_test.dart'
       - 'test/dispatch_subscription_checkout_test.dart'
+      - 'test/marketplace_dispatch_membership_page_test.dart'
       - 'test/vip_subscription_checkout_test.dart'
       - '.github/workflows/validate-stripe-integration-closure-20260829.yml'
 
@@ -39,6 +43,10 @@ jobs:
           channel: stable
           cache: true
 
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '22'
+
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
@@ -48,10 +56,12 @@ jobs:
             lib/marketplace/marketplace_payout_settings.dart \
             lib/marketplace/marketplace_subscription_billing_policy.dart \
             lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_dispatch_membership_page.dart \
             lib/marketplace/marketplace_vip_subscription_checkout.dart \
             test/marketplace_payout_settings_security_contract_test.dart \
             test/marketplace_subscription_billing_policy_test.dart \
-            test/marketplace_subscription_native_billing_contract_test.dart
+            test/marketplace_subscription_native_billing_contract_test.dart \
+            test/marketplace_dispatch_membership_page_test.dart
 
       - name: Run Stripe integration closure tests
         run: |
@@ -63,3 +73,9 @@ jobs:
             test/marketplace_subscription_native_billing_contract_test.dart \
             test/marketplace_dispatch_membership_page_test.dart \
             test/marketplace_vip_access_test.dart
+
+      - name: Validate Dispatch subscription Functions
+        run: |
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm test --prefix firebase/functions
