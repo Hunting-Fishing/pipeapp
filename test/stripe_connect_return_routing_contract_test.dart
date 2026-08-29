@@ -30,4 +30,18 @@ void main() {
     expect(source, contains("context.go('/')"));
     expect(source, isNot(contains("collection('payment_provider_accounts')")));
   });
+
+  test('manual payout status checks always give visible confirmation', () {
+    final source = File(
+      'lib/marketplace/marketplace_stripe_connect_return_page.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('userInitiated: true'));
+    expect(source, contains('_statusConfirmed = userInitiated'));
+    expect(source, contains('Status checked just now — payout ready.'));
+    expect(source, contains('Payout status checked. Stripe confirms this seller is payout ready.'));
+    expect(source, contains('PipeStatusTone.success'));
+    expect(source, contains('PipeStatusTone.warning'));
+    expect(source, contains('PipeStatusTone.error'));
+  });
 }
