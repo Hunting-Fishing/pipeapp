@@ -1,0 +1,64 @@
+name: Apply Stripe Integration Closure Format 2026-08-29
+
+on:
+  push:
+    branches:
+      - repair/stripe-integration-closure-20260829
+    paths:
+      - '.github/workflows/apply-stripe-integration-format-20260829.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: repair/stripe-integration-closure-20260829
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Format only repair-owned Dart files
+        run: |
+          dart format \
+            lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart
+
+      - name: Assert formatting stayed inside repair scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected="$(git diff --name-only | grep -Ev '^(lib/marketplace/marketplace_payout_settings.dart|lib/marketplace/marketplace_dispatch_subscription_checkout.dart|lib/marketplace/marketplace_vip_subscription_checkout.dart|test/marketplace_subscription_native_billing_contract_test.dart)$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo '::error::Formatter changed files outside the approved repair scope:'
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo '::error::Expected formatter changes were not produced.'
+            exit 1
+          fi
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart
+          git commit -m 'Format Stripe integration closure sources'
+          git push origin HEAD
