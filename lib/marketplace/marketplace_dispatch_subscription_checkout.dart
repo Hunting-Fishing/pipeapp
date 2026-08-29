@@ -2,11 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'dispatch_promotion_code_field.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
 
 const dispatchPromotionCodeHelpText =
-    'Have a promo code? Enter it on the secure Stripe checkout screen.';
+    'Have a promo code? Apply it before payment, or enter it on Stripe Checkout.';
 
 bool dispatchPromotionCodeEntryAvailable(String plan) =>
     plan.trim().toLowerCase() == 'monthly';
@@ -39,13 +40,22 @@ class DispatchSubscriptionCheckoutButton extends StatefulWidget {
 
 class _DispatchSubscriptionCheckoutButtonState
     extends State<DispatchSubscriptionCheckoutButton> {
+  final _promoController = TextEditingController();
   late Future<Map<String, dynamic>> _viewFuture;
   bool _busy = false;
+  bool _promoBusy = false;
+  String _promoSummary = '';
 
   @override
   void initState() {
     super.initState();
     _viewFuture = _loadView();
+  }
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
   }
 
   Future<Map<String, dynamic>> _loadView() async {
@@ -70,6 +80,11 @@ class _DispatchSubscriptionCheckoutButtonState
   }
 
   void _reload() => setState(() => _viewFuture = _loadView());
+
+  void _promoChanged(String value) {
+    if (_promoSummary.isEmpty) return;
+    setState(() => _promoSummary = '');
+  }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
@@ -118,6 +133,7 @@ class _DispatchSubscriptionCheckoutButtonState
               marketplaceHostedMembershipBillingAllowed();
 
           final active = status['active'] == true;
+          final statusPlan = '${status['plan'] ?? ''}'.trim().toLowerCase();
           final managementAvailable = status['managementAvailable'] == true;
           final paymentIssue = status['paymentIssue'] == true;
           if (active) {
@@ -131,38 +147,52 @@ class _DispatchSubscriptionCheckoutButtonState
                 ),
               );
             }
-            if (managementAvailable) {
-              return SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _busy ? null : _openPortal,
-                  icon: _busy
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(
-                          paymentIssue
-                              ? Icons.warning_amber_rounded
-                              : Icons.manage_accounts_outlined,
-                        ),
-                  label: Text(
-                    _busy
-                        ? 'Opening billing…'
-                        : paymentIssue
-                            ? 'Fix billing / manage subscription'
-                            : 'Manage Dispatch billing',
-                  ),
-                ),
-              );
+            final managementButton = managementAvailable
+                ? FilledButton.icon(
+                    onPressed: _busy || _promoBusy ? null : _openPortal,
+                    icon: _busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            paymentIssue
+                                ? Icons.warning_amber_rounded
+                                : Icons.manage_accounts_outlined,
+                          ),
+                    label: Text(
+                      _busy
+                          ? 'Opening billing…'
+                          : paymentIssue
+                              ? 'Fix billing / manage subscription'
+                              : 'Manage Dispatch billing',
+                    ),
+                  )
+                : OutlinedButton.icon(
+                    onPressed: null,
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: const Text('Dispatch membership active'),
+                  );
+            if (statusPlan != 'monthly') {
+              return SizedBox(width: double.infinity, child: managementButton);
             }
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.check_circle_outline_rounded),
-                label: const Text('Dispatch membership active'),
-              ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                managementButton,
+                const SizedBox(height: 12),
+                DispatchPromotionCodeField(
+                  controller: _promoController,
+                  busy: _promoBusy,
+                  enabled: !_busy,
+                  appliedSummary: _promoSummary,
+                  onChanged: _promoChanged,
+                  onApply: _applyExistingPromotion,
+                  applyLabel: 'Apply to subscription',
+                  helperText:
+                      'Already subscribed? Stripe checks eligibility and applies an accepted code to future eligible invoices. Your current paid period is not refunded.',
+                ),
+              ],
             );
           }
 
@@ -171,7 +201,7 @@ class _DispatchSubscriptionCheckoutButtonState
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: null,
-                icon: Icon(Icons.info_outline_rounded),
+                icon: const Icon(Icons.info_outline_rounded),
                 label: Text(marketplaceNativeSubscriptionUnavailableMessage),
               ),
             );
@@ -204,8 +234,28 @@ class _DispatchSubscriptionCheckoutButtonState
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (promoEntryAvailable) ...[
+                Text(
+                  dispatchPromotionCodeHelpText,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                DispatchPromotionCodeField(
+                  controller: _promoController,
+                  busy: _promoBusy,
+                  enabled: !_busy,
+                  appliedSummary: _promoSummary,
+                  onChanged: _promoChanged,
+                  onApply: _applyCheckoutPromotion,
+                  helperText:
+                      'Apply it here before payment. If you leave it blank, Stripe Checkout also has a promo-code entry.',
+                ),
+                const SizedBox(height: 12),
+              ],
               FilledButton.icon(
-                onPressed: _busy ? null : _startCheckout,
+                onPressed: _busy || _promoBusy ? null : _startCheckout,
                 icon: _busy
                     ? const SizedBox.square(
                         dimension: 16,
@@ -216,32 +266,104 @@ class _DispatchSubscriptionCheckoutButtonState
                   _busy ? 'Opening secure checkout…' : 'Subscribe • $price',
                 ),
               ),
-              if (promoEntryAvailable) ...[
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.local_offer_outlined, size: 16),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        dispatchPromotionCodeHelpText,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           );
         },
       );
 
+  Future<void> _applyCheckoutPromotion() async {
+    if (_promoBusy || _busy || !marketplaceHostedMembershipBillingAllowed()) {
+      return;
+    }
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      _showMessage('Enter a promo code first.');
+      return;
+    }
+    setState(() {
+      _promoBusy = true;
+      _promoSummary = '';
+    });
+    try {
+      final result = await MarketplaceCommandClient().execute(
+        'createDispatchSubscriptionCheckout',
+        <String, Object?>{'plan': widget.plan, 'promotionCode': code},
+      );
+      if (result['promotionCodeApplied'] != true) {
+        throw StateError('Stripe did not confirm that promo code.');
+      }
+      final summary = '${result['promotionCodeSummary'] ?? ''}'.trim();
+      if (!mounted) return;
+      setState(() {
+        _promoSummary = summary.isEmpty
+            ? 'Promo code accepted by Stripe.'
+            : 'Promo applied — $summary.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(
+        marketplaceCommandErrorMessage(
+          error,
+          fallback: 'That promo code could not be applied. Check it and try again.',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _promoBusy = false);
+    }
+  }
+
+  Future<void> _applyExistingPromotion() async {
+    if (_promoBusy || _busy || !marketplaceHostedMembershipBillingAllowed()) {
+      return;
+    }
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      _showMessage('Enter a promo code first.');
+      return;
+    }
+    setState(() {
+      _promoBusy = true;
+      _promoSummary = '';
+    });
+    try {
+      final result = await MarketplaceCommandClient().execute(
+        'applyDispatchSubscriptionPromotionCode',
+        <String, Object?>{'promotionCode': code},
+      );
+      if (result['applied'] != true) {
+        throw StateError('Stripe did not confirm that promo code.');
+      }
+      final summary = '${result['promotionSummary'] ?? ''}'.trim();
+      if (!mounted) return;
+      setState(() {
+        _promoSummary = summary.isEmpty
+            ? 'Promo applied to future eligible invoices.'
+            : 'Promo applied — $summary. Future eligible invoices will use it.';
+      });
+      _reload();
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(
+        marketplaceCommandErrorMessage(
+          error,
+          fallback: 'That promo code could not be applied to this subscription.',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _promoBusy = false);
+    }
+  }
+
   Future<void> _startCheckout() async {
     if (!marketplaceHostedMembershipBillingAllowed()) return;
+    final payload = <String, Object?>{'plan': widget.plan};
+    if (dispatchPromotionCodeEntryAvailable(widget.plan)) {
+      final code = _promoController.text.trim();
+      if (code.isNotEmpty) payload['promotionCode'] = code;
+    }
     await _openProviderUrl(
       command: 'createDispatchSubscriptionCheckout',
-      payload: <String, Object?>{'plan': widget.plan},
+      payload: payload,
       resultField: 'checkoutUrl',
       expectedHostSuffix: 'stripe.com',
       openingMessage: 'Secure subscription checkout could not be opened.',
@@ -259,6 +381,13 @@ class _DispatchSubscriptionCheckoutButtonState
     );
   }
 
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _openProviderUrl({
     required String command,
     required Map<String, Object?> payload,
@@ -266,7 +395,9 @@ class _DispatchSubscriptionCheckoutButtonState
     required String expectedHostSuffix,
     required String openingMessage,
   }) async {
-    if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
+    if (_busy || _promoBusy || !marketplaceHostedMembershipBillingAllowed()) {
+      return;
+    }
     setState(() => _busy = true);
     try {
       final result = await MarketplaceCommandClient().execute(command, payload);
@@ -288,14 +419,10 @@ class _DispatchSubscriptionCheckoutButtonState
       if (!opened) throw StateError(openingMessage);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            marketplaceCommandErrorMessage(
-              error,
-              fallback: '$openingMessage No charge was created.',
-            ),
-          ),
+      _showMessage(
+        marketplaceCommandErrorMessage(
+          error,
+          fallback: '$openingMessage No charge was created.',
         ),
       );
     } finally {
