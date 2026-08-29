@@ -14,12 +14,15 @@ on:
       - 'firebase/functions/test/subscription_monetization.test.js'
       - 'firebase/functions/test/stripe_connect_accounts_api_version.test.js'
       - 'firebase/functions/test/stripe_seller_onboarding_error_contract.test.js'
+      - 'lib/flutter_flow/nav/nav.dart'
       - 'lib/marketplace/marketplace_payout_settings.dart'
+      - 'lib/marketplace/marketplace_stripe_connect_return_page.dart'
       - 'lib/marketplace/marketplace_subscription_billing_policy.dart'
       - 'lib/marketplace/marketplace_dispatch_subscription_checkout.dart'
       - 'lib/marketplace/marketplace_dispatch_membership_page.dart'
       - 'lib/marketplace/marketplace_vip_subscription_checkout.dart'
       - 'test/marketplace_payout_settings_security_contract_test.dart'
+      - 'test/stripe_connect_return_routing_contract_test.dart'
       - 'test/marketplace_subscription_billing_policy_test.dart'
       - 'test/marketplace_subscription_native_billing_contract_test.dart'
       - 'test/dispatch_subscription_checkout_test.dart'
@@ -57,22 +60,28 @@ jobs:
       - name: Verify repair formatting
         run: |
           dart format \
+            lib/flutter_flow/nav/nav.dart \
             lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_stripe_connect_return_page.dart \
             lib/marketplace/marketplace_subscription_billing_policy.dart \
             lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
             lib/marketplace/marketplace_dispatch_membership_page.dart \
             lib/marketplace/marketplace_vip_subscription_checkout.dart \
             test/marketplace_payout_settings_security_contract_test.dart \
+            test/stripe_connect_return_routing_contract_test.dart \
             test/marketplace_subscription_billing_policy_test.dart \
             test/marketplace_subscription_native_billing_contract_test.dart \
             test/marketplace_dispatch_membership_page_test.dart
           git diff --exit-code -- \
+            lib/flutter_flow/nav/nav.dart \
             lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_stripe_connect_return_page.dart \
             lib/marketplace/marketplace_subscription_billing_policy.dart \
             lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
             lib/marketplace/marketplace_dispatch_membership_page.dart \
             lib/marketplace/marketplace_vip_subscription_checkout.dart \
             test/marketplace_payout_settings_security_contract_test.dart \
+            test/stripe_connect_return_routing_contract_test.dart \
             test/marketplace_subscription_billing_policy_test.dart \
             test/marketplace_subscription_native_billing_contract_test.dart \
             test/marketplace_dispatch_membership_page_test.dart
@@ -84,6 +93,7 @@ jobs:
             test/vip_subscription_checkout_test.dart \
             test/marketplace_subscription_billing_policy_test.dart \
             test/marketplace_payout_settings_security_contract_test.dart \
+            test/stripe_connect_return_routing_contract_test.dart \
             test/marketplace_subscription_native_billing_contract_test.dart \
             test/marketplace_dispatch_membership_page_test.dart \
             test/marketplace_vip_access_test.dart
