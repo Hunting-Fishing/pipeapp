@@ -17,6 +17,8 @@ import '/marketplace/marketplace_dispatch_membership_page.dart';
 import '/marketplace/marketplace_messages_page.dart';
 import '/marketplace/marketplace_public_information.dart';
 import '/marketplace/marketplace_public_profile_page.dart';
+import '/marketplace/marketplace_payout_settings.dart';
+import '/marketplace/marketplace_stripe_connect_return_page.dart';
 import '/marketplace/marketplace_tax_compliance_admin_page.dart';
 import '/marketplace/marketplace_tax_profile_page.dart';
 
@@ -86,6 +88,18 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
       errorBuilder: (context, state) => const OilGasMarketplaceApp(),
+      redirect: (context, state) {
+        final connectAction =
+            state.uri.queryParameters['connect']?.trim().toLowerCase();
+        if (state.uri.path == '/' &&
+            (connectAction == 'return' || connectAction == 'refresh')) {
+          return Uri(
+            path: '/account/seller-payouts',
+            queryParameters: {'connect': connectAction!},
+          ).toString();
+        }
+        return null;
+      },
       routes: [
         FFRoute(
           name: '_initialize',
@@ -153,6 +167,24 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: '/payments/cancel',
           builder: (context, params) =>
               const MarketplacePaymentReturnPage(success: false),
+        ),
+        FFRoute(
+          name: 'marketplaceSellerPayouts',
+          path: '/account/seller-payouts',
+          requireAuth: true,
+          builder: (context, params) {
+            final connectAction = params
+                    .getParam<String>('connect', ParamType.string)
+                    ?.trim()
+                    .toLowerCase() ??
+                '';
+            if (connectAction == 'return' || connectAction == 'refresh') {
+              return MarketplaceStripeConnectReturnPage(
+                connectAction: connectAction,
+              );
+            }
+            return const MarketplacePayoutSettingsPage();
+          },
         ),
         FFRoute(
           name: 'marketplaceTaxProfile',
