@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'marketplace_command_client.dart';
+import 'marketplace_subscription_billing_policy.dart';
 
 String dispatchSubscriptionPlanLabel(Map<String, dynamic>? plan) {
   if (plan == null) return 'Subscribe';
@@ -43,15 +44,22 @@ class _DispatchSubscriptionCheckoutButtonState
   }
 
   Future<Map<String, dynamic>> _loadView() async {
+    final statusFuture = MarketplaceCommandClient().execute(
+      'getDispatchSubscriptionStatus',
+      const <String, Object?>{},
+    );
+    if (!marketplaceHostedMembershipBillingAllowed()) {
+      return <String, dynamic>{
+        'catalog': const <String, dynamic>{},
+        'status': await statusFuture,
+      };
+    }
     final results = await Future.wait([
       MarketplaceCommandClient().execute(
         'getDispatchSubscriptionCatalog',
         const <String, Object?>{},
       ),
-      MarketplaceCommandClient().execute(
-        'getDispatchSubscriptionStatus',
-        const <String, Object?>{},
-      ),
+      statusFuture,
     ]);
     return <String, dynamic>{'catalog': results[0], 'status': results[1]};
   }
@@ -101,11 +109,22 @@ class _DispatchSubscriptionCheckoutButtonState
           ? Map<String, dynamic>.from(plans[widget.plan] as Map)
           : null;
       final price = dispatchSubscriptionPlanLabel(planData);
+      final hostedBillingAllowed = marketplaceHostedMembershipBillingAllowed();
 
       final active = status['active'] == true;
       final managementAvailable = status['managementAvailable'] == true;
       final paymentIssue = status['paymentIssue'] == true;
       if (active) {
+        if (!hostedBillingAllowed) {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.check_circle_outline_rounded),
+              label: const Text('Dispatch membership active'),
+            ),
+          );
+        }
         if (managementAvailable) {
           return SizedBox(
             width: double.infinity,
@@ -137,6 +156,17 @@ class _DispatchSubscriptionCheckoutButtonState
             onPressed: null,
             icon: const Icon(Icons.check_circle_outline_rounded),
             label: const Text('Dispatch membership active'),
+          ),
+        );
+      }
+
+      if (!hostedBillingAllowed) {
+        return const SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: null,
+            icon: Icon(Icons.info_outline_rounded),
+            label: Text(marketplaceNativeSubscriptionUnavailableMessage),
           ),
         );
       }
@@ -181,6 +211,7 @@ class _DispatchSubscriptionCheckoutButtonState
   );
 
   Future<void> _startCheckout() async {
+    if (!marketplaceHostedMembershipBillingAllowed()) return;
     await _openProviderUrl(
       command: 'createDispatchSubscriptionCheckout',
       payload: <String, Object?>{'plan': widget.plan},
@@ -191,6 +222,7 @@ class _DispatchSubscriptionCheckoutButtonState
   }
 
   Future<void> _openPortal() async {
+    if (!marketplaceHostedMembershipBillingAllowed()) return;
     await _openProviderUrl(
       command: 'createDispatchSubscriptionPortalSession',
       payload: const <String, Object?>{},
@@ -207,7 +239,7 @@ class _DispatchSubscriptionCheckoutButtonState
     required String expectedHostSuffix,
     required String openingMessage,
   }) async {
-    if (_busy) return;
+    if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
     setState(() => _busy = true);
     try {
       final result = await MarketplaceCommandClient().execute(command, payload);
