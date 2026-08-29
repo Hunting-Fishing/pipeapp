@@ -16,11 +16,17 @@ void main() {
       expect(parseEscrowStatus('unknown'), EscrowStatus.initiated);
     });
 
-    test('formats escrow status human-readable labels', () {
-      expect(formatEscrowStatus(EscrowStatus.secured), 'Escrow Secured');
-      expect(formatEscrowStatus(EscrowStatus.released), 'Funds Released to Seller');
-      expect(formatEscrowStatus(EscrowStatus.inspectionPending), 'Pending Buyer Inspection');
-      expect(formatEscrowStatus(EscrowStatus.disputed), 'Under Dispute Review');
+    test('formats legacy settlement states as provider-payment labels', () {
+      expect(formatEscrowStatus(EscrowStatus.secured), 'Payment Confirmed');
+      expect(
+        formatEscrowStatus(EscrowStatus.released),
+        'Seller Transfer Completed',
+      );
+      expect(
+        formatEscrowStatus(EscrowStatus.inspectionPending),
+        'Delivery / Inspection Pending',
+      );
+      expect(formatEscrowStatus(EscrowStatus.disputed), 'Dispute Under Review');
     });
 
     test('constructs EscrowTransaction from document map', () {
