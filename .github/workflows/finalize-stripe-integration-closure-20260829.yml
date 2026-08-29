@@ -106,7 +106,6 @@ jobs:
             lib/marketplace/marketplace_vip_subscription_checkout.dart \
             test/marketplace_payout_settings_security_contract_test.dart \
             test/marketplace_subscription_billing_policy_test.dart \
-            test/marketplace_subscription_native_billing_contract_test.dart \
-            .github/workflows/finalize-stripe-integration-closure-20260829.yml
+            test/marketplace_subscription_native_billing_contract_test.dart
           git commit -m 'Finalize validated Stripe integration closure'
           git push origin HEAD
