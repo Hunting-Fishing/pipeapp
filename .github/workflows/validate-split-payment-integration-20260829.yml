@@ -1,0 +1,97 @@
+name: Validate Split Payment Integration 2026-08-29
+
+on:
+  push:
+    branches:
+      - feat/live-financial-resolution-split-vip-20260829
+    paths:
+      - ".github/workflows/validate-split-payment-integration-20260829.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: validate-split-payment-integration-20260829
+  cancel-in-progress: false
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: feat/live-financial-resolution-split-vip-20260829
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Apply deterministic split integration
+        run: python3 tool/integrate_split_payments_20260829.py
+
+      - name: Verify split-payment invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'marketplaceSplitPaymentsEnabled' firebase/functions/payment_readiness_admin.js
+          grep -q 'marketplaceRefundAutomationEnabled' firebase/functions/payment_readiness_admin.js
+          grep -q 'marketplace_payment_part' firebase/functions/stripe_webhook.js
+          grep -q 'checkout.session.expired' firebase/functions/stripe_webhook.js
+          grep -q 'createMarketplacePaymentPartCheckout' firebase/functions/bootstrap.js
+          grep -q 'proposeMarketplaceDepositPlan' firebase/functions/bootstrap.js
+          grep -q 'marketplaceSplitSellerRelease.releaseSplitSellerFunds' firebase/functions/bootstrap.js
+          grep -q 'Resolve the deposit and balance terms' firebase/functions/stripe_checkout_commands.js
+          grep -q 'stripeSellerTransfers' firebase/functions/marketplace_seller_funds.js
+
+      - name: Format Dart payment UI
+        run: dart format lib/marketplace/marketplace_secure_payment.dart lib/marketplace/marketplace_payment_terms.dart test/marketplace_payment_terms_test.dart
+
+      - name: Validate Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Validate Flutter app
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart analyze lib test
+          flutter test test/marketplace_payment_terms_test.dart
+          flutter test
+
+      - name: Commit validated integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            firebase/functions/bootstrap.js \
+            firebase/functions/marketplace_seller_funds.js \
+            firebase/functions/marketplace_split_checkout_commands.js \
+            firebase/functions/payment_readiness_admin.js \
+            firebase/functions/stripe_checkout_commands.js \
+            firebase/functions/stripe_webhook.js \
+            lib/marketplace/marketplace_secure_payment.dart \
+            lib/marketplace/marketplace_payment_terms.dart \
+            test/marketplace_payment_terms_test.dart
+          if git diff --cached --quiet; then
+            echo '::error::Split integration produced no validated runtime changes.'
+            exit 1
+          fi
+          git commit -m 'Wire deposit and balance payments through Stripe lifecycle'
+          git push origin HEAD
