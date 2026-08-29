@@ -1,0 +1,368 @@
+name: Repair Live Subscription UI and About 2026-08-29
+
+on:
+  push:
+    branches:
+      - fix/live-subscription-ui-about-20260829
+    paths:
+      - ".github/workflows/repair-live-subscription-ui-about-20260829.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-live-subscription-ui-about-20260829
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Wire Dispatch Checkout and correct public payment copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: fix/live-subscription-ui-about-20260829
+          fetch-depth: 0
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      - name: Install Node 22
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Apply deterministic launch repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f"Expected exactly one repair target in {path}, found {text.count(old)}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "firebase/functions/bootstrap.js",
+              '''exports.createDispatchSubscriptionCheckout = onCall(\n    stripeCallableOptions,\n    createDispatchSubscriptionCheckoutWithProviderGuard,\n);''',
+              '''exports.createDispatchSubscriptionCheckout = onCall(\n    stripeCallableOptions,\n    policyAcceptanceCommands.requireCurrentPolicies(\n        createDispatchSubscriptionCheckoutWithProviderGuard,\n    ),\n);''',
+          )
+
+          replace_once(
+              "lib/marketplace/marketplace_vip_access.dart",
+              "import '../core/design/pipe_buyer_theme.dart';",
+              "import '../core/design/pipe_buyer_theme.dart';\nimport 'marketplace_dispatch_subscription_checkout.dart';",
+          )
+
+          old_button = '''            SizedBox(\n              width: double.infinity,\n              child: OutlinedButton.icon(\n                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(\n                  SnackBar(\n                    content: Text(\n                      '$title checkout will use the configured provider billing flow. No marketplace transaction funds are processed by this button.',\n                    ),\n                  ),\n                ),\n                icon: Icon(icon),\n                label: const Text('View plan readiness'),\n              ),\n            ),'''
+          new_button = '''            if (title == 'Dispatch Monthly')\n              const DispatchSubscriptionCheckoutButton(plan: 'monthly')\n            else if (title == 'Dispatch Yearly')\n              const DispatchSubscriptionCheckoutButton(plan: 'yearly')\n            else\n              SizedBox(\n                width: double.infinity,\n                child: OutlinedButton.icon(\n                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(\n                    const SnackBar(\n                      content: Text(\n                        'VIP billing is not configured yet. No VIP charge will be started.',\n                      ),\n                    ),\n                  ),\n                  icon: Icon(icon),\n                  label: const Text('VIP billing coming soon'),\n                ),\n              ),'''
+          replace_once(
+              "lib/marketplace/marketplace_vip_access.dart",
+              old_button,
+              new_button,
+          )
+
+          about = Path("web/about.html")
+          old_about = "Pipe Buyer is a venue and is not a party to transactions between users; it does not hold or release funds and does not operate escrow."
+          new_about = "Pipe Buyer is not the buyer, seller, carrier, bank, trust company, or escrow provider for user-listed goods. For supported transactions, Stripe processes buyer payments and Pipe Buyer may instruct Stripe to transfer seller proceeds after the server-recorded transaction requirements are satisfied. Seller proceeds may remain pending until completion and applicable safeguards are met. Pipe Buyer does not operate an escrow or trust account."
+          replace_once(about, old_about, new_about)
+          PY
+
+          cat > lib/marketplace/marketplace_dispatch_subscription_checkout.dart <<'DART'
+          import 'package:flutter/foundation.dart';
+          import 'package:flutter/material.dart';
+          import 'package:url_launcher/url_launcher.dart';
+
+          import 'marketplace_command_client.dart';
+
+          String dispatchSubscriptionPlanLabel(Map<String, dynamic>? plan) {
+            if (plan == null) return 'Subscribe';
+            final currency = '${plan['currency'] ?? 'CAD'}'.toUpperCase();
+            final amount = Number.tryParse('${plan['amount'] ?? ''}');
+            final interval = '${plan['interval'] ?? ''}'.trim().toLowerCase();
+            if (amount == null || amount <= 0 || interval.isEmpty) {
+              return 'Subscribe';
+            }
+            final amountText = amount % 1 == 0
+                ? amount.toStringAsFixed(0)
+                : amount.toStringAsFixed(2);
+            final currencyText = switch (currency) {
+              'CAD' => 'CA\$$amountText',
+              'USD' => 'US\$$amountText',
+              _ => '$currency $amountText',
+            };
+            return '$currencyText / $interval';
+          }
+
+          class DispatchSubscriptionCheckoutButton extends StatefulWidget {
+            const DispatchSubscriptionCheckoutButton({
+              super.key,
+              required this.plan,
+            });
+
+            final String plan;
+
+            @override
+            State<DispatchSubscriptionCheckoutButton> createState() =>
+                _DispatchSubscriptionCheckoutButtonState();
+          }
+
+          class _DispatchSubscriptionCheckoutButtonState
+              extends State<DispatchSubscriptionCheckoutButton> {
+            late Future<Map<String, dynamic>> _catalogFuture;
+            bool _busy = false;
+
+            @override
+            void initState() {
+              super.initState();
+              _catalogFuture = _loadCatalog();
+            }
+
+            Future<Map<String, dynamic>> _loadCatalog() =>
+                MarketplaceCommandClient().execute(
+                  'getDispatchSubscriptionCatalog',
+                  const <String, Object?>{},
+                );
+
+            void _reloadCatalog() {
+              setState(() => _catalogFuture = _loadCatalog());
+            }
+
+            @override
+            Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
+              future: _catalogFuture,
+              builder: (context, snapshot) {
+                final catalog = snapshot.data;
+                final plans = catalog?['plans'] is Map
+                    ? Map<String, dynamic>.from(catalog!['plans'] as Map)
+                    : const <String, dynamic>{};
+                final planData = plans[widget.plan] is Map
+                    ? Map<String, dynamic>.from(plans[widget.plan] as Map)
+                    : null;
+                final price = dispatchSubscriptionPlanLabel(planData);
+                final checkoutAvailable = catalog?['checkoutAvailable'] == true;
+                final providerReady = catalog?['providerCheckoutReady'] == true;
+                final policiesCurrent = catalog?['policyAcceptanceCurrent'] == true;
+
+                if (snapshot.hasError) {
+                  return SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _reloadCatalog,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry subscription pricing'),
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: null,
+                      icon: SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      label: Text('Loading subscription…'),
+                    ),
+                  );
+                }
+
+                if (!checkoutAvailable) {
+                  final message = !policiesCurrent
+                      ? 'Accept the current Pipe Buyer Terms and Privacy Policy, then retry.'
+                      : !providerReady
+                      ? 'Dispatch subscription checkout is temporarily unavailable.'
+                      : 'Dispatch subscription checkout is not available for this account yet.';
+                  return SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(message)),
+                      ),
+                      icon: const Icon(Icons.info_outline_rounded),
+                      label: Text(!policiesCurrent ? 'Review terms to subscribe' : price),
+                    ),
+                  );
+                }
+
+                return SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _busy ? null : _startCheckout,
+                    icon: _busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.lock_outline_rounded),
+                    label: Text(_busy ? 'Opening secure checkout…' : 'Subscribe • $price'),
+                  ),
+                );
+              },
+            );
+
+            Future<void> _startCheckout() async {
+              setState(() => _busy = true);
+              try {
+                final result = await MarketplaceCommandClient().execute(
+                  'createDispatchSubscriptionCheckout',
+                  <String, Object?>{'plan': widget.plan},
+                );
+                final rawUrl = '${result['checkoutUrl'] ?? ''}'.trim();
+                final uri = Uri.tryParse(rawUrl);
+                if (uri == null || uri.scheme != 'https') {
+                  throw StateError('Stripe did not return a secure subscription URL.');
+                }
+                final opened = await launchUrl(
+                  uri,
+                  mode: kIsWeb
+                      ? LaunchMode.platformDefault
+                      : LaunchMode.externalApplication,
+                );
+                if (!opened) {
+                  throw StateError('Secure subscription checkout could not be opened.');
+                }
+              } catch (error) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      marketplaceCommandErrorMessage(
+                        error,
+                        fallback:
+                            'Dispatch subscription checkout could not be opened. No charge was created.',
+                      ),
+                    ),
+                  ),
+                );
+              } finally {
+                if (mounted) setState(() => _busy = false);
+              }
+            }
+          }
+          DART
+
+          cat > test/dispatch_subscription_checkout_test.dart <<'DART'
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:pipe_app/marketplace/marketplace_dispatch_subscription_checkout.dart';
+
+          void main() {
+            test('formats server Dispatch subscription catalog prices', () {
+              expect(
+                dispatchSubscriptionPlanLabel(const {
+                  'currency': 'CAD',
+                  'amount': 25,
+                  'interval': 'month',
+                }),
+                r'CA$25 / month',
+              );
+              expect(
+                dispatchSubscriptionPlanLabel(const {
+                  'currency': 'CAD',
+                  'amount': 300,
+                  'interval': 'year',
+                }),
+                r'CA$300 / year',
+              );
+            });
+
+            test('falls back safely for invalid catalog data', () {
+              expect(dispatchSubscriptionPlanLabel(null), 'Subscribe');
+              expect(
+                dispatchSubscriptionPlanLabel(const {
+                  'currency': 'CAD',
+                  'amount': 0,
+                  'interval': 'month',
+                }),
+                'Subscribe',
+              );
+            });
+          }
+          DART
+
+          cat > docs/repairs/LIVE_SUBSCRIPTION_UI_ABOUT_2026-08-29.md <<'MD'
+          # Live subscription UI and About repair — 2026-08-29
+
+          ## Root causes
+          1. Production Dispatch subscription backend, Stripe prices, webhook lifecycle, and membership grants were active, but the visible monthly/yearly membership cards only displayed a readiness message and did not call `createDispatchSubscriptionCheckout`.
+          2. The public `/about` page still stated that Pipe Buyer did not hold or release funds, which conflicted with the now-live Separate Charges and Transfers marketplace flow.
+          3. The server subscription catalog checked current policy acceptance, but the subscription Checkout export did not independently wrap Checkout in the current-policy gate.
+
+          ## Repair
+          - Added a real Dispatch subscription Checkout button that reads the server-authoritative plan catalog, shows the current price, calls `createDispatchSubscriptionCheckout`, and opens the returned HTTPS Stripe Checkout URL.
+          - Kept VIP billing non-purchasable because no approved VIP Stripe price exists.
+          - Wrapped Dispatch subscription Checkout in `requireCurrentPolicies` server-side so a modified client cannot bypass policy acceptance.
+          - Corrected `/about` to describe Stripe payment processing and delayed seller transfers accurately without describing the flow as escrow.
+
+          ## Safety properties retained
+          - Stripe automatic tax remains disabled while `stripeTaxReady=false`.
+          - Subscription access is granted by verified `invoice.paid` webhook evidence, not by a browser success redirect.
+          - Existing active Dispatch memberships cannot start duplicate subscription Checkout.
+          - Marketplace seller transfers remain delayed until paid transaction completion.
+          MD
+
+          dart format \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            test/dispatch_subscription_checkout_test.dart
+
+      - name: Validate launch invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "createDispatchSubscriptionCheckout" lib/marketplace/marketplace_dispatch_subscription_checkout.dart
+          grep -q "getDispatchSubscriptionCatalog" lib/marketplace/marketplace_dispatch_subscription_checkout.dart
+          grep -q "policyAcceptanceCommands.requireCurrentPolicies" firebase/functions/bootstrap.js
+          grep -q "does not operate an escrow or trust account" web/about.html
+          ! grep -q "does not hold or release funds" web/about.html
+          ! grep -q "View plan readiness" lib/marketplace/marketplace_vip_access.dart
+
+      - name: Validate Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Validate Flutter application
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter analyze lib test
+          flutter test
+
+      - name: Commit validated repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo '::error::Launch repair produced no changes.'
+            exit 1
+          fi
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            firebase/functions/bootstrap.js \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            test/dispatch_subscription_checkout_test.dart \
+            web/about.html \
+            docs/repairs/LIVE_SUBSCRIPTION_UI_ABOUT_2026-08-29.md
+          git commit -m 'Wire live Dispatch subscription Checkout and correct payment copy'
+          git push origin HEAD
