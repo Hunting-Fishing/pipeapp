@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   allocateMarketplaceFeeAcrossParts,
+  splitReleaseEligible,
 } = require("../marketplace_split_seller_release");
 
 test("marketplace fee is allocated exactly once across deposit and balance", () => {
@@ -28,4 +29,22 @@ test("fee allocation rejects impossible inputs", () => {
       () => allocateMarketplaceFeeAcrossParts(-1, [500, 500]),
       TypeError,
   );
+});
+
+test("split seller release requires paid completion without financial exposure", () => {
+  const eligible = {
+    status: "completed",
+    paymentPlan: "deposit_balance",
+    paymentPlanStatus: "active",
+    paymentProvider: "stripe",
+    paymentProviderStatus: "paid",
+    sellerPayoutStatus: "pending_release",
+    financialStatus: "paid_pending_fulfillment",
+    financialHold: false,
+    refundedMinor: 0,
+  };
+  assert.equal(splitReleaseEligible(eligible), true);
+  assert.equal(splitReleaseEligible({...eligible, refundedMinor: 1}), false);
+  assert.equal(splitReleaseEligible({...eligible, financialHold: true}), false);
+  assert.equal(splitReleaseEligible({...eligible, paymentProviderStatus: "partially_paid"}), false);
 });
