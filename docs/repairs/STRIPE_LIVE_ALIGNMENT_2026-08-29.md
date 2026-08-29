@@ -144,6 +144,35 @@ No Stripe, Firebase, settlement, entitlement, or payment-state logic changed in 
 
 Do not restore obsolete escrow wording merely to satisfy an old test. Tests that cover settlement presentation must assert the current legal/product terminology while legacy stored status keys remain backwards compatible.
 
+## Root cause 7 — temporary 2nd-gen HTTP functions were blocked by infrastructure IAM
+
+**Observed**
+
+The corrected production release `376c5184d880ee1f43ef7f156dec65296bd12718` completed all application tests, Firebase security/integration tests, the exact web build, full Firebase production deployment, Function parity, and live visual acceptance. The subsequent tax-pending billing activation failed only when calling the temporary `productionBillingActivation` endpoint. Six requests returned HTTP `401` before the handler could evaluate its one-time bearer token. The endpoint was then deleted successfully by the cleanup step.
+
+The function was a Firebase Functions 2nd-gen `onRequest` endpoint. Without an explicit public invoker, the underlying Cloud Run/Firebase IAM layer rejected the GitHub runner before application-level authorization could run.
+
+**Repair**
+
+The temporary activation endpoint now sets `invoker: "public"` at the Firebase HTTPS-function infrastructure layer while retaining all of its application-level controls:
+
+- POST only
+- random one-time 256-bit activation token stored in Secret Manager
+- timing-safe bearer-token comparison inside the handler
+- exact, hard-coded tax-pending production readiness profile
+- verification of the returned profile before success
+- deletion of the temporary endpoint immediately after the one authorized write
+
+The same control is applied proactively to the temporary exact-policy publisher used to publish the verified Terms/Privacy hashes, preventing the next release step from failing for the identical infrastructure reason.
+
+**Security boundary**
+
+`invoker: "public"` is used only on these short-lived, token-authenticated release endpoints. It is not a general change to Pipe Buyer callable authorization. Public infrastructure reachability is required so the cryptographic application-level token check can execute; possession of the endpoint URL alone does not authorize the write.
+
+**Verification rule**
+
+When a temporary 2nd-gen HTTP release function is intentionally called from GitHub Actions without Google IAM identity, explicitly define its invoker policy. Do not confuse infrastructure invocation authorization with the function's own application-level authorization. Always retain a one-time secret and cleanup deletion for privileged temporary endpoints.
+
 ## Live Stripe verification performed
 
 - Pipe Buyer account is live mode.
@@ -184,3 +213,4 @@ Before any future payment repair:
 6. Never set tax readiness from Stripe Dashboard enablement alone; require actual tax/compliance evidence.
 7. Do not remove or deactivate legacy Stripe products/prices until old releases and historical references are dependency-audited.
 8. When user-facing payment terminology changes for legal/product accuracy, update its regression tests in the same change; do not revert corrected wording to satisfy stale assertions.
+9. For privileged temporary 2nd-gen HTTP release functions called from GitHub Actions, explicitly configure infrastructure invoker access, retain a one-time timing-safe bearer token, and always delete the endpoint immediately after use.
