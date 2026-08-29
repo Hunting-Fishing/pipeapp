@@ -6,12 +6,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_dispatch_subscription_checkout.dart';
 import 'marketplace_policy_center.dart';
 
 bool dispatchMembershipStatusActive(Map<String, dynamic>? data) =>
     data != null && data['active'] == true;
 
 bool dispatchHostedStripeSurfaceAllowed({required bool isWeb}) => isWeb;
+
+String dispatchMembershipPromotionHint(String plan) {
+  if (!dispatchPromotionCodeEntryAvailable(plan)) return '';
+  return 'Monthly Dispatch: $dispatchPromotionCodeHelpText';
+}
 
 String dispatchMembershipPaidThrough(Map<String, dynamic>? data) {
   final millis = (data?['currentPeriodEndMillis'] as num?)?.toInt();
@@ -281,6 +287,7 @@ class _MarketplaceDispatchMembershipPageState
                         price: dispatchSubscriptionPriceLabel(catalog, 'monthly'),
                         description:
                             'Flexible recurring Dispatch carrier bidding access.',
+                        promotionHint: dispatchMembershipPromotionHint('monthly'),
                         icon: Icons.calendar_month_outlined,
                         busy: _busyPlan == 'monthly',
                         disabled: checkoutDisabled,
@@ -568,6 +575,7 @@ class _PlanCard extends StatelessWidget {
     required this.title,
     required this.price,
     required this.description,
+    this.promotionHint = '',
     required this.icon,
     required this.busy,
     required this.disabled,
@@ -577,6 +585,7 @@ class _PlanCard extends StatelessWidget {
   final String title;
   final String price;
   final String description;
+  final String promotionHint;
   final IconData icon;
   final bool busy;
   final bool disabled;
@@ -602,6 +611,22 @@ class _PlanCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(description),
+              if (promotionHint.trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.local_offer_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        promotionHint,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
@@ -613,7 +638,11 @@ class _PlanCard extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.lock_outline),
-                  label: Text(busy ? 'Opening secure checkout…' : 'Continue to Secure Payment'),
+                  label: Text(
+                    busy
+                        ? 'Opening secure checkout…'
+                        : 'Continue to Secure Payment',
+                  ),
                 ),
               ),
             ],
