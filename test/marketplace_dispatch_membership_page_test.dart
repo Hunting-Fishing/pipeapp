@@ -29,7 +29,7 @@ void main() {
       'currentPeriodEndMillis': utc.millisecondsSinceEpoch,
     });
     expect(label, isNotEmpty);
-    expect(label, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$'));
+    expect(label, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
   });
 
   test('Dispatch prices are rendered from the server catalog', () {
