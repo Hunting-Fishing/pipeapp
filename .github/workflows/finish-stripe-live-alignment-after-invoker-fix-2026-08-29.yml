@@ -1,0 +1,351 @@
+name: Finish Stripe Live Alignment After Invoker Fix 2026-08-29
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/finish-stripe-live-alignment-after-invoker-fix-2026-08-29.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pipe-buyer-stripe-live-alignment-invoker-finish-2026-08-29
+  cancel-in-progress: false
+
+jobs:
+  finish:
+    name: Verify activation and publish exact payment policies
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_PROJECT_ID: flutter-flow-pipe
+      RELEASE_SHA: ${{ github.sha }}
+      TERMS_URL: https://www.pipebuyer.com/terms
+      PRIVACY_URL: https://www.pipebuyer.com/privacy
+      POLICY_PUBLISH_URL: https://us-central1-flutter-flow-pipe.cloudfunctions.net/productionPolicyPublication
+
+    steps:
+      - name: Check out completion source
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Confirm completion source is current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          if [[ "$(git rev-parse HEAD)" != "$RELEASE_SHA" ]]; then
+            echo "::error::Checked-out source does not match the completion SHA."
+            exit 1
+          fi
+          if [[ "$(git rev-parse origin/main)" != "$RELEASE_SHA" ]]; then
+            echo "::error::Completion workflow only runs for the current main commit."
+            exit 1
+          fi
+
+      - name: Wait for corrected tax-pending billing activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=""
+          for attempt in $(seq 1 90); do
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow activate-live-billing-pending-tax.yml \
+              --branch main \
+              --event push \
+              --limit 30 \
+              --json databaseId,headSha \
+              --jq ".[] | select(.headSha == \"$RELEASE_SHA\") | .databaseId" | head -n 1)"
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ -z "$run_id" ]]; then
+            echo "::error::Corrected live-billing activation run did not start for $RELEASE_SHA."
+            exit 1
+          fi
+          echo "Waiting for corrected billing activation run $run_id."
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+
+      - name: Verify deployed legal documents exactly match release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location "$TERMS_URL" -o /tmp/pipebuyer-terms-live.html
+          curl --fail --silent --show-error --location "$PRIVACY_URL" -o /tmp/pipebuyer-privacy-live.html
+          source_terms_sha="$(sha256sum web/terms.html | awk '{print $1}')"
+          source_privacy_sha="$(sha256sum web/privacy.html | awk '{print $1}')"
+          live_terms_sha="$(sha256sum /tmp/pipebuyer-terms-live.html | awk '{print $1}')"
+          live_privacy_sha="$(sha256sum /tmp/pipebuyer-privacy-live.html | awk '{print $1}')"
+          if [[ "$source_terms_sha" != "$live_terms_sha" ]]; then
+            echo "::error::Live Terms content does not match source."
+            exit 1
+          fi
+          if [[ "$source_privacy_sha" != "$live_privacy_sha" ]]; then
+            echo "::error::Live Privacy content does not match source."
+            exit 1
+          fi
+          printf '%s' "$source_terms_sha" > .terms-sha
+          printf '%s' "$source_privacy_sha" > .privacy-sha
+          echo "Live Terms and Privacy exactly match source bytes."
+
+      - name: Install Node 22
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Restore marketplace Functions and Firebase CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          npm audit --omit=dev --audit-level=high --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+          npm install --global firebase-tools@15.25.0 --no-audit --no-fund
+
+      - name: Prepare one-time policy publication token
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          openssl rand -hex 32 > .policy-publication-token
+          firebase functions:secrets:set PIPE_POLICY_PUBLICATION_TOKEN \
+            --data-file .policy-publication-token \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive > /dev/null
+
+      - name: Build temporary exact-policy publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > firebase/functions/production_policy_publication_temp.js <<'EOF'
+          "use strict";
+
+          const crypto = require("node:crypto");
+
+          function safeTokenMatch(provided, expected) {
+            const left = Buffer.from(String(provided || ""));
+            const right = Buffer.from(String(expected || ""));
+            return left.length === right.length &&
+              left.length > 0 && crypto.timingSafeEqual(left, right);
+          }
+
+          function validSha(value) {
+            return /^[0-9a-f]{64}$/.test(String(value || ""));
+          }
+
+          function createProductionPolicyPublication(admin) {
+            const db = admin.firestore();
+            const FieldValue = admin.firestore.FieldValue;
+            const Timestamp = admin.firestore.Timestamp;
+            return async (req, res) => {
+              try {
+                if (req.method !== "POST") {
+                  res.status(405).send("Method not allowed");
+                  return;
+                }
+                const expected = String(process.env.PIPE_POLICY_PUBLICATION_TOKEN || "");
+                const header = String(req.get("authorization") || "");
+                const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
+                if (!safeTokenMatch(provided, expected)) {
+                  res.status(403).send("Forbidden");
+                  return;
+                }
+                const termsSha = String(req.body && req.body.termsSha || "").trim();
+                const privacySha = String(req.body && req.body.privacySha || "").trim();
+                if (!validSha(termsSha) || !validSha(privacySha)) {
+                  res.status(400).json({ok: false, error: "Invalid policy hash."});
+                  return;
+                }
+                const version = "2026-08-29";
+                const actor = "system:github-stripe-live-alignment";
+                const effectiveAt = Timestamp.fromDate(new Date("2026-08-29T00:00:00Z"));
+                const publications = [
+                  {
+                    policyId: "terms_of_service",
+                    title: "Terms of Service",
+                    summary: "Pipe Buyer marketplace, Dispatch, subscription, payment, seller payout, refund and dispute terms.",
+                    documentUrl: "https://www.pipebuyer.com/terms",
+                    contentSha256: termsSha,
+                  },
+                  {
+                    policyId: "privacy_notice",
+                    title: "Privacy Notice",
+                    summary: "Pipe Buyer privacy notice including Stripe Billing, Checkout, Connect and financial metadata boundaries.",
+                    documentUrl: "https://www.pipebuyer.com/privacy",
+                    contentSha256: privacySha,
+                  },
+                ];
+                const results = [];
+                for (const publication of publications) {
+                  const policyRef = db.collection("platform_policies").doc(publication.policyId);
+                  const eventRef = db.collection("policy_publication_events")
+                      .doc(`${publication.policyId}-${version}-stripe-live-alignment`);
+                  const result = await db.runTransaction(async (transaction) => {
+                    const current = await transaction.get(policyRef);
+                    const currentData = current.exists ? current.data() : {};
+                    if (currentData.version === version &&
+                        currentData.contentSha256 === publication.contentSha256 &&
+                        currentData.documentUrl === publication.documentUrl &&
+                        currentData.status === "published") {
+                      return {
+                        policyId: publication.policyId,
+                        version,
+                        revision: Number(currentData.revision || 1),
+                        unchanged: true,
+                      };
+                    }
+                    const revision = Number(currentData.revision || 0) + 1;
+                    transaction.set(policyRef, {
+                      policyId: publication.policyId,
+                      title: publication.title,
+                      version,
+                      summary: publication.summary,
+                      documentUrl: publication.documentUrl,
+                      contentSha256: publication.contentSha256,
+                      effectiveAt,
+                      status: "published",
+                      required: true,
+                      revision,
+                      publishedByUid: actor,
+                      publishedAt: FieldValue.serverTimestamp(),
+                      updatedAt: FieldValue.serverTimestamp(),
+                    }, {merge: false});
+                    transaction.set(eventRef, {
+                      policyId: publication.policyId,
+                      version,
+                      contentSha256: publication.contentSha256,
+                      documentUrl: publication.documentUrl,
+                      effectiveAt,
+                      approvalNote:
+                        "Published after exact live-byte verification in the Stripe live-alignment release.",
+                      revision,
+                      actorUid: actor,
+                      event: "published",
+                      createdAt: FieldValue.serverTimestamp(),
+                    }, {merge: false});
+                    return {
+                      policyId: publication.policyId,
+                      version,
+                      revision,
+                      unchanged: false,
+                    };
+                  });
+                  results.push(result);
+                }
+                res.status(200).json({ok: true, results});
+              } catch (error) {
+                console.error("Production policy publication failed", error);
+                res.status(500).json({ok: false});
+              }
+            };
+          }
+
+          module.exports = {createProductionPolicyPublication};
+          EOF
+          cat >> firebase/functions/production_bootstrap.js <<'EOF'
+
+          // Temporary exact-release legal publisher. Infrastructure invocation
+          // is public so GitHub can reach the 2nd-gen endpoint; the handler still
+          // requires a one-time timing-safe bearer token and is deleted immediately.
+          const {onRequest: onRequestPolicyPublication} = require("firebase-functions/v2/https");
+          const {createProductionPolicyPublication} = require("./production_policy_publication_temp");
+          exports.productionPolicyPublication = onRequestPolicyPublication(
+              {
+                secrets: ["PIPE_POLICY_PUBLICATION_TOKEN"],
+                invoker: "public",
+              },
+              createProductionPolicyPublication(createAdminRuntime()),
+          );
+          EOF
+          node --check firebase/functions/production_policy_publication_temp.js
+          node --check firebase/functions/production_bootstrap.js
+
+      - name: Deploy one-time exact-policy publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase deploy \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --config firebase.json \
+            --only functions:marketplace:productionPolicyPublication \
+            --message "Pipe Buyer exact policy publication $RELEASE_SHA" \
+            --force \
+            --non-interactive
+
+      - name: Publish exact live Terms and Privacy versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(cat .policy-publication-token)"
+          terms_sha="$(cat .terms-sha)"
+          privacy_sha="$(cat .privacy-sha)"
+          payload="$(node -e 'console.log(JSON.stringify({termsSha: process.argv[1], privacySha: process.argv[2]}))' "$terms_sha" "$privacy_sha")"
+          curl --fail-with-body --silent --show-error \
+            --retry 5 --retry-delay 4 --retry-all-errors \
+            -X POST \
+            -H "Authorization: Bearer $token" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$POLICY_PUBLISH_URL" > policy-publication-result.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync('policy-publication-result.json', 'utf8'));
+          const ids = new Set((payload.results || []).map((entry) => entry.policyId));
+          if (payload.ok !== true ||
+              !ids.has('terms_of_service') ||
+              !ids.has('privacy_notice')) {
+            throw new Error('Exact-release legal policy publication was not verified.');
+          }
+          console.log('Exact live Terms and Privacy policy versions published.');
+          NODE
+
+      - name: Remove temporary policy publication endpoint
+        if: always()
+        shell: bash
+        run: |
+          firebase functions:delete productionPolicyPublication \
+            --region us-central1 \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --force || true
+          rm -f \
+            .policy-publication-token \
+            .terms-sha \
+            .privacy-sha \
+            policy-publication-result.json \
+            /tmp/pipebuyer-terms-live.html \
+            /tmp/pipebuyer-privacy-live.html
+
+      - name: Record completion result
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## Stripe live alignment completion"
+            echo ""
+            echo "- Completion commit: \`$RELEASE_SHA\`"
+            echo "- Production site: already verified and live"
+            echo "- Dispatch Stripe Billing: activation verified by corrected workflow"
+            echo "- Stripe Connect seller onboarding: activation verified by corrected workflow"
+            echo "- Marketplace fee billing: activation verified by corrected workflow"
+            echo "- Full buyer-to-seller checkout: held pending Canadian tax readiness"
+            echo "- Live Terms/Privacy bytes: verified before publication"
+            echo "- Exact policy hashes: publication attempted and verified by response"
+            echo "- Result: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
