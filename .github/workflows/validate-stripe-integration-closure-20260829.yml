@@ -9,12 +9,16 @@ on:
       - main
     paths:
       - 'firebase/functions/dispatch_subscription_commands.js'
+      - 'firebase/functions/dispatch_subscription_promotions.js'
+      - 'firebase/functions/bootstrap.js'
       - 'firebase/functions/stripe_marketplace_commands.js'
       - 'firebase/functions/stripe_marketplace_config.js'
+      - 'firebase/functions/test/dispatch_subscription_promotion_codes.test.js'
       - 'firebase/functions/test/subscription_monetization.test.js'
       - 'firebase/functions/test/stripe_connect_accounts_api_version.test.js'
       - 'firebase/functions/test/stripe_seller_onboarding_error_contract.test.js'
       - 'lib/flutter_flow/nav/nav.dart'
+      - 'lib/marketplace/dispatch_promotion_code_field.dart'
       - 'lib/marketplace/marketplace_payout_settings.dart'
       - 'lib/marketplace/marketplace_stripe_connect_return_page.dart'
       - 'lib/marketplace/marketplace_subscription_billing_policy.dart'
@@ -61,12 +65,14 @@ jobs:
         run: |
           dart format \
             lib/flutter_flow/nav/nav.dart \
+            lib/marketplace/dispatch_promotion_code_field.dart \
             lib/marketplace/marketplace_payout_settings.dart \
             lib/marketplace/marketplace_stripe_connect_return_page.dart \
             lib/marketplace/marketplace_subscription_billing_policy.dart \
             lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
             lib/marketplace/marketplace_dispatch_membership_page.dart \
             lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/dispatch_subscription_checkout_test.dart \
             test/marketplace_payout_settings_security_contract_test.dart \
             test/stripe_connect_return_routing_contract_test.dart \
             test/marketplace_subscription_billing_policy_test.dart \
@@ -74,12 +80,14 @@ jobs:
             test/marketplace_dispatch_membership_page_test.dart
           git diff --exit-code -- \
             lib/flutter_flow/nav/nav.dart \
+            lib/marketplace/dispatch_promotion_code_field.dart \
             lib/marketplace/marketplace_payout_settings.dart \
             lib/marketplace/marketplace_stripe_connect_return_page.dart \
             lib/marketplace/marketplace_subscription_billing_policy.dart \
             lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
             lib/marketplace/marketplace_dispatch_membership_page.dart \
             lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/dispatch_subscription_checkout_test.dart \
             test/marketplace_payout_settings_security_contract_test.dart \
             test/stripe_connect_return_routing_contract_test.dart \
             test/marketplace_subscription_billing_policy_test.dart \
