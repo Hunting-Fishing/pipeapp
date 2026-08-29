@@ -1,0 +1,235 @@
+name: Build Validate VIP Release 2026-08-29
+
+on:
+  push:
+    branches:
+      - release/vip-subscription-only-20260829
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-validate-vip-release-20260829
+  cancel-in-progress: false
+
+jobs:
+  isolate-validate-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: release/vip-subscription-only-20260829
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Copy only validated VIP source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_BRANCH='feat/live-financial-resolution-split-vip-20260829'
+          git fetch --no-tags origin "$SOURCE_BRANCH"
+          SOURCE_SHA="$(git rev-parse FETCH_HEAD)"
+          test "$SOURCE_SHA" = '5cb06a71893cb361ed22d049feca2aa2b2dc1831'
+
+          files=(
+            firebase/functions/vip_subscription_catalog.js
+            firebase/functions/vip_subscription_commands.js
+            firebase/functions/vip_subscription_lifecycle.js
+            firebase/functions/vip_subscription_management.js
+            firebase/functions/vip_subscription_monetization.js
+            firebase/functions/vip_subscription_status.js
+            firebase/functions/test/vip_subscription.test.js
+            lib/marketplace/marketplace_vip_subscription_checkout.dart
+            test/vip_subscription_checkout_test.dart
+            tool/integrate_vip_subscription_20260829.py
+            docs/repairs/VIP_SUBSCRIPTION_BILLING_2026-08-29.md
+          )
+          for path in "${files[@]}"; do
+            mkdir -p "$(dirname "$path")"
+            git show "$SOURCE_SHA:$path" > "$path"
+          done
+
+      - name: Apply audited VIP shared-file patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/integrate_vip_subscription_20260829.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('firebase/functions/stripe_marketplace_config.js')
+          text = path.read_text()
+          anchor = '''    pipeMarketplaceFeeCad: Object.freeze({\n'''
+          vip = '''    vipMonthlyCad: Object.freeze({\n      productId: "prod_VA12LaMiaCMRqZ",\n      priceId: "price_1U9h0tDkO07WMXyRgdzAmm43",\n      taxCode: "txcd_10103001",\n      currency: "CAD",\n      unitAmountMinor: 10000,\n      billingInterval: "month",\n    }),\n'''
+          if 'vipMonthlyCad:' in text:
+              raise SystemExit('VIP Stripe catalog was unexpectedly already present in clean main base')
+          if text.count(anchor) != 1:
+              raise SystemExit('Stripe config anchor drifted; refusing broad patch')
+          path.write_text(text.replace(anchor, vip + anchor, 1))
+          PY
+
+      - name: Format and record clean-release audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/vip_subscription_checkout_test.dart
+          cat > docs/repairs/VIP_SUBSCRIPTION_RELEASE_ISOLATION_2026-08-29.md <<'EOF'
+          # VIP Subscription Release Isolation — 2026-08-29
+
+          ## Symptom
+          The validated VIP subscription work was not live because it remained on a mixed feature branch that also contained deposit/split-payment changes. Merging that branch wholesale would have released unrelated financial work.
+
+          ## Proven root cause
+          The validated feature branch was ahead of production `main` by unrelated financial commits. Production `main` therefore did not contain the VIP Checkout/UI lifecycle, and the mixed branch was not an acceptable release unit.
+
+          ## Repair
+          A clean release branch was created from production `main`. Only the six VIP modules, VIP tests/UI, the deterministic five-file integration patch, and the exact approved VIP Stripe catalog entry were transferred from validated source commit `5cb06a71893cb361ed22d049feca2aa2b2dc1831`.
+
+          ## Explicit exclusions
+          No marketplace deposit, split-payment, multi-charge, seller-release, refund/dispute automation, or unrelated financial-resolution files are part of this release.
+
+          ## Validation contract
+          The release builder rejects any changed path outside the explicit VIP allowlist, validates exact live Stripe product/price identifiers and CAD $100/month pricing, runs Functions lint/check/tests, Dart analysis, targeted VIP/artwork tests, and the full Flutter test suite before committing.
+          EOF
+
+      - name: Enforce VIP-only changed-file allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            firebase/functions/vip_subscription_catalog.js \
+            firebase/functions/vip_subscription_commands.js \
+            firebase/functions/vip_subscription_lifecycle.js \
+            firebase/functions/vip_subscription_management.js \
+            firebase/functions/vip_subscription_monetization.js \
+            firebase/functions/vip_subscription_status.js \
+            firebase/functions/test/vip_subscription.test.js \
+            firebase/functions/payment_readiness_admin.js \
+            firebase/functions/bootstrap.js \
+            firebase/functions/stripe_webhook_dispatch_lifecycle.js \
+            firebase/functions/stripe_webhook.js \
+            firebase/functions/stripe_marketplace_config.js \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/vip_subscription_checkout_test.dart \
+            tool/integrate_vip_subscription_20260829.py \
+            docs/repairs/VIP_SUBSCRIPTION_BILLING_2026-08-29.md \
+            docs/repairs/VIP_SUBSCRIPTION_RELEASE_ISOLATION_2026-08-29.md
+          python3 - <<'PY'
+          import subprocess
+          allowed = {
+            'firebase/functions/vip_subscription_catalog.js',
+            'firebase/functions/vip_subscription_commands.js',
+            'firebase/functions/vip_subscription_lifecycle.js',
+            'firebase/functions/vip_subscription_management.js',
+            'firebase/functions/vip_subscription_monetization.js',
+            'firebase/functions/vip_subscription_status.js',
+            'firebase/functions/test/vip_subscription.test.js',
+            'firebase/functions/payment_readiness_admin.js',
+            'firebase/functions/bootstrap.js',
+            'firebase/functions/stripe_webhook_dispatch_lifecycle.js',
+            'firebase/functions/stripe_webhook.js',
+            'firebase/functions/stripe_marketplace_config.js',
+            'lib/marketplace/marketplace_vip_access.dart',
+            'lib/marketplace/marketplace_vip_subscription_checkout.dart',
+            'test/vip_subscription_checkout_test.dart',
+            'tool/integrate_vip_subscription_20260829.py',
+            'docs/repairs/VIP_SUBSCRIPTION_BILLING_2026-08-29.md',
+            'docs/repairs/VIP_SUBSCRIPTION_RELEASE_ISOLATION_2026-08-29.md',
+          }
+          out = subprocess.check_output(['git','status','--porcelain=v1'], text=True)
+          seen = []
+          for line in out.splitlines():
+              path = line[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ',1)[1]
+              seen.append(path)
+          unexpected = sorted(set(seen) - allowed)
+          if unexpected:
+              raise SystemExit('Unexpected non-VIP release files: ' + ', '.join(unexpected))
+          if not seen:
+              raise SystemExit('VIP release builder produced no changes')
+          print('VIP-only allowlist verified:', len(set(seen)), 'files')
+          PY
+
+      - name: Verify VIP billing invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'prod_VA12LaMiaCMRqZ' firebase/functions/stripe_marketplace_config.js
+          grep -q 'price_1U9h0tDkO07WMXyRgdzAmm43' firebase/functions/stripe_marketplace_config.js
+          grep -q 'unitAmountMinor: 10000' firebase/functions/stripe_marketplace_config.js
+          grep -q 'billingInterval: "month"' firebase/functions/stripe_marketplace_config.js
+          grep -q 'stripeVipSubscriptionsEnabled' firebase/functions/payment_readiness_admin.js
+          grep -q 'createVipSubscriptionCheckout' firebase/functions/bootstrap.js
+          grep -q 'updateVipSubscriptionRenewal' firebase/functions/bootstrap.js
+          grep -q 'getVipSubscriptionCatalog' firebase/functions/bootstrap.js
+          grep -q 'getVipSubscriptionStatus' firebase/functions/bootstrap.js
+          grep -q 'handleVipInvoicePaid' firebase/functions/stripe_webhook.js
+          grep -q 'vipSubscriptionLifecycle' firebase/functions/stripe_webhook_dispatch_lifecycle.js
+          grep -q 'VipSubscriptionCheckoutButton' lib/marketplace/marketplace_vip_access.dart
+          ! grep -q 'VIP billing coming soon' lib/marketplace/marketplace_vip_access.dart
+          ! git diff --cached --name-only | grep -E 'marketplace_(payment_plan|split|multi_charge)|deposit'
+
+      - name: Validate Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          for file in firebase/functions/vip_subscription_*.js; do node --check "$file"; done
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Validate Flutter app
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart analyze lib test
+          flutter test test/vip_subscription_checkout_test.dart
+          flutter test test/membership_plan_artwork_responsive_test.dart
+          flutter test
+
+      - name: Recheck release tree and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            firebase/functions/vip_subscription_catalog.js \
+            firebase/functions/vip_subscription_commands.js \
+            firebase/functions/vip_subscription_lifecycle.js \
+            firebase/functions/vip_subscription_management.js \
+            firebase/functions/vip_subscription_monetization.js \
+            firebase/functions/vip_subscription_status.js \
+            firebase/functions/test/vip_subscription.test.js \
+            firebase/functions/payment_readiness_admin.js \
+            firebase/functions/bootstrap.js \
+            firebase/functions/stripe_webhook_dispatch_lifecycle.js \
+            firebase/functions/stripe_webhook.js \
+            firebase/functions/stripe_marketplace_config.js \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/vip_subscription_checkout_test.dart \
+            tool/integrate_vip_subscription_20260829.py \
+            docs/repairs/VIP_SUBSCRIPTION_BILLING_2026-08-29.md \
+            docs/repairs/VIP_SUBSCRIPTION_RELEASE_ISOLATION_2026-08-29.md
+          test -z "$(git status --porcelain=v1 | grep -vE '^.. (firebase/functions/vip_subscription_(catalog|commands|lifecycle|management|monetization|status)\.js|firebase/functions/test/vip_subscription\.test\.js|firebase/functions/payment_readiness_admin\.js|firebase/functions/bootstrap\.js|firebase/functions/stripe_webhook_dispatch_lifecycle\.js|firebase/functions/stripe_webhook\.js|firebase/functions/stripe_marketplace_config\.js|lib/marketplace/marketplace_vip_access\.dart|lib/marketplace/marketplace_vip_subscription_checkout\.dart|test/vip_subscription_checkout_test\.dart|tool/integrate_vip_subscription_20260829\.py|docs/repairs/VIP_SUBSCRIPTION_BILLING_2026-08-29\.md|docs/repairs/VIP_SUBSCRIPTION_RELEASE_ISOLATION_2026-08-29\.md)$')"
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Release isolated VIP monthly subscription'
+          git push origin HEAD:release/vip-subscription-only-20260829
