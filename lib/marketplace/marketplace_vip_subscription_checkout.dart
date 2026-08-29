@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'marketplace_command_client.dart';
+import 'marketplace_subscription_billing_policy.dart';
 
 String vipSubscriptionPlanLabel(Map<String, dynamic>? plan) {
   if (plan == null) return 'VIP pricing unavailable';
@@ -43,15 +44,22 @@ class _VipSubscriptionCheckoutButtonState
   }
 
   Future<Map<String, dynamic>> _loadView() async {
+    final statusFuture = MarketplaceCommandClient().execute(
+      'getVipSubscriptionStatus',
+      const <String, Object?>{},
+    );
+    if (!marketplaceHostedMembershipBillingAllowed()) {
+      return <String, dynamic>{
+        'catalog': const <String, dynamic>{},
+        'status': await statusFuture,
+      };
+    }
     final results = await Future.wait([
       MarketplaceCommandClient().execute(
         'getVipSubscriptionCatalog',
         const <String, Object?>{},
       ),
-      MarketplaceCommandClient().execute(
-        'getVipSubscriptionStatus',
-        const <String, Object?>{},
-      ),
+      statusFuture,
     ]);
     return <String, dynamic>{'catalog': results[0], 'status': results[1]};
   }
@@ -100,11 +108,22 @@ class _VipSubscriptionCheckoutButtonState
           ? Map<String, dynamic>.from(plans['monthly'] as Map)
           : null;
       final price = vipSubscriptionPlanLabel(planData);
+      final hostedBillingAllowed = marketplaceHostedMembershipBillingAllowed();
       final active = status['active'] == true;
       final canManageRenewal = status['canManageRenewal'] == true;
       final cancelAtPeriodEnd = status['cancelAtPeriodEnd'] == true;
 
       if (active) {
+        if (!hostedBillingAllowed) {
+          return const SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: null,
+              icon: Icon(Icons.workspace_premium_outlined),
+              label: Text('VIP membership active'),
+            ),
+          );
+        }
         if (canManageRenewal) {
           return SizedBox(
             width: double.infinity,
@@ -136,12 +155,23 @@ class _VipSubscriptionCheckoutButtonState
             ),
           );
         }
-        return SizedBox(
+        return const SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: null,
-            icon: const Icon(Icons.workspace_premium_outlined),
-            label: const Text('VIP membership active'),
+            icon: Icon(Icons.workspace_premium_outlined),
+            label: Text('VIP membership active'),
+          ),
+        );
+      }
+
+      if (!hostedBillingAllowed) {
+        return const SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: null,
+            icon: Icon(Icons.info_outline_rounded),
+            label: Text(marketplaceNativeSubscriptionUnavailableMessage),
           ),
         );
       }
@@ -184,7 +214,7 @@ class _VipSubscriptionCheckoutButtonState
   );
 
   Future<void> _startCheckout() async {
-    if (_busy) return;
+    if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
     setState(() => _busy = true);
     try {
       final result = await MarketplaceCommandClient().execute(
@@ -225,7 +255,7 @@ class _VipSubscriptionCheckoutButtonState
   }
 
   Future<void> _updateRenewal(String action) async {
-    if (_busy) return;
+    if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
     if (action == 'cancel_at_period_end') {
       final confirmed = await showDialog<bool>(
         context: context,
