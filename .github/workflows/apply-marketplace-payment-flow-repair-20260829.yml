@@ -56,12 +56,12 @@ jobs:
           npm run lint --prefix firebase/functions
           npm run check --prefix firebase/functions
 
-      - name: Validate Flutter
+      - name: Validate Flutter application
         shell: bash
         run: |
           set -euo pipefail
           flutter pub get
-          flutter analyze
+          flutter analyze lib test
           flutter test
 
       - name: Commit validated repair
