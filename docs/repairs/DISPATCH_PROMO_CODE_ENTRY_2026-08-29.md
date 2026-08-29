@@ -66,6 +66,8 @@ The first full production release attempt for the promo change stopped before Fi
 
 The repair updates the fixture to use the exported `CHECKOUT_CONFIGURATION_VERSION` and adds an explicit assertion that a stale prior configuration version is rejected. Do not remove the version check or weaken `reusableCheckoutState` to satisfy an old fixture.
 
+The dedicated Stripe closure workflow also had a coverage gap: it ran the Dispatch membership Flutter test, but its path filters did not trigger for `marketplace_dispatch_membership_page.dart` or the Dispatch subscription Functions files, and it did not execute the Functions test suite. The workflow now triggers on those files, formats the Dispatch membership surface, and runs Functions install, lint, and tests before a Stripe closure PR can be considered green.
+
 ## Do not repeat
 
 Do not build a second custom promo-code validator in Flutter or trust a client-submitted discount. Continue using Stripe-hosted Checkout for customer-entered promotion codes and keep offer scope enforced by Stripe coupon/product configuration plus server-side Checkout policy.
@@ -73,3 +75,5 @@ Do not build a second custom promo-code validator in Flutter or trust a client-s
 Do not enable user-entered promo codes globally across VIP, marketplace equipment payments, or annual Dispatch Checkout without first defining a product/price-specific promotion policy and testing the invoice-period effect.
 
 If a future Checkout configuration change increments `CHECKOUT_CONFIGURATION_VERSION`, update checkout-state regression fixtures to import the exported version constant rather than hard-coding an old state shape.
+
+Do not rely on the full production deploy gate to discover Stripe-specific Functions regressions that can be caught in PR validation. Keep the Stripe closure workflow path filters and Functions tests aligned with every file that changes Dispatch/VIP checkout behavior.
