@@ -63,7 +63,7 @@ jobs:
           grep -q 'vipSubscriptionLifecycle' firebase/functions/stripe_webhook_dispatch_lifecycle.js
           grep -q 'VipSubscriptionCheckoutButton' lib/marketplace/marketplace_vip_access.dart
           ! grep -q 'VIP billing coming soon' lib/marketplace/marketplace_vip_access.dart
-          grep -q 'invoice.paid' firebase/functions/vip_subscription_monetization.js
+          grep -q 'handleVipInvoicePaid' firebase/functions/vip_subscription_monetization.js
           grep -q 'vipActive: active' firebase/functions/vip_subscription_monetization.js
 
       - name: Format VIP Dart integration
