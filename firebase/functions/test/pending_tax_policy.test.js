@@ -45,3 +45,12 @@ test("no tax state creates no reserve or billing authority", () => {
   assert.equal(automaticTaxEnabled({}), false);
   assert.equal(provisionalTaxReserveMinor(10000, "not_ready"), 0);
 });
+
+
+test("audited marketplace tax collection deferral enables billing without automatic tax", () => {
+  const readiness = {marketplaceTaxCollectionDeferredApproved: true};
+  assert.equal(taxCollectionStatus(readiness), "collection_deferred");
+  assert.equal(taxBillingPrepared(readiness), true);
+  assert.equal(automaticTaxEnabled(readiness), false);
+  assert.equal(provisionalTaxReserveMinor(100000, "collection_deferred"), 0);
+});

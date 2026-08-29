@@ -52,53 +52,6 @@ function verifyStripeSignature(rawBody, signatureHeader, secret, nowSeconds) {
   return signatures.some((candidate) => safeEqualHex(candidate, expected));
 }
 
-async function stripeFormRequest({
-  secretKey,
-  path,
-  fields,
-  idempotencyKey,
-  method = "POST",
-}) {
-  const form = new URLSearchParams();
-  for (const [key, value] of Object.entries(fields || {})) {
-    if (value == null) continue;
-    if (Array.isArray(value)) {
-      for (const item of value) form.append(`${key}[]`, String(item));
-    } else {
-      form.append(key, String(value));
-    }
-  }
-  const response = await fetch(`https://api.stripe.com${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-      "Stripe-Version": stripeMarketplaceConfig.apiVersion,
-      ...(method === "GET" ? {} : {
-        "Content-Type": "application/x-www-form-urlencoded",
-      }),
-      ...(idempotencyKey ? {"Idempotency-Key": idempotencyKey} : {}),
-    },
-    ...(method === "GET" ? {} : {body: form.toString()}),
-  });
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch (_) {
-    payload = null;
-  }
-  if (!response.ok) {
-    const code = String(
-        payload && payload.error &&
-        (payload.error.code || payload.error.type) || "",
-    ).slice(0, 120);
-    const error = new Error("Stripe provider request failed.");
-    error.stripeStatus = response.status;
-    error.stripeCode = code;
-    throw error;
-  }
-  return payload || {};
-}
-
 async function retrievePaymentIntent(secretKey, paymentIntentId) {
   const response = await fetch(
       `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}` +
@@ -273,8 +226,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       throw new Error("Pipe Buyer transaction for Stripe Checkout was not found.");
     }
     const sale = transactionSnapshot.data();
-    if (sale.paymentProviderStatus === "paid" &&
-        sale.stripeSellerTransferId) return;
+    if (sale.paymentProviderStatus === "paid") return;
     const fee = sale.marketplaceFeeSnapshot || {};
     const marketplaceFeeMinor = Number(fee.marketplaceFeeMinor);
     const sellerProceedsMinor = Number(fee.sellerProceedsBeforeTaxMinor);
@@ -287,19 +239,6 @@ function createStripeWebhookHandler(admin, options = {}) {
       throw new Error(
           "Stripe sale checkout does not match the immutable sale snapshot.",
       );
-    }
-    const sellerProvider = await db.collection("payment_provider_accounts")
-        .doc(String(sale.sellerUid || "")).get();
-    if (!sellerProvider.exists ||
-        sellerProvider.data().transferStatus !== "active") {
-      throw new Error("The seller Stripe recipient account is not payout-ready.");
-    }
-    if (sellerProvider.data().sellerPayoutHold === true) {
-      throw new Error("The seller account has an unresolved financial hold.");
-    }
-    const destination = String(sellerProvider.data().stripeAccountId || "");
-    if (!destination.startsWith("acct_")) {
-      throw new Error("The seller Stripe recipient account is invalid.");
     }
     const paymentIntentId = typeof session.payment_intent === "string" ?
       session.payment_intent :
@@ -323,25 +262,6 @@ function createStripeWebhookHandler(admin, options = {}) {
         `PB_${transactionId}`,
     ).slice(0, 200);
 
-    let transfer = null;
-    if (sellerProceedsMinor > 0) {
-      transfer = await stripeFormRequest({
-        secretKey: stripeSecretKey.value(),
-        path: "/v1/transfers",
-        idempotencyKey: `pipebuyer-seller-transfer-${transactionId}`,
-        fields: {
-          amount: sellerProceedsMinor,
-          currency: String(fee.currency || sale.currency || "CAD").toLowerCase(),
-          destination,
-          source_transaction: chargeId,
-          transfer_group: transferGroup,
-          "metadata[pipeBuyerTransactionId]": transactionId,
-          "metadata[listingId]": String(sale.listingId || ""),
-          "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
-        },
-      });
-    }
-
     const amountTotal = Number(session.amount_total || 0);
     const taxCollectedMinor = Number(
         session.total_details && session.total_details.amount_tax || 0,
@@ -353,8 +273,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       const affiliateLedger = await firestoreTransaction.get(affiliateLedgerRef);
       if (!current.exists) return;
       const currentData = current.data();
-      if (currentData.paymentProviderStatus === "paid" &&
-          currentData.stripeSellerTransferId) return;
+      if (currentData.paymentProviderStatus === "paid") return;
       firestoreTransaction.set(transactionRef, {
         paymentMethod: "stripe_checkout",
         paymentProvider: "stripe",
@@ -363,14 +282,15 @@ function createStripeWebhookHandler(admin, options = {}) {
         stripeCheckoutSessionId: String(session.id || ""),
         stripePaymentIntentId: paymentIntentId,
         stripeChargeId: chargeId,
-        stripeSellerTransferId: transfer ? String(transfer.id || "") : null,
+        stripeSellerTransferId: null,
+        sellerPayoutStatus: "pending_release",
         stripeTransferGroup: transferGroup,
         buyerChargedMinor: amountTotal,
         refundedMinor: 0,
         taxCollectedMinor,
         sellerProceedsMinor,
         platformMarketplaceFeeMinor: marketplaceFeeMinor,
-        financialStatus: "settled",
+        financialStatus: "paid_pending_fulfillment",
         financialHold: false,
         paidAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),

@@ -5,7 +5,7 @@
 const coreExports = require("./index");
 Object.assign(exports, coreExports);
 
-const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {HttpsError, onCall, onRequest} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {createAdminRuntime} = require("./admin_runtime");
@@ -31,6 +31,9 @@ const {
   stripeSecretKey,
 } = require("./stripe_marketplace_commands");
 const {createStripeCheckoutCommands} = require("./stripe_checkout_commands");
+const {
+  createMarketplacePaymentLifecycle,
+} = require("./marketplace_payment_lifecycle");
 const {
   createExternalSettlementCommands,
 } = require("./external_settlement_commands");
@@ -76,6 +79,7 @@ const marketplaceCommands = createMarketplaceCommands(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const stripeMarketplaceCommands = createStripeMarketplaceCommands(admin);
 const stripeCheckoutCommands = createStripeCheckoutCommands(admin);
+const marketplacePaymentLifecycle = createMarketplacePaymentLifecycle(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCatalog = createDispatchSubscriptionCatalog(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
@@ -285,3 +289,43 @@ exports.onMarketplaceTransactionCreatedMonetization = onDocumentCreated(
       transactionData: event.data && event.data.data(),
     }),
 );
+
+// Timed Buying produces an authoritative auction settlement record. Mirror the
+// winning purchase into the normal marketplace transaction pipeline so pricing,
+// fees, checkout, refunds and seller release have one implementation.
+exports.onAuctionTransactionCreatedPaymentMirror = onDocumentCreated(
+    {
+      document: "auction_transactions/{listingId}",
+      retry: true,
+    },
+    async (event) => marketplacePaymentLifecycle.mirrorAuctionTransaction({
+      listingId: event.params.listingId,
+      transactionData: event.data && event.data.data(),
+    }),
+);
+
+exports.onAuctionTransactionUpdatedPaymentMirror = onDocumentUpdated(
+    {
+      document: "auction_transactions/{listingId}",
+      retry: true,
+    },
+    async (event) => marketplacePaymentLifecycle.syncAuctionTransaction({
+      listingId: event.params.listingId,
+      transactionData: event.data && event.data.after && event.data.after.data(),
+    }),
+);
+
+// Physical-goods seller proceeds are intentionally released after completion,
+// not from the Checkout-completed webhook. Stripe idempotency prevents duplicate
+// transfers if this retryable trigger runs more than once.
+exports.onMarketplaceTransactionUpdatedSellerRelease = onDocumentUpdated(
+    {
+      document: "marketplace_transactions/{transactionId}",
+      retry: true,
+      secrets: [stripeSecretKey.name],
+    },
+    async (event) => marketplacePaymentLifecycle.releaseSellerFunds({
+      transactionId: event.params.transactionId,
+    }),
+);
+

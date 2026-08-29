@@ -30,7 +30,7 @@ test("production mode requires explicit confirmation", () => {
   assert.equal(next.stripeMode, "production");
 });
 
-test("full marketplace checkout still requires active tax registration", () => {
+test("full marketplace checkout requires tax registration or audited collection deferral", () => {
   assert.throws(
       () => validateReadiness({
         ...base,
@@ -42,7 +42,7 @@ test("full marketplace checkout still requires active tax registration", () => {
         stripeTaxPendingBillingApproved: true,
         stripeReconciliationReady: true,
       }, {confirmProduction: true}),
-      /active tax registration/i,
+      /registered automatic tax or an audited deferred tax-collection decision/i,
   );
   const ready = validateReadiness({
     ...base,
@@ -54,6 +54,29 @@ test("full marketplace checkout still requires active tax registration", () => {
     stripeReconciliationReady: true,
   }, {confirmProduction: true});
   assert.equal(ready.stripeCheckoutEnabled, true);
+  const deferred = validateReadiness({
+    ...base,
+    stripeMode: "production",
+    stripeConnectOnboardingEnabled: true,
+    stripeCheckoutEnabled: true,
+    stripeWebhookVerified: true,
+    marketplaceTaxCollectionDeferredApproved: true,
+    stripeReconciliationReady: true,
+  }, {confirmProduction: true});
+  assert.equal(deferred.stripeCheckoutEnabled, true);
+  assert.equal(deferred.stripeTaxReady, false);
+});
+
+test("registered tax and collection deferral cannot be enabled together", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeMode: "production",
+        stripeTaxReady: true,
+        marketplaceTaxCollectionDeferredApproved: true,
+      }, {confirmProduction: true}),
+      /cannot both be enabled/i,
+  );
 });
 
 test("pending tax registration alone cannot authorize Dispatch billing", () => {
