@@ -1,0 +1,48 @@
+name: Release VIP Monthly Live 2026-08-29
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release-vip-monthly-live-20260829.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch-verified-production-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      RELEASE_SHA: a2ab6ca51eb1eb56e1f167cfd9ca702658a999d0
+      TARGET_REF: main
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact VIP release is on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin "$TARGET_REF"
+          git cat-file -e "$RELEASE_SHA^{commit}"
+          git merge-base --is-ancestor "$RELEASE_SHA" "origin/$TARGET_REF"
+          git show "$RELEASE_SHA:firebase/functions/stripe_marketplace_config.js" | grep -q 'price_1U9h0tDkO07WMXyRgdzAmm43'
+          git show "$RELEASE_SHA:firebase/functions/bootstrap.js" | grep -q 'createVipSubscriptionCheckout'
+          git show "$RELEASE_SHA:lib/marketplace/marketplace_vip_access.dart" | grep -q 'VipSubscriptionCheckoutButton'
+
+      - name: Dispatch full verified production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run deploy.yml \
+            --ref "$TARGET_REF" \
+            -f environment=production \
+            -f commit_sha="$RELEASE_SHA" \
+            -f app_check_mode=observe \
+            -f production_confirmation=PRODUCTION
+          echo "Dispatched deploy.yml for exact VIP release $RELEASE_SHA"
