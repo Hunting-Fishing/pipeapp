@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   repair:
-    name: Apply and validate payment flow repair
+    name: Validate paid completion gate
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -36,16 +36,11 @@ jobs:
           cache: npm
           cache-dependency-path: firebase/functions/package-lock.json
 
-      - name: Apply deterministic repair
+      - name: Apply server-side completion gate
         shell: bash
         run: |
           set -euo pipefail
-          python3 tool/repair_marketplace_payments_20260829.py
-          python3 tool/repair_marketplace_payments_20260829_followup.py
-          dart format \
-            lib/marketplace/marketplace_secure_payment.dart \
-            lib/marketplace/marketplace_messages_page.dart \
-            lib/marketplace/marketplace_auction_settlement.dart
+          python3 tool/repair_marketplace_payments_20260829_completion_gate.py
 
       - name: Validate Functions
         shell: bash
@@ -64,30 +59,19 @@ jobs:
           flutter analyze lib test
           flutter test
 
-      - name: Commit validated repair
+      - name: Commit validated completion gate
         shell: bash
         run: |
           set -euo pipefail
           if git diff --quiet; then
-            echo '::error::Repair produced no changes.'
+            echo '::error::Completion gate produced no changes.'
             exit 1
           fi
           git config user.name 'Pipe Buyer Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add \
-            firebase/functions/payment_readiness_admin.js \
-            firebase/functions/pending_tax_policy.js \
-            firebase/functions/stripe_marketplace_commands.js \
-            firebase/functions/stripe_checkout_commands.js \
-            firebase/functions/stripe_webhook.js \
-            firebase/functions/marketplace_payment_lifecycle.js \
-            firebase/functions/bootstrap.js \
-            firebase/functions/test/stripe_checkout_readiness.test.js \
-            firebase/functions/test/payment_readiness_admin.test.js \
-            firebase/functions/test/pending_tax_policy.test.js \
-            firebase/functions/test/marketplace_payment_lifecycle.test.js \
-            lib/marketplace/marketplace_secure_payment.dart \
-            lib/marketplace/marketplace_messages_page.dart \
-            lib/marketplace/marketplace_auction_settlement.dart
-          git commit -m 'Repair marketplace checkout and Timed Buying settlement flow'
+            firebase/functions/marketplace_command_policy.js \
+            firebase/functions/marketplace_commands.js \
+            firebase/functions/test/marketplace_command_policy.test.js
+          git commit -m 'Require payment before marketplace completion'
           git push origin HEAD
