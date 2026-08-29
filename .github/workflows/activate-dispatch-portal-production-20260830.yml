@@ -1,0 +1,383 @@
+name: Activate Dispatch Portal Production 2026-08-30
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/activate-dispatch-portal-production-20260830.yml'
+      - 'docs/repairs/DISPATCH_CUSTOMER_PORTAL_PRODUCTION_2026-08-30.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipe-buyer-dispatch-portal-production-20260830
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    name: Configure and activate restricted Dispatch billing portal
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment: production
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_PROJECT_ID: flutter-flow-pipe
+      EXPECTED_STRIPE_ACCOUNT: acct_1U2QmKDkO07WMXyR
+      REQUIRED_RUNTIME_SHA: c6f7916dbc6abdfb4a11b68a988121f075299372
+      PORTAL_RETURN_URL: https://www.pipebuyer.com/payments/dispatch
+      ACTIVATION_URL: https://us-central1-flutter-flow-pipe.cloudfunctions.net/productionDispatchPortalActivation
+
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Prove approved portal runtime is still present
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          git cat-file -e "$REQUIRED_RUNTIME_SHA^{commit}"
+          git merge-base --is-ancestor "$REQUIRED_RUNTIME_SHA" HEAD
+          grep -q 'subscriptionUpdate.enabled !== true' firebase/functions/dispatch_subscription_portal.js
+          grep -q 'createDispatchSubscriptionPortalSession' firebase/functions/bootstrap.js
+          grep -q 'Manage billing with Stripe' lib/marketplace/marketplace_dispatch_membership_page.dart
+          grep -q 'managementAvailable' firebase/functions/dispatch_subscription_status.js
+          echo 'Approved restricted Dispatch Customer Portal runtime is present.'
+
+      - name: Install Node and Firebase CLI
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+      - shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+          npm install --global firebase-tools@15.25.0 --no-audit --no-fund
+
+      - name: Create or reuse dedicated live Dispatch portal configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          firebase functions:secrets:access STRIPE_SECRET_PRODUCTION \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
+          node <<'NODE'
+          const fs = require('node:fs');
+          const key = fs.readFileSync('.stripe-key', 'utf8').trim();
+          const expectedAccount = process.env.EXPECTED_STRIPE_ACCOUNT;
+          const returnUrl = process.env.PORTAL_RETURN_URL;
+
+          function append(form, key, value) {
+            if (Array.isArray(value)) {
+              for (const item of value) form.append(`${key}[]`, String(item));
+              return;
+            }
+            form.append(key, String(value));
+          }
+
+          async function stripe(path, {method = 'GET', fields = null} = {}) {
+            const form = new URLSearchParams();
+            for (const [field, value] of Object.entries(fields || {})) {
+              append(form, field, value);
+            }
+            const response = await fetch(`https://api.stripe.com${path}`, {
+              method,
+              headers: {
+                Authorization: `Bearer ${key}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Stripe-Version': '2026-06-24.preview',
+              },
+              ...(method === 'GET' ? {} : {body: form.toString()}),
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+              const code = String(payload && payload.error && (payload.error.code || payload.error.type) || 'unknown');
+              throw new Error(`Stripe portal request failed (${response.status}, ${code}).`);
+            }
+            return payload;
+          }
+
+          function approved(config) {
+            const features = config && config.features || {};
+            const cancel = features.subscription_cancel || {};
+            const payment = features.payment_method_update || {};
+            const update = features.subscription_update || {};
+            return Boolean(
+              config && /^bpc_[A-Za-z0-9]+$/.test(String(config.id || '')) &&
+              config.active === true &&
+              config.livemode === true &&
+              payment.enabled === true &&
+              features.invoice_history && features.invoice_history.enabled === true &&
+              cancel.enabled === true &&
+              cancel.mode === 'at_period_end' &&
+              String(cancel.proration_behavior || 'none') === 'none' &&
+              update.enabled !== true &&
+              String(config.default_return_url || '') === returnUrl
+            );
+          }
+
+          (async () => {
+            const [account, balance, configs] = await Promise.all([
+              stripe('/v1/account'),
+              stripe('/v1/balance'),
+              stripe('/v1/billing_portal/configurations?active=true&limit=100'),
+            ]);
+            if (String(account.id || '') !== expectedAccount || balance.livemode !== true) {
+              throw new Error('Pipe Buyer live Stripe account validation failed.');
+            }
+
+            let config = (configs.data || []).find((item) =>
+              item && item.metadata &&
+              item.metadata.app === 'pipe_buyer' &&
+              item.metadata.surface === 'dispatch' &&
+              item.metadata.policy_version === 'dispatch_portal_v1');
+
+            if (config && !approved(config)) {
+              throw new Error('Existing dedicated Dispatch portal configuration does not satisfy the approved restrictions.');
+            }
+
+            if (!config) {
+              config = await stripe('/v1/billing_portal/configurations', {
+                method: 'POST',
+                fields: {
+                  name: 'Pipe Buyer Dispatch',
+                  'business_profile[headline]': 'Manage Pipe Buyer Dispatch billing',
+                  'business_profile[privacy_policy_url]': 'https://www.pipebuyer.com/privacy',
+                  'business_profile[terms_of_service_url]': 'https://www.pipebuyer.com/terms',
+                  default_return_url: returnUrl,
+                  'features[customer_update][enabled]': 'true',
+                  'features[customer_update][allowed_updates]': [
+                    'address', 'email', 'name', 'phone', 'tax_id',
+                  ],
+                  'features[invoice_history][enabled]': 'true',
+                  'features[payment_method_update][enabled]': 'true',
+                  'features[subscription_cancel][enabled]': 'true',
+                  'features[subscription_cancel][mode]': 'at_period_end',
+                  'features[subscription_cancel][proration_behavior]': 'none',
+                  'features[subscription_cancel][cancellation_reason][enabled]': 'true',
+                  'features[subscription_cancel][cancellation_reason][options]': [
+                    'too_expensive', 'switched_service', 'unused', 'other',
+                  ],
+                  'features[subscription_update][enabled]': 'false',
+                  'login_page[enabled]': 'false',
+                  'metadata[app]': 'pipe_buyer',
+                  'metadata[surface]': 'dispatch',
+                  'metadata[policy_version]': 'dispatch_portal_v1',
+                },
+              });
+            }
+
+            if (!approved(config)) {
+              throw new Error('Stripe did not return an approved Dispatch portal configuration.');
+            }
+            fs.writeFileSync('.dispatch-portal-config-id', String(config.id), {mode: 0o600});
+            console.log('Dedicated live Dispatch portal configuration verified.');
+          })().catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Prepare one-time Firebase readiness activation token
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          openssl rand -hex 32 > .dispatch-portal-activation-token
+          firebase functions:secrets:set PIPE_DISPATCH_PORTAL_ACTIVATION_TOKEN \
+            --data-file .dispatch-portal-activation-token \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive > /dev/null
+
+      - name: Build temporary portal-readiness activator
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > firebase/functions/production_dispatch_portal_activation_temp.js <<'EOF'
+          "use strict";
+          const crypto = require("node:crypto");
+
+          function safeTokenMatch(provided, expected) {
+            const left = Buffer.from(String(provided || ""));
+            const right = Buffer.from(String(expected || ""));
+            return left.length === right.length && left.length === 64 &&
+              crypto.timingSafeEqual(left, right);
+          }
+
+          function createProductionDispatchPortalActivation(admin) {
+            const db = admin.firestore();
+            const FieldValue = admin.firestore.FieldValue;
+            return async (req, res) => {
+              try {
+                if (req.method !== "POST") return res.status(405).send("Method not allowed");
+                const expected = String(process.env.PIPE_DISPATCH_PORTAL_ACTIVATION_TOKEN || "");
+                const provided = String(req.get("x-pipebuyer-dispatch-portal-token") || "");
+                if (!safeTokenMatch(provided, expected)) return res.status(403).send("Forbidden");
+
+                const configurationId = String(req.body && req.body.configurationId || "").trim();
+                const returnUrl = String(req.body && req.body.returnUrl || "").trim();
+                if (!/^bpc_[A-Za-z0-9]+$/.test(configurationId) ||
+                    returnUrl !== "https://www.pipebuyer.com/payments/dispatch") {
+                  return res.status(400).json({ok: false, error: "Invalid portal activation input."});
+                }
+
+                const ref = db.collection("platform_configuration").doc("payment_provider_readiness");
+                const auditRef = db.collection("payment_readiness_audit").doc();
+                const result = await db.runTransaction(async (transaction) => {
+                  const snapshot = await transaction.get(ref);
+                  if (!snapshot.exists) throw new Error("Payment provider readiness is missing.");
+                  const before = snapshot.data() || {};
+                  const required = {
+                    stripeMode: "production",
+                    stripeSubscriptionsEnabled: true,
+                    stripeWebhookVerified: true,
+                    stripeReconciliationReady: true,
+                  };
+                  for (const [key, expectedValue] of Object.entries(required)) {
+                    if (before[key] !== expectedValue) {
+                      throw new Error(`Readiness invariant failed for ${key}.`);
+                    }
+                  }
+
+                  if (before.stripeDispatchPortalEnabled === true &&
+                      before.stripeDispatchPortalConfigurationId === configurationId &&
+                      before.dispatchPortalReturnUrl === returnUrl) {
+                    return {
+                      unchanged: true,
+                      revision: Number(before.revision || 0),
+                      stripeDispatchPortalEnabled: true,
+                      stripeDispatchPortalConfigurationId: configurationId,
+                      dispatchPortalReturnUrl: returnUrl,
+                    };
+                  }
+
+                  const revision = Math.max(0, Number(before.revision || 0)) + 1;
+                  const reason = "Enable the restricted Pipe Buyer Dispatch Stripe Customer Portal after verifying payment-method updates, end-of-period cancellation, and disabled subscription price changes.";
+                  const next = {
+                    ...before,
+                    stripeDispatchPortalEnabled: true,
+                    stripeDispatchPortalConfigurationId: configurationId,
+                    dispatchPortalReturnUrl: returnUrl,
+                    revision,
+                  };
+                  transaction.update(ref, {
+                    stripeDispatchPortalEnabled: true,
+                    stripeDispatchPortalConfigurationId: configurationId,
+                    dispatchPortalReturnUrl: returnUrl,
+                    revision,
+                    lastChangedByUid: "system:github-dispatch-portal-activation",
+                    lastChangeReason: reason,
+                    updatedAt: FieldValue.serverTimestamp(),
+                  });
+                  transaction.create(auditRef, {
+                    administratorUid: "system:github-dispatch-portal-activation",
+                    reason,
+                    revision,
+                    previous: before,
+                    next,
+                    createdAt: FieldValue.serverTimestamp(),
+                  });
+                  return {
+                    unchanged: false,
+                    revision,
+                    stripeDispatchPortalEnabled: true,
+                    stripeDispatchPortalConfigurationId: configurationId,
+                    dispatchPortalReturnUrl: returnUrl,
+                  };
+                });
+                return res.status(200).json({ok: true, result});
+              } catch (error) {
+                console.error("Dispatch portal production activation failed", {
+                  message: String(error && error.message || error).slice(0, 240),
+                });
+                return res.status(500).json({ok: false});
+              }
+            };
+          }
+
+          module.exports = {createProductionDispatchPortalActivation};
+          EOF
+          cat >> firebase/functions/production_bootstrap.js <<'EOF'
+
+          // Temporary audited Dispatch portal readiness activator. Deleted immediately after use.
+          const {onRequest: onRequestDispatchPortalActivation} = require("firebase-functions/v2/https");
+          const {createProductionDispatchPortalActivation} = require("./production_dispatch_portal_activation_temp");
+          exports.productionDispatchPortalActivation = onRequestDispatchPortalActivation(
+              {secrets: ["PIPE_DISPATCH_PORTAL_ACTIVATION_TOKEN"], invoker: "public"},
+              createProductionDispatchPortalActivation(createAdminRuntime()),
+          );
+          EOF
+          node --check firebase/functions/production_dispatch_portal_activation_temp.js
+          node --check firebase/functions/production_bootstrap.js
+
+      - name: Deploy one-time portal-readiness activator
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase deploy \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --config firebase.json \
+            --only functions:marketplace:productionDispatchPortalActivation \
+            --message "Pipe Buyer Dispatch portal readiness activation $GITHUB_SHA" \
+            --force \
+            --non-interactive
+
+      - name: Prove token guard and activate Dispatch portal only
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error -o portal-handler-probe.txt -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' "$ACTIVATION_URL")"
+          if [[ "$status" != "403" || "$(cat portal-handler-probe.txt)" != "Forbidden" ]]; then
+            echo "::error::Temporary Dispatch portal activator token guard is not working."
+            cat portal-handler-probe.txt || true
+            exit 1
+          fi
+
+          token="$(cat .dispatch-portal-activation-token)"
+          configuration_id="$(cat .dispatch-portal-config-id)"
+          payload="$(node -e 'console.log(JSON.stringify({configurationId: process.argv[1], returnUrl: process.argv[2]}))' "$configuration_id" "$PORTAL_RETURN_URL")"
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-delay 3 --retry-all-errors \
+            -X POST \
+            -H "X-PipeBuyer-Dispatch-Portal-Token: $token" \
+            -H 'Content-Type: application/json' \
+            -d "$payload" \
+            "$ACTIVATION_URL" > portal-activation-result.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync('portal-activation-result.json', 'utf8'));
+          const result = payload && payload.result || {};
+          if (payload.ok !== true ||
+              result.stripeDispatchPortalEnabled !== true ||
+              !/^bpc_[A-Za-z0-9]+$/.test(String(result.stripeDispatchPortalConfigurationId || '')) ||
+              result.dispatchPortalReturnUrl !== process.env.PORTAL_RETURN_URL) {
+            throw new Error('Dispatch portal readiness activation was not verified.');
+          }
+          console.log('Dispatch Customer Portal readiness activated without changing other payment readiness fields.');
+          NODE
+
+      - name: Remove temporary activation endpoint and local credentials
+        if: always()
+        shell: bash
+        run: |
+          firebase functions:delete productionDispatchPortalActivation \
+            --region us-central1 \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --force || true
+          rm -f \
+            .stripe-key \
+            .dispatch-portal-config-id \
+            .dispatch-portal-activation-token \
+            portal-handler-probe.txt \
+            portal-activation-result.json
