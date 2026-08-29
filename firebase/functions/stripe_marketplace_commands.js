@@ -13,6 +13,8 @@ const {
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 
 const STRIPE_SECRET_PRODUCTION_NAME = "STRIPE_SECRET_PRODUCTION";
+const STRIPE_CONNECT_ACCOUNTS_API_VERSION =
+  stripeMarketplaceConfig.connectAccountsApiVersion;
 const stripeSecretKey = Object.freeze({
   name: STRIPE_SECRET_PRODUCTION_NAME,
   value() {
@@ -104,7 +106,7 @@ async function stripeRequest({secretKey, path, method = "POST", body, query}) {
     headers: {
       Authorization: `Bearer ${secretKey}`,
       "Content-Type": "application/json",
-      "Stripe-Version": stripeMarketplaceConfig.apiVersion,
+      "Stripe-Version": STRIPE_CONNECT_ACCOUNTS_API_VERSION,
     },
     ...(body == null ? {} : {body: JSON.stringify(body)}),
   });
@@ -421,6 +423,7 @@ function createStripeMarketplaceCommands(admin) {
 }
 
 module.exports = {
+  STRIPE_CONNECT_ACCOUNTS_API_VERSION,
   STRIPE_SECRET_PRODUCTION_NAME,
   createStripeMarketplaceCommands,
   loadProviderReadiness,
