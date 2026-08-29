@@ -20,6 +20,9 @@ const {
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
+  resolveDispatchPromotionCode,
+} = require("./dispatch_subscription_promotions");
+const {
   automaticTaxEnabled,
   taxBillingPrepared,
   taxCollectionStatus,
@@ -27,7 +30,7 @@ const {
 
 const CHECKOUT_CREATION_LEASE_MS = 2 * 60 * 1000;
 const CHECKOUT_FALLBACK_EXPIRY_MS = 24 * 60 * 60 * 1000;
-const CHECKOUT_CONFIGURATION_VERSION = 2;
+const CHECKOUT_CONFIGURATION_VERSION = 3;
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -82,9 +85,17 @@ function dispatchMembershipIsCurrent(membership, nowMillis = Date.now()) {
   return timestampMillis(membership.currentPeriodEnd) > nowMillis;
 }
 
-function reusableCheckoutState(state, plan, nowMillis = Date.now()) {
+function reusableCheckoutState(
+    state,
+    plan,
+    nowMillis = Date.now(),
+    promotionCodeId = "",
+) {
   if (!state || state.plan !== plan) return false;
   if (state.checkoutConfigurationVersion !== CHECKOUT_CONFIGURATION_VERSION) {
+    return false;
+  }
+  if (String(state.promotionCodeId || "") !== String(promotionCodeId || "")) {
     return false;
   }
   if (state.status !== "created") return false;
@@ -136,13 +147,38 @@ function createDispatchSubscriptionCommands(admin) {
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
-      const [entitlementSnapshot, relationshipSnapshot] = await Promise.all([
-        db.collection("promotion_entitlements").doc(uid).get(),
-        db.collection("affiliate_relationships").doc(uid).get(),
-      ]);
+      const [entitlementSnapshot, relationshipSnapshot, providerSnapshot] =
+        await Promise.all([
+          db.collection("promotion_entitlements").doc(uid).get(),
+          db.collection("affiliate_relationships").doc(uid).get(),
+          db.collection("dispatch_subscription_provider_state").doc(uid).get(),
+        ]);
       const entitlement = entitlementSnapshot.exists ? entitlementSnapshot.data() : null;
       const couponId = couponFromEntitlement(entitlement);
-      const allowPromotionCodes = promotionCodeEntryAllowed(plan, couponId);
+      const requestedPromotionCode = String(
+          request.data && request.data.promotionCode || "",
+      ).trim();
+      if (requestedPromotionCode && !promotionCodeEntryAllowed(plan, couponId)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Promo codes can currently be applied to monthly Dispatch memberships without another automatic promotion.",
+        );
+      }
+      const providerState = providerSnapshot.exists ? providerSnapshot.data() : null;
+      const stripeCustomerId = providerState && providerState.ownerUid === uid &&
+          String(providerState.stripeCustomerId || "").startsWith("cus_") ?
+        String(providerState.stripeCustomerId) : "";
+      const secretKey = stripeSecretKey.value();
+      const promotion = requestedPromotionCode ?
+        await resolveDispatchPromotionCode({
+          secretKey,
+          code: requestedPromotionCode,
+          stripeCustomerId,
+          existingSubscriber: false,
+        }) : null;
+      const promotionCodeId = promotion ? promotion.id : "";
+      const allowPromotionCodes =
+        promotionCodeEntryAllowed(plan, couponId) && !promotionCodeId;
       const referrerUid = relationshipSnapshot.exists ?
         String(relationshipSnapshot.data().referrerUid || "").trim() : "";
 
@@ -164,7 +200,12 @@ function createDispatchSubscriptionCommands(admin) {
           );
         }
 
-        if (reusableCheckoutState(state, plan, nowMillis)) {
+        if (reusableCheckoutState(
+            state,
+            plan,
+            nowMillis,
+            promotionCodeId,
+        )) {
           return {
             reuse: true,
             checkoutSessionId: String(state.checkoutSessionId),
@@ -177,10 +218,11 @@ function createDispatchSubscriptionCommands(admin) {
         const stateExpiry = timestampMillis(state.expiresAt);
         const stateLeaseExpiry = timestampMillis(state.leaseExpiresAt);
         if (state.status === "creating" && stateExpiry > nowMillis) {
-          if (state.plan !== plan) {
+          if (state.plan !== plan ||
+              String(state.promotionCodeId || "") !== promotionCodeId) {
             throw new HttpsError(
                 "failed-precondition",
-                "A different Dispatch membership checkout is already being prepared. Finish or retry that checkout before changing plans.",
+                "A different Dispatch membership checkout is already being prepared. Finish or retry that checkout before changing the plan or promo code.",
             );
           }
           const attemptNumber = Math.max(1, Number(state.attemptNumber || 1));
@@ -195,11 +237,11 @@ function createDispatchSubscriptionCommands(admin) {
         }
 
         if (state.status === "created" && stateExpiry > nowMillis &&
-            state.plan !== plan) {
-          throw new HttpsError(
-              "failed-precondition",
-              "A different Dispatch membership checkout is already open. Complete that checkout before changing plans.",
-          );
+            (state.plan !== plan ||
+             String(state.promotionCodeId || "") !== promotionCodeId)) {
+          // A cached session for a different plan or promotion must not be reused.
+          // Starting a fresh session here is safe because creating Checkout does
+          // not itself charge the customer.
         }
 
         const previousAttempt = Number(state.attemptNumber || 0);
@@ -212,6 +254,7 @@ function createDispatchSubscriptionCommands(admin) {
           status: "creating",
           checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION,
           promotionCodeEntryAllowed: allowPromotionCodes,
+          promotionCodeId: promotionCodeId || null,
           attemptNumber,
           checkoutSessionId: FieldValue.delete(),
           checkoutUrl: FieldValue.delete(),
@@ -228,7 +271,10 @@ function createDispatchSubscriptionCommands(admin) {
           checkoutSessionId: reservation.checkoutSessionId,
           checkoutUrl: reservation.checkoutUrl,
           plan,
-          promotionApplied: Boolean(couponId),
+          promotionApplied: Boolean(couponId || promotionCodeId),
+          promotionCodeApplied: Boolean(promotionCodeId),
+          promotionCode: promotion ? promotion.code : "",
+          promotionCodeSummary: promotion ? promotion.summary : "",
           promotionCodeEntryAllowed: reservation.promotionCodeEntryAllowed,
           taxCollectionStatus: collectionStatus,
           alreadyCreated: true,
@@ -241,37 +287,57 @@ function createDispatchSubscriptionCommands(admin) {
         );
       }
 
-      const checkout = await stripeFormRequest({
-        secretKey: stripeSecretKey.value(),
-        path: "/v1/checkout/sessions",
-        idempotencyKey: checkoutAttemptKey(uid, reservation.attemptNumber),
-        fields: {
-          mode: "subscription",
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-          client_reference_id: uid,
-          billing_address_collection: "required",
-          allow_promotion_codes: allowPromotionCodes ? "true" : "false",
-          "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
-          "line_items[0][price]": priceId,
-          "line_items[0][quantity]": 1,
-          ...(couponId ? {"discounts[0][coupon]": couponId} : {}),
-          "metadata[billingType]": "dispatch_subscription",
-          "metadata[pipeBuyerUid]": uid,
-          "metadata[dispatchPlan]": plan,
-          "metadata[taxCollectionStatus]": collectionStatus,
-          "metadata[checkoutAttempt]": String(reservation.attemptNumber),
-          ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
-          ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
-          "subscription_data[metadata][billingType]": "dispatch_subscription",
-          "subscription_data[metadata][pipeBuyerUid]": uid,
-          "subscription_data[metadata][dispatchPlan]": plan,
-          "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
-          ...(referrerUid ? {
-            "subscription_data[metadata][affiliateReferrerUid]": referrerUid,
-          } : {}),
-        },
-      });
+      let checkout;
+      try {
+        checkout = await stripeFormRequest({
+          secretKey,
+          path: "/v1/checkout/sessions",
+          idempotencyKey: checkoutAttemptKey(uid, reservation.attemptNumber),
+          fields: {
+            mode: "subscription",
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            client_reference_id: uid,
+            ...(stripeCustomerId ? {customer: stripeCustomerId} : {}),
+            billing_address_collection: "required",
+            allow_promotion_codes: allowPromotionCodes ? "true" : "false",
+            "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
+            "line_items[0][price]": priceId,
+            "line_items[0][quantity]": 1,
+            ...(promotionCodeId ? {
+              "discounts[0][promotion_code]": promotionCodeId,
+            } : couponId ? {"discounts[0][coupon]": couponId} : {}),
+            "metadata[billingType]": "dispatch_subscription",
+            "metadata[pipeBuyerUid]": uid,
+            "metadata[dispatchPlan]": plan,
+            "metadata[taxCollectionStatus]": collectionStatus,
+            "metadata[checkoutAttempt]": String(reservation.attemptNumber),
+            ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
+            ...(promotionCodeId ? {
+              "metadata[promotionCodeId]": promotionCodeId,
+            } : {}),
+            ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
+            "subscription_data[metadata][billingType]": "dispatch_subscription",
+            "subscription_data[metadata][pipeBuyerUid]": uid,
+            "subscription_data[metadata][dispatchPlan]": plan,
+            "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
+            ...(promotionCodeId ? {
+              "subscription_data[metadata][promotionCodeId]": promotionCodeId,
+            } : {}),
+            ...(referrerUid ? {
+              "subscription_data[metadata][affiliateReferrerUid]": referrerUid,
+            } : {}),
+          },
+        });
+      } catch (error) {
+        if (promotionCodeId && error instanceof HttpsError) {
+          throw new HttpsError(
+              error.code,
+              "That promo code could not be applied to this checkout. Check its eligibility and try again.",
+          );
+        }
+        throw error;
+      }
       const sessionId = String(checkout.id || "");
       const checkoutUrl = String(checkout.url || "");
       if (!sessionId.startsWith("cs_") || !checkoutUrl.startsWith("https://")) {
@@ -286,6 +352,7 @@ function createDispatchSubscriptionCommands(admin) {
         plan,
         priceId,
         couponId: couponId || null,
+        promotionCodeId: promotionCodeId || null,
         promotionCodeEntryAllowed: allowPromotionCodes,
         checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION,
         referrerUid: referrerUid || null,
@@ -306,6 +373,7 @@ function createDispatchSubscriptionCommands(admin) {
           status: "created",
           checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION,
           promotionCodeEntryAllowed: allowPromotionCodes,
+          promotionCodeId: promotionCodeId || null,
           attemptNumber: reservation.attemptNumber,
           checkoutSessionId: sessionId,
           checkoutUrl,
@@ -318,7 +386,10 @@ function createDispatchSubscriptionCommands(admin) {
         checkoutSessionId: sessionId,
         checkoutUrl,
         plan,
-        promotionApplied: Boolean(couponId),
+        promotionApplied: Boolean(couponId || promotionCodeId),
+        promotionCodeApplied: Boolean(promotionCodeId),
+        promotionCode: promotion ? promotion.code : "",
+        promotionCodeSummary: promotion ? promotion.summary : "",
         promotionCodeEntryAllowed: allowPromotionCodes,
         taxCollectionStatus: collectionStatus,
         alreadyCreated: false,
