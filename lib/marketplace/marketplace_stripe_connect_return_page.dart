@@ -49,7 +49,7 @@ class _MarketplaceStripeConnectReturnPageState
   }
 
   Future<void> _refreshStatus({bool userInitiated = false}) async {
-    if (!mounted || _loading && userInitiated) return;
+    if (!mounted || (_loading && userInitiated)) return;
     setState(() {
       _loading = true;
       _statusConfirmed = false;
@@ -211,8 +211,9 @@ class _MarketplaceStripeConnectReturnPageState
                   ),
                   const SizedBox(height: 18),
                   FilledButton.icon(
-                    onPressed:
-                        _isRefresh ? _continueOnboarding : _refreshStatus,
+                    onPressed: _isRefresh
+                        ? _continueOnboarding
+                        : () => _refreshStatus(userInitiated: true),
                     icon: const Icon(Icons.refresh_rounded),
                     label: Text(
                         _isRefresh ? 'Continue with Stripe' : 'Check again'),
