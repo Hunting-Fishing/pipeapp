@@ -1,0 +1,109 @@
+name: Finalize Stripe Integration Closure 2026-08-29
+
+on:
+  push:
+    branches:
+      - repair/stripe-integration-closure-20260829
+    paths:
+      - '.github/workflows/finalize-stripe-integration-closure-20260829.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: repair/stripe-integration-closure-20260829
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Resolve package language version
+        run: flutter pub get
+
+      - name: Format repair-owned Dart sources with resolved package version
+        run: |
+          dart format \
+            lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_subscription_billing_policy.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/marketplace_payout_settings_security_contract_test.dart \
+            test/marketplace_subscription_billing_policy_test.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart
+
+      - name: Verify formatter is idempotent
+        run: |
+          dart format --output=none --set-exit-if-changed \
+            lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_subscription_billing_policy.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/marketplace_payout_settings_security_contract_test.dart \
+            test/marketplace_subscription_billing_policy_test.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart
+
+      - name: Run Stripe integration closure tests
+        run: |
+          flutter test \
+            test/dispatch_subscription_checkout_test.dart \
+            test/vip_subscription_checkout_test.dart \
+            test/marketplace_subscription_billing_policy_test.dart \
+            test/marketplace_payout_settings_security_contract_test.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart \
+            test/marketplace_dispatch_membership_page_test.dart \
+            test/marketplace_vip_access_test.dart
+
+      - name: Confirm Account payout repair stayed surgical
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          changed_lines="$(git diff --numstat origin/main -- lib/marketplace/marketplace_account_hub.dart | awk '{print $1 + $2}')"
+          test "$changed_lines" = '4'
+          grep -Fq "Seller Payout Setup" lib/marketplace/marketplace_account_hub.dart
+          grep -Fq "Pipe Buyer does not store your bank account details" lib/marketplace/marketplace_account_hub.dart
+          if grep -Fq "ACH / Wire escrow releases" lib/marketplace/marketplace_account_hub.dart; then
+            echo '::error::Stale payout/escrow wording returned.'
+            exit 1
+          fi
+
+      - name: Keep final commit limited to validated formatting and helper removal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/finalize-stripe-integration-closure-20260829.yml
+          allowed='^(lib/marketplace/marketplace_payout_settings.dart|lib/marketplace/marketplace_subscription_billing_policy.dart|lib/marketplace/marketplace_dispatch_subscription_checkout.dart|lib/marketplace/marketplace_vip_subscription_checkout.dart|test/marketplace_payout_settings_security_contract_test.dart|test/marketplace_subscription_billing_policy_test.dart|test/marketplace_subscription_native_billing_contract_test.dart|.github/workflows/finalize-stripe-integration-closure-20260829.yml)$'
+          unexpected="$(git status --short | sed -E 's/^.. //' | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            echo '::error::Unexpected files changed during finalization:'
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit tested finalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_subscription_billing_policy.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/marketplace_payout_settings_security_contract_test.dart \
+            test/marketplace_subscription_billing_policy_test.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart \
+            .github/workflows/finalize-stripe-integration-closure-20260829.yml
+          git commit -m 'Finalize validated Stripe integration closure'
+          git push origin HEAD
