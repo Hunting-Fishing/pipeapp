@@ -9,7 +9,9 @@ on:
       - main
     paths:
       - 'firebase/functions/dispatch_subscription_commands.js'
+      - 'firebase/functions/stripe_marketplace_commands.js'
       - 'firebase/functions/test/subscription_monetization.test.js'
+      - 'firebase/functions/test/stripe_seller_onboarding_error_contract.test.js'
       - 'lib/marketplace/marketplace_payout_settings.dart'
       - 'lib/marketplace/marketplace_subscription_billing_policy.dart'
       - 'lib/marketplace/marketplace_dispatch_subscription_checkout.dart'
@@ -84,7 +86,7 @@ jobs:
             test/marketplace_dispatch_membership_page_test.dart \
             test/marketplace_vip_access_test.dart
 
-      - name: Validate Dispatch subscription Functions
+      - name: Validate Stripe Functions
         run: |
           npm ci --prefix firebase/functions
           npm run lint --prefix firebase/functions
