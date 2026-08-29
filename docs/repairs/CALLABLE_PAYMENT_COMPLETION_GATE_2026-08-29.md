@@ -26,3 +26,5 @@ The production callable policy remains unchanged.
 ## Launch rule retained
 
 Production buyer-to-seller Checkout must still create a paid authoritative transaction before either participant can confirm completion. Seller proceeds remain pending until both participants complete the transaction and the delayed seller-release lifecycle succeeds.
+
+Validation is executed on the isolated repair branch before this change can return to `main`.
