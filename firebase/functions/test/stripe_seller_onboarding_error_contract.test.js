@@ -35,6 +35,17 @@ test("seller setup exposes sanitized capability dependency explanation and reque
   );
 });
 
+test("seller setup exposes sanitized invalid request detail, parameter, and request reference", () => {
+  assert.equal(
+      stripeSellerSetupErrorMessage("invalid_request_error", {
+        stripeMessage: "This parameter is not supported for the account configuration.",
+        stripeParam: "controller[requirement_collection]",
+        stripeRequestId: "req_987654321",
+      }),
+      "Stripe rejected the seller payout setup: This parameter is not supported for the account configuration.. Parameter controller[requirement_collection]. Request req_987654321.",
+  );
+});
+
 test("seller setup diagnostic text redacts email and links", () => {
   assert.equal(
       sanitizeStripeSupportText(
