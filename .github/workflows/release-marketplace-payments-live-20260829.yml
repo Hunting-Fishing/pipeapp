@@ -1,4 +1,5 @@
 name: Release Marketplace Payments Live 2026-08-29
+# Release trigger: authenticated paid-completion gate repaired and validated 2026-08-29.
 
 on:
   push:

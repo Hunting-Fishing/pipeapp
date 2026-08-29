@@ -1,5 +1,5 @@
 name: Deploy Gated Payment Backend
-# Release trigger: marketplace checkout, Timed Buying mirror, and delayed seller release validated 2026-08-29.
+# Release trigger: marketplace checkout, Timed Buying mirror, delayed seller release, and callable payment gate validated 2026-08-29.
 
 on:
   push:
