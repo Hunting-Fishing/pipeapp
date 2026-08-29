@@ -1,0 +1,41 @@
+name: Read Stripe seller onboarding error
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - diagnostic/stripe-seller-onboarding-400-20260829
+    paths:
+      - ".github/workflows/read-stripe-seller-onboarding-error-20260829.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Inspect recent onboarding failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_PROJECT_ID: flutter-flow-pipe
+    steps:
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
+
+      - name: Read sanitized seller onboarding errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase functions:log \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --only createStripeSellerOnboardingLink \
+            --lines 200 2>&1 \
+            | grep -E "Stripe marketplace request failed|Stripe seller onboarding link failed|accounts_v2|failed-precondition|400" \
+            | tail -n 30 \
+            | tee onboarding-error.txt
+          if [[ ! -s onboarding-error.txt ]]; then
+            echo "No matching sanitized onboarding error lines found in the recent log window."
+          fi
