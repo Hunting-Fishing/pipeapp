@@ -574,12 +574,17 @@ function validateAuctionFinalization({listing, privateAuction, now}) {
   };
 }
 
+function paymentStatusAllowsCompletion(value) {
+  return ["paid", "external_agreed"].includes(String(value || ""));
+}
+
 function validateAuctionTransactionAction({
   sale,
   listing,
   actorUid,
   action,
   reason,
+  paymentProviderStatus,
   administrator = false,
 }) {
   if (!sale || !listing || sale.listingId !== listing.id) {
@@ -618,6 +623,12 @@ function validateAuctionTransactionAction({
         sellerConfirmed,
         status,
       };
+    }
+    if (!paymentStatusAllowsCompletion(paymentProviderStatus)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "The winning purchase must be paid before completion can be confirmed.",
+      );
     }
     if (!["pending_completion", "awaiting_buyer_confirmation",
       "awaiting_seller_confirmation"].includes(status)) {
@@ -798,6 +809,12 @@ function validateMarketplaceTransactionAction({
         sellerConfirmed,
         status,
       };
+    }
+    if (!paymentStatusAllowsCompletion(sale && sale.paymentProviderStatus)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "Secure payment or confirmed external settlement is required before completion.",
+      );
     }
     if (![
       "pending_completion",
@@ -1112,6 +1129,7 @@ module.exports = {
   CommandPolicyError,
   TERMINAL_AUCTION_STATUSES,
   minimumAuctionBid,
+  paymentStatusAllowsCompletion,
   requireMoney,
   validateAuctionConversion,
   validateAuctionFinalization,
