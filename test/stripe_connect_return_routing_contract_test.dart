@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('legacy Stripe Connect callbacks route to authenticated seller payouts', () {
+  test('legacy Stripe Connect callbacks route to authenticated seller payouts',
+      () {
     final navSource = File('lib/flutter_flow/nav/nav.dart').readAsStringSync();
 
     expect(navSource, contains("path: '/account/seller-payouts'"));
@@ -15,7 +16,9 @@ void main() {
     expect(navSource, contains('MarketplaceStripeConnectReturnPage'));
   });
 
-  test('Stripe Connect callback page checks status and regenerates refresh links', () {
+  test(
+      'Stripe Connect callback page checks status and regenerates refresh links',
+      () {
     final source = File(
       'lib/marketplace/marketplace_stripe_connect_return_page.dart',
     ).readAsStringSync();
