@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   CHECKOUT_CONFIGURATION_VERSION,
+  createdCheckoutBlocksPlanChange,
   promotionCodeEntryAllowed,
   reusableCheckoutState,
 } = require("../dispatch_subscription_commands");
@@ -14,6 +15,7 @@ const {
   promotionCodeTargetsDispatchProduct,
   selectPromotionCode,
 } = require("../dispatch_subscription_promotions");
+const {safeStripeLogPath} = require("../stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 
 test("customer promotion codes are limited to undiscounted monthly Dispatch checkout", () => {
@@ -40,6 +42,19 @@ test("promotion code input is normalized without client-side discount math", () 
   assert.throws(
       () => normalizePromotionCode("", {required: true}),
       /enter a promo code/i,
+  );
+});
+
+test("Stripe error logging strips query strings containing typed promo codes", () => {
+  assert.equal(
+      safeStripeLogPath(
+          "/v1/promotion_codes?active=true&code=PRIVATECODE&limit=10",
+      ),
+      "/v1/promotion_codes",
+  );
+  assert.equal(
+      safeStripeLogPath("/v1/checkout/sessions/cs_123"),
+      "/v1/checkout/sessions/cs_123",
   );
 });
 
@@ -147,6 +162,22 @@ test("stale or differently-discounted Checkout sessions are never reused", () =>
   assert.equal(reusableCheckoutState(currentWithPromo, "monthly", now), false);
   assert.equal(
       reusableCheckoutState(currentWithPromo, "monthly", now, "promo_other"),
+      false,
+  );
+});
+
+test("open Checkout blocks changing plans but not changing promo on same plan", () => {
+  const now = Date.now();
+  const state = {
+    status: "created",
+    plan: "monthly",
+    promotionCodeId: null,
+    expiresAt: now + 60_000,
+  };
+  assert.equal(createdCheckoutBlocksPlanChange(state, "yearly", now), true);
+  assert.equal(createdCheckoutBlocksPlanChange(state, "monthly", now), false);
+  assert.equal(
+      createdCheckoutBlocksPlanChange({...state, expiresAt: now - 1}, "yearly", now),
       false,
   );
 });
