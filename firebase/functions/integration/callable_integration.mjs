@@ -1168,6 +1168,18 @@ try {
     offerId,
     action: "confirm_completion",
   };
+  const unpaidMarketplaceCompletion = await expectCallableError(
+      "updateMarketplaceTransaction",
+      buyer.token,
+      buyerConfirmationData,
+      "FAILED_PRECONDITION",
+  );
+  assert.match(unpaidMarketplaceCompletion.message, /payment|settlement/i);
+  await db.doc(`marketplace_transactions/${offerId}`).update({
+    paymentProviderStatus: "external_agreed",
+    financialStatus: "external_settlement_confirmed",
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   const buyerConfirmation = await call(
       "updateMarketplaceTransaction",
       buyer.token,
@@ -1479,6 +1491,24 @@ try {
     listingId: finalizationListingId,
     action: "confirm_completion",
   };
+  const unpaidAuctionCompletion = await expectCallableError(
+      "updateAuctionTransaction",
+      buyer.token,
+      auctionBuyerConfirmation,
+      "FAILED_PRECONDITION",
+  );
+  assert.match(unpaidAuctionCompletion.message, /paid|payment/i);
+  const auctionPaymentPath =
+    `marketplace_transactions/auction_${finalizationListingId}`;
+  await waitForDocument(
+      auctionPaymentPath,
+      (data) => data.listingId === finalizationListingId,
+  );
+  await db.doc(auctionPaymentPath).set({
+    paymentProviderStatus: "external_agreed",
+    financialStatus: "external_settlement_confirmed",
+    updatedAt: FieldValue.serverTimestamp(),
+  }, {merge: true});
   const auctionBuyerResult = await call(
       "updateAuctionTransaction",
       buyer.token,
