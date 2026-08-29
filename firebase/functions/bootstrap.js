@@ -235,7 +235,9 @@ exports.createExternalSettlementFeeCheckout = onCall(
 );
 exports.createDispatchSubscriptionCheckout = onCall(
     stripeCallableOptions,
-    createDispatchSubscriptionCheckoutWithProviderGuard,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        createDispatchSubscriptionCheckoutWithProviderGuard,
+    ),
 );
 exports.createDispatchSubscriptionPortalSession = onCall(
     stripeCallableOptions,

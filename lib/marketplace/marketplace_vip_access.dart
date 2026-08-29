@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_dispatch_subscription_checkout.dart';
 
 const marketplaceVipEarlyAccessDuration = Duration(hours: 24);
 
@@ -14,8 +15,10 @@ DateTime? marketplaceAccessDate(dynamic value) {
   final parsed = switch (value) {
     Timestamp timestamp => timestamp.toDate(),
     DateTime date => date,
-    int milliseconds =>
-      DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true),
+    int milliseconds => DateTime.fromMillisecondsSinceEpoch(
+      milliseconds,
+      isUtc: true,
+    ),
     String text => DateTime.tryParse(text),
     _ => null,
   };
@@ -26,15 +29,13 @@ DateTime? marketplaceVipEarlyAccessUntil(Map<String, dynamic> listing) {
   final explicit = marketplaceAccessDate(listing['vipEarlyAccessUntil']);
   if (explicit != null) return explicit;
   if (listing['vipEarlyAccessEnabled'] != true) return null;
-  final published = marketplaceAccessDate(listing['publishedAt']) ??
+  final published =
+      marketplaceAccessDate(listing['publishedAt']) ??
       marketplaceAccessDate(listing['createdAt']);
   return published?.add(marketplaceVipEarlyAccessDuration);
 }
 
-bool marketplaceVipActive(
-  Map<String, dynamic>? profile, {
-  DateTime? now,
-}) {
+bool marketplaceVipActive(Map<String, dynamic>? profile, {DateTime? now}) {
   if (profile == null) return false;
   final current = now ?? DateTime.now();
   final nested = profile['membership'] is Map
@@ -55,7 +56,8 @@ bool marketplaceVipActive(
       !const {'active', 'trialing', 'vip'}.contains(status)) {
     return false;
   }
-  final expires = marketplaceAccessDate(profile['vipExpiresAt']) ??
+  final expires =
+      marketplaceAccessDate(profile['vipExpiresAt']) ??
       marketplaceAccessDate(profile['vipUntil']) ??
       marketplaceAccessDate(nested['expiresAt']);
   return expires == null || expires.isAfter(current);
@@ -68,8 +70,8 @@ bool marketplaceListingLockedForViewer({
   DateTime? now,
 }) {
   final current = now ?? DateTime.now();
-  final sellerUid =
-      '${listing['sellerUid'] ?? listing['ownerUid'] ?? ''}'.trim();
+  final sellerUid = '${listing['sellerUid'] ?? listing['ownerUid'] ?? ''}'
+      .trim();
   if (viewerUid.isNotEmpty && viewerUid == sellerUid) return false;
   if (marketplaceVipActive(viewerProfile, now: current)) return false;
   final until = marketplaceVipEarlyAccessUntil(listing);
@@ -110,8 +112,9 @@ class MarketplaceVipEarlyAccessGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (marketplaceVipEarlyAccessUntil(listing) == null) return child;
-    final user =
-        Firebase.apps.isEmpty ? null : FirebaseAuth.instance.currentUser;
+    final user = Firebase.apps.isEmpty
+        ? null
+        : FirebaseAuth.instance.currentUser;
     if (user != null && '${listing['sellerUid'] ?? ''}' == user.uid) {
       return child;
     }
@@ -268,7 +271,9 @@ class _MarketplaceVipGateBodyState extends State<_MarketplaceVipGateBody> {
                         const SizedBox(height: 7),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 7),
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black26,
                             borderRadius: BorderRadius.circular(999),
@@ -318,113 +323,111 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 920, maxHeight: 760),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(22),
-            child: Column(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 920, maxHeight: 760),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Pipe Buyer memberships',
-                            style: TextStyle(
-                                fontSize: 24, fontWeight: FontWeight.w900),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Choose marketplace priority access or Dispatch membership. Provider checkout remains separate from marketplace transactions.',
-                          ),
-                        ],
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pipe Buyer memberships',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
+                      SizedBox(height: 4),
+                      Text(
+                        'Choose marketplace priority access or Dispatch membership. Provider checkout remains separate from marketplace transactions.',
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 18),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final cards = const [
-                      _SubscriptionPlanCard(
-                        title: 'VIP Membership',
-                        eyebrow: 'MARKETPLACE PRIORITY',
-                        artworkAsset:
-                            'assets/images/membership_vip_subscription.svg',
-                        icon: Icons.workspace_premium_rounded,
-                        premium: true,
-                        benefits: [
-                          '24-hour early access to every newly published listing',
-                          'Locked-listing countdowns show when inventory opens publicly',
-                          'Priority marketplace alerts and enhanced offer intelligence foundation',
-                        ],
-                      ),
-                      _SubscriptionPlanCard(
-                        title: 'Dispatch Monthly',
-                        eyebrow: 'FLEXIBLE DISPATCH ACCESS',
-                        artworkAsset:
-                            'assets/images/membership_dispatch_monthly_subscription.svg',
-                        icon: Icons.local_shipping_outlined,
-                        benefits: [
-                          'Dispatch membership billed monthly when provider checkout is enabled',
-                          'Load, carrier, quote and awarded-job workflows',
-                          'Provider-managed billing; marketplace transaction funds remain separate',
-                        ],
-                      ),
-                      _SubscriptionPlanCard(
-                        title: 'Dispatch Yearly',
-                        eyebrow: 'ANNUAL DISPATCH ACCESS',
-                        artworkAsset:
-                            'assets/images/membership_dispatch_yearly_subscription.svg',
-                        icon: Icons.calendar_month_outlined,
-                        benefits: [
-                          'Annual Dispatch membership option',
-                          'Same operational Dispatch tools with annual renewal cadence',
-                          'Current pricing is supplied by the configured billing catalog',
-                        ],
-                      ),
-                    ];
-                    if (width >= 790) {
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (var index = 0;
-                              index < cards.length;
-                              index++) ...[
-                            Expanded(child: cards[index]),
-                            if (index < cards.length - 1)
-                              const SizedBox(width: 12),
-                          ],
-                        ],
-                      );
-                    }
-                    return Column(
-                      children: [
-                        for (var index = 0; index < cards.length; index++) ...[
-                          cards[index],
-                          if (index < cards.length - 1)
-                            const SizedBox(height: 12),
-                        ],
-                      ],
-                    );
-                  },
+                IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final cards = const [
+                  _SubscriptionPlanCard(
+                    title: 'VIP Membership',
+                    eyebrow: 'MARKETPLACE PRIORITY',
+                    artworkAsset:
+                        'assets/images/membership_vip_subscription.svg',
+                    icon: Icons.workspace_premium_rounded,
+                    premium: true,
+                    benefits: [
+                      '24-hour early access to every newly published listing',
+                      'Locked-listing countdowns show when inventory opens publicly',
+                      'Priority marketplace alerts and enhanced offer intelligence foundation',
+                    ],
+                  ),
+                  _SubscriptionPlanCard(
+                    title: 'Dispatch Monthly',
+                    eyebrow: 'FLEXIBLE DISPATCH ACCESS',
+                    artworkAsset:
+                        'assets/images/membership_dispatch_monthly_subscription.svg',
+                    icon: Icons.local_shipping_outlined,
+                    benefits: [
+                      'Dispatch membership billed monthly when provider checkout is enabled',
+                      'Load, carrier, quote and awarded-job workflows',
+                      'Provider-managed billing; marketplace transaction funds remain separate',
+                    ],
+                  ),
+                  _SubscriptionPlanCard(
+                    title: 'Dispatch Yearly',
+                    eyebrow: 'ANNUAL DISPATCH ACCESS',
+                    artworkAsset:
+                        'assets/images/membership_dispatch_yearly_subscription.svg',
+                    icon: Icons.calendar_month_outlined,
+                    benefits: [
+                      'Annual Dispatch membership option',
+                      'Same operational Dispatch tools with annual renewal cadence',
+                      'Current pricing is supplied by the configured billing catalog',
+                    ],
+                  ),
+                ];
+                if (width >= 790) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var index = 0; index < cards.length; index++) ...[
+                        Expanded(child: cards[index]),
+                        if (index < cards.length - 1) const SizedBox(width: 12),
+                      ],
+                    ],
+                  );
+                }
+                return Column(
+                  children: [
+                    for (var index = 0; index < cards.length; index++) ...[
+                      cards[index],
+                      if (index < cards.length - 1) const SizedBox(height: 12),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _SubscriptionPlanCard extends StatelessWidget {
@@ -446,119 +449,125 @@ class _SubscriptionPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color:
-              premium ? const Color(0xFF101721) : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
+    padding: const EdgeInsets.all(15),
+    decoration: BoxDecoration(
+      color: premium ? const Color(0xFF101721) : Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: premium
+            ? const Color(0xFFFFB21A).withValues(alpha: .72)
+            : Theme.of(context).dividerColor,
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, artworkConstraints) {
+            final cardWidth = artworkConstraints.maxWidth;
+            final artworkHeight = (cardWidth * .82)
+                .clamp(220.0, 280.0)
+                .toDouble();
+            final artworkMaxWidth = (cardWidth * .72)
+                .clamp(160.0, 240.0)
+                .toDouble();
+            return SizedBox(
+              key: ValueKey('membership-artwork-$title'),
+              height: artworkHeight,
+              width: double.infinity,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: premium
+                      ? Colors.white.withValues(alpha: .04)
+                      : PipeBuyerColors.canvas,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: SizedBox(
+                    width: artworkMaxWidth,
+                    height: artworkHeight - 12,
+                    child: SvgPicture.asset(
+                      artworkAsset,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                      semanticsLabel: '$title membership artwork',
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 13),
+        Text(
+          eyebrow,
+          style: TextStyle(
             color: premium
-                ? const Color(0xFFFFB21A).withValues(alpha: .72)
-                : Theme.of(context).dividerColor,
+                ? const Color(0xFFFFC44D)
+                : PipeBuyerColors.orangePressed,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: .8,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            LayoutBuilder(
-              builder: (context, artworkConstraints) {
-                final cardWidth = artworkConstraints.maxWidth;
-                final artworkHeight =
-                    (cardWidth * .82).clamp(220.0, 280.0).toDouble();
-                final artworkMaxWidth =
-                    (cardWidth * .72).clamp(160.0, 240.0).toDouble();
-                return SizedBox(
-                  key: ValueKey('membership-artwork-$title'),
-                  height: artworkHeight,
-                  width: double.infinity,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: premium
-                          ? Colors.white.withValues(alpha: .04)
-                          : PipeBuyerColors.canvas,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(
-                      child: SizedBox(
-                        width: artworkMaxWidth,
-                        height: artworkHeight - 12,
-                        child: SvgPicture.asset(
-                          artworkAsset,
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                          semanticsLabel: '$title membership artwork',
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 13),
-            Text(
-              eyebrow,
-              style: TextStyle(
-                color: premium
-                    ? const Color(0xFFFFC44D)
-                    : PipeBuyerColors.orangePressed,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .8,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                color: premium ? Colors.white : null,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 10),
-            for (final benefit in benefits)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 17,
-                      color: premium
-                          ? const Color(0xFFFFC44D)
-                          : PipeBuyerColors.success,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        benefit,
-                        style: TextStyle(
-                          color: premium ? Colors.white70 : null,
-                          fontSize: 12,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 4),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '$title checkout will use the configured provider billing flow. No marketplace transaction funds are processed by this button.',
-                    ),
-                  ),
-                ),
-                icon: Icon(icon),
-                label: const Text('View plan readiness'),
-              ),
-            ),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+            color: premium ? Colors.white : null,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
         ),
-      );
+        const SizedBox(height: 10),
+        for (final benefit in benefits)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 7),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 17,
+                  color: premium
+                      ? const Color(0xFFFFC44D)
+                      : PipeBuyerColors.success,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    benefit,
+                    style: TextStyle(
+                      color: premium ? Colors.white70 : null,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 4),
+        if (title == 'Dispatch Monthly')
+          const DispatchSubscriptionCheckoutButton(plan: 'monthly')
+        else if (title == 'Dispatch Yearly')
+          const DispatchSubscriptionCheckoutButton(plan: 'yearly')
+        else
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'VIP billing is not configured yet. No VIP charge will be started.',
+                  ),
+                ),
+              ),
+              icon: Icon(icon),
+              label: const Text('VIP billing coming soon'),
+            ),
+          ),
+      ],
+    ),
+  );
 }
