@@ -1,0 +1,117 @@
+name: Live legal payment acceptance
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Deploy verified Firebase release
+    types:
+      - completed
+  push:
+    branches:
+      - repair/live-legal-acceptance-20260829
+    paths:
+      - '.github/workflows/live-legal-payment-acceptance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-legal-payment-copy:
+    name: Verify live legal payment copy
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Verify public legal pages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_url='https://www.pipebuyer.com'
+          evidence_dir='build/live-legal-acceptance'
+          mkdir -p "$evidence_dir"
+
+          fetch_page() {
+            local path="$1"
+            local output="$2"
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              --retry 3 \
+              --retry-all-errors \
+              --connect-timeout 15 \
+              --max-time 45 \
+              "$base_url$path" \
+              --output "$output"
+          }
+
+          require_text() {
+            local file="$1"
+            local text="$2"
+            if ! grep -Fq -- "$text" "$file"; then
+              echo "::error file=$file::Required live legal text is missing: $text"
+              exit 1
+            fi
+          }
+
+          reject_text() {
+            local file="$1"
+            local text="$2"
+            if grep -Fq -- "$text" "$file"; then
+              echo "::error file=$file::Obsolete live legal text is still published: $text"
+              exit 1
+            fi
+          }
+
+          about="$evidence_dir/about.html"
+          privacy="$evidence_dir/privacy.html"
+          terms="$evidence_dir/terms.html"
+
+          fetch_page '/about' "$about"
+          fetch_page '/privacy' "$privacy"
+          fetch_page '/terms' "$terms"
+
+          require_text "$about" 'Stripe processes buyer payments'
+          require_text "$about" 'Pipe Buyer does not operate an escrow or trust account.'
+
+          require_text "$privacy" 'Effective Date:</strong> August 29, 2026'
+          require_text "$privacy" 'Payments and seller payouts are handled through approved providers such as Stripe.'
+          require_text "$privacy" 'Pipe Buyer uses Stripe for enabled payment processing'
+          reject_text "$privacy" 'Payment features are not active.'
+
+          require_text "$terms" 'Effective Date:</strong> August 29, 2026'
+          require_text "$terms" 'CA$25 per month'
+          require_text "$terms" 'CA$300 per year'
+          require_text "$terms" 'Stripe processes enabled subscription payments'
+          require_text "$terms" 'Full buyer-to-seller on-platform payment availability is controlled by live readiness gates.'
+          reject_text "$terms" '$25 per year — Dispatch network membership'
+          reject_text "$terms" 'No fee is currently charged.'
+          reject_text "$terms" 'Billing and fee collection are not active'
+
+          {
+            echo '## Live legal payment acceptance'
+            echo ''
+            echo "- Base URL: \`$base_url\`"
+            echo '- `/about`: current Stripe buyer-payment language present'
+            echo '- `/privacy`: August 29 payment-provider/privacy language present'
+            echo '- `/terms`: CA$25 monthly / CA$300 yearly Dispatch pricing present'
+            echo '- Obsolete payment-inactive and $25/year pilot wording absent'
+            if [[ '${{ github.event_name }}' == 'workflow_run' ]]; then
+              echo "- Upstream deploy SHA: \`${{ github.event.workflow_run.head_sha }}\`"
+              echo "- Upstream deploy run: \`${{ github.event.workflow_run.id }}\`"
+            fi
+            echo '- Result: live public legal/payment copy accepted'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain live legal evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: live-legal-payment-acceptance-${{ github.run_id }}
+          path: build/live-legal-acceptance/*.html
+          if-no-files-found: warn
+          retention-days: 30
