@@ -203,12 +203,12 @@ class _MarketplaceAuctionSettlementState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Pipe Buyer Escrow',
+                            'Payment & settlement',
                             style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'Funds are held securely until buyer inspection is approved.',
+                            'Stripe processes supported payments and seller transfers. Pipe Buyer records provider status; this is not an escrow or trust account.',
                             style: TextStyle(fontSize: 11),
                           ),
                         ],
@@ -254,7 +254,7 @@ class _MarketplaceAuctionSettlementState
                       );
                     },
                     icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                    label: const Text('View & Pay Itemized Invoice'),
+                    label: const Text('View Itemized Invoice'),
                   ),
                 ),
               ],
