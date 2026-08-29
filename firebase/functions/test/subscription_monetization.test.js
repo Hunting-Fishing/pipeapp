@@ -9,6 +9,7 @@ const {
   subscriptionIdentityFromInvoice,
 } = require("../subscription_monetization");
 const {
+  CHECKOUT_CONFIGURATION_VERSION,
   checkoutAttemptKey,
   couponFromEntitlement,
   dispatchMembershipIsCurrent,
@@ -124,12 +125,17 @@ test("open Dispatch checkout is reused only for the same plan before expiry", ()
   const state = {
     status: "created",
     plan: "monthly",
+    checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION,
     checkoutSessionId: "cs_live_123",
     checkoutUrl: "https://checkout.stripe.com/example",
     expiresAt: {toMillis: () => now + 1000},
   };
   assert.equal(reusableCheckoutState(state, "monthly", now), true);
   assert.equal(reusableCheckoutState(state, "yearly", now), false);
+  assert.equal(reusableCheckoutState({
+    ...state,
+    checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION - 1,
+  }, "monthly", now), false);
   assert.equal(reusableCheckoutState({
     ...state,
     expiresAt: {toMillis: () => now - 1},
