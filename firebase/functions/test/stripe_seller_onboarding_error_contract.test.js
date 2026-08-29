@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  sanitizeStripeSupportText,
   stripeSellerSetupErrorMessage,
 } = require("../stripe_marketplace_commands");
 
@@ -17,6 +18,29 @@ test("seller setup maps liability acknowledgement failure without exposing Strip
   assert.equal(
       stripeSellerSetupErrorMessage("account_creation_liability_unacknowledged"),
       "Pipe Buyer must acknowledge the Stripe Connect liability settings before seller payouts can be set up.",
+  );
+});
+
+test("seller setup exposes sanitized capability dependency explanation and request reference", () => {
+  assert.equal(
+      stripeSellerSetupErrorMessage(
+          "capability_not_available_without_other_capability",
+          {
+            stripeMessage:
+              "The stripe_transfers capability is not available without card_payments.",
+            stripeRequestId: "req_123456789",
+          },
+      ),
+      "Stripe capability dependency: The stripe_transfers capability is not available without card_payments.. Request req_123456789.",
+  );
+});
+
+test("seller setup diagnostic text redacts email and links", () => {
+  assert.equal(
+      sanitizeStripeSupportText(
+          "See https://example.com/log for seller@example.com\nnext",
+      ),
+      "See [link] for [redacted] next",
   );
 });
 
