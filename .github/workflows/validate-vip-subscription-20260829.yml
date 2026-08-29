@@ -1,0 +1,149 @@
+name: Validate VIP Subscription 2026-08-29
+
+on:
+  push:
+    branches:
+      - feat/live-financial-resolution-split-vip-20260829
+    paths:
+      - '.github/workflows/validate-vip-subscription-20260829.yml'
+      - 'tool/integrate_vip_subscription_20260829.py'
+      - 'firebase/functions/vip_subscription_*.js'
+      - 'firebase/functions/test/vip_subscription.test.js'
+      - 'firebase/functions/stripe_marketplace_config.js'
+      - 'lib/marketplace/marketplace_vip_subscription_checkout.dart'
+      - 'test/vip_subscription_checkout_test.dart'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: validate-vip-subscription-20260829
+  cancel-in-progress: false
+
+jobs:
+  validate-and-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: feat/live-financial-resolution-split-vip-20260829
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Apply deterministic VIP integration
+        run: python3 tool/integrate_vip_subscription_20260829.py
+
+      - name: Verify VIP billing invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'prod_VA12LaMiaCMRqZ' firebase/functions/stripe_marketplace_config.js
+          grep -q 'price_1U9h0tDkO07WMXyRgdzAmm43' firebase/functions/stripe_marketplace_config.js
+          grep -q 'unitAmountMinor: 10000' firebase/functions/stripe_marketplace_config.js
+          grep -q 'stripeVipSubscriptionsEnabled' firebase/functions/payment_readiness_admin.js
+          grep -q 'createVipSubscriptionCheckout' firebase/functions/bootstrap.js
+          grep -q 'updateVipSubscriptionRenewal' firebase/functions/bootstrap.js
+          grep -q 'getVipSubscriptionCatalog' firebase/functions/bootstrap.js
+          grep -q 'getVipSubscriptionStatus' firebase/functions/bootstrap.js
+          grep -q 'handleVipInvoicePaid' firebase/functions/stripe_webhook.js
+          grep -q 'vipSubscriptionLifecycle' firebase/functions/stripe_webhook_dispatch_lifecycle.js
+          grep -q 'VipSubscriptionCheckoutButton' lib/marketplace/marketplace_vip_access.dart
+          ! grep -q 'VIP billing coming soon' lib/marketplace/marketplace_vip_access.dart
+          grep -q 'invoice.paid' firebase/functions/vip_subscription_monetization.js
+          grep -q 'vipActive: active' firebase/functions/vip_subscription_monetization.js
+
+      - name: Format VIP Dart integration
+        run: |
+          dart format \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/vip_subscription_checkout_test.dart
+
+      - name: Validate Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Validate Flutter app
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart analyze lib test
+          flutter test test/vip_subscription_checkout_test.dart
+          flutter test test/membership_plan_artwork_responsive_test.dart
+          flutter test
+
+      - name: Record repair and commit validated integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/repairs
+          cat > docs/repairs/VIP_SUBSCRIPTION_BILLING_2026-08-29.md <<'EOF'
+          # VIP Subscription Billing — 2026-08-29
+
+          ## Symptom
+          Pipe Buyer already displayed a VIP early-access membership card, but the card intentionally stopped at “VIP billing coming soon” because no approved Stripe VIP price or authoritative billing lifecycle existed.
+
+          ## Proven root cause
+          The application had VIP presentation/early-access logic but no dedicated live Stripe VIP product/price in server config and no VIP Checkout, provider-state, paid-invoice entitlement, status, or renewal-management callables. A Checkout redirect must not grant VIP access.
+
+          ## Approved launch pricing
+          - Dispatch Monthly: CAD $25/month (unchanged)
+          - Dispatch Yearly: CAD $300/year (unchanged)
+          - Pipe Buyer VIP: CAD $100/month
+          - No VIP yearly plan at launch
+          - Live VIP product: prod_VA12LaMiaCMRqZ
+          - Live VIP monthly price: price_1U9h0tDkO07WMXyRgdzAmm43
+
+          ## Repair
+          - Added exact non-secret VIP product/price configuration.
+          - Added a separate `stripeVipSubscriptionsEnabled` readiness switch in addition to the generic subscription gate.
+          - Added dedicated VIP catalog, Checkout, provider lifecycle, paid-invoice entitlement, private status, and renewal-management modules.
+          - VIP access is established/extended only from verified `invoice.paid` processing.
+          - Checkout completion records provider state only and cannot grant VIP.
+          - Existing `users/{uid}` VIP fields are mirrored server-side from paid membership state so the current early-access gate continues to work.
+          - Replaced only the intentional VIP “coming soon” action in the existing responsive membership dialog; Dispatch controls remain unchanged.
+          - Added safe end-of-period cancellation/resume. Paid access remains through the current period.
+          - No real customer charge was made during validation.
+
+          ## Safety posture
+          The code is deployable fail-closed. Creating the live Stripe product/price does not itself expose VIP Checkout. Production VIP Checkout requires `stripeVipSubscriptionsEnabled=true` plus the existing verified production subscription, webhook, reconciliation, tax-billing, policy, and paid-feature gates.
+
+          ## Regression coverage
+          Validation checks the exact product/price IDs and CAD $100 monthly amount, monthly-only plan selection, duplicate Checkout blocking, explicit VIP webhook identity, paid-invoice context, server catalog price rendering, responsive membership artwork, Functions lint/check/tests, Dart analysis, and the full Flutter test suite.
+          EOF
+
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            firebase/functions/payment_readiness_admin.js \
+            firebase/functions/bootstrap.js \
+            firebase/functions/stripe_webhook.js \
+            firebase/functions/stripe_webhook_dispatch_lifecycle.js \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            docs/repairs/VIP_SUBSCRIPTION_BILLING_2026-08-29.md
+          if git diff --cached --quiet; then
+            echo '::error::VIP integration produced no validated runtime changes.'
+            exit 1
+          fi
+          git commit -m 'Wire live VIP subscription lifecycle'
+          git push origin HEAD:feat/live-financial-resolution-split-vip-20260829
