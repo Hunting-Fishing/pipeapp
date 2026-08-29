@@ -1,0 +1,116 @@
+name: Retry Stripe Live Alignment After Test Fix 2026-08-29
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/retry-stripe-live-alignment-after-test-fix-2026-08-29.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: pipe-buyer-stripe-live-alignment-test-fix-retry-2026-08-29
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    name: Retry verified Stripe production release
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RETRY_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Check out corrected release
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Confirm corrected release is current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          if [[ "$(git rev-parse HEAD)" != "$RETRY_SHA" ]]; then
+            echo "::error::Retry source does not match the push SHA."
+            exit 1
+          fi
+          if [[ "$(git rev-parse origin/main)" != "$RETRY_SHA" ]]; then
+            echo "::error::Retry only runs for the current main commit."
+            exit 1
+          fi
+
+      - name: Wait for corrected gated payment backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=""
+          for attempt in $(seq 1 90); do
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow deploy-payment-backend-safe.yml \
+              --branch main \
+              --event push \
+              --limit 30 \
+              --json databaseId,headSha \
+              --jq ".[] | select(.headSha == \"$RETRY_SHA\") | .databaseId" | head -n 1)"
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ -z "$run_id" ]]; then
+            echo "::error::Corrected gated payment backend run did not start for $RETRY_SHA."
+            exit 1
+          fi
+          echo "Waiting for corrected gated payment backend run $run_id."
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+
+      - name: Dispatch existing full Stripe release orchestrator
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run release-stripe-live-alignment-2026-08-29.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
+          run_id=""
+          for attempt in $(seq 1 90); do
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow release-stripe-live-alignment-2026-08-29.yml \
+              --branch main \
+              --event workflow_dispatch \
+              --limit 30 \
+              --json databaseId,headSha,createdAt \
+              --jq ".[] | select(.headSha == \"$RETRY_SHA\" and .createdAt >= \"$marker\") | .databaseId" | head -n 1)"
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ -z "$run_id" ]]; then
+            echo "::error::Corrected Stripe release orchestrator run could not be identified."
+            exit 1
+          fi
+          echo "Waiting for corrected Stripe release run $run_id."
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+
+      - name: Record corrected retry result
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## Stripe live alignment retry after test repair"
+            echo ""
+            echo "- Corrected release commit: \`$RETRY_SHA\`"
+            echo "- Root cause: stale escrow-label test assertion"
+            echo "- Runtime payment logic changed by the test repair: no"
+            echo "- Existing verified release orchestrator reused: yes"
+            echo "- Result: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
