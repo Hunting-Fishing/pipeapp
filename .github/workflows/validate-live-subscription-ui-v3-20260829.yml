@@ -1,0 +1,150 @@
+name: Validate Live Subscription UI v3 2026-08-29
+
+on:
+  push:
+    branches:
+      - fix/live-subscription-ui-about-20260829
+    paths:
+      - ".github/workflows/validate-live-subscription-ui-v3-20260829.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: validate-live-subscription-ui-v3-20260829
+  cancel-in-progress: false
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: fix/live-subscription-ui-about-20260829
+          fetch-depth: 0
+
+      - name: Install exact production Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Apply only the proven source repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f"Expected one repair target in {path}; found {text.count(old)}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "firebase/functions/bootstrap.js",
+              '''exports.createDispatchSubscriptionCheckout = onCall(\n    stripeCallableOptions,\n    createDispatchSubscriptionCheckoutWithProviderGuard,\n);''',
+              '''exports.createDispatchSubscriptionCheckout = onCall(\n    stripeCallableOptions,\n    policyAcceptanceCommands.requireCurrentPolicies(\n        createDispatchSubscriptionCheckoutWithProviderGuard,\n    ),\n);''',
+          )
+
+          replace_once(
+              "lib/marketplace/marketplace_vip_access.dart",
+              "import '../core/design/pipe_buyer_theme.dart';",
+              "import '../core/design/pipe_buyer_theme.dart';\nimport 'marketplace_dispatch_subscription_checkout.dart';",
+          )
+
+          replace_once(
+              "lib/marketplace/marketplace_vip_access.dart",
+              '''            SizedBox(\n              width: double.infinity,\n              child: OutlinedButton.icon(\n                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(\n                  SnackBar(\n                    content: Text(\n                      '$title checkout will use the configured provider billing flow. No marketplace transaction funds are processed by this button.',\n                    ),\n                  ),\n                ),\n                icon: Icon(icon),\n                label: const Text('View plan readiness'),\n              ),\n            ),''',
+              '''            if (title == 'Dispatch Monthly')\n              const DispatchSubscriptionCheckoutButton(plan: 'monthly')\n            else if (title == 'Dispatch Yearly')\n              const DispatchSubscriptionCheckoutButton(plan: 'yearly')\n            else\n              SizedBox(\n                width: double.infinity,\n                child: OutlinedButton.icon(\n                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(\n                    const SnackBar(\n                      content: Text(\n                        'VIP billing is not configured yet. No VIP charge will be started.',\n                      ),\n                    ),\n                  ),\n                  icon: Icon(icon),\n                  label: const Text('VIP billing coming soon'),\n                ),\n              ),''',
+          )
+
+          replace_once(
+              "web/about.html",
+              "Pipe Buyer is a venue and is not a party to transactions between users; it does not hold or release funds and does not operate escrow.",
+              "Pipe Buyer is not the buyer, seller, carrier, bank, trust company, or escrow provider for user-listed goods. For supported transactions, Stripe processes buyer payments and Pipe Buyer may instruct Stripe to transfer seller proceeds after the server-recorded transaction requirements are satisfied. Seller proceeds may remain pending until completion and applicable safeguards are met. Pipe Buyer does not operate an escrow or trust account.",
+          )
+          PY
+
+          cat > docs/repairs/LIVE_SUBSCRIPTION_UI_ABOUT_2026-08-29.md <<'MD'
+          # Live Dispatch subscription UI and About repair — 2026-08-29
+
+          ## Root causes
+          - Production Stripe Checkout, Dispatch subscription prices, webhook handling and membership grants were deployed, but the visible monthly/yearly plan cards were still readiness-only buttons.
+          - The public About page contained pre-payment wording that no longer matched the Separate Charges and Transfers marketplace flow.
+          - Dispatch Checkout itself needed the same current-policy server gate already used by the subscription catalog.
+          - Two attempted validators used Flutter 3.41.2; the production release is pinned to Flutter 3.44.6. The older SDK cannot resolve the repository's current `flutter_native_splash` / `meta` dependency set. No runtime dependency was changed for that CI-only mismatch.
+
+          ## Repair
+          - Monthly and yearly Dispatch cards read the server catalog, show authoritative pricing and open `createDispatchSubscriptionCheckout`.
+          - Active subscribers are not offered duplicate checkout. Customer Portal is shown only when server readiness says it is available.
+          - VIP remains non-purchasable because no approved VIP Stripe price exists.
+          - `createDispatchSubscriptionCheckout` is wrapped in `requireCurrentPolicies` server-side.
+          - About copy accurately describes Stripe-processed buyer payments and delayed seller proceeds without describing Pipe Buyer as escrow/trust.
+          - Validation uses the exact production Flutter SDK, 3.44.6.
+          MD
+
+          dart format \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            test/dispatch_subscription_checkout_test.dart
+
+      - name: Verify repair invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "createDispatchSubscriptionCheckout" lib/marketplace/marketplace_dispatch_subscription_checkout.dart
+          grep -q "createDispatchSubscriptionPortalSession" lib/marketplace/marketplace_dispatch_subscription_checkout.dart
+          grep -q "getDispatchSubscriptionStatus" lib/marketplace/marketplace_dispatch_subscription_checkout.dart
+          grep -q "policyAcceptanceCommands.requireCurrentPolicies" firebase/functions/bootstrap.js
+          grep -q "DispatchSubscriptionCheckoutButton(plan: 'monthly')" lib/marketplace/marketplace_vip_access.dart
+          grep -q "DispatchSubscriptionCheckoutButton(plan: 'yearly')" lib/marketplace/marketplace_vip_access.dart
+          ! grep -q "View plan readiness" lib/marketplace/marketplace_vip_access.dart
+          ! grep -q "does not hold or release funds" web/about.html
+
+      - name: Validate Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Validate Flutter with production toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart analyze lib test
+          flutter test test/dispatch_subscription_checkout_test.dart
+          flutter test
+
+      - name: Commit validated runtime repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            firebase/functions/bootstrap.js \
+            lib/marketplace/marketplace_vip_access.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            test/dispatch_subscription_checkout_test.dart \
+            web/about.html \
+            docs/repairs/LIVE_SUBSCRIPTION_UI_ABOUT_2026-08-29.md
+          if git diff --cached --quiet; then
+            echo '::error::Validated repair produced no runtime changes.'
+            exit 1
+          fi
+          git commit -m 'Wire live Dispatch subscription Checkout and correct payment copy'
+          git push origin HEAD
