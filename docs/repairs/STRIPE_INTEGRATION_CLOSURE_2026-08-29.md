@@ -2,7 +2,7 @@
 
 ## Scope
 
-This repair closes two launch-critical integration gaps found during the end-to-end Stripe inspection without redesigning the established payment architecture.
+This repair closes the launch-critical Stripe integration gaps found during the end-to-end inspection without redesigning the established payment architecture.
 
 ## Repair 1 — seller payout status permission failure
 
@@ -48,6 +48,23 @@ Hosted-subscription eligibility was enforced independently by multiple UI surfac
 
 Do **not** create another VIP or Dispatch purchase button that calls Stripe directly without consulting `marketplaceHostedMembershipBillingAllowed()`.
 
+## Repair 3 — stale bank-routing / escrow payout wording
+
+### Symptom
+
+Account Settings described seller payout setup as entering bank routing/account numbers for ACH or wire “escrow releases,” even though the current payout page sends sellers to Stripe-hosted onboarding and Pipe Buyer does not collect those bank details in-app.
+
+### Repair
+
+- Renamed the Account Settings entry to `Seller Payout Setup`.
+- Replaced the stale subtitle with copy explaining that seller payouts are connected or updated securely with Stripe and Pipe Buyer does not store the seller's bank account details.
+- Applied the change with an exact-match repair script.
+- A first formatting pass was rejected because it reformatted thousands of unrelated lines in the large legacy Account file. The file was restored from `main`, the exact two copy replacements were reapplied, and the final diff was constrained to 2 additions / 2 deletions.
+
+### Do not repeat
+
+Do **not** describe Pipe Buyer as collecting bank routing/account numbers for Stripe Connect onboarding, and do **not** describe Pipe Buyer as operating an escrow or trust account.
+
 ## Regression coverage
 
 Added contract tests for:
@@ -69,8 +86,7 @@ The following established behavior is not changed by this repair:
 
 ## Follow-up items
 
-- Replace stale Account Settings copy that still refers to bank routing/account numbers and escrow releases. The payout page itself is already Stripe-hosted and does not collect bank details.
-- Run the full validation/CI suite for this branch and merge only if green.
+- Run the Stripe integration closure validation suite and merge only if green.
 - Deploy the merged exact SHA through the normal protected Firebase release path, then verify the corrected About/Terms/Privacy and payment surfaces in production.
 - Add a controlled buyer/seller payment-problem/refund-request UI on top of the existing server financial-case workflow.
 - Design Dispatch job payment as a separate server-owned freight ledger before enabling transaction fees on awarded hauling jobs.
