@@ -127,23 +127,33 @@ function stripeSellerSetupErrorMessage(stripeCode, diagnostics = {}) {
   return "Stripe could not complete the seller payout setup. Try again or contact support.";
 }
 
-async function stripeRequest({secretKey, path, method = "POST", body, query}) {
-  const url = new URL(`https://api.stripe.com${path}`);
-  for (const [key, value] of Object.entries(query || {})) {
-    if (Array.isArray(value)) {
-      for (const item of value) url.searchParams.append(`${key}[]`, String(item));
-    } else if (value != null) {
-      url.searchParams.set(key, String(value));
-    }
+function stripeFormBody(fields) {
+  const form = new URLSearchParams();
+  for (const [key, value] of Object.entries(fields || {})) {
+    if (value == null) continue;
+    form.append(key, String(value));
   }
-  const response = await fetch(url, {
+  return form.toString();
+}
+
+async function stripeConnectRequest({
+  secretKey,
+  path,
+  method = "POST",
+  fields,
+}) {
+  const headers = {
+    Authorization: `Bearer ${secretKey}`,
+    "Stripe-Version": STRIPE_CONNECT_ACCOUNTS_API_VERSION,
+  };
+  const hasBody = fields != null && method !== "GET";
+  if (hasBody) {
+    headers["Content-Type"] = "application/x-www-form-urlencoded";
+  }
+  const response = await fetch(`https://api.stripe.com${path}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-      "Content-Type": "application/json",
-      "Stripe-Version": STRIPE_CONNECT_ACCOUNTS_API_VERSION,
-    },
-    ...(body == null ? {} : {body: JSON.stringify(body)}),
+    headers,
+    ...(hasBody ? {body: stripeFormBody(fields)} : {}),
   });
   let payload = null;
   try {
@@ -221,14 +231,14 @@ function requireConnectOnboardingReady(readiness) {
 
 function recipientTransferStatus(account) {
   return String(
-      account && account.configuration && account.configuration.recipient &&
-      account.configuration.recipient.capabilities &&
-      account.configuration.recipient.capabilities.stripe_balance &&
-      account.configuration.recipient.capabilities.stripe_balance
-          .stripe_transfers &&
-      account.configuration.recipient.capabilities.stripe_balance
-          .stripe_transfers.status || "pending",
+      account && account.capabilities && account.capabilities.transfers ||
+      "pending",
   );
+}
+
+function sellerPayoutReady(account) {
+  return recipientTransferStatus(account) === "active" &&
+    account && account.payouts_enabled === true;
 }
 
 function createStripeMarketplaceCommands(admin) {
@@ -249,17 +259,6 @@ function createStripeMarketplaceCommands(admin) {
     const flags = await loadPhase1FeatureFlags(db);
     requirePhase1Feature(flags, "marketplace");
     const country = safeCountry(request.data && request.data.country);
-    const [userSnapshot, businessSnapshot] = await Promise.all([
-      db.collection("users").doc(uid).get(),
-      db.collection("public_business_profiles").doc(uid).get(),
-    ]);
-    const user = userSnapshot.data() || {};
-    const business = businessSnapshot.data() || {};
-    const displayName = String(
-        user.accountType === "business" ?
-          business.publicName || user.businessName || "Pipe Buyer seller" :
-          user.display_name || user.displayName || user.fullName || "Pipe Buyer seller",
-    ).trim().slice(0, 200);
     const contactEmail = String(
         request.auth && request.auth.token && request.auth.token.email || "",
     ).trim().slice(0, 320);
@@ -270,34 +269,17 @@ function createStripeMarketplaceCommands(admin) {
       );
     }
 
-    const account = await stripeRequest({
+    const account = await stripeConnectRequest({
       secretKey: stripeSecretKey.value(),
-      path: "/v2/core/accounts",
-      body: {
-        contact_email: contactEmail,
-        display_name: displayName,
-        defaults: {
-          responsibilities: {
-            fees_collector: "application",
-            losses_collector: "application",
-          },
-        },
-        dashboard: "express",
-        identity: {country: country.toLowerCase()},
-        configuration: {
-          recipient: {
-            capabilities: {
-              stripe_balance: {
-                stripe_transfers: {requested: true},
-              },
-            },
-          },
-        },
-        include: [
-          "configuration.recipient",
-          "identity",
-          "requirements",
-        ],
+      path: "/v1/accounts",
+      fields: {
+        email: contactEmail,
+        country,
+        "controller[stripe_dashboard][type]": "express",
+        "controller[fees][payer]": "application",
+        "controller[losses][payments]": "application",
+        "controller[requirement_collection]": "stripe",
+        "capabilities[transfers][requested]": "true",
       },
     });
     const accountId = String(account.id || "").trim();
@@ -364,22 +346,16 @@ function createStripeMarketplaceCommands(admin) {
           readiness.connectRefreshUrl,
           "Stripe Connect refresh URL",
       );
-      const accountLink = await stripeRequest({
+      const accountLink = await stripeConnectRequest({
         secretKey: stripeSecretKey.value(),
-        path: "/v2/core/account_links",
-        body: {
+        path: "/v1/account_links",
+        fields: {
           account: seller.accountId,
-          use_case: {
-            type: "account_onboarding",
-            account_onboarding: {
-              configurations: ["recipient"],
-              return_url: returnUrl,
-              refresh_url: refreshUrl,
-              collection_options: {
-                future_requirements: "include",
-              },
-            },
-          },
+          refresh_url: refreshUrl,
+          return_url: returnUrl,
+          type: "account_onboarding",
+          "collection_options[fields]": "eventually_due",
+          "collection_options[future_requirements]": "include",
         },
       });
       const url = String(accountLink.url || "");
@@ -426,30 +402,26 @@ function createStripeMarketplaceCommands(admin) {
         );
       }
       const accountId = String(providerSnapshot.data().stripeAccountId);
-      const account = await stripeRequest({
+      const account = await stripeConnectRequest({
         secretKey: stripeSecretKey.value(),
-        path: `/v2/core/accounts/${encodeURIComponent(accountId)}`,
+        path: `/v1/accounts/${encodeURIComponent(accountId)}`,
         method: "GET",
-        query: {
-          include: [
-            "configuration.recipient",
-            "identity",
-            "requirements",
-          ],
-        },
       });
       const transferStatus = recipientTransferStatus(account);
-      const onboardingStatus = transferStatus === "active" ? "payout_ready" : "pending";
+      const payoutReady = sellerPayoutReady(account);
+      const onboardingStatus = payoutReady ? "payout_ready" : "pending";
       await providerRef.set({
         transferStatus,
         onboardingStatus,
+        payoutsEnabled: account.payouts_enabled === true,
+        detailsSubmitted: account.details_submitted === true,
         lastStripeStatusCheckAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       return {
         accountId,
         transferStatus,
-        payoutReady: transferStatus === "active",
+        payoutReady,
       };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
@@ -476,8 +448,11 @@ module.exports = {
   STRIPE_SECRET_PRODUCTION_NAME,
   createStripeMarketplaceCommands,
   loadProviderReadiness,
+  recipientTransferStatus,
   safePipeBuyerCallbackUrl,
   sanitizeStripeSupportText,
+  sellerPayoutReady,
+  stripeFormBody,
   stripeSellerSetupErrorMessage,
   stripeSecretKey,
 };
