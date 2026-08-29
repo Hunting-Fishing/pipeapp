@@ -4,12 +4,10 @@
 // webhook signing secrets belong in Google Cloud Secret Manager only.
 const stripeMarketplaceConfig = Object.freeze({
   apiVersion: "2026-06-24.preview",
-  // Seller Accounts v2 is pinned to the exact preview used by Stripe's current
-  // marketplace recipient creation and recipient onboarding examples. Do not
-  // advance this preview casually: 2026-06-24.preview and 2026-07-29.preview
-  // both made recipient stripe_transfers depend on Merchant/Card capability in
-  // Pipe Buyer's live account, which is not the intended recipient-only model.
-  connectAccountsApiVersion: "2026-02-25.preview",
+  // Seller payout accounts use stable Connect v1. Accounts v2 preview is not
+  // compatible with Pipe Buyer's separate-charges-and-transfers architecture;
+  // Stripe documents that Express/controller accounts on v1 support that flow.
+  connectAccountsApiVersion: "2026-06-24.dahlia",
   accountCountry: "CA",
   products: Object.freeze({
     dispatchMonthlyCad: Object.freeze({
