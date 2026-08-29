@@ -13,34 +13,72 @@ permissions:
 
 jobs:
   inspect:
-    name: Inspect recent onboarding failure
+    name: Inspect seller onboarding API capability
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
     env:
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
       FIREBASE_PROJECT_ID: flutter-flow-pipe
+      EXPECTED_STRIPE_ACCOUNT: acct_1U2QmKDkO07WMXyR
     steps:
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
 
-      - name: Read sanitized seller onboarding errors
+      - name: Probe Stripe Connect account API families read-only
         shell: bash
         run: |
           set -euo pipefail
-          set +e
-          firebase functions:log \
+          umask 077
+          firebase functions:secrets:access STRIPE_SECRET_PRODUCTION \
             --project "$FIREBASE_PROJECT_ID" \
-            --token "$FIREBASE_TOKEN" \
-            --only createStripeSellerOnboardingLink \
-            --lines 300 > full-function-log.txt 2>&1
-          log_status=$?
-          set -e
-          grep -E "Stripe marketplace request failed|Stripe seller onboarding link failed|accounts_v2|failed-precondition|400" full-function-log.txt \
-            | tail -n 50 \
-            | tee onboarding-error.txt || true
-          echo "Firebase log command exit code: $log_status"
-          if [[ ! -s onboarding-error.txt ]]; then
-            echo "No matching sanitized onboarding error lines found. Showing only Firebase CLI diagnostic lines:"
-            grep -E "Error:|error|failed|not found|permission" full-function-log.txt | tail -n 20 || true
-          fi
+            --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const key = fs.readFileSync('.stripe-key', 'utf8').trim();
+          const expected = process.env.EXPECTED_STRIPE_ACCOUNT;
+
+          async function request(path, version) {
+            const response = await fetch(`https://api.stripe.com${path}`, {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${key}`,
+                ...(version ? {'Stripe-Version': version} : {}),
+              },
+            });
+            let payload = {};
+            try { payload = await response.json(); } catch (_) {}
+            return {
+              status: response.status,
+              ok: response.ok,
+              errorCode: String(payload?.error?.code || payload?.error?.type || ''),
+              accountId: String(payload?.id || ''),
+              count: Array.isArray(payload?.data) ? payload.data.length : null,
+            };
+          }
+
+          (async () => {
+            const platform = await request('/v1/account');
+            if (!platform.ok || platform.accountId !== expected) {
+              throw new Error('Production Stripe credential does not belong to the expected Pipe Buyer account.');
+            }
+            const [v2, v1] = await Promise.all([
+              request('/v2/core/accounts?limit=1', '2026-06-24.preview'),
+              request('/v1/accounts?limit=1'),
+            ]);
+            const report = {
+              platformVerified: true,
+              v2CoreAccounts: {status: v2.status, ok: v2.ok, errorCode: v2.errorCode},
+              v1ConnectAccounts: {status: v1.status, ok: v1.ok, errorCode: v1.errorCode, returnedCount: v1.count},
+              financialMutations: 'none',
+            };
+            console.log(JSON.stringify(report));
+            if (!v1.ok) process.exitCode = 2;
+          })().catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
+
+          rm -f .stripe-key
