@@ -27,6 +27,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Apply exact subscription const compile repair
+        run: python3 tool/repair_subscription_const_widgets_20260829.py
+
       - name: Resolve package language version
         run: flutter pub get
 
@@ -77,7 +80,7 @@ jobs:
             exit 1
           fi
 
-      - name: Keep final commit limited to validated formatting and helper removal
+      - name: Keep final commit limited to validated source and helper removal
         shell: bash
         run: |
           set -euo pipefail
