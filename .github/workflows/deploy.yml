@@ -340,7 +340,7 @@ jobs:
 
       - name: Retain Firebase deployment evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: firebase-release-evidence-${{ inputs.environment }}-${{ inputs.commit_sha }}-${{ github.run_id }}
           path: |
@@ -421,7 +421,7 @@ jobs:
 
       - name: Retain visual acceptance evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: visual-acceptance-${{ inputs.environment }}-${{ github.run_id }}
           path: build/acceptance/*.png
