@@ -90,11 +90,22 @@ test("auction settlements require both confirmations and control defaults", () =
     buyerConfirmed: false,
     sellerConfirmed: false,
   };
+  assert.throws(
+      () => validateAuctionTransactionAction({
+        sale,
+        listing,
+        actorUid: "buyer",
+        action: "confirm_completion",
+        paymentProviderStatus: "checkout_created",
+      }),
+      (error) => error.code === "failed-precondition",
+  );
   const buyer = validateAuctionTransactionAction({
     sale,
     listing,
     actorUid: "buyer",
     action: "confirm_completion",
+    paymentProviderStatus: "paid",
   });
   assert.equal(buyer.status, "awaiting_seller_confirmation");
   const seller = validateAuctionTransactionAction({
@@ -102,6 +113,7 @@ test("auction settlements require both confirmations and control defaults", () =
     listing,
     actorUid: "seller",
     action: "confirm_completion",
+    paymentProviderStatus: "paid",
   });
   assert.equal(seller.status, "completed");
   assert.equal(seller.buyerConfirmed, true);
@@ -611,8 +623,31 @@ test("marketplace transaction completes only after both parties confirm", () => 
     buyerUid: "buyer",
     sellerUid: "seller",
   };
+  assert.throws(
+      () => validateMarketplaceTransactionAction({
+        sale: {
+          offerId: "offer",
+          buyerUid: "buyer",
+          sellerUid: "seller",
+          status: "pending_completion",
+          paymentProviderStatus: "checkout_created",
+        },
+        offer,
+        actorUid: "buyer",
+        action: "confirm_completion",
+      }),
+      (error) => error.code === "failed-precondition",
+  );
   const buyerResult = validateMarketplaceTransactionAction({
-    sale: null,
+    sale: {
+      offerId: "offer",
+      buyerUid: "buyer",
+      sellerUid: "seller",
+      status: "pending_completion",
+      buyerConfirmed: false,
+      sellerConfirmed: false,
+      paymentProviderStatus: "paid",
+    },
     offer,
     actorUid: "buyer",
     action: "confirm_completion",
@@ -628,6 +663,7 @@ test("marketplace transaction completes only after both parties confirm", () => 
       status: buyerResult.status,
       buyerConfirmed: true,
       sellerConfirmed: false,
+      paymentProviderStatus: "paid",
     },
     offer,
     actorUid: "seller",

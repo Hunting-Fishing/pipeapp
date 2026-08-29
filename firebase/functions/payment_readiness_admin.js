@@ -19,6 +19,7 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeTaxReady",
   "stripeTaxRegistrationPending",
   "stripeTaxPendingBillingApproved",
+  "marketplaceTaxCollectionDeferredApproved",
   "stripeReconciliationReady",
   "affiliatePayoutEconomicsReady",
   "affiliatePayoutsEnabled",
@@ -101,6 +102,12 @@ function validateReadiness(next, options = {}) {
         "Production mode requires explicit confirmation.",
     );
   }
+  if (next.stripeTaxReady && next.marketplaceTaxCollectionDeferredApproved) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Registered automatic tax and deferred marketplace tax collection cannot both be enabled.",
+    );
+  }
   if (next.stripeTaxReady && next.stripeTaxRegistrationPending) {
     throw new HttpsError(
         "failed-precondition",
@@ -124,12 +131,12 @@ function validateReadiness(next, options = {}) {
     next.stripeMode === "production" &&
     next.stripeConnectOnboardingEnabled &&
     next.stripeWebhookVerified &&
-    next.stripeTaxReady &&
+    (next.stripeTaxReady || next.marketplaceTaxCollectionDeferredApproved) &&
     next.stripeReconciliationReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Full marketplace checkout requires production mode, Connect onboarding, verified webhooks, active tax registration, and reconciliation readiness.",
+        "Full marketplace checkout requires production mode, Connect onboarding, verified webhooks, reconciliation readiness, and either registered automatic tax or an audited deferred tax-collection decision.",
     );
   }
   if (next.stripeFeeBillingEnabled && !(

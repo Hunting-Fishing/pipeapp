@@ -113,6 +113,8 @@ async function loadProviderReadiness(db) {
     stripeCheckoutEnabled: data.stripeCheckoutEnabled === true,
     stripeWebhookVerified: data.stripeWebhookVerified === true,
     stripeTaxReady: data.stripeTaxReady === true,
+    marketplaceTaxCollectionDeferredApproved:
+      data.marketplaceTaxCollectionDeferredApproved === true,
     stripeReconciliationReady: data.stripeReconciliationReady === true,
     connectReturnUrl: String(data.connectReturnUrl || ""),
     connectRefreshUrl: String(data.connectRefreshUrl || ""),

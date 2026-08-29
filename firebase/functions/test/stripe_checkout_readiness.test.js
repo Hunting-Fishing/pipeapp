@@ -35,7 +35,7 @@ test("platform fee billing accepts separately approved pending registration", ()
   );
 });
 
-test("full marketplace checkout still requires actual tax readiness", () => {
+test("full marketplace checkout requires registered tax or audited deferral", () => {
   assert.throws(
       () => requireCheckoutReady({
         ...providerReady,
@@ -50,6 +50,13 @@ test("full marketplace checkout still requires actual tax readiness", () => {
         ...providerReady,
         stripeCheckoutEnabled: true,
         stripeTaxReady: true,
+      }),
+  );
+  assert.doesNotThrow(
+      () => requireCheckoutReady({
+        ...providerReady,
+        stripeCheckoutEnabled: true,
+        marketplaceTaxCollectionDeferredApproved: true,
       }),
   );
 });

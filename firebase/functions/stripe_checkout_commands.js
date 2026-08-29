@@ -47,7 +47,8 @@ function requireCheckoutReady(readiness) {
     readiness.stripeMode === "production" &&
     readiness.stripeCheckoutEnabled &&
     readiness.stripeWebhookVerified &&
-    readiness.stripeTaxReady &&
+    (readiness.stripeTaxReady ||
+      readiness.marketplaceTaxCollectionDeferredApproved) &&
     readiness.stripeReconciliationReady;
   if (!ready) {
     throw new HttpsError(
@@ -216,18 +217,27 @@ function createStripeCheckoutCommands(admin) {
         throw new HttpsError("not-found", "The marketplace listing is unavailable.");
       }
       const listing = listingSnapshot.data();
-      const taxComplianceSnapshot =
-        await taxCompliance.evaluateTransactionTaxCompliance(sale);
-      if (taxComplianceSnapshot.manualTaxReviewRequired) {
+      const automaticTax = readiness.stripeTaxReady === true;
+      const taxCollectionStatus = automaticTax ?
+        "registered" : "collection_deferred";
+      const taxComplianceSnapshot = automaticTax ?
+        await taxCompliance.evaluateTransactionTaxCompliance(sale) : {
+          collectionMode: "deferred",
+          taxPolicyVersion: "marketplace-tax-collection-deferred-v1",
+          taxResponsibilityPolicyVersion: "marketplace-tax-collection-deferred-v1",
+          manualTaxReviewRequired: false,
+          eligibleForAutomatedCheckout: true,
+        };
+      if (automaticTax && taxComplianceSnapshot.manualTaxReviewRequired) {
         throw new HttpsError(
             "failed-precondition",
             "This transaction has a tax exemption claim that requires Pipe Buyer tax review before online checkout.",
         );
       }
-      if (!taxComplianceSnapshot.eligibleForAutomatedCheckout) {
+      if (automaticTax && !taxComplianceSnapshot.eligibleForAutomatedCheckout) {
         throw new HttpsError(
             "failed-precondition",
-            "Buyer and seller tax profiles must be current and verified before online marketplace checkout.",
+            "Buyer and seller tax profiles must be current and verified before automatic-tax marketplace checkout.",
         );
       }
       const amountMinor = Number(fee.agreedTotalMinor);
@@ -252,11 +262,30 @@ function createStripeCheckoutCommands(admin) {
           ["checkout_created", "processing", "paid"].includes(
               String(sale.paymentProviderStatus || ""),
           )) {
-        return {
-          transactionId,
-          checkoutSessionId: existingSessionId,
-          alreadyCreated: true,
-        };
+        if (sale.paymentProviderStatus === "paid") {
+          return {
+            transactionId,
+            checkoutSessionId: existingSessionId,
+            alreadyCreated: true,
+            alreadyPaid: true,
+          };
+        }
+        const existingSession = await stripeFormRequest({
+          secretKey: stripeSecretKey.value(),
+          path: `/v1/checkout/sessions/${encodeURIComponent(existingSessionId)}`,
+          method: "GET",
+        });
+        const existingUrl = String(existingSession.url || "");
+        if (existingUrl.startsWith("https://") &&
+            String(existingSession.status || "") === "open") {
+          return {
+            transactionId,
+            checkoutSessionId: existingSessionId,
+            checkoutUrl: existingUrl,
+            alreadyCreated: true,
+            alreadyPaid: false,
+          };
+        }
       }
 
       const session = await stripeFormRequest({
@@ -269,15 +298,19 @@ function createStripeCheckoutCommands(admin) {
           cancel_url: cancelUrl,
           client_reference_id: transactionId,
           billing_address_collection: "required",
-          "tax_id_collection[enabled]": "true",
-          "automatic_tax[enabled]": "true",
+          "tax_id_collection[enabled]": automaticTax ? "true" : "false",
+          "automatic_tax[enabled]": automaticTax ? "true" : "false",
           "line_items[0][quantity]": 1,
           "line_items[0][price_data][currency]": currency,
           "line_items[0][price_data][unit_amount]": amountMinor,
-          "line_items[0][price_data][tax_behavior]": "exclusive",
+          ...(automaticTax ? {
+            "line_items[0][price_data][tax_behavior]": "exclusive",
+          } : {}),
           "line_items[0][price_data][product_data][name]":
             String(listing.title || "Pipe Buyer marketplace purchase").slice(0, 240),
-          "line_items[0][price_data][product_data][tax_code]": taxCode,
+          ...(automaticTax ? {
+            "line_items[0][price_data][product_data][tax_code]": taxCode,
+          } : {}),
           "payment_intent_data[transfer_group]": transferGroup,
           "payment_intent_data[metadata][pipeBuyerTransactionId]": transactionId,
           "metadata[pipeBuyerTransactionId]": transactionId,
@@ -285,7 +318,7 @@ function createStripeCheckoutCommands(admin) {
           "metadata[sellerUid]": sellerUid,
           "metadata[buyerUid]": buyerUid,
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
-          "metadata[taxCollectionStatus]": "registered",
+          "metadata[taxCollectionStatus]": taxCollectionStatus,
           "metadata[taxPolicyVersion]": String(
               taxComplianceSnapshot.taxPolicyVersion || "",
           ),
@@ -305,7 +338,8 @@ function createStripeCheckoutCommands(admin) {
         paymentProviderStatus: "checkout_created",
         stripeCheckoutSessionId: sessionId,
         stripeTransferGroup: transferGroup,
-        taxCollectionStatus: "registered",
+        taxCollectionStatus,
+        stripeAutomaticTaxEnabled: automaticTax,
         taxComplianceSnapshot,
         stripeCheckoutCreatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),

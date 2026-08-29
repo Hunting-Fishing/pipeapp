@@ -1840,11 +1840,14 @@ function createMarketplaceCommands(admin) {
     );
     const listingRef = db.collection("public_listings").doc(listingId);
     const saleRef = db.collection("auction_transactions").doc(listingId);
+    const paymentRef = db.collection("marketplace_transactions")
+        .doc(`auction_${listingId}`);
     return db.runTransaction(async (transaction) => {
       const receipt = await transaction.get(receiptRef);
       if (receipt.exists) return receipt.data().result;
       const listingSnapshot = await transaction.get(listingRef);
       const saleSnapshot = await transaction.get(saleRef);
+      const paymentSnapshot = await transaction.get(paymentRef);
       const listing = listingSnapshot.exists ?
         {...listingSnapshot.data(), id: listingId} : null;
       const sale = saleSnapshot.exists ? saleSnapshot.data() : null;
@@ -1854,6 +1857,8 @@ function createMarketplaceCommands(admin) {
         actorUid: uid,
         action,
         reason,
+        paymentProviderStatus: paymentSnapshot.exists ?
+          paymentSnapshot.data().paymentProviderStatus : "",
         administrator: isAdministrator(request),
       });
       const currentRevision = Number(sale.revision || 1);

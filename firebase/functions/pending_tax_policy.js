@@ -5,6 +5,9 @@ const PROVISIONAL_TAX_RESERVE_BPS = 1500;
 
 function taxCollectionStatus(readiness = {}) {
   if (readiness.stripeTaxReady === true) return "registered";
+  if (readiness.marketplaceTaxCollectionDeferredApproved === true) {
+    return "collection_deferred";
+  }
   if (readiness.stripeTaxRegistrationPending === true) {
     return "registration_pending";
   }
@@ -13,6 +16,7 @@ function taxCollectionStatus(readiness = {}) {
 
 function taxBillingPrepared(readiness = {}) {
   return readiness.stripeTaxReady === true ||
+    readiness.marketplaceTaxCollectionDeferredApproved === true ||
     (readiness.stripeTaxRegistrationPending === true &&
       readiness.stripeTaxPendingBillingApproved === true);
 }
