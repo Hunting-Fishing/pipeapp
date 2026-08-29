@@ -1,0 +1,339 @@
+name: Activate VIP Monthly Production 2026-08-29
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/activate-vip-monthly-production-20260829.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pipe-buyer-vip-monthly-production-activation-20260829
+  cancel-in-progress: false
+
+jobs:
+  activate-vip:
+    name: Activate verified VIP monthly billing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: production
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_PROJECT_ID: flutter-flow-pipe
+      VERIFIED_RUNTIME_SHA: a2ab6ca51eb1eb56e1f167cfd9ca702658a999d0
+      VERIFIED_DEPLOY_RUN: '33248095951'
+      EXPECTED_STRIPE_ACCOUNT: acct_1U2QmKDkO07WMXyR
+      VIP_PRODUCT_ID: prod_VA12LaMiaCMRqZ
+      VIP_PRICE_ID: price_1U9h0tDkO07WMXyRgdzAmm43
+      STRIPE_WEBHOOK_URL: https://us-central1-flutter-flow-pipe.cloudfunctions.net/stripeMarketplaceWebhook
+      ACTIVATION_URL: https://us-central1-flutter-flow-pipe.cloudfunctions.net/productionVipActivation
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Prove runtime source is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          git cat-file -e "$VERIFIED_RUNTIME_SHA^{commit}"
+          git diff --quiet "$VERIFIED_RUNTIME_SHA" HEAD -- \
+            firebase lib web firebase.json pubspec.yaml pubspec.lock
+          git show "$VERIFIED_RUNTIME_SHA:firebase/functions/stripe_marketplace_config.js" | grep -q "$VIP_PRICE_ID"
+          git show "$VERIFIED_RUNTIME_SHA:firebase/functions/bootstrap.js" | grep -q 'createVipSubscriptionCheckout'
+          git show "$VERIFIED_RUNTIME_SHA:lib/marketplace/marketplace_vip_subscription_checkout.dart" | grep -q 'VipSubscriptionCheckoutButton'
+          echo "Runtime remains identical to verified VIP source $VERIFIED_RUNTIME_SHA."
+
+      - name: Wait for exact verified production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          completed=false
+          for attempt in $(seq 1 90); do
+            run_json="$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_DEPLOY_RUN")"
+            status="$(node -e 'const r=JSON.parse(process.argv[1]); process.stdout.write(String(r.status||""))' "$run_json")"
+            conclusion="$(node -e 'const r=JSON.parse(process.argv[1]); process.stdout.write(String(r.conclusion||""))' "$run_json")"
+            if [[ "$status" == "completed" ]]; then
+              if [[ "$conclusion" != "success" ]]; then
+                echo "::error::Verified production deployment $VERIFIED_DEPLOY_RUN completed with conclusion $conclusion. VIP activation is blocked."
+                exit 1
+              fi
+              completed=true
+              break
+            fi
+            echo "Production deployment $VERIFIED_DEPLOY_RUN is $status; waiting before VIP activation..."
+            sleep 20
+          done
+          if [[ "$completed" != "true" ]]; then
+            echo "::error::Timed out waiting for verified production deployment $VERIFIED_DEPLOY_RUN."
+            exit 1
+          fi
+
+          jobs_json="$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_DEPLOY_RUN/jobs?per_page=100")"
+          node -e '
+            const p=JSON.parse(process.argv[1]);
+            const deploy=(p.jobs||[]).find(j=>j.name==="Deploy production");
+            const visual=(p.jobs||[]).find(j=>j.name==="Production visual acceptance");
+            if (!deploy || deploy.conclusion!=="success") throw new Error("Verified Firebase deploy job is not successful.");
+            if (!visual || visual.conclusion!=="success") throw new Error("Verified production visual acceptance job is not successful.");
+            const required=["Record exact release manifest","Deploy explicitly selected Firebase project","Prove deployed Function parity","Record release identity"];
+            for (const name of required) {
+              const step=(deploy.steps||[]).find(s=>s.name===name);
+              if (!step || step.conclusion!=="success") throw new Error(`Required production gate not green: ${name}`);
+            }
+            console.log("Verified Firebase deployment, parity, release identity, and visual acceptance are green.");
+          ' "$jobs_json"
+
+      - name: Install Node and Firebase CLI
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+      - shell: bash
+        run: npm install --global firebase-tools@15.25.0 --no-audit --no-fund
+
+      - name: Verify live VIP Stripe price and webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          firebase functions:secrets:access STRIPE_SECRET_PRODUCTION \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" | tail -n 1 > .stripe-key
+          node <<'NODE'
+          const fs = require('node:fs');
+          const key = fs.readFileSync('.stripe-key', 'utf8').trim();
+          async function stripe(path) {
+            const response = await fetch(`https://api.stripe.com${path}`, {
+              headers: {Authorization: `Bearer ${key}`},
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(`Stripe validation failed (${response.status}).`);
+            return payload;
+          }
+          (async () => {
+            const [account, balance, price, endpoints] = await Promise.all([
+              stripe('/v1/account'),
+              stripe('/v1/balance'),
+              stripe(`/v1/prices/${process.env.VIP_PRICE_ID}?expand[]=product`),
+              stripe('/v1/webhook_endpoints?limit=100'),
+            ]);
+            if (account.id !== process.env.EXPECTED_STRIPE_ACCOUNT || balance.livemode !== true) {
+              throw new Error('Pipe Buyer live Stripe account validation failed.');
+            }
+            if (price.id !== process.env.VIP_PRICE_ID || price.livemode !== true || price.active !== true ||
+                String(price.currency || '').toLowerCase() !== 'cad' || Number(price.unit_amount) !== 10000 ||
+                !price.recurring || price.recurring.interval !== 'month' ||
+                !price.product || price.product.id !== process.env.VIP_PRODUCT_ID || price.product.active !== true) {
+              throw new Error('Live VIP monthly Stripe product/price does not match the verified CAD $100/month catalog.');
+            }
+            const endpoint=(endpoints.data||[]).find((item) =>
+              item.url === process.env.STRIPE_WEBHOOK_URL && item.status === 'enabled' && item.livemode === true);
+            if (!endpoint) throw new Error('Verified live Pipe Buyer Stripe webhook is not enabled.');
+            console.log('Live Stripe account, VIP CAD $100/month price, product, and webhook verified.');
+          })().catch((error) => { console.error(error.message); process.exit(1); });
+          NODE
+
+      - name: Prepare one-time activation token
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          token="$(openssl rand -hex 32)"
+          [[ "$token" =~ ^[0-9a-f]{64}$ ]]
+          printf '%s' "$token" > .vip-activation-token
+          firebase functions:secrets:set PIPE_VIP_ACTIVATION_TOKEN \
+            --data-file .vip-activation-token \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive > /dev/null
+
+      - name: Build minimal VIP-only activator
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > firebase/functions/production_vip_activation_temp.js <<'EOF'
+          "use strict";
+          const crypto = require("node:crypto");
+
+          function safeTokenMatch(provided, expected) {
+            const left = Buffer.from(String(provided || ""));
+            const right = Buffer.from(String(expected || ""));
+            return left.length === right.length && left.length === 64 &&
+              crypto.timingSafeEqual(left, right);
+          }
+
+          function createProductionVipActivation(admin) {
+            const db = admin.firestore();
+            const FieldValue = admin.firestore.FieldValue;
+            return async (req, res) => {
+              try {
+                if (req.method !== "POST") return res.status(405).send("Method not allowed");
+                const expected = String(process.env.PIPE_VIP_ACTIVATION_TOKEN || "");
+                const provided = String(req.get("x-pipebuyer-vip-activation-token") || "");
+                if (!safeTokenMatch(provided, expected)) return res.status(403).send("Forbidden");
+
+                const ref = db.collection("platform_configuration").doc("payment_provider_readiness");
+                const auditRef = db.collection("payment_readiness_audit").doc();
+                const result = await db.runTransaction(async (transaction) => {
+                  const snapshot = await transaction.get(ref);
+                  if (!snapshot.exists) throw new Error("Payment provider readiness is missing.");
+                  const before = snapshot.data() || {};
+                  const required = {
+                    stripeMode: "production",
+                    stripeSubscriptionsEnabled: true,
+                    stripeWebhookVerified: true,
+                    stripeReconciliationReady: true,
+                    stripeTaxReady: false,
+                    stripeTaxRegistrationPending: true,
+                    marketplaceTaxCollectionDeferredApproved: true,
+                    affiliatePayoutsEnabled: false,
+                    marketplaceFinancialResolutionEnabled: false,
+                    marketplaceDisputeAutomationEnabled: false,
+                    marketplaceDisputeEvidenceEnabled: false,
+                    platformFundedRefundOverrideEnabled: false,
+                  };
+                  for (const [key, expectedValue] of Object.entries(required)) {
+                    if (before[key] !== expectedValue) {
+                      throw new Error(`Readiness invariant failed for ${key}.`);
+                    }
+                  }
+                  const revision = Math.max(0, Number(before.revision || 0)) + 1;
+                  const reason = "Enable only verified Pipe Buyer VIP CAD $100 monthly subscription checkout after exact production deployment; automatic Stripe tax remains disabled while Canadian registration is pending.";
+                  transaction.update(ref, {
+                    stripeVipSubscriptionsEnabled: true,
+                    revision,
+                    lastChangedByUid: "system:github-vip-production-activation",
+                    lastChangeReason: reason,
+                    updatedAt: FieldValue.serverTimestamp(),
+                  });
+                  transaction.create(auditRef, {
+                    administratorUid: "system:github-vip-production-activation",
+                    reason,
+                    revision,
+                    previous: before,
+                    next: {...before, stripeVipSubscriptionsEnabled: true, revision},
+                    createdAt: FieldValue.serverTimestamp(),
+                  });
+                  return {
+                    revision,
+                    stripeMode: before.stripeMode,
+                    stripeSubscriptionsEnabled: before.stripeSubscriptionsEnabled,
+                    stripeVipSubscriptionsEnabled: true,
+                    stripeWebhookVerified: before.stripeWebhookVerified,
+                    stripeReconciliationReady: before.stripeReconciliationReady,
+                    stripeTaxReady: before.stripeTaxReady,
+                    stripeTaxRegistrationPending: before.stripeTaxRegistrationPending,
+                    marketplaceTaxCollectionDeferredApproved: before.marketplaceTaxCollectionDeferredApproved,
+                    affiliatePayoutsEnabled: before.affiliatePayoutsEnabled,
+                    marketplaceFinancialResolutionEnabled: before.marketplaceFinancialResolutionEnabled,
+                    marketplaceDisputeAutomationEnabled: before.marketplaceDisputeAutomationEnabled,
+                    marketplaceDisputeEvidenceEnabled: before.marketplaceDisputeEvidenceEnabled,
+                    platformFundedRefundOverrideEnabled: before.platformFundedRefundOverrideEnabled,
+                  };
+                });
+                return res.status(200).json({ok: true, result});
+              } catch (error) {
+                console.error("VIP production activation failed", error);
+                return res.status(500).json({ok: false, error: String(error && error.message || error)});
+              }
+            };
+          }
+
+          module.exports = {createProductionVipActivation};
+          EOF
+
+          cat >> firebase/functions/production_bootstrap.js <<'EOF'
+
+          // One-time VIP readiness activator. Deleted immediately after the audited write.
+          const {onRequest: onRequestVipActivation} = require("firebase-functions/v2/https");
+          const {createProductionVipActivation} = require("./production_vip_activation_temp");
+          exports.productionVipActivation = onRequestVipActivation(
+              {secrets: ["PIPE_VIP_ACTIVATION_TOKEN"], invoker: "public"},
+              createProductionVipActivation(createAdminRuntime()),
+          );
+          EOF
+          node --check firebase/functions/production_vip_activation_temp.js
+          node --check firebase/functions/production_bootstrap.js
+
+      - name: Deploy one-time VIP activator
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase deploy \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --config firebase.json \
+            --only functions:marketplace:productionVipActivation \
+            --message "Pipe Buyer VIP-only readiness activation $GITHUB_SHA" \
+            --force --non-interactive
+
+      - name: Prove token guard and activate VIP only
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error -o vip-handler-probe.txt -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' "$ACTIVATION_URL")"
+          if [[ "$status" != "403" || "$(cat vip-handler-probe.txt)" != "Forbidden" ]]; then
+            echo "::error::Temporary VIP activator token guard is not working."
+            cat vip-handler-probe.txt || true
+            exit 1
+          fi
+
+          token="$(cat .vip-activation-token)"
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-delay 3 --retry-all-errors \
+            -X POST \
+            -H "X-PipeBuyer-VIP-Activation-Token: $token" \
+            -H 'Content-Type: application/json' \
+            -d '{}' "$ACTIVATION_URL" > vip-activation-result.json
+          node <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('vip-activation-result.json','utf8'));
+          const r=p.result||{};
+          const ok=p.ok===true &&
+            r.stripeMode==='production' &&
+            r.stripeSubscriptionsEnabled===true &&
+            r.stripeVipSubscriptionsEnabled===true &&
+            r.stripeWebhookVerified===true &&
+            r.stripeReconciliationReady===true &&
+            r.stripeTaxReady===false &&
+            r.stripeTaxRegistrationPending===true &&
+            r.marketplaceTaxCollectionDeferredApproved===true &&
+            r.affiliatePayoutsEnabled===false &&
+            r.marketplaceFinancialResolutionEnabled===false &&
+            r.marketplaceDisputeAutomationEnabled===false &&
+            r.marketplaceDisputeEvidenceEnabled===false &&
+            r.platformFundedRefundOverrideEnabled===false;
+          if (!ok) throw new Error('VIP-only readiness activation did not preserve the approved production safety profile.');
+          console.log('VIP monthly readiness enabled; automatic tax and unrelated financial automation remain unchanged/off.');
+          NODE
+
+          {
+            echo '## Pipe Buyer VIP production activation'
+            echo ''
+            echo '- VIP monthly plan: CAD $100/month verified live in Stripe'
+            echo '- VIP subscription readiness: enabled'
+            echo '- Existing marketplace/Dispatch subscription readiness: preserved'
+            echo '- Stripe automatic tax: remains disabled'
+            echo '- Canadian tax registration: remains pending'
+            echo '- Affiliate payouts / financial resolution / dispute automation / funded refund override: remain disabled'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove temporary VIP activation endpoint
+        if: always()
+        shell: bash
+        run: |
+          firebase functions:delete productionVipActivation \
+            --region us-central1 \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --force || true
+          rm -f .vip-activation-token .stripe-key vip-activation-result.json vip-handler-probe.txt
