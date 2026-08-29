@@ -28,6 +28,24 @@ const stripeSecretKey = Object.freeze({
 });
 
 const initialSellerCountries = new Set(["CA", "US"]);
+const sellerSetupErrorMessages = Object.freeze({
+  account_create_activation_required:
+    "Pipe Buyer must finish Stripe Connect activation before seller payouts can be set up.",
+  account_creation_liability_unacknowledged:
+    "Pipe Buyer must acknowledge the Stripe Connect liability settings before seller payouts can be set up.",
+  account_creation_requirement_collection_and_liability_unacknowledged:
+    "Pipe Buyer must finish the Stripe Connect responsibility acknowledgements before seller payouts can be set up.",
+  account_creation_requirement_collection_unacknowledged:
+    "Pipe Buyer must finish the Stripe Connect requirement-collection setup before seller payouts can be set up.",
+  connect_identity_not_verified:
+    "Pipe Buyer's Stripe platform verification must be completed before seller payouts can be set up.",
+  connect_profile_not_submitted:
+    "Pipe Buyer must complete the Stripe Connect platform profile before seller payouts can be set up.",
+  platform_registration_required:
+    "Pipe Buyer must activate Stripe Connect before seller payouts can be set up.",
+  cross_border_connected_account_creation_not_allowed:
+    "Stripe does not currently allow this seller country for Pipe Buyer payouts.",
+});
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -62,6 +80,16 @@ function safePipeBuyerCallbackUrl(value, field) {
   return url.toString();
 }
 
+function stripeSellerSetupErrorMessage(stripeCode) {
+  const code = String(stripeCode || "").trim().toLowerCase().slice(0, 120);
+  const knownMessage = sellerSetupErrorMessages[code];
+  if (knownMessage) return knownMessage;
+  if (code) {
+    return `Stripe rejected the seller payout setup. Contact Pipe Buyer support with reference ${code}.`;
+  }
+  return "Stripe could not complete the seller payout setup. Try again or contact support.";
+}
+
 async function stripeRequest({secretKey, path, method = "POST", body, query}) {
   const url = new URL(`https://api.stripe.com${path}`);
   for (const [key, value] of Object.entries(query || {})) {
@@ -90,14 +118,23 @@ async function stripeRequest({secretKey, path, method = "POST", body, query}) {
     const stripeCode = String(
         payload && payload.error && (payload.error.code || payload.error.type) || "",
     ).slice(0, 120);
+    const stripeRequestId = String(response.headers.get("request-id") || "")
+        .slice(0, 120);
     console.error("Stripe marketplace request failed", {
       path,
       status: response.status,
       stripeCode,
+      stripeRequestId,
     });
     throw new HttpsError(
         response.status === 429 ? "resource-exhausted" : "failed-precondition",
-        "Stripe could not complete the seller payout setup. Try again or contact support.",
+        stripeSellerSetupErrorMessage(stripeCode),
+        {
+          provider: "stripe",
+          stripeCode: stripeCode || "unknown",
+          stripeRequestId: stripeRequestId || null,
+          httpStatus: response.status,
+        },
     );
   }
   return payload || {};
@@ -388,5 +425,6 @@ module.exports = {
   createStripeMarketplaceCommands,
   loadProviderReadiness,
   safePipeBuyerCallbackUrl,
+  stripeSellerSetupErrorMessage,
   stripeSecretKey,
 };
