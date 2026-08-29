@@ -1,11 +1,6 @@
 name: Activate Live Billing Pending Tax
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/activate-live-billing-pending-tax.yml"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +12,7 @@ concurrency:
 
 jobs:
   activate:
-    name: Activate production billing with tax registration pending
+    name: Activate production billing with deferred marketplace tax collection
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: production
@@ -189,12 +184,13 @@ jobs:
                   const readiness = {
                     stripeMode: "production",
                     stripeConnectOnboardingEnabled: true,
-                    stripeCheckoutEnabled: false,
+                    stripeCheckoutEnabled: true,
                     stripeFeeBillingEnabled: true,
                     stripeSubscriptionsEnabled: true,
                     stripeWebhookVerified: true,
                     stripeTaxReady: false,
                     stripeTaxRegistrationPending: true,
+                    marketplaceTaxCollectionDeferredApproved: true,
                     stripeReconciliationReady: true,
                     affiliatePayoutsEnabled: false,
                     marketplaceFinancialResolutionEnabled: false,
@@ -208,7 +204,7 @@ jobs:
                     revision: readinessRevision,
                     lastChangedByUid: "system:github-production-activation",
                     lastChangeReason:
-                      "Live Pipe Buyer billing enabled while CRA GST/HST registration is pending.",
+                      "Live Pipe Buyer marketplace Checkout enabled with an audited tax-collection deferral while registration/name documents are pending.",
                     updatedAt: FieldValue.serverTimestamp(),
                   };
                   transaction.set(readinessRef, readiness, {merge: false});
@@ -238,6 +234,8 @@ jobs:
                     stripeCheckoutEnabled: readiness.stripeCheckoutEnabled,
                     stripeTaxRegistrationPending:
                       readiness.stripeTaxRegistrationPending,
+                    marketplaceTaxCollectionDeferredApproved:
+                      readiness.marketplaceTaxCollectionDeferredApproved,
                     stripeTaxReady: readiness.stripeTaxReady,
                   };
                 });
@@ -303,10 +301,11 @@ jobs:
               result.stripeMode !== 'production' ||
               result.stripeFeeBillingEnabled !== true ||
               result.stripeSubscriptionsEnabled !== true ||
-              result.stripeCheckoutEnabled !== false ||
+              result.stripeCheckoutEnabled !== true ||
               result.stripeTaxRegistrationPending !== true ||
+              result.marketplaceTaxCollectionDeferredApproved !== true ||
               result.stripeTaxReady !== false) {
-            throw new Error('Production billing activation did not match the authorized pending-tax profile.');
+            throw new Error('Production billing activation did not match the authorized deferred-tax marketplace profile.');
           }
           console.log('Pipe Buyer production billing profile activated and verified.');
           NODE
@@ -317,8 +316,10 @@ jobs:
             echo "- Dispatch subscriptions: enabled"
             echo "- Pipe Buyer marketplace fee billing: enabled"
             echo "- Stripe Connect seller onboarding: enabled"
-            echo "- Tax registration: pending"
-            echo "- Full buyer-to-seller marketplace checkout: intentionally disabled until tax registration is confirmed"
+            echo "- Tax registration/name documents: pending"
+            echo "- Marketplace tax collection: deferred by audited launch decision"
+            echo "- Stripe automatic tax: disabled until registration is finalized"
+            echo "- Full buyer-to-seller marketplace checkout: enabled"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove temporary activation endpoint
