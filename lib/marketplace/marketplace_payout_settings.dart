@@ -152,8 +152,8 @@ class _MarketplacePayoutSettingsPageState
                         payoutReady
                             ? 'Seller payouts are ready'
                             : _hasAccount
-                            ? 'Finish seller payout setup'
-                            : 'Seller payout setup',
+                                ? 'Finish seller payout setup'
+                                : 'Seller payout setup',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -194,10 +194,10 @@ class _MarketplacePayoutSettingsPageState
                           payoutReady
                               ? 'PAYOUT READY'
                               : _hasAccount
-                              ? 'STRIPE SETUP IN PROGRESS'
-                              : statusChecked
-                              ? 'ACTION REQUIRED'
-                              : 'STATUS NOT CHECKED',
+                                  ? 'STRIPE SETUP IN PROGRESS'
+                                  : statusChecked
+                                      ? 'ACTION REQUIRED'
+                                      : 'STATUS NOT CHECKED',
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             letterSpacing: .4,
@@ -264,10 +264,10 @@ class _MarketplacePayoutSettingsPageState
                         _startingOnboarding
                             ? 'Opening Stripe…'
                             : payoutReady
-                            ? 'Review payout details with Stripe'
-                            : _hasAccount
-                            ? 'Continue setup with Stripe'
-                            : 'Set up payouts with Stripe',
+                                ? 'Review payout details with Stripe'
+                                : _hasAccount
+                                    ? 'Continue setup with Stripe'
+                                    : 'Set up payouts with Stripe',
                       ),
                     ),
                   ),
@@ -373,14 +373,14 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-      ),
-      const SizedBox(width: 12),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-    ],
-  );
+        children: [
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+          const SizedBox(width: 12),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      );
 }
 
 class _InfoLine extends StatelessWidget {
@@ -391,29 +391,29 @@ class _InfoLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 26,
-          height: 26,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: PipeBuyerColors.orangeSoft,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            number,
-            style: const TextStyle(
-              color: PipeBuyerColors.orangePressed,
-              fontWeight: FontWeight.w900,
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: PipeBuyerColors.orangeSoft,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: PipeBuyerColors.orangePressed,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(text)),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(text)),
-      ],
-    ),
-  );
+      );
 }
