@@ -17,7 +17,7 @@ void main() {
   test('promo guidance stays limited to monthly Dispatch checkout', () {
     expect(
       dispatchMembershipPromotionHint('monthly'),
-      contains('secure Stripe checkout screen'),
+      contains('Apply it here before payment'),
     );
     expect(dispatchMembershipPromotionHint('yearly'), isEmpty);
   });

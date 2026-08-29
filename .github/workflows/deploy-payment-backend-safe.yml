@@ -103,6 +103,7 @@ jobs:
             createExternalSettlementFeeCheckout
             createDispatchSubscriptionCheckout
             createDispatchSubscriptionPortalSession
+            applyDispatchSubscriptionPromotionCode
             executeMarketplaceRefund
             retryMarketplaceSellerRecovery
             stageMarketplaceDisputeEvidence
@@ -156,6 +157,7 @@ jobs:
             'createMarketplaceCheckout',
             'createDispatchSubscriptionCheckout',
             'createDispatchSubscriptionPortalSession',
+            'applyDispatchSubscriptionPromotionCode',
             'executeMarketplaceRefund',
             'stageMarketplaceDisputeEvidence',
             'processEligibleAffiliatePayouts',

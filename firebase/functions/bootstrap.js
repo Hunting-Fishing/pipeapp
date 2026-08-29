@@ -44,6 +44,9 @@ const {
   createDispatchSubscriptionCommands,
 } = require("./dispatch_subscription_commands");
 const {
+  createDispatchSubscriptionPromotionCommands,
+} = require("./dispatch_subscription_promotions");
+const {
   createDispatchSubscriptionLifecycle,
 } = require("./dispatch_subscription_lifecycle");
 const {
@@ -98,6 +101,8 @@ const marketplacePaymentLifecycle = createMarketplacePaymentLifecycle(admin);
 const externalSettlementCommands = createExternalSettlementCommands(admin);
 const dispatchSubscriptionCatalog = createDispatchSubscriptionCatalog(admin);
 const dispatchSubscriptionCommands = createDispatchSubscriptionCommands(admin);
+const dispatchSubscriptionPromotions =
+  createDispatchSubscriptionPromotionCommands(admin);
 const dispatchSubscriptionLifecycle = createDispatchSubscriptionLifecycle(admin);
 const dispatchSubscriptionPortal = createDispatchSubscriptionPortal(admin);
 const dispatchSubscriptionProviderAccess =
@@ -272,6 +277,10 @@ exports.createDispatchSubscriptionPortalSession = onCall(
     stripeCallableOptions,
     dispatchSubscriptionPortal.createDispatchSubscriptionPortalSession,
 );
+exports.applyDispatchSubscriptionPromotionCode = onCall(
+    stripeCallableOptions,
+    dispatchSubscriptionPromotions.applyDispatchSubscriptionPromotionCode,
+);
 exports.createVipSubscriptionCheckout = onCall(
     stripeCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
@@ -369,4 +378,3 @@ exports.onMarketplaceTransactionUpdatedSellerRelease = onDocumentUpdated(
       transactionId: event.params.transactionId,
     }),
 );
-
