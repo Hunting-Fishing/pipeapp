@@ -89,12 +89,15 @@ jobs:
             confirmExternalSettlement
             requestMarketplaceRefund
             cancelMarketplaceRefundRequest
+            getDispatchSubscriptionCatalog
+            getDispatchSubscriptionStatus
             ensureStripeSellerAccount
             createStripeSellerOnboardingLink
             refreshStripeSellerStatus
             createMarketplaceCheckout
             createExternalSettlementFeeCheckout
             createDispatchSubscriptionCheckout
+            createDispatchSubscriptionPortalSession
             executeMarketplaceRefund
             retryMarketplaceSellerRecovery
             stageMarketplaceDisputeEvidence
@@ -135,9 +138,14 @@ jobs:
             entry.id || entry.name || entry.function || entry.entryPoint || ''
           ).split('/').pop()));
           const required = [
+            'getDispatchSubscriptionCatalog',
+            'getDispatchSubscriptionStatus',
             'ensureStripeSellerAccount',
+            'createStripeSellerOnboardingLink',
+            'refreshStripeSellerStatus',
             'createMarketplaceCheckout',
             'createDispatchSubscriptionCheckout',
+            'createDispatchSubscriptionPortalSession',
             'executeMarketplaceRefund',
             'stageMarketplaceDisputeEvidence',
             'processEligibleAffiliatePayouts',
