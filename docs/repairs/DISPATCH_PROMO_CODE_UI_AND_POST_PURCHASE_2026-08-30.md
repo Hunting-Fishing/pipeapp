@@ -29,6 +29,8 @@ If the field is left blank, eligible monthly Checkout Sessions still use `allow_
 
 `CHECKOUT_CONFIGURATION_VERSION` is now `3`. Checkout reuse also requires the cached `promotionCodeId` to match the currently requested promotion. A no-promo Session cannot be reused after the user enters a code, and a Session created for one promotion cannot be reused for another promotion.
 
+The original plan-change guard is preserved. An unexpired monthly Checkout Session still blocks switching to yearly. A new Session is permitted only when the customer stays on the same plan and changes/adds the promotion code. This prevents the promo repair from weakening the prior checkout-concurrency behavior.
+
 ### Existing subscribers
 
 Active monthly Dispatch memberships now show a separate `Have a promo code?` section in Pipe Buyer.
@@ -58,6 +60,8 @@ The live `FOUNDING500` Promotion Code is configured in Stripe as a first-transac
 
 A new customer can enter the code before the first eligible monthly purchase. An already-paid subscriber who later enters `FOUNDING500` receives a clear eligibility error instead of Pipe Buyer bypassing Stripe's first-purchase policy.
 
+The live coupon currently has no Stripe `applies_to` product restriction. Pipe Buyer therefore scopes its own generic promo-entry operations to Dispatch. The VIP Checkout path explicitly keeps `allow_promotion_codes=false`, so this repair does not make the global coupon available on VIP Checkout. The live Stripe coupon configuration itself was not changed as part of this UI repair.
+
 Do not expose or auto-fill `FOUNDING500` in the app merely because it exists in Stripe. The UI is a generic promo-entry surface for customers who already possess an eligible code.
 
 ## Security and financial boundaries
@@ -69,6 +73,7 @@ Do not expose or auto-fill `FOUNDING500` in the app merely because it exists in 
 - Existing subscription discounts are never silently replaced or stacked.
 - Promotion-code input is length and character bounded before Stripe lookup.
 - The raw customer-entered code is not persisted in Firestore audit state.
+- Shared Stripe request error logging strips query strings before logging a request path, so a typed promo code in `/v1/promotion_codes?...&code=...` is not written into application logs.
 
 ## Deployment and regression coverage
 
@@ -78,12 +83,14 @@ Regression coverage locks:
 
 - monthly-only customer promo entry under the current offer policy;
 - input normalization and bounding;
+- Stripe request-log query sanitization;
 - case-insensitive Stripe code selection and customer-specific preference;
 - Stripe-derived discount summaries;
 - Dispatch product scoping when Stripe supplies `applies_to`;
 - existing-discount ID recognition for idempotency;
 - Checkout configuration-version invalidation;
 - promotion-aware Checkout Session reuse;
+- preservation of the open-checkout plan-change guard while allowing same-plan promotion changes;
 - visible Flutter promo field, Apply action, and confirmed-discount feedback; and
 - Stripe closure workflow coverage for the new backend and Flutter files.
 
@@ -94,6 +101,10 @@ Do not move discount calculation or eligibility rules into Flutter.
 Do not accept a client-submitted amount, percent, coupon ID, or promotion-code ID as authoritative.
 
 Do not remove the `promotionCodeId` check from Checkout reuse; otherwise a cached non-discounted Session can hide a newly entered code.
+
+Do not relax the existing open-checkout plan-change guard just to make promo changes work. Only same-plan promotion changes may replace the cached Checkout Session.
+
+Do not log Stripe request query strings that can contain customer-entered promotion codes.
 
 Do not enable `allow_promotion_codes=true` on a Checkout Session that already receives an explicit `discounts` entry.
 
