@@ -22,7 +22,8 @@ void main() {
     expect(dispatchMembershipPromotionHint('yearly'), isEmpty);
   });
 
-  test('Dispatch membership paid-through date is formatted from server millis', () {
+  test('Dispatch membership paid-through date is formatted from server millis',
+      () {
     final utc = DateTime.utc(2026, 8, 21);
     final label = dispatchMembershipPaidThrough({
       'currentPeriodEndMillis': utc.millisecondsSinceEpoch,
@@ -46,12 +47,14 @@ void main() {
         },
       },
     };
-    expect(dispatchSubscriptionPriceLabel(catalog, 'monthly'), r'CA$25 / month');
+    expect(
+        dispatchSubscriptionPriceLabel(catalog, 'monthly'), r'CA$25 / month');
     expect(dispatchSubscriptionPriceLabel(catalog, 'yearly'), r'CA$300 / year');
   });
 
   test('Dispatch pricing never invents a local fallback amount', () {
-    expect(dispatchSubscriptionPriceLabel(const {}, 'monthly'), 'Price unavailable');
+    expect(dispatchSubscriptionPriceLabel(const {}, 'monthly'),
+        'Price unavailable');
   });
 
   testWidgets('payment success does not claim redirect grants access',
@@ -64,7 +67,8 @@ void main() {
 
     expect(find.text('Payment submitted'), findsOneWidget);
     expect(
-      find.textContaining('does not grant paid access from this browser redirect'),
+      find.textContaining(
+          'does not grant paid access from this browser redirect'),
       findsOneWidget,
     );
     expect(find.text('View Dispatch membership'), findsOneWidget);
