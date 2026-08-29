@@ -1,0 +1,37 @@
+name: Validate Marketplace Deposit Ledger 2026-08-29
+
+on:
+  push:
+    branches:
+      - feat/marketplace-deposit-ledger-20260829
+    paths:
+      - ".github/workflows/validate-marketplace-deposit-ledger-20260829.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate deposit ledger foundation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out deposit branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: feat/marketplace-deposit-ledger-20260829
+
+      - name: Install Node 22
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Validate Functions and deposit policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          node --test firebase/functions/test/marketplace_payment_plan_policy.test.js
