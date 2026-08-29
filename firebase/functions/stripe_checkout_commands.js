@@ -82,6 +82,10 @@ function appendFormValue(form, key, value) {
   form.append(key, String(value));
 }
 
+function safeStripeLogPath(path) {
+  return String(path || "").split("?", 1)[0];
+}
+
 async function stripeFormRequest({
   secretKey,
   path,
@@ -114,7 +118,7 @@ async function stripeFormRequest({
         payload && payload.error && (payload.error.code || payload.error.type) || "",
     ).slice(0, 120);
     console.error("Stripe Checkout request failed", {
-      path,
+      path: safeStripeLogPath(path),
       status: response.status,
       stripeCode,
     });
@@ -368,5 +372,6 @@ module.exports = {
   requireCheckoutReady,
   requirePlatformFeeBillingReady,
   safeConfiguredUrl,
+  safeStripeLogPath,
   stripeFormRequest,
 };
