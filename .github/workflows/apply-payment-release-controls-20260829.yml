@@ -1,0 +1,68 @@
+name: Apply Payment Release Controls 2026-08-29
+
+on:
+  push:
+    branches:
+      - fix/payment-release-controls-20260829
+    paths:
+      - ".github/workflows/apply-payment-release-controls-20260829.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    name: Apply and validate payment release controls
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: fix/payment-release-controls-20260829
+          fetch-depth: 0
+
+      - name: Apply deterministic release-control repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/repair_payment_release_controls_20260829.py
+          git diff --check
+
+      - name: Verify release-control invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          activation=.github/workflows/activate-live-billing-pending-tax.yml
+          safe=.github/workflows/deploy-payment-backend-safe.yml
+          release=.github/workflows/release-stripe-live-alignment-2026-08-29.yml
+          grep -F 'stripeCheckoutEnabled: true' "$activation"
+          grep -F 'marketplaceTaxCollectionDeferredApproved: true' "$activation"
+          grep -F 'result.stripeCheckoutEnabled !== true' "$activation"
+          grep -F 'result.marketplaceTaxCollectionDeferredApproved !== true' "$activation"
+          if grep -Fq 'push:' "$activation"; then
+            echo '::error::Activation workflow must not auto-run before the verified release orchestrator.'
+            exit 1
+          fi
+          grep -F 'updateAuctionTransaction' "$safe"
+          grep -F 'onAuctionTransactionCreatedPaymentMirror' "$safe"
+          grep -F 'onAuctionTransactionUpdatedPaymentMirror' "$safe"
+          grep -F 'onMarketplaceTransactionUpdatedSellerRelease' "$safe"
+          grep -F 'automatic tax disabled under audited collection deferral' "$release"
+
+      - name: Commit validated release controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo '::error::Release-control repair produced no changes.'
+            exit 1
+          fi
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            .github/workflows/activate-live-billing-pending-tax.yml \
+            .github/workflows/deploy-payment-backend-safe.yml \
+            .github/workflows/release-stripe-live-alignment-2026-08-29.yml
+          git commit -m 'Align production activation with marketplace checkout flow'
+          git push origin HEAD
