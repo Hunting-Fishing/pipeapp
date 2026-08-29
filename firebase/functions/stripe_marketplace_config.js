@@ -4,6 +4,11 @@
 // webhook signing secrets belong in Google Cloud Secret Manager only.
 const stripeMarketplaceConfig = Object.freeze({
   apiVersion: "2026-06-24.preview",
+  // Accounts v2 marketplace recipient creation is intentionally isolated from
+  // the older preview used by Checkout/webhook surfaces. Stripe's current
+  // marketplace recipient guide uses this preview for Express recipient
+  // accounts with stripe_balance.stripe_transfers.
+  connectAccountsApiVersion: "2026-07-29.preview",
   accountCountry: "CA",
   products: Object.freeze({
     dispatchMonthlyCad: Object.freeze({
