@@ -106,7 +106,9 @@ class _MarketplaceStripeConnectReturnPageState
       // system browser for Stripe-hosted onboarding.
       final opened = await launchUrl(
         uri,
-        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        mode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
         webOnlyWindowName: kIsWeb ? '_self' : null,
       );
       if (!opened) {
@@ -189,9 +191,11 @@ class _MarketplaceStripeConnectReturnPageState
                   ),
                   const SizedBox(height: 18),
                   FilledButton.icon(
-                    onPressed: _isRefresh ? _continueOnboarding : _refreshStatus,
+                    onPressed:
+                        _isRefresh ? _continueOnboarding : _refreshStatus,
                     icon: const Icon(Icons.refresh_rounded),
-                    label: Text(_isRefresh ? 'Continue with Stripe' : 'Check again'),
+                    label: Text(
+                        _isRefresh ? 'Continue with Stripe' : 'Check again'),
                   ),
                 ] else ...[
                   Text(
@@ -240,7 +244,9 @@ class _MarketplaceStripeConnectReturnPageState
       case 'not_checked':
         return 'Not checked yet';
       default:
-        return value.trim().isEmpty ? 'Pending information' : value.replaceAll('_', ' ');
+        return value.trim().isEmpty
+            ? 'Pending information'
+            : value.replaceAll('_', ' ');
     }
   }
 }
