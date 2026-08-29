@@ -26,6 +26,7 @@ class _MarketplaceStripeConnectReturnPageState
 
   bool _loading = true;
   bool _openingStripe = false;
+  bool _statusConfirmed = false;
   bool? _payoutReady;
   String _transferStatus = 'pending';
   String? _errorMessage;
@@ -47,10 +48,11 @@ class _MarketplaceStripeConnectReturnPageState
     await _refreshStatus();
   }
 
-  Future<void> _refreshStatus() async {
-    if (!mounted) return;
+  Future<void> _refreshStatus({bool userInitiated = false}) async {
+    if (!mounted || _loading && userInitiated) return;
     setState(() {
       _loading = true;
+      _statusConfirmed = false;
       _errorMessage = null;
     });
     try {
@@ -61,11 +63,22 @@ class _MarketplaceStripeConnectReturnPageState
       );
       if (!mounted) return;
       final transferStatus = '${result['transferStatus'] ?? 'pending'}'.trim();
+      final ready = result['payoutReady'] == true;
       setState(() {
         _transferStatus = transferStatus.isEmpty ? 'pending' : transferStatus;
-        _payoutReady = result['payoutReady'] == true;
+        _payoutReady = ready;
         _loading = false;
+        _statusConfirmed = userInitiated;
       });
+      if (userInitiated) {
+        PipeFeedback.show(
+          context,
+          message: ready
+              ? 'Payout status checked. Stripe confirms this seller is payout ready.'
+              : 'Payout status checked. Stripe still needs information before payouts can be enabled.',
+          tone: ready ? PipeStatusTone.success : PipeStatusTone.warning,
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -75,6 +88,13 @@ class _MarketplaceStripeConnectReturnPageState
         );
         _loading = false;
       });
+      if (userInitiated) {
+        PipeFeedback.show(
+          context,
+          message: _errorMessage!,
+          tone: PipeStatusTone.error,
+        );
+      }
     }
   }
 
@@ -204,6 +224,33 @@ class _MarketplaceStripeConnectReturnPageState
                         : 'Your Stripe information was returned to Pipe Buyer. Current transfer status: $statusLabel. Stripe may still need information before payouts can be enabled.',
                     textAlign: TextAlign.center,
                   ),
+                  if (_statusConfirmed) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          ready
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.info_outline_rounded,
+                          size: 20,
+                          color: ready
+                              ? PipeBuyerColors.success
+                              : PipeBuyerColors.orangePressed,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            ready
+                                ? 'Status checked just now — payout ready.'
+                                : 'Status checked just now — more Stripe information is required.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   if (!ready)
                     FilledButton.icon(
@@ -213,7 +260,7 @@ class _MarketplaceStripeConnectReturnPageState
                     ),
                   if (!ready) const SizedBox(height: 10),
                   OutlinedButton.icon(
-                    onPressed: _refreshStatus,
+                    onPressed: () => _refreshStatus(userInitiated: true),
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Check payout status'),
                   ),
