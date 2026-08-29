@@ -1,4 +1,5 @@
 name: Deploy Gated Payment Backend
+# Release retry trigger: stale settlement-label regression test repaired 2026-08-29.
 
 on:
   push:
