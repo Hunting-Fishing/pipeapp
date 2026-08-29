@@ -104,6 +104,12 @@ function reusableCheckoutState(
     String(state.checkoutUrl || "").startsWith("https://");
 }
 
+function createdCheckoutBlocksPlanChange(state, plan, nowMillis = Date.now()) {
+  if (!state || state.status !== "created") return false;
+  if (timestampMillis(state.expiresAt) <= nowMillis) return false;
+  return Boolean(state.plan && state.plan !== plan);
+}
+
 function checkoutAttemptKey(uid, attemptNumber) {
   return `pipebuyer-dispatch-${uid}-attempt-${attemptNumber}`;
 }
@@ -236,13 +242,15 @@ function createDispatchSubscriptionCommands(admin) {
           return {attemptNumber};
         }
 
-        if (state.status === "created" && stateExpiry > nowMillis &&
-            (state.plan !== plan ||
-             String(state.promotionCodeId || "") !== promotionCodeId)) {
-          // A cached session for a different plan or promotion must not be reused.
-          // Starting a fresh session here is safe because creating Checkout does
-          // not itself charge the customer.
+        if (createdCheckoutBlocksPlanChange(state, plan, nowMillis)) {
+          throw new HttpsError(
+              "failed-precondition",
+              "A different Dispatch membership checkout is already open. Finish or let that checkout expire before changing plans.",
+          );
         }
+        // An open Checkout Session for this same plan is allowed to be replaced
+        // only when its promotion differs from the user's current request. This
+        // makes applying/changing a promo work without relaxing the plan guard.
 
         const previousAttempt = Number(state.attemptNumber || 0);
         const attemptNumber = Number.isSafeInteger(previousAttempt) && previousAttempt >= 0 ?
@@ -414,6 +422,7 @@ module.exports = {
   checkoutAttemptKey,
   couponFromEntitlement,
   createDispatchSubscriptionCommands,
+  createdCheckoutBlocksPlanChange,
   dispatchMembershipIsCurrent,
   promotionCodeEntryAllowed,
   requireSubscriptionReady,
