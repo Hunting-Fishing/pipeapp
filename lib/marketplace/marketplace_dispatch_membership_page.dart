@@ -174,7 +174,8 @@ class _MarketplaceDispatchMembershipPageState
         context,
         message: marketplaceCommandErrorMessage(
           error,
-          fallback: 'That promo code could not be applied. Check it and try again.',
+          fallback:
+              'That promo code could not be applied. Check it and try again.',
         ),
         tone: PipeStatusTone.error,
       );
@@ -192,7 +193,8 @@ class _MarketplaceDispatchMembershipPageState
     }
     setState(() => _busyPlan = plan);
     try {
-      final code = plan == 'monthly' ? _checkoutPromoController.text.trim() : '';
+      final code =
+          plan == 'monthly' ? _checkoutPromoController.text.trim() : '';
       final payload = <String, Object?>{'plan': plan};
       if (code.isNotEmpty) payload['promotionCode'] = code;
       final result = await _commands.execute(
@@ -278,7 +280,8 @@ class _MarketplaceDispatchMembershipPageState
         context,
         message: marketplaceCommandErrorMessage(
           error,
-          fallback: 'That promo code could not be applied to this subscription.',
+          fallback:
+              'That promo code could not be applied to this subscription.',
         ),
         tone: PipeStatusTone.error,
       );
@@ -377,7 +380,10 @@ class _MarketplaceDispatchMembershipPageState
                 onRetry: _refresh,
                 onManage: _openPortal,
               ),
-              if (active && hostedStripeAllowed && !loading && !snapshot.hasError) ...[
+              if (active &&
+                  hostedStripeAllowed &&
+                  !loading &&
+                  !snapshot.hasError) ...[
                 const SizedBox(height: 16),
                 _ExistingSubscriptionPromotionCard(
                   monthly: plan == 'monthly',
@@ -775,12 +781,14 @@ class _ExistingSubscriptionPromotionCard extends StatelessWidget {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.local_offer_outlined, color: PipeBuyerColors.orange),
+                  Icon(Icons.local_offer_outlined,
+                      color: PipeBuyerColors.orange),
                   SizedBox(width: 9),
                   Expanded(
                     child: Text(
                       'Have a promo code?',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                     ),
                   ),
                 ],
