@@ -41,6 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 tool/repair_marketplace_payments_20260829.py
+          python3 tool/repair_marketplace_payments_20260829_followup.py
           dart format \
             lib/marketplace/marketplace_secure_payment.dart \
             lib/marketplace/marketplace_messages_page.dart \
