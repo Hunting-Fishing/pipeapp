@@ -1,5 +1,5 @@
 name: Deploy Gated Payment Backend
-# Release retry trigger: stale settlement-label regression test repaired 2026-08-29.
+# Release trigger: marketplace checkout, Timed Buying mirror, and delayed seller release validated 2026-08-29.
 
 on:
   push:
@@ -85,6 +85,10 @@ jobs:
           set -euo pipefail
           targets=(
             updateMarketplaceTransaction
+            updateAuctionTransaction
+            onAuctionTransactionCreatedPaymentMirror
+            onAuctionTransactionUpdatedPaymentMirror
+            onMarketplaceTransactionUpdatedSellerRelease
             ensureAffiliateCode
             claimAffiliateReferral
             confirmExternalSettlement
@@ -139,6 +143,11 @@ jobs:
             entry.id || entry.name || entry.function || entry.entryPoint || ''
           ).split('/').pop()));
           const required = [
+            'updateMarketplaceTransaction',
+            'updateAuctionTransaction',
+            'onAuctionTransactionCreatedPaymentMirror',
+            'onAuctionTransactionUpdatedPaymentMirror',
+            'onMarketplaceTransactionUpdatedSellerRelease',
             'getDispatchSubscriptionCatalog',
             'getDispatchSubscriptionStatus',
             'ensureStripeSellerAccount',
