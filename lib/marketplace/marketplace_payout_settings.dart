@@ -1,7 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_command_client.dart';
 
 class MarketplacePayoutSettingsPage extends StatefulWidget {
   const MarketplacePayoutSettingsPage({super.key});
@@ -13,795 +17,413 @@ class MarketplacePayoutSettingsPage extends StatefulWidget {
 
 class _MarketplacePayoutSettingsPageState
     extends State<MarketplacePayoutSettingsPage> {
-  final _achFormKey = GlobalKey<FormState>();
-  final _gccFormKey = GlobalKey<FormState>();
-  final _swiftFormKey = GlobalKey<FormState>();
-  final _taxFormKey = GlobalKey<FormState>();
+  final _commands = MarketplaceCommandClient();
+  String _country = 'CA';
+  bool _startingOnboarding = false;
+  bool _refreshing = false;
 
-  // US & Canada ACH Controllers
-  final _achBankNameController = TextEditingController();
-  final _achHolderController = TextEditingController();
-  final _achRoutingController = TextEditingController();
-  final _achAccountController = TextEditingController();
-  String _achAccountType = 'Business Checking';
-
-  // Saudi Arabia & GCC IBAN Controllers
-  final _gccBankNameController = TextEditingController();
-  final _gccHolderController = TextEditingController();
-  final _gccIbanController = TextEditingController();
-  final _gccSwiftController = TextEditingController();
-  String _gccCurrency = 'SAR (Saudi Riyal)';
-
-  // Global SWIFT / International Wire Controllers
-  final _swiftBankNameController = TextEditingController();
-  final _swiftHolderController = TextEditingController();
-  final _swiftCodeController = TextEditingController();
-  final _swiftIbanController = TextEditingController();
-  final _swiftCountryController = TextEditingController();
-
-  // Tax & 1099-K Compliance Controllers
-  final _taxIdController = TextEditingController();
-  final _legalEntityController = TextEditingController();
-  String _taxFormType = 'W-9 (US Person / Entity)';
-
-  bool _loading = true;
-  bool _savingAch = false;
-  bool _savingGcc = false;
-  bool _savingSwift = false;
-  bool _savingTax = false;
-
-  bool _achSaved = false;
-  bool _gccSaved = false;
-  bool _swiftSaved = false;
-  bool _taxSaved = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadExistingPayoutSettings();
-  }
-
-  @override
-  void dispose() {
-    _achBankNameController.dispose();
-    _achHolderController.dispose();
-    _achRoutingController.dispose();
-    _achAccountController.dispose();
-    _gccBankNameController.dispose();
-    _gccHolderController.dispose();
-    _gccIbanController.dispose();
-    _gccSwiftController.dispose();
-    _swiftBankNameController.dispose();
-    _swiftHolderController.dispose();
-    _swiftCodeController.dispose();
-    _swiftIbanController.dispose();
-    _swiftCountryController.dispose();
-    _taxIdController.dispose();
-    _legalEntityController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadExistingPayoutSettings() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
-
+  Future<void> _startOnboarding() async {
+    if (_startingOnboarding || _refreshing) return;
+    setState(() => _startingOnboarding = true);
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final payout = data['payoutSettings'] as Map<String, dynamic>? ?? {};
-
-        // ACH
-        _achBankNameController.text = payout['achBankName'] ?? '';
-        _achHolderController.text = payout['achHolder'] ?? '';
-        _achRoutingController.text = payout['achRouting'] ?? '';
-        _achAccountController.text = payout['achAccount'] ?? '';
-        if (payout['achType'] != null) _achAccountType = payout['achType'];
-        _achSaved = _achBankNameController.text.isNotEmpty;
-
-        // GCC
-        _gccBankNameController.text = payout['gccBankName'] ?? '';
-        _gccHolderController.text = payout['gccHolder'] ?? '';
-        _gccIbanController.text = payout['gccIban'] ?? '';
-        _gccSwiftController.text = payout['gccSwift'] ?? '';
-        if (payout['gccCurrency'] != null) _gccCurrency = payout['gccCurrency'];
-        _gccSaved = _gccIbanController.text.isNotEmpty;
-
-        // SWIFT
-        _swiftBankNameController.text = payout['swiftBankName'] ?? '';
-        _swiftHolderController.text = payout['swiftHolder'] ?? '';
-        _swiftCodeController.text = payout['swiftCode'] ?? '';
-        _swiftIbanController.text = payout['swiftIban'] ?? '';
-        _swiftCountryController.text = payout['swiftCountry'] ?? '';
-        _swiftSaved = _swiftIbanController.text.isNotEmpty;
-
-        // Tax
-        _taxIdController.text = payout['taxId'] ?? '';
-        _legalEntityController.text = payout['legalEntity'] ?? '';
-        if (payout['taxFormType'] != null) _taxFormType = payout['taxFormType'];
-        _taxSaved = _taxIdController.text.isNotEmpty;
+      final result = await _commands.execute(
+        'createStripeSellerOnboardingLink',
+        {'country': _country},
+        timeout: const Duration(seconds: 45),
+      );
+      final uri = Uri.tryParse('${result['onboardingUrl'] ?? ''}');
+      if (uri == null || uri.scheme != 'https') {
+        throw StateError('Stripe did not return a valid seller setup link.');
       }
-    } catch (_) {
-      // Quiet fail if offline
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) {
+        throw StateError('Secure Stripe seller setup could not be opened.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Seller payout setup could not be started.',
+        ),
+        tone: PipeStatusTone.error,
+      );
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _startingOnboarding = false);
     }
   }
 
-  Future<void> _saveCategory(
-      String categoryKey, Map<String, dynamic> data, String successMsg) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      PipeFeedback.show(context,
-          message: 'Please sign in to save banking details.',
-          tone: PipeStatusTone.error);
-      return;
-    }
-
+  Future<void> _refreshStatus() async {
+    if (_refreshing || _startingOnboarding) return;
+    setState(() => _refreshing = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'payoutSettings': {
-          ...data,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }
-      }, SetOptions(merge: true));
-
-      if (mounted) {
-        PipeFeedback.show(context,
-            message: successMsg, tone: PipeStatusTone.success);
-      }
-    } catch (e) {
-      if (mounted) {
-        PipeFeedback.show(context,
-            message: 'Could not save payout settings. Please try again.',
-            tone: PipeStatusTone.error);
-      }
-    }
-  }
-
-  void _saveAch() async {
-    if (_achFormKey.currentState?.validate() ?? false) {
-      setState(() => _savingAch = true);
-      await _saveCategory(
-          'ach',
-          {
-            'achBankName': _achBankNameController.text.trim(),
-            'achHolder': _achHolderController.text.trim(),
-            'achRouting': _achRoutingController.text.trim(),
-            'achAccount': _achAccountController.text.trim(),
-            'achType': _achAccountType,
-          },
-          'US & Canada Direct Deposit ACH updated!');
-      setState(() {
-        _savingAch = false;
-        _achSaved = true;
-      });
-    }
-  }
-
-  void _saveGcc() async {
-    if (_gccFormKey.currentState?.validate() ?? false) {
-      setState(() => _savingGcc = true);
-      await _saveCategory(
-          'gcc',
-          {
-            'gccBankName': _gccBankNameController.text.trim(),
-            'gccHolder': _gccHolderController.text.trim(),
-            'gccIban': _gccIbanController.text.trim(),
-            'gccSwift': _gccSwiftController.text.trim(),
-            'gccCurrency': _gccCurrency,
-          },
-          'Saudi & GCC IBAN Payout Vault updated!');
-      setState(() {
-        _savingGcc = false;
-        _gccSaved = true;
-      });
-    }
-  }
-
-  void _saveSwift() async {
-    if (_swiftFormKey.currentState?.validate() ?? false) {
-      setState(() => _savingSwift = true);
-      await _saveCategory(
-          'swift',
-          {
-            'swiftBankName': _swiftBankNameController.text.trim(),
-            'swiftHolder': _swiftHolderController.text.trim(),
-            'swiftCode': _swiftCodeController.text.trim(),
-            'swiftIban': _swiftIbanController.text.trim(),
-            'swiftCountry': _swiftCountryController.text.trim(),
-          },
-          'Global SWIFT International Wire updated!');
-      setState(() {
-        _savingSwift = false;
-        _swiftSaved = true;
-      });
-    }
-  }
-
-  void _saveTax() async {
-    if (_taxFormKey.currentState?.validate() ?? false) {
-      setState(() => _savingTax = true);
-      await _saveCategory(
-          'tax',
-          {
-            'taxId': _taxIdController.text.trim(),
-            'legalEntity': _legalEntityController.text.trim(),
-            'taxFormType': _taxFormType,
-          },
-          'Tax & 1099-K Compliance settings saved!');
-      setState(() {
-        _savingTax = false;
-        _taxSaved = true;
-      });
+      final result = await _commands.execute(
+        'refreshStripeSellerStatus',
+        const {},
+        timeout: const Duration(seconds: 30),
+      );
+      if (!mounted) return;
+      final ready = result['payoutReady'] == true;
+      PipeFeedback.show(
+        context,
+        message: ready
+            ? 'Stripe seller payouts are ready.'
+            : 'Stripe still needs information before payouts can be enabled.',
+        tone: ready ? PipeStatusTone.success : PipeStatusTone.warning,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Seller payout status could not be refreshed.',
+        ),
+        tone: PipeStatusTone.error,
+      );
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text('Sign in to set up seller payouts.')),
+      );
+    }
+
+    final providerStream = FirebaseFirestore.instance
+        .collection('payment_provider_accounts')
+        .doc(user.uid)
+        .snapshots();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Banking & Merchant Payout Vault'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 720),
+      appBar: AppBar(title: const Text('Seller payouts')),
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: providerStream,
+        builder: (context, snapshot) {
+          final data = snapshot.data?.data() ?? const <String, dynamic>{};
+          final hasAccount = '${data['stripeAccountId'] ?? ''}'.startsWith('acct_');
+          final transferStatus = '${data['transferStatus'] ?? 'not_started'}';
+          final onboardingStatus = '${data['onboardingStatus'] ?? 'not_started'}';
+          final payoutReady = transferStatus == 'active' ||
+              onboardingStatus == 'payout_ready';
+          final configuredCountry = '${data['country'] ?? ''}'.toUpperCase();
+          if (hasAccount &&
+              (configuredCountry == 'CA' || configuredCountry == 'US')) {
+            _country = configuredCountry;
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF101721),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.orange.withValues(alpha: .14),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_outlined,
+                        color: Color(0xFFFFB21A),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            payoutReady
+                                ? 'Seller payouts are ready'
+                                : hasAccount
+                                    ? 'Finish seller payout setup'
+                                    : 'Set up seller payouts',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Banking, identity and tax information is entered securely with Stripe. Pipe Buyer does not ask you to type bank account numbers or tax IDs into this app.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Card
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                      Row(
+                        children: [
+                          Icon(
+                            payoutReady
+                                ? Icons.verified_rounded
+                                : Icons.pending_actions_outlined,
+                            color: payoutReady
+                                ? PipeBuyerColors.success
+                                : PipeBuyerColors.orangePressed,
                           ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(40),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              payoutReady
+                                  ? 'PAYOUT READY'
+                                  : hasAccount
+                                      ? 'STRIPE SETUP IN PROGRESS'
+                                      : 'NOT SET UP',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: .4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      if (!hasAccount) ...[
+                        const Text(
+                          'Seller country',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String>(
+                          initialValue: _country,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.public_outlined),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'CA',
+                              child: Text('Canada'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'US',
+                              child: Text('United States'),
                             ),
                           ],
+                          onChanged: _startingOnboarding
+                              ? null
+                              : (value) {
+                                  if (value != null) {
+                                    setState(() => _country = value);
+                                  }
+                                },
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0878E8).withAlpha(40),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.account_balance_outlined,
-                                  color: Colors.white, size: 30),
+                        const SizedBox(height: 14),
+                      ] else ...[
+                        _StatusRow(
+                          label: 'Country',
+                          value: configuredCountry.isEmpty
+                              ? 'Configured with Stripe'
+                              : configuredCountry,
+                        ),
+                        const SizedBox(height: 8),
+                        _StatusRow(
+                          label: 'Transfer status',
+                          value: _friendlyStatus(transferStatus),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _startingOnboarding || _refreshing
+                              ? null
+                              : _startOnboarding,
+                          icon: _startingOnboarding
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.open_in_new_rounded),
+                          label: Text(
+                            _startingOnboarding
+                                ? 'Opening Stripe…'
+                                : payoutReady
+                                    ? 'Review payout details with Stripe'
+                                    : hasAccount
+                                        ? 'Continue setup with Stripe'
+                                        : 'Set up payouts with Stripe',
+                          ),
+                        ),
+                      ),
+                      if (hasAccount) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _startingOnboarding || _refreshing
+                                ? null
+                                : _refreshStatus,
+                            icon: _refreshing
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.refresh_rounded),
+                            label: Text(
+                              _refreshing ? 'Checking…' : 'Refresh payout status',
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  Text(
-                                    'Merchant Payout Vault & Escrow Setup',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 17),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Connect your company banking accounts and international payout methods. Escrow payouts post directly to your selected active account upon buyer inspection approval.',
-                                    style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                        height: 1.4),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Card 1: Direct ACH & Wire (US & Canada)
-                      _buildPayoutTile(
-                        icon: Icons.account_balance,
-                        iconColor: const Color(0xFF0878E8),
-                        title: 'DIRECT ACH & WIRE (US & CANADA)',
-                        subtitle:
-                            'Direct deposit for US Dollars (USD) & Canadian Dollars (CAD)',
-                        isConfigured: _achSaved,
-                        child: Form(
-                          key: _achFormKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextFormField(
-                                controller: _achHolderController,
-                                decoration: const InputDecoration(
-                                  labelText:
-                                      'Legal Account Holder / Entity Name',
-                                  hintText: 'e.g. Apex Oilfield Supplies LLC',
-                                  prefixIcon: Icon(Icons.business),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter account holder name'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _achBankNameController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Bank Name',
-                                  hintText:
-                                      'e.g. JPMorgan Chase / Wells Fargo / RBC',
-                                  prefixIcon:
-                                      Icon(Icons.account_balance_outlined),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter bank name'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _achRoutingController,
-                                      keyboardType: TextInputType.number,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Routing / ABA (9 Digits)',
-                                        prefixIcon: Icon(Icons.numbers),
-                                      ),
-                                      validator: (val) =>
-                                          val == null || val.trim().length < 8
-                                              ? 'Invalid routing #'
-                                              : null,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _achAccountController,
-                                      keyboardType: TextInputType.number,
-                                      obscureText: true,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Account Number',
-                                        prefixIcon: Icon(Icons.lock_outline),
-                                      ),
-                                      validator: (val) =>
-                                          val == null || val.trim().length < 5
-                                              ? 'Invalid account #'
-                                              : null,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: _achAccountType,
-                                decoration: const InputDecoration(
-                                  labelText: 'Account Category',
-                                  prefixIcon: Icon(Icons.credit_card),
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 'Business Checking',
-                                      child: Text('Business Checking')),
-                                  DropdownMenuItem(
-                                      value: 'Checking',
-                                      child: Text('Personal Checking')),
-                                  DropdownMenuItem(
-                                      value: 'Savings',
-                                      child: Text('Savings Account')),
-                                ],
-                                onChanged: (val) => setState(() =>
-                                    _achAccountType =
-                                        val ?? 'Business Checking'),
-                              ),
-                              const SizedBox(height: 16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: FilledButton.icon(
-                                  onPressed: _savingAch ? null : _saveAch,
-                                  icon: const Icon(Icons.save),
-                                  label: Text(_savingAch
-                                      ? 'Saving…'
-                                      : 'Save US/CA ACH Vault'),
-                                ),
-                              ),
-                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Card 2: Saudi Arabia & GCC IBAN Payout Vault
-                      _buildPayoutTile(
-                        icon: Icons.public,
-                        iconColor: const Color(0xFF10B981),
-                        title: 'SAUDI ARABIA & GCC IBAN PAYOUT VAULT',
-                        subtitle:
-                            'Direct payouts for Saudi Arabia (SAR), UAE (AED), Qatar, & Kuwait',
-                        isConfigured: _gccSaved,
-                        child: Form(
-                          key: _gccFormKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              DropdownButtonFormField<String>(
-                                initialValue: _gccCurrency,
-                                decoration: const InputDecoration(
-                                  labelText: 'Settlement Currency',
-                                  prefixIcon:
-                                      Icon(Icons.monetization_on_outlined),
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 'SAR (Saudi Riyal)',
-                                      child: Text(
-                                          'SAR — Saudi Riyal (🇸🇦 Saudi Arabia)')),
-                                  DropdownMenuItem(
-                                      value: 'AED (UAE Dirham)',
-                                      child: Text(
-                                          'AED — UAE Dirham (🇦🇪 United Arab Emirates)')),
-                                  DropdownMenuItem(
-                                      value: 'QAR (Qatari Riyal)',
-                                      child: Text(
-                                          'QAR — Qatari Riyal (🇶🇦 Qatar)')),
-                                  DropdownMenuItem(
-                                      value: 'KWD (Kuwaiti Dinar)',
-                                      child: Text(
-                                          'KWD — Kuwaiti Dinar (🇰🇼 Kuwait)')),
-                                ],
-                                onChanged: (val) => setState(() =>
-                                    _gccCurrency = val ?? 'SAR (Saudi Riyal)'),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _gccHolderController,
-                                decoration: const InputDecoration(
-                                  labelText:
-                                      'Company Commercial Registration (CR) Holder Name',
-                                  hintText:
-                                      'e.g. Al-Riyadh Petroleum Equipment Co.',
-                                  prefixIcon: Icon(Icons.apartment),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter holder name'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _gccBankNameController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Bank Name in Middle East / GCC',
-                                  hintText: 'e.g. Al Rajhi Bank / SNB / FAB',
-                                  prefixIcon: Icon(Icons.account_balance),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter bank name'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _gccIbanController,
-                                decoration: const InputDecoration(
-                                  labelText:
-                                      'Full IBAN (24 Characters starting with SA/AE/QA)',
-                                  hintText: 'SA0380000000608010167519',
-                                  prefixIcon: Icon(Icons.numbers),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().length < 15
-                                        ? 'Enter valid IBAN'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _gccSwiftController,
-                                decoration: const InputDecoration(
-                                  labelText: 'SWIFT / BIC Code',
-                                  hintText: 'e.g. RJHISE22',
-                                  prefixIcon: Icon(Icons.code),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: FilledButton.icon(
-                                  onPressed: _savingGcc ? null : _saveGcc,
-                                  icon: const Icon(Icons.save),
-                                  label: Text(_savingGcc
-                                      ? 'Saving…'
-                                      : 'Save GCC IBAN Vault'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Card 3: International SWIFT / Global Wire
-                      _buildPayoutTile(
-                        icon: Icons.language,
-                        iconColor: const Color(0xFF8B5CF6),
-                        title: 'GLOBAL SWIFT WIRE (EUROPE, ASIA & LATAM)',
-                        subtitle:
-                            'Direct international wire transfers for Europe (EUR), UK (GBP), China (CNY), & Brazil (BRL)',
-                        isConfigured: _swiftSaved,
-                        child: Form(
-                          key: _swiftFormKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextFormField(
-                                controller: _swiftCountryController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Bank Country',
-                                  hintText:
-                                      'e.g. United Kingdom / Germany / China / Australia',
-                                  prefixIcon: Icon(Icons.flag_outlined),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter bank country'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _swiftHolderController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Beneficiary Entity Name',
-                                  prefixIcon: Icon(Icons.person_outline),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter beneficiary name'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _swiftBankNameController,
-                                decoration: const InputDecoration(
-                                  labelText: 'International Bank Name',
-                                  hintText:
-                                      'e.g. Deutsche Bank / HSBC / Industrial & Commercial Bank of China',
-                                  prefixIcon: Icon(Icons.account_balance),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter bank name'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _swiftCodeController,
-                                      decoration: const InputDecoration(
-                                        labelText:
-                                            'SWIFT / BIC Code (8-11 Chars)',
-                                        prefixIcon: Icon(Icons.code),
-                                      ),
-                                      validator: (val) =>
-                                          val == null || val.trim().length < 8
-                                              ? 'Invalid SWIFT'
-                                              : null,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _swiftIbanController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'IBAN / Account Number',
-                                        prefixIcon: Icon(Icons.numbers),
-                                      ),
-                                      validator: (val) =>
-                                          val == null || val.trim().isEmpty
-                                              ? 'Enter IBAN/Account'
-                                              : null,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: FilledButton.icon(
-                                  onPressed: _savingSwift ? null : _saveSwift,
-                                  icon: const Icon(Icons.save),
-                                  label: Text(_savingSwift
-                                      ? 'Saving…'
-                                      : 'Save SWIFT Wire Vault'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Card 4: Tax & 1099-K Compliance
-                      _buildPayoutTile(
-                        icon: Icons.badge_outlined,
-                        iconColor: const Color(0xFFF59E0B),
-                        title: 'TAX IDENTIFICATION & 1099-K COMPLIANCE',
-                        subtitle:
-                            'IRS 1099-K tax reporting & commercial VAT compliance',
-                        isConfigured: _taxSaved,
-                        child: Form(
-                          key: _taxFormKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              DropdownButtonFormField<String>(
-                                initialValue: _taxFormType,
-                                decoration: const InputDecoration(
-                                  labelText: 'Tax Classification',
-                                  prefixIcon: Icon(Icons.assignment_outlined),
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 'W-9 (US Person / Entity)',
-                                      child: Text(
-                                          'W-9 — US Person or Business (EIN/SSN)')),
-                                  DropdownMenuItem(
-                                      value: 'W-8BEN-E (Foreign Entity)',
-                                      child: Text(
-                                          'W-8BEN-E — Foreign Commercial Company')),
-                                  DropdownMenuItem(
-                                      value: 'VAT / Tax Exempt',
-                                      child: Text(
-                                          'International Commercial VAT / Exempt Entity')),
-                                ],
-                                onChanged: (val) => setState(() =>
-                                    _taxFormType =
-                                        val ?? 'W-9 (US Person / Entity)'),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _legalEntityController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Legal Taxpayer Entity Name',
-                                  prefixIcon: Icon(Icons.business),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter legal entity name'
-                                        : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _taxIdController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Federal EIN / Tax ID / SSN',
-                                  hintText: 'XX-XXXXXXX',
-                                  prefixIcon: Icon(Icons.shield_outlined),
-                                ),
-                                validator: (val) =>
-                                    val == null || val.trim().isEmpty
-                                        ? 'Enter Tax ID / EIN'
-                                        : null,
-                              ),
-                              const SizedBox(height: 16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: FilledButton.icon(
-                                  onPressed: _savingTax ? null : _saveTax,
-                                  icon: const Icon(Icons.save),
-                                  label: Text(_savingTax
-                                      ? 'Saving…'
-                                      : 'Save Tax Compliance Info'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+                      ],
                     ],
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Row(
+                        children: [
+                          Icon(Icons.security_rounded),
+                          SizedBox(width: 10),
+                          Text(
+                            'How seller payouts work',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 12),
+                      _InfoLine(
+                        number: '1',
+                        text: 'Stripe verifies the seller and payout account.',
+                      ),
+                      _InfoLine(
+                        number: '2',
+                        text:
+                            'Pipe Buyer stores only the Stripe account reference and payout readiness status needed to operate the marketplace.',
+                      ),
+                      _InfoLine(
+                        number: '3',
+                        text:
+                            'Marketplace payments and seller transfers remain controlled by server-side transaction and readiness rules.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'For launch, Stripe seller onboarding is available in Canada and the United States. More countries can be enabled after their payout and compliance requirements are configured.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.45),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildPayoutTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required bool isConfigured,
-    required Widget child,
-  }) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-            color:
-                isConfigured ? iconColor.withAlpha(100) : Colors.grey.shade300),
-      ),
-      child: ExpansionTile(
-        initiallyExpanded: isConfigured,
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconColor.withAlpha(25),
-            shape: BoxShape.circle,
+  String _friendlyStatus(String value) {
+    switch (value.trim().toLowerCase()) {
+      case 'active':
+        return 'Ready';
+      case 'pending':
+        return 'Pending information';
+      case 'restricted':
+      case 'inactive':
+        return 'Action required';
+      case 'not_started':
+      case '':
+        return 'Not started';
+      default:
+        return value.replaceAll('_', ' ');
+    }
+  }
+}
+
+class _StatusRow extends StatelessWidget {
+  const _StatusRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ),
-          child: Icon(icon, color: iconColor, size: 22),
-        ),
-        title: Row(
+          const SizedBox(width: 12),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ],
+      );
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                title,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-            ),
-            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isConfigured
-                    ? Colors.green.shade100
-                    : Colors.amber.shade100,
-                borderRadius: BorderRadius.circular(12),
+                color: PipeBuyerColors.orangeSoft,
+                borderRadius: BorderRadius.circular(999),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isConfigured ? Icons.check_circle : Icons.error_outline,
-                    size: 12,
-                    color: isConfigured
-                        ? Colors.green.shade800
-                        : Colors.amber.shade900,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isConfigured ? 'ACTIVE' : 'NOT SET',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isConfigured
-                          ? Colors.green.shade800
-                          : Colors.amber.shade900,
-                    ),
-                  ),
-                ],
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: PipeBuyerColors.orangePressed,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(text)),
           ],
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(subtitle,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        children: [child],
-      ),
-    );
-  }
+      );
 }

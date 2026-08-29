@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_money.dart';
 
+// Legacy internal names are retained for compatibility with historical
+// transaction records. User-facing copy must describe this as provider payment
+// and settlement status, not as a Pipe Buyer escrow or trust account.
 enum EscrowStatus {
   initiated,
   secured,
@@ -46,14 +49,14 @@ EscrowStatus parseEscrowStatus(String? value) {
 }
 
 String formatEscrowStatus(EscrowStatus status) => switch (status) {
-      EscrowStatus.initiated => 'Funds Initiated',
-      EscrowStatus.secured => 'Escrow Secured',
-      EscrowStatus.dispatched => 'In Transit / Dispatched',
-      EscrowStatus.inspectionPending => 'Pending Buyer Inspection',
-      EscrowStatus.approved => 'Inspection Approved',
-      EscrowStatus.released => 'Funds Released to Seller',
-      EscrowStatus.disputed => 'Under Dispute Review',
-      EscrowStatus.refunded => 'Funds Refunded',
+      EscrowStatus.initiated => 'Payment Initiated',
+      EscrowStatus.secured => 'Payment Confirmed',
+      EscrowStatus.dispatched => 'Fulfillment In Progress',
+      EscrowStatus.inspectionPending => 'Delivery / Inspection Pending',
+      EscrowStatus.approved => 'Completion Approved',
+      EscrowStatus.released => 'Seller Transfer Completed',
+      EscrowStatus.disputed => 'Dispute Under Review',
+      EscrowStatus.refunded => 'Payment Refunded',
     };
 
 class EscrowTransaction {
