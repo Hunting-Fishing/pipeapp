@@ -43,6 +43,5 @@ jobs:
             --ref "$TARGET_REF" \
             -f environment=production \
             -f commit_sha="$RELEASE_SHA" \
-            -f app_check_mode=observe \
-            -f production_confirmation=PRODUCTION
+            -f app_check_mode=observe
           echo "Dispatched deploy.yml for exact VIP release $RELEASE_SHA"
