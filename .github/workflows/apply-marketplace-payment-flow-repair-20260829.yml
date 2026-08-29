@@ -1,7 +1,11 @@
 name: Apply Marketplace Payment Flow Repair 2026-08-29
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - fix/marketplace-payment-flow-20260829
+    paths:
+      - ".github/workflows/apply-marketplace-payment-flow-repair-20260829.yml"
 
 permissions:
   contents: write
@@ -12,9 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Check out requested ref
+      - name: Check out repair branch
         uses: actions/checkout@v7.0.0
         with:
+          ref: fix/marketplace-payment-flow-20260829
           fetch-depth: 0
 
       - name: Install Flutter
