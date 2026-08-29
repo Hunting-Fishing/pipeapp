@@ -25,12 +25,55 @@ function allocateMarketplaceFeeAcrossParts(marketplaceFeeMinor, partAmounts) {
   });
 }
 
+function splitReleaseEligible(sale = {}) {
+  const completionReached = sale.status === "completed" ||
+    sale.auctionSettlementStatus === "completed";
+  return completionReached &&
+    sale.paymentPlan === "deposit_balance" &&
+    sale.paymentPlanStatus === "active" &&
+    sale.paymentProvider === "stripe" &&
+    sale.paymentProviderStatus === "paid" &&
+    sale.sellerPayoutStatus !== "released" &&
+    sale.financialHold !== true &&
+    String(sale.financialStatus || "") !== "disputed" &&
+    String(sale.disputeStatus || "") !== "open" &&
+    Number(sale.refundedMinor || 0) === 0;
+}
+
 function createMarketplaceSplitSellerRelease(admin) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
 
-  async function releaseSplitSellerFunds({transactionId, sale, destination}) {
+  async function releaseSplitSellerFunds({transactionId}) {
     const saleRef = db.collection("marketplace_transactions").doc(transactionId);
+    const saleSnapshot = await saleRef.get();
+    if (!saleSnapshot.exists) return {released: false, reason: "missing"};
+    const sale = saleSnapshot.data();
+    if (!splitReleaseEligible(sale)) {
+      return {released: false, reason: "not_ready"};
+    }
+
+    const sellerProvider = await db.collection("payment_provider_accounts")
+        .doc(String(sale.sellerUid || "")).get();
+    if (!sellerProvider.exists || sellerProvider.data().transferStatus !== "active") {
+      await saleRef.set({
+        sellerPayoutStatus: "blocked_seller_not_ready",
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return {released: false, reason: "seller_not_ready"};
+    }
+    if (sellerProvider.data().sellerPayoutHold === true) {
+      await saleRef.set({
+        sellerPayoutStatus: "blocked_financial_hold",
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return {released: false, reason: "financial_hold"};
+    }
+    const destination = String(sellerProvider.data().stripeAccountId || "");
+    if (!destination.startsWith("acct_")) {
+      throw new Error("The seller Stripe destination is invalid.");
+    }
+
     const [depositSnapshot, balanceSnapshot] = await Promise.all([
       saleRef.collection("payment_parts").doc("deposit").get(),
       saleRef.collection("payment_parts").doc("balance").get(),
@@ -111,10 +154,17 @@ function createMarketplaceSplitSellerRelease(admin) {
         sellerReleasedMinor !== expectedSellerProceeds) {
       throw new Error("Split seller transfers do not equal the immutable seller proceeds.");
     }
+    const transferIds = transferRecords
+        .map((record) => record.transferId)
+        .filter((value) => String(value || "").startsWith("tr_"));
     await saleRef.set({
       stripeSellerTransfers: transferRecords,
+      sellerPayoutTransferIds: transferIds,
       sellerPayoutStatus: "released",
       financialStatus: "settled",
+      originalSellerProceedsMinor: expectedSellerProceeds,
+      sellerNetTransferredMinor: sellerReleasedMinor,
+      sellerDesiredNetMinor: sellerReleasedMinor,
       sellerReleasedMinor,
       sellerReleasedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -130,4 +180,5 @@ function createMarketplaceSplitSellerRelease(admin) {
 module.exports = {
   allocateMarketplaceFeeAcrossParts,
   createMarketplaceSplitSellerRelease,
+  splitReleaseEligible,
 };
