@@ -29,7 +29,6 @@ jobs:
           log_file="$(mktemp)"
           firebase functions:log \
             --project "$PIPE_FIREBASE_PROJECT_ID" \
-            --only createStripeSellerOnboardingLink \
-            --lines 200 >"$log_file"
+            --lines 500 >"$log_file"
           echo "Filtered Stripe seller onboarding diagnostics:"
-          grep -E 'Stripe marketplace request failed|invalid_request_error|stripeCode|stripeMessage|stripeParam|stripeRequestId|req_' "$log_file" | tail -80 || true
+          grep -E 'createStripeSellerOnboardingLink|Stripe marketplace request failed|invalid_request_error|stripeCode|stripeMessage|stripeParam|stripeRequestId|req_' "$log_file" | tail -120 || true
