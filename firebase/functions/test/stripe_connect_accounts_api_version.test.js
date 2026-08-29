@@ -32,22 +32,20 @@ test("seller Connect API remains isolated from other Stripe surfaces", () => {
   );
 });
 
-test("seller onboarding uses Connect v1 Express controller with transfers only", () => {
+test("seller onboarding creates a minimal typed Express account and lets Stripe Configuration settings choose capabilities", () => {
   const source = fs.readFileSync(
       path.join(__dirname, "..", "stripe_marketplace_commands.js"),
       "utf8",
   );
   assert.match(source, /path:\s*"\/v1\/accounts"/);
   assert.match(source, /path:\s*"\/v1\/account_links"/);
+  assert.match(source, /type:\s*"express"/);
   assert.match(
       source,
-      /"controller\[stripe_dashboard\]\[type\]":\s*"express"/,
+      /capabilityConfigurationSource:\s*"stripe_connect_configuration"/,
   );
-  assert.match(
-      source,
-      /"controller\[requirement_collection\]":\s*"stripe"/,
-  );
-  assert.match(
+  assert.doesNotMatch(source, /"controller\[/);
+  assert.doesNotMatch(
       source,
       /"capabilities\[transfers\]\[requested\]":\s*"true"/,
   );
@@ -60,11 +58,11 @@ test("seller onboarding uses Connect v1 Express controller with transfers only",
 test("Connect v1 requests use form encoding", () => {
   const body = stripeFormBody({
     country: "CA",
-    "capabilities[transfers][requested]": "true",
+    type: "express",
   });
   const params = new URLSearchParams(body);
   assert.equal(params.get("country"), "CA");
-  assert.equal(params.get("capabilities[transfers][requested]"), "true");
+  assert.equal(params.get("type"), "express");
 });
 
 test("payout readiness requires active transfers and payouts enabled", () => {
