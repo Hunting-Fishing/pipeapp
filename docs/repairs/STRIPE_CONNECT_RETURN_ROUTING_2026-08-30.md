@@ -37,6 +37,22 @@ Behavior:
 6. On web, a refreshed Stripe link uses the current browser tab (`_self`) so the Pipe Buyer browser/auth context and callback remain together. Native clients continue to use the system browser for Stripe-hosted onboarding.
 7. Opening `/account/seller-payouts` without a callback continues to show the normal seller payout settings page.
 
+## Production follow-up: manual status check feedback
+
+After the routing repair was deployed, the seller return screen correctly displayed `Seller payouts are ready`. A user then tapped `Check payout status` and reported that nothing appeared to happen.
+
+Inspection confirmed the button was already calling the existing authenticated `refreshStripeSellerStatus` command. The successful response returned the same `payoutReady=true` state, so the screen immediately redrew to the same ready state. There was no persistent confirmation and no success feedback, making a successful refresh indistinguishable from a dead button.
+
+This was a client feedback defect, not a Stripe API or payout-readiness defect.
+
+The follow-up repair keeps the same server command and adds explicit user feedback:
+
+- a manual check visibly enters the existing Stripe checking/loading state;
+- successful checks show a success or warning feedback message;
+- the page displays `Status checked just now` after a manual check;
+- failed manual checks show the sanitized existing command error;
+- the button does not redirect because it is a status refresh action, not navigation.
+
 ## Compatibility decision
 
 The live Firestore payment-readiness document still contains the legacy root callback URLs. This repair intentionally supports them at the router boundary instead of mutating production payment configuration during the routing fix. That makes the repair deploy-safe and prevents a partial state where Stripe points to a new URL before the new application route is live.
@@ -54,7 +70,9 @@ A future controlled payment-readiness configuration revision may update the stor
 - refresh callbacks regenerate a Stripe Account Link;
 - returned Stripe URLs are restricted to HTTPS Stripe hosts;
 - the web refresh flow targets the current tab;
-- client code does not read the private `payment_provider_accounts` collection directly.
+- client code does not read the private `payment_provider_accounts` collection directly;
+- manual payout status checks explicitly produce visible success, warning, or error feedback;
+- manual payout status checks persist a `Status checked just now` confirmation in the return screen.
 
 ## Do not repeat
 
@@ -64,6 +82,7 @@ A future controlled payment-readiness configuration revision may update the stor
 - Do not expose or persist Stripe Account Link URLs.
 - Do not bypass authenticated Firebase callables to read or mutate seller payout state from the client.
 - Do not alter buyer charge, fee, transfer, refund, or payout logic to repair a browser-routing defect.
+- Do not interpret an unchanged ready screen after a status refresh as proof that the Stripe call failed; provide explicit client feedback and inspect the command result first.
 
 ## Production acceptance
 
@@ -73,3 +92,4 @@ After deployment, repeat seller onboarding from a signed-in Pipe Buyer account. 
 2. Stripe returns to the authenticated `/account/seller-payouts` experience rather than a generic start/login surface.
 3. Pipe Buyer automatically reads and displays the seller's current Stripe payout readiness.
 4. If Stripe requests a refreshed Account Link, Pipe Buyer creates a fresh link and returns to Stripe without requiring the user to manually find seller payout settings.
+5. Tapping `Check payout status` visibly shows the check in progress and then gives an explicit success/warning/error confirmation without navigating away from the payout screen.
