@@ -56,6 +56,21 @@ const {
   createDispatchSubscriptionStatus,
 } = require("./dispatch_subscription_status");
 const {
+  createVipSubscriptionCatalog,
+} = require("./vip_subscription_catalog");
+const {
+  createVipSubscriptionCommands,
+} = require("./vip_subscription_commands");
+const {
+  createVipSubscriptionLifecycle,
+} = require("./vip_subscription_lifecycle");
+const {
+  createVipSubscriptionManagement,
+} = require("./vip_subscription_management");
+const {
+  createVipSubscriptionStatus,
+} = require("./vip_subscription_status");
+const {
   createMarketplaceMonetization,
 } = require("./marketplace_monetization");
 const {
@@ -88,6 +103,11 @@ const dispatchSubscriptionPortal = createDispatchSubscriptionPortal(admin);
 const dispatchSubscriptionProviderAccess =
   createDispatchSubscriptionProviderAccess(admin);
 const dispatchSubscriptionStatus = createDispatchSubscriptionStatus(admin);
+const vipSubscriptionCatalog = createVipSubscriptionCatalog(admin);
+const vipSubscriptionCommands = createVipSubscriptionCommands(admin);
+const vipSubscriptionLifecycle = createVipSubscriptionLifecycle(admin);
+const vipSubscriptionManagement = createVipSubscriptionManagement(admin);
+const vipSubscriptionStatus = createVipSubscriptionStatus(admin);
 const marketplaceMonetization = createMarketplaceMonetization(admin);
 const marketplaceFinancialResolution = createMarketplaceFinancialResolution(admin);
 const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
@@ -102,6 +122,7 @@ const stripeWebhookHandler = createStripeWebhookDispatchLifecycleWrapper({
   admin,
   baseHandler: baseStripeWebhookHandler,
   dispatchSubscriptionLifecycle,
+  vipSubscriptionLifecycle,
   stripeWebhookSecret,
 });
 
@@ -207,6 +228,14 @@ exports.getDispatchSubscriptionStatus = onCall(
     protectedCallableOptions,
     dispatchSubscriptionStatus.getDispatchSubscriptionStatus,
 );
+exports.getVipSubscriptionCatalog = onCall(
+    protectedCallableOptions,
+    vipSubscriptionCatalog.getVipSubscriptionCatalog,
+);
+exports.getVipSubscriptionStatus = onCall(
+    protectedCallableOptions,
+    vipSubscriptionStatus.getVipSubscriptionStatus,
+);
 
 const stripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
@@ -242,6 +271,16 @@ exports.createDispatchSubscriptionCheckout = onCall(
 exports.createDispatchSubscriptionPortalSession = onCall(
     stripeCallableOptions,
     dispatchSubscriptionPortal.createDispatchSubscriptionPortalSession,
+);
+exports.createVipSubscriptionCheckout = onCall(
+    stripeCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        vipSubscriptionCommands.createVipSubscriptionCheckout,
+    ),
+);
+exports.updateVipSubscriptionRenewal = onCall(
+    stripeCallableOptions,
+    vipSubscriptionManagement.updateVipSubscriptionRenewal,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,

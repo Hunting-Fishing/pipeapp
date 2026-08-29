@@ -6,6 +6,9 @@ const {stripeSecretKey} = require("./stripe_marketplace_commands");
 const {
   createSubscriptionMonetization,
 } = require("./subscription_monetization");
+const {
+  createVipSubscriptionMonetization,
+} = require("./vip_subscription_monetization");
 
 const STRIPE_WEBHOOK_SECRET_NAME = "STRIPE_WEBHOOK_SECRET";
 const stripeWebhookSecret = Object.freeze({
@@ -82,6 +85,10 @@ function createStripeWebhookHandler(admin, options = {}) {
       admin,
       stripeMarketplaceConfig,
   );
+  const vipSubscriptionMonetization = createVipSubscriptionMonetization(
+      admin,
+      stripeMarketplaceConfig,
+  );
 
   function affiliateEligibleAfter() {
     return Timestamp.fromMillis(
@@ -109,6 +116,15 @@ function createStripeWebhookHandler(admin, options = {}) {
   async function markCheckoutFailure(session) {
     if (billingType(session) === "dispatch_subscription") {
       await db.collection("subscription_checkout_sessions")
+          .doc(String(session.id || "")).set({
+            status: "payment_failed",
+            paymentFailedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+      return;
+    }
+    if (billingType(session) === "vip_subscription") {
+      await db.collection("vip_subscription_checkout_sessions")
           .doc(String(session.id || "")).set({
             status: "payment_failed",
             paymentFailedAt: FieldValue.serverTimestamp(),
@@ -206,6 +222,20 @@ function createStripeWebhookHandler(admin, options = {}) {
       await db.collection("subscription_checkout_sessions")
           .doc(String(session.id || "")).set({
             status: session.payment_status === "paid" ? "active" : "processing",
+            stripeSubscriptionId: typeof session.subscription === "string" ?
+              session.subscription :
+              String(session.subscription && session.subscription.id || ""),
+            stripeCustomerId: customerId.startsWith("cus_") ? customerId : null,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+      return;
+    }
+    if (billingType(session) === "vip_subscription") {
+      const customerId = typeof session.customer === "string" ?
+        session.customer : String(session.customer && session.customer.id || "");
+      await db.collection("vip_subscription_checkout_sessions")
+          .doc(String(session.id || "")).set({
+            status: session.payment_status === "paid" ? "processing" : "processing",
             stripeSubscriptionId: typeof session.subscription === "string" ?
               session.subscription :
               String(session.subscription && session.subscription.id || ""),
@@ -317,6 +347,14 @@ function createStripeWebhookHandler(admin, options = {}) {
           }, {merge: true});
       return;
     }
+    if (billingType(session) === "vip_subscription") {
+      await db.collection("vip_subscription_checkout_sessions")
+          .doc(String(session.id || "")).set({
+            status: "processing",
+            updatedAt: FieldValue.serverTimestamp(),
+          }, {merge: true});
+      return;
+    }
     const transactionId = String(
         session && session.metadata &&
         session.metadata.pipeBuyerTransactionId || "",
@@ -362,10 +400,18 @@ function createStripeWebhookHandler(admin, options = {}) {
           object,
           stripeSecretKey.value(),
       );
+      await vipSubscriptionMonetization.handleVipInvoicePaid(
+          object,
+          stripeSecretKey.value(),
+      );
       return;
     }
     if (type === "invoice.payment_failed") {
       await subscriptionMonetization.handleDispatchInvoicePaymentFailed(
+          object,
+          stripeSecretKey.value(),
+      );
+      await vipSubscriptionMonetization.handleVipInvoicePaymentFailed(
           object,
           stripeSecretKey.value(),
       );

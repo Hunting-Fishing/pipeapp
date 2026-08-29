@@ -213,7 +213,8 @@ class _VipSubscriptionCheckoutButtonState
           content: Text(
             marketplaceCommandErrorMessage(
               error,
-              fallback: 'VIP checkout could not be opened. No charge was created.',
+              fallback:
+                  'VIP checkout could not be opened. No charge was created.',
             ),
           ),
         ),

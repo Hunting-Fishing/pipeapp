@@ -14,6 +14,7 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeCheckoutEnabled",
   "stripeFeeBillingEnabled",
   "stripeSubscriptionsEnabled",
+  "stripeVipSubscriptionsEnabled",
   "stripeDispatchPortalEnabled",
   "stripeWebhookVerified",
   "stripeTaxReady",
@@ -159,6 +160,18 @@ function validateReadiness(next, options = {}) {
     throw new HttpsError(
         "failed-precondition",
         "Live Dispatch subscriptions require production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
+    );
+  }
+  if (next.stripeVipSubscriptionsEnabled && !(
+    next.stripeSubscriptionsEnabled &&
+    next.stripeMode === "production" &&
+    next.stripeWebhookVerified &&
+    taxBillingPrepared(next) &&
+    next.stripeReconciliationReady
+  )) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Pipe Buyer VIP subscriptions require the verified production subscription billing gate.",
     );
   }
   if (next.stripeDispatchPortalEnabled && !(
