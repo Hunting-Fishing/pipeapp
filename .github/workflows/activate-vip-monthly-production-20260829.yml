@@ -81,7 +81,7 @@ jobs:
           node -e '
             const p=JSON.parse(process.argv[1]);
             const deploy=(p.jobs||[]).find(j=>j.name==="Deploy production");
-            const visual=(p.jobs||[]).find(j=>j.name==="Production visual acceptance");
+            const visual=(p.jobs||[]).find(j=>j.name==="Visual acceptance production");
             if (!deploy || deploy.conclusion!=="success") throw new Error("Verified Firebase deploy job is not successful.");
             if (!visual || visual.conclusion!=="success") throw new Error("Verified production visual acceptance job is not successful.");
             const required=["Record exact release manifest","Deploy explicitly selected Firebase project","Prove deployed Function parity","Record release identity"];
