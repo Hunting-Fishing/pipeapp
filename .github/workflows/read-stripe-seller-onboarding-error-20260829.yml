@@ -28,14 +28,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +e
           firebase functions:log \
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" \
             --only createStripeSellerOnboardingLink \
-            --lines 200 2>&1 \
-            | grep -E "Stripe marketplace request failed|Stripe seller onboarding link failed|accounts_v2|failed-precondition|400" \
-            | tail -n 30 \
-            | tee onboarding-error.txt
+            --lines 300 > full-function-log.txt 2>&1
+          log_status=$?
+          set -e
+          grep -E "Stripe marketplace request failed|Stripe seller onboarding link failed|accounts_v2|failed-precondition|400" full-function-log.txt \
+            | tail -n 50 \
+            | tee onboarding-error.txt || true
+          echo "Firebase log command exit code: $log_status"
           if [[ ! -s onboarding-error.txt ]]; then
-            echo "No matching sanitized onboarding error lines found in the recent log window."
+            echo "No matching sanitized onboarding error lines found. Showing only Firebase CLI diagnostic lines:"
+            grep -E "Error:|error|failed|not found|permission" full-function-log.txt | tail -n 20 || true
           fi
