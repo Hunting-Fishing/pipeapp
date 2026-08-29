@@ -1,0 +1,59 @@
+name: Apply Stripe Account Payout Copy Repair 2026-08-29
+
+on:
+  push:
+    branches:
+      - repair/stripe-integration-closure-20260829
+    paths:
+      - '.github/workflows/apply-stripe-account-payout-copy-repair-20260829.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: repair/stripe-integration-closure-20260829
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Apply exact payout copy repair
+        run: python3 tool/repair_stripe_account_payout_copy_20260829.py
+
+      - name: Format repaired account source
+        run: dart format lib/marketplace/marketplace_account_hub.dart
+
+      - name: Validate repaired source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "Seller Payout Setup" lib/marketplace/marketplace_account_hub.dart
+          grep -Fq "Pipe Buyer does not store your bank account details" lib/marketplace/marketplace_account_hub.dart
+          if grep -Fq "ACH / Wire escrow releases" lib/marketplace/marketplace_account_hub.dart; then
+            echo '::error::Stale payout/escrow copy remains.'
+            exit 1
+          fi
+
+      - name: Commit validated copy repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- lib/marketplace/marketplace_account_hub.dart; then
+            echo '::error::Expected payout copy repair produced no change.'
+            exit 1
+          fi
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/marketplace/marketplace_account_hub.dart
+          git commit -m 'Replace stale escrow payout account copy'
+          git push origin HEAD
