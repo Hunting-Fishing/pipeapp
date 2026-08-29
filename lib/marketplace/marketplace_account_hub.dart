@@ -3133,9 +3133,9 @@ class _AccountSettingsState extends State<_AccountSettings> {
       ListTile(
           leading: const Icon(Icons.account_balance_outlined,
               color: Color(0xFF0878E8)),
-          title: const Text('Banking & Direct Payout Settings'),
+          title: const Text('Seller Payout Setup'),
           subtitle: const Text(
-              'Connect bank routing & account numbers for ACH / Wire escrow releases.'),
+              'Connect or update seller payouts securely with Stripe. Pipe Buyer does not store your bank account details.'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),

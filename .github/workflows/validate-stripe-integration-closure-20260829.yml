@@ -1,0 +1,65 @@
+name: Validate Stripe Integration Closure 2026-08-29
+
+on:
+  push:
+    branches:
+      - repair/stripe-integration-closure-20260829
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lib/marketplace/marketplace_payout_settings.dart'
+      - 'lib/marketplace/marketplace_subscription_billing_policy.dart'
+      - 'lib/marketplace/marketplace_dispatch_subscription_checkout.dart'
+      - 'lib/marketplace/marketplace_vip_subscription_checkout.dart'
+      - 'test/marketplace_payout_settings_security_contract_test.dart'
+      - 'test/marketplace_subscription_billing_policy_test.dart'
+      - 'test/marketplace_subscription_native_billing_contract_test.dart'
+      - 'test/dispatch_subscription_checkout_test.dart'
+      - 'test/vip_subscription_checkout_test.dart'
+      - '.github/workflows/validate-stripe-integration-closure-20260829.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stripe-integration-closure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Verify repair formatting
+        run: |
+          dart format --output=none --set-exit-if-changed \
+            lib/marketplace/marketplace_payout_settings.dart \
+            lib/marketplace/marketplace_subscription_billing_policy.dart \
+            lib/marketplace/marketplace_dispatch_subscription_checkout.dart \
+            lib/marketplace/marketplace_vip_subscription_checkout.dart \
+            test/marketplace_payout_settings_security_contract_test.dart \
+            test/marketplace_subscription_billing_policy_test.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart
+
+      - name: Run Stripe integration closure tests
+        run: |
+          flutter test \
+            test/dispatch_subscription_checkout_test.dart \
+            test/vip_subscription_checkout_test.dart \
+            test/marketplace_subscription_billing_policy_test.dart \
+            test/marketplace_payout_settings_security_contract_test.dart \
+            test/marketplace_subscription_native_billing_contract_test.dart \
+            test/marketplace_dispatch_membership_page_test.dart \
+            test/marketplace_vip_access_test.dart
