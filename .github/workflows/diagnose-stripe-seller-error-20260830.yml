@@ -1,0 +1,35 @@
+name: Diagnose Stripe seller onboarding error
+
+on:
+  push:
+    branches:
+      - diagnostic/stripe-seller-log-20260830
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+    steps:
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.25.0
+
+      - name: Read sanitized seller onboarding failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PIPE_FIREBASE_PROJECT_ID"
+          test -n "$FIREBASE_TOKEN"
+          log_file="$(mktemp)"
+          firebase functions:log \
+            --project "$PIPE_FIREBASE_PROJECT_ID" \
+            --only createStripeSellerOnboardingLink \
+            --lines 200 >"$log_file"
+          echo "Filtered Stripe seller onboarding diagnostics:"
+          grep -E 'Stripe marketplace request failed|invalid_request_error|stripeCode|stripeMessage|stripeParam|stripeRequestId|req_' "$log_file" | tail -80 || true
