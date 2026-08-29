@@ -5,6 +5,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
 
+const dispatchPromotionCodeHelpText =
+    'Have a promo code? Enter it on the secure Stripe checkout screen.';
+
+bool dispatchPromotionCodeEntryAvailable(String plan) =>
+    plan.trim().toLowerCase() == 'monthly';
+
 String dispatchSubscriptionPlanLabel(Map<String, dynamic>? plan) {
   if (plan == null) return 'Subscribe';
   final currency = '${plan['currency'] ?? 'CAD'}'.toUpperCase();
@@ -193,20 +199,40 @@ class _DispatchSubscriptionCheckoutButtonState
             );
           }
 
-          return SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _busy ? null : _startCheckout,
-              icon: _busy
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.lock_outline_rounded),
-              label: Text(
-                _busy ? 'Opening secure checkout…' : 'Subscribe • $price',
+          final promoEntryAvailable =
+              dispatchPromotionCodeEntryAvailable(widget.plan);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FilledButton.icon(
+                onPressed: _busy ? null : _startCheckout,
+                icon: _busy
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.lock_outline_rounded),
+                label: Text(
+                  _busy ? 'Opening secure checkout…' : 'Subscribe • $price',
+                ),
               ),
-            ),
+              if (promoEntryAvailable) ...[
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.local_offer_outlined, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        dispatchPromotionCodeHelpText,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           );
         },
       );
