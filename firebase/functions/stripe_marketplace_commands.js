@@ -121,6 +121,23 @@ function stripeSellerSetupErrorMessage(stripeCode, diagnostics = {}) {
     return `Stripe capability dependency: ${detail}.` +
       (requestId ? ` Request ${requestId}.` : "");
   }
+  if (code === "invalid_request_error") {
+    const explanation = sanitizeStripeSupportText(
+        diagnostics.stripeMessage,
+        120,
+    );
+    const param = sanitizeStripeSupportToken(
+        diagnostics.stripeParam,
+        80,
+    );
+    const requestId = sanitizeStripeSupportToken(
+        diagnostics.stripeRequestId,
+        40,
+    );
+    return `Stripe rejected the seller payout setup: ${explanation || code}.` +
+      (param ? ` Parameter ${param}.` : "") +
+      (requestId ? ` Request ${requestId}.` : "");
+  }
   if (code) {
     return `Stripe rejected the seller payout setup. Contact Pipe Buyer support with reference ${code}.`;
   }
@@ -275,11 +292,7 @@ function createStripeMarketplaceCommands(admin) {
       fields: {
         email: contactEmail,
         country,
-        "controller[stripe_dashboard][type]": "express",
-        "controller[fees][payer]": "application",
-        "controller[losses][payments]": "application",
-        "controller[requirement_collection]": "stripe",
-        "capabilities[transfers][requested]": "true",
+        type: "express",
       },
     });
     const accountId = String(account.id || "").trim();
@@ -297,8 +310,7 @@ function createStripeMarketplaceCommands(admin) {
       country,
       mode: readiness.stripeMode,
       dashboard: "express",
-      feesCollector: "application",
-      lossesCollector: "application",
+      capabilityConfigurationSource: "stripe_connect_configuration",
       transferStatus: recipientTransferStatus(account),
       onboardingStatus: "created",
       createdAt: FieldValue.serverTimestamp(),
