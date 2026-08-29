@@ -14,7 +14,10 @@ void main() {
     for (final source in [dispatch, vip]) {
       expect(source, contains('marketplace_subscription_billing_policy.dart'));
       expect(source, contains('marketplaceHostedMembershipBillingAllowed()'));
-      expect(source, contains('marketplaceNativeSubscriptionUnavailableMessage'));
+      expect(
+        source,
+        contains('marketplaceNativeSubscriptionUnavailableMessage'),
+      );
     }
 
     expect(
@@ -23,7 +26,9 @@ void main() {
     );
     expect(
       vip,
-      contains("if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;"),
+      contains(
+        "if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;",
+      ),
     );
   });
 }

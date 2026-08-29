@@ -152,8 +152,8 @@ class _MarketplacePayoutSettingsPageState
                         payoutReady
                             ? 'Seller payouts are ready'
                             : _hasAccount
-                                ? 'Finish seller payout setup'
-                                : 'Seller payout setup',
+                            ? 'Finish seller payout setup'
+                            : 'Seller payout setup',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -163,10 +163,7 @@ class _MarketplacePayoutSettingsPageState
                       const SizedBox(height: 6),
                       const Text(
                         'Banking, identity and tax information is entered securely with Stripe. Pipe Buyer does not ask you to type bank account numbers or tax IDs into this app.',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          height: 1.4,
-                        ),
+                        style: TextStyle(color: Colors.white70, height: 1.4),
                       ),
                     ],
                   ),
@@ -197,10 +194,10 @@ class _MarketplacePayoutSettingsPageState
                           payoutReady
                               ? 'PAYOUT READY'
                               : _hasAccount
-                                  ? 'STRIPE SETUP IN PROGRESS'
-                                  : statusChecked
-                                      ? 'ACTION REQUIRED'
-                                      : 'STATUS NOT CHECKED',
+                              ? 'STRIPE SETUP IN PROGRESS'
+                              : statusChecked
+                              ? 'ACTION REQUIRED'
+                              : 'STATUS NOT CHECKED',
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             letterSpacing: .4,
@@ -226,10 +223,7 @@ class _MarketplacePayoutSettingsPageState
                         prefixIcon: Icon(Icons.public_outlined),
                       ),
                       items: const [
-                        DropdownMenuItem(
-                          value: 'CA',
-                          child: Text('Canada'),
-                        ),
+                        DropdownMenuItem(value: 'CA', child: Text('Canada')),
                         DropdownMenuItem(
                           value: 'US',
                           child: Text('United States'),
@@ -245,10 +239,7 @@ class _MarketplacePayoutSettingsPageState
                     ),
                     const SizedBox(height: 14),
                   ] else ...[
-                    const _StatusRow(
-                      label: 'Provider',
-                      value: 'Stripe',
-                    ),
+                    const _StatusRow(label: 'Provider', value: 'Stripe'),
                     const SizedBox(height: 8),
                     _StatusRow(
                       label: 'Transfer status',
@@ -273,10 +264,10 @@ class _MarketplacePayoutSettingsPageState
                         _startingOnboarding
                             ? 'Opening Stripe…'
                             : payoutReady
-                                ? 'Review payout details with Stripe'
-                                : _hasAccount
-                                    ? 'Continue setup with Stripe'
-                                    : 'Set up payouts with Stripe',
+                            ? 'Review payout details with Stripe'
+                            : _hasAccount
+                            ? 'Continue setup with Stripe'
+                            : 'Set up payouts with Stripe',
                       ),
                     ),
                   ),
@@ -345,7 +336,9 @@ class _MarketplacePayoutSettingsPageState
           const SizedBox(height: 10),
           Text(
             'For launch, Stripe seller onboarding is available in Canada and the United States. More countries can be enabled after their payout and compliance requirements are configured.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.45),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(height: 1.45),
           ),
         ],
       ),
@@ -380,20 +373,14 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-        ],
-      );
+    children: [
+      Expanded(
+        child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+      ),
+      const SizedBox(width: 12),
+      Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+    ],
+  );
 }
 
 class _InfoLine extends StatelessWidget {
@@ -404,29 +391,29 @@ class _InfoLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 26,
-              height: 26,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: PipeBuyerColors.orangeSoft,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                number,
-                style: const TextStyle(
-                  color: PipeBuyerColors.orangePressed,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: PipeBuyerColors.orangeSoft,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              color: PipeBuyerColors.orangePressed,
+              fontWeight: FontWeight.w900,
             ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(text)),
-          ],
+          ),
         ),
-      );
+        const SizedBox(width: 10),
+        Expanded(child: Text(text)),
+      ],
+    ),
+  );
 }
