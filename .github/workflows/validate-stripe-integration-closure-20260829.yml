@@ -10,7 +10,9 @@ on:
     paths:
       - 'firebase/functions/dispatch_subscription_commands.js'
       - 'firebase/functions/stripe_marketplace_commands.js'
+      - 'firebase/functions/stripe_marketplace_config.js'
       - 'firebase/functions/test/subscription_monetization.test.js'
+      - 'firebase/functions/test/stripe_connect_accounts_api_version.test.js'
       - 'firebase/functions/test/stripe_seller_onboarding_error_contract.test.js'
       - 'lib/marketplace/marketplace_payout_settings.dart'
       - 'lib/marketplace/marketplace_subscription_billing_policy.dart'
