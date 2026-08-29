@@ -82,10 +82,45 @@ function safePipeBuyerCallbackUrl(value, field) {
   return url.toString();
 }
 
-function stripeSellerSetupErrorMessage(stripeCode) {
+function sanitizeStripeSupportText(value, maxLength = 120) {
+  const limit = Math.max(1, Math.min(Number(maxLength) || 120, 180));
+  return String(value || "")
+      .replace(/https?:\/\/\S+/gi, "[link]")
+      .replace(
+          /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+          "[redacted]",
+      )
+      .replace(/[\r\n\t]+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .slice(0, limit);
+}
+
+function sanitizeStripeSupportToken(value, maxLength = 120) {
+  const limit = Math.max(1, Math.min(Number(maxLength) || 120, 180));
+  return String(value || "")
+      .trim()
+      .replace(/[^A-Za-z0-9_.\-\[\]]+/g, "_")
+      .slice(0, limit);
+}
+
+function stripeSellerSetupErrorMessage(stripeCode, diagnostics = {}) {
   const code = String(stripeCode || "").trim().toLowerCase().slice(0, 120);
   const knownMessage = sellerSetupErrorMessages[code];
   if (knownMessage) return knownMessage;
+  if (code === "capability_not_available_without_other_capability") {
+    const explanation = sanitizeStripeSupportText(
+        diagnostics.stripeMessage,
+        120,
+    );
+    const requestId = sanitizeStripeSupportToken(
+        diagnostics.stripeRequestId,
+        40,
+    );
+    const detail = explanation || code;
+    return `Stripe capability dependency: ${detail}.` +
+      (requestId ? ` Request ${requestId}.` : "");
+  }
   if (code) {
     return `Stripe rejected the seller payout setup. Contact Pipe Buyer support with reference ${code}.`;
   }
@@ -117,23 +152,37 @@ async function stripeRequest({secretKey, path, method = "POST", body, query}) {
     payload = null;
   }
   if (!response.ok) {
-    const stripeCode = String(
-        payload && payload.error && (payload.error.code || payload.error.type) || "",
-    ).slice(0, 120);
-    const stripeRequestId = String(response.headers.get("request-id") || "")
-        .slice(0, 120);
+    const stripeError = payload && payload.error || {};
+    const stripeCode = sanitizeStripeSupportToken(
+        stripeError.code || stripeError.type,
+        120,
+    ).toLowerCase();
+    const stripeMessage = sanitizeStripeSupportText(stripeError.message, 120);
+    const stripeParam = sanitizeStripeSupportToken(stripeError.param, 120);
+    const stripeRequestId = sanitizeStripeSupportToken(
+        response.headers.get("request-id"),
+        120,
+    );
     console.error("Stripe marketplace request failed", {
       path,
       status: response.status,
       stripeCode,
+      stripeMessage,
+      stripeParam,
       stripeRequestId,
     });
     throw new HttpsError(
         response.status === 429 ? "resource-exhausted" : "failed-precondition",
-        stripeSellerSetupErrorMessage(stripeCode),
+        stripeSellerSetupErrorMessage(stripeCode, {
+          stripeMessage,
+          stripeParam,
+          stripeRequestId,
+        }),
         {
           provider: "stripe",
           stripeCode: stripeCode || "unknown",
+          stripeMessage: stripeMessage || null,
+          stripeParam: stripeParam || null,
           stripeRequestId: stripeRequestId || null,
           httpStatus: response.status,
         },
@@ -428,6 +477,7 @@ module.exports = {
   createStripeMarketplaceCommands,
   loadProviderReadiness,
   safePipeBuyerCallbackUrl,
+  sanitizeStripeSupportText,
   stripeSellerSetupErrorMessage,
   stripeSecretKey,
 };
