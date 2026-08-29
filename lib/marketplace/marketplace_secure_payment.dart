@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_payment_terms.dart';
 
 class MarketplaceSecurePaymentPanel extends StatefulWidget {
   const MarketplaceSecurePaymentPanel({
@@ -67,28 +68,62 @@ class _MarketplaceSecurePaymentPanelState
             color: Colors.green.withValues(alpha: .08),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.check_circle_outline, color: Colors.green),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  payoutStatus == 'released'
-                      ? 'Payment received • seller proceeds released'
-                      : 'Payment received • seller proceeds pending completion release',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      payoutStatus == 'released'
+                          ? 'Payment received • seller proceeds released'
+                          : 'Payment received • seller proceeds pending completion release',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              MarketplacePaymentTermsPanel(
+                transactionId: widget.transactionId,
+                sale: sale,
+                isBuyer: widget.isBuyer,
               ),
             ],
           ),
         );
       }
+
+      final paymentPlan = '${sale['paymentPlan'] ?? ''}';
+      final paymentPlanStatus = '${sale['paymentPlanStatus'] ?? ''}';
+      final splitFlowOwnsPayment =
+          paymentPlanStatus == 'proposal_pending' ||
+          (paymentPlan == 'deposit_balance' && paymentPlanStatus == 'active');
+      if (splitFlowOwnsPayment) {
+        return MarketplacePaymentTermsPanel(
+          transactionId: widget.transactionId,
+          sale: sale,
+          isBuyer: widget.isBuyer,
+        );
+      }
+
       if (!widget.isBuyer) {
-        return const Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(Icons.schedule_outlined, size: 19),
-            SizedBox(width: 8),
-            Expanded(child: Text('Awaiting secure payment from the buyer.')),
+            const Row(
+              children: [
+                Icon(Icons.schedule_outlined, size: 19),
+                SizedBox(width: 8),
+                Expanded(child: Text('Awaiting secure payment from the buyer.')),
+              ],
+            ),
+            MarketplacePaymentTermsPanel(
+              transactionId: widget.transactionId,
+              sale: sale,
+              isBuyer: false,
+            ),
           ],
         );
       }
@@ -106,24 +141,34 @@ class _MarketplaceSecurePaymentPanelState
           ],
         );
       }
-      return SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: _busy ? null : _startPayment,
-          icon: _busy
-              ? const SizedBox.square(
-                  dimension: 17,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.lock_outline),
-          label: Text(
-            _busy
-                ? 'Opening secure payment…'
-                : paymentStatus == 'checkout_created'
-                ? 'Continue secure payment'
-                : widget.payLabel,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _busy ? null : _startPayment,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.lock_outline),
+              label: Text(
+                _busy
+                    ? 'Opening secure payment…'
+                    : paymentStatus == 'checkout_created'
+                    ? 'Continue secure payment'
+                    : widget.payLabel,
+              ),
+            ),
           ),
-        ),
+          MarketplacePaymentTermsPanel(
+            transactionId: widget.transactionId,
+            sale: sale,
+            isBuyer: true,
+          ),
+        ],
       );
     },
   );
