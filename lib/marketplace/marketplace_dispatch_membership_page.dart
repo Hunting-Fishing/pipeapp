@@ -6,12 +6,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_dispatch_subscription_checkout.dart';
 import 'marketplace_policy_center.dart';
 
 bool dispatchMembershipStatusActive(Map<String, dynamic>? data) =>
     data != null && data['active'] == true;
 
 bool dispatchHostedStripeSurfaceAllowed({required bool isWeb}) => isWeb;
+
+String dispatchMembershipPromotionHint(String plan) {
+  if (!dispatchPromotionCodeEntryAvailable(plan)) return '';
+  return 'Monthly Dispatch: $dispatchPromotionCodeHelpText';
+}
 
 String dispatchMembershipPaidThrough(Map<String, dynamic>? data) {
   final millis = (data?['currentPeriodEndMillis'] as num?)?.toInt();
@@ -151,7 +157,8 @@ class _MarketplaceDispatchMembershipPageState
       if (uri == null ||
           uri.scheme != 'https' ||
           uri.host.toLowerCase() != 'billing.stripe.com') {
-        throw StateError('Stripe did not return a valid billing management link.');
+        throw StateError(
+            'Stripe did not return a valid billing management link.');
       }
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!opened) {
@@ -181,7 +188,8 @@ class _MarketplaceDispatchMembershipPageState
         body: Center(child: Text('Sign in to manage Dispatch membership.')),
       );
     }
-    final hostedStripeAllowed = dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb);
+    final hostedStripeAllowed =
+        dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dispatch membership'),
@@ -201,8 +209,8 @@ class _MarketplaceDispatchMembershipPageState
           final paidThrough = dispatchMembershipPaidThrough(data);
           final paymentIssue = data?['paymentIssue'] == true;
           final cancelAtPeriodEnd = data?['cancelAtPeriodEnd'] == true;
-          final managementAvailable = hostedStripeAllowed &&
-              data?['managementAvailable'] == true;
+          final managementAvailable =
+              hostedStripeAllowed && data?['managementAvailable'] == true;
           return ListView(
             padding: const EdgeInsets.all(18),
             children: [
@@ -262,11 +270,13 @@ class _MarketplaceDispatchMembershipPageState
                   future: _catalog,
                   builder: (context, catalogSnapshot) {
                     final catalog = catalogSnapshot.data;
-                    final checkoutAvailable = catalog?['checkoutAvailable'] == true;
+                    final checkoutAvailable =
+                        catalog?['checkoutAvailable'] == true;
                     final policyReviewRequired =
                         catalog?['policyAcceptanceRequired'] == true;
                     final catalogUnavailable = catalogSnapshot.hasError ||
-                        catalogSnapshot.connectionState == ConnectionState.waiting;
+                        catalogSnapshot.connectionState ==
+                            ConnectionState.waiting;
                     final statusUnavailable = snapshot.hasError ||
                         snapshot.connectionState == ConnectionState.waiting;
                     final checkoutDisabled = active ||
@@ -278,9 +288,12 @@ class _MarketplaceDispatchMembershipPageState
                     final cards = [
                       _PlanCard(
                         title: 'Dispatch Monthly',
-                        price: dispatchSubscriptionPriceLabel(catalog, 'monthly'),
+                        price:
+                            dispatchSubscriptionPriceLabel(catalog, 'monthly'),
                         description:
                             'Flexible recurring Dispatch carrier bidding access.',
+                        promotionHint:
+                            dispatchMembershipPromotionHint('monthly'),
                         icon: Icons.calendar_month_outlined,
                         busy: _busyPlan == 'monthly',
                         disabled: checkoutDisabled,
@@ -288,7 +301,8 @@ class _MarketplaceDispatchMembershipPageState
                       ),
                       _PlanCard(
                         title: 'Dispatch Yearly',
-                        price: dispatchSubscriptionPriceLabel(catalog, 'yearly'),
+                        price:
+                            dispatchSubscriptionPriceLabel(catalog, 'yearly'),
                         description:
                             'Annual recurring Dispatch carrier bidding access.',
                         icon: Icons.calendar_today_outlined,
@@ -398,7 +412,8 @@ class MarketplacePaymentReturnPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(success ? 'Payment submitted' : 'Payment cancelled')),
+        appBar: AppBar(
+            title: Text(success ? 'Payment submitted' : 'Payment cancelled')),
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 620),
@@ -411,7 +426,9 @@ class MarketplacePaymentReturnPage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        success ? Icons.verified_outlined : Icons.cancel_outlined,
+                        success
+                            ? Icons.verified_outlined
+                            : Icons.cancel_outlined,
                         size: 54,
                         color: success
                             ? PipeBuyerColors.success
@@ -538,7 +555,8 @@ class _MembershipStatusCard extends StatelessWidget {
                         icon: managementBusy
                             ? const SizedBox.square(
                                 dimension: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.manage_accounts_outlined),
                         label: Text(
@@ -568,6 +586,7 @@ class _PlanCard extends StatelessWidget {
     required this.title,
     required this.price,
     required this.description,
+    this.promotionHint = '',
     required this.icon,
     required this.busy,
     required this.disabled,
@@ -577,6 +596,7 @@ class _PlanCard extends StatelessWidget {
   final String title;
   final String price;
   final String description;
+  final String promotionHint;
   final IconData icon;
   final bool busy;
   final bool disabled;
@@ -593,15 +613,33 @@ class _PlanCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 title,
-                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+                style:
+                    const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 4),
               Text(
                 price,
-                style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+                style:
+                    const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               Text(description),
+              if (promotionHint.trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.local_offer_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        promotionHint,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
@@ -613,7 +651,11 @@ class _PlanCard extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.lock_outline),
-                  label: Text(busy ? 'Opening secure checkout…' : 'Continue to Secure Payment'),
+                  label: Text(
+                    busy
+                        ? 'Opening secure checkout…'
+                        : 'Continue to Secure Payment',
+                  ),
                 ),
               ),
             ],
