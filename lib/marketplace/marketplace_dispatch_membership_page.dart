@@ -157,7 +157,8 @@ class _MarketplaceDispatchMembershipPageState
       if (uri == null ||
           uri.scheme != 'https' ||
           uri.host.toLowerCase() != 'billing.stripe.com') {
-        throw StateError('Stripe did not return a valid billing management link.');
+        throw StateError(
+            'Stripe did not return a valid billing management link.');
       }
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!opened) {
@@ -187,7 +188,8 @@ class _MarketplaceDispatchMembershipPageState
         body: Center(child: Text('Sign in to manage Dispatch membership.')),
       );
     }
-    final hostedStripeAllowed = dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb);
+    final hostedStripeAllowed =
+        dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dispatch membership'),
@@ -207,8 +209,8 @@ class _MarketplaceDispatchMembershipPageState
           final paidThrough = dispatchMembershipPaidThrough(data);
           final paymentIssue = data?['paymentIssue'] == true;
           final cancelAtPeriodEnd = data?['cancelAtPeriodEnd'] == true;
-          final managementAvailable = hostedStripeAllowed &&
-              data?['managementAvailable'] == true;
+          final managementAvailable =
+              hostedStripeAllowed && data?['managementAvailable'] == true;
           return ListView(
             padding: const EdgeInsets.all(18),
             children: [
@@ -268,11 +270,13 @@ class _MarketplaceDispatchMembershipPageState
                   future: _catalog,
                   builder: (context, catalogSnapshot) {
                     final catalog = catalogSnapshot.data;
-                    final checkoutAvailable = catalog?['checkoutAvailable'] == true;
+                    final checkoutAvailable =
+                        catalog?['checkoutAvailable'] == true;
                     final policyReviewRequired =
                         catalog?['policyAcceptanceRequired'] == true;
                     final catalogUnavailable = catalogSnapshot.hasError ||
-                        catalogSnapshot.connectionState == ConnectionState.waiting;
+                        catalogSnapshot.connectionState ==
+                            ConnectionState.waiting;
                     final statusUnavailable = snapshot.hasError ||
                         snapshot.connectionState == ConnectionState.waiting;
                     final checkoutDisabled = active ||
@@ -284,10 +288,12 @@ class _MarketplaceDispatchMembershipPageState
                     final cards = [
                       _PlanCard(
                         title: 'Dispatch Monthly',
-                        price: dispatchSubscriptionPriceLabel(catalog, 'monthly'),
+                        price:
+                            dispatchSubscriptionPriceLabel(catalog, 'monthly'),
                         description:
                             'Flexible recurring Dispatch carrier bidding access.',
-                        promotionHint: dispatchMembershipPromotionHint('monthly'),
+                        promotionHint:
+                            dispatchMembershipPromotionHint('monthly'),
                         icon: Icons.calendar_month_outlined,
                         busy: _busyPlan == 'monthly',
                         disabled: checkoutDisabled,
@@ -295,7 +301,8 @@ class _MarketplaceDispatchMembershipPageState
                       ),
                       _PlanCard(
                         title: 'Dispatch Yearly',
-                        price: dispatchSubscriptionPriceLabel(catalog, 'yearly'),
+                        price:
+                            dispatchSubscriptionPriceLabel(catalog, 'yearly'),
                         description:
                             'Annual recurring Dispatch carrier bidding access.',
                         icon: Icons.calendar_today_outlined,
@@ -405,7 +412,8 @@ class MarketplacePaymentReturnPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(success ? 'Payment submitted' : 'Payment cancelled')),
+        appBar: AppBar(
+            title: Text(success ? 'Payment submitted' : 'Payment cancelled')),
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 620),
@@ -418,7 +426,9 @@ class MarketplacePaymentReturnPage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        success ? Icons.verified_outlined : Icons.cancel_outlined,
+                        success
+                            ? Icons.verified_outlined
+                            : Icons.cancel_outlined,
                         size: 54,
                         color: success
                             ? PipeBuyerColors.success
@@ -545,7 +555,8 @@ class _MembershipStatusCard extends StatelessWidget {
                         icon: managementBusy
                             ? const SizedBox.square(
                                 dimension: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.manage_accounts_outlined),
                         label: Text(
@@ -602,12 +613,14 @@ class _PlanCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 title,
-                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+                style:
+                    const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 4),
               Text(
                 price,
-                style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+                style:
+                    const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               Text(description),
