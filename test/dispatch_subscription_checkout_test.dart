@@ -32,4 +32,11 @@ void main() {
       'Subscribe',
     );
   });
+
+  test('promo code guidance is limited to monthly Dispatch checkout', () {
+    expect(dispatchPromotionCodeEntryAvailable('monthly'), isTrue);
+    expect(dispatchPromotionCodeEntryAvailable('MONTHLY'), isTrue);
+    expect(dispatchPromotionCodeEntryAvailable('yearly'), isFalse);
+    expect(dispatchPromotionCodeHelpText, contains('secure Stripe checkout'));
+  });
 }
