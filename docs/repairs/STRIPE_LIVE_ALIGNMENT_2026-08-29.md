@@ -123,6 +123,27 @@ The published-source Terms/Privacy described payments as inactive, claimed Pipe 
 - Terms: `95fe7bee2bcf9f15da369f6a11d184da22caee7e`
 - Privacy: `cbf37510111a25355e338b9a64a0a601debea3dd`
 
+## Root cause 6 — regression test retained obsolete escrow wording
+
+**Observed**
+
+The first verified production release of merge commit `99fbd56e33d29196a6d8003501869fd51bc51bcf` passed static analysis but stopped at `flutter test`: 436 tests passed and one test failed because `test/marketplace_escrow_test.dart` still expected the old user-facing label `Escrow Secured`. Production code had intentionally changed the label to `Payment Confirmed` as part of removing the false implication that Pipe Buyer operates an escrow or trust account.
+
+**Repair**
+
+The regression test now asserts the current provider-payment labels while retaining legacy internal enum/parser compatibility for historical transaction records:
+
+- `Payment Confirmed`
+- `Seller Transfer Completed`
+- `Delivery / Inspection Pending`
+- `Dispute Under Review`
+
+No Stripe, Firebase, settlement, entitlement, or payment-state logic changed in this repair.
+
+**Verification rule**
+
+Do not restore obsolete escrow wording merely to satisfy an old test. Tests that cover settlement presentation must assert the current legal/product terminology while legacy stored status keys remain backwards compatible.
+
 ## Live Stripe verification performed
 
 - Pipe Buyer account is live mode.
@@ -162,3 +183,4 @@ Before any future payment repair:
 5. Never grant entitlement or mark a marketplace transaction paid from a redirect alone.
 6. Never set tax readiness from Stripe Dashboard enablement alone; require actual tax/compliance evidence.
 7. Do not remove or deactivate legacy Stripe products/prices until old releases and historical references are dependency-audited.
+8. When user-facing payment terminology changes for legal/product accuracy, update its regression tests in the same change; do not revert corrected wording to satisfy stale assertions.
