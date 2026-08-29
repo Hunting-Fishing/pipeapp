@@ -33,7 +33,7 @@ jobs:
               ;;
             release/firebase-production)
               echo "environment=production" >> "$GITHUB_OUTPUT"
-              echo "app_check_mode=disabled" >> "$GITHUB_OUTPUT"
+              echo "app_check_mode=enforce" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "::error::Unsupported Firebase release pointer: ${GITHUB_REF_NAME}"

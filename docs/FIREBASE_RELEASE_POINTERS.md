@@ -21,7 +21,7 @@ Move `release/firebase-staging` to the commit that should be tested in Firebase 
 
 - environment: `staging`
 - commit_sha: the exact pointer commit
-- app_check_mode: `disabled` (preserves the current workflow default; change deliberately when App Check rollout is ready)
+- app_check_mode: `disabled` (preserves the staging rollout default; change deliberately when App Check rollout is ready)
 
 ### Production
 
@@ -29,7 +29,9 @@ Move `release/firebase-production` only after explicit production-release approv
 
 - environment: `production`
 - commit_sha: the exact pointer commit
-- app_check_mode: `disabled` (preserves current behavior; the verified deploy workflow emits its existing production warning)
+- app_check_mode: `enforce`
+
+Production App Check enforcement is not optional in the verified release contract. `tool/release_manifest.mjs` fails closed if a production release is dispatched with `disabled` or `observe`, so the production pointer must always dispatch `enforce`.
 
 The existing production deploy workflow also requires the release commit to be contained in `main`, so moving the production pointer to an unmerged feature commit will not publish it.
 
@@ -53,6 +55,7 @@ A later security improvement can migrate the Firebase CLI authentication from th
 
 1. Do not move `release/firebase-production` without an explicit production deployment request.
 2. Production must deploy an exact commit already contained in `main`.
-3. Do not put credentials in release branches, workflow files, logs, or chat messages.
-4. Do not bypass `.github/workflows/deploy.yml`; it remains the guarded deploy implementation.
-5. A failed deployment does not move or modify application source branches. Fix the failing check in source, merge as appropriate, then move the pointer to the corrected commit.
+3. Production release pointers must dispatch App Check in `enforce` mode; the manifest rejects weaker modes.
+4. Do not put credentials in release branches, workflow files, logs, or chat messages.
+5. Do not bypass `.github/workflows/deploy.yml`; it remains the guarded deploy implementation.
+6. A failed deployment does not move or modify application source branches. Fix the failing check in source, merge as appropriate, then move the pointer to the corrected commit.
