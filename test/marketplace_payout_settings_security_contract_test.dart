@@ -15,7 +15,8 @@ void main() {
     expect(source, contains("host.endsWith('.stripe.com')"));
   });
 
-  test('Stripe Connect callbacks return through authenticated seller payouts', () {
+  test('Stripe Connect callbacks return through authenticated seller payouts',
+      () {
     const callbackPage = MarketplaceStripeConnectReturnPage(
       connectAction: 'return',
     );
