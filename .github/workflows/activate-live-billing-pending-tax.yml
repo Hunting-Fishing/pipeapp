@@ -253,12 +253,17 @@ jobs:
           EOF
           cat >> firebase/functions/production_bootstrap.js <<'EOF'
 
-          // Temporary production activator. The deployment workflow deletes this
-          // function immediately after the one authorized configuration write.
+          // Temporary production activator. Infrastructure invocation is public
+          // so GitHub can reach the 2nd-gen HTTP function, but the handler still
+          // requires a one-time timing-safe bearer token. The workflow deletes
+          // this endpoint immediately after the authorized configuration write.
           const {onRequest: onRequestActivation} = require("firebase-functions/v2/https");
           const {createProductionBillingActivation} = require("./production_billing_activation_temp");
           exports.productionBillingActivation = onRequestActivation(
-              {secrets: ["PIPE_BILLING_ACTIVATION_TOKEN"]},
+              {
+                secrets: ["PIPE_BILLING_ACTIVATION_TOKEN"],
+                invoker: "public",
+              },
               createProductionBillingActivation(createAdminRuntime()),
           );
           EOF
