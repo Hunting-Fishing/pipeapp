@@ -14,6 +14,14 @@ void main() {
     expect(dispatchHostedStripeSurfaceAllowed(isWeb: false), isFalse);
   });
 
+  test('promo guidance stays limited to monthly Dispatch checkout', () {
+    expect(
+      dispatchMembershipPromotionHint('monthly'),
+      contains('secure Stripe checkout screen'),
+    );
+    expect(dispatchMembershipPromotionHint('yearly'), isEmpty);
+  });
+
   test('Dispatch membership paid-through date is formatted from server millis', () {
     final utc = DateTime.utc(2026, 8, 21);
     final label = dispatchMembershipPaidThrough({
