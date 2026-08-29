@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'dispatch_promotion_code_field.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_subscription_checkout.dart';
 import 'marketplace_policy_center.dart';
@@ -16,7 +17,7 @@ bool dispatchHostedStripeSurfaceAllowed({required bool isWeb}) => isWeb;
 
 String dispatchMembershipPromotionHint(String plan) {
   if (!dispatchPromotionCodeEntryAvailable(plan)) return '';
-  return 'Monthly Dispatch: $dispatchPromotionCodeHelpText';
+  return 'Have a promo code? Apply it here before payment.';
 }
 
 String dispatchMembershipPaidThrough(Map<String, dynamic>? data) {
@@ -64,10 +65,16 @@ class MarketplaceDispatchMembershipPage extends StatefulWidget {
 class _MarketplaceDispatchMembershipPageState
     extends State<MarketplaceDispatchMembershipPage> {
   final _commands = MarketplaceCommandClient();
+  final _checkoutPromoController = TextEditingController();
+  final _existingPromoController = TextEditingController();
   late Future<Map<String, dynamic>> _status;
   late Future<Map<String, dynamic>> _catalog;
   String? _busyPlan;
   bool _portalBusy = false;
+  bool _checkoutPromoBusy = false;
+  bool _existingPromoBusy = false;
+  String _checkoutPromoSummary = '';
+  String _existingPromoSummary = '';
 
   @override
   void initState() {
@@ -76,6 +83,13 @@ class _MarketplaceDispatchMembershipPageState
     _catalog = dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb)
         ? _loadCatalog()
         : Future.value(const {});
+  }
+
+  @override
+  void dispose() {
+    _checkoutPromoController.dispose();
+    _existingPromoController.dispose();
+    super.dispose();
   }
 
   Future<Map<String, dynamic>> _loadStatus() =>
@@ -103,21 +117,97 @@ class _MarketplaceDispatchMembershipPageState
     if (mounted) _refresh();
   }
 
-  Future<void> _checkout(String plan) async {
+  void _checkoutPromoChanged(String value) {
+    if (_checkoutPromoSummary.isEmpty) return;
+    setState(() => _checkoutPromoSummary = '');
+  }
+
+  void _existingPromoChanged(String value) {
+    if (_existingPromoSummary.isEmpty) return;
+    setState(() => _existingPromoSummary = '');
+  }
+
+  Future<void> _applyCheckoutPromo() async {
     if (!dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb) ||
+        _checkoutPromoBusy ||
         _busyPlan != null ||
         _portalBusy) {
       return;
     }
-    setState(() => _busyPlan = plan);
+    final code = _checkoutPromoController.text.trim();
+    if (code.isEmpty) {
+      PipeFeedback.show(
+        context,
+        message: 'Enter a promo code first.',
+        tone: PipeStatusTone.info,
+      );
+      return;
+    }
+    setState(() {
+      _checkoutPromoBusy = true;
+      _checkoutPromoSummary = '';
+    });
     try {
       final result = await _commands.execute(
         'createDispatchSubscriptionCheckout',
-        {'plan': plan},
+        <String, Object?>{'plan': 'monthly', 'promotionCode': code},
         timeout: const Duration(seconds: 45),
       );
+      if (result['promotionCodeApplied'] != true) {
+        throw StateError('Stripe did not confirm that promo code.');
+      }
+      final summary = '${result['promotionCodeSummary'] ?? ''}'.trim();
+      if (!mounted) return;
+      setState(() {
+        _checkoutPromoSummary = summary.isEmpty
+            ? 'Promo code accepted by Stripe.'
+            : 'Promo applied — $summary.';
+      });
+      PipeFeedback.show(
+        context,
+        message: _checkoutPromoSummary,
+        tone: PipeStatusTone.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'That promo code could not be applied. Check it and try again.',
+        ),
+        tone: PipeStatusTone.error,
+      );
+    } finally {
+      if (mounted) setState(() => _checkoutPromoBusy = false);
+    }
+  }
+
+  Future<void> _checkout(String plan) async {
+    if (!dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb) ||
+        _busyPlan != null ||
+        _portalBusy ||
+        _checkoutPromoBusy) {
+      return;
+    }
+    setState(() => _busyPlan = plan);
+    try {
+      final code = plan == 'monthly' ? _checkoutPromoController.text.trim() : '';
+      final payload = <String, Object?>{'plan': plan};
+      if (code.isNotEmpty) payload['promotionCode'] = code;
+      final result = await _commands.execute(
+        'createDispatchSubscriptionCheckout',
+        payload,
+        timeout: const Duration(seconds: 45),
+      );
+      if (code.isNotEmpty && result['promotionCodeApplied'] != true) {
+        throw StateError('Stripe did not confirm that promo code.');
+      }
       final uri = Uri.tryParse('${result['checkoutUrl'] ?? ''}');
-      if (uri == null || uri.scheme != 'https') {
+      final host = uri?.host.toLowerCase() ?? '';
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          !(host == 'stripe.com' || host.endsWith('.stripe.com'))) {
         throw StateError('Stripe did not return a valid membership checkout.');
       }
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -140,10 +230,68 @@ class _MarketplaceDispatchMembershipPageState
     }
   }
 
+  Future<void> _applyExistingPromotion() async {
+    if (!dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb) ||
+        _existingPromoBusy ||
+        _portalBusy ||
+        _busyPlan != null) {
+      return;
+    }
+    final code = _existingPromoController.text.trim();
+    if (code.isEmpty) {
+      PipeFeedback.show(
+        context,
+        message: 'Enter a promo code first.',
+        tone: PipeStatusTone.info,
+      );
+      return;
+    }
+    setState(() {
+      _existingPromoBusy = true;
+      _existingPromoSummary = '';
+    });
+    try {
+      final result = await _commands.execute(
+        'applyDispatchSubscriptionPromotionCode',
+        <String, Object?>{'promotionCode': code},
+        timeout: const Duration(seconds: 30),
+      );
+      if (result['applied'] != true) {
+        throw StateError('Stripe did not confirm that promo code.');
+      }
+      final summary = '${result['promotionSummary'] ?? ''}'.trim();
+      if (!mounted) return;
+      setState(() {
+        _existingPromoSummary = summary.isEmpty
+            ? 'Promo applied to future eligible invoices.'
+            : 'Promo applied — $summary. Future eligible invoices will use it.';
+      });
+      PipeFeedback.show(
+        context,
+        message: _existingPromoSummary,
+        tone: PipeStatusTone.success,
+      );
+      _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: marketplaceCommandErrorMessage(
+          error,
+          fallback: 'That promo code could not be applied to this subscription.',
+        ),
+        tone: PipeStatusTone.error,
+      );
+    } finally {
+      if (mounted) setState(() => _existingPromoBusy = false);
+    }
+  }
+
   Future<void> _openPortal() async {
     if (!dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb) ||
         _portalBusy ||
-        _busyPlan != null) {
+        _busyPlan != null ||
+        _existingPromoBusy) {
       return;
     }
     setState(() => _portalBusy = true);
@@ -206,27 +354,40 @@ class _MarketplaceDispatchMembershipPageState
         builder: (context, snapshot) {
           final data = snapshot.data;
           final active = dispatchMembershipStatusActive(data);
+          final plan = '${data?['plan'] ?? ''}'.trim().toLowerCase();
           final paidThrough = dispatchMembershipPaidThrough(data);
           final paymentIssue = data?['paymentIssue'] == true;
           final cancelAtPeriodEnd = data?['cancelAtPeriodEnd'] == true;
           final managementAvailable =
               hostedStripeAllowed && data?['managementAvailable'] == true;
+          final loading = snapshot.connectionState == ConnectionState.waiting;
           return ListView(
             padding: const EdgeInsets.all(18),
             children: [
               _MembershipStatusCard(
                 active: active,
-                plan: '${data?['plan'] ?? ''}',
+                plan: plan,
                 paidThrough: paidThrough,
                 paymentIssue: paymentIssue,
                 cancelAtPeriodEnd: cancelAtPeriodEnd,
                 managementAvailable: managementAvailable,
                 managementBusy: _portalBusy,
-                loading: snapshot.connectionState == ConnectionState.waiting,
+                loading: loading,
                 error: snapshot.hasError,
                 onRetry: _refresh,
                 onManage: _openPortal,
               ),
+              if (active && hostedStripeAllowed && !loading && !snapshot.hasError) ...[
+                const SizedBox(height: 16),
+                _ExistingSubscriptionPromotionCard(
+                  monthly: plan == 'monthly',
+                  controller: _existingPromoController,
+                  busy: _existingPromoBusy,
+                  appliedSummary: _existingPromoSummary,
+                  onChanged: _existingPromoChanged,
+                  onApply: _applyExistingPromotion,
+                ),
+              ],
               const SizedBox(height: 16),
               if (!hostedStripeAllowed)
                 const Card(
@@ -256,7 +417,7 @@ class _MarketplaceDispatchMembershipPageState
                     ),
                   ),
                 )
-              else ...[
+              else if (!active) ...[
                 const Text(
                   'Choose your Dispatch membership',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
@@ -279,9 +440,9 @@ class _MarketplaceDispatchMembershipPageState
                             ConnectionState.waiting;
                     final statusUnavailable = snapshot.hasError ||
                         snapshot.connectionState == ConnectionState.waiting;
-                    final checkoutDisabled = active ||
-                        _busyPlan != null ||
+                    final checkoutDisabled = _busyPlan != null ||
                         _portalBusy ||
+                        _checkoutPromoBusy ||
                         statusUnavailable ||
                         catalogUnavailable ||
                         !checkoutAvailable;
@@ -294,6 +455,16 @@ class _MarketplaceDispatchMembershipPageState
                             'Flexible recurring Dispatch carrier bidding access.',
                         promotionHint:
                             dispatchMembershipPromotionHint('monthly'),
+                        promotionEntry: DispatchPromotionCodeField(
+                          controller: _checkoutPromoController,
+                          busy: _checkoutPromoBusy,
+                          enabled: !checkoutDisabled,
+                          appliedSummary: _checkoutPromoSummary,
+                          onChanged: _checkoutPromoChanged,
+                          onApply: _applyCheckoutPromo,
+                          helperText:
+                              'Apply it here before payment. If you leave it blank, Stripe Checkout also has a promo-code entry.',
+                        ),
                         icon: Icons.calendar_month_outlined,
                         busy: _busyPlan == 'monthly',
                         disabled: checkoutDisabled,
@@ -322,8 +493,7 @@ class _MarketplaceDispatchMembershipPageState
                             ),
                           )
                         else if (!catalogUnavailable &&
-                            policyReviewRequired &&
-                            !active) ...[
+                            policyReviewRequired) ...[
                           const Padding(
                             padding: EdgeInsets.only(bottom: 8),
                             child: Text(
@@ -339,9 +509,7 @@ class _MarketplaceDispatchMembershipPageState
                             ),
                           ),
                           const SizedBox(height: 12),
-                        ] else if (!catalogUnavailable &&
-                            !checkoutAvailable &&
-                            !active)
+                        ] else if (!catalogUnavailable && !checkoutAvailable)
                           const Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
@@ -385,7 +553,7 @@ class _MarketplaceDispatchMembershipPageState
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Pipe Buyer never accepts a subscription amount from the app. The server selects the approved Stripe Price ID and Stripe confirms payment by signed webhook before membership is treated as paid.',
+                            'Pipe Buyer never accepts a subscription amount from the app. The server selects the approved Stripe Price ID, Stripe validates any promo code, and Stripe confirms payment by signed webhook before membership is treated as paid.',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -581,12 +749,74 @@ class _MembershipStatusCard extends StatelessWidget {
       );
 }
 
+class _ExistingSubscriptionPromotionCard extends StatelessWidget {
+  const _ExistingSubscriptionPromotionCard({
+    required this.monthly,
+    required this.controller,
+    required this.busy,
+    required this.appliedSummary,
+    required this.onChanged,
+    required this.onApply,
+  });
+
+  final bool monthly;
+  final TextEditingController controller;
+  final bool busy;
+  final String appliedSummary;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onApply;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.local_offer_outlined, color: PipeBuyerColors.orange),
+                  SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      'Have a promo code?',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                monthly
+                    ? 'Already subscribed? Enter an eligible code here. Stripe applies accepted discounts to future eligible invoices; your current paid period is not refunded.'
+                    : 'Promo-code self-service is currently limited to monthly Dispatch memberships so an offer cannot accidentally discount a full annual invoice. Annual promo eligibility can be reviewed separately.',
+              ),
+              if (monthly) ...[
+                const SizedBox(height: 14),
+                DispatchPromotionCodeField(
+                  controller: controller,
+                  busy: busy,
+                  appliedSummary: appliedSummary,
+                  onChanged: onChanged,
+                  onApply: onApply,
+                  applyLabel: 'Apply to subscription',
+                  helperText:
+                      'Stripe checks expiration, customer eligibility, redemption limits, and any first-purchase restriction before applying the code.',
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+}
+
 class _PlanCard extends StatelessWidget {
   const _PlanCard({
     required this.title,
     required this.price,
     required this.description,
     this.promotionHint = '',
+    this.promotionEntry,
     required this.icon,
     required this.busy,
     required this.disabled,
@@ -597,6 +827,7 @@ class _PlanCard extends StatelessWidget {
   final String price;
   final String description;
   final String promotionHint;
+  final Widget? promotionEntry;
   final IconData icon;
   final bool busy;
   final bool disabled;
@@ -634,11 +865,17 @@ class _PlanCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         promotionHint,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
                     ),
                   ],
                 ),
+              ],
+              if (promotionEntry != null) ...[
+                const SizedBox(height: 12),
+                promotionEntry!,
               ],
               const SizedBox(height: 14),
               SizedBox(
