@@ -27,6 +27,7 @@ const {
 
 const CHECKOUT_CREATION_LEASE_MS = 2 * 60 * 1000;
 const CHECKOUT_FALLBACK_EXPIRY_MS = 24 * 60 * 60 * 1000;
+const CHECKOUT_CONFIGURATION_VERSION = 2;
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -65,6 +66,10 @@ function couponFromEntitlement(entitlement) {
   return null;
 }
 
+function promotionCodeEntryAllowed(plan, couponId) {
+  return plan === "monthly" && !String(couponId || "").trim();
+}
+
 function timestampMillis(value) {
   if (value && typeof value.toMillis === "function") return value.toMillis();
   if (value instanceof Date) return value.getTime();
@@ -79,6 +84,9 @@ function dispatchMembershipIsCurrent(membership, nowMillis = Date.now()) {
 
 function reusableCheckoutState(state, plan, nowMillis = Date.now()) {
   if (!state || state.plan !== plan) return false;
+  if (state.checkoutConfigurationVersion !== CHECKOUT_CONFIGURATION_VERSION) {
+    return false;
+  }
   if (state.status !== "created") return false;
   if (timestampMillis(state.expiresAt) <= nowMillis) return false;
   return String(state.checkoutSessionId || "").startsWith("cs_") &&
@@ -134,6 +142,7 @@ function createDispatchSubscriptionCommands(admin) {
       ]);
       const entitlement = entitlementSnapshot.exists ? entitlementSnapshot.data() : null;
       const couponId = couponFromEntitlement(entitlement);
+      const allowPromotionCodes = promotionCodeEntryAllowed(plan, couponId);
       const referrerUid = relationshipSnapshot.exists ?
         String(relationshipSnapshot.data().referrerUid || "").trim() : "";
 
@@ -161,6 +170,7 @@ function createDispatchSubscriptionCommands(admin) {
             checkoutSessionId: String(state.checkoutSessionId),
             checkoutUrl: String(state.checkoutUrl),
             attemptNumber: Number(state.attemptNumber || 1),
+            promotionCodeEntryAllowed: state.promotionCodeEntryAllowed === true,
           };
         }
 
@@ -200,6 +210,8 @@ function createDispatchSubscriptionCommands(admin) {
           plan,
           priceId,
           status: "creating",
+          checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION,
+          promotionCodeEntryAllowed: allowPromotionCodes,
           attemptNumber,
           checkoutSessionId: FieldValue.delete(),
           checkoutUrl: FieldValue.delete(),
@@ -217,6 +229,7 @@ function createDispatchSubscriptionCommands(admin) {
           checkoutUrl: reservation.checkoutUrl,
           plan,
           promotionApplied: Boolean(couponId),
+          promotionCodeEntryAllowed: reservation.promotionCodeEntryAllowed,
           taxCollectionStatus: collectionStatus,
           alreadyCreated: true,
         };
@@ -238,7 +251,7 @@ function createDispatchSubscriptionCommands(admin) {
           cancel_url: cancelUrl,
           client_reference_id: uid,
           billing_address_collection: "required",
-          allow_promotion_codes: "false",
+          allow_promotion_codes: allowPromotionCodes ? "true" : "false",
           "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
           "line_items[0][price]": priceId,
           "line_items[0][quantity]": 1,
@@ -273,6 +286,8 @@ function createDispatchSubscriptionCommands(admin) {
         plan,
         priceId,
         couponId: couponId || null,
+        promotionCodeEntryAllowed: allowPromotionCodes,
+        checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION,
         referrerUid: referrerUid || null,
         taxCollectionStatus: collectionStatus,
         taxExposureReviewRequired: collectionStatus === "registration_pending",
@@ -289,6 +304,8 @@ function createDispatchSubscriptionCommands(admin) {
           plan,
           priceId,
           status: "created",
+          checkoutConfigurationVersion: CHECKOUT_CONFIGURATION_VERSION,
+          promotionCodeEntryAllowed: allowPromotionCodes,
           attemptNumber: reservation.attemptNumber,
           checkoutSessionId: sessionId,
           checkoutUrl,
@@ -302,6 +319,7 @@ function createDispatchSubscriptionCommands(admin) {
         checkoutUrl,
         plan,
         promotionApplied: Boolean(couponId),
+        promotionCodeEntryAllowed: allowPromotionCodes,
         taxCollectionStatus: collectionStatus,
         alreadyCreated: false,
       };
@@ -319,12 +337,14 @@ function createDispatchSubscriptionCommands(admin) {
 }
 
 module.exports = {
+  CHECKOUT_CONFIGURATION_VERSION,
   CHECKOUT_CREATION_LEASE_MS,
   CHECKOUT_FALLBACK_EXPIRY_MS,
   checkoutAttemptKey,
   couponFromEntitlement,
   createDispatchSubscriptionCommands,
   dispatchMembershipIsCurrent,
+  promotionCodeEntryAllowed,
   requireSubscriptionReady,
   reusableCheckoutState,
   selectedPlan,
