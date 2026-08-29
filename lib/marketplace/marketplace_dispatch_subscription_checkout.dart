@@ -22,10 +22,7 @@ String dispatchSubscriptionPlanLabel(Map<String, dynamic>? plan) {
 }
 
 class DispatchSubscriptionCheckoutButton extends StatefulWidget {
-  const DispatchSubscriptionCheckoutButton({
-    super.key,
-    required this.plan,
-  });
+  const DispatchSubscriptionCheckoutButton({super.key, required this.plan});
 
   final String plan;
 
@@ -56,137 +53,132 @@ class _DispatchSubscriptionCheckoutButtonState
         const <String, Object?>{},
       ),
     ]);
-    return <String, dynamic>{
-      'catalog': results[0],
-      'status': results[1],
-    };
+    return <String, dynamic>{'catalog': results[0], 'status': results[1]};
   }
 
   void _reload() => setState(() => _viewFuture = _loadView());
 
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-        future: _viewFuture,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _reload,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry subscription status'),
-              ),
-            );
-          }
+    future: _viewFuture,
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _reload,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry subscription status'),
+          ),
+        );
+      }
 
-          if (snapshot.connectionState != ConnectionState.done) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                label: const Text('Loading subscription…'),
-              ),
-            );
-          }
+      if (snapshot.connectionState != ConnectionState.done) {
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: null,
+            icon: const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            label: const Text('Loading subscription…'),
+          ),
+        );
+      }
 
-          final view = snapshot.data ?? const <String, dynamic>{};
-          final catalog = view['catalog'] is Map
-              ? Map<String, dynamic>.from(view['catalog'] as Map)
-              : const <String, dynamic>{};
-          final status = view['status'] is Map
-              ? Map<String, dynamic>.from(view['status'] as Map)
-              : const <String, dynamic>{};
-          final plans = catalog['plans'] is Map
-              ? Map<String, dynamic>.from(catalog['plans'] as Map)
-              : const <String, dynamic>{};
-          final planData = plans[widget.plan] is Map
-              ? Map<String, dynamic>.from(plans[widget.plan] as Map)
-              : null;
-          final price = dispatchSubscriptionPlanLabel(planData);
+      final view = snapshot.data ?? const <String, dynamic>{};
+      final catalog = view['catalog'] is Map
+          ? Map<String, dynamic>.from(view['catalog'] as Map)
+          : const <String, dynamic>{};
+      final status = view['status'] is Map
+          ? Map<String, dynamic>.from(view['status'] as Map)
+          : const <String, dynamic>{};
+      final plans = catalog['plans'] is Map
+          ? Map<String, dynamic>.from(catalog['plans'] as Map)
+          : const <String, dynamic>{};
+      final planData = plans[widget.plan] is Map
+          ? Map<String, dynamic>.from(plans[widget.plan] as Map)
+          : null;
+      final price = dispatchSubscriptionPlanLabel(planData);
 
-          final active = status['active'] == true;
-          final managementAvailable = status['managementAvailable'] == true;
-          final paymentIssue = status['paymentIssue'] == true;
-          if (active) {
-            if (managementAvailable) {
-              return SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _busy ? null : _openPortal,
-                  icon: _busy
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(
-                          paymentIssue
-                              ? Icons.warning_amber_rounded
-                              : Icons.manage_accounts_outlined,
-                        ),
-                  label: Text(
-                    _busy
-                        ? 'Opening billing…'
-                        : paymentIssue
-                            ? 'Fix billing / manage subscription'
-                            : 'Manage Dispatch billing',
-                  ),
-                ),
-              );
-            }
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.check_circle_outline_rounded),
-                label: const Text('Dispatch membership active'),
-              ),
-            );
-          }
-
-          final checkoutAvailable = catalog['checkoutAvailable'] == true;
-          final providerReady = catalog['providerCheckoutReady'] == true;
-          final policiesCurrent = catalog['policyAcceptanceCurrent'] == true;
-          if (!checkoutAvailable) {
-            final message = !policiesCurrent
-                ? 'Accept the current Pipe Buyer Terms and Privacy Policy, then retry.'
-                : !providerReady
-                    ? 'Dispatch subscription checkout is temporarily unavailable.'
-                    : 'Dispatch subscription checkout is not available for this account yet.';
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(message)),
-                ),
-                icon: const Icon(Icons.info_outline_rounded),
-                label: Text(
-                  !policiesCurrent ? 'Review terms to subscribe' : price,
-                ),
-              ),
-            );
-          }
-
+      final active = status['active'] == true;
+      final managementAvailable = status['managementAvailable'] == true;
+      final paymentIssue = status['paymentIssue'] == true;
+      if (active) {
+        if (managementAvailable) {
           return SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _busy ? null : _startCheckout,
+              onPressed: _busy ? null : _openPortal,
               icon: _busy
                   ? const SizedBox.square(
                       dimension: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.lock_outline_rounded),
+                  : Icon(
+                      paymentIssue
+                          ? Icons.warning_amber_rounded
+                          : Icons.manage_accounts_outlined,
+                    ),
               label: Text(
-                _busy ? 'Opening secure checkout…' : 'Subscribe • $price',
+                _busy
+                    ? 'Opening billing…'
+                    : paymentIssue
+                    ? 'Fix billing / manage subscription'
+                    : 'Manage Dispatch billing',
               ),
             ),
           );
-        },
+        }
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.check_circle_outline_rounded),
+            label: const Text('Dispatch membership active'),
+          ),
+        );
+      }
+
+      final checkoutAvailable = catalog['checkoutAvailable'] == true;
+      final providerReady = catalog['providerCheckoutReady'] == true;
+      final policiesCurrent = catalog['policyAcceptanceCurrent'] == true;
+      if (!checkoutAvailable) {
+        final message = !policiesCurrent
+            ? 'Accept the current Pipe Buyer Terms and Privacy Policy, then retry.'
+            : !providerReady
+            ? 'Dispatch subscription checkout is temporarily unavailable.'
+            : 'Dispatch subscription checkout is not available for this account yet.';
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(message))),
+            icon: const Icon(Icons.info_outline_rounded),
+            label: Text(!policiesCurrent ? 'Review terms to subscribe' : price),
+          ),
+        );
+      }
+
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: _busy ? null : _startCheckout,
+          icon: _busy
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.lock_outline_rounded),
+          label: Text(
+            _busy ? 'Opening secure checkout…' : 'Subscribe • $price',
+          ),
+        ),
       );
+    },
+  );
 
   Future<void> _startCheckout() async {
     await _openProviderUrl(
@@ -224,7 +216,8 @@ class _DispatchSubscriptionCheckoutButtonState
       final host = uri?.host.toLowerCase() ?? '';
       if (uri == null ||
           uri.scheme != 'https' ||
-          !(host == expectedHostSuffix || host.endsWith('.$expectedHostSuffix'))) {
+          !(host == expectedHostSuffix ||
+              host.endsWith('.$expectedHostSuffix'))) {
         throw StateError('Stripe did not return a valid secure URL.');
       }
       final opened = await launchUrl(
