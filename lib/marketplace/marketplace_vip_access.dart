@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_subscription_checkout.dart';
+import 'marketplace_vip_subscription_checkout.dart';
 
 const marketplaceVipEarlyAccessDuration = Duration(hours: 24);
 
@@ -553,20 +554,7 @@ class _SubscriptionPlanCard extends StatelessWidget {
         else if (title == 'Dispatch Yearly')
           const DispatchSubscriptionCheckoutButton(plan: 'yearly')
         else
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'VIP billing is not configured yet. No VIP charge will be started.',
-                  ),
-                ),
-              ),
-              icon: Icon(icon),
-              label: const Text('VIP billing coming soon'),
-            ),
-          ),
+          const VipSubscriptionCheckoutButton(),
       ],
     ),
   );

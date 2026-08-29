@@ -36,6 +36,15 @@ function isDispatchCheckoutCompletedEvent(event) {
     session.metadata.billingType === "dispatch_subscription");
 }
 
+function isVipCheckoutCompletedEvent(event) {
+  const session = event && event.data && event.data.object;
+  return Boolean(event &&
+    event.type === "checkout.session.completed" &&
+    session &&
+    session.metadata &&
+    session.metadata.billingType === "vip_subscription");
+}
+
 function isDispatchProviderStateEvent(event) {
   return isDispatchSubscriptionLifecycleEvent(event) ||
     isDispatchCheckoutCompletedEvent(event);
@@ -45,6 +54,7 @@ function createStripeWebhookDispatchLifecycleWrapper({
   admin,
   baseHandler,
   dispatchSubscriptionLifecycle,
+  vipSubscriptionLifecycle,
   stripeWebhookSecret,
 }) {
   const db = admin.firestore();
@@ -64,7 +74,8 @@ function createStripeWebhookDispatchLifecycleWrapper({
     }
 
     const event = stripeEventFromRawBody(rawBody);
-    if (!isDispatchProviderStateEvent(event)) {
+    if (!isDispatchProviderStateEvent(event) &&
+        !isVipCheckoutCompletedEvent(event)) {
       return baseHandler(request, response);
     }
 
@@ -80,25 +91,44 @@ function createStripeWebhookDispatchLifecycleWrapper({
 
     try {
       const object = event.data.object;
+      const billing = String(object && object.metadata &&
+        object.metadata.billingType || "");
+      const vip = billing === "vip_subscription";
       if (event.type === "checkout.session.completed") {
-        await dispatchSubscriptionLifecycle
-            .handleDispatchCheckoutCompleted(object);
+        if (vip) {
+          await vipSubscriptionLifecycle.handleVipCheckoutCompleted(object);
+        } else {
+          await dispatchSubscriptionLifecycle
+              .handleDispatchCheckoutCompleted(object);
+        }
       } else if (event.type === "customer.subscription.created") {
-        await dispatchSubscriptionLifecycle
-            .handleDispatchSubscriptionCreated(object);
+        if (vip) {
+          await vipSubscriptionLifecycle.handleVipSubscriptionCreated(object);
+        } else {
+          await dispatchSubscriptionLifecycle
+              .handleDispatchSubscriptionCreated(object);
+        }
       } else if (event.type === "customer.subscription.deleted") {
-        await dispatchSubscriptionLifecycle
-            .handleDispatchSubscriptionDeleted(object);
+        if (vip) {
+          await vipSubscriptionLifecycle.handleVipSubscriptionDeleted(object);
+        } else {
+          await dispatchSubscriptionLifecycle
+              .handleDispatchSubscriptionDeleted(object);
+        }
       } else if ([
         "customer.subscription.updated",
         "customer.subscription.paused",
         "customer.subscription.resumed",
       ].includes(event.type)) {
-        await dispatchSubscriptionLifecycle
-            .handleDispatchSubscriptionUpdated(object);
+        if (vip) {
+          await vipSubscriptionLifecycle.handleVipSubscriptionUpdated(object);
+        } else {
+          await dispatchSubscriptionLifecycle
+              .handleDispatchSubscriptionUpdated(object);
+        }
       }
     } catch (error) {
-      console.error("Dispatch subscription provider-state webhook failed", {
+      console.error("Subscription provider-state webhook failed", {
         eventId,
         type: event.type,
         error,
@@ -127,5 +157,6 @@ module.exports = {
   isDispatchCheckoutCompletedEvent,
   isDispatchProviderStateEvent,
   isDispatchSubscriptionLifecycleEvent,
+  isVipCheckoutCompletedEvent,
   stripeEventFromRawBody,
 };
