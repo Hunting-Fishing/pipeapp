@@ -31,7 +31,6 @@ class DispatchPromotionCodeField extends StatelessWidget {
       controller: controller,
       enabled: enabled && !busy,
       textCapitalization: TextCapitalization.characters,
-      autofillHints: const [AutofillHints.promoCode],
       maxLength: 64,
       onChanged: onChanged,
       decoration: const InputDecoration(
