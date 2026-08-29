@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Check out completion source
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
