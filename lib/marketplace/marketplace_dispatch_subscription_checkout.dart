@@ -304,7 +304,8 @@ class _DispatchSubscriptionCheckoutButtonState
       _showMessage(
         marketplaceCommandErrorMessage(
           error,
-          fallback: 'That promo code could not be applied. Check it and try again.',
+          fallback:
+              'That promo code could not be applied. Check it and try again.',
         ),
       );
     } finally {
@@ -346,7 +347,8 @@ class _DispatchSubscriptionCheckoutButtonState
       _showMessage(
         marketplaceCommandErrorMessage(
           error,
-          fallback: 'That promo code could not be applied to this subscription.',
+          fallback:
+              'That promo code could not be applied to this subscription.',
         ),
       );
     } finally {
