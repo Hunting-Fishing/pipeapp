@@ -1,0 +1,53 @@
+name: Release Subscription UI Live 2026-08-29
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release-subscription-ui-live-20260829.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: pipe-buyer-subscription-ui-live-2026-08-29
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 125
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: 883b1f5ffe2a252148c1b8ca0d325bc16c6a8513
+    steps:
+      - name: Launch existing verified production payment release for exact app commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run release-stripe-live-alignment-2026-08-29.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$TARGET_SHA"
+          run_id=""
+          for attempt in $(seq 1 90); do
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow release-stripe-live-alignment-2026-08-29.yml \
+              --event workflow_dispatch \
+              --limit 30 \
+              --json databaseId,headSha,createdAt \
+              --jq ".[] | select(.headSha == \"$TARGET_SHA\" and .createdAt >= \"$marker\") | .databaseId" | head -n 1)"
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ -z "$run_id" ]]; then
+            echo "::error::Verified production release did not start for $TARGET_SHA."
+            exit 1
+          fi
+          echo "Waiting for verified production release run $run_id."
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
