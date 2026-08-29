@@ -22,15 +22,21 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TARGET_SHA: 883b1f5ffe2a252148c1b8ca0d325bc16c6a8513
+      TARGET_REF: ops/release-subscription-ui-883b1f5f
     steps:
       - name: Launch existing verified production payment release for exact app commit
         shell: bash
         run: |
           set -euo pipefail
+          resolved="$(gh api "repos/$GITHUB_REPOSITORY/branches/$TARGET_REF" --jq '.commit.sha')"
+          if [[ "$resolved" != "$TARGET_SHA" ]]; then
+            echo "::error::Release ref resolves to $resolved instead of $TARGET_SHA."
+            exit 1
+          fi
           marker="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gh workflow run release-stripe-live-alignment-2026-08-29.yml \
             --repo "$GITHUB_REPOSITORY" \
-            --ref "$TARGET_SHA"
+            --ref "$TARGET_REF"
           run_id=""
           for attempt in $(seq 1 90); do
             run_id="$(gh run list \
