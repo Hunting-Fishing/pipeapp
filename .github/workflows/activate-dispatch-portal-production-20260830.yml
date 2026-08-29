@@ -190,7 +190,17 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          openssl rand -hex 32 > .dispatch-portal-activation-token
+          activation_token="$(openssl rand -hex 32)"
+          if [[ ! "$activation_token" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::One-time Dispatch portal token is not exactly 64 hexadecimal characters."
+            exit 1
+          fi
+          printf '%s' "$activation_token" > .dispatch-portal-activation-token
+          token_bytes="$(wc -c < .dispatch-portal-activation-token | tr -d '[:space:]')"
+          if [[ "$token_bytes" != "64" ]]; then
+            echo "::error::One-time Dispatch portal token file must be exactly 64 bytes."
+            exit 1
+          fi
           firebase functions:secrets:set PIPE_DISPATCH_PORTAL_ACTIVATION_TOKEN \
             --data-file .dispatch-portal-activation-token \
             --project "$FIREBASE_PROJECT_ID" \
@@ -344,6 +354,10 @@ jobs:
           fi
 
           token="$(cat .dispatch-portal-activation-token)"
+          if [[ ! "$token" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::One-time Dispatch portal caller token changed after Secret Manager publication."
+            exit 1
+          fi
           configuration_id="$(cat .dispatch-portal-config-id)"
           payload="$(node -e 'console.log(JSON.stringify({configurationId: process.argv[1], returnUrl: process.argv[2]}))' "$configuration_id" "$PORTAL_RETURN_URL")"
           curl --fail-with-body --silent --show-error \
