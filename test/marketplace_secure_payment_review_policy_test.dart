@@ -67,15 +67,19 @@ void main() {
       );
       expect(
         marketplaceRefundReviewReasonValid(
-          'x' * (marketplaceRefundReviewMaxReasonLength + 1),
+          List<String>.filled(
+            marketplaceRefundReviewMaxReasonLength + 1,
+            'x',
+          ).join(),
         ),
         isFalse,
       );
     });
 
     test('request id remains server-safe even with a long transaction id', () {
+      final longTransactionId = '${List<String>.filled(30, 'transaction').join()}/unsafe';
       final requestId = marketplaceRefundReviewRequestId(
-        '${'transaction' * 30}/unsafe',
+        longTransactionId,
         123456789,
       );
 
