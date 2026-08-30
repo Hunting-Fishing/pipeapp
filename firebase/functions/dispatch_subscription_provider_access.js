@@ -40,13 +40,18 @@ function createDispatchSubscriptionProviderAccess(admin) {
         );
       }
 
-      const snapshot = await db.collection("dispatch_subscription_provider_state")
-          .doc(identity.uid)
-          .get();
-      if (snapshot.exists && providerStateBlocksNewCheckout(snapshot.data())) {
+      const [dispatchSnapshot, vipSnapshot] = await Promise.all([
+        db.collection("dispatch_subscription_provider_state").doc(identity.uid).get(),
+        db.collection("vip_subscription_provider_state").doc(identity.uid).get(),
+      ]);
+      const dispatchBlocked = dispatchSnapshot.exists &&
+        providerStateBlocksNewCheckout(dispatchSnapshot.data());
+      const vipBlocked = vipSnapshot.exists &&
+        providerStateBlocksNewCheckout(vipSnapshot.data());
+      if (dispatchBlocked || vipBlocked) {
         throw new HttpsError(
             "failed-precondition",
-            "An existing Stripe Dispatch subscription must be resolved before starting another checkout.",
+            "An existing paid membership subscription already exists. Use Change plan instead of starting a second subscription.",
         );
       }
       return identity.uid;
@@ -58,7 +63,7 @@ function createDispatchSubscriptionProviderAccess(admin) {
       console.error("Dispatch subscription provider-state check failed", error);
       throw new HttpsError(
           "internal",
-          "Existing Dispatch subscription status could not be verified.",
+          "Existing membership subscription status could not be verified.",
       );
     }
   }
