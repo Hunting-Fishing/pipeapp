@@ -37,7 +37,8 @@ void main() {
     final nativeBilling = File(
       'lib/marketplace/native_membership_billing.dart',
     ).readAsStringSync();
-    final verifyIndex = nativeBilling.indexOf("'verifyNativeMembershipPurchase'");
+    final verifyIndex =
+        nativeBilling.indexOf("'verifyNativeMembershipPurchase'");
     final completeIndex = nativeBilling.indexOf('completePurchase(purchase)');
 
     expect(verifyIndex, greaterThanOrEqualTo(0));
@@ -48,13 +49,15 @@ void main() {
     expect(nativeBilling, contains('restorePurchases'));
   });
 
-  test('native verification stays fail-closed until store secrets activate', () {
+  test('native verification stays fail-closed until store secrets activate',
+      () {
     final bootstrap = File(
       'firebase/functions/production_bootstrap.js',
     ).readAsStringSync();
 
     expect(bootstrap, contains('exports.getNativeMembershipBillingStatus'));
-    expect(bootstrap, isNot(contains('exports.verifyNativeMembershipPurchase')));
+    expect(
+        bootstrap, isNot(contains('exports.verifyNativeMembershipPurchase')));
     expect(
       bootstrap,
       isNot(contains('exports.reconcileNativeMembershipSubscriptions')),
