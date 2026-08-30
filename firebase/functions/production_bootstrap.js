@@ -26,6 +26,9 @@ const {
   createMarketplaceTaxRecovery,
 } = require("./marketplace_tax_recovery");
 const {
+  createMarketplaceFinancialCaseViews,
+} = require("./marketplace_financial_case_views");
+const {
   createMembershipPlanManagement,
 } = require("./membership_plan_management");
 const {
@@ -53,6 +56,7 @@ const marketplaceTaxClaimLink = createMarketplaceTaxClaimLink(admin);
 const marketplaceTaxRegistrationAdmin =
   createMarketplaceTaxRegistrationAdmin(admin);
 const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
+const marketplaceFinancialCaseViews = createMarketplaceFinancialCaseViews(admin);
 const membershipPlanManagement = createMembershipPlanManagement(admin);
 const membershipProviderStateSync = createMembershipProviderStateSync(admin);
 const membershipProviderAccess = createDispatchSubscriptionProviderAccess(admin);
@@ -151,6 +155,16 @@ exports.createMarketplaceTaxRecoveryCase = onCall(
 exports.resolveMarketplaceTaxRecoveryCase = onCall(
     protectedCallableOptions,
     marketplaceTaxRecovery.resolveMarketplaceTaxRecoveryCase,
+);
+
+exports.getMarketplaceRefundRequestStatus = onCall(
+    protectedCallableOptions,
+    marketplaceFinancialCaseViews.getMarketplaceRefundRequestStatus,
+);
+
+exports.listMarketplaceFinancialCases = onCall(
+    protectedCallableOptions,
+    marketplaceFinancialCaseViews.listMarketplaceFinancialCases,
 );
 
 exports.getMembershipPlanStatus = onCall(
