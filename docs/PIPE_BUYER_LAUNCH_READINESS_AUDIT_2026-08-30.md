@@ -1,5 +1,7 @@
 # Pipe Buyer launch readiness audit — 2026-08-30
 
+Last reconciled: 2026-08-31
+
 ## Purpose
 
 This document is the current launch-readiness checkpoint for Pipe Buyer. It reconciles the live repository and production release with older planning/checkpoint Markdown files and the later repair records in `docs/repairs/`.
@@ -9,10 +11,10 @@ It intentionally does **not** invent a new completion percentage. Older percenta
 ## Audited production baseline
 
 - Repository: `Hunting-Fishing/pipeapp`
-- Production source / release pointer: `91f49dc61c6e9eaa4cd74aee2817f04e98c22cd4`
-- Protected Firebase production run: `33318985561`
-- Production deployment job: `99277487197` — **success**
-- Visual acceptance job: `99278886848` — **success**
+- Production source / release pointer: `3790fc600b6d83ac072486b9ca3b6a8e8c311898`
+- Protected Firebase production run: `33325938428`
+- Production deployment job: `99295953757` — **success**
+- Visual acceptance job: `99296786437` — **success**
 - Firebase project: `flutter-flow-pipe`
 - Production deployment passed full Flutter tests, release-manifest controls, Functions validation, Firestore rules tests, authenticated callable workflows, exact web build, Firebase deployment, deployed Function parity, release identity, and mobile/desktop web visual acceptance.
 
@@ -29,7 +31,7 @@ The preceding failed run `33308967311` is not a current defect. It stopped befor
 
 | Domain | Status | Current code / production evidence | Markdown reconciliation | Launch decision / next exact action |
 | --- | --- | --- | --- | --- |
-| Protected Firebase release process | **GREEN** | Production run `33318985561` passed exact-source validation, full Flutter tests, Functions/rules/integration checks, Firebase deploy, Function parity, release identity, and visual acceptance. | `README.md`, `docs/APP_CHECK_ROLLOUT.md`, and later release repair records align with the current protected-release model. | Keep release-pointer + exact-SHA workflow. Do not bypass parity/App Check/rules gates for speed. |
+| Protected Firebase release process | **GREEN** | Production run `33325938428` passed exact-source validation, full Flutter tests, Functions/rules/integration checks, Firebase deploy, Function parity, release identity, and visual acceptance. | `README.md`, `docs/APP_CHECK_ROLLOUT.md`, and later release repair records align with the current protected-release model. | Keep release-pointer + exact-SHA workflow. Do not bypass parity/App Check/rules gates for speed. |
 | Firebase App Check / rules / authenticated callables | **GREEN** for current production web | Production release requires the production App Check mode and passed Firestore security rules + authenticated callable workflows. | `docs/APP_CHECK_ROLLOUT.md` is still useful architecture. Its staged rollout language is historical; production now rejects non-enforced mode. | Preserve `enforce` production contract. Native store builds still need their own physical-device attestation acceptance before store publication. |
 | Web authentication and account access | **GREEN** | Current repository includes account/security surfaces and protected auth gates; production integration tests passed. | Later auth repair docs supersede older demo/root-routing issues. | No launch repair indicated. Exercise real user sign-in/sign-out/password/social flows during final human acceptance. |
 | Public Terms / Privacy / account rights | **GREEN/YELLOW** | Public `web/terms.html` and `web/privacy.html` exist; account hub contains account-management/data-rights surfaces. Payment release controls require exact legal-surface verification during billing activation. | Older Phase docs treated these as acceptance work; later release work made the public surfaces part of the production baseline. | Technically present. Obtain/maintain jurisdiction-specific legal review before expanding beyond the currently intended North American scope. |
@@ -37,7 +39,7 @@ The preceding failed run `33308967311` is not a current defect. It stopped befor
 | Wanted Ads / matching | **GREEN/YELLOW** | Current repository includes Wanted workflows and matching modules. | The July Phase 2 audit's Wanted percentage is superseded by later code; however this audit did not reproduce every historical backfill/matching acceptance fixture. | Keep enabled if current tests and manual journey pass; validate create → match → contact journey in staging/production-safe test accounts. |
 | Timed Buying / accepted-offer marketplace payments | **GREEN** for the documented one-charge web model | Server-authoritative Stripe Checkout, signed webhook state, immutable fee snapshots, Timed Buying transaction mirroring, delayed seller release, and Connect transfer architecture are documented and deployed. | `docs/repairs/MARKETPLACE_PAYMENT_FLOW_TIMED_BUYING_2026-08-29.md`, `PAYMENT_RELEASE_CONTROLS_2026-08-29.md`, and `STRIPE_INTEGRATION_CLOSURE_2026-08-29.md` supersede the earlier Phase 2 statement that paid operation was not yet enabled. | Keep the current separate-charge-and-transfer design. Do not represent it as escrow. Do not add split/deposit charging without a payment-parts ledger. |
 | Seller Stripe Connect onboarding / payout readiness | **GREEN** | Express onboarding, return routing, readiness refresh, recipient capability checks, and delayed release are documented and production deployed. | Aug. 30 Connect repair records are canonical for current recipient/API behavior. | No redesign. Continue to require transfer capability + payouts enabled before release. |
-| Refund / payment-problem customer UX | **YELLOW** | Server payment lifecycle contains refund/dispute/hold concepts, but this audit did not find strong evidence of the documented controlled buyer/seller “payment problem / refund request” self-service surface being completed. | `STRIPE_INTEGRATION_CLOSURE_2026-08-29.md` explicitly lists this as follow-up work. | Build/verify a simple user-facing case flow that creates a controlled financial/support case; do not give clients direct refund authority. P1 before broad paid-marketplace promotion. |
+| Refund / payment-problem customer UX | **GREEN** | Production SHA `3790fc600...` adds the participant-facing `Payment problem / Request refund review` path after a paid Pipe Buyer transaction. The client sends only the request/transaction identifiers and bounded reason; the existing server workflow calculates refundable amount, creates the financial case, and keeps actual Stripe refund execution administrator/readiness controlled. Protected run `33325938428` and visual job `99296786437` both passed. | `docs/repairs/MARKETPLACE_PAYMENT_REVIEW_REQUEST_UI_2026-08-31.md` closes the follow-up named by `STRIPE_INTEGRATION_CLOSURE_2026-08-29.md`. | Keep clients non-authoritative for refund amount/execution. Actual refund execution remains a separate reviewed server/admin operation. |
 | Deposit / split payments | **RED if advertised; otherwise NOT CURRENT SCOPE** | Current financial model is one marketplace charge plus later seller transfer. | `PAYMENT_RELEASE_CONTROLS_2026-08-29.md` explicitly requires a separate immutable payment-parts ledger before deposits/balances. | Keep disabled and out of marketing until payment-parts, charge-specific refund, and dispute attribution are implemented. |
 | Web Dispatch/VIP memberships | **GREEN** | Unified Free → Dispatch Monthly/Yearly → VIP model is production deployed. Approved Stripe Price IDs are tier authority; VIP includes Dispatch; app controls plan transitions; dedicated billing portal remains restricted. | `docs/repairs/MEMBERSHIP_TIER_MIGRATION_AND_NATIVE_BILLING_2026-08-30.md`, Dispatch promo and portal repair records supersede older subscription checkpoints. | Web membership is production-ready. Keep generic Stripe portal price switching disabled; Pipe Buyer owns approved migrations. |
 | Native Apple/Google paid memberships | **RED for store launch** | Flutter IAP/native provider foundation exists, but production purchase verification/reconciliation is deliberately fail-closed/unexported until real store setup exists. | The membership repair record explicitly states native billing is preparation, not activation. README also treats store publication as separate. | Provision App Store Connect + Google Play products/credentials, test sandbox/TestFlight/Play purchases/restores/renewals/plan changes, then activate server verification/reconciliation. Do not route native digital memberships through Stripe as a shortcut. |
@@ -98,9 +100,9 @@ For closed defects and financial/security invariants, later repair records are t
 
 **Current assessment: launch-capable with P1 acceptance work, not blocked by the old phase percentages.**
 
-The strongest production foundations are release security, current web memberships, seller Connect, one-charge marketplace payment/release architecture, open-map location handling, reporting/moderation, and substantial marketplace/Dispatch implementation.
+The strongest production foundations are release security, current web memberships, seller Connect, one-charge marketplace payment/release architecture, controlled payment-problem/refund-case intake, open-map location handling, reporting/moderation, and substantial marketplace/Dispatch implementation.
 
-Before broad paid promotion, close or explicitly accept the remaining P1 items: user-facing payment-problem/refund-case UX, a fresh ordinary-user end-to-end acceptance pass, physical-device notification testing if mobile web/app is promoted, provider Directory data/privacy acceptance, and a deliberate block/mute product decision.
+Before broad paid promotion, close or explicitly accept the remaining P1 items: a fresh ordinary-user end-to-end acceptance pass, physical-device notification testing if mobile web/app is promoted, provider Directory data/privacy acceptance, a deliberate block/mute product decision, and current legal/tax review for the exact launch jurisdictions/payment types.
 
 ### Native App Store / Google Play launch
 
@@ -124,12 +126,11 @@ Before broad paid promotion, close or explicitly accept the remaining P1 items: 
 
 ### P1 — before broad public promotion
 
-1. Finish/verify the buyer/seller payment-problem and refund-request case UX over the controlled server workflow.
-2. Run and record fresh ordinary-user journeys for buyer, seller, Timed Buying/auction, reporter/admin, and Dispatch requester/provider; use staging/test-mode payment rails where a real charge is not appropriate.
-3. Decide and, if required, implement user block/mute while preserving moderation evidence.
-4. Validate push permissions/token refresh/deep links on physical Android and iOS devices.
-5. Run current Dispatch Directory/provider data-quality + privacy acceptance with real representative records.
-6. Obtain current legal/tax review for the exact North American launch jurisdictions and enabled payment types.
+1. Run and record fresh ordinary-user journeys for buyer, seller, Timed Buying/auction, reporter/admin, and Dispatch requester/provider; use staging/test-mode payment rails where a real charge is not appropriate.
+2. Decide and, if required, implement user block/mute while preserving moderation evidence.
+3. Validate push permissions/token refresh/deep links on physical Android and iOS devices.
+4. Run current Dispatch Directory/provider data-quality + privacy acceptance with real representative records.
+5. Obtain current legal/tax review for the exact North American launch jurisdictions and enabled payment types.
 
 ### P2 — post-core launch hardening
 
@@ -156,7 +157,7 @@ Update this document after a material launch-domain change, especially:
 
 - Apple/Google store activation,
 - Dispatch freight financial ledger,
-- payment-problem/refund-case UX,
+- user block/mute launch decision,
 - final ordinary-user journey acceptance,
 - international jurisdiction activation.
 
