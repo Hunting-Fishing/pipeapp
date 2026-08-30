@@ -5,6 +5,9 @@ const assert = require("node:assert/strict");
 
 const {
   effectiveMembershipPlan,
+  invoiceLinePriceId,
+  invoiceMembershipPlan,
+  invoiceMembershipPlanResolution,
   membershipPlanCatalog,
   membershipPlanChangeKind,
   membershipPlanForPriceId,
@@ -53,6 +56,59 @@ test("subscription plan is derived from the actual single Stripe item price", ()
       {id: "si_2", price: {id: plan.priceId}},
     ]},
   }), null);
+});
+
+test("invoice membership plan supports legacy and current Stripe line price shapes", () => {
+  const plans = membershipPlanCatalog();
+  assert.equal(invoiceLinePriceId({price: {id: plans.dispatch_monthly.priceId}}),
+      plans.dispatch_monthly.priceId);
+  assert.equal(invoiceLinePriceId({
+    pricing: {price_details: {price: plans.vip_monthly.priceId}},
+  }), plans.vip_monthly.priceId);
+  assert.equal(invoiceMembershipPlan({
+    lines: {data: [{
+      amount: 2500,
+      pricing: {price_details: {price: plans.dispatch_monthly.priceId}},
+    }]},
+  }).id, "dispatch_monthly");
+});
+
+test("upgrade proration invoice resolves to the positive target plan price", () => {
+  const plans = membershipPlanCatalog();
+  const resolution = invoiceMembershipPlanResolution({
+    lines: {data: [
+      {amount: -1200, price: {id: plans.dispatch_monthly.priceId}},
+      {amount: 5000, price: {id: plans.vip_monthly.priceId}},
+    ]},
+  });
+  assert.equal(resolution.plan.id, "vip_monthly");
+  assert.equal(resolution.hasApprovedPrice, true);
+  assert.equal(resolution.ambiguous, false);
+});
+
+test("ambiguous positive membership prices fail closed", () => {
+  const plans = membershipPlanCatalog();
+  const resolution = invoiceMembershipPlanResolution({
+    lines: {data: [
+      {amount: 2500, price: {id: plans.dispatch_monthly.priceId}},
+      {amount: 10000, price: {id: plans.vip_monthly.priceId}},
+    ]},
+  });
+  assert.equal(resolution.plan, null);
+  assert.equal(resolution.hasApprovedPrice, true);
+  assert.equal(resolution.ambiguous, true);
+});
+
+test("zero-net single-plan invoice can still resolve its approved plan", () => {
+  const plans = membershipPlanCatalog();
+  const resolution = invoiceMembershipPlanResolution({
+    lines: {data: [{
+      amount: 0,
+      pricing: {price_details: {price: plans.dispatch_monthly.priceId}},
+    }]},
+  });
+  assert.equal(resolution.plan.id, "dispatch_monthly");
+  assert.equal(resolution.hasApprovedPrice, true);
 });
 
 test("VIP paid access wins over Dispatch in effective tier", () => {
