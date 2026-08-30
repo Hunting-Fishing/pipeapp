@@ -154,15 +154,15 @@ class _NativeMembershipPlanButtonState
         future: _viewFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const SizedBox(
+            return SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: null,
-                icon: SizedBox.square(
+                icon: const SizedBox.square(
                   dimension: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                label: Text('Checking app store…'),
+                label: const Text('Checking app store…'),
               ),
             );
           }
@@ -194,23 +194,23 @@ class _NativeMembershipPlanButtonState
           final targetLabel = nativeMembershipPlanLabel(widget.targetPlan);
 
           if (!enabled) {
-            return const SizedBox(
+            return SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: null,
-                icon: Icon(Icons.phone_iphone_rounded),
-                label: Text(marketplaceNativeSubscriptionUnavailableMessage),
+                icon: const Icon(Icons.phone_iphone_rounded),
+                label: const Text(marketplaceNativeSubscriptionUnavailableMessage),
               ),
             );
           }
           if (status['purchaseBlockedByStripe'] == true ||
               currentProvider == 'stripe') {
-            return const SizedBox(
+            return SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: null,
-                icon: Icon(Icons.language_rounded),
-                label: Text('Membership billed on Pipe Buyer web'),
+                icon: const Icon(Icons.language_rounded),
+                label: const Text('Membership billed on Pipe Buyer web'),
               ),
             );
           }
