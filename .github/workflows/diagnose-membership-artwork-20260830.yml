@@ -1,4 +1,4 @@
-name: Diagnose Membership Artwork Responsive Test
+name: Validate Membership Firebase Lazy Repair
 
 on:
   push:
@@ -9,12 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
-      - name: Check out diagnostic source
+      - name: Check out exact repair source
         uses: actions/checkout@v7.0.0
+        with:
+          ref: 9d74b969c5f42e37473d3679e78b159a992ffeb3
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
@@ -26,11 +28,23 @@ jobs:
       - name: Restore Flutter dependencies
         run: flutter pub get
 
-      - name: Run membership artwork test with expanded diagnostics
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run repaired regression tests
         run: >
           flutter test
+          test/marketplace_command_client_test.dart
           test/membership_plan_artwork_responsive_test.dart
+          test/marketplace_subscription_native_billing_contract_test.dart
+          test/marketplace_subscription_billing_policy_test.dart
           --reporter expanded
           --concurrency=1
           --dart-define=PIPE_ENV=continuous-integration
-          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
+          --dart-define=PIPE_RELEASE_SHA=9d74b969c5f42e37473d3679e78b159a992ffeb3
+
+      - name: Run full Flutter suite
+        run: >
+          flutter test
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=9d74b969c5f42e37473d3679e78b159a992ffeb3
