@@ -168,24 +168,29 @@ The runtime was **not weakened** to make obsolete metadata-only tests pass.
 
 ### Green validation
 
-GitHub Actions run `33301395021` (run #81) completed successfully:
+GitHub Actions run `33301395021` (run #81) first completed the full corrected behavior successfully.
+
+After deterministic Flutter dependency generation, removal of the temporary generator, and expansion of the Functions syntax guard to explicitly cover the new membership/native files, GitHub Actions run `33301766312` (run #87) completed successfully on the final implementation head:
 
 - Flutter dependency resolution: passed
 - Dart formatting guard: passed
 - Stripe/Flutter integration tests: passed
 - Functions install/lint: passed
+- explicit syntax checks for membership/native/VIP lifecycle files: passed
 - complete Functions test suite: passed
 
 ## Dependency-generation repair
 
 Adding Flutter in-app purchasing legitimately changes generated dependency state. The release process requires a clean working tree after `flutter pub get`, so generated files must be committed using the same pinned Flutter 3.44.6 toolchain.
 
-A temporary, branch-only, no-production workflow was used to detect the exact generated paths. It found only:
+A temporary, branch-only workflow was used to detect the exact generated paths. The first guarded run correctly failed because Flutter changed two files rather than the initially expected one. Inspection showed the second change was the legitimate StoreKit plugin registration.
+
+The corrected generator permitted **only**:
 
 - `pubspec.lock`
 - `macos/Flutter/GeneratedPluginRegistrant.swift`
 
-The generator is required to fail if any other path changes. The temporary workflow must be removed before merge.
+It then generated and committed those exact files using Flutter 3.44.6. The temporary workflow was deleted before merge.
 
 ## Do not repeat
 
@@ -205,4 +210,4 @@ The generator is required to fail if any other path changes. The temporary workf
 
 ## Production status
 
-This document records the implementation and pre-merge validation. Production deployment evidence should be appended after the protected release completes. Native production purchasing must remain described as **prepared but inactive** until the separate store-activation gate is completed.
+This document records the implementation and final pre-merge validation. Production deployment evidence should be appended after the protected release completes. Native production purchasing must remain described as **prepared but inactive** until the separate store-activation gate is completed.
