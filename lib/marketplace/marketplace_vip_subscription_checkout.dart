@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
+import 'membership_plan_management.dart';
 
 String vipSubscriptionPlanLabel(Map<String, dynamic>? plan) {
   if (plan == null) return 'VIP pricing unavailable';
@@ -119,49 +120,33 @@ class _VipSubscriptionCheckoutButtonState
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: null,
-                  icon: Icon(Icons.workspace_premium_outlined),
-                  label: Text('VIP membership active'),
+                  icon: const Icon(Icons.workspace_premium_outlined),
+                  label: const Text('VIP membership active'),
                 ),
               );
             }
-            if (canManageRenewal) {
-              return SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => _updateRenewal(
-                            cancelAtPeriodEnd
-                                ? 'resume_renewal'
-                                : 'cancel_at_period_end',
-                          ),
-                  icon: _busy
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(
-                          cancelAtPeriodEnd
-                              ? Icons.autorenew_rounded
-                              : Icons.event_busy_outlined,
-                        ),
-                  label: Text(
-                    _busy
-                        ? 'Updating VIP…'
-                        : cancelAtPeriodEnd
-                            ? 'Resume VIP renewal'
-                            : 'Cancel VIP at period end',
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                MembershipPlanManagementButton(onChanged: _reload),
+                if (canManageRenewal && cancelAtPeriodEnd) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => _updateRenewal('resume_renewal'),
+                    icon: _busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.autorenew_rounded),
+                    label: Text(
+                      _busy ? 'Updating VIP…' : 'Resume VIP renewal',
+                    ),
                   ),
-                ),
-              );
-            }
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: Icon(Icons.workspace_premium_outlined),
-                label: Text('VIP membership active'),
-              ),
+                ],
+              ],
             );
           }
 
@@ -170,7 +155,7 @@ class _VipSubscriptionCheckoutButtonState
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: null,
-                icon: Icon(Icons.info_outline_rounded),
+                icon: const Icon(Icons.info_outline_rounded),
                 label: Text(marketplaceNativeSubscriptionUnavailableMessage),
               ),
             );
@@ -258,29 +243,6 @@ class _VipSubscriptionCheckoutButtonState
 
   Future<void> _updateRenewal(String action) async {
     if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
-    if (action == 'cancel_at_period_end') {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Cancel VIP renewal?'),
-          content: const Text(
-            'Your paid VIP access stays active through the current billing period. '
-            'Stripe will stop renewing it after that date.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Keep VIP'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Cancel renewal'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
     setState(() => _busy = true);
     try {
       await MarketplaceCommandClient().execute(
@@ -289,12 +251,8 @@ class _VipSubscriptionCheckoutButtonState
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            action == 'cancel_at_period_end'
-                ? 'VIP renewal will stop after the current paid period.'
-                : 'VIP automatic renewal has been restored.',
-          ),
+        const SnackBar(
+          content: Text('VIP automatic renewal has been restored.'),
         ),
       );
       _reload();
