@@ -15,6 +15,8 @@ const {
   subscriptionMembershipPlan,
 } = require("../membership_plan_policy");
 const {
+  activeNativeProvider,
+  planStatusPayload,
   providerSubscriptionId,
   subscriptionPeriodBounds,
   uniqueBlockingSubscriptionId,
@@ -30,9 +32,18 @@ test("membership ladder is Free -> Dispatch -> VIP", () => {
   assert.equal(plans.dispatch_monthly.rank, 1);
   assert.equal(plans.dispatch_yearly.rank, 1);
   assert.equal(plans.vip_monthly.rank, 2);
-  assert.equal(membershipPlanChangeKind(plans.vip_monthly, plans.dispatch_monthly), "change_at_period_end");
-  assert.equal(membershipPlanChangeKind(plans.dispatch_monthly, plans.vip_monthly), "upgrade_now");
-  assert.equal(membershipPlanChangeKind(plans.dispatch_monthly, plans.free), "cancel");
+  assert.equal(
+      membershipPlanChangeKind(plans.vip_monthly, plans.dispatch_monthly),
+      "change_at_period_end",
+  );
+  assert.equal(
+      membershipPlanChangeKind(plans.dispatch_monthly, plans.vip_monthly),
+      "upgrade_now",
+  );
+  assert.equal(
+      membershipPlanChangeKind(plans.dispatch_monthly, plans.free),
+      "cancel",
+  );
 });
 
 test("approved Stripe prices map to one Pipe Buyer plan", () => {
@@ -60,8 +71,10 @@ test("subscription plan is derived from the actual single Stripe item price", ()
 
 test("invoice membership plan supports legacy and current Stripe line price shapes", () => {
   const plans = membershipPlanCatalog();
-  assert.equal(invoiceLinePriceId({price: {id: plans.dispatch_monthly.priceId}}),
-      plans.dispatch_monthly.priceId);
+  assert.equal(
+      invoiceLinePriceId({price: {id: plans.dispatch_monthly.priceId}}),
+      plans.dispatch_monthly.priceId,
+  );
   assert.equal(invoiceLinePriceId({
     pricing: {price_details: {price: plans.vip_monthly.priceId}},
   }), plans.vip_monthly.priceId);
@@ -115,8 +128,15 @@ test("VIP paid access wins over Dispatch in effective tier", () => {
   const now = 1_000_000;
   const plan = effectiveMembershipPlan({
     nowMillis: now,
-    vipMembership: {active: true, currentPeriodEnd: timestamp(now + 5000)},
-    dispatchMembership: {active: true, plan: "monthly", currentPeriodEnd: timestamp(now + 5000)},
+    vipMembership: {
+      active: true,
+      currentPeriodEnd: timestamp(now + 5000),
+    },
+    dispatchMembership: {
+      active: true,
+      plan: "monthly",
+      currentPeriodEnd: timestamp(now + 5000),
+    },
   });
   assert.equal(plan.id, "vip_monthly");
 });
@@ -125,19 +145,32 @@ test("expired paid memberships resolve to Free", () => {
   const now = 1_000_000;
   const plan = effectiveMembershipPlan({
     nowMillis: now,
-    vipMembership: {active: true, currentPeriodEnd: timestamp(now - 1)},
-    dispatchMembership: {active: true, plan: "monthly", currentPeriodEnd: timestamp(now - 1)},
+    vipMembership: {
+      active: true,
+      currentPeriodEnd: timestamp(now - 1),
+    },
+    dispatchMembership: {
+      active: true,
+      plan: "monthly",
+      currentPeriodEnd: timestamp(now - 1),
+    },
   });
   assert.equal(plan.id, "free");
 });
 
 test("plan metadata switches billing surface without changing ownership", () => {
-  const dispatch = membershipPlanMetadata(membershipPlanCatalog().dispatch_monthly, "uid-1");
+  const dispatch = membershipPlanMetadata(
+      membershipPlanCatalog().dispatch_monthly,
+      "uid-1",
+  );
   assert.equal(dispatch.billingType, "dispatch_subscription");
   assert.equal(dispatch.dispatchPlan, "monthly");
   assert.equal(dispatch.vipPlan, "");
   assert.equal(dispatch.pipeBuyerUid, "uid-1");
-  const vip = membershipPlanMetadata(membershipPlanCatalog().vip_monthly, "uid-1");
+  const vip = membershipPlanMetadata(
+      membershipPlanCatalog().vip_monthly,
+      "uid-1",
+  );
   assert.equal(vip.billingType, "vip_subscription");
   assert.equal(vip.vipPlan, "monthly");
   assert.equal(vip.dispatchPlan, "");
@@ -146,19 +179,66 @@ test("plan metadata switches billing surface without changing ownership", () => 
 test("provider selection refuses two distinct paid subscriptions", () => {
   assert.throws(() => uniqueBlockingSubscriptionId({
     uid: "uid-1",
-    dispatchProvider: {ownerUid: "uid-1", subscriptionId: "sub_dispatch", providerStatus: "active"},
-    vipProvider: {ownerUid: "uid-1", subscriptionId: "sub_vip", providerStatus: "active"},
+    dispatchProvider: {
+      ownerUid: "uid-1",
+      subscriptionId: "sub_dispatch",
+      providerStatus: "active",
+    },
+    vipProvider: {
+      ownerUid: "uid-1",
+      subscriptionId: "sub_vip",
+      providerStatus: "active",
+    },
   }));
   assert.equal(uniqueBlockingSubscriptionId({
     uid: "uid-1",
-    dispatchProvider: {ownerUid: "uid-1", subscriptionId: "sub_same", providerStatus: "active"},
-    vipProvider: {ownerUid: "uid-1", subscriptionId: "sub_same", providerStatus: "active"},
+    dispatchProvider: {
+      ownerUid: "uid-1",
+      subscriptionId: "sub_same",
+      providerStatus: "active",
+    },
+    vipProvider: {
+      ownerUid: "uid-1",
+      subscriptionId: "sub_same",
+      providerStatus: "active",
+    },
   }), "sub_same");
   assert.equal(providerSubscriptionId({
     ownerUid: "uid-1",
     subscriptionId: "sub_done",
     providerStatus: "canceled",
   }, "uid-1"), "");
+});
+
+test("active mobile billing provider owns plan management", () => {
+  const now = 10_000;
+  const nativeProvider = {
+    ownerUid: "uid-1",
+    active: true,
+    provider: "app_store",
+    expiresAtMillis: now + 5_000,
+  };
+  assert.equal(
+      activeNativeProvider(nativeProvider, "uid-1", now),
+      "app_store",
+  );
+  assert.equal(
+      activeNativeProvider(nativeProvider, "other-user", now),
+      "",
+  );
+  assert.equal(
+      activeNativeProvider({...nativeProvider, expiresAtMillis: now - 1},
+          "uid-1", now),
+      "",
+  );
+  const status = planStatusPayload({
+    uid: "uid-1",
+    currentPlan: membershipPlanCatalog().vip_monthly,
+    nativeProvider,
+    transition: null,
+  });
+  assert.equal(status.currentProvider, "app_store");
+  assert.equal(status.manageInStore, true);
 });
 
 test("period bounds prefer subscription item period", () => {
