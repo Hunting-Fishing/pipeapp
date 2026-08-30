@@ -18,6 +18,8 @@ The Marketplace home introduction was visually behaving like a small dark hero c
 - Remove the former right-side identity card so the campaign image remains visible.
 - Keep the hero inside the existing Marketplace scrolling content. The background scrolls with the section; it is not viewport-fixed or parallax.
 - Centralize the image paths and responsive sizing contract in `marketplace_home_hero_assets.dart` so campaign photography can be swapped without rebuilding the layout structure.
+- Store the active campaign images as standard JPEG assets for deterministic Flutter desktop/test decoding. The image file can be replaced later without changing the widget architecture.
+- Keep the top-left brand row width-aware. The logo has a fixed footprint, while the Pipe Buyer wordmark/tagline uses the remaining width so narrow mobile layouts cannot overflow horizontally.
 
 ## Validation repair
 
@@ -29,6 +31,13 @@ The durable validation is now split into two independent gates:
 - The deployed staging browser smoke remains an authentication-gated **hosting/app-shell** check only. Its screenshots must not be used as evidence that the Marketplace hero itself passed visual acceptance.
 
 This separation avoids weakening or bypassing the application's authentication gate merely to inspect a design component.
+
+## Validation failures and permanent fixes
+
+Two failures from the dedicated responsive test were useful and are recorded here so the same repair cycle is not repeated:
+
+1. The original generated WebP campaign file produced `Codec failed to produce an image` on the Linux Flutter test runner. The campaign assets were re-encoded as JPEG and the centralized asset paths and CI path filters were updated to the JPEG files. Do not revert to the failed WebP files unless a replacement is independently verified by the same Flutter test runner.
+2. The 390 px mobile render exposed a 1.4 px `RenderFlex` overflow in the brand row. The fixed-width logo remains unchanged, but the wordmark/tagline column now expands only into the remaining row width and can wrap/ellipsis safely. Do not restore `mainAxisSize: MainAxisSize.min` with an unconstrained text column in this brand row.
 
 ## Regression rule
 
