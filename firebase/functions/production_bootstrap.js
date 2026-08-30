@@ -31,6 +31,18 @@ const {
 const {
   createMembershipProviderStateSync,
 } = require("./membership_provider_state_sync");
+const {
+  createDispatchSubscriptionProviderAccess,
+} = require("./dispatch_subscription_provider_access");
+const {
+  createVipSubscriptionCommands,
+} = require("./vip_subscription_commands");
+const {
+  createPolicyAcceptanceCommands,
+} = require("./policy_acceptance_commands");
+const {
+  createNativeMembershipBilling,
+} = require("./native_membership_billing");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 
 const admin = createAdminRuntime();
@@ -43,10 +55,19 @@ const marketplaceTaxRegistrationAdmin =
 const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
 const membershipPlanManagement = createMembershipPlanManagement(admin);
 const membershipProviderStateSync = createMembershipProviderStateSync(admin);
+const membershipProviderAccess = createDispatchSubscriptionProviderAccess(admin);
+const vipSubscriptionCommands = createVipSubscriptionCommands(admin);
+const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
+const nativeMembershipBilling = createNativeMembershipBilling(admin);
 const membershipStripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
   secrets: [stripeSecretKey.name],
 });
+
+async function createVipSubscriptionCheckoutWithProviderGuard(request) {
+  await membershipProviderAccess.requireNoBlockingProviderSubscription(request);
+  return vipSubscriptionCommands.createVipSubscriptionCheckout(request);
+}
 
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
@@ -140,6 +161,25 @@ exports.getMembershipPlanStatus = onCall(
 exports.changeMembershipPlan = onCall(
     membershipStripeCallableOptions,
     membershipPlanManagement.changeMembershipPlan,
+);
+
+// Override bootstrap's VIP checkout with the same cross-provider guard already
+// used by Dispatch checkout. This prevents a second Stripe subscription and,
+// once native store billing is active, prevents Stripe/store overlap as well.
+exports.createVipSubscriptionCheckout = onCall(
+    membershipStripeCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        createVipSubscriptionCheckoutWithProviderGuard,
+    ),
+);
+
+// This readiness/bootstrap endpoint has no store credentials and is safe to
+// deploy before App Store Connect / Play Console enrollment. The mutation and
+// reconciliation handlers remain unexported until their Secret Manager values
+// are provisioned and an explicit native-billing activation is approved.
+exports.getNativeMembershipBillingStatus = onCall(
+    protectedCallableOptions,
+    nativeMembershipBilling.getNativeMembershipBillingStatus,
 );
 
 exports.onDispatchMembershipProviderTerminalSync = onDocumentUpdated(
