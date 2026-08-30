@@ -25,22 +25,28 @@ String marketplaceCommandErrorMessage(
 
 class MarketplaceCommandClient {
   MarketplaceCommandClient({FirebaseFunctions? functions, FirebaseAuth? auth})
-      : _functions = functions ?? FirebaseFunctions.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+      : _functions = functions,
+        _auth = auth;
 
-  final FirebaseFunctions _functions;
-  final FirebaseAuth _auth;
+  FirebaseFunctions? _functions;
+  FirebaseAuth? _auth;
+
+  FirebaseFunctions get _resolvedFunctions =>
+      _functions ??= FirebaseFunctions.instance;
+
+  FirebaseAuth get _resolvedAuth => _auth ??= FirebaseAuth.instance;
 
   Future<Map<String, dynamic>> execute(
     String command,
     Map<String, Object?> payload, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    if (_auth.currentUser == null) {
+    final auth = _resolvedAuth;
+    if (auth.currentUser == null) {
       throw StateError('Sign in to continue.');
     }
     try {
-      final response = await _functions
+      final response = await _resolvedFunctions
           .httpsCallable(
             command,
             options: HttpsCallableOptions(timeout: timeout),
