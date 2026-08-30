@@ -209,9 +209,8 @@ jobs:
           if ($env:PIPE_DEPLOY_ENVIRONMENT_GUARD -ne 'staging') {
             throw 'The protected deployment environment guard is not staging.'
           }
-          if ([string]::IsNullOrWhiteSpace($env:PIPE_APP_CHECK_WEB_DEBUG_TOKEN)) {
-            throw 'PIPE_APP_CHECK_WEB_DEBUG_TOKEN is not configured in staging.'
-          }
+          # This feature preview is built with PIPE_APP_CHECK_REQUIRED=false.
+          # A debug token is optional here; if configured, the smoke script can use it.
           $url = "https://$($env:PIPE_FIREBASE_PROJECT_ID).web.app"
           .\tool\web_visual_smoke.ps1 `
             -Url $url `
