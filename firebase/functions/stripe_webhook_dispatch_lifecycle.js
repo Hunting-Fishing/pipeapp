@@ -1,6 +1,9 @@
 "use strict";
 
 const {verifyStripeSignature} = require("./stripe_webhook");
+const {
+  subscriptionMembershipPlan,
+} = require("./membership_plan_policy");
 
 const DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS = new Set([
   "customer.subscription.created",
@@ -20,11 +23,17 @@ function stripeEventFromRawBody(rawBody) {
   }
 }
 
+function subscriptionLifecyclePlan(event) {
+  if (!event ||
+      !DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS.has(String(event.type || "")) ||
+      !event.data || !event.data.object) {
+    return null;
+  }
+  return subscriptionMembershipPlan(event.data.object);
+}
+
 function isDispatchSubscriptionLifecycleEvent(event) {
-  return Boolean(event &&
-    DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS.has(String(event.type || "")) &&
-    event.data &&
-    event.data.object);
+  return Boolean(subscriptionLifecyclePlan(event));
 }
 
 function isDispatchCheckoutCompletedEvent(event) {
@@ -91,9 +100,14 @@ function createStripeWebhookDispatchLifecycleWrapper({
 
     try {
       const object = event.data.object;
+      const plan = event.type === "checkout.session.completed" ?
+        null : subscriptionMembershipPlan(object);
       const billing = String(object && object.metadata &&
         object.metadata.billingType || "");
-      const vip = billing === "vip_subscription";
+      // Checkout metadata is used only before Stripe has a subscription item to
+      // inspect. Every subscription lifecycle event is routed by its approved
+      // Stripe price, so stale metadata cannot grant the wrong Pipe Buyer tier.
+      const vip = plan ? plan.tier === "vip" : billing === "vip_subscription";
       if (event.type === "checkout.session.completed") {
         if (vip) {
           await vipSubscriptionLifecycle.handleVipCheckoutCompleted(object);
@@ -159,4 +173,5 @@ module.exports = {
   isDispatchSubscriptionLifecycleEvent,
   isVipCheckoutCompletedEvent,
   stripeEventFromRawBody,
+  subscriptionLifecyclePlan,
 };
