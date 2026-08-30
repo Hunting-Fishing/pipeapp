@@ -8,6 +8,7 @@ on:
     paths:
       - 'lib/marketplace/marketplace_home_welcome.dart'
       - 'lib/marketplace/marketplace_home_hero_assets.dart'
+      - 'test/marketplace_home_hero_responsive_test.dart'
       - 'assets/images/marketplace_home_hero_desktop.webp'
       - 'assets/images/marketplace_home_hero_mobile.webp'
       - 'docs/repairs/marketplace-home-background-hero.md'
@@ -48,12 +49,22 @@ jobs:
           dart format
           lib/marketplace/marketplace_home_welcome.dart
           lib/marketplace/marketplace_home_hero_assets.dart
+          test/marketplace_home_hero_responsive_test.dart
 
       - name: Analyze application and tests
         run: dart analyze lib test
 
       - name: Run Flutter tests
         run: flutter test
+
+      - name: Retain responsive hero renders
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: marketplace-home-hero-widget-renders-${{ github.event.pull_request.head.sha }}
+          path: build/acceptance/marketplace-home-hero-*.png
+          if-no-files-found: warn
+          retention-days: 14
 
   deploy-staging:
     name: Deploy staging hosting preview
@@ -181,8 +192,8 @@ jobs:
             --message "Marketplace hero staging preview $PIPE_RELEASE_SHA" \
             --non-interactive
 
-  visual-acceptance:
-    name: Staging mobile and desktop smoke
+  hosting-smoke:
+    name: Staging hosting and app-shell smoke
     needs: deploy-staging
     if: github.event.pull_request.head.ref == 'feature/home-background-hero'
     runs-on: windows-latest
@@ -199,7 +210,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Verify deployed mobile and desktop rendering
+      - name: Verify deployed staging app shell
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -211,23 +222,25 @@ jobs:
           }
           # This feature preview is built with PIPE_APP_CHECK_REQUIRED=false.
           # A debug token is optional here; if configured, the smoke script can use it.
+          # The root route is auth-gated, so these screenshots prove hosting/app-shell
+          # health only. Hero pixels are verified in the Firebase-free widget tests.
           $url = "https://$($env:PIPE_FIREBASE_PROJECT_ID).web.app"
           .\tool\web_visual_smoke.ps1 `
             -Url $url `
-            -ScreenshotPath 'build/acceptance/mobile-390x844.png' `
+            -ScreenshotPath 'build/acceptance/staging-shell-mobile-390x844.png' `
             -ViewportWidth 390 `
             -ViewportHeight 844
           .\tool\web_visual_smoke.ps1 `
             -Url $url `
-            -ScreenshotPath 'build/acceptance/desktop-1440x1000.png' `
+            -ScreenshotPath 'build/acceptance/staging-shell-desktop-1440x1000.png' `
             -ViewportWidth 1440 `
             -ViewportHeight 1000
 
-      - name: Retain staging screenshots
+      - name: Retain staging app-shell screenshots
         if: ${{ always() }}
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: marketplace-home-hero-staging-${{ github.event.pull_request.head.sha }}
-          path: build/acceptance/*.png
+          name: marketplace-home-hero-staging-shell-${{ github.event.pull_request.head.sha }}
+          path: build/acceptance/staging-shell-*.png
           if-no-files-found: warn
           retention-days: 14
