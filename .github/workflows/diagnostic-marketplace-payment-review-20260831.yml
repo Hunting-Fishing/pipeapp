@@ -1,0 +1,105 @@
+name: Diagnostic - Marketplace Payment Review Full Quality
+
+on:
+  push:
+    branches:
+      - repair/marketplace-payment-review-ux-20260831
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnostic-payment-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Linux repository verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Functions Node runtime
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            firebase/functions/package-lock.json
+            firebase/agent-functions/package-lock.json
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Validate PowerShell release tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scripts = @(
+            'tool/verify.ps1',
+            'tool/verify_formal_beautification.ps1',
+            'tool/check_formal_integration_readiness.ps1',
+            'tool/web_visual_smoke.ps1',
+            'tool/phase1_safe_default_rehearsal.ps1'
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script),
+              [ref]$tokens,
+              [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $details = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+              throw "PowerShell syntax failed for $script`: $details"
+            }
+          }
+
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run Flutter tests
+        run: >
+          flutter test
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
+
+      - name: Run repository contract tests
+        run: >
+          node --test
+          tool/oauth_branding_test.mjs
+          tool/release_manifest_test.mjs
+          tool/function_parity_test.mjs
+          tool/phase1_acceptance_test.mjs
+          tool/prepare_phase1_acceptance_test.mjs
+          tool/configure_firebase_messaging_worker_test.mjs
+
+      - name: Restore Functions dependencies
+        run: |
+          npm ci --prefix firebase/functions
+          npm ci --prefix firebase/agent-functions
+
+      - name: Validate Functions
+        run: |
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+          npm run lint --prefix firebase/agent-functions
+          npm run check --prefix firebase/agent-functions
+
+      - name: Confirm diagnostic is non-deploying
+        run: |
+          echo "Full repository quality gate only."
+          echo "No Firebase, Stripe, App Store, or Google Play deployment is performed."
