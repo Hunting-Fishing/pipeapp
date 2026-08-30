@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
+const {membershipPlanCatalog} = require("../membership_plan_policy");
 const {
   providerStateBlocksCheckout,
   requireVipSubscriptionReady,
@@ -76,7 +77,7 @@ test("provider state blocks duplicate VIP checkout before invoice access exists"
   }, "buyer_123"), false);
 });
 
-test("VIP webhook identities require explicit vip_subscription metadata", () => {
+test("VIP checkout uses metadata before a subscription price exists", () => {
   assert.deepEqual(vipCheckoutIdentity({
     metadata: {billingType: "vip_subscription", pipeBuyerUid: "buyer_123"},
     subscription: "sub_live123",
@@ -90,9 +91,22 @@ test("VIP webhook identities require explicit vip_subscription metadata", () => 
     metadata: {billingType: "dispatch_subscription", pipeBuyerUid: "buyer_123"},
     subscription: "sub_live123",
   }), null);
-  assert.equal(vipSubscriptionIdentity({
+});
+
+test("VIP subscription lifecycle uses the approved price, not billingType metadata", () => {
+  const vipPlan = membershipPlanCatalog().vip_monthly;
+  const dispatchPlan = membershipPlanCatalog().dispatch_monthly;
+  const identity = vipSubscriptionIdentity({
     id: "sub_live123",
     metadata: {billingType: "dispatch_subscription", pipeBuyerUid: "buyer_123"},
+    items: {data: [{id: "si_live123", price: {id: vipPlan.priceId}}]},
+  });
+  assert.equal(identity.uid, "buyer_123");
+  assert.equal(identity.plan.id, "vip_monthly");
+  assert.equal(vipSubscriptionIdentity({
+    id: "sub_live123",
+    metadata: {billingType: "vip_subscription", pipeBuyerUid: "buyer_123"},
+    items: {data: [{id: "si_live123", price: {id: dispatchPlan.priceId}}]},
   }), null);
 });
 
@@ -107,26 +121,34 @@ test("verified webhook wrapper recognizes VIP Checkout without treating redirect
   }), false);
 });
 
-test("paid invoice context is VIP-only and server attributable", async () => {
+test("paid invoice context is VIP-only, price-authoritative, and attributable", async () => {
+  const vipPlan = membershipPlanCatalog().vip_monthly;
   const invoice = {
     id: "in_live123",
     parent: {
       subscription_details: {
         subscription: "sub_live123",
         metadata: {
-          billingType: "vip_subscription",
+          // Stale metadata cannot override the billed VIP price.
+          billingType: "dispatch_subscription",
           pipeBuyerUid: "buyer_123",
-          vipPlan: "monthly",
+          vipPlan: "",
         },
       },
     },
+    lines: {data: [{
+      amount: 10000,
+      pricing: {price_details: {price: vipPlan.priceId}},
+    }]},
   };
   const context = await vipSubscriptionContextFromInvoice({
     invoice,
-    secretKey: "unused_with_embedded_metadata",
+    secretKey: "unused_with_billed_price_and_embedded_metadata",
     stripeConfig: stripeMarketplaceConfig,
   });
   assert.equal(context.uid, "buyer_123");
   assert.equal(context.subscriptionId, "sub_live123");
   assert.equal(context.invoiceId, "in_live123");
+  assert.equal(context.plan.id, "vip_monthly");
+  assert.equal(context.metadata.billingType, "vip_subscription");
 });
