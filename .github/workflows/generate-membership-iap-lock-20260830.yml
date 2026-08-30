@@ -1,0 +1,43 @@
+name: Generate Membership IAP Lock 2026-08-30
+
+on:
+  push:
+    branches:
+      - repair/membership-tier-migration-20260830
+    paths:
+      - '.github/workflows/generate-membership-iap-lock-20260830.yml'
+      - 'pubspec.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+      - name: Generate deterministic Flutter lockfile
+        run: flutter pub get
+      - name: Verify only dependency lock changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git status --porcelain | awk '{print $2}')"
+          if [[ "$changed" != "pubspec.lock" ]]; then
+            echo "::error::Expected only pubspec.lock to change after flutter pub get; got: $changed"
+            exit 1
+          fi
+          git diff --check -- pubspec.lock
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: membership-iap-pubspec-lock
+          path: pubspec.lock
+          if-no-files-found: error
+          retention-days: 1
