@@ -13,7 +13,7 @@ function timestampMillis(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function dispatchMembershipCurrentForUser(
+function paidMembershipCurrentForUser(
     membership,
     uid,
     nowMillis = Date.now(),
@@ -24,24 +24,34 @@ function dispatchMembershipCurrentForUser(
   return timestampMillis(membership.currentPeriodEnd) > nowMillis;
 }
 
+const dispatchMembershipCurrentForUser = paidMembershipCurrentForUser;
+
 function createDispatchMembershipAccess(admin) {
   const db = admin.firestore();
 
   async function requireCurrentDispatchMembership(request) {
     try {
       const identity = requireAuthenticatedIdentity(request, {requirePhone: false});
-      const snapshot = await db.collection("dispatch_memberships")
-          .doc(identity.uid)
-          .get();
-      const membership = snapshot.exists ? snapshot.data() : null;
-      if (!dispatchMembershipCurrentForUser(
-          membership,
+      const [dispatchSnapshot, vipSnapshot] = await Promise.all([
+        db.collection("dispatch_memberships").doc(identity.uid).get(),
+        db.collection("vip_memberships").doc(identity.uid).get(),
+      ]);
+      const dispatchMembership = dispatchSnapshot.exists ? dispatchSnapshot.data() : null;
+      const vipMembership = vipSnapshot.exists ? vipSnapshot.data() : null;
+      const nowMillis = Date.now();
+      const allowed = paidMembershipCurrentForUser(
+          dispatchMembership,
           identity.uid,
-          Date.now(),
-      )) {
+          nowMillis,
+      ) || paidMembershipCurrentForUser(
+          vipMembership,
+          identity.uid,
+          nowMillis,
+      );
+      if (!allowed) {
         throw new HttpsError(
             "failed-precondition",
-            "An active Dispatch monthly or yearly membership is required before bidding.",
+            "An active Monthly, Yearly, or VIP membership is required before bidding.",
         );
       }
       return identity.uid;
@@ -64,5 +74,6 @@ function createDispatchMembershipAccess(admin) {
 module.exports = {
   createDispatchMembershipAccess,
   dispatchMembershipCurrentForUser,
+  paidMembershipCurrentForUser,
   timestampMillis,
 };
