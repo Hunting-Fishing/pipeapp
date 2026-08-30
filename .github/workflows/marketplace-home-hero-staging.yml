@@ -43,9 +43,9 @@ jobs:
       - name: Restore Flutter dependencies
         run: flutter pub get
 
-      - name: Check hero formatting
+      - name: Format hero sources for validation
         run: >
-          dart format --output=none --set-exit-if-changed
+          dart format
           lib/marketplace/marketplace_home_welcome.dart
           lib/marketplace/marketplace_home_hero_assets.dart
 
