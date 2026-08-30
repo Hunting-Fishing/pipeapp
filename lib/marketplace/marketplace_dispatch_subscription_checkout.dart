@@ -6,6 +6,7 @@ import 'dispatch_promotion_code_field.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
 import 'membership_plan_management.dart';
+import 'native_membership_billing.dart';
 
 const dispatchPromotionCodeHelpText =
     'Have a promo code? Apply it before payment, or enter it on Stripe Checkout.';
@@ -60,22 +61,18 @@ class _DispatchSubscriptionCheckoutButtonState
   }
 
   Future<Map<String, dynamic>> _loadView() async {
-    final statusFuture = MarketplaceCommandClient().execute(
-      'getDispatchSubscriptionStatus',
-      const <String, Object?>{},
-    );
     if (!marketplaceHostedMembershipBillingAllowed()) {
-      return <String, dynamic>{
-        'catalog': const <String, dynamic>{},
-        'status': await statusFuture,
-      };
+      return const <String, dynamic>{};
     }
     final results = await Future.wait([
       MarketplaceCommandClient().execute(
         'getDispatchSubscriptionCatalog',
         const <String, Object?>{},
       ),
-      statusFuture,
+      MarketplaceCommandClient().execute(
+        'getDispatchSubscriptionStatus',
+        const <String, Object?>{},
+      ),
     ]);
     return <String, dynamic>{'catalog': results[0], 'status': results[1]};
   }
@@ -88,197 +85,182 @@ class _DispatchSubscriptionCheckoutButtonState
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-        future: _viewFuture,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _reload,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry subscription status'),
+  Widget build(BuildContext context) {
+    if (!marketplaceHostedMembershipBillingAllowed()) {
+      return NativeMembershipPlanButton(
+        targetPlan: widget.plan.trim().toLowerCase() == 'yearly'
+            ? 'dispatch_yearly'
+            : 'dispatch_monthly',
+      );
+    }
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _viewFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _reload,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry subscription status'),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: null,
+              icon: SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-            );
-          }
+              label: Text('Loading subscription…'),
+            ),
+          );
+        }
 
-          if (snapshot.connectionState != ConnectionState.done) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                label: const Text('Loading subscription…'),
-              ),
-            );
-          }
+        final view = snapshot.data ?? const <String, dynamic>{};
+        final catalog = view['catalog'] is Map
+            ? Map<String, dynamic>.from(view['catalog'] as Map)
+            : const <String, dynamic>{};
+        final status = view['status'] is Map
+            ? Map<String, dynamic>.from(view['status'] as Map)
+            : const <String, dynamic>{};
+        final plans = catalog['plans'] is Map
+            ? Map<String, dynamic>.from(catalog['plans'] as Map)
+            : const <String, dynamic>{};
+        final planData = plans[widget.plan] is Map
+            ? Map<String, dynamic>.from(plans[widget.plan] as Map)
+            : null;
+        final price = dispatchSubscriptionPlanLabel(planData);
 
-          final view = snapshot.data ?? const <String, dynamic>{};
-          final catalog = view['catalog'] is Map
-              ? Map<String, dynamic>.from(view['catalog'] as Map)
-              : const <String, dynamic>{};
-          final status = view['status'] is Map
-              ? Map<String, dynamic>.from(view['status'] as Map)
-              : const <String, dynamic>{};
-          final plans = catalog['plans'] is Map
-              ? Map<String, dynamic>.from(catalog['plans'] as Map)
-              : const <String, dynamic>{};
-          final planData = plans[widget.plan] is Map
-              ? Map<String, dynamic>.from(plans[widget.plan] as Map)
-              : null;
-          final price = dispatchSubscriptionPlanLabel(planData);
-          final hostedBillingAllowed =
-              marketplaceHostedMembershipBillingAllowed();
-
-          final active = status['active'] == true;
-          final statusPlan = '${status['plan'] ?? ''}'.trim().toLowerCase();
-          final managementAvailable = status['managementAvailable'] == true;
-          final paymentIssue = status['paymentIssue'] == true;
-          if (active) {
-            if (!hostedBillingAllowed) {
-              return SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
+        final active = status['active'] == true;
+        final statusPlan = '${status['plan'] ?? ''}'.trim().toLowerCase();
+        final managementAvailable = status['managementAvailable'] == true;
+        final paymentIssue = status['paymentIssue'] == true;
+        if (active) {
+          final managementButton = managementAvailable
+              ? FilledButton.icon(
+                  onPressed: _busy || _promoBusy ? null : _openPortal,
+                  icon: _busy
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          paymentIssue
+                              ? Icons.warning_amber_rounded
+                              : Icons.credit_card_outlined,
+                        ),
+                  label: Text(
+                    _busy
+                        ? 'Opening billing…'
+                        : paymentIssue
+                            ? 'Fix payment / billing details'
+                            : 'Payment method & invoices',
+                  ),
+                )
+              : OutlinedButton.icon(
                   onPressed: null,
                   icon: const Icon(Icons.check_circle_outline_rounded),
                   label: const Text('Dispatch membership active'),
-                ),
-              );
-            }
-            final managementButton = managementAvailable
-                ? FilledButton.icon(
-                    onPressed: _busy || _promoBusy ? null : _openPortal,
-                    icon: _busy
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            paymentIssue
-                                ? Icons.warning_amber_rounded
-                                : Icons.credit_card_outlined,
-                          ),
-                    label: Text(
-                      _busy
-                          ? 'Opening billing…'
-                          : paymentIssue
-                              ? 'Fix payment / billing details'
-                              : 'Payment method & invoices',
-                    ),
-                  )
-                : OutlinedButton.icon(
-                    onPressed: null,
-                    icon: const Icon(Icons.check_circle_outline_rounded),
-                    label: const Text('Dispatch membership active'),
-                  );
-            final controls = <Widget>[
-              MembershipPlanManagementButton(onChanged: _reload),
-              const SizedBox(height: 8),
-              managementButton,
-            ];
-            if (statusPlan != 'monthly') {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: controls,
-              );
-            }
+                );
+          final controls = <Widget>[
+            MembershipPlanManagementButton(onChanged: _reload),
+            const SizedBox(height: 8),
+            managementButton,
+          ];
+          if (statusPlan != 'monthly') {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ...controls,
-                const SizedBox(height: 12),
-                DispatchPromotionCodeField(
-                  controller: _promoController,
-                  busy: _promoBusy,
-                  enabled: !_busy,
-                  appliedSummary: _promoSummary,
-                  onChanged: _promoChanged,
-                  onApply: _applyExistingPromotion,
-                  applyLabel: 'Apply to subscription',
-                  helperText:
-                      'Already subscribed? Stripe checks eligibility and applies an accepted code to future eligible invoices. Your current paid period is not refunded.',
-                ),
-              ],
+              children: controls,
             );
           }
-
-          if (!hostedBillingAllowed) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.info_outline_rounded),
-                label: Text(marketplaceNativeSubscriptionUnavailableMessage),
-              ),
-            );
-          }
-
-          final checkoutAvailable = catalog['checkoutAvailable'] == true;
-          final providerReady = catalog['providerCheckoutReady'] == true;
-          final policiesCurrent = catalog['policyAcceptanceCurrent'] == true;
-          if (!checkoutAvailable) {
-            final message = !policiesCurrent
-                ? 'Accept the current Pipe Buyer Terms and Privacy Policy, then retry.'
-                : !providerReady
-                    ? 'Dispatch subscription checkout is temporarily unavailable.'
-                    : 'Dispatch subscription checkout is not available for this account yet.';
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(message))),
-                icon: const Icon(Icons.info_outline_rounded),
-                label: Text(
-                    !policiesCurrent ? 'Review terms to subscribe' : price),
-              ),
-            );
-          }
-
-          final promoEntryAvailable =
-              dispatchPromotionCodeEntryAvailable(widget.plan);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (promoEntryAvailable) ...[
-                Text(
-                  dispatchPromotionCodeHelpText,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DispatchPromotionCodeField(
-                  controller: _promoController,
-                  busy: _promoBusy,
-                  enabled: !_busy,
-                  appliedSummary: _promoSummary,
-                  onChanged: _promoChanged,
-                  onApply: _applyCheckoutPromotion,
-                  helperText:
-                      'Apply it here before payment. If you leave it blank, Stripe Checkout also has a promo-code entry.',
-                ),
-                const SizedBox(height: 12),
-              ],
-              FilledButton.icon(
-                onPressed: _busy || _promoBusy ? null : _startCheckout,
-                icon: _busy
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.lock_outline_rounded),
-                label: Text(
-                  _busy ? 'Opening secure checkout…' : 'Subscribe • $price',
-                ),
+              ...controls,
+              const SizedBox(height: 12),
+              DispatchPromotionCodeField(
+                controller: _promoController,
+                busy: _promoBusy,
+                enabled: !_busy,
+                appliedSummary: _promoSummary,
+                onChanged: _promoChanged,
+                onApply: _applyExistingPromotion,
+                applyLabel: 'Apply to subscription',
+                helperText:
+                    'Already subscribed? Stripe checks eligibility and applies an accepted code to future eligible invoices. Your current paid period is not refunded.',
               ),
             ],
           );
-        },
-      );
+        }
+
+        final checkoutAvailable = catalog['checkoutAvailable'] == true;
+        final providerReady = catalog['providerCheckoutReady'] == true;
+        final policiesCurrent = catalog['policyAcceptanceCurrent'] == true;
+        if (!checkoutAvailable) {
+          final message = !policiesCurrent
+              ? 'Accept the current Pipe Buyer Terms and Privacy Policy, then retry.'
+              : !providerReady
+                  ? 'Dispatch subscription checkout is temporarily unavailable.'
+                  : 'Dispatch subscription checkout is not available for this account yet.';
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(message))),
+              icon: const Icon(Icons.info_outline_rounded),
+              label: Text(!policiesCurrent ? 'Review terms to subscribe' : price),
+            ),
+          );
+        }
+
+        final promoEntryAvailable =
+            dispatchPromotionCodeEntryAvailable(widget.plan);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (promoEntryAvailable) ...[
+              Text(
+                dispatchPromotionCodeHelpText,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              DispatchPromotionCodeField(
+                controller: _promoController,
+                busy: _promoBusy,
+                enabled: !_busy,
+                appliedSummary: _promoSummary,
+                onChanged: _promoChanged,
+                onApply: _applyCheckoutPromotion,
+                helperText:
+                    'Apply it here before payment. If you leave it blank, Stripe Checkout also has a promo-code entry.',
+              ),
+              const SizedBox(height: 12),
+            ],
+            FilledButton.icon(
+              onPressed: _busy || _promoBusy ? null : _startCheckout,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.lock_outline_rounded),
+              label: Text(
+                _busy ? 'Opening secure checkout…' : 'Subscribe • $price',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> _applyCheckoutPromotion() async {
     if (_promoBusy || _busy || !marketplaceHostedMembershipBillingAllowed()) {
