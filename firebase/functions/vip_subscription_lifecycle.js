@@ -6,17 +6,20 @@ const {
   timestampMillis,
   validUid,
 } = require("./dispatch_subscription_lifecycle");
+const {
+  subscriptionMembershipPlan,
+} = require("./membership_plan_policy");
 
 function vipSubscriptionIdentity(subscription) {
   const subscriptionId = String(subscription && subscription.id || "").trim();
   const metadata = subscription && subscription.metadata || {};
-  if (!subscriptionId.startsWith("sub_") ||
-      metadata.billingType !== "vip_subscription") {
+  const plan = subscriptionMembershipPlan(subscription);
+  if (!subscriptionId.startsWith("sub_") || !plan || plan.tier !== "vip") {
     return null;
   }
   const uid = validUid(metadata.pipeBuyerUid);
   if (!uid) return null;
-  return {subscriptionId, uid, metadata};
+  return {subscriptionId, uid, metadata, plan};
 }
 
 function vipCheckoutIdentity(session) {
@@ -84,6 +87,8 @@ function createVipSubscriptionLifecycle(admin) {
         cancelAtPeriodEnd: provider.cancelAtPeriodEnd,
         providerPeriodEnd: provider.providerPeriodEndMillis ?
           Timestamp.fromMillis(provider.providerPeriodEndMillis) : null,
+        currentPlanId: identity.plan.id,
+        currentPriceId: identity.plan.priceId,
         ...(deleted ? {deletedAt: FieldValue.serverTimestamp()} : {}),
         updatedAt: FieldValue.serverTimestamp(),
         ...(providerStateSnapshot.exists ? {} : {
@@ -118,6 +123,8 @@ function createVipSubscriptionLifecycle(admin) {
         cancelAtPeriodEnd: patch.cancelAtPeriodEnd,
         active: patch.active,
         status: patch.status,
+        plan: "monthly",
+        billingProvider: "stripe",
         cancellationEffectiveAt: patch.cancellationEffectiveMillis ?
           Timestamp.fromMillis(patch.cancellationEffectiveMillis) : null,
         ...(deleted ? {canceledAt: FieldValue.serverTimestamp()} : {}),
