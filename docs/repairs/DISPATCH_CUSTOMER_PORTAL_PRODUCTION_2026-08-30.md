@@ -70,6 +70,30 @@ The workflow now reuses the previously proven canonical one-time-secret pattern:
 
 This is a byte-canonicalization repair only. It does not weaken authentication, change Stripe portal restrictions, or broaden the Firebase readiness write.
 
+## Successful production activation evidence
+
+The corrected repair was merged to `main` as commit:
+
+`884e6939528538396a25b2230ccfacd4d1d4501d`
+
+GitHub Actions production run `33291781943` completed successfully on 2026-08-30. The run:
+
+- passed the complete Firebase Functions lint/check/test suite with `344` tests passed and `0` failed;
+- re-verified the live Pipe Buyer Stripe account before any readiness write;
+- re-verified the dedicated live non-default Stripe Customer Portal configuration `bpc_1U9uExDkO07WMXyR4tefknYx`;
+- confirmed payment-method updates are enabled;
+- confirmed invoice history is enabled;
+- confirmed cancellation is enabled only at the natural period end with no proration;
+- confirmed `subscription_update.enabled=false`, so Stripe cannot be used to switch Dispatch plans/prices;
+- generated and published an exact 64-byte one-time activation token;
+- proved an unauthenticated activation request returns the expected application-level `403 Forbidden`;
+- completed the authorized Firebase readiness write and returned: `Dispatch Customer Portal readiness activated without changing other payment readiness fields.`; and
+- deleted the temporary `productionDispatchPortalActivation` Gen2 function successfully after activation.
+
+A subsequent read-only Stripe inspection confirmed the dedicated configuration remains `active=true`, `livemode=true`, `is_default=false`, and returns to `https://www.pipebuyer.com/payments/dispatch`.
+
+**Resolved state:** Dispatch Customer Portal production readiness is enabled. The exact fix was canonicalizing the one-time token to 64 bytes before Secret Manager publication; no authentication bypass or Stripe portal-policy relaxation was required.
+
 ## Safety controls
 
 Before any configuration write, the workflow verifies:
