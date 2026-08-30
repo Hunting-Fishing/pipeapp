@@ -108,15 +108,15 @@ class _DispatchSubscriptionCheckoutButtonState
         }
 
         if (snapshot.connectionState != ConnectionState.done) {
-          return const SizedBox(
+          return SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: null,
-              icon: SizedBox.square(
+              icon: const SizedBox.square(
                 dimension: 16,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              label: Text('Loading subscription…'),
+              label: const Text('Loading subscription…'),
             ),
           );
         }
