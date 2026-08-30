@@ -10,8 +10,11 @@ manifest and Function parity controls, retained mobile/desktop visual evidence,
 and published Google OAuth branding. Android and Apple store publication remain
 separate release activities.
 
-The current product-improvement work is tracked in the
-[Phase 1.1 Experience Upgrade](docs/PHASE_1_1_EXPERIENCE_UPGRADE.md).
+The current launch-readiness checkpoint is the
+[Pipe Buyer Launch Readiness Audit — 2026-08-30](docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md).
+Older Phase 1.1, Phase 2, and Dispatch percentage documents remain historical
+planning/checkpoint records unless the current audit explicitly carries a
+requirement forward.
 
 ## Development
 
@@ -24,6 +27,7 @@ the complete quality gate from PowerShell:
 
 ## Architecture and delivery controls
 
+- [Pipe Buyer Launch Readiness Audit — 2026-08-30](docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md)
 - [Phase 1.1 Experience Upgrade](docs/PHASE_1_1_EXPERIENCE_UPGRADE.md)
 - [North America Property and Rights Roadmap](docs/NORTH_AMERICA_PROPERTY_RIGHTS_ROADMAP.md)
 - [Phase 2 Progress Audit](docs/PHASE_2_PROGRESS_AUDIT.md)
