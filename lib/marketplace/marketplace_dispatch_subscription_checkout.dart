@@ -214,7 +214,8 @@ class _DispatchSubscriptionCheckoutButtonState
                 context,
               ).showSnackBar(SnackBar(content: Text(message))),
               icon: const Icon(Icons.info_outline_rounded),
-              label: Text(!policiesCurrent ? 'Review terms to subscribe' : price),
+              label:
+                  Text(!policiesCurrent ? 'Review terms to subscribe' : price),
             ),
           );
         }
