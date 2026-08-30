@@ -9,29 +9,40 @@ const {
   providerSubscriptionState,
 } = require("../dispatch_subscription_lifecycle");
 const {
+  membershipPlanCatalog,
+} = require("../membership_plan_policy");
+const {
   isDispatchCheckoutCompletedEvent,
   isDispatchSubscriptionLifecycleEvent,
   stripeEventFromRawBody,
 } = require("../stripe_webhook_dispatch_lifecycle");
 
-test("Dispatch subscription identity accepts only owned Dispatch metadata", () => {
-  assert.deepEqual(dispatchSubscriptionIdentity({
+test("Dispatch subscription identity requires owned UID and approved Dispatch price", () => {
+  const dispatchPlan = membershipPlanCatalog().dispatch_monthly;
+  const vipPlan = membershipPlanCatalog().vip_monthly;
+  const identity = dispatchSubscriptionIdentity({
     id: "sub_123",
     metadata: {
-      billingType: "dispatch_subscription",
+      // Intentionally stale metadata: price, not billingType, selects the tier.
+      billingType: "vip_subscription",
       pipeBuyerUid: "carrier_1",
     },
-  }), {
-    subscriptionId: "sub_123",
-    uid: "carrier_1",
-    metadata: {
-      billingType: "dispatch_subscription",
-      pipeBuyerUid: "carrier_1",
-    },
+    items: {data: [{id: "si_123", price: {id: dispatchPlan.priceId}}]},
   });
+  assert.equal(identity.subscriptionId, "sub_123");
+  assert.equal(identity.uid, "carrier_1");
+  assert.equal(identity.plan.id, "dispatch_monthly");
+  assert.equal(identity.metadata.billingType, "vip_subscription");
+
   assert.equal(dispatchSubscriptionIdentity({
     id: "sub_123",
-    metadata: {billingType: "other", pipeBuyerUid: "carrier_1"},
+    metadata: {billingType: "dispatch_subscription", pipeBuyerUid: "carrier_1"},
+    items: {data: [{id: "si_123", price: {id: vipPlan.priceId}}]},
+  }), null);
+  assert.equal(dispatchSubscriptionIdentity({
+    id: "sub_123",
+    metadata: {billingType: "dispatch_subscription", pipeBuyerUid: ""},
+    items: {data: [{id: "si_123", price: {id: dispatchPlan.priceId}}]},
   }), null);
 });
 
@@ -142,7 +153,8 @@ test("paused lifecycle flags payment issue without inventing new paid time", () 
   assert.equal(patch.renewalStatus, "paused");
 });
 
-test("webhook lifecycle detector selects subscription create/update/delete/pause/resume", () => {
+test("webhook lifecycle detector requires an approved membership price", () => {
+  const dispatchPlan = membershipPlanCatalog().dispatch_monthly;
   for (const type of [
     "customer.subscription.created",
     "customer.subscription.updated",
@@ -153,10 +165,22 @@ test("webhook lifecycle detector selects subscription create/update/delete/pause
     const event = stripeEventFromRawBody(Buffer.from(JSON.stringify({
       id: "evt_123",
       type,
-      data: {object: {id: "sub_123"}},
+      data: {object: {
+        id: "sub_123",
+        metadata: {billingType: "wrong_but_ignored"},
+        items: {data: [{id: "si_123", price: {id: dispatchPlan.priceId}}]},
+      }},
     })));
     assert.equal(isDispatchSubscriptionLifecycleEvent(event), true, type);
   }
+  assert.equal(isDispatchSubscriptionLifecycleEvent({
+    type: "customer.subscription.updated",
+    data: {object: {
+      id: "sub_123",
+      metadata: {billingType: "dispatch_subscription"},
+      items: {data: [{id: "si_123", price: {id: "price_unknown"}}]},
+    }},
+  }), false);
   assert.equal(isDispatchSubscriptionLifecycleEvent({
     type: "invoice.paid",
     data: {object: {id: "in_123"}},
