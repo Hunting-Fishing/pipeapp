@@ -11,6 +11,9 @@ on:
       - 'test/marketplace_home_hero_responsive_test.dart'
       - 'assets/images/marketplace_home_hero_desktop.jpg'
       - 'assets/images/marketplace_home_hero_mobile.jpg'
+      - 'assets/images/marketplace_home_hero_desktop.b64.*'
+      - 'assets/images/marketplace_home_hero_mobile.b64.*'
+      - 'tool/materialize_marketplace_home_hero.sh'
       - 'docs/repairs/marketplace-home-background-hero.md'
       - '.github/workflows/marketplace-home-hero-staging.yml'
 
@@ -33,6 +36,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+
+      - name: Materialize approved hero photography
+        shell: bash
+        run: bash tool/materialize_marketplace_home_hero.sh
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
@@ -125,6 +132,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+
+      - name: Materialize approved hero photography
+        shell: bash
+        run: bash tool/materialize_marketplace_home_hero.sh
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
