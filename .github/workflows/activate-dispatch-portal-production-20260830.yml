@@ -1,12 +1,7 @@
 name: Activate Dispatch Portal Production 2026-08-30
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/activate-dispatch-portal-production-20260830.yml'
-      - 'docs/repairs/DISPATCH_CUSTOMER_PORTAL_PRODUCTION_2026-08-30.md'
+  workflow_dispatch:
 
 permissions:
   contents: read
