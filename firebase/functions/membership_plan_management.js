@@ -18,7 +18,6 @@ const {stripeFormRequest} = require("./stripe_checkout_commands");
 const {taxBillingPrepared} = require("./pending_tax_policy");
 const {
   effectiveMembershipPlan,
-  membershipPlanCatalog,
   membershipPlanChangeKind,
   membershipPlanMetadata,
   requestedMembershipPlan,
@@ -27,6 +26,7 @@ const {
 } = require("./membership_plan_policy");
 
 const TERMINAL_PROVIDER_STATUSES = new Set(["canceled", "incomplete_expired"]);
+const NATIVE_BILLING_PROVIDERS = new Set(["app_store", "google_play"]);
 
 function providerSubscriptionId(state, uid) {
   if (!state || state.ownerUid !== uid) return "";
@@ -34,6 +34,15 @@ function providerSubscriptionId(state, uid) {
   const status = String(state.providerStatus || "unknown").trim();
   if (!id.startsWith("sub_") || TERMINAL_PROVIDER_STATUSES.has(status)) return "";
   return id;
+}
+
+function activeNativeProvider(state, uid, nowMillis = Date.now()) {
+  if (!state || state.ownerUid !== uid || state.active !== true) return "";
+  const provider = String(state.provider || "").trim();
+  if (!NATIVE_BILLING_PROVIDERS.has(provider)) return "";
+  const expiresAtMillis = Number(state.expiresAtMillis || 0);
+  return Number.isFinite(expiresAtMillis) && expiresAtMillis > nowMillis ?
+    provider : "";
 }
 
 function uniqueBlockingSubscriptionId({dispatchProvider, vipProvider, uid}) {
@@ -67,11 +76,16 @@ function requirePlanManagementReady(readiness) {
 
 function subscriptionPeriodBounds(subscription) {
   const current = subscriptionItem(subscription);
-  const start = Number(current && current.item && current.item.current_period_start ||
-    subscription && subscription.current_period_start || 0);
-  const end = Number(current && current.item && current.item.current_period_end ||
-    subscription && subscription.current_period_end || 0);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0 || end <= start) {
+  const start = Number(
+      current && current.item && current.item.current_period_start ||
+      subscription && subscription.current_period_start || 0,
+  );
+  const end = Number(
+      current && current.item && current.item.current_period_end ||
+      subscription && subscription.current_period_end || 0,
+  );
+  if (!Number.isFinite(start) || !Number.isFinite(end) ||
+      start <= 0 || end <= start) {
     throw new HttpsError(
         "failed-precondition",
         "Stripe did not return a valid paid membership period.",
@@ -82,34 +96,53 @@ function subscriptionPeriodBounds(subscription) {
 
 function subscriptionScheduleId(subscription) {
   const schedule = subscription && subscription.schedule;
-  if (typeof schedule === "string") return schedule.startsWith("sub_sched_") ? schedule : "";
+  if (typeof schedule === "string") {
+    return schedule.startsWith("sub_sched_") ? schedule : "";
+  }
   const id = String(schedule && schedule.id || "");
   return id.startsWith("sub_sched_") ? id : "";
 }
 
 function scheduleOwnedByPipeBuyer(schedule, uid, subscriptionId) {
   const metadata = schedule && schedule.metadata || {};
-  const scheduleSubscription = typeof (schedule && schedule.subscription) === "string" ?
-    schedule.subscription : String(schedule && schedule.subscription && schedule.subscription.id || "");
+  const scheduleSubscription =
+    typeof (schedule && schedule.subscription) === "string" ?
+      schedule.subscription :
+      String(schedule && schedule.subscription && schedule.subscription.id || "");
   return scheduleSubscription === subscriptionId &&
     metadata.app === "pipe_buyer" &&
     metadata.purpose === "membership_plan_change" &&
     metadata.ownerUid === uid;
 }
 
-function planStatusPayload({currentPlan, transition}) {
-  const pending = transition && transition.status === "scheduled" ? transition : null;
+function planStatusPayload({uid, currentPlan, transition, nativeProvider}) {
+  const pending = transition && transition.status === "scheduled" ?
+    transition : null;
+  const storeProvider = activeNativeProvider(nativeProvider, uid);
+  const currentProvider = currentPlan.id === "free" ?
+    "free" : storeProvider || "stripe";
   return {
     currentPlan: currentPlan.id,
     currentTier: currentPlan.tier,
     currentLabel: currentPlan.label,
+    currentProvider,
+    manageInStore: NATIVE_BILLING_PROVIDERS.has(currentProvider),
     paid: currentPlan.id !== "free",
     pendingPlan: pending ? String(pending.targetPlan || "") : "",
-    pendingEffectiveAtMillis: pending ? Number(pending.effectiveAtMillis || 0) || null : null,
+    pendingEffectiveAtMillis: pending ?
+      Number(pending.effectiveAtMillis || 0) || null : null,
   };
 }
 
-function transitionStateData({uid, subscriptionId, currentPlan, targetPlan, status, effectiveAtMillis, stripeScheduleId = ""}) {
+function transitionStateData({
+  uid,
+  subscriptionId,
+  currentPlan,
+  targetPlan,
+  status,
+  effectiveAtMillis,
+  stripeScheduleId = "",
+}) {
   return {
     ownerUid: uid,
     subscriptionId,
@@ -126,27 +159,55 @@ function createMembershipPlanManagement(admin) {
   const FieldValue = admin.firestore.FieldValue;
 
   async function loadMembershipState(uid) {
-    const [dispatchMembershipSnapshot, vipMembershipSnapshot,
-      dispatchProviderSnapshot, vipProviderSnapshot, transitionSnapshot] =
-      await Promise.all([
-        db.collection("dispatch_memberships").doc(uid).get(),
-        db.collection("vip_memberships").doc(uid).get(),
-        db.collection("dispatch_subscription_provider_state").doc(uid).get(),
-        db.collection("vip_subscription_provider_state").doc(uid).get(),
-        db.collection("membership_plan_transitions").doc(uid).get(),
-      ]);
-    const dispatchMembership = dispatchMembershipSnapshot.exists ? dispatchMembershipSnapshot.data() : null;
-    const vipMembership = vipMembershipSnapshot.exists ? vipMembershipSnapshot.data() : null;
-    const dispatchProvider = dispatchProviderSnapshot.exists ? dispatchProviderSnapshot.data() : null;
-    const vipProvider = vipProviderSnapshot.exists ? vipProviderSnapshot.data() : null;
-    const transition = transitionSnapshot.exists ? transitionSnapshot.data() : null;
-    const currentPlan = effectiveMembershipPlan({dispatchMembership, vipMembership});
-    return {dispatchMembership, vipMembership, dispatchProvider, vipProvider, transition, currentPlan};
+    const [
+      dispatchMembershipSnapshot,
+      vipMembershipSnapshot,
+      dispatchProviderSnapshot,
+      vipProviderSnapshot,
+      nativeProviderSnapshot,
+      transitionSnapshot,
+    ] = await Promise.all([
+      db.collection("dispatch_memberships").doc(uid).get(),
+      db.collection("vip_memberships").doc(uid).get(),
+      db.collection("dispatch_subscription_provider_state").doc(uid).get(),
+      db.collection("vip_subscription_provider_state").doc(uid).get(),
+      db.collection("native_membership_provider_state").doc(uid).get(),
+      db.collection("membership_plan_transitions").doc(uid).get(),
+    ]);
+    const dispatchMembership = dispatchMembershipSnapshot.exists ?
+      dispatchMembershipSnapshot.data() : null;
+    const vipMembership = vipMembershipSnapshot.exists ?
+      vipMembershipSnapshot.data() : null;
+    const dispatchProvider = dispatchProviderSnapshot.exists ?
+      dispatchProviderSnapshot.data() : null;
+    const vipProvider = vipProviderSnapshot.exists ?
+      vipProviderSnapshot.data() : null;
+    const nativeProvider = nativeProviderSnapshot.exists ?
+      nativeProviderSnapshot.data() : null;
+    const transition = transitionSnapshot.exists ?
+      transitionSnapshot.data() : null;
+    const currentPlan = effectiveMembershipPlan({
+      dispatchMembership,
+      vipMembership,
+    });
+    return {
+      uid,
+      dispatchMembership,
+      vipMembership,
+      dispatchProvider,
+      vipProvider,
+      nativeProvider,
+      transition,
+      currentPlan,
+    };
   }
 
   async function getMembershipPlanStatus(request) {
     try {
-      const identity = requireAuthenticatedIdentity(request, {requirePhone: false});
+      const identity = requireAuthenticatedIdentity(
+          request,
+          {requirePhone: false},
+      );
       await enforceUserRateLimit({db, admin, request, scope: "account"});
       const state = await loadMembershipState(identity.uid);
       return planStatusPayload(state);
@@ -156,7 +217,10 @@ function createMembershipPlanManagement(admin) {
         throw new HttpsError(error.code, error.message);
       }
       console.error("Membership plan status failed", error);
-      throw new HttpsError("internal", "Membership plan status could not be loaded.");
+      throw new HttpsError(
+          "internal",
+          "Membership plan status could not be loaded.",
+      );
     }
   }
 
@@ -168,7 +232,12 @@ function createMembershipPlanManagement(admin) {
     });
   }
 
-  async function releaseOwnedSchedule({secretKey, subscription, uid, subscriptionId}) {
+  async function releaseOwnedSchedule({
+    secretKey,
+    subscription,
+    uid,
+    subscriptionId,
+  }) {
     const scheduleId = subscriptionScheduleId(subscription);
     if (!scheduleId) return;
     const schedule = await retrieveSchedule(secretKey, scheduleId);
@@ -185,8 +254,20 @@ function createMembershipPlanManagement(admin) {
     });
   }
 
-  async function schedulePaidPlanChange({secretKey, uid, subscription, subscriptionId, currentPlan, targetPlan}) {
-    await releaseOwnedSchedule({secretKey, subscription, uid, subscriptionId});
+  async function schedulePaidPlanChange({
+    secretKey,
+    uid,
+    subscription,
+    subscriptionId,
+    currentPlan,
+    targetPlan,
+  }) {
+    await releaseOwnedSchedule({
+      secretKey,
+      subscription,
+      uid,
+      subscriptionId,
+    });
     const refreshed = await stripeFormRequest({
       secretKey,
       path: `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
@@ -195,17 +276,25 @@ function createMembershipPlanManagement(admin) {
     const current = subscriptionItem(refreshed);
     const period = subscriptionPeriodBounds(refreshed);
     if (!current || current.priceId !== currentPlan.priceId) {
-      throw new HttpsError("failed-precondition", "Stripe membership pricing changed before the plan update could be scheduled.");
+      throw new HttpsError(
+          "failed-precondition",
+          "Stripe membership pricing changed before the plan update could be scheduled.",
+      );
     }
     const created = await stripeFormRequest({
       secretKey,
       path: "/v1/subscription_schedules",
-      idempotencyKey: `pipebuyer-plan-schedule-${subscriptionId}-${current.priceId}-${targetPlan.priceId}-${period.start}`,
+      idempotencyKey:
+        `pipebuyer-plan-schedule-${subscriptionId}-${current.priceId}-` +
+        `${targetPlan.priceId}-${period.start}`,
       fields: {from_subscription: subscriptionId},
     });
     const scheduleId = String(created.id || "");
     if (!scheduleId.startsWith("sub_sched_")) {
-      throw new HttpsError("internal", "Stripe did not create a valid membership plan schedule.");
+      throw new HttpsError(
+          "internal",
+          "Stripe did not create a valid membership plan schedule.",
+      );
     }
     const currentMetadata = membershipPlanMetadata(currentPlan, uid);
     const targetMetadata = membershipPlanMetadata(targetPlan, uid);
@@ -222,7 +311,8 @@ function createMembershipPlanManagement(admin) {
       "phases[0][proration_behavior]": "none",
       "phases[0][metadata][billingType]": currentMetadata.billingType,
       "phases[0][metadata][pipeBuyerUid]": uid,
-      "phases[0][metadata][dispatchPlan]": currentMetadata.dispatchPlan || "",
+      "phases[0][metadata][dispatchPlan]":
+        currentMetadata.dispatchPlan || "",
       "phases[0][metadata][vipPlan]": currentMetadata.vipPlan || "",
       "phases[1][start_date]": period.end,
       "phases[1][duration][interval]": targetPlan.interval,
@@ -238,31 +328,43 @@ function createMembershipPlanManagement(admin) {
     const updated = await stripeFormRequest({
       secretKey,
       path: `/v1/subscription_schedules/${encodeURIComponent(scheduleId)}`,
-      idempotencyKey: `pipebuyer-plan-schedule-config-${scheduleId}-${targetPlan.id}`,
+      idempotencyKey:
+        `pipebuyer-plan-schedule-config-${scheduleId}-${targetPlan.id}`,
       fields,
     });
     if (String(updated.id || "") !== scheduleId) {
-      throw new HttpsError("internal", "Stripe did not confirm the membership plan schedule.");
+      throw new HttpsError(
+          "internal",
+          "Stripe did not confirm the membership plan schedule.",
+      );
     }
     return {scheduleId, effectiveAtMillis: period.end * 1000};
   }
 
   async function changeMembershipPlan(request) {
     try {
-      const identity = requireAuthenticatedIdentity(request, {requirePhone: false});
+      const identity = requireAuthenticatedIdentity(
+          request,
+          {requirePhone: false},
+      );
       await enforceUserRateLimit({db, admin, request, scope: "account"});
       const flags = await loadPhase1FeatureFlags(db);
       requirePhase1Feature(flags, "paidFeatures");
-      const targetPlan = requestedMembershipPlan(request.data && request.data.targetPlan);
+      const targetPlan = requestedMembershipPlan(
+          request.data && request.data.targetPlan,
+      );
       const readinessSnapshot = await db.collection("platform_configuration")
           .doc("payment_provider_readiness").get();
       const data = readinessSnapshot.exists ? readinessSnapshot.data() : {};
       const readiness = {
         ...(await loadProviderReadiness(db)),
         stripeSubscriptionsEnabled: data.stripeSubscriptionsEnabled === true,
-        stripeVipSubscriptionsEnabled: data.stripeVipSubscriptionsEnabled === true,
-        stripeTaxRegistrationPending: data.stripeTaxRegistrationPending === true,
-        stripeTaxPendingBillingApproved: data.stripeTaxPendingBillingApproved === true,
+        stripeVipSubscriptionsEnabled:
+          data.stripeVipSubscriptionsEnabled === true,
+        stripeTaxRegistrationPending:
+          data.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          data.stripeTaxPendingBillingApproved === true,
       };
       requirePlanManagementReady(readiness);
 
@@ -270,8 +372,26 @@ function createMembershipPlanManagement(admin) {
       const currentPlan = state.currentPlan;
       const kind = membershipPlanChangeKind(currentPlan, targetPlan);
       if (kind === "same") {
-        return {...planStatusPayload(state), changed: false, effective: "already_selected"};
+        return {
+          ...planStatusPayload(state),
+          changed: false,
+          effective: "already_selected",
+        };
       }
+
+      const storeProvider = activeNativeProvider(
+          state.nativeProvider,
+          identity.uid,
+      );
+      if (storeProvider) {
+        const providerLabel = storeProvider === "app_store" ?
+          "Apple App Store" : "Google Play";
+        throw new HttpsError(
+            "failed-precondition",
+            `This membership is billed by ${providerLabel}. Change or cancel it in that store so billing and access stay synchronized.`,
+        );
+      }
+
       if (kind === "new_checkout") {
         throw new HttpsError(
             "failed-precondition",
@@ -285,17 +405,25 @@ function createMembershipPlanManagement(admin) {
         uid: identity.uid,
       });
       if (!subscriptionId) {
-        throw new HttpsError("failed-precondition", "No Stripe membership subscription is available to change.");
+        throw new HttpsError(
+            "failed-precondition",
+            "No Stripe membership subscription is available to change.",
+        );
       }
       const secretKey = stripeSecretKey.value();
       let subscription = await stripeFormRequest({
         secretKey,
-        path: `/v1/subscriptions/${encodeURIComponent(subscriptionId)}?expand%5B%5D=discounts`,
+        path:
+          `/v1/subscriptions/${encodeURIComponent(subscriptionId)}` +
+          "?expand%5B%5D=discounts",
         method: "GET",
       });
       const metadata = subscription.metadata || {};
       if (String(metadata.pipeBuyerUid || "") !== identity.uid) {
-        throw new HttpsError("permission-denied", "Stripe membership ownership could not be verified.");
+        throw new HttpsError(
+            "permission-denied",
+            "Stripe membership ownership could not be verified.",
+        );
       }
       const stripeCurrentPlan = subscriptionMembershipPlan(subscription);
       if (!stripeCurrentPlan || stripeCurrentPlan.id !== currentPlan.id) {
@@ -306,16 +434,26 @@ function createMembershipPlanManagement(admin) {
       }
       const current = subscriptionItem(subscription);
       if (!current) {
-        throw new HttpsError("failed-precondition", "Stripe returned an unsupported membership subscription shape.");
+        throw new HttpsError(
+            "failed-precondition",
+            "Stripe returned an unsupported membership subscription shape.",
+        );
       }
 
-      const transitionRef = db.collection("membership_plan_transitions").doc(identity.uid);
+      const transitionRef = db.collection("membership_plan_transitions")
+          .doc(identity.uid);
       if (kind === "cancel") {
-        await releaseOwnedSchedule({secretKey, subscription, uid: identity.uid, subscriptionId});
+        await releaseOwnedSchedule({
+          secretKey,
+          subscription,
+          uid: identity.uid,
+          subscriptionId,
+        });
         subscription = await stripeFormRequest({
           secretKey,
           path: `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
-          idempotencyKey: `pipebuyer-plan-free-${subscriptionId}-${current.priceId}`,
+          idempotencyKey:
+            `pipebuyer-plan-free-${subscriptionId}-${current.priceId}`,
           fields: {cancel_at_period_end: "true"},
         });
         const period = subscriptionPeriodBounds(subscription);
@@ -327,7 +465,10 @@ function createMembershipPlanManagement(admin) {
           status: "scheduled",
           effectiveAtMillis: period.end * 1000,
         });
-        await transitionRef.set({...transition, updatedAt: FieldValue.serverTimestamp()}, {merge: true});
+        await transitionRef.set({
+          ...transition,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
         return {
           currentPlan: currentPlan.id,
           targetPlan: targetPlan.id,
@@ -338,12 +479,22 @@ function createMembershipPlanManagement(admin) {
       }
 
       if (kind === "upgrade_now") {
-        await releaseOwnedSchedule({secretKey, subscription, uid: identity.uid, subscriptionId});
-        const targetMetadata = membershipPlanMetadata(targetPlan, identity.uid);
+        await releaseOwnedSchedule({
+          secretKey,
+          subscription,
+          uid: identity.uid,
+          subscriptionId,
+        });
+        const targetMetadata = membershipPlanMetadata(
+            targetPlan,
+            identity.uid,
+        );
         subscription = await stripeFormRequest({
           secretKey,
           path: `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
-          idempotencyKey: `pipebuyer-plan-upgrade-${subscriptionId}-${current.priceId}-${targetPlan.priceId}`,
+          idempotencyKey:
+            `pipebuyer-plan-upgrade-${subscriptionId}-${current.priceId}-` +
+            targetPlan.priceId,
           fields: {
             "items[0][id]": current.itemId,
             "items[0][price]": targetPlan.priceId,
@@ -359,7 +510,10 @@ function createMembershipPlanManagement(admin) {
           },
         });
         if (subscriptionMembershipPlan(subscription)?.id !== targetPlan.id) {
-          throw new HttpsError("internal", "Stripe did not confirm the membership upgrade.");
+          throw new HttpsError(
+              "internal",
+              "Stripe did not confirm the membership upgrade.",
+          );
         }
         await transitionRef.set({
           ...transitionStateData({
@@ -414,7 +568,10 @@ function createMembershipPlanManagement(admin) {
       console.error("Membership plan change failed", {
         code: String(error && error.code || "").slice(0, 80),
       });
-      throw new HttpsError("internal", "Membership plan could not be changed.");
+      throw new HttpsError(
+          "internal",
+          "Membership plan could not be changed.",
+      );
     }
   }
 
@@ -422,7 +579,9 @@ function createMembershipPlanManagement(admin) {
 }
 
 module.exports = {
+  NATIVE_BILLING_PROVIDERS,
   TERMINAL_PROVIDER_STATUSES,
+  activeNativeProvider,
   createMembershipPlanManagement,
   planStatusPayload,
   providerSubscriptionId,
