@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
+import 'membership_plan_management.dart';
+import 'native_membership_billing.dart';
 
 String vipSubscriptionPlanLabel(Map<String, dynamic>? plan) {
   if (plan == null) return 'VIP pricing unavailable';
@@ -43,22 +45,18 @@ class _VipSubscriptionCheckoutButtonState
   }
 
   Future<Map<String, dynamic>> _loadView() async {
-    final statusFuture = MarketplaceCommandClient().execute(
-      'getVipSubscriptionStatus',
-      const <String, Object?>{},
-    );
     if (!marketplaceHostedMembershipBillingAllowed()) {
-      return <String, dynamic>{
-        'catalog': const <String, dynamic>{},
-        'status': await statusFuture,
-      };
+      return const <String, dynamic>{};
     }
     final results = await Future.wait([
       MarketplaceCommandClient().execute(
         'getVipSubscriptionCatalog',
         const <String, Object?>{},
       ),
-      statusFuture,
+      MarketplaceCommandClient().execute(
+        'getVipSubscriptionStatus',
+        const <String, Object?>{},
+      ),
     ]);
     return <String, dynamic>{'catalog': results[0], 'status': results[1]};
   }
@@ -66,154 +64,120 @@ class _VipSubscriptionCheckoutButtonState
   void _reload() => setState(() => _viewFuture = _loadView());
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-        future: _viewFuture,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _reload,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry VIP status'),
+  Widget build(BuildContext context) {
+    if (!marketplaceHostedMembershipBillingAllowed()) {
+      return const NativeMembershipPlanButton(targetPlan: 'vip_monthly');
+    }
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _viewFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _reload,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry VIP status'),
+            ),
+          );
+        }
+        if (snapshot.connectionState != ConnectionState.done) {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: null,
+              icon: const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-            );
-          }
-          if (snapshot.connectionState != ConnectionState.done) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                label: const Text('Loading VIP membership…'),
-              ),
-            );
-          }
+              label: const Text('Loading VIP membership…'),
+            ),
+          );
+        }
 
-          final view = snapshot.data ?? const <String, dynamic>{};
-          final catalog = view['catalog'] is Map
-              ? Map<String, dynamic>.from(view['catalog'] as Map)
-              : const <String, dynamic>{};
-          final status = view['status'] is Map
-              ? Map<String, dynamic>.from(view['status'] as Map)
-              : const <String, dynamic>{};
-          final plans = catalog['plans'] is Map
-              ? Map<String, dynamic>.from(catalog['plans'] as Map)
-              : const <String, dynamic>{};
-          final planData = plans['monthly'] is Map
-              ? Map<String, dynamic>.from(plans['monthly'] as Map)
-              : null;
-          final price = vipSubscriptionPlanLabel(planData);
-          final hostedBillingAllowed =
-              marketplaceHostedMembershipBillingAllowed();
-          final active = status['active'] == true;
-          final canManageRenewal = status['canManageRenewal'] == true;
-          final cancelAtPeriodEnd = status['cancelAtPeriodEnd'] == true;
+        final view = snapshot.data ?? const <String, dynamic>{};
+        final catalog = view['catalog'] is Map
+            ? Map<String, dynamic>.from(view['catalog'] as Map)
+            : const <String, dynamic>{};
+        final status = view['status'] is Map
+            ? Map<String, dynamic>.from(view['status'] as Map)
+            : const <String, dynamic>{};
+        final plans = catalog['plans'] is Map
+            ? Map<String, dynamic>.from(catalog['plans'] as Map)
+            : const <String, dynamic>{};
+        final planData = plans['monthly'] is Map
+            ? Map<String, dynamic>.from(plans['monthly'] as Map)
+            : null;
+        final price = vipSubscriptionPlanLabel(planData);
+        final active = status['active'] == true;
+        final canManageRenewal = status['canManageRenewal'] == true;
+        final cancelAtPeriodEnd = status['cancelAtPeriodEnd'] == true;
 
-          if (active) {
-            if (!hostedBillingAllowed) {
-              return SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: null,
-                  icon: Icon(Icons.workspace_premium_outlined),
-                  label: Text('VIP membership active'),
-                ),
-              );
-            }
-            if (canManageRenewal) {
-              return SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => _updateRenewal(
-                            cancelAtPeriodEnd
-                                ? 'resume_renewal'
-                                : 'cancel_at_period_end',
-                          ),
+        if (active) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MembershipPlanManagementButton(onChanged: _reload),
+              if (canManageRenewal && cancelAtPeriodEnd) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed:
+                      _busy ? null : () => _updateRenewal('resume_renewal'),
                   icon: _busy
                       ? const SizedBox.square(
                           dimension: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(
-                          cancelAtPeriodEnd
-                              ? Icons.autorenew_rounded
-                              : Icons.event_busy_outlined,
-                        ),
+                      : const Icon(Icons.autorenew_rounded),
                   label: Text(
-                    _busy
-                        ? 'Updating VIP…'
-                        : cancelAtPeriodEnd
-                            ? 'Resume VIP renewal'
-                            : 'Cancel VIP at period end',
+                    _busy ? 'Updating VIP…' : 'Resume VIP renewal',
                   ),
                 ),
-              );
-            }
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: Icon(Icons.workspace_premium_outlined),
-                label: Text('VIP membership active'),
-              ),
-            );
-          }
+              ],
+            ],
+          );
+        }
 
-          if (!hostedBillingAllowed) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: Icon(Icons.info_outline_rounded),
-                label: Text(marketplaceNativeSubscriptionUnavailableMessage),
-              ),
-            );
-          }
-
-          final checkoutAvailable = catalog['checkoutAvailable'] == true;
-          final providerReady = catalog['providerCheckoutReady'] == true;
-          final policiesCurrent = catalog['policyAcceptanceCurrent'] == true;
-          if (!checkoutAvailable) {
-            final message = !policiesCurrent
-                ? 'Accept the current Pipe Buyer Terms and Privacy Policy, then retry.'
-                : !providerReady
-                    ? 'VIP subscription checkout is temporarily unavailable.'
-                    : 'VIP subscription checkout is not available for this account yet.';
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(message))),
-                icon: const Icon(Icons.info_outline_rounded),
-                label: Text(
-                    !policiesCurrent ? 'Review terms to subscribe' : price),
-              ),
-            );
-          }
-
+        final checkoutAvailable = catalog['checkoutAvailable'] == true;
+        final providerReady = catalog['providerCheckoutReady'] == true;
+        final policiesCurrent = catalog['policyAcceptanceCurrent'] == true;
+        if (!checkoutAvailable) {
+          final message = !policiesCurrent
+              ? 'Accept the current Pipe Buyer Terms and Privacy Policy, then retry.'
+              : !providerReady
+                  ? 'VIP subscription checkout is temporarily unavailable.'
+                  : 'VIP subscription checkout is not available for this account yet.';
           return SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _busy ? null : _startCheckout,
-              icon: _busy
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.lock_outline_rounded),
-              label: Text(
-                  _busy ? 'Opening secure checkout…' : 'Join VIP • $price'),
+            child: OutlinedButton.icon(
+              onPressed: () => ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(message))),
+              icon: const Icon(Icons.info_outline_rounded),
+              label:
+                  Text(!policiesCurrent ? 'Review terms to subscribe' : price),
             ),
           );
-        },
-      );
+        }
+
+        return SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _busy ? null : _startCheckout,
+            icon: _busy
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.lock_outline_rounded),
+            label: Text(
+              _busy ? 'Opening secure checkout…' : 'Join VIP • $price',
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _startCheckout() async {
     if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
@@ -258,29 +222,6 @@ class _VipSubscriptionCheckoutButtonState
 
   Future<void> _updateRenewal(String action) async {
     if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
-    if (action == 'cancel_at_period_end') {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Cancel VIP renewal?'),
-          content: const Text(
-            'Your paid VIP access stays active through the current billing period. '
-            'Stripe will stop renewing it after that date.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Keep VIP'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Cancel renewal'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
     setState(() => _busy = true);
     try {
       await MarketplaceCommandClient().execute(
@@ -289,12 +230,8 @@ class _VipSubscriptionCheckoutButtonState
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            action == 'cancel_at_period_end'
-                ? 'VIP renewal will stop after the current paid period.'
-                : 'VIP automatic renewal has been restored.',
-          ),
+        const SnackBar(
+          content: Text('VIP automatic renewal has been restored.'),
         ),
       );
       _reload();

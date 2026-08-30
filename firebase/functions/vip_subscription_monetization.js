@@ -2,11 +2,16 @@
 
 const {provisionalTaxReserveMinor} = require("./pending_tax_policy");
 const {
+  invoiceMembershipPlanResolution,
+  subscriptionMembershipPlan,
+} = require("./membership_plan_policy");
+const {
   invoiceCommissionBaseMinor,
   invoicePeriodBounds,
   retrieveStripeSubscription,
   stripeCustomerIdFromInvoice,
   subscriptionIdentityFromInvoice,
+  validMembershipUid,
 } = require("./subscription_monetization");
 
 async function vipSubscriptionContextFromInvoice({
@@ -20,19 +25,38 @@ async function vipSubscriptionContextFromInvoice({
   if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) {
     return null;
   }
-  let metadata = identity.metadata;
-  if (!metadata) {
+
+  const resolution = invoiceMembershipPlanResolution(invoice);
+  if (resolution.ambiguous) return null;
+  let plan = resolution.plan;
+  let metadata = identity.metadata || null;
+
+  if (!metadata || !plan) {
     const subscription = await retrieveStripeSubscription({
       secretKey,
       apiVersion: stripeConfig.apiVersion,
       subscriptionId,
     });
-    metadata = subscription.metadata || {};
+    const subscriptionPlan = subscriptionMembershipPlan(subscription);
+    if (!plan && !resolution.hasApprovedPrice) plan = subscriptionPlan;
+    const subscriptionMetadata = subscription.metadata || {};
+    const invoiceUid = validMembershipUid(metadata && metadata.pipeBuyerUid);
+    const subscriptionUid = validMembershipUid(subscriptionMetadata.pipeBuyerUid);
+    if (invoiceUid && subscriptionUid && invoiceUid !== subscriptionUid) return null;
+    metadata = {...subscriptionMetadata, ...(metadata || {})};
   }
-  if (metadata.billingType !== "vip_subscription") return null;
-  const uid = String(metadata.pipeBuyerUid || "").trim();
-  if (!uid || uid.includes("/") || uid.length > 180) return null;
-  return {invoiceId, subscriptionId, metadata, uid};
+
+  if (!plan || plan.tier !== "vip") return null;
+  const uid = validMembershipUid(metadata && metadata.pipeBuyerUid);
+  if (!uid) return null;
+  metadata = {
+    ...(metadata || {}),
+    billingType: plan.billingType,
+    pipeBuyerUid: uid,
+    vipPlan: plan.vipPlan,
+    dispatchPlan: "",
+  };
+  return {invoiceId, subscriptionId, metadata, uid, plan};
 }
 
 function createVipSubscriptionMonetization(admin, stripeConfig) {
@@ -47,7 +71,7 @@ function createVipSubscriptionMonetization(admin, stripeConfig) {
       stripeConfig,
     });
     if (!context) return;
-    const {invoiceId, subscriptionId, metadata, uid} = context;
+    const {invoiceId, subscriptionId, metadata, uid, plan} = context;
     const baseMinor = invoiceCommissionBaseMinor(invoice);
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const reserveMinor = provisionalTaxReserveMinor(baseMinor, taxStatus);
@@ -67,7 +91,7 @@ function createVipSubscriptionMonetization(admin, stripeConfig) {
         subscriptionId,
         uid,
         stripeCustomerId: customerId || null,
-        plan: String(metadata.vipPlan || "monthly"),
+        plan: plan.vipPlan,
         currency: String(invoice.currency || "cad").toUpperCase(),
         revenueBaseMinor: baseMinor,
         amountPaidMinor: Number(invoice.amount_paid || 0),
@@ -98,7 +122,7 @@ function createVipSubscriptionMonetization(admin, stripeConfig) {
         status: active ? "active" : "expired",
         renewalStatus: "paid",
         paymentIssue: false,
-        plan: String(metadata.vipPlan || "monthly"),
+        plan: plan.vipPlan,
         subscriptionId,
         stripeCustomerId: customerId ||
           (existingMembership.exists ?
@@ -127,7 +151,7 @@ function createVipSubscriptionMonetization(admin, stripeConfig) {
       stripeConfig,
     });
     if (!context) return;
-    const {invoiceId, subscriptionId, metadata, uid} = context;
+    const {invoiceId, subscriptionId, uid, plan} = context;
     const invoiceRef = db.collection("vip_subscription_invoices").doc(invoiceId);
     const membershipRef = db.collection("vip_memberships").doc(uid);
     const userRef = db.collection("users").doc(uid);
@@ -147,7 +171,7 @@ function createVipSubscriptionMonetization(admin, stripeConfig) {
         subscriptionId,
         uid,
         stripeCustomerId: customerId || null,
-        plan: String(metadata.vipPlan || "monthly"),
+        plan: plan.vipPlan,
         currency: String(invoice.currency || "cad").toUpperCase(),
         amountDueMinor: Number(invoice.amount_due || 0),
         amountPaidMinor: Number(invoice.amount_paid || 0),

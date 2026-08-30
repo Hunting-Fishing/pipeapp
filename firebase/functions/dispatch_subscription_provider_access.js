@@ -22,6 +22,12 @@ function providerStateBlocksNewCheckout(state) {
   return !TERMINAL_PROVIDER_STATUSES.has(status);
 }
 
+function nativeProviderStateBlocksNewCheckout(state, uid, nowMillis = Date.now()) {
+  if (!state || state.ownerUid !== uid || state.active !== true) return false;
+  const expiresAtMillis = Number(state.expiresAtMillis || 0);
+  return Number.isFinite(expiresAtMillis) && expiresAtMillis > nowMillis;
+}
+
 function createDispatchSubscriptionProviderAccess(admin) {
   const db = admin.firestore();
 
@@ -36,17 +42,28 @@ function createDispatchSubscriptionProviderAccess(admin) {
       if (!policyStatus.current) {
         throw new HttpsError(
             "failed-precondition",
-            "Review and accept the current Pipe Buyer policies before starting Dispatch billing.",
+            "Review and accept the current Pipe Buyer policies before starting membership billing.",
         );
       }
 
-      const snapshot = await db.collection("dispatch_subscription_provider_state")
-          .doc(identity.uid)
-          .get();
-      if (snapshot.exists && providerStateBlocksNewCheckout(snapshot.data())) {
+      const [dispatchSnapshot, vipSnapshot, nativeSnapshot] = await Promise.all([
+        db.collection("dispatch_subscription_provider_state").doc(identity.uid).get(),
+        db.collection("vip_subscription_provider_state").doc(identity.uid).get(),
+        db.collection("native_membership_provider_state").doc(identity.uid).get(),
+      ]);
+      const dispatchBlocked = dispatchSnapshot.exists &&
+        providerStateBlocksNewCheckout(dispatchSnapshot.data());
+      const vipBlocked = vipSnapshot.exists &&
+        providerStateBlocksNewCheckout(vipSnapshot.data());
+      const nativeBlocked = nativeSnapshot.exists &&
+        nativeProviderStateBlocksNewCheckout(
+            nativeSnapshot.data(),
+            identity.uid,
+        );
+      if (dispatchBlocked || vipBlocked || nativeBlocked) {
         throw new HttpsError(
             "failed-precondition",
-            "An existing Stripe Dispatch subscription must be resolved before starting another checkout.",
+            "An existing paid membership subscription already exists. Use Change plan instead of starting a second subscription.",
         );
       }
       return identity.uid;
@@ -55,10 +72,10 @@ function createDispatchSubscriptionProviderAccess(admin) {
       if (error instanceof AccountSecurityError) {
         throw new HttpsError(error.code, error.message);
       }
-      console.error("Dispatch subscription provider-state check failed", error);
+      console.error("Membership subscription provider-state check failed", error);
       throw new HttpsError(
           "internal",
-          "Existing Dispatch subscription status could not be verified.",
+          "Existing membership subscription status could not be verified.",
       );
     }
   }
@@ -69,5 +86,6 @@ function createDispatchSubscriptionProviderAccess(admin) {
 module.exports = {
   TERMINAL_PROVIDER_STATUSES,
   createDispatchSubscriptionProviderAccess,
+  nativeProviderStateBlocksNewCheckout,
   providerStateBlocksNewCheckout,
 };

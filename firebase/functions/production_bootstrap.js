@@ -5,6 +5,7 @@
 const coreExports = require("./bootstrap");
 Object.assign(exports, coreExports);
 
+const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {onCall} = require("firebase-functions/v2/https");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
@@ -24,6 +25,25 @@ const {
 const {
   createMarketplaceTaxRecovery,
 } = require("./marketplace_tax_recovery");
+const {
+  createMembershipPlanManagement,
+} = require("./membership_plan_management");
+const {
+  createMembershipProviderStateSync,
+} = require("./membership_provider_state_sync");
+const {
+  createDispatchSubscriptionProviderAccess,
+} = require("./dispatch_subscription_provider_access");
+const {
+  createVipSubscriptionCommands,
+} = require("./vip_subscription_commands");
+const {
+  createPolicyAcceptanceCommands,
+} = require("./policy_acceptance_commands");
+const {
+  createNativeMembershipBilling,
+} = require("./native_membership_billing");
+const {stripeSecretKey} = require("./stripe_marketplace_commands");
 
 const admin = createAdminRuntime();
 const readinessAdmin = createPaymentReadinessAdmin(admin);
@@ -33,6 +53,21 @@ const marketplaceTaxClaimLink = createMarketplaceTaxClaimLink(admin);
 const marketplaceTaxRegistrationAdmin =
   createMarketplaceTaxRegistrationAdmin(admin);
 const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
+const membershipPlanManagement = createMembershipPlanManagement(admin);
+const membershipProviderStateSync = createMembershipProviderStateSync(admin);
+const membershipProviderAccess = createDispatchSubscriptionProviderAccess(admin);
+const vipSubscriptionCommands = createVipSubscriptionCommands(admin);
+const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
+const nativeMembershipBilling = createNativeMembershipBilling(admin);
+const membershipStripeCallableOptions = Object.freeze({
+  ...protectedCallableOptions,
+  secrets: [stripeSecretKey.name],
+});
+
+async function createVipSubscriptionCheckoutWithProviderGuard(request) {
+  await membershipProviderAccess.requireNoBlockingProviderSubscription(request);
+  return vipSubscriptionCommands.createVipSubscriptionCheckout(request);
+}
 
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
@@ -116,4 +151,43 @@ exports.createMarketplaceTaxRecoveryCase = onCall(
 exports.resolveMarketplaceTaxRecoveryCase = onCall(
     protectedCallableOptions,
     marketplaceTaxRecovery.resolveMarketplaceTaxRecoveryCase,
+);
+
+exports.getMembershipPlanStatus = onCall(
+    protectedCallableOptions,
+    membershipPlanManagement.getMembershipPlanStatus,
+);
+
+exports.changeMembershipPlan = onCall(
+    membershipStripeCallableOptions,
+    membershipPlanManagement.changeMembershipPlan,
+);
+
+// Override bootstrap's VIP checkout with the same cross-provider guard already
+// used by Dispatch checkout. This prevents a second Stripe subscription and,
+// once native store billing is active, prevents Stripe/store overlap as well.
+exports.createVipSubscriptionCheckout = onCall(
+    membershipStripeCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        createVipSubscriptionCheckoutWithProviderGuard,
+    ),
+);
+
+// This readiness/bootstrap endpoint has no store credentials and is safe to
+// deploy before App Store Connect / Play Console enrollment. The mutation and
+// reconciliation handlers remain unexported until their Secret Manager values
+// are provisioned and an explicit native-billing activation is approved.
+exports.getNativeMembershipBillingStatus = onCall(
+    protectedCallableOptions,
+    nativeMembershipBilling.getNativeMembershipBillingStatus,
+);
+
+exports.onDispatchMembershipProviderTerminalSync = onDocumentUpdated(
+    "dispatch_subscription_provider_state/{uid}",
+    membershipProviderStateSync.onDispatchProviderUpdated,
+);
+
+exports.onVipMembershipProviderTerminalSync = onDocumentUpdated(
+    "vip_subscription_provider_state/{uid}",
+    membershipProviderStateSync.onVipProviderUpdated,
 );

@@ -3,6 +3,10 @@
 const {
   provisionalTaxReserveMinor,
 } = require("./pending_tax_policy");
+const {
+  invoiceMembershipPlanResolution,
+  subscriptionMembershipPlan,
+} = require("./membership_plan_policy");
 
 const SUBSCRIPTION_AFFILIATE_SHARE_BPS = 2000;
 const BASIS_POINTS = 10000;
@@ -98,6 +102,11 @@ function sourceChargeFromInvoice(invoice) {
   return "";
 }
 
+function validMembershipUid(value) {
+  const uid = String(value || "").trim();
+  return uid && !uid.includes("/") && uid.length <= 180 ? uid : "";
+}
+
 async function dispatchSubscriptionContextFromInvoice({
   invoice,
   secretKey,
@@ -109,19 +118,39 @@ async function dispatchSubscriptionContextFromInvoice({
   if (!invoiceId.startsWith("in_") || !subscriptionId.startsWith("sub_")) {
     return null;
   }
-  let metadata = identity.metadata;
-  if (!metadata) {
-    const subscription = await retrieveStripeSubscription({
+
+  const resolution = invoiceMembershipPlanResolution(invoice);
+  if (resolution.ambiguous) return null;
+  let plan = resolution.plan;
+  let metadata = identity.metadata || null;
+  let subscription = null;
+
+  if (!metadata || !plan) {
+    subscription = await retrieveStripeSubscription({
       secretKey,
       apiVersion: stripeConfig.apiVersion,
       subscriptionId,
     });
-    metadata = subscription.metadata || {};
+    const subscriptionPlan = subscriptionMembershipPlan(subscription);
+    if (!plan && !resolution.hasApprovedPrice) plan = subscriptionPlan;
+    const subscriptionMetadata = subscription.metadata || {};
+    const invoiceUid = validMembershipUid(metadata && metadata.pipeBuyerUid);
+    const subscriptionUid = validMembershipUid(subscriptionMetadata.pipeBuyerUid);
+    if (invoiceUid && subscriptionUid && invoiceUid !== subscriptionUid) return null;
+    metadata = {...subscriptionMetadata, ...(metadata || {})};
   }
-  if (metadata.billingType !== "dispatch_subscription") return null;
-  const uid = String(metadata.pipeBuyerUid || "").trim();
-  if (!uid || uid.includes("/") || uid.length > 180) return null;
-  return {invoiceId, subscriptionId, metadata, uid};
+
+  if (!plan || plan.tier !== "dispatch") return null;
+  const uid = validMembershipUid(metadata && metadata.pipeBuyerUid);
+  if (!uid) return null;
+  metadata = {
+    ...(metadata || {}),
+    billingType: plan.billingType,
+    pipeBuyerUid: uid,
+    dispatchPlan: plan.dispatchPlan,
+    vipPlan: "",
+  };
+  return {invoiceId, subscriptionId, metadata, uid, plan};
 }
 
 function createSubscriptionMonetization(admin, stripeConfig) {
@@ -136,7 +165,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
       stripeConfig,
     });
     if (!context) return;
-    const {invoiceId, subscriptionId, metadata, uid} = context;
+    const {invoiceId, subscriptionId, metadata, uid, plan} = context;
     const referrerUid = String(metadata.affiliateReferrerUid || "").trim();
     const taxStatus = String(metadata.taxCollectionStatus || "registered").trim();
     const baseMinor = invoiceCommissionBaseMinor(invoice);
@@ -164,7 +193,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         subscriptionId,
         uid,
         stripeCustomerId: customerId || null,
-        plan: String(metadata.dispatchPlan || ""),
+        plan: plan.dispatchPlan,
         currency: String(invoice.currency || "cad").toUpperCase(),
         commissionBaseMinor: baseMinor,
         amountPaidMinor: Number(invoice.amount_paid || 0),
@@ -197,7 +226,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
             status: period.endMillis > Date.now() ? "active" : "expired",
             renewalStatus: "paid",
             paymentIssue: false,
-            plan: String(metadata.dispatchPlan || ""),
+            plan: plan.dispatchPlan,
             subscriptionId,
             stripeCustomerId: customerId ||
               (existingMembership.exists ?
@@ -244,7 +273,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
       stripeConfig,
     });
     if (!context) return;
-    const {invoiceId, subscriptionId, metadata, uid} = context;
+    const {invoiceId, subscriptionId, uid, plan} = context;
     const invoiceRef = db.collection("dispatch_subscription_invoices").doc(invoiceId);
     const membershipRef = db.collection("dispatch_memberships").doc(uid);
     const customerId = stripeCustomerIdFromInvoice(invoice);
@@ -263,7 +292,7 @@ function createSubscriptionMonetization(admin, stripeConfig) {
         subscriptionId,
         uid,
         stripeCustomerId: customerId || null,
-        plan: String(metadata.dispatchPlan || ""),
+        plan: plan.dispatchPlan,
         currency: String(invoice.currency || "cad").toUpperCase(),
         amountDueMinor: Number(invoice.amount_due || 0),
         amountPaidMinor: Number(invoice.amount_paid || 0),
@@ -337,4 +366,5 @@ module.exports = {
   sourceChargeFromInvoice,
   stripeCustomerIdFromInvoice,
   subscriptionIdentityFromInvoice,
+  validMembershipUid,
 };
