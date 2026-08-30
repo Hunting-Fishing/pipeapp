@@ -24,6 +24,10 @@ const {
 const {
   createMarketplaceTaxRecovery,
 } = require("./marketplace_tax_recovery");
+const {
+  createMembershipPlanManagement,
+} = require("./membership_plan_management");
+const {stripeSecretKey} = require("./stripe_marketplace_commands");
 
 const admin = createAdminRuntime();
 const readinessAdmin = createPaymentReadinessAdmin(admin);
@@ -33,6 +37,11 @@ const marketplaceTaxClaimLink = createMarketplaceTaxClaimLink(admin);
 const marketplaceTaxRegistrationAdmin =
   createMarketplaceTaxRegistrationAdmin(admin);
 const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
+const membershipPlanManagement = createMembershipPlanManagement(admin);
+const membershipStripeCallableOptions = Object.freeze({
+  ...protectedCallableOptions,
+  secrets: [stripeSecretKey.name],
+});
 
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
@@ -116,4 +125,14 @@ exports.createMarketplaceTaxRecoveryCase = onCall(
 exports.resolveMarketplaceTaxRecoveryCase = onCall(
     protectedCallableOptions,
     marketplaceTaxRecovery.resolveMarketplaceTaxRecoveryCase,
+);
+
+exports.getMembershipPlanStatus = onCall(
+    protectedCallableOptions,
+    membershipPlanManagement.getMembershipPlanStatus,
+);
+
+exports.changeMembershipPlan = onCall(
+    membershipStripeCallableOptions,
+    membershipPlanManagement.changeMembershipPlan,
 );
