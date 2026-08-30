@@ -36,7 +36,14 @@ Future<void> _pumpAndCaptureHero(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+
+  // Image decoding and RepaintBoundary.toImage use real asynchronous work.
+  // Keep those operations outside the widget-test fake clock so visual
+  // evidence generation cannot stall the entire Flutter test suite.
+  await tester.runAsync(() async {
+    await precacheImage(AssetImage(expectedBackground), boundaryKey.currentContext!);
+  });
+  await tester.pump();
 
   expect(tester.takeException(), isNull);
   expect(find.text('PIPE BUYER WORKSPACE'), findsOneWidget);
@@ -56,43 +63,59 @@ Future<void> _pumpAndCaptureHero(
 
   expect(assetNames, contains(expectedBackground));
   if (expectedBackground == MarketplaceHomeHeroAssets.desktopBackground) {
-    expect(assetNames, isNot(contains(MarketplaceHomeHeroAssets.mobileBackground)));
+    expect(
+      assetNames,
+      isNot(contains(MarketplaceHomeHeroAssets.mobileBackground)),
+    );
   } else {
-    expect(assetNames, isNot(contains(MarketplaceHomeHeroAssets.desktopBackground)));
+    expect(
+      assetNames,
+      isNot(contains(MarketplaceHomeHeroAssets.desktopBackground)),
+    );
   }
 
   final boundary = boundaryKey.currentContext!.findRenderObject()
       as RenderRepaintBoundary;
-  final image = await boundary.toImage(pixelRatio: 1);
-  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-  expect(byteData, isNotNull);
+  final bytes = await tester.runAsync(() async {
+    final image = await boundary.toImage(pixelRatio: 1);
+    try {
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
+  });
+  expect(bytes, isNotNull);
 
   final directory = Directory('build/acceptance');
   directory.createSync(recursive: true);
-  File('${directory.path}/$outputName').writeAsBytesSync(
-    byteData!.buffer.asUint8List(),
-  );
-  image.dispose();
+  File('${directory.path}/$outputName').writeAsBytesSync(bytes!);
 }
 
 void main() {
-  testWidgets('desktop marketplace hero uses landscape campaign background',
-      (tester) async {
-    await _pumpAndCaptureHero(
-      tester,
-      surfaceSize: const Size(1440, 1000),
-      expectedBackground: MarketplaceHomeHeroAssets.desktopBackground,
-      outputName: 'marketplace-home-hero-desktop-1440x1000.png',
-    );
-  });
+  testWidgets(
+    'desktop marketplace hero uses landscape campaign background',
+    (tester) async {
+      await _pumpAndCaptureHero(
+        tester,
+        surfaceSize: const Size(1440, 1000),
+        expectedBackground: MarketplaceHomeHeroAssets.desktopBackground,
+        outputName: 'marketplace-home-hero-desktop-1440x1000.png',
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 
-  testWidgets('mobile marketplace hero uses portrait campaign background',
-      (tester) async {
-    await _pumpAndCaptureHero(
-      tester,
-      surfaceSize: const Size(390, 844),
-      expectedBackground: MarketplaceHomeHeroAssets.mobileBackground,
-      outputName: 'marketplace-home-hero-mobile-390x844.png',
-    );
-  });
+  testWidgets(
+    'mobile marketplace hero uses portrait campaign background',
+    (tester) async {
+      await _pumpAndCaptureHero(
+        tester,
+        surfaceSize: const Size(390, 844),
+        expectedBackground: MarketplaceHomeHeroAssets.mobileBackground,
+        outputName: 'marketplace-home-hero-mobile-390x844.png',
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 }
