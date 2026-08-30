@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dispatch_promotion_code_field.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
+import 'membership_plan_management.dart';
 
 const dispatchPromotionCodeHelpText =
     'Have a promo code? Apply it before payment, or enter it on Stripe Checkout.';
@@ -158,14 +159,14 @@ class _DispatchSubscriptionCheckoutButtonState
                         : Icon(
                             paymentIssue
                                 ? Icons.warning_amber_rounded
-                                : Icons.manage_accounts_outlined,
+                                : Icons.credit_card_outlined,
                           ),
                     label: Text(
                       _busy
                           ? 'Opening billing…'
                           : paymentIssue
-                              ? 'Fix billing / manage subscription'
-                              : 'Manage Dispatch billing',
+                              ? 'Fix payment / billing details'
+                              : 'Payment method & invoices',
                     ),
                   )
                 : OutlinedButton.icon(
@@ -173,13 +174,21 @@ class _DispatchSubscriptionCheckoutButtonState
                     icon: const Icon(Icons.check_circle_outline_rounded),
                     label: const Text('Dispatch membership active'),
                   );
+            final controls = <Widget>[
+              MembershipPlanManagementButton(onChanged: _reload),
+              const SizedBox(height: 8),
+              managementButton,
+            ];
             if (statusPlan != 'monthly') {
-              return SizedBox(width: double.infinity, child: managementButton);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: controls,
+              );
             }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                managementButton,
+                ...controls,
                 const SizedBox(height: 12),
                 DispatchPromotionCodeField(
                   controller: _promoController,
@@ -379,7 +388,7 @@ class _DispatchSubscriptionCheckoutButtonState
       payload: const <String, Object?>{},
       resultField: 'portalUrl',
       expectedHostSuffix: 'stripe.com',
-      openingMessage: 'Dispatch billing management could not be opened.',
+      openingMessage: 'Billing management could not be opened.',
     );
   }
 
