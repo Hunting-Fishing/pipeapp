@@ -9,8 +9,8 @@ on:
       - 'lib/marketplace/marketplace_home_welcome.dart'
       - 'lib/marketplace/marketplace_home_hero_assets.dart'
       - 'test/marketplace_home_hero_responsive_test.dart'
-      - 'assets/images/marketplace_home_hero_desktop.webp'
-      - 'assets/images/marketplace_home_hero_mobile.webp'
+      - 'assets/images/marketplace_home_hero_desktop.jpg'
+      - 'assets/images/marketplace_home_hero_mobile.jpg'
       - 'docs/repairs/marketplace-home-background-hero.md'
       - '.github/workflows/marketplace-home-hero-staging.yml'
 
