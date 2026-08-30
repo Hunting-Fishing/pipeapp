@@ -37,6 +37,39 @@ The workflow then performs a narrowly scoped, audited Firebase readiness update 
 
 All existing payment, tax, marketplace, VIP, Connect, refund, dispute, and payout readiness fields are preserved.
 
+## First activation attempt — exact failure and root cause
+
+The first production activation run successfully:
+
+- validated the approved Pipe Buyer portal runtime;
+- passed the complete Firebase Functions lint/check suite;
+- verified the live Pipe Buyer Stripe account;
+- created and verified the dedicated restricted Stripe portal configuration;
+- deployed the one-time token-protected Firebase activator; and
+- deleted the temporary activator during cleanup.
+
+The authorized readiness write returned `403 Forbidden` and therefore did **not** change Firebase portal readiness.
+
+This was not a Stripe configuration failure and it was not a reason to relax the token guard. The repository already contained the exact earlier failure pattern from the Stripe live-alignment work: the workflow created its secret file using:
+
+`openssl rand -hex 32 > .dispatch-portal-activation-token`
+
+`openssl rand -hex 32` emits 64 hexadecimal characters followed by a newline. `functions:secrets:set --data-file` can publish that newline as part of the secret, while Bash command substitution later loads the caller token with `$(cat file)`, which removes trailing newlines. The handler intentionally requires equal byte lengths before `crypto.timingSafeEqual`, so the request correctly failed closed.
+
+### Corrected token repair
+
+The workflow now reuses the previously proven canonical one-time-secret pattern:
+
+1. generate the token into a shell variable;
+2. require it to match `^[0-9a-f]{64}$`;
+3. write it with `printf '%s'` so no newline is added;
+4. verify the secret file is exactly 64 bytes before publishing it to Firebase Secret Manager;
+5. continue using the dedicated `X-PipeBuyer-Dispatch-Portal-Token` header rather than the reserved HTTP `Authorization` channel;
+6. prove the deployed handler returns the exact application-level unauthenticated `403 Forbidden` before sending the authorized request; and
+7. delete the temporary endpoint after the authorized operation.
+
+This is a byte-canonicalization repair only. It does not weaken authentication, change Stripe portal restrictions, or broaden the Firebase readiness write.
+
 ## Safety controls
 
 Before any configuration write, the workflow verifies:
@@ -64,3 +97,5 @@ The portal repair completes adjacent subscription-management UX so a future acti
 - Do not overwrite the full `payment_provider_readiness` document merely to enable the portal; update only the three portal fields and preserve the current safety profile.
 - Do not create a charge, refund, transfer, payout, or subscription while verifying portal setup.
 - Do not store Stripe Customer Portal session URLs in Firestore; they remain short-lived authenticated URLs returned only to the signed-in caller.
+- Do not create one-time Secret Manager files with shell redirection from commands that emit trailing newlines. Canonicalize the token, write exact bytes with `printf`, and verify the byte count before publishing.
+- Do not interpret an application-level `403 Forbidden` from the timing-safe token comparison as a reason to disable or bypass authentication.
