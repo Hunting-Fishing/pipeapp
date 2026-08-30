@@ -13,7 +13,7 @@ class MarketplaceHomeWelcome extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const _MarketplaceHomeDiscoveryHero();
+      return const MarketplaceHomeDiscoveryHero();
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -37,7 +37,7 @@ class MarketplaceHomeWelcome extends StatelessWidget {
               orElse: () => 'Pipe Buyer member',
             );
         final accountType = '${data['accountType'] ?? 'personal'}';
-        return _MarketplaceHomeDiscoveryHero(
+        return MarketplaceHomeDiscoveryHero(
           name: name,
           accountType: accountType,
         );
@@ -46,8 +46,13 @@ class MarketplaceHomeWelcome extends StatelessWidget {
   }
 }
 
-class _MarketplaceHomeDiscoveryHero extends StatelessWidget {
-  const _MarketplaceHomeDiscoveryHero({
+/// Pure presentation surface for the Marketplace welcome campaign.
+///
+/// This stays Firebase-free so responsive rendering can be verified directly
+/// in widget tests without bypassing the application's authentication gate.
+class MarketplaceHomeDiscoveryHero extends StatelessWidget {
+  const MarketplaceHomeDiscoveryHero({
+    super.key,
     this.name,
     this.accountType = 'personal',
   });
