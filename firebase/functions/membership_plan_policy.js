@@ -79,14 +79,69 @@ function membershipPlanForPriceId(value) {
   return null;
 }
 
+function stripePriceId(value) {
+  if (typeof value === "string") return value.startsWith("price_") ? value : "";
+  const id = String(value && value.id || "").trim();
+  return id.startsWith("price_") ? id : "";
+}
+
+function invoiceLinePriceId(line) {
+  if (!line || typeof line !== "object") return "";
+  const candidates = [
+    stripePriceId(line.price),
+    stripePriceId(line.pricing && line.pricing.price_details &&
+      line.pricing.price_details.price),
+    stripePriceId(line.plan),
+  ];
+  return candidates.find(Boolean) || "";
+}
+
+function invoiceMembershipPlanResolution(invoice) {
+  const lines = invoice && invoice.lines && invoice.lines.data;
+  if (!Array.isArray(lines)) {
+    return {plan: null, hasApprovedPrice: false, ambiguous: false};
+  }
+  const all = new Map();
+  const positive = new Map();
+  for (const line of lines) {
+    const plan = membershipPlanForPriceId(invoiceLinePriceId(line));
+    if (!plan) continue;
+    all.set(plan.id, plan);
+    const amount = Number(line && line.amount || 0);
+    if (Number.isFinite(amount) && amount > 0) positive.set(plan.id, plan);
+  }
+  if (positive.size === 1) {
+    return {
+      plan: [...positive.values()][0],
+      hasApprovedPrice: true,
+      ambiguous: false,
+    };
+  }
+  if (positive.size === 0 && all.size === 1) {
+    return {
+      plan: [...all.values()][0],
+      hasApprovedPrice: true,
+      ambiguous: false,
+    };
+  }
+  return {
+    plan: null,
+    hasApprovedPrice: all.size > 0,
+    ambiguous: positive.size > 1 || all.size > 1,
+  };
+}
+
+function invoiceMembershipPlan(invoice) {
+  return invoiceMembershipPlanResolution(invoice).plan;
+}
+
 function subscriptionItem(subscription) {
   const items = subscription && subscription.items && subscription.items.data;
   if (!Array.isArray(items) || items.length !== 1) return null;
   const item = items[0];
   const itemId = String(item && item.id || "").trim();
-  const priceId = typeof (item && item.price) === "string" ?
-    item.price : String(item && item.price && item.price.id || "").trim();
-  if (!itemId.startsWith("si_") || !priceId.startsWith("price_")) return null;
+  const priceId = stripePriceId(item && item.price);
+  if (!itemId.startsWith("si_") || !priceId) return null;
   return {item, itemId, priceId};
 }
 
@@ -144,12 +199,16 @@ module.exports = {
   MEMBERSHIP_PLAN_IDS,
   MEMBERSHIP_PLAN_RANK,
   effectiveMembershipPlan,
+  invoiceLinePriceId,
+  invoiceMembershipPlan,
+  invoiceMembershipPlanResolution,
   membershipPlanCatalog,
   membershipPlanChangeKind,
   membershipPlanForPriceId,
   membershipPlanMetadata,
   paidMembershipCurrent,
   requestedMembershipPlan,
+  stripePriceId,
   subscriptionItem,
   subscriptionMembershipPlan,
 };
