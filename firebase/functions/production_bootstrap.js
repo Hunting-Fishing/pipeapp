@@ -5,6 +5,7 @@
 const coreExports = require("./bootstrap");
 Object.assign(exports, coreExports);
 
+const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {onCall} = require("firebase-functions/v2/https");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
@@ -27,6 +28,9 @@ const {
 const {
   createMembershipPlanManagement,
 } = require("./membership_plan_management");
+const {
+  createMembershipProviderStateSync,
+} = require("./membership_provider_state_sync");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 
 const admin = createAdminRuntime();
@@ -38,6 +42,7 @@ const marketplaceTaxRegistrationAdmin =
   createMarketplaceTaxRegistrationAdmin(admin);
 const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
 const membershipPlanManagement = createMembershipPlanManagement(admin);
+const membershipProviderStateSync = createMembershipProviderStateSync(admin);
 const membershipStripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
   secrets: [stripeSecretKey.name],
@@ -135,4 +140,14 @@ exports.getMembershipPlanStatus = onCall(
 exports.changeMembershipPlan = onCall(
     membershipStripeCallableOptions,
     membershipPlanManagement.changeMembershipPlan,
+);
+
+exports.onDispatchMembershipProviderTerminalSync = onDocumentUpdated(
+    "dispatch_subscription_provider_state/{uid}",
+    membershipProviderStateSync.onDispatchProviderUpdated,
+);
+
+exports.onVipMembershipProviderTerminalSync = onDocumentUpdated(
+    "vip_subscription_provider_state/{uid}",
+    membershipProviderStateSync.onVipProviderUpdated,
 );
