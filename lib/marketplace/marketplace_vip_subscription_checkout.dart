@@ -121,9 +121,8 @@ class _VipSubscriptionCheckoutButtonState
               if (canManageRenewal && cancelAtPeriodEnd) ...[
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => _updateRenewal('resume_renewal'),
+                  onPressed:
+                      _busy ? null : () => _updateRenewal('resume_renewal'),
                   icon: _busy
                       ? const SizedBox.square(
                           dimension: 16,
@@ -155,7 +154,8 @@ class _VipSubscriptionCheckoutButtonState
                 context,
               ).showSnackBar(SnackBar(content: Text(message))),
               icon: const Icon(Icons.info_outline_rounded),
-              label: Text(!policiesCurrent ? 'Review terms to subscribe' : price),
+              label:
+                  Text(!policiesCurrent ? 'Review terms to subscribe' : price),
             ),
           );
         }
