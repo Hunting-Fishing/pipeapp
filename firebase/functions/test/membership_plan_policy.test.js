@@ -211,12 +211,12 @@ test("provider selection refuses two distinct paid subscriptions", () => {
 });
 
 test("active mobile billing provider owns plan management", () => {
-  const now = 10_000;
+  const now = Date.now();
   const nativeProvider = {
     ownerUid: "uid-1",
     active: true,
     provider: "app_store",
-    expiresAtMillis: now + 5_000,
+    expiresAtMillis: now + 60_000,
   };
   assert.equal(
       activeNativeProvider(nativeProvider, "uid-1", now),
