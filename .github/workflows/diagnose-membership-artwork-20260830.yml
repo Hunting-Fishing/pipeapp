@@ -1,0 +1,36 @@
+name: Diagnose Membership Artwork Responsive Test
+
+on:
+  push:
+    branches:
+      - diagnose/membership-artwork-20260830
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out diagnostic source
+        uses: actions/checkout@v7.0.0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Run membership artwork test with expanded diagnostics
+        run: >
+          flutter test
+          test/membership_plan_artwork_responsive_test.dart
+          --reporter expanded
+          --concurrency=1
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
