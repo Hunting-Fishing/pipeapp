@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
@@ -18,10 +19,17 @@ String _priceLabel(Map<String, dynamic>? plan) {
   final currency = '${plan['currency'] ?? 'CAD'}'.toUpperCase();
   final interval = '${plan['interval'] ?? ''}'.trim().toLowerCase();
   if (amount == null || amount < 0 || interval.isEmpty) return '';
-  final value = amount % 1 == 0 ? amount.toStringAsFixed(0) : amount.toStringAsFixed(2);
+  final value =
+      amount % 1 == 0 ? amount.toStringAsFixed(0) : amount.toStringAsFixed(2);
   final money = currency == 'CAD' ? 'CA\$$value' : '$currency \$$value';
   return '$money / $interval';
 }
+
+String membershipBillingProviderLabel(String provider) => switch (provider) {
+      'app_store' => 'Apple App Store',
+      'google_play' => 'Google Play',
+      _ => 'Pipe Buyer',
+    };
 
 class MembershipPlanManagementButton extends StatefulWidget {
   const MembershipPlanManagementButton({super.key, this.onChanged});
@@ -59,6 +67,28 @@ class _MembershipPlanManagementButtonState
         }
         final current = '${data?['currentPlan'] ?? ''}'.trim();
         final pending = '${data?['pendingPlan'] ?? ''}'.trim();
+        final provider = '${data?['currentProvider'] ?? 'stripe'}'.trim();
+        final storeManaged = provider == 'app_store' || provider == 'google_play';
+        if (storeManaged) {
+          final providerLabel = membershipBillingProviderLabel(provider);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _busy ? null : () => _openStoreManagement(provider),
+                icon: const Icon(Icons.storefront_outlined),
+                label: Text('Manage in $providerLabel'),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'This membership was purchased through $providerLabel. '
+                'Change plans or cancel renewal there so billing and Pipe Buyer '
+                'access stay synchronized.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          );
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -75,7 +105,8 @@ class _MembershipPlanManagementButtonState
             if (pending.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
-                'Scheduled: ${membershipPlanDisplayName(pending)} at the end of the current paid period.',
+                'Scheduled: ${membershipPlanDisplayName(pending)} at the end '
+                'of the current paid period.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -85,11 +116,37 @@ class _MembershipPlanManagementButtonState
     );
   }
 
+  Future<void> _openStoreManagement(String provider) async {
+    final uri = provider == 'app_store'
+        ? Uri.parse('https://apps.apple.com/account/subscriptions')
+        : Uri.parse(
+            'https://play.google.com/store/account/subscriptions?package=Pipe.Buyerapp',
+          );
+    setState(() => _busy = true);
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) {
+        throw StateError('The store subscription page could not be opened.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      _showError(error, 'The store subscription page could not be opened.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _openPlanPicker(String currentPlan) async {
     try {
       final results = await Future.wait([
-        _commands.execute('getDispatchSubscriptionCatalog', const <String, Object?>{}),
-        _commands.execute('getVipSubscriptionCatalog', const <String, Object?>{}),
+        _commands.execute(
+          'getDispatchSubscriptionCatalog',
+          const <String, Object?>{},
+        ),
+        _commands.execute(
+          'getVipSubscriptionCatalog',
+          const <String, Object?>{},
+        ),
       ]);
       if (!mounted) return;
       final dispatchPlans = results[0]['plans'] is Map
@@ -98,31 +155,41 @@ class _MembershipPlanManagementButtonState
       final vipPlans = results[1]['plans'] is Map
           ? Map<String, dynamic>.from(results[1]['plans'] as Map)
           : const <String, dynamic>{};
-      Map<String, dynamic>? planMap(Map<String, dynamic> source, String key) =>
-          source[key] is Map ? Map<String, dynamic>.from(source[key] as Map) : null;
+      Map<String, dynamic>? planMap(
+        Map<String, dynamic> source,
+        String key,
+      ) =>
+          source[key] is Map
+              ? Map<String, dynamic>.from(source[key] as Map)
+              : null;
       final choices = <_MembershipPlanChoice>[
         const _MembershipPlanChoice(
           id: 'free',
           title: 'Free',
-          subtitle: 'No recurring membership charge. Your paid benefits continue through the current paid period.',
+          subtitle:
+              'No recurring membership charge. Your paid benefits continue '
+              'through the current paid period.',
           icon: Icons.person_outline_rounded,
         ),
         _MembershipPlanChoice(
           id: 'dispatch_monthly',
           title: 'Monthly',
-          subtitle: '${_priceLabel(planMap(dispatchPlans, 'monthly'))} • Dispatch access',
+          subtitle:
+              '${_priceLabel(planMap(dispatchPlans, 'monthly'))} • Dispatch access',
           icon: Icons.calendar_month_outlined,
         ),
         _MembershipPlanChoice(
           id: 'dispatch_yearly',
           title: 'Yearly',
-          subtitle: '${_priceLabel(planMap(dispatchPlans, 'yearly'))} • Dispatch access',
+          subtitle:
+              '${_priceLabel(planMap(dispatchPlans, 'yearly'))} • Dispatch access',
           icon: Icons.event_repeat_outlined,
         ),
         _MembershipPlanChoice(
           id: 'vip_monthly',
           title: 'VIP',
-          subtitle: '${_priceLabel(planMap(vipPlans, 'monthly'))} • VIP marketplace benefits + Dispatch access',
+          subtitle: '${_priceLabel(planMap(vipPlans, 'monthly'))} • '
+              'VIP marketplace benefits + Dispatch access',
           icon: Icons.workspace_premium_outlined,
         ),
       ];
@@ -136,7 +203,9 @@ class _MembershipPlanManagementButtonState
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Choose the plan you want. Upgrades are confirmed by Stripe before access changes. Downgrades and Free take effect at the end of the period you already paid for.',
+                  'Choose the plan you want. Upgrades are confirmed by Stripe '
+                  'before access changes. Downgrades and Free take effect at '
+                  'the end of the period you already paid for.',
                 ),
                 const SizedBox(height: 12),
                 for (final choice in choices)
@@ -183,10 +252,14 @@ class _MembershipPlanManagementButtonState
         title: Text(free ? 'Move to Free?' : 'Change to $name?'),
         content: Text(
           free
-              ? 'Your current paid benefits stay active through the period you already paid for. Renewal stops after that date.'
+              ? 'Your current paid benefits stay active through the period you '
+                  'already paid for. Renewal stops after that date.'
               : targetPlan == 'vip_monthly'
-                  ? 'Stripe will calculate any upgrade proration and confirm payment before VIP access is granted. Dispatch-only promo discounts do not carry into VIP.'
-                  : 'This change is scheduled for the end of your current paid period so you keep the benefits you already paid for.',
+                  ? 'Stripe will calculate any upgrade proration and confirm '
+                      'payment before VIP access is granted. Dispatch-only '
+                      'promo discounts do not carry into VIP.'
+                  : 'This change is scheduled for the end of your current paid '
+                      'period so you keep the benefits you already paid for.',
         ),
         actions: [
           TextButton(
@@ -210,12 +283,17 @@ class _MembershipPlanManagementButtonState
       if (!mounted) return;
       final effective = '${result['effective'] ?? ''}';
       final message = switch (effective) {
-        'period_end' => '$name is scheduled for the end of your current paid period.',
-        'after_payment_confirmation' => 'Stripe confirmed the plan update. VIP activates from the paid invoice confirmation.',
+        'period_end' =>
+          '$name is scheduled for the end of your current paid period.',
+        'after_payment_confirmation' =>
+          'Stripe confirmed the plan update. VIP activates from the paid '
+              'invoice confirmation.',
         'already_selected' => '$name is already your current plan.',
         _ => 'Membership plan updated.',
       };
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
       widget.onChanged?.call();
       if (mounted) setState(() {});
     } catch (error) {
