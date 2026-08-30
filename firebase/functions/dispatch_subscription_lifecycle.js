@@ -1,5 +1,9 @@
 "use strict";
 
+const {
+  subscriptionMembershipPlan,
+} = require("./membership_plan_policy");
+
 const TERMINAL_PROVIDER_STATUSES = new Set([
   "canceled",
   "incomplete_expired",
@@ -25,13 +29,13 @@ function validUid(value) {
 function dispatchSubscriptionIdentity(subscription) {
   const subscriptionId = String(subscription && subscription.id || "").trim();
   const metadata = subscription && subscription.metadata || {};
-  if (!subscriptionId.startsWith("sub_") ||
-      metadata.billingType !== "dispatch_subscription") {
+  const plan = subscriptionMembershipPlan(subscription);
+  if (!subscriptionId.startsWith("sub_") || !plan || plan.tier !== "dispatch") {
     return null;
   }
   const uid = validUid(metadata.pipeBuyerUid);
   if (!uid) return null;
-  return {subscriptionId, uid, metadata};
+  return {subscriptionId, uid, metadata, plan};
 }
 
 function dispatchCheckoutIdentity(session) {
@@ -177,6 +181,8 @@ function createDispatchSubscriptionLifecycle(admin) {
         cancelAtPeriodEnd: provider.cancelAtPeriodEnd,
         providerPeriodEnd: provider.providerPeriodEndMillis ?
           Timestamp.fromMillis(provider.providerPeriodEndMillis) : null,
+        currentPlanId: identity.plan.id,
+        currentPriceId: identity.plan.priceId,
         ...(deleted ? {deletedAt: FieldValue.serverTimestamp()} : {}),
         updatedAt: FieldValue.serverTimestamp(),
         ...(providerStateSnapshot.exists ? {} : {
@@ -208,6 +214,8 @@ function createDispatchSubscriptionLifecycle(admin) {
         cancelAtPeriodEnd: patch.cancelAtPeriodEnd,
         active: patch.active,
         status: patch.status,
+        plan: identity.plan.id === "dispatch_yearly" ? "yearly" : "monthly",
+        billingProvider: "stripe",
         cancellationEffectiveAt: patch.cancellationEffectiveMillis ?
           Timestamp.fromMillis(patch.cancellationEffectiveMillis) : null,
         ...(deleted ? {canceledAt: FieldValue.serverTimestamp()} : {}),
