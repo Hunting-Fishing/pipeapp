@@ -303,7 +303,6 @@ class _HeroBrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 58,
@@ -326,37 +325,45 @@ class _HeroBrandMark extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'PIPE BUYER',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .4,
-                shadows: [
-                  Shadow(
-                    color: Colors.black54,
-                    blurRadius: 6,
-                    offset: Offset(0, 1),
-                  ),
-                ],
+        const Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PIPE BUYER',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .4,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 6,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              'PIPE · EQUIPMENT · SOLUTIONS',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: .55,
+              SizedBox(height: 2),
+              Text(
+                'PIPE · EQUIPMENT · SOLUTIONS',
+                maxLines: 2,
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 9.5,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .55,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
