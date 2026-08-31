@@ -1,0 +1,205 @@
+name: Publish marketplace home hero
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lib/marketplace/marketplace_home_welcome.dart'
+      - 'lib/marketplace/marketplace_home_hero_assets.dart'
+      - 'test/marketplace_home_hero_responsive_test.dart'
+      - '.github/workflows/publish-marketplace-home-hero.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/marketplace/marketplace_home_welcome.dart'
+      - 'lib/marketplace/marketplace_home_hero_assets.dart'
+      - 'test/marketplace_home_hero_responsive_test.dart'
+      - '.github/workflows/publish-marketplace-home-hero.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-home-hero-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate Flutter hero release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact commit
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run full Flutter tests
+        run: flutter test
+
+  deploy-production:
+    name: Deploy production hosting
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      PIPE_ENV: production
+      PIPE_RELEASE_SHA: ${{ github.sha }}
+      PIPE_FIREBASE_API_KEY: ${{ vars.PIPE_FIREBASE_API_KEY }}
+      PIPE_FIREBASE_AUTH_DOMAIN: ${{ vars.PIPE_FIREBASE_AUTH_DOMAIN }}
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+      PIPE_FIREBASE_STORAGE_BUCKET: ${{ vars.PIPE_FIREBASE_STORAGE_BUCKET }}
+      PIPE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PIPE_FIREBASE_MESSAGING_SENDER_ID }}
+      PIPE_FIREBASE_WEB_APP_ID: ${{ vars.PIPE_FIREBASE_WEB_APP_ID }}
+      PIPE_FIREBASE_MEASUREMENT_ID: ${{ vars.PIPE_FIREBASE_MEASUREMENT_ID }}
+      PIPE_PUBLIC_SUPPORT_EMAIL: ${{ vars.PIPE_PUBLIC_SUPPORT_EMAIL }}
+      PIPE_APP_CHECK_WEB_RECAPTCHA_KEY: ${{ vars.PIPE_APP_CHECK_WEB_RECAPTCHA_KEY }}
+      PIPE_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars.PIPE_FIREBASE_WEB_PUSH_VAPID_KEY }}
+      PIPE_DEPLOY_ENVIRONMENT_GUARD: ${{ secrets.PIPE_DEPLOY_ENVIRONMENT_GUARD }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+    steps:
+      - name: Guard production target
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$PIPE_DEPLOY_ENVIRONMENT_GUARD" != "production" ]]; then
+            echo "::error::Production environment guard is not configured correctly."
+            exit 1
+          fi
+          if [[ "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
+            echo "::error::Hero release may deploy only to flutter-flow-pipe."
+            exit 1
+          fi
+          required=(
+            PIPE_FIREBASE_API_KEY
+            PIPE_FIREBASE_AUTH_DOMAIN
+            PIPE_FIREBASE_PROJECT_ID
+            PIPE_FIREBASE_STORAGE_BUCKET
+            PIPE_FIREBASE_MESSAGING_SENDER_ID
+            PIPE_FIREBASE_WEB_APP_ID
+            PIPE_PUBLIC_SUPPORT_EMAIL
+            FIREBASE_TOKEN
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is not configured in the production GitHub Environment."
+              exit 1
+            fi
+          done
+
+      - name: Check out exact release commit
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Node runtime
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Build exact production web release
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_path="web/firebase-messaging-sw.js"
+          restore_worker() {
+            git restore --source=HEAD --worktree -- "$worker_path"
+          }
+          trap restore_worker EXIT
+          node tool/configure_firebase_messaging_worker.mjs \
+            --output "$worker_path" \
+            --api-key "$PIPE_FIREBASE_API_KEY" \
+            --auth-domain "$PIPE_FIREBASE_AUTH_DOMAIN" \
+            --project-id "$PIPE_FIREBASE_PROJECT_ID" \
+            --storage-bucket "$PIPE_FIREBASE_STORAGE_BUCKET" \
+            --messaging-sender-id "$PIPE_FIREBASE_MESSAGING_SENDER_ID" \
+            --app-id "$PIPE_FIREBASE_WEB_APP_ID"
+          flutter build web \
+            --release \
+            --dart-define=PIPE_ENV="$PIPE_ENV" \
+            --dart-define=PIPE_RELEASE_SHA="$PIPE_RELEASE_SHA" \
+            --dart-define=PIPE_FIREBASE_API_KEY="$PIPE_FIREBASE_API_KEY" \
+            --dart-define=PIPE_FIREBASE_AUTH_DOMAIN="$PIPE_FIREBASE_AUTH_DOMAIN" \
+            --dart-define=PIPE_FIREBASE_PROJECT_ID="$PIPE_FIREBASE_PROJECT_ID" \
+            --dart-define=PIPE_FIREBASE_STORAGE_BUCKET="$PIPE_FIREBASE_STORAGE_BUCKET" \
+            --dart-define=PIPE_FIREBASE_MESSAGING_SENDER_ID="$PIPE_FIREBASE_MESSAGING_SENDER_ID" \
+            --dart-define=PIPE_FIREBASE_WEB_APP_ID="$PIPE_FIREBASE_WEB_APP_ID" \
+            --dart-define=PIPE_FIREBASE_MEASUREMENT_ID="$PIPE_FIREBASE_MEASUREMENT_ID" \
+            --dart-define=PIPE_PUBLIC_SUPPORT_EMAIL="$PIPE_PUBLIC_SUPPORT_EMAIL" \
+            --dart-define=PIPE_APP_CHECK_WEB_RECAPTCHA_KEY="$PIPE_APP_CHECK_WEB_RECAPTCHA_KEY" \
+            --dart-define=PIPE_APP_CHECK_REQUIRED=false \
+            --dart-define=PIPE_FIREBASE_WEB_PUSH_VAPID_KEY="$PIPE_FIREBASE_WEB_PUSH_VAPID_KEY" \
+            --dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED=true
+          restore_worker
+          trap - EXIT
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git status --short
+            echo "::error::Production build modified repository source."
+            exit 1
+          fi
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.25.0
+
+      - name: Deploy hosting only
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase deploy \
+            --project "$PIPE_FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --config firebase.json \
+            --only hosting \
+            --message "Pipe Buyer brighter marketplace hero $PIPE_RELEASE_SHA" \
+            --non-interactive
+
+  production-smoke:
+    name: Verify production pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: deploy-production
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify public production pages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($path in @('/about', '/privacy', '/terms')) {
+            $url = "https://www.pipebuyer.com$path"
+            $response = Invoke-WebRequest -Uri $url -UseBasicParsing
+            if ($response.StatusCode -ne 200) {
+              throw "$url returned HTTP $($response.StatusCode)."
+            }
+            if ($response.Content -notmatch 'Pipe Buyer') {
+              throw "$url did not identify Pipe Buyer."
+            }
+          }
