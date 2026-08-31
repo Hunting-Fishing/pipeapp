@@ -2505,12 +2505,16 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   final _actions = MarketplaceActionsRepository();
   bool _sending = false;
   bool _uploading = false;
+  bool _blockBusy = false;
+  bool _blockedByMe = false;
+  bool _blockedMe = false;
   Map<String, dynamic>? _attachment;
 
   @override
   void initState() {
     super.initState();
     _actions.markConversationRead(widget.conversationId).catchError((_) {});
+    _loadBlockStatus();
   }
 
   @override
@@ -2541,9 +2545,10 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
             onSelected: (value) {
               if (value == 'report') _reportConversation();
               if (value == 'profile') _openParticipantProfile();
+              if (value == 'block') _toggleBlock();
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
+            itemBuilder: (_) => [
+              const PopupMenuItem(
                 value: 'profile',
                 child: ListTile(
                   leading: Icon(Icons.person_outline),
@@ -2551,6 +2556,20 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 ),
               ),
               PopupMenuItem(
+                value: 'block',
+                enabled: !_blockBusy && !_blockedMe,
+                child: ListTile(
+                  leading: Icon(
+                    _blockedByMe ? Icons.person_add_alt_1 : Icons.block_outlined,
+                    color: _blockedByMe ? Colors.green : Colors.deepOrange,
+                  ),
+                  title: Text(_blockedByMe ? 'Unblock member' : 'Block member'),
+                  subtitle: _blockedMe
+                      ? const Text('This member has blocked messaging')
+                      : null,
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'report',
                 child: ListTile(
                   leading: Icon(Icons.flag_outlined, color: Colors.deepOrange),
@@ -2568,6 +2587,25 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
             openComposerOnLoad: widget.openOfferComposer,
             initialOffer: widget.initialOffer,
           ),
+          if (_blockedByMe || _blockedMe)
+            Material(
+              color: Colors.orange.shade50,
+              child: ListTile(
+                dense: true,
+                leading: const Icon(Icons.block_outlined, color: Colors.deepOrange),
+                title: Text(
+                  _blockedByMe
+                      ? 'You blocked this member'
+                      : 'Messaging is unavailable for this conversation',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  _blockedByMe
+                      ? 'Message history and reports stay saved. Use the menu to unblock.'
+                      : 'The other member has blocked direct messages. Existing history remains available.',
+                ),
+              ),
+            ),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
@@ -2717,7 +2755,9 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                   ),
                   IconButton(
                     tooltip: 'Attach photo',
-                    onPressed: _uploading ? null : _pickAttachment,
+                    onPressed: _uploading || _blockedByMe || _blockedMe
+                        ? null
+                        : _pickAttachment,
                     icon: _uploading
                         ? const SizedBox.square(
                             dimension: 18,
@@ -2750,7 +2790,9 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                   const SizedBox(width: 6),
                   IconButton.filled(
                     tooltip: 'Send message',
-                    onPressed: _sending ? null : _send,
+                    onPressed: _sending || _blockedByMe || _blockedMe
+                        ? null
+                        : _send,
                     icon: const Icon(Icons.send_rounded),
                   ),
                 ],
@@ -2760,6 +2802,82 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _loadBlockStatus() async {
+    try {
+      final status = await _actions.readConversationBlockStatus(
+        widget.conversationId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _blockedByMe = status['blockedByViewer'] == true;
+        _blockedMe = status['blockedViewer'] == true;
+      });
+    } catch (_) {
+      // Messaging remains protected server-side even if the status chip cannot load.
+    }
+  }
+
+  Future<void> _toggleBlock() async {
+    if (_blockBusy || _blockedMe) return;
+    final blocking = !_blockedByMe;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: Icon(blocking ? Icons.block_outlined : Icons.person_add_alt_1),
+            title: Text(blocking ? 'Block this member?' : 'Unblock this member?'),
+            content: Text(
+              blocking
+                  ? 'They will no longer be able to exchange direct messages with you. Existing messages and any Trust & Safety reports stay saved.'
+                  : 'Direct messaging will be available again unless the other member has also blocked you.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(blocking ? 'Block member' : 'Unblock member'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    setState(() => _blockBusy = true);
+    try {
+      final status = await _actions.setConversationBlocked(
+        widget.conversationId,
+        blocked: blocking,
+      );
+      if (!mounted) return;
+      setState(() {
+        _blockedByMe = status['blockedByViewer'] == true;
+        _blockedMe = status['blockedViewer'] == true;
+      });
+      PipeFeedback.show(
+        context,
+        message: blocking
+            ? 'Member blocked. Existing messages and reports were preserved.'
+            : 'Member unblocked.',
+        tone: PipeStatusTone.success,
+      );
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The block setting could not be changed. Try again.',
+          ),
+          tone: PipeStatusTone.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _blockBusy = false);
+    }
   }
 
   Future<void> _openParticipantProfile() async {
@@ -2789,6 +2907,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   }
 
   Future<void> _send() async {
+    if (_blockedByMe || _blockedMe) return;
     final text = _controller.text.trim();
     if (text.isEmpty && _attachment == null) return;
     setState(() => _sending = true);
