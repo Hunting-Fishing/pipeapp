@@ -5,17 +5,23 @@ on:
     branches:
       - main
     paths:
+      - 'assets/images/marketplace_home_hero_desktop.jpg'
+      - 'assets/images/marketplace_home_hero_mobile.jpg'
       - 'lib/marketplace/marketplace_home_welcome.dart'
       - 'lib/marketplace/marketplace_home_hero_assets.dart'
       - 'test/marketplace_home_hero_responsive_test.dart'
+      - 'tool/materialize_marketplace_home_hero.sh'
       - '.github/workflows/publish-marketplace-home-hero.yml'
   push:
     branches:
       - main
     paths:
+      - 'assets/images/marketplace_home_hero_desktop.jpg'
+      - 'assets/images/marketplace_home_hero_mobile.jpg'
       - 'lib/marketplace/marketplace_home_welcome.dart'
       - 'lib/marketplace/marketplace_home_hero_assets.dart'
       - 'test/marketplace_home_hero_responsive_test.dart'
+      - 'tool/materialize_marketplace_home_hero.sh'
       - '.github/workflows/publish-marketplace-home-hero.yml'
 
 permissions:
@@ -35,6 +41,29 @@ jobs:
         uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0
+
+      - name: Validate approved hero image payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          expected = {
+              'assets/images/marketplace_home_hero_desktop.jpg': '88e37978e9617db1cce7d94693353b44a4474c6f496b98160be03ae24d622ef1',
+              'assets/images/marketplace_home_hero_mobile.jpg': '49d8091744a1f57f79ad04bfb2caee96a2d4340ab9da06340d26883647785c40',
+          }
+
+          for path, wanted in expected.items():
+              data = Path(path).read_bytes()
+              actual = hashlib.sha256(data).hexdigest()
+              if actual != wanted:
+                  raise SystemExit(f'{path} SHA-256 mismatch: {actual}')
+              if not (data.startswith(b'\xff\xd8') and data.endswith(b'\xff\xd9')):
+                  raise SystemExit(f'{path} is not a complete JPEG payload')
+              print(f'{path}: approved ({len(data)} bytes, sha256={actual})')
+          PY
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
@@ -111,6 +140,29 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
+      - name: Validate approved hero image payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          expected = {
+              'assets/images/marketplace_home_hero_desktop.jpg': '88e37978e9617db1cce7d94693353b44a4474c6f496b98160be03ae24d622ef1',
+              'assets/images/marketplace_home_hero_mobile.jpg': '49d8091744a1f57f79ad04bfb2caee96a2d4340ab9da06340d26883647785c40',
+          }
+
+          for path, wanted in expected.items():
+              data = Path(path).read_bytes()
+              actual = hashlib.sha256(data).hexdigest()
+              if actual != wanted:
+                  raise SystemExit(f'{path} SHA-256 mismatch: {actual}')
+              if not (data.startswith(b'\xff\xd8') and data.endswith(b'\xff\xd9')):
+                  raise SystemExit(f'{path} is not a complete JPEG payload')
+              print(f'{path}: approved ({len(data)} bytes, sha256={actual})')
+          PY
+
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
         with:
@@ -179,7 +231,7 @@ jobs:
             --token "$FIREBASE_TOKEN" \
             --config firebase.json \
             --only hosting \
-            --message "Pipe Buyer brighter marketplace hero $PIPE_RELEASE_SHA" \
+            --message "Pipe Buyer approved marketplace truck hero $PIPE_RELEASE_SHA" \
             --non-interactive
 
   production-smoke:
