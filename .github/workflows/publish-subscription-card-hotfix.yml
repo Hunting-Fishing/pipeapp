@@ -92,6 +92,9 @@ jobs:
           npm ci --prefix firebase/functions
           npm run lint --prefix firebase/functions
           npm run check --prefix firebase/functions
+          npm ci --prefix firebase/agent-functions
+          npm run lint --prefix firebase/agent-functions
+          npm run check --prefix firebase/agent-functions
 
       - name: Install Firebase CLI
         run: npm install --global firebase-tools@15.25.0
