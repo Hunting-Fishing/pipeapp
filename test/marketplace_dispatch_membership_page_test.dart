@@ -14,12 +14,15 @@ void main() {
     expect(dispatchHostedStripeSurfaceAllowed(isWeb: false), isFalse);
   });
 
-  test('promo guidance stays limited to monthly Dispatch checkout', () {
+  test('promo guidance is visible for monthly and yearly Dispatch checkout', () {
     expect(
       dispatchMembershipPromotionHint('monthly'),
       contains('Apply it here before payment'),
     );
-    expect(dispatchMembershipPromotionHint('yearly'), isEmpty);
+    expect(
+      dispatchMembershipPromotionHint('yearly'),
+      contains('Apply it here before payment'),
+    );
   });
 
   test('Dispatch membership paid-through date is formatted from server millis',
@@ -82,10 +85,11 @@ void main() {
       ),
     );
 
-    expect(find.text('Payment cancelled'), findsOneWidget);
+    expect(find.text('Payment canceled'), findsOneWidget);
     expect(
-      find.textContaining('does not mark a membership paid'),
+      find.textContaining('No Dispatch membership payment was completed'),
       findsOneWidget,
     );
+    expect(find.text('View Dispatch membership'), findsOneWidget);
   });
 }
