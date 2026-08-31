@@ -11,6 +11,7 @@ on:
       - firebase/functions/dispatch_subscription_commands.js
       - firebase/functions/vip_subscription_commands.js
       - firebase/functions/subscription_promotion_resolver.js
+      - firebase/functions/test/dispatch_subscription_promotion_codes.test.js
       - test/dispatch_subscription_checkout_test.dart
       - test/marketplace_dispatch_membership_page_test.dart
       - test/membership_plan_artwork_responsive_test.dart
