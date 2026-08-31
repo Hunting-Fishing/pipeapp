@@ -12,7 +12,7 @@ const dispatchPromotionCodeHelpText =
     'Have a promo code? Apply it before payment, or enter it on Stripe Checkout.';
 
 bool dispatchPromotionCodeEntryAvailable(String plan) =>
-    plan.trim().toLowerCase() == 'monthly';
+    const {'monthly', 'yearly'}.contains(plan.trim().toLowerCase());
 
 String dispatchSubscriptionPlanLabel(Map<String, dynamic>? plan) {
   if (plan == null) return 'Subscribe';
