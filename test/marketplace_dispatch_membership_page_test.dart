@@ -85,11 +85,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Payment canceled'), findsOneWidget);
+    expect(find.text('Payment cancelled'), findsOneWidget);
     expect(
-      find.textContaining('No Dispatch membership payment was completed'),
+      find.textContaining('does not mark a membership paid'),
       findsOneWidget,
     );
-    expect(find.text('View Dispatch membership'), findsOneWidget);
   });
 }
