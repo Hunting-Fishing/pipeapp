@@ -319,8 +319,22 @@ class _MarketplaceVipGateBodyState extends State<_MarketplaceVipGateBody> {
   }
 }
 
-class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
+class MarketplaceSubscriptionPlansDialog extends StatefulWidget {
   const MarketplaceSubscriptionPlansDialog({super.key});
+
+  @override
+  State<MarketplaceSubscriptionPlansDialog> createState() =>
+      _MarketplaceSubscriptionPlansDialogState();
+}
+
+class _MarketplaceSubscriptionPlansDialogState
+    extends State<MarketplaceSubscriptionPlansDialog> {
+  String _selectedPlan = 'monthly';
+
+  void _selectPlan(String plan) {
+    if (_selectedPlan == plan) return;
+    setState(() => _selectedPlan = plan);
+  }
 
   @override
   Widget build(BuildContext context) => Dialog(
@@ -348,7 +362,7 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Choose marketplace priority access or Dispatch membership. Provider checkout remains separate from marketplace transactions.',
+                        'Select a plan to see its full details, promo code entry and secure checkout.',
                       ),
                     ],
                   ),
@@ -364,39 +378,48 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
             LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
-                final cards = const [
+                final cards = [
                   _SubscriptionPlanCard(
+                    planKey: 'vip',
                     title: 'VIP Membership',
                     eyebrow: 'MARKETPLACE PRIORITY',
                     artworkAsset:
                         'assets/images/membership_vip_subscription.svg',
                     icon: Icons.workspace_premium_rounded,
                     premium: true,
-                    benefits: [
+                    selected: _selectedPlan == 'vip',
+                    onTap: () => _selectPlan('vip'),
+                    benefits: const [
                       '24-hour early access to every newly published listing',
                       'Locked-listing countdowns show when inventory opens publicly',
                       'Priority marketplace alerts and enhanced offer intelligence foundation',
                     ],
                   ),
                   _SubscriptionPlanCard(
+                    planKey: 'monthly',
                     title: 'Dispatch Monthly',
                     eyebrow: 'FLEXIBLE DISPATCH ACCESS',
                     artworkAsset:
                         'assets/images/membership_dispatch_monthly_subscription.svg',
                     icon: Icons.local_shipping_outlined,
-                    benefits: [
+                    selected: _selectedPlan == 'monthly',
+                    onTap: () => _selectPlan('monthly'),
+                    benefits: const [
                       'Dispatch membership billed monthly when provider checkout is enabled',
                       'Load, carrier, quote and awarded-job workflows',
                       'Provider-managed billing; marketplace transaction funds remain separate',
                     ],
                   ),
                   _SubscriptionPlanCard(
+                    planKey: 'yearly',
                     title: 'Dispatch Yearly',
                     eyebrow: 'ANNUAL DISPATCH ACCESS',
                     artworkAsset:
                         'assets/images/membership_dispatch_yearly_subscription.svg',
                     icon: Icons.calendar_month_outlined,
-                    benefits: [
+                    selected: _selectedPlan == 'yearly',
+                    onTap: () => _selectPlan('yearly'),
+                    benefits: const [
                       'Annual Dispatch membership option',
                       'Same operational Dispatch tools with annual renewal cadence',
                       'Current pricing is supplied by the configured billing catalog',
@@ -433,129 +456,250 @@ class MarketplaceSubscriptionPlansDialog extends StatelessWidget {
 
 class _SubscriptionPlanCard extends StatelessWidget {
   const _SubscriptionPlanCard({
+    required this.planKey,
     required this.title,
     required this.eyebrow,
     required this.artworkAsset,
     required this.icon,
     required this.benefits,
+    required this.selected,
+    required this.onTap,
     this.premium = false,
   });
 
+  final String planKey;
   final String title;
   final String eyebrow;
   final String artworkAsset;
   final IconData icon;
   final List<String> benefits;
   final bool premium;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(15),
-    decoration: BoxDecoration(
-      color: premium ? const Color(0xFF101721) : Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: premium
-            ? const Color(0xFFFFB21A).withValues(alpha: .72)
-            : Theme.of(context).dividerColor,
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        LayoutBuilder(
-          builder: (context, artworkConstraints) {
-            final cardWidth = artworkConstraints.maxWidth;
-            final artworkHeight = (cardWidth * .82)
-                .clamp(220.0, 280.0)
-                .toDouble();
-            final artworkMaxWidth = (cardWidth * .72)
-                .clamp(160.0, 240.0)
-                .toDouble();
-            return SizedBox(
-              key: ValueKey('membership-artwork-$title'),
-              height: artworkHeight,
-              width: double.infinity,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: premium
-                      ? Colors.white.withValues(alpha: .04)
-                      : PipeBuyerColors.canvas,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: SizedBox(
-                    width: artworkMaxWidth,
-                    height: artworkHeight - 12,
-                    child: SvgPicture.asset(
-                      artworkAsset,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      semanticsLabel: '$title membership artwork',
-                    ),
-                  ),
-                ),
+  Widget build(BuildContext context) {
+    final borderColor = selected
+        ? PipeBuyerColors.orange
+        : premium
+            ? const Color(0xFFFFB21A).withValues(alpha: .55)
+            : Theme.of(context).dividerColor;
+    final foreground = premium ? Colors.white : null;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$title membership plan',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.all(selected ? 16 : 14),
+            decoration: BoxDecoration(
+              color: premium
+                  ? const Color(0xFF101721)
+                  : Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: borderColor,
+                width: selected ? 2.2 : 1,
               ),
-            );
-          },
-        ),
-        const SizedBox(height: 13),
-        Text(
-          eyebrow,
-          style: TextStyle(
-            color: premium
-                ? const Color(0xFFFFC44D)
-                : PipeBuyerColors.orangePressed,
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .8,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(
-            color: premium ? Colors.white : null,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 10),
-        for (final benefit in benefits)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 7),
-            child: Row(
+              boxShadow: selected
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x26000000),
+                        blurRadius: 16,
+                        offset: Offset(0, 7),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.check_circle_rounded,
-                  size: 17,
-                  color: premium
-                      ? const Color(0xFFFFC44D)
-                      : PipeBuyerColors.success,
+                LayoutBuilder(
+                  builder: (context, artworkConstraints) {
+                    final cardWidth = artworkConstraints.maxWidth;
+                    final artworkHeight = selected
+                        ? (cardWidth * .82).clamp(220.0, 280.0).toDouble()
+                        : (cardWidth * .62).clamp(170.0, 210.0).toDouble();
+                    final artworkMaxWidth = selected
+                        ? (cardWidth * .72).clamp(160.0, 240.0).toDouble()
+                        : (cardWidth * .66).clamp(145.0, 205.0).toDouble();
+                    return AnimatedContainer(
+                      key: ValueKey('membership-artwork-$title-$selected'),
+                      duration: const Duration(milliseconds: 180),
+                      height: artworkHeight,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: premium
+                            ? Colors.white.withValues(alpha: .04)
+                            : PipeBuyerColors.canvas,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: artworkMaxWidth,
+                          height: artworkHeight - 12,
+                          child: SvgPicture.asset(
+                            artworkAsset,
+                            fit: BoxFit.contain,
+                            alignment: Alignment.center,
+                            semanticsLabel: '$title membership artwork',
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    benefit,
+                const SizedBox(height: 13),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            eyebrow,
+                            style: TextStyle(
+                              color: premium
+                                  ? const Color(0xFFFFC44D)
+                                  : PipeBuyerColors.orangePressed,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .8,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: foreground,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      selected ? Icons.check_circle_rounded : icon,
+                      color: selected
+                          ? PipeBuyerColors.orange
+                          : premium
+                              ? const Color(0xFFFFC44D)
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                      size: selected ? 24 : 21,
+                    ),
+                  ],
+                ),
+                if (!selected) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    benefits.first,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: premium ? Colors.white70 : null,
                       fontSize: 12,
                       height: 1.35,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.touch_app_rounded,
+                        size: 17,
+                        color: premium
+                            ? const Color(0xFFFFC44D)
+                            : PipeBuyerColors.orangePressed,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Select to view details, promo code & checkout',
+                          style: TextStyle(
+                            color: premium ? Colors.white70 : null,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: premium
+                          ? Colors.white.withValues(alpha: .06)
+                          : PipeBuyerColors.orange.withValues(alpha: .08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'SELECTED PLAN',
+                      style: TextStyle(
+                        color: premium
+                            ? const Color(0xFFFFC44D)
+                            : PipeBuyerColors.orangePressed,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final benefit in benefits)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 17,
+                            color: premium
+                                ? const Color(0xFFFFC44D)
+                                : PipeBuyerColors.success,
+                          ),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              benefit,
+                              style: TextStyle(
+                                color: premium ? Colors.white70 : null,
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  if (planKey == 'monthly')
+                    const DispatchSubscriptionCheckoutButton(plan: 'monthly')
+                  else if (planKey == 'yearly')
+                    const DispatchSubscriptionCheckoutButton(plan: 'yearly')
+                  else
+                    const VipSubscriptionCheckoutButton(),
+                ],
               ],
             ),
           ),
-        const SizedBox(height: 4),
-        if (title == 'Dispatch Monthly')
-          const DispatchSubscriptionCheckoutButton(plan: 'monthly')
-        else if (title == 'Dispatch Yearly')
-          const DispatchSubscriptionCheckoutButton(plan: 'yearly')
-        else
-          const VipSubscriptionCheckoutButton(),
-      ],
-    ),
-  );
+        ),
+      ),
+    );
+  }
 }
