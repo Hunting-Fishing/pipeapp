@@ -18,14 +18,18 @@ const {
 const {safeStripeLogPath} = require("../stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 
-test("customer promotion codes are limited to undiscounted monthly Dispatch checkout", () => {
+test("customer promotion codes are available for undiscounted monthly and yearly Dispatch checkout", () => {
   assert.equal(promotionCodeEntryAllowed("monthly", null), true);
   assert.equal(promotionCodeEntryAllowed("monthly", ""), true);
   assert.equal(
       promotionCodeEntryAllowed("monthly", "PIPEBUYER_FREE_1Y"),
       false,
   );
-  assert.equal(promotionCodeEntryAllowed("yearly", null), false);
+  assert.equal(promotionCodeEntryAllowed("yearly", null), true);
+  assert.equal(
+      promotionCodeEntryAllowed("yearly", "PIPEBUYER_FREE_1Y"),
+      false,
+  );
 });
 
 test("promotion code input is normalized without client-side discount math", () => {
