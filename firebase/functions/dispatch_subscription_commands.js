@@ -20,8 +20,8 @@ const {
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
-  resolveDispatchPromotionCode,
-} = require("./dispatch_subscription_promotions");
+  resolveSubscriptionPromotionCode,
+} = require("./subscription_promotion_resolver");
 const {
   automaticTaxEnabled,
   taxBillingPrepared,
@@ -70,7 +70,8 @@ function couponFromEntitlement(entitlement) {
 }
 
 function promotionCodeEntryAllowed(plan, couponId) {
-  return plan === "monthly" && !String(couponId || "").trim();
+  return new Set(["monthly", "yearly"]).has(plan) &&
+    !String(couponId || "").trim();
 }
 
 function timestampMillis(value) {
@@ -142,9 +143,11 @@ function createDispatchSubscriptionCommands(admin) {
       requireSubscriptionReady(readiness);
       const collectionStatus = taxCollectionStatus(readiness);
       const plan = selectedPlan(request.data && request.data.plan);
-      const priceId = plan === "monthly" ?
-        stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId :
-        stripeMarketplaceConfig.products.dispatchYearlyCad.priceId;
+      const product = plan === "monthly" ?
+        stripeMarketplaceConfig.products.dispatchMonthlyCad :
+        stripeMarketplaceConfig.products.dispatchYearlyCad;
+      const priceId = product.priceId;
+      const productId = product.productId;
       const successUrl = safeConfiguredUrl(
           readiness.checkoutSuccessUrl,
           "Stripe Checkout success URL",
@@ -167,7 +170,7 @@ function createDispatchSubscriptionCommands(admin) {
       if (requestedPromotionCode && !promotionCodeEntryAllowed(plan, couponId)) {
         throw new HttpsError(
             "failed-precondition",
-            "Promo codes can currently be applied to monthly Dispatch memberships without another automatic promotion.",
+            "Promo codes cannot be combined with another automatic Dispatch promotion.",
         );
       }
       const providerState = providerSnapshot.exists ? providerSnapshot.data() : null;
@@ -176,11 +179,13 @@ function createDispatchSubscriptionCommands(admin) {
         String(providerState.stripeCustomerId) : "";
       const secretKey = stripeSecretKey.value();
       const promotion = requestedPromotionCode ?
-        await resolveDispatchPromotionCode({
+        await resolveSubscriptionPromotionCode({
           secretKey,
           code: requestedPromotionCode,
           stripeCustomerId,
           existingSubscriber: false,
+          productId,
+          productLabel: "Dispatch membership",
         }) : null;
       const promotionCodeId = promotion ? promotion.id : "";
       const allowPromotionCodes =
