@@ -8,5 +8,5 @@ class MarketplaceHomeHeroAssets {
 
   static const double mobileBreakpoint = 720;
   static const double desktopMinHeight = 440;
-  static const double mobileMinHeight = 620;
+  static const double mobileMinHeight = 520;
 }

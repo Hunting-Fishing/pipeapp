@@ -48,8 +48,9 @@ class MarketplaceHomeWelcome extends StatelessWidget {
 
 /// Pure presentation surface for the Marketplace welcome campaign.
 ///
-/// This stays Firebase-free so responsive rendering can be verified directly
-/// in widget tests without bypassing the application's authentication gate.
+/// The hero intentionally lives inside the page's normal scrolling ListView.
+/// The image therefore scrolls naturally with the page instead of behaving as
+/// a fixed or parallax background. Keep this Firebase-free for widget testing.
 class MarketplaceHomeDiscoveryHero extends StatelessWidget {
   const MarketplaceHomeDiscoveryHero({
     super.key,
@@ -137,18 +138,21 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
             : MarketplaceHomeHeroAssets.desktopMinHeight;
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(isMobile ? 20 : 24),
           child: Stack(
             children: [
               Positioned.fill(
                 child: Image.asset(
                   imagePath,
                   fit: BoxFit.cover,
-                  alignment:
-                      isMobile ? Alignment.center : Alignment.centerRight,
+                  alignment: isMobile ? Alignment.topCenter : Alignment.center,
                   filterQuality: FilterQuality.medium,
                 ),
               ),
+              // The previous hero used an almost-opaque black wash (up to .86
+              // desktop / .78 mobile), which hid the photography and made the
+              // mobile first viewport appear black. This deliberately keeps
+              // only the minimum contrast needed for white text.
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -157,23 +161,23 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Colors.black.withValues(alpha: .78),
-                              Colors.black.withValues(alpha: .58),
                               Colors.black.withValues(alpha: .28),
-                              Colors.black.withValues(alpha: .52),
+                              Colors.black.withValues(alpha: .16),
+                              Colors.black.withValues(alpha: .06),
+                              Colors.black.withValues(alpha: .20),
                             ],
-                            stops: const [0, .38, .7, 1],
+                            stops: const [0, .34, .68, 1],
                           )
                         : LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                             colors: [
-                              Colors.black.withValues(alpha: .86),
-                              Colors.black.withValues(alpha: .70),
-                              Colors.black.withValues(alpha: .28),
+                              Colors.black.withValues(alpha: .42),
+                              Colors.black.withValues(alpha: .24),
                               Colors.black.withValues(alpha: .08),
+                              Colors.transparent,
                             ],
-                            stops: const [0, .42, .72, 1],
+                            stops: const [0, .38, .72, 1],
                           ),
                   ),
                 ),
@@ -181,24 +185,22 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
               Container(
                 width: double.infinity,
                 constraints: BoxConstraints(minHeight: minHeight),
-                padding: EdgeInsets.all(isMobile ? 20 : 30),
+                padding: EdgeInsets.all(isMobile ? 18 : 30),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isMobile ? 620 : 700,
-                    ),
+                    constraints: BoxConstraints(maxWidth: isMobile ? 600 : 700),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const _HeroBrandMark(),
-                        SizedBox(height: isMobile ? 26 : 30),
+                        SizedBox(height: isMobile ? 22 : 30),
                         Text(
                           signedIn
                               ? 'PIPE BUYER WORKSPACE'
                               : 'INDUSTRIAL MARKETPLACE',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: PipeBuyerColors.orange,
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
@@ -210,14 +212,14 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                           title,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: isMobile ? 29 : 40,
+                            fontSize: isMobile ? 28 : 40,
                             height: 1.05,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -.7,
                             shadows: const [
                               Shadow(
-                                color: Colors.black54,
-                                blurRadius: 8,
+                                color: Colors.black87,
+                                blurRadius: 10,
                                 offset: Offset(0, 2),
                               ),
                             ],
@@ -227,20 +229,20 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                         Text(
                           subtitle,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: .92),
+                            color: Colors.white,
                             fontSize: isMobile ? 14 : 15.5,
-                            height: 1.45,
+                            height: 1.42,
                             fontWeight: FontWeight.w600,
                             shadows: const [
                               Shadow(
-                                color: Colors.black54,
-                                blurRadius: 6,
+                                color: Colors.black87,
+                                blurRadius: 8,
                                 offset: Offset(0, 1),
                               ),
                             ],
                           ),
                         ),
-                        SizedBox(height: isMobile ? 22 : 25),
+                        SizedBox(height: isMobile ? 20 : 24),
                         const Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -309,7 +311,7 @@ class _HeroBrandMark extends StatelessWidget {
           height: 58,
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.white.withValues(alpha: .96),
             borderRadius: BorderRadius.circular(14),
             boxShadow: const [
               BoxShadow(
@@ -341,8 +343,8 @@ class _HeroBrandMark extends StatelessWidget {
                   letterSpacing: .4,
                   shadows: [
                     Shadow(
-                      color: Colors.black54,
-                      blurRadius: 6,
+                      color: Colors.black87,
+                      blurRadius: 7,
                       offset: Offset(0, 1),
                     ),
                   ],
@@ -355,11 +357,18 @@ class _HeroBrandMark extends StatelessWidget {
                 softWrap: true,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: Colors.white,
                   fontSize: 9.5,
                   height: 1.1,
                   fontWeight: FontWeight.w800,
                   letterSpacing: .55,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black87,
+                      blurRadius: 6,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -382,13 +391,14 @@ class _HeroCapabilityChip extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 34),
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .34),
+        color: Colors.black.withValues(alpha: .28),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: Colors.white.withValues(alpha: .14)),
+        border: Border.all(color: Colors.white.withValues(alpha: .22)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const SizedBox(width: 0),
           Icon(icon, color: PipeBuyerColors.orange, size: 16),
           const SizedBox(width: 7),
           Text(
@@ -417,9 +427,9 @@ class _HeroChip extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 30),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .09),
+        color: Colors.black.withValues(alpha: .20),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: .16)),
+        border: Border.all(color: Colors.white.withValues(alpha: .22)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
