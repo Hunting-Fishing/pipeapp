@@ -1,5 +1,11 @@
 # Phase 1 progress audit
 
+## 2026-09-01 reconciliation
+
+This July 30 audit is preserved as a historical engineering checkpoint. Do not use its provisional percentages as current launch status. Current launch authority is `docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md`. Since this checkpoint, production has closed major gaps including protected App Check/release parity, server-authoritative marketplace payment/Connect flows, Timed Buying, web membership upgrades and promotion-code handling, OpenStreetMap/geolocation, substantial Dispatch Directory stabilization, and the brighter responsive Marketplace home hero.
+
+The controlled North American web surface is now in late P1 acceptance. Native store publication and unrestricted international expansion remain separate readiness tracks.
+
 Audit date: July 30, 2026
 
 Branch: `main` (working-tree completion candidate)

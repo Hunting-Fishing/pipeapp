@@ -1,5 +1,13 @@
 # Pipe Buyer Phase 1 Launch Finalization Plan
 
+## 2026-09-01 reconciliation
+
+This file began as the July Phase 1 engineering gate ledger. Its `99% provisional` / `Gate 7 86%` figures below are retained as historical checkpoint data and are **not the current launch-readiness measure**. The current authority is `docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md`, reconciled on 2026-09-01.
+
+Current verified state: the protected North American web release is launch-capable for controlled use; Stripe marketplace payments and seller Connect release, Timed Buying, web Dispatch/VIP memberships, OpenStreetMap/geolocation, reporting/moderation, production App Check/release gates, and the upgraded Marketplace home hero have all advanced beyond this July ledger. Native Apple/Google membership/store acceptance, physical-device push/deep links, fresh ordinary-user acceptance journeys, Dispatch production-data acceptance, and any freight-specific transaction charging remain separate launch work.
+
+The current P1 trust slice is user block/unblock for Marketplace conversations. It is being implemented server-authoritatively so blocked parties cannot exchange new direct messages while existing messages and moderation/report evidence remain stored.
+
 Status: In progress  
 Plan owner: Pipe Buyer product and engineering  
 Baseline branch: `main` (`b34387a`; current completion candidate contains reviewed working-tree changes)
