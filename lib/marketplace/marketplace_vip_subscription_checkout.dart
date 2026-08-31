@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'dispatch_promotion_code_field.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
 import 'membership_plan_management.dart';
@@ -35,13 +36,22 @@ class VipSubscriptionCheckoutButton extends StatefulWidget {
 
 class _VipSubscriptionCheckoutButtonState
     extends State<VipSubscriptionCheckoutButton> {
+  final _promoController = TextEditingController();
   late Future<Map<String, dynamic>> _viewFuture;
   bool _busy = false;
+  bool _promoBusy = false;
+  String _promoSummary = '';
 
   @override
   void initState() {
     super.initState();
     _viewFuture = _loadView();
+  }
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
   }
 
   Future<Map<String, dynamic>> _loadView() async {
@@ -62,6 +72,11 @@ class _VipSubscriptionCheckoutButtonState
   }
 
   void _reload() => setState(() => _viewFuture = _loadView());
+
+  void _promoChanged(String value) {
+    if (_promoSummary.isEmpty) return;
+    setState(() => _promoSummary = '');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -160,32 +175,99 @@ class _VipSubscriptionCheckoutButtonState
           );
         }
 
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: _busy ? null : _startCheckout,
-            icon: _busy
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.lock_outline_rounded),
-            label: Text(
-              _busy ? 'Opening secure checkout…' : 'Join VIP • $price',
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Have a promo code? Apply it before payment, or enter it on Stripe Checkout.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
-          ),
+            const SizedBox(height: 8),
+            DispatchPromotionCodeField(
+              controller: _promoController,
+              busy: _promoBusy,
+              enabled: !_busy,
+              appliedSummary: _promoSummary,
+              onChanged: _promoChanged,
+              onApply: _applyCheckoutPromotion,
+              helperText:
+                  'Apply it here before payment. If you leave it blank, Stripe Checkout also has a promo-code entry.',
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _busy || _promoBusy ? null : _startCheckout,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.lock_outline_rounded),
+              label: Text(
+                _busy ? 'Opening secure checkout…' : 'Join VIP • $price',
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
+  Future<void> _applyCheckoutPromotion() async {
+    if (_promoBusy || _busy || !marketplaceHostedMembershipBillingAllowed()) {
+      return;
+    }
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      _showMessage('Enter a promo code first.');
+      return;
+    }
+    setState(() {
+      _promoBusy = true;
+      _promoSummary = '';
+    });
+    try {
+      final result = await MarketplaceCommandClient().execute(
+        'createVipSubscriptionCheckout',
+        <String, Object?>{'plan': 'monthly', 'promotionCode': code},
+      );
+      if (result['promotionCodeApplied'] != true) {
+        throw StateError('Stripe did not confirm that promo code.');
+      }
+      final summary = '${result['promotionCodeSummary'] ?? ''}'.trim();
+      if (!mounted) return;
+      setState(() {
+        _promoSummary = summary.isEmpty
+            ? 'Promo code accepted by Stripe.'
+            : 'Promo applied — $summary.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(
+        marketplaceCommandErrorMessage(
+          error,
+          fallback:
+              'That promo code could not be applied. Check it and try again.',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _promoBusy = false);
+    }
+  }
+
   Future<void> _startCheckout() async {
-    if (_busy || !marketplaceHostedMembershipBillingAllowed()) return;
+    if (_busy || _promoBusy || !marketplaceHostedMembershipBillingAllowed()) {
+      return;
+    }
+    final payload = <String, Object?>{'plan': 'monthly'};
+    final code = _promoController.text.trim();
+    if (code.isNotEmpty) payload['promotionCode'] = code;
     setState(() => _busy = true);
     try {
       final result = await MarketplaceCommandClient().execute(
         'createVipSubscriptionCheckout',
-        const <String, Object?>{'plan': 'monthly'},
+        payload,
       );
       final rawUrl = '${result['checkoutUrl'] ?? ''}'.trim();
       final uri = Uri.tryParse(rawUrl);
@@ -204,15 +286,11 @@ class _VipSubscriptionCheckoutButtonState
       if (!opened) throw StateError('VIP checkout could not be opened.');
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            marketplaceCommandErrorMessage(
-              error,
-              fallback:
-                  'VIP checkout could not be opened. No charge was created.',
-            ),
-          ),
+      _showMessage(
+        marketplaceCommandErrorMessage(
+          error,
+          fallback:
+              'VIP checkout could not be opened. No charge was created.',
         ),
       );
     } finally {
@@ -237,18 +315,21 @@ class _VipSubscriptionCheckoutButtonState
       _reload();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            marketplaceCommandErrorMessage(
-              error,
-              fallback: 'VIP renewal could not be updated safely.',
-            ),
-          ),
+      _showMessage(
+        marketplaceCommandErrorMessage(
+          error,
+          fallback: 'VIP renewal could not be updated safely.',
         ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }
