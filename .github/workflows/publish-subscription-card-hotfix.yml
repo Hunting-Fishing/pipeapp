@@ -1,0 +1,142 @@
+name: Publish subscription card hotfix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - lib/marketplace/marketplace_vip_access.dart
+      - lib/marketplace/marketplace_dispatch_subscription_checkout.dart
+      - lib/marketplace/marketplace_vip_subscription_checkout.dart
+      - firebase/functions/dispatch_subscription_commands.js
+      - firebase/functions/vip_subscription_commands.js
+      - firebase/functions/subscription_promotion_resolver.js
+      - .github/workflows/publish-subscription-card-hotfix.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: subscription-card-production-hotfix
+  cancel-in-progress: false
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: production
+    env:
+      PIPE_ENV: production
+      PIPE_RELEASE_SHA: ${{ github.sha }}
+      PIPE_FIREBASE_API_KEY: ${{ vars.PIPE_FIREBASE_API_KEY }}
+      PIPE_FIREBASE_AUTH_DOMAIN: ${{ vars.PIPE_FIREBASE_AUTH_DOMAIN }}
+      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
+      PIPE_FIREBASE_STORAGE_BUCKET: ${{ vars.PIPE_FIREBASE_STORAGE_BUCKET }}
+      PIPE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PIPE_FIREBASE_MESSAGING_SENDER_ID }}
+      PIPE_FIREBASE_WEB_APP_ID: ${{ vars.PIPE_FIREBASE_WEB_APP_ID }}
+      PIPE_FIREBASE_MEASUREMENT_ID: ${{ vars.PIPE_FIREBASE_MEASUREMENT_ID }}
+      PIPE_PUBLIC_SUPPORT_EMAIL: ${{ vars.PIPE_PUBLIC_SUPPORT_EMAIL }}
+      PIPE_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars.PIPE_FIREBASE_WEB_PUSH_VAPID_KEY }}
+      PIPE_APP_CHECK_WEB_RECAPTCHA_KEY: ${{ vars.PIPE_APP_CHECK_WEB_RECAPTCHA_KEY }}
+      PIPE_APP_CHECK_REQUIRED: "false"
+      PIPE_REMOTE_DIAGNOSTICS_ENABLED: "true"
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+    steps:
+      - name: Check out hotfix
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Guard production project
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$PIPE_FIREBASE_PROJECT_ID" != "flutter-flow-pipe" ]]; then
+            echo "::error::Production hotfix is approved only for flutter-flow-pipe."
+            exit 1
+          fi
+          if [[ -z "${FIREBASE_TOKEN:-}" ]]; then
+            echo "::error::FIREBASE_TOKEN is not configured."
+            exit 1
+          fi
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze Flutter source
+        run: dart analyze lib test
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Validate Firebase Functions
+        run: |
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@15.25.0
+
+      - name: Build production web app
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_path="web/firebase-messaging-sw.js"
+          restore_worker() {
+            git restore --source=HEAD --worktree -- "$worker_path"
+          }
+          trap restore_worker EXIT
+          node tool/configure_firebase_messaging_worker.mjs \
+            --output "$worker_path" \
+            --api-key "$PIPE_FIREBASE_API_KEY" \
+            --auth-domain "$PIPE_FIREBASE_AUTH_DOMAIN" \
+            --project-id "$PIPE_FIREBASE_PROJECT_ID" \
+            --storage-bucket "$PIPE_FIREBASE_STORAGE_BUCKET" \
+            --messaging-sender-id "$PIPE_FIREBASE_MESSAGING_SENDER_ID" \
+            --app-id "$PIPE_FIREBASE_WEB_APP_ID"
+          flutter build web \
+            --release \
+            --dart-define=PIPE_ENV="$PIPE_ENV" \
+            --dart-define=PIPE_RELEASE_SHA="$PIPE_RELEASE_SHA" \
+            --dart-define=PIPE_FIREBASE_API_KEY="$PIPE_FIREBASE_API_KEY" \
+            --dart-define=PIPE_FIREBASE_AUTH_DOMAIN="$PIPE_FIREBASE_AUTH_DOMAIN" \
+            --dart-define=PIPE_FIREBASE_PROJECT_ID="$PIPE_FIREBASE_PROJECT_ID" \
+            --dart-define=PIPE_FIREBASE_STORAGE_BUCKET="$PIPE_FIREBASE_STORAGE_BUCKET" \
+            --dart-define=PIPE_FIREBASE_MESSAGING_SENDER_ID="$PIPE_FIREBASE_MESSAGING_SENDER_ID" \
+            --dart-define=PIPE_FIREBASE_WEB_APP_ID="$PIPE_FIREBASE_WEB_APP_ID" \
+            --dart-define=PIPE_FIREBASE_MEASUREMENT_ID="$PIPE_FIREBASE_MEASUREMENT_ID" \
+            --dart-define=PIPE_PUBLIC_SUPPORT_EMAIL="$PIPE_PUBLIC_SUPPORT_EMAIL" \
+            --dart-define=PIPE_APP_CHECK_WEB_RECAPTCHA_KEY="$PIPE_APP_CHECK_WEB_RECAPTCHA_KEY" \
+            --dart-define=PIPE_APP_CHECK_REQUIRED="$PIPE_APP_CHECK_REQUIRED" \
+            --dart-define=PIPE_FIREBASE_WEB_PUSH_VAPID_KEY="$PIPE_FIREBASE_WEB_PUSH_VAPID_KEY" \
+            --dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED="$PIPE_REMOTE_DIAGNOSTICS_ENABLED"
+          restore_worker
+          trap - EXIT
+
+      - name: Publish hosting and marketplace functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase deploy \
+            --project "$PIPE_FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --config firebase.json \
+            --only hosting,functions \
+            --message "Pipe Buyer subscription card hotfix $PIPE_RELEASE_SHA" \
+            --force \
+            --non-interactive
