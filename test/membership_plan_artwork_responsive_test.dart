@@ -12,7 +12,7 @@ void main() {
 
   for (final viewport in viewports) {
     testWidgets(
-      'membership plan artwork is readable at ${viewport.width.toInt()}px',
+      'membership plans show one expanded selection at ${viewport.width.toInt()}px',
       (tester) async {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = viewport;
@@ -34,23 +34,82 @@ void main() {
         expect(find.text('VIP Membership'), findsOneWidget);
         expect(find.text('Dispatch Monthly'), findsOneWidget);
         expect(find.text('Dispatch Yearly'), findsOneWidget);
+        expect(find.text('SELECTED PLAN'), findsOneWidget);
 
-        for (final title in const [
-          'VIP Membership',
-          'Dispatch Monthly',
-          'Dispatch Yearly',
-        ]) {
-          final artwork =
-              find.byKey(ValueKey<String>('membership-artwork-$title'));
-          expect(artwork, findsOneWidget);
+        final vipArtwork = find.byKey(
+          const ValueKey<String>('membership-artwork-VIP Membership-false'),
+        );
+        final monthlyArtwork = find.byKey(
+          const ValueKey<String>('membership-artwork-Dispatch Monthly-true'),
+        );
+        final yearlyArtwork = find.byKey(
+          const ValueKey<String>('membership-artwork-Dispatch Yearly-false'),
+        );
+        expect(vipArtwork, findsOneWidget);
+        expect(monthlyArtwork, findsOneWidget);
+        expect(yearlyArtwork, findsOneWidget);
 
-          final size = tester.getSize(artwork);
-          expect(size.height, greaterThanOrEqualTo(220));
-          expect(size.height, lessThanOrEqualTo(280));
-        }
+        final vipSize = tester.getSize(vipArtwork);
+        final monthlySize = tester.getSize(monthlyArtwork);
+        final yearlySize = tester.getSize(yearlyArtwork);
+        expect(vipSize.height, inInclusiveRange(170, 210));
+        expect(yearlySize.height, inInclusiveRange(170, 210));
+        expect(monthlySize.height, inInclusiveRange(220, 280));
+        expect(monthlySize.height, greaterThan(vipSize.height));
+        expect(monthlySize.height, greaterThan(yearlySize.height));
 
         expect(tester.takeException(), isNull);
       },
     );
   }
+
+  testWidgets('selecting VIP expands VIP and collapses Dispatch Monthly',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 1000);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MarketplaceSubscriptionPlansDialog(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final monthlyBefore = tester.getSize(
+      find.byKey(
+        const ValueKey<String>('membership-artwork-Dispatch Monthly-true'),
+      ),
+    );
+    final vipBefore = tester.getSize(
+      find.byKey(
+        const ValueKey<String>('membership-artwork-VIP Membership-false'),
+      ),
+    );
+
+    await tester.tap(find.text('VIP Membership'));
+    await tester.pumpAndSettle();
+
+    final vipSelected = find.byKey(
+      const ValueKey<String>('membership-artwork-VIP Membership-true'),
+    );
+    final monthlyCollapsed = find.byKey(
+      const ValueKey<String>('membership-artwork-Dispatch Monthly-false'),
+    );
+    expect(vipSelected, findsOneWidget);
+    expect(monthlyCollapsed, findsOneWidget);
+    expect(find.text('SELECTED PLAN'), findsOneWidget);
+
+    final vipAfter = tester.getSize(vipSelected);
+    final monthlyAfter = tester.getSize(monthlyCollapsed);
+    expect(vipAfter.height, greaterThan(vipBefore.height));
+    expect(monthlyAfter.height, lessThan(monthlyBefore.height));
+    expect(vipAfter.height, greaterThan(monthlyAfter.height));
+    expect(tester.takeException(), isNull);
+  });
 }
