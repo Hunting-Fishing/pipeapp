@@ -35,10 +35,12 @@ void main() {
     );
   });
 
-  test('promo code entry is limited to monthly Dispatch checkout', () {
+  test('promo code entry is available for both Dispatch checkout plans', () {
     expect(dispatchPromotionCodeEntryAvailable('monthly'), isTrue);
     expect(dispatchPromotionCodeEntryAvailable('MONTHLY'), isTrue);
-    expect(dispatchPromotionCodeEntryAvailable('yearly'), isFalse);
+    expect(dispatchPromotionCodeEntryAvailable('yearly'), isTrue);
+    expect(dispatchPromotionCodeEntryAvailable('YEARLY'), isTrue);
+    expect(dispatchPromotionCodeEntryAvailable('weekly'), isFalse);
     expect(dispatchPromotionCodeHelpText, contains('Apply it before payment'));
     expect(dispatchPromotionCodeHelpText, contains('Stripe Checkout'));
   });
