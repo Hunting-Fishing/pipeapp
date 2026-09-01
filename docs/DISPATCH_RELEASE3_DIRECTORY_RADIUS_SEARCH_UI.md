@@ -4,18 +4,47 @@
 
 2026-09-01
 
-## Verified production baseline
+## Backend production baseline
 
 ```text
 54e1a3c100d528eecdf4acdb4c7858644fb0576d
 ```
 
-Protected production workflow `33519388582` / run #62 passed Firebase deployment, post-deploy Function parity, and responsive mobile/desktop visual acceptance with App Check enforced.
+Protected production workflow `33519388582` / run #62 deployed the bounded radius-search backend and passed Firebase deployment, post-deploy Function parity, and responsive mobile/desktop visual acceptance with App Check enforced.
 
-Evidence artifacts:
+Backend evidence artifacts:
 
 - Firebase release evidence: `9805447988`
 - Visual acceptance evidence: `9805481206`
+
+## Verified UI production release
+
+```text
+b54edc4b17a2feee67f67faaeb0aa1a78721d822
+```
+
+PR #176 (`Release 3: add simple Dispatch Directory radius search UI`) was squash merged from the exact reviewed feature head `443e5d68badaad0430e2e5ad5f0852b140338e02`.
+
+Protected production workflow `33530088768` / run #63 deployed the exact merged application SHA with App Check `enforce` and passed:
+
+- exact release identity validation;
+- analyzer and full Flutter regression;
+- dynamic release-manifest controls;
+- pre-deploy Function parity controls;
+- both Firebase Functions codebase validations;
+- Firestore Rules tests;
+- authenticated callable workflow/retry tests;
+- exact web build and notification-worker verification;
+- Firebase production deployment;
+- post-deploy Function parity proof; and
+- responsive mobile/desktop visual acceptance.
+
+Production evidence artifacts:
+
+- Firebase release evidence: `9809595669`
+- Visual acceptance evidence: `9809629706`
+
+The verified deployed application SHA is `b54edc4b17a2feee67f67faaeb0aa1a78721d822`. Later documentation-only commits must not replace that application SHA unless a new protected application deployment actually occurs.
 
 ## User problem
 
@@ -88,10 +117,10 @@ Permanent lesson: when temporary release tooling must generate source assertions
 - [x] Existing Directory filters retained as local refinements.
 - [x] Focused tests, analyzer, full Flutter regression, release contracts, Functions validation, and diff hygiene passed.
 - [x] Temporary verifier and patch tooling removed from the feature branch.
-- [ ] Four-file feature PR merged to `main`.
-- [ ] Exact merged SHA deployed through the protected production workflow.
-- [ ] Post-deploy Function parity and responsive visual acceptance confirmed.
-- [ ] Final production SHA and evidence artifacts recorded here.
+- [x] Four-file feature PR #176 merged to `main`.
+- [x] Exact merged SHA `b54edc4b17a2feee67f67faaeb0aa1a78721d822` deployed through protected production workflow #63.
+- [x] Post-deploy Function parity and responsive visual acceptance confirmed.
+- [x] Final production SHA and evidence artifacts recorded here.
 
 ## Permanent implementation rule
 
