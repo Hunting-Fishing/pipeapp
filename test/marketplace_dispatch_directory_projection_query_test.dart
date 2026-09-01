@@ -82,6 +82,20 @@ void main() {
     );
   });
 
+  test('Directory map/list view uses the public approximate map projection', () {
+    final source = File(
+      'lib/marketplace/marketplace_dispatch_directory.dart',
+    ).readAsStringSync();
+
+    expect(source, contains("package:flutter_map/flutter_map.dart"));
+    expect(source, contains('DispatchDirectoryViewMode.map'));
+    expect(source, contains('entry.homeBasePoint != null'));
+    expect(source, contains('urlTemplate: pipeBuyerTileUrl'));
+    expect(source, contains('OpenStreetMap contributors'));
+    expect(source, contains('Approximate public locations only.'));
+    expect(source, contains('Selected company'));
+  });
+
   test('Directory filters preserve structured service and capability matching', () {
     final entry = DispatchDirectoryEntry.fromDirectoryProjection(
       'pilot',

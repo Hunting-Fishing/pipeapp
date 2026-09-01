@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../core/data/bounded_firestore_query.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_service_taxonomy.dart';
 import 'marketplace_dispatch_directory_actions.dart';
+import 'marketplace_location_picker.dart';
 
 class DispatchDirectoryEntry {
   const DispatchDirectoryEntry({
@@ -207,6 +210,8 @@ class DispatchDirectoryFilters {
       );
 }
 
+enum DispatchDirectoryViewMode { list, map }
+
 class DispatchDirectoryPageData {
   const DispatchDirectoryPageData({
     required this.entries,
@@ -318,6 +323,8 @@ class _MarketplaceDispatchDirectoryPageState
   DispatchDirectoryFilters _filters = const DispatchDirectoryFilters();
   bool _loadingMore = false;
   String? _loadMoreError;
+  DispatchDirectoryViewMode _viewMode = DispatchDirectoryViewMode.list;
+  String? _selectedMapEntryId;
 
   @override
   void initState() {
@@ -476,6 +483,9 @@ class _MarketplaceDispatchDirectoryPageState
         final filtered = allEntries
             .where((entry) => entry.matches(_filters))
             .toList(growable: false);
+        final mappedEntries = filtered
+            .where((entry) => entry.homeBasePoint != null)
+            .toList(growable: false);
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
@@ -528,10 +538,25 @@ class _MarketplaceDispatchDirectoryPageState
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
-                const PipeBuyerStatusBadge(
-                  label: 'LIST VIEW',
-                  icon: Icons.view_list_outlined,
-                  tone: PipeBuyerStatusTone.info,
+                SegmentedButton<DispatchDirectoryViewMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: DispatchDirectoryViewMode.list,
+                      icon: Icon(Icons.view_list_outlined),
+                      label: Text('List'),
+                    ),
+                    ButtonSegment(
+                      value: DispatchDirectoryViewMode.map,
+                      icon: Icon(Icons.map_outlined),
+                      label: Text('Map'),
+                    ),
+                  ],
+                  selected: {_viewMode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) {
+                    if (selection.isEmpty) return;
+                    setState(() => _viewMode = selection.first);
+                  },
                 ),
               ],
             ),
@@ -555,12 +580,24 @@ class _MarketplaceDispatchDirectoryPageState
                       )
                     : null,
               )
-            else
+            else if (_viewMode == DispatchDirectoryViewMode.list)
               ...filtered.map(
                 (entry) => _DirectoryCompanyCard(
                   entry: entry,
                   remoteDataEnabled: widget.seedEntries == null,
                 ),
+              )
+            else
+              _DirectoryMapView(
+                entries: mappedEntries,
+                selectedEntryId: _selectedMapEntryId,
+                remoteDataEnabled: widget.seedEntries == null,
+                onSelected: (entryId) {
+                  setState(() => _selectedMapEntryId = entryId);
+                },
+                onShowList: () {
+                  setState(() => _viewMode = DispatchDirectoryViewMode.list);
+                },
               ),
             if (retainedData?.hasMore == true &&
                 widget.seedEntries == null) ...[
@@ -626,6 +663,212 @@ class _MarketplaceDispatchDirectoryPageState
         );
       },
     );
+  }
+}
+
+class _DirectoryMapView extends StatelessWidget {
+  const _DirectoryMapView({
+    required this.entries,
+    required this.selectedEntryId,
+    required this.remoteDataEnabled,
+    required this.onSelected,
+    required this.onShowList,
+  });
+
+  final List<DispatchDirectoryEntry> entries;
+  final String? selectedEntryId;
+  final bool remoteDataEnabled;
+  final ValueChanged<String> onSelected;
+  final VoidCallback onShowList;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty) {
+      return _DirectoryEmptyState(
+        title: 'No mapped companies in these results',
+        message:
+            'These companies do not currently publish an approximate Directory map location. Their list profiles remain available.',
+        action: OutlinedButton.icon(
+          onPressed: onShowList,
+          icon: const Icon(Icons.view_list_outlined),
+          label: const Text('Show list'),
+        ),
+      );
+    }
+
+    DispatchDirectoryEntry? selectedEntry;
+    for (final entry in entries) {
+      if (entry.id == selectedEntryId) {
+        selectedEntry = entry;
+        break;
+      }
+    }
+
+    final mapIdentity = entries.map((entry) {
+      final point = entry.homeBasePoint!;
+      return '${entry.id}:${point.latitude.toStringAsFixed(3)}:${point.longitude.toStringAsFixed(3)}';
+    }).join('|');
+
+    return PipeBuyerSectionCard(
+      title: 'Map results',
+      subtitle:
+          'Pins use approximate public locations from the Dispatch Directory projection. They are for discovery, not routing to a private yard or residence.',
+      leading: const Icon(Icons.map_outlined, color: PipeBuyerColors.orange),
+      trailing: PipeBuyerStatusBadge(
+        label: '${entries.length} mapped',
+        icon: Icons.location_on_outlined,
+        tone: PipeBuyerStatusTone.info,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(
+              height: 380,
+              child: FlutterMap(
+                key: ValueKey('dispatch-directory-map-$mapIdentity'),
+                options: MapOptions(
+                  initialCenter: _mapCenter(),
+                  initialZoom: _mapZoom(),
+                  minZoom: 2,
+                  maxZoom: 18,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: pipeBuyerTileUrl,
+                    userAgentPackageName: 'ca.pipebuyer.marketplace',
+                  ),
+                  MarkerLayer(
+                    markers: entries.map((entry) {
+                      final point = entry.homeBasePoint!;
+                      final selected = entry.id == selectedEntryId;
+                      return Marker(
+                        point: LatLng(point.latitude, point.longitude),
+                        width: 48,
+                        height: 48,
+                        child: Tooltip(
+                          message: entry.homeBaseLabel.isEmpty
+                              ? entry.operatingName
+                              : '${entry.operatingName}\n${entry.homeBaseLabel}',
+                          child: Semantics(
+                            button: true,
+                            label: 'Show ${entry.operatingName} from map',
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => onSelected(entry.id),
+                              child: Center(
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 160),
+                                  width: selected ? 42 : 36,
+                                  height: selected ? 42 : 36,
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? PipeBuyerColors.orange
+                                        : PipeBuyerColors.ink,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: selected ? 3 : 2,
+                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x26000000),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.business_outlined,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(growable: false),
+                  ),
+                  const SimpleAttributionWidget(
+                    source: Text('© OpenStreetMap contributors'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.privacy_tip_outlined,
+                size: 18,
+                color: PipeBuyerColors.industrialBlue,
+              ),
+              SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Approximate public locations only. Confirm the service area and exact meeting or job location directly with the company.',
+                  style: TextStyle(fontSize: 12, height: 1.35),
+                ),
+              ),
+            ],
+          ),
+          if (selectedEntry != null) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Selected company',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            _DirectoryCompanyCard(
+              entry: selectedEntry,
+              remoteDataEnabled: remoteDataEnabled,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  LatLng _mapCenter() {
+    var latitude = 0.0;
+    var longitude = 0.0;
+    for (final entry in entries) {
+      final point = entry.homeBasePoint!;
+      latitude += point.latitude;
+      longitude += point.longitude;
+    }
+    return LatLng(latitude / entries.length, longitude / entries.length);
+  }
+
+  double _mapZoom() {
+    if (entries.length == 1) return 8.5;
+    var minLatitude = entries.first.homeBasePoint!.latitude;
+    var maxLatitude = minLatitude;
+    var minLongitude = entries.first.homeBasePoint!.longitude;
+    var maxLongitude = minLongitude;
+    for (final entry in entries.skip(1)) {
+      final point = entry.homeBasePoint!;
+      if (point.latitude < minLatitude) minLatitude = point.latitude;
+      if (point.latitude > maxLatitude) maxLatitude = point.latitude;
+      if (point.longitude < minLongitude) minLongitude = point.longitude;
+      if (point.longitude > maxLongitude) maxLongitude = point.longitude;
+    }
+    final latitudeSpan = maxLatitude - minLatitude;
+    final longitudeSpan = maxLongitude - minLongitude;
+    final span = latitudeSpan > longitudeSpan ? latitudeSpan : longitudeSpan;
+    if (span > 40) return 2.5;
+    if (span > 20) return 3.5;
+    if (span > 10) return 4.5;
+    if (span > 5) return 5.5;
+    if (span > 2) return 6.5;
+    if (span > 1) return 7.5;
+    if (span > .5) return 8.5;
+    return 9.5;
   }
 }
 
