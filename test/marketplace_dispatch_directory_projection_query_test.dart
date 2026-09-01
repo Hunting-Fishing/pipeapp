@@ -22,6 +22,11 @@ void main() {
           'precision': 'approximate_1km',
         },
         'mapPoint': const GeoPoint(53.55, -113.49),
+        'publicServiceArea': {
+          'mode': 'radius',
+          'centerLabel': 'Edmonton, Alberta',
+          'radiusKm': 250,
+        },
         'availability': 'available_now',
         'businessType': 'corporation',
         'emergencyCallout': false,
@@ -40,6 +45,10 @@ void main() {
     expect(entry.homeBaseLabel, 'Edmonton, Alberta');
     expect(entry.homeBasePoint, isNotNull);
     expect(entry.serviceCodes, contains('transport_lowboy'));
+    expect(entry.serviceAreaMode, 'radius');
+    expect(entry.serviceAreaCenterLabel, 'Edmonton, Alberta');
+    expect(entry.serviceAreaRadiusKm, 250);
+    expect(entry.hasPublishedRadiusCoverage, isTrue);
   });
 
   test('Directory page append deduplicates and keeps alphabetical order', () {
@@ -94,6 +103,10 @@ void main() {
     expect(source, contains('OpenStreetMap contributors'));
     expect(source, contains('Approximate public locations only.'));
     expect(source, contains('Selected company'));
+    expect(source, contains('CircleLayer('));
+    expect(source, contains('useRadiusInMeter: true'));
+    expect(source, contains('serviceAreaRadiusKm * 1000'));
+    expect(source, contains('Published service radius:'));
   });
 
   test('Directory filters preserve structured service and capability matching', () {

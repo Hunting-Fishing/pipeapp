@@ -26,6 +26,9 @@ class DispatchDirectoryEntry {
     required this.remoteSiteCapable,
     required this.homeBaseLabel,
     required this.homeBasePoint,
+    this.serviceAreaMode = '',
+    this.serviceAreaCenterLabel = '',
+    this.serviceAreaRadiusKm = 0,
   });
 
   factory DispatchDirectoryEntry.fromDirectoryProjection(
@@ -33,6 +36,7 @@ class DispatchDirectoryEntry {
     Map<String, dynamic> data,
   ) {
     final publicLocation = _map(data['publicLocation']);
+    final publicServiceArea = _map(data['publicServiceArea']);
     final serviceCodes = data['serviceCodes'] is Iterable
         ? (data['serviceCodes'] as Iterable)
             .map((value) => '$value'.trim())
@@ -56,6 +60,11 @@ class DispatchDirectoryEntry {
       remoteSiteCapable: data['remoteSiteCapable'] == true,
       homeBaseLabel: '${publicLocation['label'] ?? ''}'.trim(),
       homeBasePoint: point is GeoPoint ? point : null,
+      serviceAreaMode: '${publicServiceArea['mode'] ?? ''}'.trim(),
+      serviceAreaCenterLabel:
+          '${publicServiceArea['centerLabel'] ?? ''}'.trim(),
+      serviceAreaRadiusKm:
+          (publicServiceArea['radiusKm'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -74,6 +83,7 @@ class DispatchDirectoryEntry {
     serviceCodes.sort();
 
     final home = _map(dispatch['homeLocation']);
+    final serviceArea = _map(dispatch['serviceArea']);
     final point = home['point'];
 
     return DispatchDirectoryEntry(
@@ -101,6 +111,10 @@ class DispatchDirectoryEntry {
       remoteSiteCapable: dispatch['remoteSiteCapable'] == true,
       homeBaseLabel: '${home['label'] ?? ''}'.trim(),
       homeBasePoint: point is GeoPoint ? point : null,
+      serviceAreaMode: '${serviceArea['mode'] ?? ''}'.trim(),
+      serviceAreaCenterLabel: '${serviceArea['centerLabel'] ?? ''}'.trim(),
+      serviceAreaRadiusKm:
+          (serviceArea['radiusKm'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -116,6 +130,14 @@ class DispatchDirectoryEntry {
   final bool remoteSiteCapable;
   final String homeBaseLabel;
   final GeoPoint? homeBasePoint;
+  final String serviceAreaMode;
+  final String serviceAreaCenterLabel;
+  final double serviceAreaRadiusKm;
+
+  bool get hasPublishedRadiusCoverage =>
+      serviceAreaMode == 'radius' &&
+      serviceAreaRadiusKm > 0 &&
+      homeBasePoint != null;
 
   bool get isDirectoryReady =>
       operatingName.isNotEmpty &&
@@ -704,6 +726,19 @@ class _DirectoryMapView extends StatelessWidget {
       }
     }
 
+    final radiusEntry = selectedEntry != null &&
+            selectedEntry.hasPublishedRadiusCoverage
+        ? selectedEntry
+        : null;
+    final radiusKm = radiusEntry?.serviceAreaRadiusKm ?? 0;
+    final radiusText = radiusKm == radiusKm.roundToDouble()
+        ? '${radiusKm.round()}'
+        : radiusKm.toStringAsFixed(1);
+    final radiusCenterLabel = radiusEntry == null
+        ? ''
+        : (radiusEntry.serviceAreaCenterLabel.isNotEmpty
+            ? radiusEntry.serviceAreaCenterLabel
+            : radiusEntry.homeBaseLabel);
     final mapIdentity = entries.map((entry) {
       final point = entry.homeBasePoint!;
       return '${entry.id}:${point.latitude.toStringAsFixed(3)}:${point.longitude.toStringAsFixed(3)}';
@@ -739,6 +774,22 @@ class _DirectoryMapView extends StatelessWidget {
                     urlTemplate: pipeBuyerTileUrl,
                     userAgentPackageName: 'ca.pipebuyer.marketplace',
                   ),
+                  if (radiusEntry != null)
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: LatLng(
+                            radiusEntry.homeBasePoint!.latitude,
+                            radiusEntry.homeBasePoint!.longitude,
+                          ),
+                          radius: radiusEntry.serviceAreaRadiusKm * 1000,
+                          useRadiusInMeter: true,
+                          color: PipeBuyerColors.orange.withValues(alpha: .11),
+                          borderColor: PipeBuyerColors.orange,
+                          borderStrokeWidth: 2.5,
+                        ),
+                      ],
+                    ),
                   MarkerLayer(
                     markers: entries.map((entry) {
                       final point = entry.homeBasePoint!;
@@ -817,6 +868,46 @@ class _DirectoryMapView extends StatelessWidget {
               ),
             ],
           ),
+          if (radiusEntry != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: PipeBuyerColors.orangeSoft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: PipeBuyerColors.orange.withValues(alpha: .45),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.radar_outlined,
+                    color: PipeBuyerColors.orangePressed,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      radiusCenterLabel.isEmpty
+                          ? 'Published service radius: within $radiusText km of this company’s approximate public service centre.'
+                          : 'Published service radius: within $radiusText km of $radiusCenterLabel.',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              'Coverage is provider-declared and approximate. Confirm the exact job location, route, availability, permits, and travel charges directly with the company.',
+              style: TextStyle(fontSize: 12, height: 1.35),
+            ),
+          ],
           if (selectedEntry != null) ...[
             const SizedBox(height: 12),
             const Text(
