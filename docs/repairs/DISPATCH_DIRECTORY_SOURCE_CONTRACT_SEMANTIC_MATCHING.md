@@ -72,25 +72,37 @@ Run `33507861995` attempt 1 stopped at `flutter pub get` because the Dart packag
 
 Do not modify application dependencies or runtime code in response to that isolated advisory-endpoint failure.
 
-## Final verification
+## Formatter-only diff cleanup
 
-Run `33507861995` was rerun unchanged after the transient package-service failure and passed:
+The successful `33507861995` implementation was functionally correct, but PR patch review showed that the newer Dart formatter had also rewritten unrelated pre-existing Directory formatting.
 
-- exact four-file mutation scope;
+That formatting churn was not needed for pagination and would make the release harder to review and maintain.
+
+The four implementation/test files were therefore reset to the exact verified production formatting, only the intended pagination and semantic contract repairs were reapplied, and the full gate was run again without formatting unrelated existing lines.
+
+Clean-diff verification run:
+
+```text
+33508729866
+```
+
+It passed:
+
+- exact four-file implementation/test mutation scope;
 - Flutter dependency restore;
 - `dart analyze lib test`;
 - focused Dispatch Directory pagination tests;
-- source-contract tests;
+- semantic source-contract tests;
 - filter runtime-stability tests;
 - full Flutter regression;
 - repository release-contract tests;
 - both Firebase Functions codebase validations;
 - `git diff --check`.
 
-Verified implementation commit:
+Minimal verified implementation commit:
 
 ```text
-db14ecf7715ab42d82d6b4e5671f5ce059fc5566
+e90107a77735b10b7191f26b127cdd8cf8de27c6
 ```
 
 ## Do not do
@@ -100,5 +112,6 @@ db14ecf7715ab42d82d6b4e5671f5ce059fc5566
 - Do not weaken privacy/projection checks; assert the semantic source markers instead.
 - Do not remove the runtime-stability contract when changing filter or pagination state.
 - Do not treat an isolated Pub advisory HTTP error as evidence that app dependencies must be changed.
+- Do not accept large formatter-only churn in a bounded repair when the intended behavior can be reviewed as a smaller diff.
 
-The durable rule is: **source-contract tests protect behavior and architectural markers, not incidental formatting.**
+The durable rule is: **source-contract tests protect behavior and architectural markers, not incidental formatting; bounded releases should also keep unrelated formatting out of the final diff.**
