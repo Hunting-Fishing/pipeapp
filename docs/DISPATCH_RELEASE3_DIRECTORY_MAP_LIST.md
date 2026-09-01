@@ -47,10 +47,33 @@ The UI explicitly states that map locations are approximate and are for provider
 - Changes to provider profile persistence or projection Functions.
 - Changes to quote, messaging, Stripe, membership or Dispatch payment flows.
 
-## Verification expectation
+## Verification
 
-The release gate must pass repository analysis, focused Directory tests, full Flutter regression, release-contract tests, both Functions codebase validations and `git diff --check` before the durable files are committed.
+Guarded verification run:
+
+```text
+33511099244
+```
+
+Verified implementation commit:
+
+```text
+624b26ad420e195b339d3db49ed578a3add79e65
+```
+
+The gate passed:
+
+- exact three-file durable mutation scope;
+- Flutter dependency restore;
+- `dart analyze lib test`;
+- focused Directory projection, filter, runtime-stability and map/list source contracts;
+- full Flutter regression;
+- repository release-contract tests;
+- both Firebase Functions codebase validations;
+- `git diff --check`.
+
+Temporary verification workflow and patch machinery were removed through the GitHub connector after the successful run.
 
 ## Next after this slice
 
-After the synchronized List / Map experience is verified, evaluate geography/radius filtering using only public approximate locations and service-area data. Do not expose private home-base coordinates to implement radius search.
+After the synchronized List / Map experience is published, evaluate geography/radius filtering using only public approximate locations and service-area data. Do not expose private home-base coordinates to implement radius search.
