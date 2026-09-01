@@ -1001,6 +1001,23 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     if (mounted && _tab != 0) setState(() => _tab = 0);
   }
 
+  void _handleDestinationRequest() {
+    final request = MarketplaceNavigation.destinationRequests.value;
+    if (!mounted || request == null) return;
+    final target = request.pageIndex;
+    if ((target == 1 || target == 2 || target == 3) && !_features.marketplace) {
+      return;
+    }
+    if (target == 6 && !_features.auctions) return;
+    if (target == 7 && !_features.dispatch) return;
+    if (_tab != target) _selectTab(target);
+  }
+
+  void _handleWantedRequest() {
+    if (!mounted || !_features.marketplace) return;
+    _openCreate(wanted: true);
+  }
+
   void _selectTab(int index) {
     setState(() => _tab = index);
     if (Navigator.of(context).canPop()) Navigator.of(context).pop();
@@ -1043,6 +1060,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     super.initState();
     _tab = widget.initialTab.clamp(0, 6);
     MarketplaceNavigation.homeRequests.addListener(_handleHomeRequest);
+    MarketplaceNavigation.destinationRequests
+        .addListener(_handleDestinationRequest);
+    MarketplaceNavigation.wantedRequests.addListener(_handleWantedRequest);
     _authSubscription =
         FirebaseAuth.instance.authStateChanges().listen(_handleAuthChanged);
     _featureSubscription = _featureRepository.watch().listen(
@@ -1063,6 +1083,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   @override
   void dispose() {
     MarketplaceNavigation.homeRequests.removeListener(_handleHomeRequest);
+    MarketplaceNavigation.destinationRequests
+        .removeListener(_handleDestinationRequest);
+    MarketplaceNavigation.wantedRequests.removeListener(_handleWantedRequest);
     _authSubscription?.cancel();
     _savedSubscription?.cancel();
     _featureSubscription?.cancel();
@@ -1221,7 +1244,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             ),
             const MarketplaceShellDestination(
               pageIndex: 2,
-              label: 'List',
+              label: 'Sell',
               icon: Icon(Icons.add_box_outlined),
               selectedIcon: Icon(Icons.add_box),
             ),
@@ -1234,7 +1257,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           ),
           const MarketplaceShellDestination(
             pageIndex: 5,
-            label: 'Profile',
+            label: 'Account',
             icon: _NavAccountIcon(selected: false),
             selectedIcon: _NavAccountIcon(selected: true),
           ),
@@ -1274,7 +1297,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           ),
           const MarketplaceShellDestination(
             pageIndex: 5,
-            label: 'Profile',
+            label: 'Account',
             icon: _NavAccountIcon(selected: false),
             selectedIcon: _NavAccountIcon(selected: true),
           ),

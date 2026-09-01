@@ -17,7 +17,7 @@ void main() {
     ),
     MarketplaceShellDestination(
       pageIndex: 2,
-      label: 'List',
+      label: 'Sell',
       icon: Icon(Icons.add_box_outlined),
     ),
     MarketplaceShellDestination(
@@ -27,7 +27,7 @@ void main() {
     ),
     MarketplaceShellDestination(
       pageIndex: 5,
-      label: 'Profile',
+      label: 'Account',
       icon: Icon(Icons.person_outline),
     ),
   ];
@@ -79,8 +79,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('preserves drawer and bottom navigation on phone widths',
-      (tester) async {
+  testWidgets('preserves drawer and bottom navigation on phone widths', (
+    tester,
+  ) async {
     await pumpShell(tester, width: 390);
 
     expect(find.byType(NavigationBar), findsOneWidget);
@@ -105,8 +106,9 @@ void main() {
     expect(rail.extended, isTrue);
   });
 
-  testWidgets('maps compact destinations back to marketplace page indexes',
-      (tester) async {
+  testWidgets('maps compact destinations back to marketplace page indexes', (
+    tester,
+  ) async {
     int? selectedPage;
     await pumpShell(
       tester,
@@ -120,8 +122,9 @@ void main() {
     expect(selectedPage, 4);
   });
 
-  testWidgets('maps rail destinations back to marketplace page indexes',
-      (tester) async {
+  testWidgets('maps rail destinations back to marketplace page indexes', (
+    tester,
+  ) async {
     int? selectedPage;
     await pumpShell(
       tester,
@@ -135,8 +138,9 @@ void main() {
     expect(selectedPage, 7);
   });
 
-  testWidgets('shows List Now on Marketplace browse and opens the list page',
-      (tester) async {
+  testWidgets('shows List Now on Marketplace browse and opens the list page', (
+    tester,
+  ) async {
     int? selectedPage;
     await pumpShell(
       tester,
@@ -161,16 +165,19 @@ void main() {
     expect(find.byKey(const Key('marketplace-list-now')), findsNothing);
   });
 
-  testWidgets('keeps List Now visible without overlaying compact page content',
-      (tester) async {
-    await pumpShell(tester, width: 390, selectedPageIndex: 1);
+  testWidgets(
+    'keeps List Now visible without overlaying compact page content',
+    (tester) async {
+      await pumpShell(tester, width: 390, selectedPageIndex: 1);
 
-    expect(find.byKey(const Key('marketplace-list-now')), findsOneWidget);
-    expect(find.byKey(const Key('marketplace-body')), findsOneWidget);
-  });
+      expect(find.byKey(const Key('marketplace-list-now')), findsOneWidget);
+      expect(find.byKey(const Key('marketplace-body')), findsOneWidget);
+    },
+  );
 
-  testWidgets('pins the rail footer below desktop destinations',
-      (tester) async {
+  testWidgets('pins the rail footer below desktop destinations', (
+    tester,
+  ) async {
     await pumpShell(
       tester,
       width: 1300,
@@ -179,14 +186,15 @@ void main() {
 
     expect(find.byKey(const Key('rail-auth-footer')), findsOneWidget);
     final dispatchBottom = tester.getBottomLeft(find.text('Dispatch')).dy;
-    final footerTop = tester.getTopLeft(
-      find.byKey(const Key('rail-auth-footer')),
-    ).dy;
+    final footerTop = tester
+        .getTopLeft(find.byKey(const Key('rail-auth-footer')))
+        .dy;
     expect(footerTop, greaterThan(dispatchBottom));
   });
 
-  testWidgets('caps wide marketplace content at the shared maximum',
-      (tester) async {
+  testWidgets('caps wide marketplace content at the shared maximum', (
+    tester,
+  ) async {
     await pumpShell(tester, width: 1800);
 
     final bodySize = tester.getSize(find.byKey(const Key('marketplace-body')));

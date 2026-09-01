@@ -41,17 +41,26 @@ Future<void> _pumpAndCaptureHero(
   // Keep those operations outside the widget-test fake clock so visual
   // evidence generation cannot stall the entire Flutter test suite.
   await tester.runAsync(() async {
-    await precacheImage(AssetImage(expectedBackground), boundaryKey.currentContext!);
+    await precacheImage(
+      AssetImage(expectedBackground),
+      boundaryKey.currentContext!,
+    );
   });
   await tester.pump();
 
   expect(tester.takeException(), isNull);
   expect(find.text('PIPE BUYER WORKSPACE'), findsOneWidget);
   expect(
-    find.text('Welcome back, Staging Demo Business. Keep your next deal moving.'),
+    find.text(
+      'Welcome back, Staging Demo Business. Keep your next deal moving.',
+    ),
     findsOneWidget,
   );
   expect(find.text('Business account'), findsOneWidget);
+  expect(find.text('Browse inventory'), findsOneWidget);
+  expect(find.text('Sell something'), findsOneWidget);
+  expect(find.text('Request service'), findsOneWidget);
+  expect(find.text('Post wanted / RFQ'), findsOneWidget);
   expect(find.text('Verified Businesses'), findsOneWidget);
 
   final assetNames = tester
@@ -74,8 +83,8 @@ Future<void> _pumpAndCaptureHero(
     );
   }
 
-  final boundary = boundaryKey.currentContext!.findRenderObject()
-      as RenderRepaintBoundary;
+  final boundary =
+      boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
   final bytes = await tester.runAsync(() async {
     final image = await boundary.toImage(pixelRatio: 1);
     try {
