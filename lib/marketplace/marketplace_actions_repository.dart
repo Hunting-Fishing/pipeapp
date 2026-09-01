@@ -172,6 +172,22 @@ class MarketplaceActionsRepository {
     return '${result['conversationId']}';
   }
 
+  Future<String> openDispatchConversation({
+    required String jobId,
+    String? bidId,
+  }) async {
+    final normalizedJobId = jobId.trim();
+    final normalizedBidId = bidId?.trim() ?? '';
+    if (normalizedJobId.isEmpty) {
+      throw ArgumentError.value(jobId, 'jobId', 'Dispatch job is required.');
+    }
+    final result = await _commands.execute('openDispatchConversation', {
+      'jobId': normalizedJobId,
+      if (normalizedBidId.isNotEmpty) 'bidId': normalizedBidId,
+    });
+    return '${result['conversationId']}';
+  }
+
   Future<Map<String, dynamic>> authorizeUpload({
     required String purpose,
     required String originalName,

@@ -239,6 +239,12 @@ exports.openBusinessConversation = onCall(
     communicationCommands.openBusinessConversation,
   ),
 );
+exports.openDispatchConversation = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    communicationCommands.openDispatchConversation,
+  ),
+);
 exports.markMarketplaceConversationRead = onCall(
   protectedCallableOptions,
   policyAcceptanceCommands.requireCurrentPolicies(

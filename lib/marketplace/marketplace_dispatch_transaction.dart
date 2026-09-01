@@ -7,6 +7,7 @@ import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_dispatch_repository.dart';
+import 'marketplace_dispatch_messaging.dart';
 import 'marketplace_money.dart';
 
 class MarketplaceDispatchTransactionCard extends StatefulWidget {
@@ -128,6 +129,22 @@ class _MarketplaceDispatchTransactionCardState
                 ],
                 if (carrier || customer) ...[
                   const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => openDispatchContextConversation(
+                                context,
+                                jobId: widget.jobId,
+                              ),
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: Text(
+                        customer ? 'Message carrier' : 'Message customer',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _participantActions(
                     carrier: carrier,
                     customer: customer,
