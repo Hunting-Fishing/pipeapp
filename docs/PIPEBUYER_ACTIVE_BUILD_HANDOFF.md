@@ -1,5 +1,13 @@
 # Pipe Buyer Active Build Handoff
 
+## 2026-09-01 Release 1 simple-flow production release
+
+Release 1 is **complete in production** at application SHA `996bd3f782a89639aaf12527193cb1ecf4d92f84`, merged through PR #168 and deployed by protected Firebase run `33493435243` (#56) with App Check `enforce`. The release simplifies the ordinary-user entry flow to Browse inventory, Sell something, Request service, and Post wanted / RFQ; compact navigation uses Home, Browse, Sell, Messages, and Account while existing server-authoritative Firebase, Stripe, Trust & Safety, and release controls remain unchanged.
+
+Production evidence: `firebase-release-evidence-production-996bd3f782a89639aaf12527193cb1ecf4d92f84-33493435243` (artifact `9794901956`) and `visual-acceptance-production-33493435243` (artifact `9794932834`). Production passed full Flutter analysis/tests, release-manifest controls, deployed Function parity controls, both Functions codebases, Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deploy, post-deploy parity, release identity, and responsive mobile/desktop visual acceptance.
+
+Permanent Release 1 repair boundaries: keep the repository-wide analyzer strict and fix exact lint blockers rather than bypassing it; do not run broad formatter churn over the large Marketplace source for a tiny bounded edit because source-contract tests protect existing catalog-photo integration.
+
 ## 2026-09-01 P1 Marketplace blocking production release
 
 P1 Marketplace conversation blocking is **complete in production**. The deployed app remains `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`, released by protected Firebase run `33464230471` (#55) with App Check `enforce`. Pre-merge Quality `33463954448` and Callable Safety `33463955489` both succeeded. Production also passed Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `99722538441`).
@@ -17,7 +25,7 @@ A documentation-only merge after this release does not change the deployed appli
 
 **Production branch:** `main`
 
-**Current deployed production baseline:** `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de` (verified run `33464230471`)
+**Current deployed production baseline:** `996bd3f782a89639aaf12527193cb1ecf4d92f84` (verified run `33493435243` #56)
 
 **Completed P1 release:** PR #166 merged to `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`
 
