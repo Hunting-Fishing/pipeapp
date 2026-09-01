@@ -67,6 +67,32 @@ Before merge, this slice must pass:
 - both Firebase Functions codebase validations; and
 - `git diff --check`.
 
+Verifier run `33521641225` / run #3 passed every gate above before temporary verification machinery was removed.
+
+## Verification repair record
+
+Two verifier failures occurred before run #3 passed. Neither required a change to the runtime feature design.
+
+1. The temporary Python patch script embedded triple-quoted markers inside another Python string and failed with an unterminated-string `SyntaxError` before durable app files were modified. The repair was to keep the staged patch auditable and apply a narrowly scoped in-memory quoting repair from a temporary runner.
+2. The first in-memory repair emitted invalid Dart string quoting in generated source-contract test assertions. Analyzer rejected those generated assertions while the Directory runtime code itself was not flagged. The repair was to emit explicitly escaped Dart string literals for the three affected assertions.
+
+Permanent lesson: when temporary release tooling must generate source assertions containing nested quotes, do not layer raw/triple-quoted delimiters blindly. Generate the target-language escaping explicitly, keep exact mutation-scope guards in front of analysis/tests, and do not redesign runtime code for a verifier-generation defect.
+
+## Current slice checklist
+
+- [x] Protected radius-search backend deployed from `54e1a3c100d528eecdf4acdb4c7858644fb0576d`.
+- [x] Simple place + distance Directory UX implemented.
+- [x] Distance parsing and company distance display implemented.
+- [x] Search-radius map overlay implemented.
+- [x] Truncation warning implemented.
+- [x] Existing Directory filters retained as local refinements.
+- [x] Focused tests, analyzer, full Flutter regression, release contracts, Functions validation, and diff hygiene passed.
+- [x] Temporary verifier and patch tooling removed from the feature branch.
+- [ ] Four-file feature PR merged to `main`.
+- [ ] Exact merged SHA deployed through the protected production workflow.
+- [ ] Post-deploy Function parity and responsive visual acceptance confirmed.
+- [ ] Final production SHA and evidence artifacts recorded here.
+
 ## Permanent implementation rule
 
 Do not replace the server-owned radius query with a client-side scan of loaded Directory pages. Geographic search results must come from `searchDispatchDirectoryRadius`; local filters may refine those returned results, and a truncated server response must remain visibly identified as incomplete.
