@@ -1,0 +1,131 @@
+name: Record final P1 production release 2026-09-01
+
+on:
+  push:
+    branches:
+      - docs/record-p1-user-blocking-production-20260901
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record-final-p1-production-release-20260901
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: docs/record-p1-user-blocking-production-20260901
+          fetch-depth: 0
+
+      - name: Update only authoritative release documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          release_sha = "0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de"
+          release_run = "33464230471"
+          quality_run = "33463954448"
+          callable_run = "33463955489"
+          visual_job = "99722538441"
+          firebase_artifact = "firebase-release-evidence-production-0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de-33464230471"
+          firebase_artifact_id = "9784473533"
+          visual_artifact = "visual-acceptance-production-33464230471"
+          visual_artifact_id = "9784489576"
+          marker = "## 2026-09-01 P1 Marketplace blocking production release"
+
+          paths = [
+              Path("docs/PHASE_1_LAUNCH_FINALIZATION_PLAN.md"),
+              Path("docs/PHASE_1_PROGRESS_AUDIT.md"),
+              Path("docs/PIPEBUYER_ACTIVE_BUILD_HANDOFF.md"),
+              Path("docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md"),
+          ]
+          originals = {p: p.read_text(encoding="utf-8") for p in paths}
+          marked = [p for p, text in originals.items() if marker in text]
+          if len(marked) == len(paths):
+              print("Release record already present in all four authoritative docs; no-op.")
+              raise SystemExit(0)
+          if marked:
+              raise SystemExit(f"partial release-record state detected: {marked}")
+
+          blocks = {
+              paths[0]: f"""{marker}\n\nMarketplace conversation user block/unblock is **production deployed and verified**. The deployed application identity is `main` at `{release_sha}` via protected Firebase production run `{release_run}` (#55) with App Check `enforce`. Pre-merge Quality run `{quality_run}` and Callable Safety run `{callable_run}` both passed. Production then passed Flutter analysis/tests, generated release-manifest and Function-parity controls, both Functions codebase validation, Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `{visual_job}`).\n\nThe production callables are `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked`. Function inventory remains generated from `firebase.json` and exported entrypoints; there is no static Function allowlist to maintain. Evidence is retained as `{firebase_artifact}` (artifact `{firebase_artifact_id}`) and `{visual_artifact}` (artifact `{visual_artifact_id}`).\n\nRepair record: review found a client-only reciprocal-block defect where a user could not establish their own durable block if the other party had blocked first. Server directional/mutual blocking was already correct. The client restriction was removed and a regression contract test added. Existing messages and Trust & Safety evidence remain preserved.\n\nAny later documentation-only merge records this evidence only; it is **not** a redeployment and must not replace `{release_sha}` as the production application SHA.\n""",
+              paths[1]: f"""{marker}\n\nThe P1 Marketplace user-blocking slice moved from source/emulator acceptance to **verified production** on `{release_sha}`. Protected production run `{release_run}` (#55) used App Check `enforce` and passed exact-source checkout, Flutter tests, release-manifest/parity tests, Functions validation, Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy Function parity, release identity, and production visual acceptance (job `{visual_job}`). Pre-merge Quality `{quality_run}` and Callable Safety `{callable_run}` were also green.\n\nProduction evidence: `{firebase_artifact}` (artifact `{firebase_artifact_id}`) and `{visual_artifact}` (artifact `{visual_artifact_id}`). New exports `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked` are discovered by the generated release manifest; no static allowlist entry is required.\n\nThe accepted repair was narrowly client-side: reciprocal blocking was originally disabled when the other member had blocked first. That restriction was removed so either party can create an independent directional block, and a regression contract test now preserves the rule. Server send enforcement, retained conversation history, and retained moderation evidence were unchanged.\n\nThis record supersedes historical statements below that App Check, exact committed-candidate deployment, or Function parity were still pending for this release. Historical July percentages remain historical rather than being recomputed.\n""",
+              paths[2]: f"""{marker}\n\nP1 Marketplace conversation blocking is **complete in production**. The deployed app remains `main` at `{release_sha}`, released by protected Firebase run `{release_run}` (#55) with App Check `enforce`. Pre-merge Quality `{quality_run}` and Callable Safety `{callable_run}` both succeeded. Production also passed Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `{visual_job}`).\n\nEvidence retained: `{firebase_artifact}` (artifact `{firebase_artifact_id}`) and `{visual_artifact}` (artifact `{visual_artifact_id}`). New production callables are `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked`. Function inventory is generated from `firebase.json` plus exported entrypoints; do not add or resurrect a static Function allowlist.\n\nPermanent repair lesson: the reciprocal-block defect was a client permission check, not a backend block-model defect. When the other party had already blocked first, the UI incorrectly prevented the viewer from placing their own durable block. Remove only that client restriction; preserve directional/mutual server blocks, message history, and Trust & Safety evidence. The regression contract test records this so the same repair is not repeated.\n\nA documentation-only merge after this release does not change the deployed application identity `{release_sha}` and does not justify another Firebase deployment.\n""",
+              paths[3]: f"""{marker}\n\nThe current verified production application is `main` at `{release_sha}`, deployed by `Deploy verified Firebase release` run `{release_run}` (#55) with App Check `enforce`. Pre-merge Quality run `{quality_run}` and Callable Safety run `{callable_run}` passed. Production then passed Flutter analysis/tests, generated release-manifest controls, Function-parity tests, both Functions codebase validation, Firestore security rules, authenticated callable workflows/retries, exact web build, notification-worker verification, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `{visual_job}`).\n\nRetained evidence: `{firebase_artifact}` (artifact `{firebase_artifact_id}`) and `{visual_artifact}` (artifact `{visual_artifact_id}`). The release includes `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked`; the manifest discovers them from configured Firebase codebases/exports, so no static Function allowlist exists to reconcile.\n\nTrust repair closed during review: reciprocal blocking must remain independently available to either party even if the other party blocked first. The backend already supported directional/mutual blocks; the client-only restriction was removed and locked by a regression contract test. Existing conversation history and Trust & Safety reports/evidence remain retained. A two-ordinary-account production-safe human UX pass remains useful acceptance evidence, but it is no longer a deployment blocker or evidence that the feature is absent.\n\nAny subsequent documentation-only merge SHA is bookkeeping and must not be reported as the deployed application SHA.\n""",
+          }
+
+          replacements = {
+              paths[0]: [
+                  ("The current P1 trust slice is user block/unblock for Marketplace conversations. It is being implemented server-authoritatively so blocked parties cannot exchange new direct messages while existing messages and moderation/report evidence remain stored.", "The current P1 trust slice, Marketplace conversation user block/unblock, is production deployed and server-authoritative. Either party's active directional block prevents new direct messages while existing messages and moderation/report evidence remain stored."),
+                  ("Status: In progress  ", "Status: Production release verified; remaining P1 acceptance continues"),
+                  ("Baseline branch: `main` (`b34387a`; current completion candidate contains reviewed working-tree changes)", f"Production baseline: `main` at `{release_sha}` — deployed and verified in run `{release_run}`"),
+              ],
+              paths[1]: [
+                  ("Branch: `main` (working-tree completion candidate)", "Branch: `main`"),
+                  ("Audited commit baseline: `main` at `b34387a`; exact release identity requires committing the reviewed candidate", f"Current verified production release: `main` at `{release_sha}` via run `{release_run}`; the July audit below remains historical"),
+              ],
+              paths[2]: [
+                  ("**Current production baseline before this P1 slice:** `7c5398dc22ef42844058f17e2ee70882bb72e987`", f"**Current deployed production baseline:** `{release_sha}` (verified run `{release_run}`)"),
+                  ("**Current implementation branch:** `feature/p1-user-blocking-build-plan-20260901`", f"**Completed P1 release:** PR #166 merged to `main` at `{release_sha}`"),
+                  ("Controlled North American web launch is in late P1 acceptance. Current autonomous engineering priority: server-authoritative Marketplace user block/unblock, preserving conversation and moderation evidence. Remaining P1 acceptance after that includes ordinary-user buyer/seller/Timed Buying/report-admin/Dispatch journeys, physical mobile push/deep-link validation for native launch, and representative Dispatch provider data/privacy acceptance.", "Controlled North American web launch remains in late P1 acceptance. Marketplace user block/unblock is now production deployed and verified. Remaining P1 acceptance includes ordinary-user buyer/seller/Timed Buying/report-admin/Dispatch journeys, physical mobile push/deep-link validation for native launch, and representative Dispatch provider data/privacy acceptance."),
+              ],
+              paths[3]: [
+                  ("- Production source / release pointer: `7c5398dc22ef42844058f17e2ee70882bb72e987`", f"- Production source / release pointer: `{release_sha}`"),
+                  ("- Latest protected Marketplace hero production run: `33428641770` — **success**", f"- Latest protected Firebase production run: `{release_run}` (#55) — **success**, App Check `enforce`"),
+                  ("| User block / mute | **GREEN/YELLOW** | The 2026-09-01 P1 slice adds server-authoritative conversation block/unblock state, block/unblock controls in the chat safety menu, and send enforcement in Cloud Functions. Existing conversation history and Trust & Safety evidence are retained. | This closes the earlier “no clear implementation” finding. | Validate the block/unblock journey with two ordinary production-safe accounts after deployment. A separate notification-only mute preference can remain P2 unless user feedback shows it is needed. |", f"| User block / mute | **GREEN/YELLOW** | Server-authoritative block/unblock is production deployed on `{release_sha}`. Either party's directional block prevents new direct messages; existing conversation history and Trust & Safety evidence are retained. Production release/parity and authenticated callable gates passed. | This closes the earlier ‘no clear implementation’ finding and records the reciprocal-block regression repair. | Run a final two-ordinary-account production-safe UX confirmation as human acceptance evidence. A separate notification-only mute preference can remain P2 unless user feedback shows it is needed. |"),
+                  ("Before broad paid promotion, close or explicitly accept the remaining P1 items: a fresh ordinary-user end-to-end acceptance pass, physical-device notification testing if mobile web/app is promoted, provider Directory data/privacy acceptance, a deliberate block/mute product decision, and current legal/tax review for the exact launch jurisdictions/payment types.", "Before broad paid promotion, close or explicitly accept the remaining P1 items: a fresh ordinary-user end-to-end acceptance pass including a two-account block/unblock UX confirmation, physical-device notification testing if mobile web/app is promoted, provider Directory data/privacy acceptance, and current legal/tax review for the exact launch jurisdictions/payment types."),
+              ],
+          }
+
+          for path in paths:
+              text = originals[path]
+              for old, new in replacements[path]:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f"expected one anchor in {path}: {old[:100]!r}; found {count}")
+                  text = text.replace(old, new, 1)
+              first_nl = text.find("\n")
+              if first_nl < 0:
+                  raise SystemExit(f"missing title newline: {path}")
+              text = text[:first_nl + 1] + "\n" + blocks[path] + "\n" + text[first_nl + 1:]
+              path.write_text(text, encoding="utf-8")
+          PY
+
+          git diff --check
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            docs/PHASE_1_LAUNCH_FINALIZATION_PLAN.md \
+            docs/PHASE_1_PROGRESS_AUDIT.md \
+            docs/PIPEBUYER_ACTIVE_BUILD_HANDOFF.md \
+            docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md | sort)"
+          if [[ "$changed" != "$expected" ]]; then
+            echo "::error::Unexpected documentation scope."
+            printf 'Changed:\n%s\nExpected:\n%s\n' "$changed" "$expected"
+            exit 1
+          fi
+
+      - name: Commit four-document release record
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No document changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/PHASE_1_LAUNCH_FINALIZATION_PLAN.md \
+            docs/PHASE_1_PROGRESS_AUDIT.md \
+            docs/PIPEBUYER_ACTIVE_BUILD_HANDOFF.md \
+            docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md
+          git diff --cached --check
+          git commit -m "Record verified P1 Marketplace blocking production release"
+          git push origin HEAD:docs/record-p1-user-blocking-production-20260901
