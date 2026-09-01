@@ -1,3 +1,4 @@
+# Repair pass 2: corrected temporary Dart source-contract quoting.
 name: Verify Release 3 Dispatch Directory Radius Search UI
 
 on:
