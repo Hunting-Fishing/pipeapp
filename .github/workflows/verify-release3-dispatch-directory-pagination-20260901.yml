@@ -44,11 +44,15 @@ jobs:
       - name: Apply guarded Directory pagination integration
         run: python3 tool/apply_release3_dispatch_directory_pagination_20260901.py
 
+      - name: Repair formatter-sensitive Directory source contract
+        run: python3 tool/repair_release3_dispatch_projection_contract_20260901.py
+
       - name: Format bounded Release 3 files
         run: >
           dart format
           lib/marketplace/marketplace_dispatch_directory.dart
           test/marketplace_dispatch_directory_projection_query_test.dart
+          test/dispatch_directory_projection_source_contract_test.dart
 
       - name: Verify mutation scope
         shell: bash
@@ -58,6 +62,7 @@ jobs:
           allowed=(
             lib/marketplace/marketplace_dispatch_directory.dart
             test/marketplace_dispatch_directory_projection_query_test.dart
+            test/dispatch_directory_projection_source_contract_test.dart
           )
           if [[ ${#changed[@]} -ne ${#allowed[@]} ]]; then
             printf 'Unexpected Release 3 changes:\n%s\n' "${changed[*]}"
@@ -122,7 +127,8 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git add \
             lib/marketplace/marketplace_dispatch_directory.dart \
-            test/marketplace_dispatch_directory_projection_query_test.dart
+            test/marketplace_dispatch_directory_projection_query_test.dart \
+            test/dispatch_directory_projection_source_contract_test.dart
           if git diff --cached --quiet; then
             echo "::error::Directory pagination verification produced no source changes."
             exit 1
