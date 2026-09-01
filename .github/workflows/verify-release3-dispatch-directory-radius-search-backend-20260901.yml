@@ -1,0 +1,155 @@
+name: Verify Release 3 Dispatch Directory Radius Search Backend
+
+on:
+  push:
+    branches:
+      - feature/release-3-dispatch-directory-radius-search-backend-20260901
+    paths:
+      - .github/workflows/verify-release3-dispatch-directory-radius-search-backend-20260901.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify bounded Directory radius search backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
+
+    steps:
+      - name: Check out exact feature branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: feature/release-3-dispatch-directory-radius-search-backend-20260901
+          fetch-depth: 0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Functions Node runtime
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            firebase/functions/package-lock.json
+            firebase/agent-functions/package-lock.json
+
+      - name: Apply guarded radius-search backend integration
+        run: python3 tool/apply_release3_dispatch_directory_radius_search_backend_20260901.py
+
+      - name: Pin Firebase geohash helper
+        run: npm install --prefix firebase/functions --save-exact geofire-common@6.0.0
+
+      - name: Verify exact mutation scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //')
+          allowed=(
+            docs/DISPATCH_RELEASE3_DIRECTORY_RADIUS_SEARCH_BACKEND.md
+            firebase/functions/abuse_rate_limit.js
+            firebase/functions/dispatch_directory_search.js
+            firebase/functions/index.js
+            firebase/functions/package-lock.json
+            firebase/functions/package.json
+            firebase/functions/test/abuse_rate_limit.test.js
+            firebase/functions/test/dispatch_directory_search.test.js
+          )
+          if [[ ${#changed[@]} -ne ${#allowed[@]} ]]; then
+            printf 'Unexpected radius-search backend changes:\n%s\n' "${changed[*]}"
+            exit 1
+          fi
+          for required in "${allowed[@]}"; do
+            printf '%s\n' "${changed[@]}" | grep -Fxq "$required" || {
+              echo "Missing expected radius-search backend change: $required"
+              exit 1
+            }
+          done
+
+      - name: Restore Flutter dependencies with one infrastructure retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get || {
+            echo 'First pub get failed; retrying once for registry/advisory transport errors.'
+            sleep 5
+            flutter pub get
+          }
+
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run full Flutter regression
+        run: >
+          flutter test
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
+
+      - name: Validate Marketplace Functions codebase
+        run: |
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Restore and validate administrative Functions codebase
+        run: |
+          npm ci --prefix firebase/agent-functions
+          npm run lint --prefix firebase/agent-functions
+          npm run check --prefix firebase/agent-functions
+
+      - name: Run repository release-contract tests
+        run: >
+          node --test
+          tool/oauth_branding_test.mjs
+          tool/release_manifest_test.mjs
+          tool/function_parity_test.mjs
+          tool/phase1_acceptance_test.mjs
+          tool/prepare_phase1_acceptance_test.mjs
+          tool/configure_firebase_messaging_worker_test.mjs
+
+      - name: Verify dynamic release manifest discovers radius-search callable
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          node tool/release_manifest.mjs \
+            --environment continuous-integration \
+            --release-sha "$(git rev-parse HEAD)" \
+            --firebase-project demo-pipe-radius-search \
+            --app-check-mode enforce \
+            --output build/radius-search-release-manifest.json
+          grep -Fq 'searchDispatchDirectoryRadius' build/radius-search-release-manifest.json || {
+            echo '::error::Dynamic release manifest did not discover searchDispatchDirectoryRadius.'
+            exit 1
+          }
+
+      - name: Check source diff formatting
+        run: git diff --check
+
+      - name: Commit verified radius-search backend slice
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            docs/DISPATCH_RELEASE3_DIRECTORY_RADIUS_SEARCH_BACKEND.md \
+            firebase/functions/abuse_rate_limit.js \
+            firebase/functions/dispatch_directory_search.js \
+            firebase/functions/index.js \
+            firebase/functions/package-lock.json \
+            firebase/functions/package.json \
+            firebase/functions/test/abuse_rate_limit.test.js \
+            firebase/functions/test/dispatch_directory_search.test.js
+          if git diff --cached --quiet; then
+            echo '::error::Radius-search backend verification produced no durable changes.'
+            exit 1
+          fi
+          git commit -m 'Release 3: add bounded Directory radius search backend'
+          git push origin HEAD:feature/release-3-dispatch-directory-radius-search-backend-20260901
