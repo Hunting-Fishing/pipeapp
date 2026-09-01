@@ -75,6 +75,15 @@ function businessConversationIdFor(firstUid, secondUid) {
   return `business_${digest}`;
 }
 
+function dispatchConversationIdFor(jobId, firstUid, secondUid) {
+  const members = [String(firstUid), String(secondUid)].sort();
+  const digest = crypto.createHash("sha256")
+      .update(`${jobId}|${members.join("|")}`)
+      .digest("hex")
+      .slice(0, 40);
+  return `dispatch_${digest}`;
+}
+
 function receiptReference(db, uid, commandName, requestId) {
   const digest = crypto.createHash("sha256")
       .update(`${uid}|${commandName}|${requestId}`)
@@ -261,6 +270,173 @@ function createCommunicationCommands(admin) {
               throw new HttpsError(
                   "permission-denied",
                   "This business conversation is unavailable.",
+              );
+            }
+          }
+          return {conversationId};
+        });
+      },
+  );
+
+  const openDispatchConversation = secured(
+      "messaging",
+      async (request, {uid}) => {
+        const jobId = requiredId(request.data, "jobId");
+        const requestedBidId = String(
+            request.data && request.data.bidId || "",
+        ).trim();
+        if (requestedBidId &&
+            (requestedBidId.length > 180 || requestedBidId.includes("/"))) {
+          throw new HttpsError(
+              "invalid-argument",
+              "bidId is invalid.",
+          );
+        }
+
+        const jobRef = db.collection("dispatch_jobs").doc(jobId);
+        const dispatchRef = db.collection("dispatch_transactions").doc(jobId);
+        return db.runTransaction(async (transaction) => {
+          const jobSnapshot = await transaction.get(jobRef);
+          if (!jobSnapshot.exists) {
+            throw new HttpsError(
+                "not-found",
+                "This Dispatch job is unavailable.",
+            );
+          }
+          const job = jobSnapshot.data() || {};
+          const customerUid = String(job.createdByUid || "").trim();
+          if (!customerUid) {
+            throw new HttpsError(
+                "failed-precondition",
+                "This Dispatch job has no available customer.",
+            );
+          }
+
+          let bidId = requestedBidId;
+          let dispatchTransaction = null;
+          if (!bidId) {
+            const dispatchSnapshot = await transaction.get(dispatchRef);
+            if (!dispatchSnapshot.exists) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "Select a carrier quote before starting this Dispatch conversation.",
+              );
+            }
+            dispatchTransaction = dispatchSnapshot.data() || {};
+            bidId = String(dispatchTransaction.bidId || "").trim();
+          }
+
+          let bid = null;
+          if (bidId) {
+            const bidSnapshot = await transaction.get(
+                db.collection("dispatch_bids").doc(bidId),
+            );
+            if (!bidSnapshot.exists ||
+                String(bidSnapshot.data().jobId || "") !== jobId) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "This carrier quote does not belong to the Dispatch job.",
+              );
+            }
+            bid = bidSnapshot.data() || {};
+          }
+
+          const carrierUid = String(
+              bid && bid.carrierUid ||
+              dispatchTransaction && dispatchTransaction.carrierUid ||
+              "",
+          ).trim();
+          if (!carrierUid || carrierUid === customerUid) {
+            throw new HttpsError(
+                "failed-precondition",
+                "This Dispatch job has no available carrier participant.",
+            );
+          }
+          if (uid !== customerUid && uid !== carrierUid) {
+            throw new HttpsError(
+                "permission-denied",
+                "Only this Dispatch job's customer and carrier can open its conversation.",
+            );
+          }
+
+          const conversationId = dispatchConversationIdFor(
+              jobId,
+              customerUid,
+              carrierUid,
+          );
+          const conversationRef = db.collection("conversations")
+              .doc(conversationId);
+          const [
+            conversationSnapshot,
+            customerBusiness,
+            customerPersonal,
+            carrierBusiness,
+          ] = await Promise.all([
+            transaction.get(conversationRef),
+            transaction.get(
+                db.collection("public_business_profiles").doc(customerUid),
+            ),
+            transaction.get(
+                db.collection("public_seller_profiles").doc(customerUid),
+            ),
+            transaction.get(
+                db.collection("public_business_profiles").doc(carrierUid),
+            ),
+          ]);
+          const customerName = profileName(
+              customerBusiness.exists ? customerBusiness.data() :
+                customerPersonal.exists ? customerPersonal.data() : {},
+              "Dispatch customer",
+          );
+          const carrierName = String(bid && bid.carrierName || "").trim() ||
+            profileName(
+                carrierBusiness.exists ? carrierBusiness.data() : {},
+                "Dispatch carrier",
+            );
+          const jobTitle = String(job.title || "Transport job")
+              .trim()
+              .slice(0, 180) || "Transport job";
+          const contextTitle = `Dispatch · ${jobTitle}`;
+          const quoteReference = String(
+              bid && bid.quoteReference || "",
+          ).trim();
+
+          if (!conversationSnapshot.exists) {
+            const memberUids = [customerUid, carrierUid].sort();
+            transaction.create(conversationRef, {
+              memberUids,
+              contextType: "dispatch_job",
+              contextId: jobId,
+              contextTitle,
+              dispatchJobId: jobId,
+              dispatchBidId: bidId || null,
+              dispatchQuoteReference: quoteReference || null,
+              customerUid,
+              carrierUid,
+              requesterUid: customerUid,
+              requesterDisplayName: customerName,
+              providerUid: carrierUid,
+              sellerUid: carrierUid,
+              sellerName: carrierName,
+              buyerDisplayName: customerName,
+              listingId: null,
+              listingTitle: contextTitle,
+              openedByUid: uid,
+              openedAt: FieldValue.serverTimestamp(),
+              messageCount: 0,
+              unreadCounts: {[customerUid]: 0, [carrierUid]: 0},
+            });
+          } else {
+            const existing = conversationSnapshot.data() || {};
+            const members = Array.isArray(existing.memberUids) ?
+              existing.memberUids.map(String) : [];
+            if (existing.contextType !== "dispatch_job" ||
+                existing.contextId !== jobId ||
+                !members.includes(customerUid) ||
+                !members.includes(carrierUid)) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "This Dispatch conversation is unavailable.",
               );
             }
           }
@@ -719,6 +895,7 @@ function createCommunicationCommands(admin) {
     markMarketplaceConversationRead,
     openMarketplaceConversation,
     openBusinessConversation,
+    openDispatchConversation,
     sendMarketplaceMessage,
     submitMarketplaceReport,
   };

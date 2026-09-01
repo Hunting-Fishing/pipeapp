@@ -1617,6 +1617,38 @@ try {
       quoteData,
   );
   assert.deepEqual(quoteRetry, quoteFirst);
+  const dispatchConversationFirst = await call(
+      "openDispatchConversation",
+      buyer.token,
+      {jobId, bidId: quoteFirst.bidId},
+  );
+  const dispatchConversationCarrier = await call(
+      "openDispatchConversation",
+      carrier.token,
+      {jobId, bidId: quoteFirst.bidId},
+  );
+  assert.deepEqual(dispatchConversationCarrier, dispatchConversationFirst);
+  const dispatchConversationSnapshot = await db.doc(
+      `conversations/${dispatchConversationFirst.conversationId}`,
+  ).get();
+  const dispatchConversation = dispatchConversationSnapshot.data();
+  assert.equal(dispatchConversation.contextType, "dispatch_job");
+  assert.equal(dispatchConversation.contextId, jobId);
+  assert.equal(dispatchConversation.dispatchJobId, jobId);
+  assert.equal(dispatchConversation.dispatchBidId, quoteFirst.bidId);
+  assert.deepEqual(
+      dispatchConversation.memberUids,
+      [buyer.uid, carrier.uid].sort(),
+  );
+  assert.equal(dispatchConversation.listingId, null);
+  assert.equal("pickupPoint" in dispatchConversation, false);
+  assert.equal("deliveryPoint" in dispatchConversation, false);
+  await expectCallableError(
+      "openDispatchConversation",
+      seller.token,
+      {jobId, bidId: quoteFirst.bidId},
+      "PERMISSION_DENIED",
+  );
   assert.equal(
       (await db.doc(`dispatch_jobs/${jobId}`).get()).data().bidCount,
       1,
@@ -1638,6 +1670,15 @@ try {
       awardData,
   );
   assert.deepEqual(awardRetry, awardFirst);
+  const dispatchConversationAfterAward = await call(
+      "openDispatchConversation",
+      buyer.token,
+      {jobId},
+  );
+  assert.deepEqual(
+      dispatchConversationAfterAward,
+      dispatchConversationFirst,
+  );
   const awardedJob = (await db.doc(`dispatch_jobs/${jobId}`).get()).data();
   assert.equal(awardedJob.status, "awarded");
   assert.equal(awardedJob.revision, 3);

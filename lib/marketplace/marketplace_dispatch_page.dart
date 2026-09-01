@@ -24,6 +24,7 @@ import 'marketplace_dispatch_multi_service_selector.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_dispatch_transaction.dart';
+import 'marketplace_dispatch_messaging.dart';
 import 'marketplace_location.dart';
 import 'marketplace_location_picker.dart';
 import 'industrial_icon_assets.dart';
@@ -1258,6 +1259,18 @@ class _JobBoardState extends State<_JobBoard> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
+                              tooltip: 'Message carrier',
+                              onPressed: () async {
+                                Navigator.pop(sheetContext);
+                                await openDispatchContextConversation(
+                                  context,
+                                  jobId: jobId,
+                                  bidId: bid.id,
+                                );
+                              },
+                              icon: const Icon(Icons.chat_bubble_outline),
+                            ),
+                            IconButton(
                               tooltip: 'Quote history',
                               onPressed: () => _showRevisionHistory(
                                 context: sheetContext,
@@ -1402,6 +1415,23 @@ class _JobBoardState extends State<_JobBoard> {
                     repository: repo,
                   ),
                 ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      await openDispatchContextConversation(
+                        context,
+                        jobId: job.id,
+                        bidId: bid.id,
+                      );
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Message customer'),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
