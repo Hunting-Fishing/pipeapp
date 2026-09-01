@@ -25,8 +25,11 @@ jobs:
           ref: feature/release-3-provider-detail-surface-20260902
           fetch-depth: 0
 
-      - name: Syntax-check temporary patch tool before mutation
-        run: python3 -m py_compile tool/apply_release3_provider_detail_surface_20260902.py
+      - name: Syntax-check temporary patch tools before mutation
+        run: >
+          python3 -m py_compile
+          tool/apply_release3_provider_detail_surface_20260902.py
+          tool/run_release3_provider_detail_anchor_repair_20260902.py
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
@@ -45,7 +48,7 @@ jobs:
             firebase/agent-functions/package-lock.json
 
       - name: Apply guarded provider detail integration
-        run: python3 tool/apply_release3_provider_detail_surface_20260902.py
+        run: python3 tool/run_release3_provider_detail_anchor_repair_20260902.py
 
       - name: Verify exact durable mutation scope
         shell: bash
