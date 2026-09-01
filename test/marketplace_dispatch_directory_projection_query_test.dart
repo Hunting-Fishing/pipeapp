@@ -51,6 +51,35 @@ void main() {
     expect(entry.hasPublishedRadiusCoverage, isTrue);
   });
 
+
+  test('Directory parses bounded radius-search callable results', () {
+    final result = DispatchDirectoryRadiusSearchData.fromCommandResult({
+      'center': {'latitude': 55.17, 'longitude': -118.79},
+      'radiusKm': 250,
+      'resultCount': 1,
+      'truncated': true,
+      'results': [
+        {
+          'id': 'nearby-hotshot',
+          'operatingName': 'Nearby Hotshot',
+          'serviceCodes': ['transport_hotshot'],
+          'serviceAreaSummary': 'Northern Alberta',
+          'publicLocation': {'label': 'Grande Prairie, Alberta'},
+          'mapPoint': {'latitude': 55.2, 'longitude': -118.8},
+          'distanceKm': 12.3,
+        },
+      ],
+    });
+
+    expect(result.center?.latitude, closeTo(55.17, .001));
+    expect(result.radiusKm, 250);
+    expect(result.resultCount, 1);
+    expect(result.truncated, isTrue);
+    expect(result.entries.single.id, 'nearby-hotshot');
+    expect(result.entries.single.homeBasePoint, isNotNull);
+    expect(result.entries.single.distanceKm, 12.3);
+  });
+
   test('Directory page append deduplicates and keeps alphabetical order', () {
     DispatchDirectoryEntry entry(String id, String name) =>
         DispatchDirectoryEntry.fromDirectoryProjection(id, {
@@ -107,6 +136,12 @@ void main() {
     expect(source, contains('useRadiusInMeter: true'));
     expect(source, contains('serviceAreaRadiusKm * 1000'));
     expect(source, contains('Published service radius:'));
+    expect(source, contains("'searchDispatchDirectoryRadius'"));
+    expect(source, contains('OpenAddressAutocomplete('));
+    expect(source, contains("'Search this area'"));
+    expect(source, contains("'Change area'"));
+    expect(source, contains('searchRadiusKm! * 1000'));
+    expect(source, contains('More companies may be available in this area.'));
   });
 
   test('Directory filters preserve structured service and capability matching', () {
