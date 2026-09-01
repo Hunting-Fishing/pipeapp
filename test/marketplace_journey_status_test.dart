@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pipeapp/marketplace/marketplace_journey_status.dart';
+import 'package:pipe_app/marketplace/marketplace_journey_status.dart';
 
 void main() {
   group('offer journey status', () {
