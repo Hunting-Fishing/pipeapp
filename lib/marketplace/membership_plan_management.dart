@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -6,12 +5,12 @@ import 'marketplace_command_client.dart';
 import 'marketplace_subscription_billing_policy.dart';
 
 String membershipPlanDisplayName(String plan) => switch (plan) {
-      'free' => 'Free',
-      'dispatch_monthly' => 'Monthly',
-      'dispatch_yearly' => 'Yearly',
-      'vip_monthly' => 'VIP',
-      _ => 'Membership',
-    };
+  'free' => 'Free',
+  'dispatch_monthly' => 'Monthly',
+  'dispatch_yearly' => 'Yearly',
+  'vip_monthly' => 'VIP',
+  _ => 'Membership',
+};
 
 String _priceLabel(Map<String, dynamic>? plan) {
   if (plan == null) return '';
@@ -19,17 +18,18 @@ String _priceLabel(Map<String, dynamic>? plan) {
   final currency = '${plan['currency'] ?? 'CAD'}'.toUpperCase();
   final interval = '${plan['interval'] ?? ''}'.trim().toLowerCase();
   if (amount == null || amount < 0 || interval.isEmpty) return '';
-  final value =
-      amount % 1 == 0 ? amount.toStringAsFixed(0) : amount.toStringAsFixed(2);
+  final value = amount % 1 == 0
+      ? amount.toStringAsFixed(0)
+      : amount.toStringAsFixed(2);
   final money = currency == 'CAD' ? 'CA\$$value' : '$currency \$$value';
   return '$money / $interval';
 }
 
 String membershipBillingProviderLabel(String provider) => switch (provider) {
-      'app_store' => 'Apple App Store',
-      'google_play' => 'Google Play',
-      _ => 'Pipe Buyer',
-    };
+  'app_store' => 'Apple App Store',
+  'google_play' => 'Google Play',
+  _ => 'Pipe Buyer',
+};
 
 class MembershipPlanManagementButton extends StatefulWidget {
   const MembershipPlanManagementButton({super.key, this.onChanged});
@@ -46,10 +46,8 @@ class _MembershipPlanManagementButtonState
   final _commands = MarketplaceCommandClient();
   bool _busy = false;
 
-  Future<Map<String, dynamic>> _status() => _commands.execute(
-        'getMembershipPlanStatus',
-        const <String, Object?>{},
-      );
+  Future<Map<String, dynamic>> _status() =>
+      _commands.execute('getMembershipPlanStatus', const <String, Object?>{});
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +66,8 @@ class _MembershipPlanManagementButtonState
         final current = '${data?['currentPlan'] ?? ''}'.trim();
         final pending = '${data?['pendingPlan'] ?? ''}'.trim();
         final provider = '${data?['currentProvider'] ?? 'stripe'}'.trim();
-        final storeManaged = provider == 'app_store' || provider == 'google_play';
+        final storeManaged =
+            provider == 'app_store' || provider == 'google_play';
         if (storeManaged) {
           final providerLabel = membershipBillingProviderLabel(provider);
           return Column(
@@ -155,13 +154,10 @@ class _MembershipPlanManagementButtonState
       final vipPlans = results[1]['plans'] is Map
           ? Map<String, dynamic>.from(results[1]['plans'] as Map)
           : const <String, dynamic>{};
-      Map<String, dynamic>? planMap(
-        Map<String, dynamic> source,
-        String key,
-      ) =>
+      Map<String, dynamic>? planMap(Map<String, dynamic> source, String key) =>
           source[key] is Map
-              ? Map<String, dynamic>.from(source[key] as Map)
-              : null;
+          ? Map<String, dynamic>.from(source[key] as Map)
+          : null;
       final choices = <_MembershipPlanChoice>[
         const _MembershipPlanChoice(
           id: 'free',
@@ -188,7 +184,8 @@ class _MembershipPlanManagementButtonState
         _MembershipPlanChoice(
           id: 'vip_monthly',
           title: 'VIP',
-          subtitle: '${_priceLabel(planMap(vipPlans, 'monthly'))} • '
+          subtitle:
+              '${_priceLabel(planMap(vipPlans, 'monthly'))} • '
               'VIP marketplace benefits + Dispatch access',
           icon: Icons.workspace_premium_outlined,
         ),
@@ -253,13 +250,13 @@ class _MembershipPlanManagementButtonState
         content: Text(
           free
               ? 'Your current paid benefits stay active through the period you '
-                  'already paid for. Renewal stops after that date.'
+                    'already paid for. Renewal stops after that date.'
               : targetPlan == 'vip_monthly'
-                  ? 'Stripe will calculate any upgrade proration and confirm '
-                      'payment before VIP access is granted. Dispatch-only '
-                      'promo discounts do not carry into VIP.'
-                  : 'This change is scheduled for the end of your current paid '
-                      'period so you keep the benefits you already paid for.',
+              ? 'Stripe will calculate any upgrade proration and confirm '
+                    'payment before VIP access is granted. Dispatch-only '
+                    'promo discounts do not carry into VIP.'
+              : 'This change is scheduled for the end of your current paid '
+                    'period so you keep the benefits you already paid for.',
         ),
         actions: [
           TextButton(
@@ -291,9 +288,9 @@ class _MembershipPlanManagementButtonState
         'already_selected' => '$name is already your current plan.',
         _ => 'Membership plan updated.',
       };
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       widget.onChanged?.call();
       if (mounted) setState(() {});
     } catch (error) {

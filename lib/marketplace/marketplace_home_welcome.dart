@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/design/pipe_buyer_commerce_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_home_hero_assets.dart';
+import 'marketplace_navigation.dart';
 
 class MarketplaceHomeWelcome extends StatelessWidget {
   const MarketplaceHomeWelcome({super.key});
@@ -13,7 +14,12 @@ class MarketplaceHomeWelcome extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const MarketplaceHomeDiscoveryHero();
+      return MarketplaceHomeDiscoveryHero(
+        onBrowse: () => MarketplaceNavigation.goToBrowse(context),
+        onSell: () => MarketplaceNavigation.goToSell(context),
+        onDispatch: () => MarketplaceNavigation.goToDispatch(context),
+        onWanted: () => MarketplaceNavigation.goToWanted(context),
+      );
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -40,6 +46,10 @@ class MarketplaceHomeWelcome extends StatelessWidget {
         return MarketplaceHomeDiscoveryHero(
           name: name,
           accountType: accountType,
+          onBrowse: () => MarketplaceNavigation.goToBrowse(context),
+          onSell: () => MarketplaceNavigation.goToSell(context),
+          onDispatch: () => MarketplaceNavigation.goToDispatch(context),
+          onWanted: () => MarketplaceNavigation.goToWanted(context),
         );
       },
     );
@@ -56,10 +66,18 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
     super.key,
     this.name,
     this.accountType = 'personal',
+    this.onBrowse,
+    this.onSell,
+    this.onDispatch,
+    this.onWanted,
   });
 
   final String? name;
   final String accountType;
+  final VoidCallback? onBrowse;
+  final VoidCallback? onSell;
+  final VoidCallback? onDispatch;
+  final VoidCallback? onWanted;
 
   bool get _signedIn => name != null && name!.trim().isNotEmpty;
 
@@ -82,12 +100,20 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
           subtitle: subtitle,
         ),
         const SizedBox(height: 12),
+        MarketplaceHomeIntentActions(
+          onBrowse: onBrowse,
+          onSell: onSell,
+          onDispatch: onDispatch,
+          onWanted: onWanted,
+        ),
+        const SizedBox(height: 12),
         const PipeBuyerTrustBand(
           items: [
             PipeBuyerTrustItemData(
               icon: Icons.verified_user_outlined,
               title: 'Verified Businesses',
-              subtitle: 'Identity and marketplace readiness are clearly surfaced.',
+              subtitle:
+                  'Identity and marketplace readiness are clearly surfaced.',
             ),
             PipeBuyerTrustItemData(
               icon: Icons.forum_outlined,
@@ -97,16 +123,191 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
             PipeBuyerTrustItemData(
               icon: Icons.handshake_outlined,
               title: 'Auditable Offers',
-              subtitle: 'Offer activity stays tied to the correct listing and account.',
+              subtitle:
+                  'Offer activity stays tied to the correct listing and account.',
             ),
             PipeBuyerTrustItemData(
               icon: Icons.local_shipping_outlined,
               title: 'Dispatch Ready',
-              subtitle: 'Move from equipment discovery into trucking coordination.',
+              subtitle:
+                  'Move from equipment discovery into trucking coordination.',
             ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class MarketplaceHomeIntentActions extends StatelessWidget {
+  const MarketplaceHomeIntentActions({
+    super.key,
+    this.onBrowse,
+    this.onSell,
+    this.onDispatch,
+    this.onWanted,
+  });
+
+  final VoidCallback? onBrowse;
+  final VoidCallback? onSell;
+  final VoidCallback? onDispatch;
+  final VoidCallback? onWanted;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 980 ? 4 : 2;
+        const spacing = 10.0;
+        final cardWidth =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What do you want to do?',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Start with one simple action. Pipe Buyer will guide the rest of the workflow.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: PipeBuyerColors.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: Icons.search_rounded,
+                        title: 'Browse inventory',
+                        subtitle: 'Find pipe, equipment and industrial assets.',
+                        onTap: onBrowse,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: Icons.add_box_outlined,
+                        title: 'Sell something',
+                        subtitle: 'Create a guided Marketplace listing.',
+                        onTap: onSell,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: Icons.local_shipping_outlined,
+                        title: 'Request service',
+                        subtitle:
+                            'Find trucking and industrial service providers.',
+                        onTap: onDispatch,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: Icons.campaign_outlined,
+                        title: 'Post wanted / RFQ',
+                        subtitle: 'Tell the market exactly what you need.',
+                        onTap: onWanted,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MarketplaceIntentCard extends StatelessWidget {
+  const _MarketplaceIntentCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: PipeBuyerColors.surfaceMuted,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 118),
+          child: Padding(
+            padding: const EdgeInsets.all(13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: PipeBuyerColors.orangeSoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 21,
+                    color: PipeBuyerColors.orangePressed,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PipeBuyerColors.muted,
+                    fontSize: 11,
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -276,8 +477,8 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                                   : Icons.public_rounded,
                               label: signedIn
                                   ? accountType == 'business'
-                                      ? 'Business account'
-                                      : 'Marketplace account'
+                                        ? 'Business account'
+                                        : 'Marketplace account'
                                   : 'North America first',
                             ),
                             const _HeroChip(
