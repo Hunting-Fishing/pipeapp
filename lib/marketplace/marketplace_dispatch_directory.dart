@@ -32,10 +32,10 @@ class DispatchDirectoryEntry {
     final publicLocation = _map(data['publicLocation']);
     final serviceCodes = data['serviceCodes'] is Iterable
         ? (data['serviceCodes'] as Iterable)
-              .map((value) => '$value'.trim())
-              .where((value) => value.isNotEmpty)
-              .toSet()
-              .toList()
+            .map((value) => '$value'.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
         : <String>[];
     serviceCodes.sort();
     final point = data['mapPoint'];
@@ -63,10 +63,10 @@ class DispatchDirectoryEntry {
     final dispatch = _map(data['dispatchProfile']);
     final serviceCodes = dispatch['serviceCodes'] is Iterable
         ? (dispatch['serviceCodes'] as Iterable)
-              .map((value) => '$value'.trim())
-              .where((value) => value.isNotEmpty)
-              .toSet()
-              .toList()
+            .map((value) => '$value'.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
         : <String>[];
     serviceCodes.sort();
 
@@ -79,8 +79,14 @@ class DispatchDirectoryEntry {
         dispatch['operatingName'],
         data['publicName'],
       ]),
-      description: _firstText([dispatch['description'], data['description']]),
-      website: _firstText([dispatch['website'], data['website']]),
+      description: _firstText([
+        dispatch['description'],
+        data['description'],
+      ]),
+      website: _firstText([
+        dispatch['website'],
+        data['website'],
+      ]),
       businessTypeCode: '${dispatch['businessType'] ?? ''}'.trim(),
       serviceCodes: serviceCodes,
       serviceAreaLabel: _firstText([
@@ -190,14 +196,15 @@ class DispatchDirectoryFilters {
     String? businessTypeCode,
     bool? emergencyOnly,
     bool? remoteOnly,
-  }) => DispatchDirectoryFilters(
-    searchText: searchText ?? this.searchText,
-    serviceCode: serviceCode ?? this.serviceCode,
-    availabilityCode: availabilityCode ?? this.availabilityCode,
-    businessTypeCode: businessTypeCode ?? this.businessTypeCode,
-    emergencyOnly: emergencyOnly ?? this.emergencyOnly,
-    remoteOnly: remoteOnly ?? this.remoteOnly,
-  );
+  }) =>
+      DispatchDirectoryFilters(
+        searchText: searchText ?? this.searchText,
+        serviceCode: serviceCode ?? this.serviceCode,
+        availabilityCode: availabilityCode ?? this.availabilityCode,
+        businessTypeCode: businessTypeCode ?? this.businessTypeCode,
+        emergencyOnly: emergencyOnly ?? this.emergencyOnly,
+        remoteOnly: remoteOnly ?? this.remoteOnly,
+      );
 }
 
 class DispatchDirectoryPageData {
@@ -217,11 +224,9 @@ class DispatchDirectoryPageData {
       for (final entry in nextPage.entries) entry.id: entry,
     };
     final mergedEntries = entriesById.values.toList()
-      ..sort(
-        (left, right) => left.operatingName.toLowerCase().compareTo(
-          right.operatingName.toLowerCase(),
-        ),
-      );
+      ..sort((left, right) => left.operatingName
+          .toLowerCase()
+          .compareTo(right.operatingName.toLowerCase()));
     return DispatchDirectoryPageData(
       entries: mergedEntries,
       cursor: nextPage.cursor,
@@ -232,7 +237,7 @@ class DispatchDirectoryPageData {
 
 class MarketplaceDispatchDirectoryRepository {
   MarketplaceDispatchDirectoryRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -241,9 +246,8 @@ class MarketplaceDispatchDirectoryRepository {
     QueryDocumentSnapshot<Map<String, dynamic>>? after,
     int pageSize = 60,
   }) async {
-    Query<Map<String, dynamic>> query = _firestore.collection(
-      'dispatch_directory_entries',
-    );
+    Query<Map<String, dynamic>> query =
+        _firestore.collection('dispatch_directory_entries');
     final searchTerms = filters.searchText
         .trim()
         .toLowerCase()
@@ -266,21 +270,18 @@ class MarketplaceDispatchDirectoryRepository {
       after: after,
       pageSize: pageSize,
     );
-    final entries =
-        page.documents
-            .map(
-              (document) => DispatchDirectoryEntry.fromDirectoryProjection(
-                document.id,
-                document.data(),
-              ),
-            )
-            .where((entry) => entry.isDirectoryReady && entry.matches(filters))
-            .toList()
-          ..sort(
-            (left, right) => left.operatingName.toLowerCase().compareTo(
-              right.operatingName.toLowerCase(),
-            ),
-          );
+    final entries = page.documents
+        .map(
+          (document) => DispatchDirectoryEntry.fromDirectoryProjection(
+            document.id,
+            document.data(),
+          ),
+        )
+        .where((entry) => entry.isDirectoryReady && entry.matches(filters))
+        .toList()
+      ..sort((left, right) => left.operatingName
+          .toLowerCase()
+          .compareTo(right.operatingName.toLowerCase()));
     return DispatchDirectoryPageData(
       entries: entries,
       cursor: page.cursor,
@@ -331,11 +332,15 @@ class _MarketplaceDispatchDirectoryPageState
     final Future<DispatchDirectoryPageData> request;
     if (seed != null) {
       request = Future.value(
-        DispatchDirectoryPageData(entries: seed, cursor: null, hasMore: false),
+        DispatchDirectoryPageData(
+          entries: seed,
+          cursor: null,
+          hasMore: false,
+        ),
       );
     } else {
-      final repository = _repository ??=
-          MarketplaceDispatchDirectoryRepository();
+      final repository =
+          _repository ??= MarketplaceDispatchDirectoryRepository();
       request = repository.loadPage(filters: _filters);
     }
     return request.then((data) {
@@ -374,7 +379,8 @@ class _MarketplaceDispatchDirectoryPageState
     }
 
     final generation = _loadGeneration;
-    final repository = _repository ??= MarketplaceDispatchDirectoryRepository();
+    final repository =
+        _repository ??= MarketplaceDispatchDirectoryRepository();
     setState(() {
       _loadingMore = true;
       _loadMoreError = null;
@@ -678,8 +684,9 @@ class _DirectoryFilterCard extends StatelessWidget {
                     ),
                   ),
                 ],
-                onChanged: (value) =>
-                    onChanged(filters.copyWith(serviceCode: value)),
+                onChanged: (value) => onChanged(
+                  filters.copyWith(serviceCode: value),
+                ),
               );
 
               final availability = _DirectoryInlineSelect(
@@ -708,8 +715,9 @@ class _DirectoryFilterCard extends StatelessWidget {
                     label: 'Unavailable',
                   ),
                 ],
-                onChanged: (value) =>
-                    onChanged(filters.copyWith(availabilityCode: value)),
+                onChanged: (value) => onChanged(
+                  filters.copyWith(availabilityCode: value),
+                ),
               );
 
               final businessType = _DirectoryInlineSelect(
@@ -737,10 +745,14 @@ class _DirectoryFilterCard extends StatelessWidget {
                     value: 'corporation',
                     label: 'Corporation / company',
                   ),
-                  _DirectoryInlineSelectOption(value: 'other', label: 'Other'),
+                  _DirectoryInlineSelectOption(
+                    value: 'other',
+                    label: 'Other',
+                  ),
                 ],
-                onChanged: (value) =>
-                    onChanged(filters.copyWith(businessTypeCode: value)),
+                onChanged: (value) => onChanged(
+                  filters.copyWith(businessTypeCode: value),
+                ),
               );
 
               if (!wide) {
@@ -891,7 +903,9 @@ class _DirectoryInlineSelectState extends State<_DirectoryInlineSelect> {
                 final isSelected = option.value == widget.value;
 
                 return GestureDetector(
-                  key: ValueKey('${widget.id}-option-${option.value}'),
+                  key: ValueKey(
+                    '${widget.id}-option-${option.value}',
+                  ),
                   behavior: HitTestBehavior.opaque,
                   onTap: () => _choose(option.value),
                   child: Padding(
@@ -1040,26 +1054,29 @@ class _DirectoryRefreshWarning extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF4E8),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFFFD2A8)),
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.sync_problem_outlined, color: PipeBuyerColors.orange),
-        const SizedBox(width: 10),
-        const Expanded(
-          child: Text(
-            'Could not refresh these filters. Showing the last loaded Directory results.',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF4E8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFFD2A8)),
         ),
-        TextButton(onPressed: onRetry, child: const Text('Retry')),
-      ],
-    ),
-  );
+        child: Row(
+          children: [
+            const Icon(
+              Icons.sync_problem_outlined,
+              color: PipeBuyerColors.orange,
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Could not refresh these filters. Showing the last loaded Directory results.',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      );
 }
 
 class _DirectoryEmptyState extends StatelessWidget {
@@ -1075,11 +1092,11 @@ class _DirectoryEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PipeBuyerSectionCard(
-    title: title,
-    subtitle: message,
-    leading: const Icon(Icons.search_off_outlined),
-    child: action ?? const SizedBox.shrink(),
-  );
+        title: title,
+        subtitle: message,
+        leading: const Icon(Icons.search_off_outlined),
+        child: action ?? const SizedBox.shrink(),
+      );
 }
 
 String _serviceLabel(String code) {

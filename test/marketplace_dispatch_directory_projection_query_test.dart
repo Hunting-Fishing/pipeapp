@@ -6,27 +6,33 @@ import 'package:pipe_app/marketplace/marketplace_dispatch_directory.dart';
 
 void main() {
   test('Directory entry parses the server-owned public projection', () {
-    final entry = DispatchDirectoryEntry.fromDirectoryProjection('northline', {
-      'companyName': 'Northline Heavy Haul',
-      'operatingName': 'Northline Heavy Haul',
-      'serviceCodes': ['transport_lowboy', 'transport_pipe_hauling'],
-      'searchTokens': ['northline', 'heavy', 'haul', 'edmonton'],
-      'serviceAreaSummary': 'Edmonton and Western Canada',
-      'publicLocation': {
-        'label': 'Edmonton, Alberta',
-        'precision': 'approximate_1km',
+    final entry = DispatchDirectoryEntry.fromDirectoryProjection(
+      'northline',
+      {
+        'companyName': 'Northline Heavy Haul',
+        'operatingName': 'Northline Heavy Haul',
+        'serviceCodes': [
+          'transport_lowboy',
+          'transport_pipe_hauling',
+        ],
+        'searchTokens': ['northline', 'heavy', 'haul', 'edmonton'],
+        'serviceAreaSummary': 'Edmonton and Western Canada',
+        'publicLocation': {
+          'label': 'Edmonton, Alberta',
+          'precision': 'approximate_1km',
+        },
+        'mapPoint': const GeoPoint(53.55, -113.49),
+        'availability': 'available_now',
+        'businessType': 'corporation',
+        'emergencyCallout': false,
+        'remoteSiteCapable': true,
+        'publicSummary': 'Heavy haul and pipe transportation.',
+        'website': 'https://www.pipebuyer.com',
+        'profileCompleteness': 100,
+        'privateEmail': 'must-not-be-used@example.test',
+        'policyNumber': 'PRIVATE-123',
       },
-      'mapPoint': const GeoPoint(53.55, -113.49),
-      'availability': 'available_now',
-      'businessType': 'corporation',
-      'emergencyCallout': false,
-      'remoteSiteCapable': true,
-      'publicSummary': 'Heavy haul and pipe transportation.',
-      'website': 'https://www.pipebuyer.com',
-      'profileCompleteness': 100,
-      'privateEmail': 'must-not-be-used@example.test',
-      'policyNumber': 'PRIVATE-123',
-    });
+    );
 
     expect(entry.isDirectoryReady, isTrue);
     expect(entry.operatingName, 'Northline Heavy Haul');
@@ -50,10 +56,7 @@ void main() {
       hasMore: true,
     );
     final second = DispatchDirectoryPageData(
-      entries: [
-        entry('alpha', 'Alpha Hauling'),
-        entry('gamma', 'Gamma Hauling'),
-      ],
+      entries: [entry('alpha', 'Alpha Hauling'), entry('gamma', 'Gamma Hauling')],
       cursor: null,
       hasMore: false,
     );
@@ -75,18 +78,14 @@ void main() {
     expect(source, contains("'Load more companies'"));
     expect(
       source,
-      isNot(
-        contains(
-          'Pagination will be wired into the next Directory data slice.',
-        ),
-      ),
+      isNot(contains('Pagination will be wired into the next Directory data slice.')),
     );
   });
 
-  test(
-    'Directory filters preserve structured service and capability matching',
-    () {
-      final entry = DispatchDirectoryEntry.fromDirectoryProjection('pilot', {
+  test('Directory filters preserve structured service and capability matching', () {
+    final entry = DispatchDirectoryEntry.fromDirectoryProjection(
+      'pilot',
+      {
         'companyName': 'Peace Country Pilot & Escort',
         'serviceCodes': ['pilot_escort_vehicle', 'pilot_high_pole'],
         'serviceAreaSummary': 'Fort St. John and Dawson Creek',
@@ -96,27 +95,27 @@ void main() {
         'emergencyCallout': true,
         'remoteSiteCapable': true,
         'publicSummary': 'Pilot and high-pole support.',
-      });
+      },
+    );
 
-      expect(
-        entry.matches(
-          const DispatchDirectoryFilters(
-            searchText: 'Fort St. John',
-            serviceCode: 'pilot_escort_vehicle',
-            availabilityCode: 'available_today',
-            businessTypeCode: 'owner_operator',
-            emergencyOnly: true,
-            remoteOnly: true,
-          ),
+    expect(
+      entry.matches(
+        const DispatchDirectoryFilters(
+          searchText: 'Fort St. John',
+          serviceCode: 'pilot_escort_vehicle',
+          availabilityCode: 'available_today',
+          businessTypeCode: 'owner_operator',
+          emergencyOnly: true,
+          remoteOnly: true,
         ),
-        isTrue,
-      );
-      expect(
-        entry.matches(
-          const DispatchDirectoryFilters(serviceCode: 'crane_picker_truck'),
-        ),
-        isFalse,
-      );
-    },
-  );
+      ),
+      isTrue,
+    );
+    expect(
+      entry.matches(
+        const DispatchDirectoryFilters(serviceCode: 'crane_picker_truck'),
+      ),
+      isFalse,
+    );
+  });
 }

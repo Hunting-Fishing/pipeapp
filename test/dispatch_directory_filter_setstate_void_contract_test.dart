@@ -9,7 +9,12 @@ void main() {
     ).readAsStringSync();
     final compact = source.replaceAll(RegExp(r'\s+'), ' ');
 
-    expect(compact, isNot(contains('setState(() => _loadFuture = _load());')));
+    expect(
+      compact,
+      isNot(
+        contains('setState(() => _loadFuture = _load());'),
+      ),
+    );
 
     final reloadStart = compact.indexOf('void _reload() {');
     final loadMoreStart = compact.indexOf(
@@ -37,7 +42,10 @@ void main() {
     expect(filter, contains('_filters = value;'));
     expect(filter, contains('_loadGeneration++;'));
     expect(filter, contains('_filterDebounce?.cancel();'));
-    expect(filter, contains('Timer(const Duration(milliseconds: 180), () {'));
+    expect(
+      filter,
+      contains('Timer(const Duration(milliseconds: 180), () {'),
+    );
     expect(filter, contains('if (!mounted) return;'));
     expect(filter, contains('final nextLoad = _load();'));
     expect(filter, contains('setState(() {'));
