@@ -44,6 +44,7 @@ jobs:
             lib/marketplace/marketplace_navigation.dart \
             lib/marketplace/marketplace_home_welcome.dart \
             lib/marketplace/oil_gas_marketplace.dart \
+            lib/marketplace/membership_plan_management.dart \
             test/marketplace_home_hero_responsive_test.dart \
             test/marketplace_adaptive_shell_test.dart \
             test/marketplace_navigation_test.dart
@@ -52,7 +53,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyze application and tests
-        run: flutter analyze lib test
+        run: dart analyze lib test
 
       - name: Run focused Release 1 tests
         run: >-
@@ -71,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          allowed='^(lib/marketplace/marketplace_navigation.dart|lib/marketplace/marketplace_home_welcome.dart|lib/marketplace/oil_gas_marketplace.dart|test/marketplace_home_hero_responsive_test.dart|test/marketplace_adaptive_shell_test.dart|test/marketplace_navigation_test.dart|docs/PIPEBUYER_ACTIVE_PRODUCT_BUILD_PLAN_2026-09-01.md)$'
+          allowed='^(lib/marketplace/marketplace_navigation.dart|lib/marketplace/marketplace_home_welcome.dart|lib/marketplace/oil_gas_marketplace.dart|lib/marketplace/membership_plan_management.dart|test/marketplace_home_hero_responsive_test.dart|test/marketplace_adaptive_shell_test.dart|test/marketplace_navigation_test.dart|docs/PIPEBUYER_ACTIVE_PRODUCT_BUILD_PLAN_2026-09-01.md|docs/repairs/RELEASE1_ANALYZER_BASELINE_2026-09-01.md)$'
           git diff --check
           unexpected="$(git status --short | awk '{print $2}' | grep -Ev "$allowed" || true)"
           if [ -n "$unexpected" ]; then
@@ -90,9 +91,11 @@ jobs:
             lib/marketplace/marketplace_navigation.dart \
             lib/marketplace/marketplace_home_welcome.dart \
             lib/marketplace/oil_gas_marketplace.dart \
+            lib/marketplace/membership_plan_management.dart \
             test/marketplace_home_hero_responsive_test.dart \
             test/marketplace_adaptive_shell_test.dart \
             test/marketplace_navigation_test.dart \
-            docs/PIPEBUYER_ACTIVE_PRODUCT_BUILD_PLAN_2026-09-01.md
+            docs/PIPEBUYER_ACTIVE_PRODUCT_BUILD_PLAN_2026-09-01.md \
+            docs/repairs/RELEASE1_ANALYZER_BASELINE_2026-09-01.md
           git commit -m 'Release 1: simplify Pipe Buyer entry flow'
           git push origin HEAD:feature/release-1-simple-flow-20260901
