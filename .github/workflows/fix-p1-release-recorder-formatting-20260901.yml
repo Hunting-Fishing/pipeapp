@@ -1,0 +1,40 @@
+name: Fix P1 release recorder formatting 2026-09-01
+
+on:
+  push:
+    branches:
+      - docs/record-p1-user-blocking-production-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: docs/record-p1-user-blocking-production-20260901
+      - name: Remove trailing-space output from recorder and self-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/record-p1-production-release-20260901.yml')
+          text = p.read_text(encoding='utf-8')
+          old = '("Status: In progress  ", "Status: Production release verified; remaining P1 acceptance continues  "),'
+          new = '("Status: In progress  ", "Status: Production release verified; remaining P1 acceptance continues"),'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one formatting anchor, found {text.count(old)}')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-p1-release-recorder-formatting-20260901.yml
+          git add .github/workflows/record-p1-production-release-20260901.yml
+          git diff --cached --check
+          git commit -m "Fix P1 release recorder formatting guard"
+          git push origin HEAD:docs/record-p1-user-blocking-production-20260901
