@@ -123,6 +123,22 @@ class MarketplaceActionsRepository {
     });
   }
 
+  Future<Map<String, dynamic>> readConversationBlockStatus(
+    String conversationId,
+  ) =>
+      _commands.execute('readMarketplaceUserBlockStatus', {
+        'conversationId': conversationId,
+      });
+
+  Future<Map<String, dynamic>> setConversationBlocked(
+    String conversationId, {
+    required bool blocked,
+  }) =>
+      _commands.execute('setMarketplaceUserBlocked', {
+        'conversationId': conversationId,
+        'blocked': blocked,
+      });
+
   Future<String> ensureOfferConversation({
     required String listingId,
     required String listingTitle,

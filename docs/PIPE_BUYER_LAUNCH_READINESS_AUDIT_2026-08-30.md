@@ -1,6 +1,6 @@
 # Pipe Buyer launch readiness audit — 2026-08-30
 
-Last reconciled: 2026-08-31
+Last reconciled: 2026-09-01
 
 ## Purpose
 
@@ -11,10 +11,11 @@ It intentionally does **not** invent a new completion percentage. Older percenta
 ## Audited production baseline
 
 - Repository: `Hunting-Fishing/pipeapp`
-- Production source / release pointer: `3790fc600b6d83ac072486b9ca3b6a8e8c311898`
-- Protected Firebase production run: `33325938428`
-- Production deployment job: `99295953757` — **success**
-- Visual acceptance job: `99296786437` — **success**
+- Production source / release pointer: `7c5398dc22ef42844058f17e2ee70882bb72e987`
+- Latest protected Marketplace hero production run: `33428641770` — **success**
+- Subscription-card / Firebase Functions production run: `33388062795` — **success**
+- The latest hero release validated the approved desktop/mobile truck image payloads, full Flutter tests, exact production web build, Firebase Hosting deployment, and public production-page smoke checks.
+- The subscription release validated and deployed both configured Firebase Functions codebases before broad `--only functions` deployment.
 - Firebase project: `flutter-flow-pipe`
 - Production deployment passed full Flutter tests, release-manifest controls, Functions validation, Firestore rules tests, authenticated callable workflows, exact web build, Firebase deployment, deployed Function parity, release identity, and mobile/desktop web visual acceptance.
 
@@ -45,7 +46,7 @@ The preceding failed run `33308967311` is not a current defect. It stopped befor
 | Native Apple/Google paid memberships | **RED for store launch** | Flutter IAP/native provider foundation exists, but production purchase verification/reconciliation is deliberately fail-closed/unexported until real store setup exists. | The membership repair record explicitly states native billing is preparation, not activation. README also treats store publication as separate. | Provision App Store Connect + Google Play products/credentials, test sandbox/TestFlight/Play purchases/restores/renewals/plan changes, then activate server verification/reconciliation. Do not route native digital memberships through Stripe as a shortcut. |
 | Messaging | **GREEN/YELLOW** | Current messaging page uses real Firestore conversations, unread state, attachments, offer/transaction integration and report entry points. Notification infrastructure is present and the production web notification worker passed release validation. | Earlier Phase docs list messages/transactions as UX work; current repository is materially beyond that checkpoint. | Web messaging is suitable for controlled launch. Validate push/deep-link behavior on physical Android/iOS devices before native store launch. |
 | Reporting / anti-scam evidence / admin moderation | **GREEN/YELLOW** | `marketplace_reporting.dart` supports structured report reasons, private evidence uploads, authenticated report submission, and admin moderation queues including reports, Dispatch providers, delivery alerts, and support. | This is stronger than the old planning checkpoints. | Reporting/moderation is launch-capable. A user-to-user block/mute feature was not evidenced in this audit; treat that as P1 trust UX rather than pretending it exists. |
-| User block / mute | **YELLOW** | No clear current implementation was found by repository search during this audit. | No later repair record was found establishing this as complete. | Add a simple block/mute contract if launch policy requires users to stop direct contact from another account. Ensure it affects messaging/contact visibility without destroying evidence needed by moderation. |
+| User block / mute | **GREEN/YELLOW** | The 2026-09-01 P1 slice adds server-authoritative conversation block/unblock state, block/unblock controls in the chat safety menu, and send enforcement in Cloud Functions. Existing conversation history and Trust & Safety evidence are retained. | This closes the earlier “no clear implementation” finding. | Validate the block/unblock journey with two ordinary production-safe accounts after deployment. A separate notification-only mute preference can remain P2 unless user feedback shows it is needed. |
 | Notifications | **GREEN/YELLOW** | Notification service/plugin infrastructure exists; production release verified the web notification worker and includes delivery-failure admin visibility. | Older Phase acceptance requirements for physical mobile notification journeys remain relevant. | Web notification infrastructure is green. Physical iOS/Android permission, token refresh, foreground/background/deep-link acceptance remains P1 for native launch. |
 | Dispatch provider profiles / credentials | **GREEN/YELLOW** | Current repository contains company profile, service taxonomy, equipment capability, credentials, admin/provider management and analytics/reminder code. Numerous credential repair records show later stabilization. | `docs/DISPATCH_NETWORK_MASTER_PLAN.md` stating 50% / Phase 4 blocked is demonstrably stale: Phase 4 Directory and credential repair records exist in the same repository. | Do not use the old 50% figure. Run one current provider onboarding/profile/credential human journey and record a new Dispatch acceptance checkpoint before broad provider recruitment. |
 | Dispatch Directory / discovery | **GREEN/YELLOW** | `marketplace_dispatch_directory.dart` and many Phase 4 Directory repair/test records exist, including seeded lifecycle, filters, scroll, dropdown, interaction and runtime stability. | This directly supersedes the Aug. 17 master plan's “Phase 4 = 0/20” status. | Directory implementation is real. Validate production data quality, privacy, filters and empty/error states with real provider records before broad launch. |

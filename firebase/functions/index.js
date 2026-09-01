@@ -31,6 +31,9 @@ const {
 const { createNotificationDelivery } = require("./notification_delivery");
 const { createModerationCommands } = require("./moderation_commands");
 const {
+  createMarketplaceUserBlockCommands,
+} = require("./marketplace_user_block_commands");
+const {
   classifyMessageSafety,
   duplicateListingMediaEvidence,
   duplicateListingMediaItems,
@@ -94,6 +97,7 @@ const dispatchCommands = createDispatchCommands(admin);
 const dispatchDirectoryProjection = createDispatchDirectoryProjection(admin);
 const dispatchCredentialMonitor = createDispatchCredentialMonitor(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
+const marketplaceUserBlockCommands = createMarketplaceUserBlockCommands(admin);
 const marketplaceListingLifecycle = createMarketplaceListingLifecycle(admin);
 const marketplaceListingInsights = createMarketplaceListingInsights(admin);
 const moderationCommands = createModerationCommands(admin);
@@ -243,10 +247,22 @@ exports.confirmMarketplaceUpload = onCall(
   protectedCallableOptions,
   communicationCommands.confirmMarketplaceUpload,
 );
+exports.readMarketplaceUserBlockStatus = onCall(
+  protectedCallableOptions,
+  marketplaceUserBlockCommands.readMarketplaceUserBlockStatus,
+);
+exports.setMarketplaceUserBlocked = onCall(
+  protectedCallableOptions,
+  marketplaceUserBlockCommands.setMarketplaceUserBlocked,
+);
+const sendMarketplaceMessageWithBlockGuard = async (request) => {
+  await marketplaceUserBlockCommands.requireConversationMessagingAllowed(request);
+  return communicationCommands.sendMarketplaceMessage(request);
+};
 exports.sendMarketplaceMessage = onCall(
   protectedCallableOptions,
   policyAcceptanceCommands.requireCurrentPolicies(
-    communicationCommands.sendMarketplaceMessage,
+    sendMarketplaceMessageWithBlockGuard,
   ),
 );
 exports.submitMarketplaceReport = onCall(

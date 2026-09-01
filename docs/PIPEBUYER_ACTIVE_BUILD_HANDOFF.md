@@ -1,12 +1,22 @@
 # Pipe Buyer Active Build Handoff
 
-**Updated:** 2026-08-20
+**Updated:** 2026-09-01
 
 **Canonical repository:** `D:\Game Development\pipeapp`
 
-**Active branch:** `design/formal-beautification-foundation`
+**Production branch:** `main`
+
+**Current production baseline before this P1 slice:** `7c5398dc22ef42844058f17e2ee70882bb72e987`
+
+**Current implementation branch:** `feature/p1-user-blocking-build-plan-20260901`
 
 **Canonical local app:** `http://127.0.0.1:5050`
+
+## Current launch/build position
+
+The older `design/formal-beautification-foundation` and Phase 4 Hotshot/geography blocker notes below are historical. Open-map/geolocation foundations and later Directory repairs have superseded that blocker. The current launch authority is `docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md`.
+
+Controlled North American web launch is in late P1 acceptance. Current autonomous engineering priority: server-authoritative Marketplace user block/unblock, preserving conversation and moderation evidence. Remaining P1 acceptance after that includes ordinary-user buyer/seller/Timed Buying/report-admin/Dispatch journeys, physical mobile push/deep-link validation for native launch, and representative Dispatch provider data/privacy acceptance.
 
 ## Current authoritative Dispatch state
 
