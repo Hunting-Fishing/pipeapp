@@ -1,3 +1,4 @@
+# Reverify after correcting the package import on the bounded Release 2 test.
 name: Verify Release 2 marketplace journey status
 
 on:
