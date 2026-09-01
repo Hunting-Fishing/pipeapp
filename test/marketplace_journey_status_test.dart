@@ -40,6 +40,74 @@ void main() {
     });
   });
 
+  group('Wanted journey status', () {
+    test(
+      'open request with no activity keeps matching responsibility clear',
+      () {
+        final status = marketplaceWantedJourneyStatus({
+          'status': 'active',
+          'matchCount': 0,
+          'responseCount': 0,
+        });
+
+        expect(
+          status.currentStatus,
+          'Wanted request open • matching in progress',
+        );
+        expect(status.responsibleParty, 'Pipe Buyer matching');
+        expect(status.nextAction, contains('continue matching'));
+      },
+    );
+
+    test('open request with matches tells buyer to review them', () {
+      final status = marketplaceWantedJourneyStatus({
+        'status': 'active',
+        'matchCount': 3,
+        'responseCount': 1,
+      });
+
+      expect(status.currentStatus, 'Wanted request open • matches available');
+      expect(status.responsibleParty, 'Buyer (you)');
+      expect(
+        status.nextAction,
+        contains('Review the suggested Marketplace matches'),
+      );
+    });
+
+    test('paused request assigns reactivate or fulfill decision to buyer', () {
+      final status = marketplaceWantedJourneyStatus({'status': 'paused'});
+
+      expect(status.currentStatus, 'Wanted request paused');
+      expect(status.responsibleParty, 'Buyer (you)');
+      expect(status.nextAction, contains('Reactivate'));
+      expect(status.nextAction, contains('mark it fulfilled'));
+    });
+
+    test('fulfilled request is terminal without calling it sold', () {
+      final status = marketplaceWantedJourneyStatus({'status': 'fulfilled'});
+
+      expect(status.currentStatus, 'Wanted request fulfilled');
+      expect(status.currentStatus, isNot(contains('sold')));
+      expect(status.responsibleParty, 'No action required');
+      expect(status.tone, MarketplaceJourneyTone.success);
+    });
+
+    test('expired request points to the existing renew path', () {
+      final status = marketplaceWantedJourneyStatus({'status': 'expired'});
+
+      expect(status.currentStatus, 'Wanted request expired');
+      expect(status.responsibleParty, 'Buyer (you)');
+      expect(status.nextAction, contains('Use Renew'));
+    });
+
+    test('unknown Wanted state fails safe to support', () {
+      final status = marketplaceWantedJourneyStatus({'status': 'mystery'});
+
+      expect(status.currentStatus, 'Wanted request status needs review');
+      expect(status.responsibleParty, 'Pipe Buyer support');
+    });
+  });
+
   group('transaction journey status', () {
     test('unpaid transaction clearly assigns payment to buyer', () {
       final buyer = marketplaceTransactionJourneyStatus({
@@ -184,6 +252,22 @@ void main() {
         expect(status.nextAction, contains('before confirming completion'));
       },
     );
+  });
+
+  test('Wanted owner lifecycle wires the shared guidance card', () {
+    final accountHub = File(
+      'lib/marketplace/marketplace_account_hub.dart',
+    ).readAsStringSync();
+
+    expect(accountHub, contains("import 'marketplace_journey_status.dart';"));
+    expect(accountHub, contains('marketplaceWantedJourneyStatus(data)'));
+    expect(
+      accountHub,
+      contains('MarketplaceJourneyStatusCard(status: wantedJourneyStatus)'),
+    );
+    expect(accountHub, contains("_transitionListing('mark_fulfilled')"));
+    expect(accountHub, contains("_transitionListing('pause')"));
+    expect(accountHub, contains("_transitionListing('activate')"));
   });
 
   testWidgets('journey card exposes the three simple user questions', (

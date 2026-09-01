@@ -21,6 +21,7 @@ import 'marketplace_support.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_listing_lifecycle.dart';
+import 'marketplace_journey_status.dart';
 import 'marketplace_listing_insights.dart';
 import 'marketplace_money.dart';
 import 'marketplace_notification_service.dart';
@@ -1291,6 +1292,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
   Widget _listingLifecycleCard(Map<String, dynamic> data) {
     final status = '${data['status'] ?? 'active'}';
     final isWanted = data['transactionType'] == 'Wanted / Seeking';
+    final wantedJourneyStatus =
+        isWanted ? marketplaceWantedJourneyStatus(data) : null;
     final busy = _listingActionBusy != null;
     final actions = <Widget>[
       if (status == 'active' || status == 'paused')
@@ -1377,6 +1380,10 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                         style: const TextStyle(fontWeight: FontWeight.w900))),
                 Chip(label: Text(status.replaceAll('_', ' ').toUpperCase())),
               ]),
+              if (wantedJourneyStatus != null) ...[
+                const SizedBox(height: 10),
+                MarketplaceJourneyStatusCard(status: wantedJourneyStatus),
+              ],
               const SizedBox(height: 6),
               if (busy)
                 Padding(
