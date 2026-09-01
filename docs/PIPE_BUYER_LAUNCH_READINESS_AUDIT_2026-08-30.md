@@ -1,5 +1,16 @@
 # Pipe Buyer launch readiness audit — 2026-08-30
 
+## 2026-09-01 P1 Marketplace blocking production release
+
+The current verified production application is `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`, deployed by `Deploy verified Firebase release` run `33464230471` (#55) with App Check `enforce`. Pre-merge Quality run `33463954448` and Callable Safety run `33463955489` passed. Production then passed Flutter analysis/tests, generated release-manifest controls, Function-parity tests, both Functions codebase validation, Firestore security rules, authenticated callable workflows/retries, exact web build, notification-worker verification, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `99722538441`).
+
+Retained evidence: `firebase-release-evidence-production-0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de-33464230471` (artifact `9784473533`) and `visual-acceptance-production-33464230471` (artifact `9784489576`). The release includes `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked`; the manifest discovers them from configured Firebase codebases/exports, so no static Function allowlist exists to reconcile.
+
+Trust repair closed during review: reciprocal blocking must remain independently available to either party even if the other party blocked first. The backend already supported directional/mutual blocks; the client-only restriction was removed and locked by a regression contract test. Existing conversation history and Trust & Safety reports/evidence remain retained. A two-ordinary-account production-safe human UX pass remains useful acceptance evidence, but it is no longer a deployment blocker or evidence that the feature is absent.
+
+Any subsequent documentation-only merge SHA is bookkeeping and must not be reported as the deployed application SHA.
+
+
 Last reconciled: 2026-09-01
 
 ## Purpose
@@ -11,8 +22,8 @@ It intentionally does **not** invent a new completion percentage. Older percenta
 ## Audited production baseline
 
 - Repository: `Hunting-Fishing/pipeapp`
-- Production source / release pointer: `7c5398dc22ef42844058f17e2ee70882bb72e987`
-- Latest protected Marketplace hero production run: `33428641770` — **success**
+- Production source / release pointer: `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`
+- Latest protected Firebase production run: `33464230471` (#55) — **success**, App Check `enforce`
 - Subscription-card / Firebase Functions production run: `33388062795` — **success**
 - The latest hero release validated the approved desktop/mobile truck image payloads, full Flutter tests, exact production web build, Firebase Hosting deployment, and public production-page smoke checks.
 - The subscription release validated and deployed both configured Firebase Functions codebases before broad `--only functions` deployment.
@@ -46,7 +57,7 @@ The preceding failed run `33308967311` is not a current defect. It stopped befor
 | Native Apple/Google paid memberships | **RED for store launch** | Flutter IAP/native provider foundation exists, but production purchase verification/reconciliation is deliberately fail-closed/unexported until real store setup exists. | The membership repair record explicitly states native billing is preparation, not activation. README also treats store publication as separate. | Provision App Store Connect + Google Play products/credentials, test sandbox/TestFlight/Play purchases/restores/renewals/plan changes, then activate server verification/reconciliation. Do not route native digital memberships through Stripe as a shortcut. |
 | Messaging | **GREEN/YELLOW** | Current messaging page uses real Firestore conversations, unread state, attachments, offer/transaction integration and report entry points. Notification infrastructure is present and the production web notification worker passed release validation. | Earlier Phase docs list messages/transactions as UX work; current repository is materially beyond that checkpoint. | Web messaging is suitable for controlled launch. Validate push/deep-link behavior on physical Android/iOS devices before native store launch. |
 | Reporting / anti-scam evidence / admin moderation | **GREEN/YELLOW** | `marketplace_reporting.dart` supports structured report reasons, private evidence uploads, authenticated report submission, and admin moderation queues including reports, Dispatch providers, delivery alerts, and support. | This is stronger than the old planning checkpoints. | Reporting/moderation is launch-capable. A user-to-user block/mute feature was not evidenced in this audit; treat that as P1 trust UX rather than pretending it exists. |
-| User block / mute | **GREEN/YELLOW** | The 2026-09-01 P1 slice adds server-authoritative conversation block/unblock state, block/unblock controls in the chat safety menu, and send enforcement in Cloud Functions. Existing conversation history and Trust & Safety evidence are retained. | This closes the earlier “no clear implementation” finding. | Validate the block/unblock journey with two ordinary production-safe accounts after deployment. A separate notification-only mute preference can remain P2 unless user feedback shows it is needed. |
+| User block / mute | **GREEN/YELLOW** | Server-authoritative block/unblock is production deployed on `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`. Either party's directional block prevents new direct messages; existing conversation history and Trust & Safety evidence are retained. Production release/parity and authenticated callable gates passed. | This closes the earlier ‘no clear implementation’ finding and records the reciprocal-block regression repair. | Run a final two-ordinary-account production-safe UX confirmation as human acceptance evidence. A separate notification-only mute preference can remain P2 unless user feedback shows it is needed. |
 | Notifications | **GREEN/YELLOW** | Notification service/plugin infrastructure exists; production release verified the web notification worker and includes delivery-failure admin visibility. | Older Phase acceptance requirements for physical mobile notification journeys remain relevant. | Web notification infrastructure is green. Physical iOS/Android permission, token refresh, foreground/background/deep-link acceptance remains P1 for native launch. |
 | Dispatch provider profiles / credentials | **GREEN/YELLOW** | Current repository contains company profile, service taxonomy, equipment capability, credentials, admin/provider management and analytics/reminder code. Numerous credential repair records show later stabilization. | `docs/DISPATCH_NETWORK_MASTER_PLAN.md` stating 50% / Phase 4 blocked is demonstrably stale: Phase 4 Directory and credential repair records exist in the same repository. | Do not use the old 50% figure. Run one current provider onboarding/profile/credential human journey and record a new Dispatch acceptance checkpoint before broad provider recruitment. |
 | Dispatch Directory / discovery | **GREEN/YELLOW** | `marketplace_dispatch_directory.dart` and many Phase 4 Directory repair/test records exist, including seeded lifecycle, filters, scroll, dropdown, interaction and runtime stability. | This directly supersedes the Aug. 17 master plan's “Phase 4 = 0/20” status. | Directory implementation is real. Validate production data quality, privacy, filters and empty/error states with real provider records before broad launch. |
@@ -103,7 +114,7 @@ For closed defects and financial/security invariants, later repair records are t
 
 The strongest production foundations are release security, current web memberships, seller Connect, one-charge marketplace payment/release architecture, controlled payment-problem/refund-case intake, open-map location handling, reporting/moderation, and substantial marketplace/Dispatch implementation.
 
-Before broad paid promotion, close or explicitly accept the remaining P1 items: a fresh ordinary-user end-to-end acceptance pass, physical-device notification testing if mobile web/app is promoted, provider Directory data/privacy acceptance, a deliberate block/mute product decision, and current legal/tax review for the exact launch jurisdictions/payment types.
+Before broad paid promotion, close or explicitly accept the remaining P1 items: a fresh ordinary-user end-to-end acceptance pass including a two-account block/unblock UX confirmation, physical-device notification testing if mobile web/app is promoted, provider Directory data/privacy acceptance, and current legal/tax review for the exact launch jurisdictions/payment types.
 
 ### Native App Store / Google Play launch
 

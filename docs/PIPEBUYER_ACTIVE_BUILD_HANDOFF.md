@@ -1,14 +1,25 @@
 # Pipe Buyer Active Build Handoff
 
+## 2026-09-01 P1 Marketplace blocking production release
+
+P1 Marketplace conversation blocking is **complete in production**. The deployed app remains `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`, released by protected Firebase run `33464230471` (#55) with App Check `enforce`. Pre-merge Quality `33463954448` and Callable Safety `33463955489` both succeeded. Production also passed Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `99722538441`).
+
+Evidence retained: `firebase-release-evidence-production-0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de-33464230471` (artifact `9784473533`) and `visual-acceptance-production-33464230471` (artifact `9784489576`). New production callables are `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked`. Function inventory is generated from `firebase.json` plus exported entrypoints; do not add or resurrect a static Function allowlist.
+
+Permanent repair lesson: the reciprocal-block defect was a client permission check, not a backend block-model defect. When the other party had already blocked first, the UI incorrectly prevented the viewer from placing their own durable block. Remove only that client restriction; preserve directional/mutual server blocks, message history, and Trust & Safety evidence. The regression contract test records this so the same repair is not repeated.
+
+A documentation-only merge after this release does not change the deployed application identity `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de` and does not justify another Firebase deployment.
+
+
 **Updated:** 2026-09-01
 
 **Canonical repository:** `D:\Game Development\pipeapp`
 
 **Production branch:** `main`
 
-**Current production baseline before this P1 slice:** `7c5398dc22ef42844058f17e2ee70882bb72e987`
+**Current deployed production baseline:** `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de` (verified run `33464230471`)
 
-**Current implementation branch:** `feature/p1-user-blocking-build-plan-20260901`
+**Completed P1 release:** PR #166 merged to `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`
 
 **Canonical local app:** `http://127.0.0.1:5050`
 
@@ -16,7 +27,7 @@
 
 The older `design/formal-beautification-foundation` and Phase 4 Hotshot/geography blocker notes below are historical. Open-map/geolocation foundations and later Directory repairs have superseded that blocker. The current launch authority is `docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md`.
 
-Controlled North American web launch is in late P1 acceptance. Current autonomous engineering priority: server-authoritative Marketplace user block/unblock, preserving conversation and moderation evidence. Remaining P1 acceptance after that includes ordinary-user buyer/seller/Timed Buying/report-admin/Dispatch journeys, physical mobile push/deep-link validation for native launch, and representative Dispatch provider data/privacy acceptance.
+Controlled North American web launch remains in late P1 acceptance. Marketplace user block/unblock is now production deployed and verified. Remaining P1 acceptance includes ordinary-user buyer/seller/Timed Buying/report-admin/Dispatch journeys, physical mobile push/deep-link validation for native launch, and representative Dispatch provider data/privacy acceptance.
 
 ## Current authoritative Dispatch state
 

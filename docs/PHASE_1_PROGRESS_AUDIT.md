@@ -1,5 +1,16 @@
 # Phase 1 progress audit
 
+## 2026-09-01 P1 Marketplace blocking production release
+
+The P1 Marketplace user-blocking slice moved from source/emulator acceptance to **verified production** on `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`. Protected production run `33464230471` (#55) used App Check `enforce` and passed exact-source checkout, Flutter tests, release-manifest/parity tests, Functions validation, Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy Function parity, release identity, and production visual acceptance (job `99722538441`). Pre-merge Quality `33463954448` and Callable Safety `33463955489` were also green.
+
+Production evidence: `firebase-release-evidence-production-0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de-33464230471` (artifact `9784473533`) and `visual-acceptance-production-33464230471` (artifact `9784489576`). New exports `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked` are discovered by the generated release manifest; no static allowlist entry is required.
+
+The accepted repair was narrowly client-side: reciprocal blocking was originally disabled when the other member had blocked first. That restriction was removed so either party can create an independent directional block, and a regression contract test now preserves the rule. Server send enforcement, retained conversation history, and retained moderation evidence were unchanged.
+
+This record supersedes historical statements below that App Check, exact committed-candidate deployment, or Function parity were still pending for this release. Historical July percentages remain historical rather than being recomputed.
+
+
 ## 2026-09-01 reconciliation
 
 This July 30 audit is preserved as a historical engineering checkpoint. Do not use its provisional percentages as current launch status. Current launch authority is `docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md`. Since this checkpoint, production has closed major gaps including protected App Check/release parity, server-authoritative marketplace payment/Connect flows, Timed Buying, web membership upgrades and promotion-code handling, OpenStreetMap/geolocation, substantial Dispatch Directory stabilization, and the brighter responsive Marketplace home hero.
@@ -8,9 +19,9 @@ The controlled North American web surface is now in late P1 acceptance. Native s
 
 Audit date: July 30, 2026
 
-Branch: `main` (working-tree completion candidate)
+Branch: `main`
 
-Audited commit baseline: `main` at `b34387a`; exact release identity requires committing the reviewed candidate
+Current verified production release: `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de` via run `33464230471`; the July audit below remains historical
 
 ## Completion rule
 
