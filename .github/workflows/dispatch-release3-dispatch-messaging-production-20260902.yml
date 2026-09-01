@@ -1,0 +1,37 @@
+name: Dispatch Release 3 Messaging Production
+
+on:
+  push:
+    branches:
+      - ops/deploy-release3-dispatch-messaging-a6bc1ffb
+    paths:
+      - .github/workflows/dispatch-release3-dispatch-messaging-production-20260902.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch canonical protected production workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/deploy-payload.json <<'JSON'
+          {
+            "ref": "main",
+            "inputs": {
+              "environment": "production",
+              "commit_sha": "a6bc1ffb4d887af39ac4e9a8ea75851e0a39d214",
+              "app_check_mode": "enforce"
+            }
+          }
+          JSON
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/deploy.yml/dispatches" \
+            --input /tmp/deploy-payload.json
