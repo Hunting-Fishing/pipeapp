@@ -44,18 +44,29 @@ Firestore does not provide a native radial GeoPoint query. Filtering only the cu
 
 True radius search should be implemented as a separate bounded server/geohash design with explicit result limits, pagination semantics, and false-positive distance verification. Do not replace that design with an unbounded client collection scan.
 
-## Verification gate
+## Verification result
 
-Before this slice may be merged, verification must pass:
+Guarded verification run `33514227499` passed:
 
 - exact mutation scope;
+- dependency restore;
 - `dart analyze lib test`;
-- focused Dispatch Directory tests;
+- focused Dispatch Directory tests and contracts;
 - full Flutter regression;
 - repository release-contract tests;
 - both Firebase Functions codebase validations; and
 - `git diff --check`.
 
+Verified implementation commit before temporary-verifier cleanup:
+
+```text
+2369d35d26e72d5049848b2eeb5e762d13b9c48c
+```
+
+Temporary workflow and patch-script machinery were removed through the GitHub connector after the successful run.
+
 ## Permanent implementation rule
 
 Radius coverage visualization and radius search are different concerns. A visible provider coverage circle may use the existing approximate public projection. A global "within X km" search must not be implemented by filtering only whatever Directory page happens to be loaded on the client.
+
+For true radius search, follow the bounded Firestore geohash pattern: derive geohash query bounds, issue a small bounded set of ordered range queries, deduplicate candidates, and verify actual distance against the approximate public point to remove geohash false positives.
