@@ -1,0 +1,27 @@
+name: Trigger Release 3 Radius Search UI production deploy
+
+on:
+  push:
+    branches:
+      - ops/deploy-release3-radius-search-ui-b54edc4b
+    paths:
+      - .github/workflows/trigger-release3-radius-search-ui-production-deploy-20260902.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch protected production release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml \
+            --repo Hunting-Fishing/pipeapp \
+            --ref main \
+            -f environment=production \
+            -f commit_sha=b54edc4b17a2feee67f67faaeb0aa1a78721d822 \
+            -f app_check_mode=enforce
