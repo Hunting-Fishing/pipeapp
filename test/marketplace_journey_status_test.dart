@@ -42,20 +42,14 @@ void main() {
 
   group('transaction journey status', () {
     test('unpaid transaction clearly assigns payment to buyer', () {
-      final buyer = marketplaceTransactionJourneyStatus(
-        {
-          'status': 'pending_completion',
-          'paymentProviderStatus': 'not_started',
-        },
-        viewerIsBuyer: true,
-      );
-      final seller = marketplaceTransactionJourneyStatus(
-        {
-          'status': 'pending_completion',
-          'paymentProviderStatus': 'not_started',
-        },
-        viewerIsBuyer: false,
-      );
+      final buyer = marketplaceTransactionJourneyStatus({
+        'status': 'pending_completion',
+        'paymentProviderStatus': 'not_started',
+      }, viewerIsBuyer: true);
+      final seller = marketplaceTransactionJourneyStatus({
+        'status': 'pending_completion',
+        'paymentProviderStatus': 'not_started',
+      }, viewerIsBuyer: false);
 
       expect(buyer.currentStatus, 'Payment not started');
       expect(buyer.responsibleParty, 'Buyer (you)');
@@ -65,28 +59,22 @@ void main() {
     });
 
     test('checkout-created payment remains a buyer action', () {
-      final status = marketplaceTransactionJourneyStatus(
-        {
-          'status': 'pending_completion',
-          'paymentProviderStatus': 'checkout_created',
-        },
-        viewerIsBuyer: true,
-      );
+      final status = marketplaceTransactionJourneyStatus({
+        'status': 'pending_completion',
+        'paymentProviderStatus': 'checkout_created',
+      }, viewerIsBuyer: true);
 
       expect(status.currentStatus, 'Secure payment still required');
       expect(status.responsibleParty, 'Buyer (you)');
     });
 
     test('paid buyer confirmation moves next action to seller', () {
-      final status = marketplaceTransactionJourneyStatus(
-        {
-          'status': 'awaiting_seller_confirmation',
-          'paymentProviderStatus': 'paid',
-          'buyerConfirmed': true,
-          'sellerConfirmed': false,
-        },
-        viewerIsBuyer: false,
-      );
+      final status = marketplaceTransactionJourneyStatus({
+        'status': 'awaiting_seller_confirmation',
+        'paymentProviderStatus': 'paid',
+        'buyerConfirmed': true,
+        'sellerConfirmed': false,
+      }, viewerIsBuyer: false);
 
       expect(status.currentStatus, 'Buyer confirmation recorded');
       expect(status.responsibleParty, 'Seller (you)');
@@ -94,49 +82,46 @@ void main() {
     });
 
     test('paid seller confirmation moves next action to buyer', () {
-      final status = marketplaceTransactionJourneyStatus(
-        {
-          'status': 'awaiting_buyer_confirmation',
-          'paymentProviderStatus': 'paid',
-          'buyerConfirmed': false,
-          'sellerConfirmed': true,
-        },
-        viewerIsBuyer: true,
-      );
+      final status = marketplaceTransactionJourneyStatus({
+        'status': 'awaiting_buyer_confirmation',
+        'paymentProviderStatus': 'paid',
+        'buyerConfirmed': false,
+        'sellerConfirmed': true,
+      }, viewerIsBuyer: true);
 
       expect(status.currentStatus, 'Seller confirmation recorded');
       expect(status.responsibleParty, 'Buyer (you)');
       expect(status.nextAction, contains('Confirm the purchase was received'));
     });
 
-    test('external settlement permits completion without claiming Stripe paid', () {
-      final status = marketplaceTransactionJourneyStatus(
-        {
+    test(
+      'external settlement permits completion without claiming Stripe paid',
+      () {
+        final status = marketplaceTransactionJourneyStatus({
           'status': 'pending_completion',
           'paymentProviderStatus': 'external_agreed',
           'buyerConfirmed': false,
           'sellerConfirmed': false,
-        },
-        viewerIsBuyer: true,
-      );
+        }, viewerIsBuyer: true);
 
-      expect(
-        status.currentStatus,
-        'External settlement confirmed • completion pending',
-      );
-      expect(status.nextAction, contains('Confirm the purchase was received'));
-      expect(status.responsibleParty, 'Buyer and Seller');
-    });
+        expect(
+          status.currentStatus,
+          'External settlement confirmed • completion pending',
+        );
+        expect(
+          status.nextAction,
+          contains('Confirm the purchase was received'),
+        );
+        expect(status.responsibleParty, 'Buyer and Seller');
+      },
+    );
 
     test('payment review takes precedence over completion actions', () {
-      final status = marketplaceTransactionJourneyStatus(
-        {
-          'status': 'pending_completion',
-          'paymentProviderStatus': 'paid',
-          'financialStatus': 'refund_requested',
-        },
-        viewerIsBuyer: true,
-      );
+      final status = marketplaceTransactionJourneyStatus({
+        'status': 'pending_completion',
+        'paymentProviderStatus': 'paid',
+        'financialStatus': 'refund_requested',
+      }, viewerIsBuyer: true);
 
       expect(status.currentStatus, 'Payment review in progress');
       expect(status.responsibleParty, 'Pipe Buyer support');
@@ -144,13 +129,10 @@ void main() {
     });
 
     test('disputed transaction points to support review', () {
-      final status = marketplaceTransactionJourneyStatus(
-        {
-          'status': 'disputed',
-          'paymentProviderStatus': 'paid',
-        },
-        viewerIsBuyer: false,
-      );
+      final status = marketplaceTransactionJourneyStatus({
+        'status': 'disputed',
+        'paymentProviderStatus': 'paid',
+      }, viewerIsBuyer: false);
 
       expect(status.currentStatus, 'Transaction is under review');
       expect(status.responsibleParty, 'Pipe Buyer support');
@@ -189,19 +171,19 @@ void main() {
       expect(status.responsibleParty, 'Successful buyer');
     });
 
-    test('unknown active transaction state fails safe instead of inventing action', () {
-      final status = marketplaceTransactionJourneyStatus(
-        {
+    test(
+      'unknown active transaction state fails safe instead of inventing action',
+      () {
+        final status = marketplaceTransactionJourneyStatus({
           'status': 'unexpected_server_state',
           'paymentProviderStatus': 'paid',
-        },
-        viewerIsBuyer: true,
-      );
+        }, viewerIsBuyer: true);
 
-      expect(status.currentStatus, 'Transaction status needs review');
-      expect(status.responsibleParty, 'Pipe Buyer support');
-      expect(status.nextAction, contains('before confirming completion'));
-    });
+        expect(status.currentStatus, 'Transaction status needs review');
+        expect(status.responsibleParty, 'Pipe Buyer support');
+        expect(status.nextAction, contains('before confirming completion'));
+      },
+    );
   });
 
   testWidgets('journey card exposes the three simple user questions', (
@@ -215,9 +197,7 @@ void main() {
 
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: MarketplaceJourneyStatusCard(status: status),
-        ),
+        home: Scaffold(body: MarketplaceJourneyStatusCard(status: status)),
       ),
     );
 
@@ -228,24 +208,30 @@ void main() {
     expect(find.text('Buyer (you)'), findsOneWidget);
   });
 
-  test('ordinary and Timed Buying surfaces wire the shared journey component', () {
-    final messages = File(
-      'lib/marketplace/marketplace_messages_page.dart',
-    ).readAsStringSync();
-    final timedBuying = File(
-      'lib/marketplace/marketplace_auction_settlement.dart',
-    ).readAsStringSync();
+  test(
+    'ordinary and Timed Buying surfaces wire the shared journey component',
+    () {
+      final messages = File(
+        'lib/marketplace/marketplace_messages_page.dart',
+      ).readAsStringSync();
+      final timedBuying = File(
+        'lib/marketplace/marketplace_auction_settlement.dart',
+      ).readAsStringSync();
 
-    expect(messages, contains("import 'marketplace_journey_status.dart';"));
-    expect(messages, contains('marketplaceOfferJourneyStatus('));
-    expect(messages, contains('marketplaceTransactionJourneyStatus('));
-    expect(messages, contains('MarketplaceJourneyStatusCard('));
-    expect(messages, contains('Continue to Dispatch'));
-    expect(messages, contains('MarketplaceNavigation.goToDispatch(context)'));
+      expect(messages, contains("import 'marketplace_journey_status.dart';"));
+      expect(messages, contains('marketplaceOfferJourneyStatus('));
+      expect(messages, contains('marketplaceTransactionJourneyStatus('));
+      expect(messages, contains('MarketplaceJourneyStatusCard('));
+      expect(messages, contains('Continue to Dispatch'));
+      expect(messages, contains('MarketplaceNavigation.goToDispatch(context)'));
 
-    expect(timedBuying, contains("import 'marketplace_journey_status.dart';"));
-    expect(timedBuying, contains('marketplaceTransactionJourneyStatus('));
-    expect(timedBuying, contains('timedBuying: true'));
-    expect(timedBuying, contains('MarketplaceJourneyStatusCard('));
-  });
+      expect(
+        timedBuying,
+        contains("import 'marketplace_journey_status.dart';"),
+      );
+      expect(timedBuying, contains('marketplaceTransactionJourneyStatus('));
+      expect(timedBuying, contains('timedBuying: true'));
+      expect(timedBuying, contains('MarketplaceJourneyStatusCard('));
+    },
+  );
 }

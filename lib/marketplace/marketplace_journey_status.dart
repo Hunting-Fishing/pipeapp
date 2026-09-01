@@ -37,7 +37,8 @@ MarketplaceJourneyStatus marketplaceOfferJourneyStatus({
     case 'accepted':
       return const MarketplaceJourneyStatus(
         currentStatus: 'Offer accepted',
-        nextAction: 'Continue with the payment and completion steps shown below.',
+        nextAction:
+            'Continue with the payment and completion steps shown below.',
         responsibleParty: 'Buyer and seller',
         tone: MarketplaceJourneyTone.success,
       );
@@ -69,14 +70,16 @@ MarketplaceJourneyStatus marketplaceOfferJourneyStatus({
     case 'disputed':
       return const MarketplaceJourneyStatus(
         currentStatus: 'Transaction is under review',
-        nextAction: 'Wait for Pipe Buyer review and respond if support requests more information.',
+        nextAction:
+            'Wait for Pipe Buyer review and respond if support requests more information.',
         responsibleParty: 'Pipe Buyer support',
         tone: MarketplaceJourneyTone.danger,
       );
     default:
       return const MarketplaceJourneyStatus(
         currentStatus: 'Offer status needs review',
-        nextAction: 'Refresh this offer or contact Pipe Buyer support before taking another offer action.',
+        nextAction:
+            'Refresh this offer or contact Pipe Buyer support before taking another offer action.',
         responsibleParty: 'Pipe Buyer support',
         tone: MarketplaceJourneyTone.warning,
       );
@@ -92,9 +95,10 @@ MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
   final status = '${transaction['status'] ?? 'pending_completion'}'
       .trim()
       .toLowerCase();
-  final paymentStatus = '${transaction['paymentProviderStatus'] ?? 'not_started'}'
-      .trim()
-      .toLowerCase();
+  final paymentStatus =
+      '${transaction['paymentProviderStatus'] ?? 'not_started'}'
+          .trim()
+          .toLowerCase();
   final financialStatus = '${transaction['financialStatus'] ?? ''}'
       .trim()
       .toLowerCase();
@@ -107,10 +111,12 @@ MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
   final buyerResponsible = viewerIsBuyer ? '$buyerLabel (you)' : buyerLabel;
   final sellerResponsible = viewerIsBuyer ? sellerLabel : '$sellerLabel (you)';
 
-  if (activeFinancialCaseId.isNotEmpty || financialStatus == 'refund_requested') {
+  if (activeFinancialCaseId.isNotEmpty ||
+      financialStatus == 'refund_requested') {
     return const MarketplaceJourneyStatus(
       currentStatus: 'Payment review in progress',
-      nextAction: 'Wait for Pipe Buyer review. Respond if support asks for more information.',
+      nextAction:
+          'Wait for Pipe Buyer review. Respond if support asks for more information.',
       responsibleParty: 'Pipe Buyer support',
       tone: MarketplaceJourneyTone.warning,
     );
@@ -119,7 +125,8 @@ MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
   if (financialStatus == 'refunded') {
     return const MarketplaceJourneyStatus(
       currentStatus: 'Payment refunded',
-      nextAction: 'No payment action is required. Keep the transaction record for your files.',
+      nextAction:
+          'No payment action is required. Keep the transaction record for your files.',
       responsibleParty: 'No action required',
       tone: MarketplaceJourneyTone.neutral,
     );
@@ -132,7 +139,8 @@ MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
       financialStatus == 'charged_back') {
     return const MarketplaceJourneyStatus(
       currentStatus: 'Transaction is under review',
-      nextAction: 'Wait for Pipe Buyer review and respond if support requests more information.',
+      nextAction:
+          'Wait for Pipe Buyer review and respond if support requests more information.',
       responsibleParty: 'Pipe Buyer support',
       tone: MarketplaceJourneyTone.danger,
     );
@@ -151,14 +159,16 @@ MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
     if (dispatchRequested) {
       return const MarketplaceJourneyStatus(
         currentStatus: 'Marketplace transaction complete',
-        nextAction: 'Continue the requested delivery handoff in Dispatch. This marketplace transaction does not create or charge a Dispatch job automatically.',
+        nextAction:
+            'Continue the requested delivery handoff in Dispatch. This marketplace transaction does not create or charge a Dispatch job automatically.',
         responsibleParty: 'Buyer and seller',
         tone: MarketplaceJourneyTone.success,
       );
     }
     return const MarketplaceJourneyStatus(
       currentStatus: 'Transaction complete',
-      nextAction: 'No transaction action is required. Keep the permanent record for your files.',
+      nextAction:
+          'No transaction action is required. Keep the permanent record for your files.',
       responsibleParty: 'No action required',
       tone: MarketplaceJourneyTone.success,
     );
@@ -172,7 +182,8 @@ MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
   if (!activeStatuses.contains(status)) {
     return const MarketplaceJourneyStatus(
       currentStatus: 'Transaction status needs review',
-      nextAction: 'Refresh this transaction or contact Pipe Buyer support before confirming completion.',
+      nextAction:
+          'Refresh this transaction or contact Pipe Buyer support before confirming completion.',
       responsibleParty: 'Pipe Buyer support',
       tone: MarketplaceJourneyTone.warning,
     );
@@ -228,10 +239,7 @@ MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
 }
 
 class MarketplaceJourneyStatusCard extends StatelessWidget {
-  const MarketplaceJourneyStatusCard({
-    super.key,
-    required this.status,
-  });
+  const MarketplaceJourneyStatusCard({super.key, required this.status});
 
   final MarketplaceJourneyStatus status;
 
@@ -259,9 +267,9 @@ class MarketplaceJourneyStatusCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   'What happens next',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
                 ),
               ],
             ),
@@ -290,12 +298,12 @@ class MarketplaceJourneyStatusCard extends StatelessWidget {
       };
 
   IconData _toneIcon(MarketplaceJourneyTone tone) => switch (tone) {
-        MarketplaceJourneyTone.success => Icons.check_circle_outline,
-        MarketplaceJourneyTone.danger => Icons.report_problem_outlined,
-        MarketplaceJourneyTone.warning => Icons.schedule_outlined,
-        MarketplaceJourneyTone.info => Icons.route_outlined,
-        MarketplaceJourneyTone.neutral => Icons.info_outline,
-      };
+    MarketplaceJourneyTone.success => Icons.check_circle_outline,
+    MarketplaceJourneyTone.danger => Icons.report_problem_outlined,
+    MarketplaceJourneyTone.warning => Icons.schedule_outlined,
+    MarketplaceJourneyTone.info => Icons.route_outlined,
+    MarketplaceJourneyTone.neutral => Icons.info_outline,
+  };
 }
 
 class _JourneyLine extends StatelessWidget {
@@ -306,19 +314,19 @@ class _JourneyLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 96,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(value)),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: 96,
+        child: Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(child: Text(value)),
+    ],
+  );
 }
