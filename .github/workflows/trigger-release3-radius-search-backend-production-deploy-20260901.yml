@@ -1,0 +1,27 @@
+name: Trigger Release 3 Radius Search Backend production deploy
+
+on:
+  push:
+    branches:
+      - ops/deploy-release3-radius-search-backend-54e1a3c1
+    paths:
+      - .github/workflows/trigger-release3-radius-search-backend-production-deploy-20260901.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch protected production release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml \
+            --repo Hunting-Fishing/pipeapp \
+            --ref main \
+            -f environment=production \
+            -f commit_sha=54e1a3c100d528eecdf4acdb4c7858644fb0576d \
+            -f app_check_mode=enforce
