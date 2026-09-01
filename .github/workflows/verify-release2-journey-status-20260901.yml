@@ -1,4 +1,4 @@
-# Reverify after correcting the package import on the bounded Release 2 test.
+# Verification guard includes formatter output from the two new bounded Dart files.
 name: Verify Release 2 marketplace journey status
 
 on:
@@ -56,17 +56,30 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t changed < <(git diff --name-only)
-          expected=(
+          allowed=(
+            lib/marketplace/marketplace_journey_status.dart
+            test/marketplace_journey_status_test.dart
             lib/marketplace/marketplace_messages_page.dart
             lib/marketplace/marketplace_auction_settlement.dart
           )
-          if [[ ${#changed[@]} -ne ${#expected[@]} ]]; then
-            printf 'Unexpected integration changes:\n%s\n' "${changed[*]}"
-            exit 1
-          fi
-          for path in "${expected[@]}"; do
-            printf '%s\n' "${changed[@]}" | grep -Fxq "$path" || {
-              echo "Missing expected integration change: $path"
+          for path in "${changed[@]}"; do
+            permitted=false
+            for candidate in "${allowed[@]}"; do
+              if [[ "$path" == "$candidate" ]]; then
+                permitted=true
+                break
+              fi
+            done
+            if [[ "$permitted" != true ]]; then
+              echo "Unexpected Release 2 mutation: $path"
+              exit 1
+            fi
+          done
+          for required in \
+            lib/marketplace/marketplace_messages_page.dart \
+            lib/marketplace/marketplace_auction_settlement.dart; do
+            printf '%s\n' "${changed[@]}" | grep -Fxq "$required" || {
+              echo "Missing required integration change: $required"
               exit 1
             }
           done
@@ -125,7 +138,13 @@ jobs:
           git config user.name 'Pipe Buyer Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add \
+            lib/marketplace/marketplace_journey_status.dart \
+            test/marketplace_journey_status_test.dart \
             lib/marketplace/marketplace_messages_page.dart \
             lib/marketplace/marketplace_auction_settlement.dart
+          if git diff --cached --quiet; then
+            echo "::error::Release 2 verification produced no source changes to commit."
+            exit 1
+          fi
           git commit -m 'Release 2: surface Marketplace next actions'
           git push origin HEAD:feature/release-2-marketplace-journey-status-20260901
