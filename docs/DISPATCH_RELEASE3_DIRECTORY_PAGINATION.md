@@ -48,27 +48,40 @@ The Directory continues to use only public projected provider data. Exact privat
 
 ## Verification
 
-Guarded Release 3 verification run:
+Initial full behavioral verification:
 
 ```text
 33507861995
 ```
 
-Final successful rerun passed:
+After that run passed, the PR patch review found unrelated formatter-only churn caused by running the newer `dart format` across existing Directory files. The runtime change was correct, but the diff was broader than required.
 
+A second clean-diff verification reset only the four implementation/test files to the verified production formatting, reapplied only the pagination behavior and semantic source-contract repairs, and **did not** reformat unrelated existing code.
+
+Final clean-diff verification run:
+
+```text
+33508729866
+```
+
+It passed:
+
+- exact four-file implementation/test mutation scope;
 - dependency restore;
 - repository-wide analyzer;
-- focused Directory pagination/projection/filter tests;
+- focused Directory pagination/projection/filter/runtime tests;
 - full Flutter regression;
 - repository release-contract tests;
 - both Firebase Functions codebase validations;
-- diff-format validation.
+- `git diff --check`.
 
-Verified implementation commit:
+Minimal verified implementation commit:
 
 ```text
-db14ecf7715ab42d82d6b4e5671f5ce059fc5566
+e90107a77735b10b7191f26b127cdd8cf8de27c6
 ```
+
+The final PR should therefore contain only the intended pagination logic, the three directly related regression/contract test changes, and the two durable documentation records.
 
 ## Next bounded Directory work
 
