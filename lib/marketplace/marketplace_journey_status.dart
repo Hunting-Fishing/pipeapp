@@ -86,6 +86,78 @@ MarketplaceJourneyStatus marketplaceOfferJourneyStatus({
   }
 }
 
+MarketplaceJourneyStatus marketplaceWantedJourneyStatus(
+  Map<String, dynamic> listing,
+) {
+  final status = '${listing['status'] ?? listing['wantedStatus'] ?? 'active'}'
+      .trim()
+      .toLowerCase();
+  final matchCount = (listing['matchCount'] as num?)?.toInt() ?? 0;
+  final responseCount = (listing['responseCount'] as num?)?.toInt() ?? 0;
+  final hasMatchActivity = matchCount > 0 || responseCount > 0;
+
+  switch (status) {
+    case 'active':
+    case 'open':
+      if (hasMatchActivity) {
+        return const MarketplaceJourneyStatus(
+          currentStatus: 'Wanted request open • matches available',
+          nextAction:
+              'Review the suggested Marketplace matches and contact a seller when the inventory fits your request. Pause the request if you are not actively buying.',
+          responsibleParty: 'Buyer (you)',
+          tone: MarketplaceJourneyTone.info,
+        );
+      }
+      return const MarketplaceJourneyStatus(
+        currentStatus: 'Wanted request open • matching in progress',
+        nextAction:
+            'Keep the request details current. Pipe Buyer will continue matching new supply listings and notify you when a suitable match appears.',
+        responsibleParty: 'Pipe Buyer matching',
+        tone: MarketplaceJourneyTone.info,
+      );
+    case 'paused':
+      return const MarketplaceJourneyStatus(
+        currentStatus: 'Wanted request paused',
+        nextAction:
+            'Reactivate the request when you want matching to resume, or mark it fulfilled if the inventory need has been met.',
+        responsibleParty: 'Buyer (you)',
+        tone: MarketplaceJourneyTone.warning,
+      );
+    case 'fulfilled':
+      return const MarketplaceJourneyStatus(
+        currentStatus: 'Wanted request fulfilled',
+        nextAction:
+            'No matching action is required. Create a new Wanted request later if you need additional inventory.',
+        responsibleParty: 'No action required',
+        tone: MarketplaceJourneyTone.success,
+      );
+    case 'archived':
+      return const MarketplaceJourneyStatus(
+        currentStatus: 'Wanted request archived',
+        nextAction:
+            'No action is required. Create a new Wanted request if you need this inventory again.',
+        responsibleParty: 'No action required',
+        tone: MarketplaceJourneyTone.neutral,
+      );
+    case 'expired':
+      return const MarketplaceJourneyStatus(
+        currentStatus: 'Wanted request expired',
+        nextAction:
+            'Use Renew to create a fresh active request if you still need the inventory.',
+        responsibleParty: 'Buyer (you)',
+        tone: MarketplaceJourneyTone.warning,
+      );
+    default:
+      return const MarketplaceJourneyStatus(
+        currentStatus: 'Wanted request status needs review',
+        nextAction:
+            'Refresh this request or contact Pipe Buyer support before changing its lifecycle.',
+        responsibleParty: 'Pipe Buyer support',
+        tone: MarketplaceJourneyTone.warning,
+      );
+  }
+}
+
 MarketplaceJourneyStatus marketplaceTransactionJourneyStatus(
   Map<String, dynamic> transaction, {
   required bool viewerIsBuyer,
