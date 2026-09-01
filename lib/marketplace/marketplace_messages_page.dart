@@ -2557,7 +2557,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               ),
               PopupMenuItem(
                 value: 'block',
-                enabled: !_blockBusy && !_blockedMe,
+                enabled: !_blockBusy,
                 child: ListTile(
                   leading: Icon(
                     _blockedByMe ? Icons.person_add_alt_1 : Icons.block_outlined,
@@ -2820,7 +2820,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   }
 
   Future<void> _toggleBlock() async {
-    if (_blockBusy || _blockedMe) return;
+    if (_blockBusy) return;
     final blocking = !_blockedByMe;
     final confirmed = await showDialog<bool>(
           context: context,

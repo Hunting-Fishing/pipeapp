@@ -38,3 +38,21 @@ test("client block UI preserves history and moderation evidence", () => {
   assert.match(messages, /Message history and reports stay saved/);
   assert.doesNotMatch(messages, /marketplace_user_blocks.*delete/);
 });
+
+
+test("client permits reciprocal blocking when the other member blocked first", () => {
+  const messages = fs.readFileSync(
+      require.resolve("../../../lib/marketplace/marketplace_messages_page.dart"),
+      "utf8",
+  );
+  assert.match(messages, /enabled:\s*!_blockBusy,/);
+  assert.match(messages, /if \(_blockBusy\) return;/);
+  assert.doesNotMatch(
+      messages,
+      /enabled:\s*!_blockBusy\s*&&\s*!_blockedMe/,
+  );
+  assert.doesNotMatch(
+      messages,
+      /if\s*\(_blockBusy\s*\|\|\s*_blockedMe\)\s*return/,
+  );
+});
