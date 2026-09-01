@@ -39,7 +39,6 @@ test("client block UI preserves history and moderation evidence", () => {
   assert.doesNotMatch(messages, /marketplace_user_blocks.*delete/);
 });
 
-
 test("client permits reciprocal blocking when the other member blocked first", () => {
   const messages = fs.readFileSync(
       require.resolve("../../../lib/marketplace/marketplace_messages_page.dart"),
