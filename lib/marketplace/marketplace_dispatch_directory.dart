@@ -217,6 +217,22 @@ class DispatchDirectoryPageData {
   final List<DispatchDirectoryEntry> entries;
   final QueryDocumentSnapshot<Map<String, dynamic>>? cursor;
   final bool hasMore;
+
+  DispatchDirectoryPageData append(DispatchDirectoryPageData nextPage) {
+    final entriesById = <String, DispatchDirectoryEntry>{
+      for (final entry in entries) entry.id: entry,
+      for (final entry in nextPage.entries) entry.id: entry,
+    };
+    final mergedEntries = entriesById.values.toList()
+      ..sort((left, right) => left.operatingName
+          .toLowerCase()
+          .compareTo(right.operatingName.toLowerCase()));
+    return DispatchDirectoryPageData(
+      entries: mergedEntries,
+      cursor: nextPage.cursor,
+      hasMore: nextPage.hasMore,
+    );
+  }
 }
 
 class MarketplaceDispatchDirectoryRepository {
@@ -300,6 +316,8 @@ class _MarketplaceDispatchDirectoryPageState
   int _loadGeneration = 0;
   final TextEditingController _search = TextEditingController();
   DispatchDirectoryFilters _filters = const DispatchDirectoryFilters();
+  bool _loadingMore = false;
+  String? _loadMoreError;
 
   @override
   void initState() {
@@ -344,14 +362,58 @@ class _MarketplaceDispatchDirectoryPageState
     _filterDebounce?.cancel();
     final nextLoad = _load();
     setState(() {
+      _loadMoreError = null;
+      _loadingMore = false;
       _loadFuture = nextLoad;
     });
+  }
+
+  Future<void> _loadMore() async {
+    final current = _lastSuccessfulData;
+    if (_loadingMore ||
+        widget.seedEntries != null ||
+        current == null ||
+        !current.hasMore ||
+        current.cursor == null) {
+      return;
+    }
+
+    final generation = _loadGeneration;
+    final repository =
+        _repository ??= MarketplaceDispatchDirectoryRepository();
+    setState(() {
+      _loadingMore = true;
+      _loadMoreError = null;
+    });
+
+    try {
+      final nextPage = await repository.loadPage(
+        filters: _filters,
+        after: current.cursor,
+      );
+      if (!mounted || generation != _loadGeneration) return;
+      final merged = current.append(nextPage);
+      setState(() {
+        _lastSuccessfulData = merged;
+        _loadFuture = Future.value(merged);
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _loadingMore = false;
+        _loadMoreError =
+            'Could not load more companies. The companies already shown were kept.';
+      });
+    }
   }
 
   void _setFilters(DispatchDirectoryFilters value) {
     setState(() {
       _filters = value;
       _loadGeneration++;
+      _loadMoreError = null;
+      _loadingMore = false;
     });
     _filterDebounce?.cancel();
     _filterDebounce = Timer(const Duration(milliseconds: 180), () {
@@ -500,13 +562,53 @@ class _MarketplaceDispatchDirectoryPageState
                   remoteDataEnabled: widget.seedEntries == null,
                 ),
               ),
-            if (snapshot.data?.hasMore == true) ...[
+            if (retainedData?.hasMore == true &&
+                widget.seedEntries == null) ...[
               const SizedBox(height: 8),
-              const Text(
-                'More public provider profiles are available. Pagination will be wired into the next Directory data slice.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: PipeBuyerColors.muted, fontSize: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _loadingMore ? null : _loadMore,
+                  icon: _loadingMore
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.expand_more_outlined),
+                  label: Text(
+                    _loadingMore
+                        ? 'Loading more companies…'
+                        : 'Load more companies',
+                  ),
+                ),
               ),
+              if (_loadMoreError != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.sync_problem_outlined,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        _loadMoreError!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadingMore ? null : _loadMore,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ],
             ],
             if (widget.legacyProviderTools != null) ...[
               const SizedBox(height: 20),

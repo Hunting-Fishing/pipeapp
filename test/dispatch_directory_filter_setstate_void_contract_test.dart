@@ -17,19 +17,26 @@ void main() {
     );
 
     final reloadStart = compact.indexOf('void _reload() {');
+    final loadMoreStart = compact.indexOf(
+      'Future<void> _loadMore() async',
+      reloadStart,
+    );
     final filtersStart = compact.indexOf(
       'void _setFilters(DispatchDirectoryFilters value) {',
     );
     final clearStart = compact.indexOf('void _clearFilters()', filtersStart);
 
     expect(reloadStart, greaterThanOrEqualTo(0));
-    expect(filtersStart, greaterThan(reloadStart));
+    expect(loadMoreStart, greaterThan(reloadStart));
+    expect(filtersStart, greaterThan(loadMoreStart));
     expect(clearStart, greaterThan(filtersStart));
 
-    final reload = compact.substring(reloadStart, filtersStart);
+    final reload = compact.substring(reloadStart, loadMoreStart);
     expect(reload, contains('_filterDebounce?.cancel();'));
     expect(reload, contains('final nextLoad = _load();'));
-    expect(reload, contains('setState(() { _loadFuture = nextLoad; });'));
+    expect(reload, contains('setState(() {'));
+    expect(reload, contains('_loadFuture = nextLoad;'));
+    expect(reload, isNot(contains('setState(() =>')));
 
     final filter = compact.substring(filtersStart, clearStart);
     expect(filter, contains('_filters = value;'));
@@ -41,6 +48,8 @@ void main() {
     );
     expect(filter, contains('if (!mounted) return;'));
     expect(filter, contains('final nextLoad = _load();'));
-    expect(filter, contains('setState(() { _loadFuture = nextLoad; });'));
+    expect(filter, contains('setState(() {'));
+    expect(filter, contains('_loadFuture = nextLoad;'));
+    expect(filter, isNot(contains('setState(() => _loadFuture')));
   });
 }

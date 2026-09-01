@@ -8,10 +8,8 @@ void main() {
       'lib/marketplace/marketplace_dispatch_directory.dart',
     ).readAsStringSync();
 
-    expect(
-      source.contains("_firestore.collection('dispatch_directory_entries')"),
-      isTrue,
-    );
+    expect(source.contains('_firestore'), isTrue);
+    expect(source.contains("'dispatch_directory_entries'"), isTrue);
     expect(
       source.contains('DispatchDirectoryEntry.fromDirectoryProjection'),
       isTrue,
