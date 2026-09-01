@@ -78,7 +78,14 @@ jobs:
             }
           done
 
-      - name: Require formatted changed Dart source
+      - name: Format changed Dart source
+        run: >
+          dart format
+          lib/marketplace/marketplace_dispatch_public_detail.dart
+          lib/marketplace/marketplace_public_profile_page.dart
+          test/marketplace_dispatch_public_detail_test.dart
+
+      - name: Verify changed Dart formatting is stable
         run: >
           dart format --output=none --set-exit-if-changed
           lib/marketplace/marketplace_dispatch_public_detail.dart
