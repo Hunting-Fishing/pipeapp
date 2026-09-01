@@ -1,0 +1,60 @@
+name: Record Release 1 production evidence
+
+on:
+  push:
+    branches:
+      - docs/record-release1-production-20260901
+    paths:
+      - .github/workflows/record-release1-production-20260901.yml
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    name: Record exact Release 1 production identity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out docs branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: docs/record-release1-production-20260901
+          fetch-depth: 0
+
+      - name: Apply exact-anchor documentation updates
+        run: python3 tool/record_release1_production_20260901.py
+
+      - name: Verify documentation-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git diff --name-only)
+          expected=(
+            docs/PIPEBUYER_ACTIVE_PRODUCT_BUILD_PLAN_2026-09-01.md
+            docs/PIPEBUYER_ACTIVE_BUILD_HANDOFF.md
+            docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md
+          )
+          if [[ ${#changed[@]} -ne ${#expected[@]} ]]; then
+            printf 'Unexpected changed files:\n%s\n' "${changed[*]}"
+            exit 1
+          fi
+          for path in "${expected[@]}"; do
+            printf '%s\n' "${changed[@]}" | grep -Fxq "$path" || {
+              echo "Missing expected documentation change: $path"
+              exit 1
+            }
+          done
+
+      - name: Commit recorded production evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            docs/PIPEBUYER_ACTIVE_PRODUCT_BUILD_PLAN_2026-09-01.md \
+            docs/PIPEBUYER_ACTIVE_BUILD_HANDOFF.md \
+            docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md
+          git commit -m 'Record Release 1 verified production release'
+          git push origin HEAD:docs/record-release1-production-20260901
