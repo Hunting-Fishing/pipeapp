@@ -1,0 +1,138 @@
+name: Verify Release 3 Dispatch Directory Radius Search UI
+
+on:
+  push:
+    branches:
+      - feature/release-3-dispatch-directory-radius-search-ui-20260901
+    paths:
+      - .github/workflows/verify-release3-dispatch-directory-radius-search-ui-20260901.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify simple Directory radius search UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      FUNCTIONS_DISCOVERY_TIMEOUT: "30000"
+
+    steps:
+      - name: Check out exact feature branch
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: feature/release-3-dispatch-directory-radius-search-ui-20260901
+          fetch-depth: 0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Functions Node runtime
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            firebase/functions/package-lock.json
+            firebase/agent-functions/package-lock.json
+
+      - name: Apply guarded radius-search UI integration
+        run: python3 tool/apply_release3_dispatch_directory_radius_search_ui_20260901.py
+
+      - name: Verify exact mutation scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //')
+          allowed=(
+            docs/DISPATCH_RELEASE3_DIRECTORY_RADIUS_SEARCH_UI.md
+            lib/marketplace/marketplace_dispatch_directory.dart
+            test/marketplace_dispatch_directory_projection_query_test.dart
+            test/marketplace_dispatch_directory_test.dart
+          )
+          if [[ ${#changed[@]} -ne ${#allowed[@]} ]]; then
+            printf 'Unexpected radius-search UI changes:\n%s\n' "${changed[*]}"
+            exit 1
+          fi
+          for required in "${allowed[@]}"; do
+            printf '%s\n' "${changed[@]}" | grep -Fxq "$required" || {
+              echo "Missing expected radius-search UI change: $required"
+              exit 1
+            }
+          done
+
+      - name: Restore Flutter dependencies with one infrastructure retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get || {
+            echo 'First pub get failed; retrying once for registry/advisory transport errors.'
+            sleep 5
+            flutter pub get
+          }
+
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run focused Dispatch Directory tests
+        run: >
+          flutter test
+          test/marketplace_dispatch_directory_projection_query_test.dart
+          test/marketplace_dispatch_directory_test.dart
+          test/dispatch_directory_projection_source_contract_test.dart
+          test/dispatch_directory_filter_setstate_void_contract_test.dart
+          test/dispatch_directory_filter_runtime_stability_contract_test.dart
+
+      - name: Run full Flutter regression
+        run: >
+          flutter test
+          --dart-define=PIPE_ENV=continuous-integration
+          --dart-define=PIPE_RELEASE_SHA=${{ github.sha }}
+
+      - name: Run repository release-contract tests
+        run: >
+          node --test
+          tool/oauth_branding_test.mjs
+          tool/release_manifest_test.mjs
+          tool/function_parity_test.mjs
+          tool/phase1_acceptance_test.mjs
+          tool/prepare_phase1_acceptance_test.mjs
+          tool/configure_firebase_messaging_worker_test.mjs
+
+      - name: Restore and validate Marketplace Functions
+        run: |
+          npm ci --prefix firebase/functions
+          npm run lint --prefix firebase/functions
+          npm run check --prefix firebase/functions
+
+      - name: Restore and validate administrative Functions
+        run: |
+          npm ci --prefix firebase/agent-functions
+          npm run lint --prefix firebase/agent-functions
+          npm run check --prefix firebase/agent-functions
+
+      - name: Check source diff formatting
+        run: git diff --check
+
+      - name: Commit verified radius-search UI slice
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Pipe Buyer Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            docs/DISPATCH_RELEASE3_DIRECTORY_RADIUS_SEARCH_UI.md \
+            lib/marketplace/marketplace_dispatch_directory.dart \
+            test/marketplace_dispatch_directory_projection_query_test.dart \
+            test/marketplace_dispatch_directory_test.dart
+          if git diff --cached --quiet; then
+            echo '::error::Radius-search UI verification produced no durable changes.'
+            exit 1
+          fi
+          git commit -m 'Release 3: add simple Directory radius search UI'
+          git push origin HEAD:feature/release-3-dispatch-directory-radius-search-ui-20260901
