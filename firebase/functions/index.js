@@ -18,6 +18,7 @@ const {
 } = require("./communication_commands");
 const { createDispatchCommands } = require("./dispatch_commands");
 const { createDispatchDirectoryProjection } = require("./dispatch_directory_projection");
+const { createDispatchDirectorySearch } = require("./dispatch_directory_search");
 const {
   createDispatchCredentialMonitor,
 } = require("./dispatch_credential_monitor");
@@ -95,6 +96,7 @@ const accountVerificationCommands = createAccountVerificationCommands(admin);
 const communicationCommands = createCommunicationCommands(admin);
 const dispatchCommands = createDispatchCommands(admin);
 const dispatchDirectoryProjection = createDispatchDirectoryProjection(admin);
+const dispatchDirectorySearch = createDispatchDirectorySearch(admin);
 const dispatchCredentialMonitor = createDispatchCredentialMonitor(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 const marketplaceUserBlockCommands = createMarketplaceUserBlockCommands(admin);
@@ -118,6 +120,10 @@ exports.syncDispatchDirectoryFromCarrierStatus = onDocumentWritten(
     retry: true,
   },
   async (event) => dispatchDirectoryProjection.syncCompany(event.params.companyId),
+);
+exports.searchDispatchDirectoryRadius = onCall(
+  protectedCallableOptions,
+  dispatchDirectorySearch.searchDispatchDirectoryRadius,
 );
 exports.listAdministratorRoles = onCall(
   protectedCallableOptions,
