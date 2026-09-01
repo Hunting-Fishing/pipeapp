@@ -11,6 +11,7 @@ import 'marketplace_escrow_repository.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_money.dart';
 import 'marketplace_invoice_generator.dart';
+import 'marketplace_journey_status.dart';
 import 'marketplace_secure_payment.dart';
 
 class MarketplaceAuctionSettlement extends StatefulWidget {
@@ -109,6 +110,11 @@ class _MarketplaceAuctionSettlementState
     final escrowStatus = parseEscrowStatus(
       '${sale['escrowStatus'] ?? sale['status']}',
     );
+    final journeyStatus = marketplaceTransactionJourneyStatus(
+      sale,
+      viewerIsBuyer: buyer,
+      timedBuying: true,
+    );
 
     return PipeBuyerSectionCard(
       title: 'Auction settlement',
@@ -126,6 +132,8 @@ class _MarketplaceAuctionSettlementState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          MarketplaceJourneyStatusCard(status: journeyStatus),
+          const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 620;

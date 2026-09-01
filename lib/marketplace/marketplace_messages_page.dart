@@ -22,6 +22,7 @@ import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
+import 'marketplace_journey_status.dart';
 import 'marketplace_secure_payment.dart';
 
 class MarketplaceMessagesPage extends StatelessWidget {
@@ -1446,6 +1447,15 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
+          if (!hasTransaction) ...[
+            const SizedBox(height: 10),
+            MarketplaceJourneyStatusCard(
+              status: marketplaceOfferJourneyStatus(
+                status: offerStatus,
+                viewerIsSeller: isSeller,
+              ),
+            ),
+          ],
           if (hasTransaction) ...[
             const SizedBox(height: 10),
             MarketplaceTransactionPanel(
@@ -1887,6 +1897,13 @@ class _MarketplaceTransactionPanelState
           '${transaction['paymentProviderStatus'] ?? 'not_started'}';
       final paymentReadyForCompletion =
           paymentStatus == 'paid' || paymentStatus == 'external_agreed';
+      final dispatchRequested =
+          '${widget.offer['truckingPlan'] ?? ''}' == 'request_dispatch';
+      final journeyStatus = marketplaceTransactionJourneyStatus(
+        transaction,
+        viewerIsBuyer: !widget.isSeller,
+        dispatchRequested: dispatchRequested,
+      );
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1918,7 +1935,9 @@ class _MarketplaceTransactionPanelState
               '${transaction['agreedQuantity'] ?? widget.offer['requestedQuantity'] ?? 0} units',
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 9),
+            const SizedBox(height: 10),
+            MarketplaceJourneyStatusCard(status: journeyStatus),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -1966,6 +1985,12 @@ class _MarketplaceTransactionPanelState
                           ? 'Confirm fulfilled'
                           : 'Confirm received',
                     ),
+                  ),
+                if (status == 'completed' && dispatchRequested)
+                  FilledButton.tonalIcon(
+                    onPressed: () => MarketplaceNavigation.goToDispatch(context),
+                    icon: const Icon(Icons.local_shipping_outlined),
+                    label: const Text('Continue to Dispatch'),
                   ),
                 if (!terminal && !buyerConfirmed && !sellerConfirmed)
                   OutlinedButton.icon(
