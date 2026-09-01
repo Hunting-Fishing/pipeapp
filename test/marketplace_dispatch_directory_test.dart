@@ -178,6 +178,27 @@ void main() {
     expect(find.text('Northern Pilot Cars'), findsOneWidget);
   });
 
+
+  testWidgets('directory exposes simple place and distance search controls', (
+    tester,
+  ) async {
+    await _pumpSeededDirectory(tester);
+
+    await _scrollDirectoryTo(tester, find.text('Search near a place'));
+    expect(find.text('Search near a place'), findsOneWidget);
+    expect(find.text('Town or place'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('directory-radius-distance-250')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('directory-radius-search-button')),
+      findsOneWidget,
+    );
+    expect(find.text('Search this area'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('service selector exposes the structured Hotshot option', (
     tester,
   ) async {

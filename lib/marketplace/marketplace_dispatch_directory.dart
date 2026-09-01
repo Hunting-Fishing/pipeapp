@@ -8,9 +8,11 @@ import 'package:latlong2/latlong.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
-import 'marketplace_dispatch_service_taxonomy.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_directory_actions.dart';
+import 'marketplace_dispatch_service_taxonomy.dart';
 import 'marketplace_location_picker.dart';
+import 'open_address_autocomplete.dart';
 
 class DispatchDirectoryEntry {
   const DispatchDirectoryEntry({
@@ -29,6 +31,7 @@ class DispatchDirectoryEntry {
     this.serviceAreaMode = '',
     this.serviceAreaCenterLabel = '',
     this.serviceAreaRadiusKm = 0,
+    this.distanceKm,
   });
 
   factory DispatchDirectoryEntry.fromDirectoryProjection(
@@ -45,7 +48,7 @@ class DispatchDirectoryEntry {
             .toList()
         : <String>[];
     serviceCodes.sort();
-    final point = data['mapPoint'];
+    final point = _geoPoint(data['mapPoint']);
 
     return DispatchDirectoryEntry(
       id: id,
@@ -59,12 +62,13 @@ class DispatchDirectoryEntry {
       emergencyCallout: data['emergencyCallout'] == true,
       remoteSiteCapable: data['remoteSiteCapable'] == true,
       homeBaseLabel: '${publicLocation['label'] ?? ''}'.trim(),
-      homeBasePoint: point is GeoPoint ? point : null,
+      homeBasePoint: point,
       serviceAreaMode: '${publicServiceArea['mode'] ?? ''}'.trim(),
       serviceAreaCenterLabel:
           '${publicServiceArea['centerLabel'] ?? ''}'.trim(),
       serviceAreaRadiusKm:
           (publicServiceArea['radiusKm'] as num?)?.toDouble() ?? 0,
+      distanceKm: (data['distanceKm'] as num?)?.toDouble(),
     );
   }
 
@@ -84,7 +88,7 @@ class DispatchDirectoryEntry {
 
     final home = _map(dispatch['homeLocation']);
     final serviceArea = _map(dispatch['serviceArea']);
-    final point = home['point'];
+    final point = _geoPoint(home['point']);
 
     return DispatchDirectoryEntry(
       id: id,
@@ -110,7 +114,7 @@ class DispatchDirectoryEntry {
       emergencyCallout: dispatch['emergencyCallout'] == true,
       remoteSiteCapable: dispatch['remoteSiteCapable'] == true,
       homeBaseLabel: '${home['label'] ?? ''}'.trim(),
-      homeBasePoint: point is GeoPoint ? point : null,
+      homeBasePoint: point,
       serviceAreaMode: '${serviceArea['mode'] ?? ''}'.trim(),
       serviceAreaCenterLabel: '${serviceArea['centerLabel'] ?? ''}'.trim(),
       serviceAreaRadiusKm:
@@ -133,6 +137,7 @@ class DispatchDirectoryEntry {
   final String serviceAreaMode;
   final String serviceAreaCenterLabel;
   final double serviceAreaRadiusKm;
+  final double? distanceKm;
 
   bool get hasPublishedRadiusCoverage =>
       serviceAreaMode == 'radius' &&
@@ -178,6 +183,26 @@ class DispatchDirectoryEntry {
       return value.map((key, item) => MapEntry('$key', item));
     }
     return const <String, dynamic>{};
+  }
+
+  static GeoPoint? _geoPoint(Object? value) {
+    if (value is GeoPoint) return value;
+    final map = _map(value);
+    final latitude = double.tryParse(
+      '${map['latitude'] ?? map['lat'] ?? ''}',
+    );
+    final longitude = double.tryParse(
+      '${map['longitude'] ?? map['lng'] ?? ''}',
+    );
+    if (latitude == null ||
+        longitude == null ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+      return null;
+    }
+    return GeoPoint(latitude, longitude);
   }
 
   static String _firstText(Iterable<Object?> values) {
@@ -262,11 +287,62 @@ class DispatchDirectoryPageData {
   }
 }
 
-class MarketplaceDispatchDirectoryRepository {
-  MarketplaceDispatchDirectoryRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  final FirebaseFirestore _firestore;
+class DispatchDirectoryRadiusSearchData {
+  const DispatchDirectoryRadiusSearchData({
+    required this.entries,
+    required this.center,
+    required this.radiusKm,
+    required this.resultCount,
+    required this.truncated,
+  });
+
+  factory DispatchDirectoryRadiusSearchData.fromCommandResult(
+    Map<String, dynamic> data,
+  ) {
+    final entries = <DispatchDirectoryEntry>[];
+    final rawResults = data['results'];
+    if (rawResults is Iterable) {
+      for (final raw in rawResults) {
+        if (raw is! Map) continue;
+        final item = Map<String, dynamic>.from(raw);
+        final id = '${item['id'] ?? ''}'.trim();
+        if (id.isEmpty) continue;
+        final entry = DispatchDirectoryEntry.fromDirectoryProjection(id, item);
+        if (entry.isDirectoryReady) entries.add(entry);
+      }
+    }
+    final centerPoint = DispatchDirectoryEntry._geoPoint(data['center']);
+    return DispatchDirectoryRadiusSearchData(
+      entries: entries,
+      center: centerPoint == null
+          ? null
+          : LatLng(centerPoint.latitude, centerPoint.longitude),
+      radiusKm: (data['radiusKm'] as num?)?.toDouble() ?? 0,
+      resultCount: (data['resultCount'] as num?)?.toInt() ?? entries.length,
+      truncated: data['truncated'] == true,
+    );
+  }
+
+  final List<DispatchDirectoryEntry> entries;
+  final LatLng? center;
+  final double radiusKm;
+  final int resultCount;
+  final bool truncated;
+}
+
+class MarketplaceDispatchDirectoryRepository {
+  MarketplaceDispatchDirectoryRepository({
+    FirebaseFirestore? firestore,
+    MarketplaceCommandClient? commandClient,
+  })  : _firestore = firestore,
+        _commands = commandClient ?? MarketplaceCommandClient();
+
+  FirebaseFirestore? _firestore;
+  final MarketplaceCommandClient _commands;
+
+  FirebaseFirestore get _resolvedFirestore =>
+      _firestore ??= FirebaseFirestore.instance;
 
   Future<DispatchDirectoryPageData> loadPage({
     DispatchDirectoryFilters filters = const DispatchDirectoryFilters(),
@@ -274,7 +350,7 @@ class MarketplaceDispatchDirectoryRepository {
     int pageSize = 60,
   }) async {
     Query<Map<String, dynamic>> query =
-        _firestore.collection('dispatch_directory_entries');
+        _resolvedFirestore.collection('dispatch_directory_entries');
     final searchTerms = filters.searchText
         .trim()
         .toLowerCase()
@@ -315,6 +391,21 @@ class MarketplaceDispatchDirectoryRepository {
       hasMore: page.hasMore,
     );
   }
+
+  Future<DispatchDirectoryRadiusSearchData> searchRadius({
+    required LatLng center,
+    required double radiusKm,
+    int resultLimit = 60,
+  }) async {
+    final result = await _commands.execute('searchDispatchDirectoryRadius', {
+      'latitude': center.latitude,
+      'longitude': center.longitude,
+      'radiusKm': radiusKm,
+      'resultLimit': resultLimit,
+    });
+    return DispatchDirectoryRadiusSearchData.fromCommandResult(result);
+  }
+
 }
 
 class MarketplaceDispatchDirectoryPage extends StatefulWidget {
@@ -347,6 +438,14 @@ class _MarketplaceDispatchDirectoryPageState
   String? _loadMoreError;
   DispatchDirectoryViewMode _viewMode = DispatchDirectoryViewMode.list;
   String? _selectedMapEntryId;
+  OpenAddress? _radiusPlace;
+  double _radiusKm = 250;
+  DispatchDirectoryRadiusSearchData? _radiusSearchData;
+  bool _radiusSearchLoading = false;
+  String? _radiusSearchError;
+  String _activeRadiusLabel = '';
+  int _radiusSearchGeneration = 0;
+  int _radiusInputVersion = 0;
 
   @override
   void initState() {
@@ -437,7 +536,83 @@ class _MarketplaceDispatchDirectoryPageState
     }
   }
 
+
+  Future<void> _searchRadius() async {
+    final place = _radiusPlace;
+    if (place == null || _radiusSearchLoading) {
+      if (place == null) {
+        setState(() => _radiusSearchError = 'Choose a town or place first.');
+      }
+      return;
+    }
+    final request = ++_radiusSearchGeneration;
+    final repository =
+        _repository ??= MarketplaceDispatchDirectoryRepository();
+    setState(() {
+      _radiusSearchLoading = true;
+      _radiusSearchError = null;
+    });
+    try {
+      final result = await repository.searchRadius(
+        center: place.point,
+        radiusKm: _radiusKm,
+        resultLimit: 60,
+      );
+      if (!mounted || request != _radiusSearchGeneration) return;
+      setState(() {
+        _radiusSearchData = result;
+        _activeRadiusLabel = _radiusPlaceLabel(place);
+        _radiusSearchLoading = false;
+        _radiusSearchError = null;
+        _selectedMapEntryId = null;
+      });
+    } catch (error) {
+      if (!mounted || request != _radiusSearchGeneration) return;
+      setState(() {
+        _radiusSearchLoading = false;
+        _radiusSearchError = marketplaceCommandErrorMessage(
+          error,
+          fallback: 'Could not search this area. Check the connection and try again.',
+        );
+      });
+    }
+  }
+
+  void _clearRadiusSearch() {
+    _radiusSearchGeneration++;
+    setState(() {
+      _radiusPlace = null;
+      _radiusSearchData = null;
+      _radiusSearchLoading = false;
+      _radiusSearchError = null;
+      _activeRadiusLabel = '';
+      _selectedMapEntryId = null;
+      _radiusInputVersion++;
+    });
+    _reload();
+  }
+
+  String _radiusPlaceLabel(OpenAddress place) {
+    final primary = place.name.trim().isNotEmpty
+        ? place.name.trim()
+        : place.city.trim().isNotEmpty
+            ? place.city.trim()
+            : place.label.trim();
+    return <String>[
+      primary,
+      place.region.trim(),
+      place.country.trim(),
+    ].where((value) => value.isNotEmpty).toSet().join(', ');
+  }
+
   void _setFilters(DispatchDirectoryFilters value) {
+    if (_radiusSearchData != null) {
+      setState(() {
+        _filters = value;
+        _loadMoreError = null;
+      });
+      return;
+    }
     setState(() {
       _filters = value;
       _loadGeneration++;
@@ -500,8 +675,10 @@ class _MarketplaceDispatchDirectoryPageState
           );
         }
 
-        final allEntries =
-            retainedData?.entries ?? const <DispatchDirectoryEntry>[];
+        final radiusSearchData = _radiusSearchData;
+        final allEntries = radiusSearchData?.entries ??
+            retainedData?.entries ??
+            const <DispatchDirectoryEntry>[];
         final filtered = allEntries
             .where((entry) => entry.matches(_filters))
             .toList(growable: false);
@@ -520,13 +697,40 @@ class _MarketplaceDispatchDirectoryPageState
               icon: Icons.business_outlined,
             ),
             const SizedBox(height: 14),
+            _DirectoryRadiusSearchCard(
+              key: const ValueKey('directory-radius-search-card'),
+              selectedPlace: _radiusPlace,
+              radiusKm: _radiusKm,
+              loading: _radiusSearchLoading,
+              error: _radiusSearchError,
+              activeData: radiusSearchData,
+              activeLabel: _activeRadiusLabel,
+              inputVersion: _radiusInputVersion,
+              onPlaceSelected: (place) {
+                setState(() {
+                  _radiusPlace = place;
+                  _radiusSearchError = null;
+                });
+              },
+              onPlaceChanged: (_) {
+                if (_radiusPlace == null) return;
+                setState(() => _radiusPlace = null);
+              },
+              onRadiusChanged: (value) {
+                setState(() => _radiusKm = value);
+              },
+              onSearch: _searchRadius,
+              onClear: _clearRadiusSearch,
+            ),
+            const SizedBox(height: 14),
             _DirectoryFilterCard(
               searchController: _search,
               filters: _filters,
               onChanged: _setFilters,
               onClear: _clearFilters,
             ),
-            if (snapshot.connectionState == ConnectionState.waiting &&
+            if (radiusSearchData == null &&
+                snapshot.connectionState == ConnectionState.waiting &&
                 retainedData != null) ...[
               const SizedBox(height: 8),
               const Row(
@@ -547,7 +751,9 @@ class _MarketplaceDispatchDirectoryPageState
                 ],
               ),
             ],
-            if (snapshot.hasError && retainedData != null) ...[
+            if (radiusSearchData == null &&
+                snapshot.hasError &&
+                retainedData != null) ...[
               const SizedBox(height: 8),
               _DirectoryRefreshWarning(onRetry: _reload),
             ],
@@ -556,7 +762,9 @@ class _MarketplaceDispatchDirectoryPageState
               children: [
                 Expanded(
                   child: Text(
-                    '${filtered.length} ${filtered.length == 1 ? 'company' : 'companies'} shown',
+                    radiusSearchData == null
+                        ? '${filtered.length} ${filtered.length == 1 ? 'company' : 'companies'} shown'
+                        : '${filtered.length} ${filtered.length == 1 ? 'company' : 'companies'} shown within ${_directoryDistance(radiusSearchData.radiusKm)} km',
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
@@ -584,10 +792,20 @@ class _MarketplaceDispatchDirectoryPageState
             ),
             const SizedBox(height: 10),
             if (allEntries.isEmpty)
-              const _DirectoryEmptyState(
-                title: 'No companies are listed yet',
-                message:
-                    'Active, Directory-ready provider profiles will appear here after the server projection publishes them.',
+              _DirectoryEmptyState(
+                title: radiusSearchData == null
+                    ? 'No companies are listed yet'
+                    : 'No companies found in this area',
+                message: radiusSearchData == null
+                    ? 'Active, Directory-ready provider profiles will appear here after the server projection publishes them.'
+                    : 'Try a larger distance or choose another town or place.',
+                action: radiusSearchData == null
+                    ? null
+                    : OutlinedButton.icon(
+                        onPressed: _clearRadiusSearch,
+                        icon: const Icon(Icons.edit_location_alt_outlined),
+                        label: const Text('Change area'),
+                      ),
               )
             else if (filtered.isEmpty)
               _DirectoryEmptyState(
@@ -613,6 +831,8 @@ class _MarketplaceDispatchDirectoryPageState
               _DirectoryMapView(
                 entries: mappedEntries,
                 selectedEntryId: _selectedMapEntryId,
+                searchCenter: radiusSearchData?.center,
+                searchRadiusKm: radiusSearchData?.radiusKm,
                 remoteDataEnabled: widget.seedEntries == null,
                 onSelected: (entryId) {
                   setState(() => _selectedMapEntryId = entryId);
@@ -621,7 +841,8 @@ class _MarketplaceDispatchDirectoryPageState
                   setState(() => _viewMode = DispatchDirectoryViewMode.list);
                 },
               ),
-            if (retainedData?.hasMore == true &&
+            if (radiusSearchData == null &&
+                retainedData?.hasMore == true &&
                 widget.seedEntries == null) ...[
               const SizedBox(height: 8),
               SizedBox(
@@ -692,6 +913,8 @@ class _DirectoryMapView extends StatelessWidget {
   const _DirectoryMapView({
     required this.entries,
     required this.selectedEntryId,
+    required this.searchCenter,
+    required this.searchRadiusKm,
     required this.remoteDataEnabled,
     required this.onSelected,
     required this.onShowList,
@@ -699,6 +922,8 @@ class _DirectoryMapView extends StatelessWidget {
 
   final List<DispatchDirectoryEntry> entries;
   final String? selectedEntryId;
+  final LatLng? searchCenter;
+  final double? searchRadiusKm;
   final bool remoteDataEnabled;
   final ValueChanged<String> onSelected;
   final VoidCallback onShowList;
@@ -743,6 +968,9 @@ class _DirectoryMapView extends StatelessWidget {
       final point = entry.homeBasePoint!;
       return '${entry.id}:${point.latitude.toStringAsFixed(3)}:${point.longitude.toStringAsFixed(3)}';
     }).join('|');
+    final searchIdentity = searchCenter == null || searchRadiusKm == null
+        ? ''
+        : ':search:${searchCenter!.latitude.toStringAsFixed(3)}:${searchCenter!.longitude.toStringAsFixed(3)}:${searchRadiusKm!.toStringAsFixed(1)}';
 
     return PipeBuyerSectionCard(
       title: 'Map results',
@@ -762,9 +990,11 @@ class _DirectoryMapView extends StatelessWidget {
             child: SizedBox(
               height: 380,
               child: FlutterMap(
-                key: ValueKey('dispatch-directory-map-$mapIdentity'),
+                key: ValueKey(
+                  'dispatch-directory-map-$mapIdentity$searchIdentity',
+                ),
                 options: MapOptions(
-                  initialCenter: _mapCenter(),
+                  initialCenter: searchCenter ?? _mapCenter(),
                   initialZoom: _mapZoom(),
                   minZoom: 2,
                   maxZoom: 18,
@@ -774,6 +1004,23 @@ class _DirectoryMapView extends StatelessWidget {
                     urlTemplate: pipeBuyerTileUrl,
                     userAgentPackageName: 'ca.pipebuyer.marketplace',
                   ),
+                  if (searchCenter != null &&
+                      searchRadiusKm != null &&
+                      searchRadiusKm! > 0)
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: searchCenter!,
+                          radius: searchRadiusKm! * 1000,
+                          useRadiusInMeter: true,
+                          color: PipeBuyerColors.industrialBlue
+                              .withValues(alpha: .07),
+                          borderColor: PipeBuyerColors.industrialBlue
+                              .withValues(alpha: .78),
+                          borderStrokeWidth: 2,
+                        ),
+                      ],
+                    ),
                   if (radiusEntry != null)
                     CircleLayer(
                       circles: [
@@ -937,6 +1184,14 @@ class _DirectoryMapView extends StatelessWidget {
   }
 
   double _mapZoom() {
+    final radius = searchRadiusKm;
+    if (searchCenter != null && radius != null && radius > 0) {
+      if (radius >= 1000) return 4;
+      if (radius >= 500) return 5;
+      if (radius >= 250) return 6;
+      if (radius >= 100) return 7;
+      return 8;
+    }
     if (entries.length == 1) return 8.5;
     var minLatitude = entries.first.homeBasePoint!.latitude;
     var maxLatitude = minLatitude;
@@ -960,6 +1215,211 @@ class _DirectoryMapView extends StatelessWidget {
     if (span > 1) return 7.5;
     if (span > .5) return 8.5;
     return 9.5;
+  }
+}
+
+
+String _directoryDistance(double value) => value == value.roundToDouble()
+    ? '${value.round()}'
+    : value.toStringAsFixed(1);
+
+class _DirectoryRadiusSearchCard extends StatelessWidget {
+  const _DirectoryRadiusSearchCard({
+    super.key,
+    required this.selectedPlace,
+    required this.radiusKm,
+    required this.loading,
+    required this.error,
+    required this.activeData,
+    required this.activeLabel,
+    required this.inputVersion,
+    required this.onPlaceSelected,
+    required this.onPlaceChanged,
+    required this.onRadiusChanged,
+    required this.onSearch,
+    required this.onClear,
+  });
+
+  final OpenAddress? selectedPlace;
+  final double radiusKm;
+  final bool loading;
+  final String? error;
+  final DispatchDirectoryRadiusSearchData? activeData;
+  final String activeLabel;
+  final int inputVersion;
+  final ValueChanged<OpenAddress> onPlaceSelected;
+  final ValueChanged<String> onPlaceChanged;
+  final ValueChanged<double> onRadiusChanged;
+  final VoidCallback onSearch;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = activeData;
+    if (active != null) {
+      return PipeBuyerSectionCard(
+        title: 'Search near a place',
+        subtitle:
+            'Geographic results use approximate public Directory points—not private yards, homes, or exact provider addresses.',
+        leading: const Icon(Icons.radar_outlined, color: PipeBuyerColors.orange),
+        trailing: TextButton.icon(
+          onPressed: onClear,
+          icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
+          label: const Text('Change area'),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.location_searching_outlined,
+                  size: 20,
+                  color: PipeBuyerColors.industrialBlue,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$activeLabel · within ${_directoryDistance(active.radiusKm)} km',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              '${active.resultCount} ${active.resultCount == 1 ? 'company' : 'companies'} returned by the bounded server search. Existing service and availability filters can narrow these results.',
+              style: const TextStyle(height: 1.35),
+            ),
+            if (active.truncated) ...[
+              const SizedBox(height: 9),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 18),
+                    SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'More companies may be available in this area. Reduce the distance for a more complete result before relying on additional filters.',
+                        style: TextStyle(fontSize: 12, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    const distances = <double>[50, 100, 250, 500, 1000];
+    return PipeBuyerSectionCard(
+      title: 'Search near a place',
+      subtitle:
+          'Choose a town or place and a distance. This finds companies whose approximate public Directory point is nearby.',
+      leading: const Icon(Icons.radar_outlined, color: PipeBuyerColors.orange),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OpenAddressAutocomplete(
+            key: ValueKey('directory-radius-place-$inputVersion'),
+            initialValue: selectedPlace?.label ?? '',
+            label: 'Town or place',
+            hint: 'Try Grande Prairie, Fort St. John, Midland or another town',
+            searchType: OpenAddressSearchType.settlement,
+            enabled: !loading,
+            onChanged: onPlaceChanged,
+            onSelected: onPlaceSelected,
+          ),
+          if (selectedPlace != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  size: 17,
+                  color: PipeBuyerColors.success,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    selectedPlace!.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Text(
+            'Distance',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: distances
+                .map(
+                  (distance) => ChoiceChip(
+                    key: ValueKey(
+                      'directory-radius-distance-${distance.round()}',
+                    ),
+                    label: Text('${distance.round()} km'),
+                    selected: radiusKm == distance,
+                    onSelected: loading
+                        ? null
+                        : (_) => onRadiusChanged(distance),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            key: const ValueKey('directory-radius-search-button'),
+            onPressed: selectedPlace == null || loading ? null : onSearch,
+            icon: loading
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.search_outlined),
+            label: Text(loading ? 'Searching this area…' : 'Search this area'),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              error!,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          const Text(
+            'This is a discovery search. Confirm service coverage, the exact job location, route, permits, availability, and travel charges directly with the company.',
+            style: TextStyle(fontSize: 12, height: 1.35),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1306,6 +1766,13 @@ class _DirectoryCompanyCard extends StatelessWidget {
               spacing: 7,
               runSpacing: 7,
               children: [
+                if (entry.distanceKm != null)
+                  Chip(
+                    avatar: const Icon(Icons.near_me_outlined, size: 18),
+                    label: Text(
+                      '${_directoryDistance(entry.distanceKm!)} km away',
+                    ),
+                  ),
                 ...services.map((label) => Chip(label: Text(label))),
                 if (entry.emergencyCallout)
                   const Chip(
