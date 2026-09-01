@@ -1,5 +1,13 @@
 # Pipe Buyer launch readiness audit — 2026-08-30
 
+## 2026-09-01 Release 1 simple-flow production release
+
+The current verified production application is `main` at `996bd3f782a89639aaf12527193cb1ecf4d92f84`, deployed by `Deploy verified Firebase release` run `33493435243` (#56) with App Check `enforce`. Release 1 simplifies Home and compact navigation while preserving existing Firebase schemas, Stripe settlement, moderation evidence, Trust & Safety controls, and protected release architecture.
+
+The production run passed full Flutter analysis/tests, generated release-manifest controls, Function-parity tests, both Functions codebase validation, Firestore security rules, authenticated callable workflows/retries, exact web build, notification-worker verification, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance. Retained evidence: `firebase-release-evidence-production-996bd3f782a89639aaf12527193cb1ecf4d92f84-33493435243` (artifact `9794901956`) and `visual-acceptance-production-33493435243` (artifact `9794932834`).
+
+Release 2 now owns ordinary-user Marketplace journey closure: buyer/seller offers and counteroffers, Timed Buying, Wanted, messaging/block/report, payment/support, and Dispatch handoff. The engineering rule is to expose current status, next action, and responsible party without making the client authoritative for transaction or payment state.
+
 ## 2026-09-01 P1 Marketplace blocking production release
 
 The current verified production application is `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`, deployed by `Deploy verified Firebase release` run `33464230471` (#55) with App Check `enforce`. Pre-merge Quality run `33463954448` and Callable Safety run `33463955489` passed. Production then passed Flutter analysis/tests, generated release-manifest controls, Function-parity tests, both Functions codebase validation, Firestore security rules, authenticated callable workflows/retries, exact web build, notification-worker verification, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `99722538441`).
@@ -22,8 +30,8 @@ It intentionally does **not** invent a new completion percentage. Older percenta
 ## Audited production baseline
 
 - Repository: `Hunting-Fishing/pipeapp`
-- Production source / release pointer: `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de`
-- Latest protected Firebase production run: `33464230471` (#55) — **success**, App Check `enforce`
+- Production source / release pointer: `996bd3f782a89639aaf12527193cb1ecf4d92f84`
+- Latest protected Firebase production run: `33493435243` (#56) — **success**, App Check `enforce`
 - Subscription-card / Firebase Functions production run: `33388062795` — **success**
 - The latest hero release validated the approved desktop/mobile truck image payloads, full Flutter tests, exact production web build, Firebase Hosting deployment, and public production-page smoke checks.
 - The subscription release validated and deployed both configured Firebase Functions codebases before broad `--only functions` deployment.

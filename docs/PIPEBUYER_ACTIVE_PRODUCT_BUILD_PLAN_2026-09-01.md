@@ -10,6 +10,8 @@ North America remains the first operating scope. The product must stay simple fo
 
 ### Release 1 — Simple Pipe Buyer flow
 
+**Production status: COMPLETE.** PR #168 is deployed from exact application SHA `996bd3f782a89639aaf12527193cb1ecf4d92f84` by protected production run `33493435243` (#56) with App Check `enforce`. The run passed analyzer/tests, release-manifest and Function-parity controls, both Functions codebases, Firestore rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy parity, release identity, and production mobile/desktop visual acceptance. Evidence: `firebase-release-evidence-production-996bd3f782a89639aaf12527193cb1ecf4d92f84-33493435243` (artifact `9794901956`) and `visual-acceptance-production-33493435243` (artifact `9794932834`).
+
 - Make Home start with four understandable intents: Browse inventory, Sell something, Request service, Post wanted / RFQ.
 - Keep mobile navigation to Home, Browse, Sell, Messages and Account.
 - Keep the existing desktop grouped Marketplace / Deals / Logistics navigation.
