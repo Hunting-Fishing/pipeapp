@@ -44,7 +44,7 @@ jobs:
       - name: Apply guarded Directory pagination integration
         run: python3 tool/apply_release3_dispatch_directory_pagination_20260901.py
 
-      - name: Repair formatter-sensitive Directory source contract
+      - name: Repair formatter-sensitive Directory source contracts
         run: python3 tool/repair_release3_dispatch_projection_contract_20260901.py
 
       - name: Format bounded Release 3 files
@@ -53,6 +53,7 @@ jobs:
           lib/marketplace/marketplace_dispatch_directory.dart
           test/marketplace_dispatch_directory_projection_query_test.dart
           test/dispatch_directory_projection_source_contract_test.dart
+          test/dispatch_directory_filter_setstate_void_contract_test.dart
 
       - name: Verify mutation scope
         shell: bash
@@ -63,6 +64,7 @@ jobs:
             lib/marketplace/marketplace_dispatch_directory.dart
             test/marketplace_dispatch_directory_projection_query_test.dart
             test/dispatch_directory_projection_source_contract_test.dart
+            test/dispatch_directory_filter_setstate_void_contract_test.dart
           )
           if [[ ${#changed[@]} -ne ${#allowed[@]} ]]; then
             printf 'Unexpected Release 3 changes:\n%s\n' "${changed[*]}"
@@ -87,6 +89,8 @@ jobs:
           test/marketplace_dispatch_directory_projection_query_test.dart
           test/marketplace_dispatch_directory_test.dart
           test/dispatch_directory_projection_source_contract_test.dart
+          test/dispatch_directory_filter_setstate_void_contract_test.dart
+          test/dispatch_directory_filter_runtime_stability_contract_test.dart
 
       - name: Run full Flutter regression
         run: >
@@ -128,7 +132,8 @@ jobs:
           git add \
             lib/marketplace/marketplace_dispatch_directory.dart \
             test/marketplace_dispatch_directory_projection_query_test.dart \
-            test/dispatch_directory_projection_source_contract_test.dart
+            test/dispatch_directory_projection_source_contract_test.dart \
+            test/dispatch_directory_filter_setstate_void_contract_test.dart
           if git diff --cached --quiet; then
             echo "::error::Directory pagination verification produced no source changes."
             exit 1
