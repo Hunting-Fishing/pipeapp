@@ -1,0 +1,32 @@
+name: Dispatch Release 2 Wanted production
+
+on:
+  push:
+    branches:
+      - ops/deploy-release2-wanted-6d4e8361
+    paths:
+      - .github/workflows/dispatch-release2-wanted-production-20260901.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch canonical protected production release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch deploy.yml for exact Wanted SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: 6d4e8361211d921136e1d54358b88d413e64adc8
+        run: |
+          set -euo pipefail
+          gh api \
+            --method POST \
+            repos/${{ github.repository }}/actions/workflows/deploy.yml/dispatches \
+            -f ref=main \
+            -f 'inputs[environment]=production' \
+            -f "inputs[commit_sha]=$RELEASE_SHA" \
+            -f 'inputs[app_check_mode]=enforce'
+          echo "Dispatched canonical production release for $RELEASE_SHA"
