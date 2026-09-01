@@ -33,6 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 tool/prepatch_release1_profile_labels_20260901.py
           python3 tool/apply_release1_simple_flow_20260901.py
 
       - name: Format Release 1 Dart files
