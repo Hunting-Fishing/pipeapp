@@ -42,7 +42,7 @@ jobs:
             firebase/agent-functions/package-lock.json
 
       - name: Apply guarded radius-search UI integration
-        run: python3 tool/apply_release3_dispatch_directory_radius_search_ui_20260901.py
+        run: python3 tool/run_release3_dispatch_directory_radius_search_ui_patch_20260901.py
 
       - name: Verify exact mutation scope
         shell: bash
