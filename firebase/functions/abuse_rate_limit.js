@@ -10,6 +10,7 @@ const RATE_LIMITS = Object.freeze({
   offers: 80,
   auctions: 180,
   dispatch: 180,
+  directory: 30,
   messaging: 120,
   reporting: 20,
   media: 60,
