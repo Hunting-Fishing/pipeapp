@@ -1,16 +1,27 @@
 # Pipe Buyer Phase 1 Launch Finalization Plan
 
+## 2026-09-01 P1 Marketplace blocking production release
+
+Marketplace conversation user block/unblock is **production deployed and verified**. The deployed application identity is `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de` via protected Firebase production run `33464230471` (#55) with App Check `enforce`. Pre-merge Quality run `33463954448` and Callable Safety run `33463955489` both passed. Production then passed Flutter analysis/tests, generated release-manifest and Function-parity controls, both Functions codebase validation, Firestore security rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy Function parity, release identity, and responsive production visual acceptance (job `99722538441`).
+
+The production callables are `readMarketplaceUserBlockStatus` and `setMarketplaceUserBlocked`. Function inventory remains generated from `firebase.json` and exported entrypoints; there is no static Function allowlist to maintain. Evidence is retained as `firebase-release-evidence-production-0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de-33464230471` (artifact `9784473533`) and `visual-acceptance-production-33464230471` (artifact `9784489576`).
+
+Repair record: review found a client-only reciprocal-block defect where a user could not establish their own durable block if the other party had blocked first. Server directional/mutual blocking was already correct. The client restriction was removed and a regression contract test added. Existing messages and Trust & Safety evidence remain preserved.
+
+Any later documentation-only merge records this evidence only; it is **not** a redeployment and must not replace `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de` as the production application SHA.
+
+
 ## 2026-09-01 reconciliation
 
 This file began as the July Phase 1 engineering gate ledger. Its `99% provisional` / `Gate 7 86%` figures below are retained as historical checkpoint data and are **not the current launch-readiness measure**. The current authority is `docs/PIPE_BUYER_LAUNCH_READINESS_AUDIT_2026-08-30.md`, reconciled on 2026-09-01.
 
 Current verified state: the protected North American web release is launch-capable for controlled use; Stripe marketplace payments and seller Connect release, Timed Buying, web Dispatch/VIP memberships, OpenStreetMap/geolocation, reporting/moderation, production App Check/release gates, and the upgraded Marketplace home hero have all advanced beyond this July ledger. Native Apple/Google membership/store acceptance, physical-device push/deep links, fresh ordinary-user acceptance journeys, Dispatch production-data acceptance, and any freight-specific transaction charging remain separate launch work.
 
-The current P1 trust slice is user block/unblock for Marketplace conversations. It is being implemented server-authoritatively so blocked parties cannot exchange new direct messages while existing messages and moderation/report evidence remain stored.
+The current P1 trust slice, Marketplace conversation user block/unblock, is production deployed and server-authoritative. Either party's active directional block prevents new direct messages while existing messages and moderation/report evidence remain stored.
 
-Status: In progress  
+Status: Production release verified; remaining P1 acceptance continues
 Plan owner: Pipe Buyer product and engineering  
-Baseline branch: `main` (`b34387a`; current completion candidate contains reviewed working-tree changes)
+Production baseline: `main` at `0dd8f9c4ab69868b4b8fc8e6cb2c05dbf1ca80de` — deployed and verified in run `33464230471`
 Created: July 20, 2026
 
 Current gate: Gate 7 — Release readiness
