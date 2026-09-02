@@ -47,14 +47,24 @@ test("request upload rejects unsupported types and oversize files", () => {
   );
 });
 
-test("request accepts no more than five attachment references", () => {
+test("request accepts no more than five unique attachment references", () => {
   const valid = Array.from({length: 5}, (_, index) => ({
     authorizationId: `upload-${index}`,
     url: `https://firebasestorage.googleapis.com/v0/b/demo/o/file-${index}`,
   }));
   assert.equal(validateDispatchRequestAttachmentReferences(valid).length, 5);
   assert.throws(
-      () => validateDispatchRequestAttachmentReferences([...valid, valid[0]]),
+      () => validateDispatchRequestAttachmentReferences([...valid, {
+        authorizationId: "upload-6",
+        url: "https://firebasestorage.googleapis.com/v0/b/demo/o/file-6",
+      }]),
+      (error) => error && error.code === "invalid-argument",
+  );
+  assert.throws(
+      () => validateDispatchRequestAttachmentReferences([
+        valid[0],
+        {...valid[0], url: `${valid[0].url}-duplicate`},
+      ]),
       (error) => error && error.code === "invalid-argument",
   );
 });
