@@ -1,6 +1,6 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_components.dart';
@@ -37,7 +37,7 @@ class _MarketplaceDispatchRequestServicePageState
   DateTime _requestedAt = DateTime.now().add(const Duration(days: 1));
   DispatchContactPreference _contactPreference =
       DispatchContactPreference.inApp;
-  final List<PlatformFile> _attachments = <PlatformFile>[];
+  final List<XFile> _attachments = <XFile>[];
   List<Map<String, dynamic>>? _uploadedAttachmentReferences;
   bool _submitting = false;
   String? _error;
@@ -69,9 +69,7 @@ class _MarketplaceDispatchRequestServicePageState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Request Service'),
-        ),
+        appBar: AppBar(title: const Text('Request Service')),
         body: SafeArea(
           child: Form(
             key: _form,
@@ -82,7 +80,7 @@ class _MarketplaceDispatchRequestServicePageState
                   eyebrow: 'DISPATCH REQUEST',
                   title: 'Tell us what service you need',
                   subtitle:
-                      'Choose the work first. Pipe Buyer will only ask for route information when the selected service actually needs a route.',
+                      'Choose the work first. Pipe Buyer only asks for a route when the selected service actually needs one.',
                   icon: Icons.handyman_outlined,
                 ),
                 const SizedBox(height: 14),
@@ -95,7 +93,9 @@ class _MarketplaceDispatchRequestServicePageState
                       setState(() {
                         _serviceCodes = values;
                         _error = null;
-                        if (!_isFreight) _delivery = null;
+                        if (_serviceCodes.isNotEmpty && !_isFreight) {
+                          _delivery = null;
+                        }
                       });
                     },
                     label: 'What do you need?',
@@ -105,39 +105,42 @@ class _MarketplaceDispatchRequestServicePageState
                 ),
                 const SizedBox(height: 12),
                 _pathCard(),
-                const SizedBox(height: 12),
-                _sectionCard(
-                  title: _isFreight ? '2. Route' : '2. Work site',
-                  icon: _isFreight
-                      ? Icons.route_outlined
-                      : Icons.location_on_outlined,
-                  child: Column(
-                    children: [
-                      _LocationSelectionCard(
-                        title: _isFreight ? 'Pickup location' : 'Work-site location',
-                        helper: _isFreight
-                            ? 'Pin the loading point. Exact coordinates stay protected.'
-                            : 'Pin where the service is needed. Exact coordinates stay protected.',
-                        icon: _isFreight
-                            ? Icons.trip_origin
-                            : Icons.location_on_outlined,
-                        location: _pickupOrWorkSite,
-                        onTap: _choosePickupOrWorkSite,
-                      ),
-                      if (_isFreight) ...[
-                        const SizedBox(height: 10),
+                if (_serviceCodes.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _sectionCard(
+                    title: _isFreight ? '2. Route' : '2. Work site',
+                    icon: _isFreight
+                        ? Icons.route_outlined
+                        : Icons.location_on_outlined,
+                    child: Column(
+                      children: [
                         _LocationSelectionCard(
-                          title: 'Delivery location',
-                          helper:
-                              'Pin the destination and include access notes in the map form when needed.',
-                          icon: Icons.flag_outlined,
-                          location: _delivery,
-                          onTap: _chooseDelivery,
+                          title:
+                              _isFreight ? 'Pickup location' : 'Work-site location',
+                          helper: _isFreight
+                              ? 'Pin the loading point. Exact coordinates stay protected.'
+                              : 'Pin where the service is needed. Exact coordinates stay protected.',
+                          icon: _isFreight
+                              ? Icons.trip_origin
+                              : Icons.location_on_outlined,
+                          location: _pickupOrWorkSite,
+                          onTap: _choosePickupOrWorkSite,
                         ),
+                        if (_isFreight) ...[
+                          const SizedBox(height: 10),
+                          _LocationSelectionCard(
+                            title: 'Delivery location',
+                            helper:
+                                'Pin the destination and include access notes in the map form when needed.',
+                            icon: Icons.flag_outlined,
+                            location: _delivery,
+                            onTap: _chooseDelivery,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 12),
                 _sectionCard(
                   title: '3. Timing & details',
@@ -170,7 +173,7 @@ class _MarketplaceDispatchRequestServicePageState
                               : 'Work scope and equipment details *',
                           hintText: _isFreight
                               ? 'Describe the load, dimensions, approximate weight, loading conditions, and equipment needed.'
-                              : 'Describe the work, site conditions, equipment or capacity needed, access restrictions, and any special requirements.',
+                              : 'Describe the work, site conditions, equipment or capacity needed, access restrictions, and special requirements.',
                           prefixIcon: const Icon(Icons.description_outlined),
                           alignLabelWithHint: true,
                         ),
@@ -197,8 +200,8 @@ class _MarketplaceDispatchRequestServicePageState
                 ),
                 const SizedBox(height: 12),
                 _sectionCard(
-                  title: '4. Photos & documents',
-                  icon: Icons.attach_file_outlined,
+                  title: '4. Photos',
+                  icon: Icons.add_photo_alternate_outlined,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -210,13 +213,13 @@ class _MarketplaceDispatchRequestServicePageState
                         icon: const Icon(Icons.add_photo_alternate_outlined),
                         label: Text(
                           _attachments.isEmpty
-                              ? 'Add photos or PDF documents'
-                              : 'Add another file (${_attachments.length}/$_maximumAttachments)',
+                              ? 'Add request photos'
+                              : 'Add another photo (${_attachments.length}/$_maximumAttachments)',
                         ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Optional. Up to 5 JPG, PNG, WebP or PDF files, 15 MB each. Files are stored privately with your request; provider file access is not opened broadly in this release.',
+                        'Optional. Up to 5 JPG, PNG or WebP photos, 15 MB each. Photos are stored privately with your request; provider file access is not opened broadly in this release.',
                         style: TextStyle(
                           fontSize: 12,
                           color: PipeBuyerColors.muted,
@@ -415,21 +418,17 @@ class _MarketplaceDispatchRequestServicePageState
 
   Widget _attachmentTile(int index) {
     final file = _attachments[index];
-    final extension = (file.extension ?? '').toLowerCase();
-    final isPdf = extension == 'pdf';
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        child: Icon(isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined),
-      ),
+      leading: const CircleAvatar(child: Icon(Icons.image_outlined)),
       title: Text(
         file.name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text(_fileSize(file.size)),
+      subtitle: const Text('Private request photo'),
       trailing: IconButton(
-        tooltip: 'Remove attachment',
+        tooltip: 'Remove photo',
         onPressed: _submitting ? null : () => _removeAttachment(index),
         icon: const Icon(Icons.close),
       ),
@@ -483,40 +482,37 @@ class _MarketplaceDispatchRequestServicePageState
 
   Future<void> _pickAttachments() async {
     final remaining = _maximumAttachments - _attachments.length;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const <String>['jpg', 'jpeg', 'png', 'webp', 'pdf'],
-      allowMultiple: remaining > 1,
-      withData: true,
+    final picked = await ImagePicker().pickMultiImage(
+      imageQuality: 88,
+      maxWidth: 2400,
     );
-    if (result == null || result.files.isEmpty || !mounted) return;
+    if (picked.isEmpty || !mounted) return;
 
     var rejected = 0;
-    final additions = <PlatformFile>[];
-    for (final file in result.files) {
+    final additions = <XFile>[];
+    for (final file in picked) {
       if (additions.length >= remaining) break;
-      final extension = (file.extension ?? '').toLowerCase();
-      final supported = const <String>{'jpg', 'jpeg', 'png', 'webp', 'pdf'}
+      final extension = file.name.split('.').last.toLowerCase();
+      final size = await file.length();
+      final supported = const <String>{'jpg', 'jpeg', 'png', 'webp'}
           .contains(extension);
-      if (!supported ||
-          file.size < 1 ||
-          file.size > _maximumAttachmentBytes ||
-          file.bytes == null) {
+      if (!supported || size < 1 || size > _maximumAttachmentBytes) {
         rejected += 1;
         continue;
       }
       additions.add(file);
     }
+    if (!mounted) return;
     setState(() {
       _attachments.addAll(additions);
       _uploadedAttachmentReferences = null;
       _error = null;
     });
-    if (rejected > 0 && mounted) {
+    if (rejected > 0) {
       PipeFeedback.show(
         context,
         message:
-            '$rejected file${rejected == 1 ? '' : 's'} skipped. Use JPG, PNG, WebP or PDF files up to 15 MB.',
+            '$rejected photo${rejected == 1 ? '' : 's'} skipped. Use JPG, PNG or WebP photos up to 15 MB.',
         tone: PipeStatusTone.warning,
       );
     }
@@ -585,10 +581,10 @@ class _MarketplaceDispatchRequestServicePageState
                     _reviewRow('Needed', _dateLabel(_requestedAt)),
                     _reviewRow('Contact', _contactLabel(_contactPreference)),
                     _reviewRow(
-                      'Attachments',
+                      'Photos',
                       _attachments.isEmpty
                           ? 'None'
-                          : '${_attachments.length} private file${_attachments.length == 1 ? '' : 's'}',
+                          : '${_attachments.length} private photo${_attachments.length == 1 ? '' : 's'}',
                     ),
                     const SizedBox(height: 10),
                     const Text(
@@ -641,10 +637,7 @@ class _MarketplaceDispatchRequestServicePageState
       if (uploaded == null) {
         uploaded = <Map<String, dynamic>>[];
         for (final file in _attachments) {
-          final bytes = file.bytes;
-          if (bytes == null) {
-            throw StateError('One selected attachment is no longer available.');
-          }
+          final bytes = await file.readAsBytes();
           uploaded.add(await _repository.uploadAttachment(
             jobId: _jobId,
             name: file.name,
@@ -731,11 +724,11 @@ class _MarketplaceDispatchRequestServicePageState
     return 'Verify your email address in Account Settings to enable email contact.';
   }
 
-  String _contentType(PlatformFile file) {
-    return switch ((file.extension ?? '').toLowerCase()) {
+  String _contentType(XFile file) {
+    final extension = file.name.split('.').last.toLowerCase();
+    return switch (extension) {
       'png' => 'image/png',
       'webp' => 'image/webp',
-      'pdf' => 'application/pdf',
       _ => 'image/jpeg',
     };
   }
@@ -755,13 +748,6 @@ class _MarketplaceDispatchRequestServicePageState
 
   String _dateLabel(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-  String _fileSize(int bytes) {
-    if (bytes >= 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / 1024).ceil()} KB';
-  }
 }
 
 class _LocationSelectionCard extends StatelessWidget {
