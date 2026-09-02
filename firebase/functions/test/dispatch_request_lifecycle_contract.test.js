@@ -11,6 +11,23 @@ function source(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
+test("production entrypoint overrides createDispatchJob through R4 adapter", () => {
+  const production = source("production_bootstrap.js");
+  assert.match(production, /adaptDispatchRequestInput/);
+  assert.match(production, /createDispatchJobWithRequestAdapter/);
+  assert.match(
+      production,
+      /exports\.createDispatchJob\s*=\s*onCall\(/,
+  );
+  assert.match(
+      production,
+      /policyAcceptanceCommands\.requireCurrentPolicies\([\s\S]*createDispatchJobWithRequestAdapter/,
+  );
+  assert.match(production, /requestSchemaVersion/);
+  assert.match(production, /serviceCodes/);
+  assert.match(production, /contactPreference/);
+});
+
 test("production entrypoint exports protected dispatch request cancellation", () => {
   const production = source("production_bootstrap.js");
   assert.match(
@@ -39,9 +56,10 @@ test("cancellation command preserves private reason and public lifecycle event",
   );
 });
 
-test("Functions check command includes R4 cancellation modules", () => {
+test("Functions check command includes all R4 request modules", () => {
   const packageJson = JSON.parse(source("package.json"));
   const check = packageJson.scripts && packageJson.scripts.check || "";
+  assert.match(check, /node --check dispatch_request_input_adapter\.js/);
   assert.match(check, /node --check dispatch_request_cancellation_policy\.js/);
   assert.match(check, /node --check dispatch_request_lifecycle_commands\.js/);
 });
