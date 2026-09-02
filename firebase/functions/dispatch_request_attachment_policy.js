@@ -70,6 +70,7 @@ function validateDispatchRequestAttachmentReferences(value) {
         "Attach no more than five files to one Dispatch request.",
     );
   }
+  const authorizationIds = new Set();
   return value.map((raw) => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       throw new CommandPolicyError(
@@ -81,6 +82,13 @@ function validateDispatchRequestAttachmentReferences(value) {
         raw.authorizationId,
         "attachment authorizationId",
     );
+    if (authorizationIds.has(authorizationId)) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "The same Dispatch request attachment cannot be submitted twice.",
+      );
+    }
+    authorizationIds.add(authorizationId);
     const url = String(raw.url || "").trim();
     if (!url || url.length > 2048) {
       throw new CommandPolicyError(
