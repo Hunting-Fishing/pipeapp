@@ -59,21 +59,41 @@ test("field service uses work site only at UI while satisfying legacy validator"
   assert.equal("serviceCodes" in result.commandData, false);
 });
 
-test("contact preferences require matching verified account contact", () => {
+test("contact preferences require the selected verified account contact", () => {
   assert.throws(
       () => adaptDispatchRequestInput({
         serviceCodes: ["field_mobile_mechanic"],
         pickupLabel: "Lease",
         contactPreference: "phone",
-      }),
+      }, {phoneNumber: "+17805550123", phoneVerified: false}),
       (error) => error && error.code === "failed-precondition",
   );
-  const result = adaptDispatchRequestInput({
+  assert.throws(
+      () => adaptDispatchRequestInput({
+        serviceCodes: ["field_mobile_mechanic"],
+        pickupLabel: "Lease",
+        contactPreference: "email",
+      }, {email: "member@example.com", emailVerified: false}),
+      (error) => error && error.code === "failed-precondition",
+  );
+  const phone = adaptDispatchRequestInput({
     serviceCodes: ["field_mobile_mechanic"],
     pickupLabel: "Lease",
     contactPreference: "phone",
-  }, {phoneNumber: "+17805550123"});
-  assert.equal(result.metadata.contactPreference, "phone");
+  }, {
+    phoneNumber: "+17805550123",
+    phoneVerified: true,
+  });
+  assert.equal(phone.metadata.contactPreference, "phone");
+  const email = adaptDispatchRequestInput({
+    serviceCodes: ["field_mobile_mechanic"],
+    pickupLabel: "Lease",
+    contactPreference: "email",
+  }, {
+    email: "member@example.com",
+    emailVerified: true,
+  });
+  assert.equal(email.metadata.contactPreference, "email");
 });
 
 test("client cannot contradict server-derived request path", () => {
