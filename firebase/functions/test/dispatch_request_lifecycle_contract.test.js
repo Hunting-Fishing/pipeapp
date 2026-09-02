@@ -26,10 +26,16 @@ test("production entrypoint overrides createDispatchJob through R4 adapter", () 
   assert.match(production, /requestSchemaVersion/);
   assert.match(production, /serviceCodes/);
   assert.match(production, /contactPreference/);
+  assert.match(production, /finalizeDispatchRequestAttachments/);
 });
 
-test("production entrypoint exports protected dispatch request cancellation", () => {
+test("production entrypoint exports protected request upload and cancellation", () => {
   const production = source("production_bootstrap.js");
+  assert.match(production, /createDispatchRequestAttachmentCommands/);
+  assert.match(
+      production,
+      /exports\.authorizeDispatchRequestUpload\s*=\s*onCall\(/,
+  );
   assert.match(
       production,
       /createDispatchRequestLifecycleCommands/,
@@ -59,6 +65,8 @@ test("cancellation command preserves private reason and public lifecycle event",
 test("Functions check command includes all R4 request modules", () => {
   const packageJson = JSON.parse(source("package.json"));
   const check = packageJson.scripts && packageJson.scripts.check || "";
+  assert.match(check, /node --check dispatch_request_attachment_policy\.js/);
+  assert.match(check, /node --check dispatch_request_attachment_commands\.js/);
   assert.match(check, /node --check dispatch_request_input_adapter\.js/);
   assert.match(check, /node --check dispatch_request_cancellation_policy\.js/);
   assert.match(check, /node --check dispatch_request_lifecycle_commands\.js/);
