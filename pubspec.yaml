@@ -5,7 +5,16 @@ description: Pipe Buyer industrial equipment, materials, auction, and dispatch m
 # pub.dev using `pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-# The following defines the version and build number for the application.
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 version: 1.0.5+6
 
 environment:
@@ -32,7 +41,7 @@ dependencies:
   cloud_firestore: 6.7.1
   cloud_functions: 6.3.5
   collection: 1.19.1
-  dropdown_button2:
+  dropdown_button2: 
     git:
       url: https://github.com/FlutterFlow/dropdown_button2.git
       ref: 514178337dfbea442f617daed39c704b57593fc9
@@ -111,9 +120,10 @@ dependencies:
   url_launcher_windows: 3.1.4
   web: ^1.1.1
 
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.0
   http_parser: any
-
 dependency_overrides:
   http: 1.6.0
 
@@ -123,6 +133,7 @@ dev_dependencies:
   flutter_native_splash: ^2.4.8
   flutter_test:
     sdk: flutter
+
 
 flutter_launcher_icons:
   android: true
@@ -153,8 +164,19 @@ flutter_native_splash:
     image: 'tool/brand/pipe_buyer_app_icon_master_v1.png'
     icon_background_color: '#061D49'
 
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pubspec
+
+# The following section is specific to Flutter.
 flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # your application.
   uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
   assets:
     - assets/fonts/
     - assets/images/
@@ -190,3 +212,13 @@ flutter:
     - assets/pdfs/
     - assets/jsons/
     - assets/data/
+
+
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/assets-and-images/#resolution-aware.
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/assets-and-images/#from-packages
+
+  # To add custom fonts to your application, add a fonts section here.
