@@ -41,6 +41,9 @@ const {
   adaptDispatchRequestInput,
 } = require("./dispatch_request_input_adapter");
 const {
+  createDispatchRequestAttachmentCommands,
+} = require("./dispatch_request_attachment_commands");
+const {
   createDispatchSubscriptionProviderAccess,
 } = require("./dispatch_subscription_provider_access");
 const {
@@ -68,6 +71,8 @@ const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
 const membershipPlanManagement = createMembershipPlanManagement(admin);
 const membershipProviderStateSync = createMembershipProviderStateSync(admin);
 const dispatchCommands = createDispatchCommands(admin);
+const dispatchRequestAttachmentCommands =
+  createDispatchRequestAttachmentCommands(admin);
 const membershipProviderAccess = createDispatchSubscriptionProviderAccess(admin);
 const dispatchRequestLifecycleCommands =
   createDispatchRequestLifecycleCommands(admin);
@@ -152,8 +157,9 @@ async function stampDispatchRequestMetadata(jobId, metadata) {
 
 async function createDispatchJobWithRequestAdapter(request) {
   let adapted;
+  let identity;
   try {
-    const identity = requireAuthenticatedIdentity(request);
+    identity = requireAuthenticatedIdentity(request);
     adapted = adaptDispatchRequestInput(request.data || {}, identity);
   } catch (error) {
     if (error instanceof HttpsError) throw error;
@@ -177,6 +183,11 @@ async function createDispatchJobWithRequestAdapter(request) {
       );
     }
     await stampDispatchRequestMetadata(jobId, adapted.metadata);
+    await dispatchRequestAttachmentCommands.finalizeDispatchRequestAttachments({
+      uid: identity.uid,
+      jobId,
+      attachments: adapted.metadata.attachments,
+    });
   }
   return result;
 }
@@ -282,6 +293,13 @@ exports.createDispatchJob = onCall(
     protectedCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
         createDispatchJobWithRequestAdapter,
+    ),
+);
+
+exports.authorizeDispatchRequestUpload = onCall(
+    protectedCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        dispatchRequestAttachmentCommands.authorizeDispatchRequestUpload,
     ),
 );
 
