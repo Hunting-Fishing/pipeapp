@@ -145,16 +145,14 @@ function adaptDispatchRequestInput(data, identity = {}) {
           "Add the work-site location for this service request.",
       );
     }
-    // The established Dispatch command validates a freight-shaped route. Keep
-    // that proven command and schema intact while R4 records the true semantic
-    // path separately. A field-service request uses the work site as the
-    // compatibility destination and is explicitly marked routeRelevant=false.
+    // The established command still requires a freight-shaped delivery label.
+    // Use the work-site label only as a compatibility value; do not manufacture
+    // a second mapped point or the route engine would expose a meaningless 0 km
+    // estimate for an on-site service request.
     if (!String(commandData.deliveryLabel || "").trim()) {
       commandData.deliveryLabel = workSiteLabel;
     }
-    if (!commandData.deliveryPoint && commandData.pickupPoint) {
-      commandData.deliveryPoint = commandData.pickupPoint;
-    }
+    delete commandData.deliveryPoint;
   }
 
   return {
