@@ -158,6 +158,7 @@ function createDispatchRequestAttachmentCommands(admin) {
             "This Dispatch request is unavailable for attachments.",
         );
       }
+      const job = jobSnapshot.data() || {};
       const privateJob = privateSnapshot.data() || {};
       if (Array.isArray(privateJob.requestAttachmentAuthorizationIds)) {
         const existing = privateJob.requestAttachmentAuthorizationIds.map(String);
@@ -171,6 +172,12 @@ function createDispatchRequestAttachmentCommands(admin) {
           );
         }
         return;
+      }
+      if (!["draft", "open"].includes(String(job.status || ""))) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Attachments can only be finalized while the Dispatch request is editable.",
+        );
       }
 
       const authorizationSnapshots = [];
