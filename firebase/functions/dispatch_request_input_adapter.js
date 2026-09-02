@@ -90,13 +90,13 @@ function normalizeContactPreference(value, identity = {}) {
         "Choose a valid Dispatch contact preference.",
     );
   }
-  if (preference === "phone" && !String(identity.phoneNumber || "").trim()) {
+  if (preference === "phone" && identity.phoneVerified !== true) {
     throw new CommandPolicyError(
         "failed-precondition",
         "Verify a mobile number before choosing phone as the contact preference.",
     );
   }
-  if (preference === "email" && !String(identity.email || "").trim()) {
+  if (preference === "email" && identity.emailVerified !== true) {
     throw new CommandPolicyError(
         "failed-precondition",
         "Verify an email address before choosing email as the contact preference.",
