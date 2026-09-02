@@ -56,6 +56,15 @@ beforeEach(async () => {
       sizeBytes: 4,
       expiresAt,
     });
+    await setDoc(doc(db, "media_upload_authorizations", "dispatch-upload"), {
+      ownerUid: "buyer",
+      purpose: "dispatch_request_attachment",
+      targetId: "request-1",
+      status: "authorized",
+      contentType: "application/pdf",
+      sizeBytes: 4,
+      expiresAt,
+    });
     await setDoc(doc(db, "media_upload_authorizations", "report-upload"), {
       ownerUid: "buyer",
       purpose: "report_evidence",
@@ -172,6 +181,38 @@ test("upload authorization cannot be reused with another size or MIME type", asy
       ),
       Uint8Array.from([1, 2, 3, 4]),
       {contentType: "image/png"},
+  ));
+});
+
+test("Dispatch request attachments require exact private authorization", async () => {
+  const buyerStorage = testEnvironment.authenticatedContext("buyer").storage();
+  const strangerStorage =
+      testEnvironment.authenticatedContext("stranger").storage();
+  const attachmentPath =
+      "dispatch_request_attachments/request-1/buyer/dispatch-upload";
+
+  await assertSucceeds(uploadBytes(
+      ref(buyerStorage, attachmentPath),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "application/pdf"},
+  ));
+  await assertSucceeds(getBytes(ref(buyerStorage, attachmentPath)));
+  await assertFails(getBytes(ref(strangerStorage, attachmentPath)));
+  await assertFails(uploadBytes(
+      ref(
+          buyerStorage,
+          "dispatch_request_attachments/request-2/buyer/dispatch-upload",
+      ),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "application/pdf"},
+  ));
+  await assertFails(uploadBytes(
+      ref(
+          buyerStorage,
+          "dispatch_request_attachments/request-1/buyer/no-ticket",
+      ),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "application/pdf"},
   ));
 });
 
