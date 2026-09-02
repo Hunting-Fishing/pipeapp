@@ -119,6 +119,19 @@ service firebase.storage {
       allow delete: if isOwner(userId) && isConversationMember();
     }
 
+    match /dispatch_request_attachments/{jobId}/{userId}/{fileName} {
+      allow create: if validUploadAuthorization(
+          fileName, userId, 'dispatch_request_attachment', jobId)
+        && request.resource.size <= 15 * 1024 * 1024
+        && isBusinessDocument();
+      // Request files may contain lease/site documents or equipment photos.
+      // Keep them private to the request owner and MFA administrators until a
+      // later provider-participant access rule is explicitly accepted.
+      allow read: if isOwner(userId) || isAdmin();
+      allow update: if false;
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
     match /report_evidence/{userId}/{reportId}/{fileName} {
       allow create: if validUploadAuthorization(
           fileName, userId, 'report_evidence', reportId)
