@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_directory.dart';
+import 'marketplace_dispatch_request_service_page.dart';
 
 enum DispatchSection {
   dashboard,
@@ -16,6 +17,14 @@ enum DispatchAccountRole {
   providerOnly,
   customerAndProvider,
 }
+
+Future<String?> _openDispatchRequestService(BuildContext context) =>
+    Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        fullscreenDialog: true,
+        builder: (_) => const MarketplaceDispatchRequestServicePage(),
+      ),
+    );
 
 class DispatchAccountState {
   const DispatchAccountState({
@@ -134,7 +143,14 @@ class MarketplaceDispatchNavigation extends StatelessWidget {
           ),
         ],
         selected: {selected},
-        onSelectionChanged: (value) => onSelected(value.first),
+        onSelectionChanged: (value) {
+          final next = value.first;
+          if (next == DispatchSection.requestService) {
+            _openDispatchRequestService(context);
+            return;
+          }
+          onSelected(next);
+        },
       ),
     );
 
@@ -205,6 +221,8 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
     required this.onListBusiness,
   });
 
+  // Retained as part of the existing constructor contract while R4 routes the
+  // action to the dedicated review-before-submit page.
   final VoidCallback onRequestService;
   final VoidCallback onBrowseDirectory;
   final VoidCallback onBrowseJobs;
@@ -252,7 +270,7 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                   runSpacing: 10,
                   children: [
                     FilledButton.icon(
-                      onPressed: onRequestService,
+                      onPressed: () => _openDispatchRequestService(context),
                       icon: const Icon(Icons.add_road_outlined),
                       label: const Text('Request Service'),
                     ),
@@ -310,7 +328,7 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                         runSpacing: 10,
                         children: [
                           FilledButton.icon(
-                            onPressed: onRequestService,
+                            onPressed: () => _openDispatchRequestService(context),
                             icon: const Icon(Icons.add_road_outlined),
                             label: const Text('Request a service'),
                           ),
