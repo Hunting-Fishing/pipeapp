@@ -64,7 +64,7 @@ void main() {
     expect(requests, contains("label: const Text('Cancel request')"));
     expect(requests, contains('_repository.cancelJob'));
     expect(requests, contains('_repository.updateJob'));
-    expect(requests, contains('_repository.jobHistoryQuery'));
+    expect(requests, contains('.jobHistoryQuery(request.id)'));
     expect(requests, contains('Cancel and create a new request'));
   });
 
