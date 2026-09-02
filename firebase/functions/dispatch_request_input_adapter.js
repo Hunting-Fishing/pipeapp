@@ -1,6 +1,9 @@
 "use strict";
 
 const {CommandPolicyError} = require("./marketplace_command_policy");
+const {
+  validateDispatchRequestAttachmentReferences,
+} = require("./dispatch_request_attachment_policy");
 
 const SERVICE_PATHS = Object.freeze({
   transport_flat_deck: "freight_route",
@@ -125,10 +128,14 @@ function adaptDispatchRequestInput(data, identity = {}) {
       submitted.contactPreference,
       identity,
   );
+  const attachments = validateDispatchRequestAttachmentReferences(
+      submitted.attachments,
+  );
   const commandData = {...submitted};
   delete commandData.serviceCodes;
   delete commandData.requestPath;
   delete commandData.contactPreference;
+  delete commandData.attachments;
 
   if (requestPath === "field_service") {
     const workSiteLabel = String(commandData.pickupLabel || "").trim();
@@ -159,6 +166,7 @@ function adaptDispatchRequestInput(data, identity = {}) {
       routeRelevant: requestPath === "freight_route",
       serviceCodes,
       contactPreference,
+      attachments,
     },
   };
 }
