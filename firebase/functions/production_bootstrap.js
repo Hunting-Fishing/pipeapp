@@ -6,9 +6,14 @@ const coreExports = require("./bootstrap");
 Object.assign(exports, coreExports);
 
 const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
-const {onCall} = require("firebase-functions/v2/https");
+const {HttpsError, onCall} = require("firebase-functions/v2/https");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
+const {
+  AccountSecurityError,
+  requireAuthenticatedIdentity,
+} = require("./account_security");
+const {CommandPolicyError} = require("./marketplace_command_policy");
 const {
   createPaymentReadinessAdmin,
 } = require("./payment_readiness_admin");
@@ -31,6 +36,10 @@ const {
 const {
   createMembershipProviderStateSync,
 } = require("./membership_provider_state_sync");
+const {createDispatchCommands} = require("./dispatch_commands");
+const {
+  adaptDispatchRequestInput,
+} = require("./dispatch_request_input_adapter");
 const {
   createDispatchSubscriptionProviderAccess,
 } = require("./dispatch_subscription_provider_access");
@@ -58,6 +67,7 @@ const marketplaceTaxRegistrationAdmin =
 const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
 const membershipPlanManagement = createMembershipPlanManagement(admin);
 const membershipProviderStateSync = createMembershipProviderStateSync(admin);
+const dispatchCommands = createDispatchCommands(admin);
 const membershipProviderAccess = createDispatchSubscriptionProviderAccess(admin);
 const dispatchRequestLifecycleCommands =
   createDispatchRequestLifecycleCommands(admin);
@@ -72,6 +82,103 @@ const membershipStripeCallableOptions = Object.freeze({
 async function createVipSubscriptionCheckoutWithProviderGuard(request) {
   await membershipProviderAccess.requireNoBlockingProviderSubscription(request);
   return vipSubscriptionCommands.createVipSubscriptionCheckout(request);
+}
+
+function sameStrings(first, second) {
+  if (!Array.isArray(first) || !Array.isArray(second) ||
+      first.length !== second.length) {
+    return false;
+  }
+  return first.every((value, index) => value === second[index]);
+}
+
+async function stampDispatchRequestMetadata(jobId, metadata) {
+  const db = admin.firestore();
+  const FieldValue = admin.firestore.FieldValue;
+  const jobRef = db.collection("dispatch_jobs").doc(jobId);
+  const privateRef = db.collection("dispatch_job_private").doc(jobId);
+  await db.runTransaction(async (transaction) => {
+    const [jobSnapshot, privateSnapshot] = await Promise.all([
+      transaction.get(jobRef),
+      transaction.get(privateRef),
+    ]);
+    if (!jobSnapshot.exists || !privateSnapshot.exists) {
+      throw new HttpsError(
+          "failed-precondition",
+          "The Dispatch request could not be finalized.",
+      );
+    }
+    const job = jobSnapshot.data() || {};
+    const privateJob = privateSnapshot.data() || {};
+    if (Number(job.requestSchemaVersion || 0) >= 2) {
+      const samePublic = job.requestPath === metadata.requestPath &&
+        job.routeRelevant === metadata.routeRelevant &&
+        sameStrings(job.serviceCodes, metadata.serviceCodes);
+      const samePrivate =
+        privateJob.contactPreference === metadata.contactPreference;
+      if (!samePublic || !samePrivate) {
+        throw new HttpsError(
+            "already-exists",
+            "This Dispatch request identifier is already used with different service details.",
+        );
+      }
+      return;
+    }
+
+    const publicMetadata = {
+      requestSchemaVersion: metadata.requestSchemaVersion,
+      requestPath: metadata.requestPath,
+      routeRelevant: metadata.routeRelevant,
+      serviceCodes: metadata.serviceCodes,
+    };
+    const privateMetadata = {
+      requestSchemaVersion: metadata.requestSchemaVersion,
+      contactPreference: metadata.contactPreference,
+    };
+    transaction.set(jobRef, {
+      ...publicMetadata,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, {merge: true});
+    transaction.set(jobRef.collection("revisions").doc("1"),
+        publicMetadata, {merge: true});
+    transaction.set(privateRef, {
+      ...privateMetadata,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, {merge: true});
+    transaction.set(privateRef.collection("revisions").doc("1"),
+        privateMetadata, {merge: true});
+  });
+}
+
+async function createDispatchJobWithRequestAdapter(request) {
+  let adapted;
+  try {
+    const identity = requireAuthenticatedIdentity(request);
+    adapted = adaptDispatchRequestInput(request.data || {}, identity);
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    if (error instanceof AccountSecurityError || error instanceof CommandPolicyError) {
+      throw new HttpsError(error.code, error.message);
+    }
+    throw error;
+  }
+
+  const result = await dispatchCommands.createDispatchJob({
+    ...request,
+    data: adapted.commandData,
+  });
+  if (adapted.enhanced && adapted.metadata) {
+    const jobId = String(result && result.jobId ||
+      request.data && request.data.jobId || "").trim();
+    if (!jobId || jobId.includes("/")) {
+      throw new HttpsError(
+          "internal",
+          "The Dispatch request identifier is unavailable.",
+      );
+    }
+    await stampDispatchRequestMetadata(jobId, adapted.metadata);
+  }
+  return result;
 }
 
 exports.getPaymentProviderReadiness = onCall(
@@ -166,6 +273,16 @@ exports.getMembershipPlanStatus = onCall(
 exports.changeMembershipPlan = onCall(
     membershipStripeCallableOptions,
     membershipPlanManagement.changeMembershipPlan,
+);
+
+// Override the legacy freight-shaped create callable without changing its
+// public name or authoritative command. R4 metadata is server-derived and
+// retry-safe, while legacy clients continue to pass through unchanged.
+exports.createDispatchJob = onCall(
+    protectedCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        createDispatchJobWithRequestAdapter,
+    ),
 );
 
 exports.cancelDispatchJob = onCall(
