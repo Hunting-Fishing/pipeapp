@@ -24,11 +24,25 @@ Prove and refine ordinary-user buyer, seller, offer/counteroffer, Timed Buying, 
 
 ### Release 3 — Dispatch Directory
 
+**Production status: COMPLETE.** Exact SHA `a6bc1ffb4d887af39ac4e9a8ea75851e0a39d214` is live from protected production run `33538007190`. The retry passed analyzer/tests, release-manifest and Function-parity controls, Functions validation, Firestore rules, authenticated callable workflows/retries, exact web build, Firebase deployment, post-deploy parity, release identity, and production mobile/desktop visual acceptance. Evidence: Firebase release artifact `9848902855` and visual acceptance artifact `9848948030`. The proven transient Gen-2 rollout repair is recorded in `docs/repairs/R3_FIREBASE_GEN2_TRANSIENT_ROLLOUT_2026-09-03.md`; do not reopen Dispatch Directory code for that resolved deployment signature.
+
 Validate representative provider records, privacy classes, filters, location/radius behavior, list/map synchronization, company details and direct Request Quote.
 
 ### Release 4 — Dispatch Request Service
 
+**Build status: ACTIVE.** Work is isolated on `codex/r4-dispatch-request-service` in draft PR #181 from the exact deployed R3 SHA.
+
 Finish the service-first wizard with taxonomy-driven questions, freight and non-freight paths, direct-provider requests, open requests, review, edit and cancel.
+
+Current preserved R4 boundaries:
+
+- reuse the existing `dispatch_jobs` command/revision architecture for open requests;
+- keep Directory direct-provider Get Quote on its private business-conversation path rather than leaking it into the signed-in-readable open job collection;
+- derive freight-route versus field-service semantics from the approved Dispatch service taxonomy;
+- keep contact preference and cancellation reason private;
+- use server-authoritative pre-award cancellation and invalidate pending carrier quotes when an open request is cancelled;
+- reuse the existing upload-authorization/Storage security pattern for supporting photos/documents rather than permitting arbitrary client Storage writes;
+- do not expand quote comparison, award, scheduling, proof/BOL, completion or freight settlement beyond what R4 needs; those remain Release 5/6 boundaries.
 
 ### Release 5 — Dispatch quotes and jobs
 
