@@ -35,6 +35,9 @@ const {
   createDispatchSubscriptionProviderAccess,
 } = require("./dispatch_subscription_provider_access");
 const {
+  createDispatchRequestLifecycleCommands,
+} = require("./dispatch_request_lifecycle_commands");
+const {
   createVipSubscriptionCommands,
 } = require("./vip_subscription_commands");
 const {
@@ -56,6 +59,8 @@ const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
 const membershipPlanManagement = createMembershipPlanManagement(admin);
 const membershipProviderStateSync = createMembershipProviderStateSync(admin);
 const membershipProviderAccess = createDispatchSubscriptionProviderAccess(admin);
+const dispatchRequestLifecycleCommands =
+  createDispatchRequestLifecycleCommands(admin);
 const vipSubscriptionCommands = createVipSubscriptionCommands(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const nativeMembershipBilling = createNativeMembershipBilling(admin);
@@ -161,6 +166,13 @@ exports.getMembershipPlanStatus = onCall(
 exports.changeMembershipPlan = onCall(
     membershipStripeCallableOptions,
     membershipPlanManagement.changeMembershipPlan,
+);
+
+exports.cancelDispatchJob = onCall(
+    protectedCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        dispatchRequestLifecycleCommands.cancelDispatchJob,
+    ),
 );
 
 // Override bootstrap's VIP checkout with the same cross-provider guard already
