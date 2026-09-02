@@ -42,7 +42,7 @@ test("legacy clients pass through unchanged", () => {
   });
 });
 
-test("field service uses work site only at UI while satisfying legacy validator", () => {
+test("field service uses a work-site label without manufacturing a route point", () => {
   const result = adaptDispatchRequestInput({
     serviceCodes: ["field_vacuum_truck"],
     requestPath: "field_service",
@@ -50,12 +50,13 @@ test("field service uses work site only at UI while satisfying legacy validator"
     pickupLabel: "Lease 12-34",
     pickupPoint: {latitude: 55.1, longitude: -117.2},
     deliveryLabel: "",
+    deliveryPoint: {latitude: 55.1, longitude: -117.2},
   });
   assert.equal(result.metadata.requestPath, "field_service");
   assert.equal(result.metadata.routeRelevant, false);
   assert.deepEqual(result.metadata.serviceCodes, ["field_vacuum_truck"]);
   assert.equal(result.commandData.deliveryLabel, "Lease 12-34");
-  assert.deepEqual(result.commandData.deliveryPoint, result.commandData.pickupPoint);
+  assert.equal("deliveryPoint" in result.commandData, false);
   assert.equal("serviceCodes" in result.commandData, false);
 });
 
