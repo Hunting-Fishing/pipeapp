@@ -166,9 +166,10 @@ class _MarketplaceDispatchNavigationState
     try {
       await _openDispatchRequestService(context);
     } finally {
-      if (!mounted) return;
-      setState(() => _openingRequestService = false);
-      if (resetSelection) widget.onSelected(DispatchSection.dashboard);
+      if (mounted) {
+        setState(() => _openingRequestService = false);
+        if (resetSelection) widget.onSelected(DispatchSection.dashboard);
+      }
     }
   }
 
