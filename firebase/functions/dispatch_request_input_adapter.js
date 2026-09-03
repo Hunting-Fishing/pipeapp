@@ -78,8 +78,14 @@ function normalizeServiceCodes(value) {
 }
 
 function deriveRequestPath(serviceCodes) {
-  return serviceCodes.some((code) => SERVICE_PATHS[code] === "freight_route") ?
-    "freight_route" : "field_service";
+  const paths = new Set(serviceCodes.map((code) => SERVICE_PATHS[code]));
+  if (paths.has("freight_route") && paths.has("field_service")) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Transportation or pilot work and on-site services need separate requests.",
+    );
+  }
+  return paths.has("freight_route") ? "freight_route" : "field_service";
 }
 
 function normalizeContactPreference(value, identity = {}) {
