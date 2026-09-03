@@ -49,6 +49,25 @@ class DispatchRequestFlow {
         : DispatchRequestPath.freightRoute;
   }
 
+  static bool hasMixedRequestPaths(Iterable<String> codes) {
+    var freight = false;
+    var field = false;
+    for (final code in codes) {
+      final service = DispatchServiceTaxonomy.findByCode(code);
+      if (service == null) continue;
+      final routeBased =
+          service.category == DispatchServiceCategoryCode.transportation ||
+              service.category == DispatchServiceCategoryCode.pilotOversizeSupport;
+      if (routeBased) {
+        freight = true;
+      } else {
+        field = true;
+      }
+      if (freight && field) return true;
+    }
+    return false;
+  }
+
   static bool needsDelivery(Iterable<String> codes) =>
       pathForServiceCodes(codes) == DispatchRequestPath.freightRoute;
 
@@ -71,6 +90,13 @@ class DispatchRequestFlow {
       issues.add(const DispatchRequestReviewIssue(
         field: 'services',
         message: 'Choose at least one service.',
+      ));
+    }
+    if (hasMixedRequestPaths(codes)) {
+      issues.add(const DispatchRequestReviewIssue(
+        field: 'services',
+        message:
+            'Transportation or pilot work and on-site services need separate requests so the right providers receive each job.',
       ));
     }
 
