@@ -319,7 +319,7 @@ class _MarketplaceDispatchRequestServicePageState
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Nothing is published until you review the summary and select Submit request.',
+                  'Nothing is submitted until you review the summary and select Submit request.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: PipeBuyerColors.muted,
@@ -391,7 +391,7 @@ class _MarketplaceDispatchRequestServicePageState
           !selected
               ? 'The form changes automatically after you choose the work needed.'
               : fieldService
-                  ? 'One mapped work site is required. A delivery destination is not needed.'
+                  ? 'One mapped work site is required. Submit saves it to My Requests; use Directory Get Quote when you need immediate provider-specific outreach.'
                   : 'Pickup and delivery locations are required for transportation or pilot/route work.',
         ),
       ),
@@ -594,13 +594,15 @@ class _MarketplaceDispatchRequestServicePageState
                     const SizedBox(height: 4),
                     Text(_details.text.trim()),
                     const SizedBox(height: 12),
-                    const Card(
-                      color: Color(0xFFEAF4FD),
+                    Card(
+                      color: const Color(0xFFEAF4FD),
                       child: ListTile(
-                        leading: Icon(Icons.info_outline),
-                        title: Text('Submission creates Version 1'),
+                        leading: const Icon(Icons.info_outline),
+                        title: const Text('Submission creates Version 1'),
                         subtitle: Text(
-                          'You can manage or cancel the request before award. Earlier revisions remain preserved when an editable request is changed.',
+                          _isFreight
+                              ? 'You can manage or cancel the request before award. Earlier revisions remain preserved when an editable request is changed.'
+                              : 'The on-site request is received into My Requests and remains editable or cancellable. Use Directory Get Quote for immediate provider-specific outreach.',
                         ),
                       ),
                     ),
@@ -664,7 +666,7 @@ class _MarketplaceDispatchRequestServicePageState
         context,
         message: _isFreight
             ? 'Dispatch request submitted for provider quotes.'
-            : 'Service request submitted for provider quotes.',
+            : 'Service request received. Manage it in My Requests, or use Directory Get Quote for immediate provider-specific outreach.',
         tone: PipeStatusTone.success,
       );
       Navigator.pop(context, jobId);
