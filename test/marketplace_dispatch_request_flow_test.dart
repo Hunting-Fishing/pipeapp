@@ -42,12 +42,18 @@ void main() {
       );
     });
 
-    test('a mixed request keeps route questions when freight is included', () {
+    test('mixed freight and field selections are detected', () {
       expect(
-        DispatchRequestFlow.pathForServiceCodes(
+        DispatchRequestFlow.hasMixedRequestPaths(
           const <String>['field_vacuum_truck', 'transport_flat_deck'],
         ),
-        DispatchRequestPath.freightRoute,
+        isTrue,
+      );
+      expect(
+        DispatchRequestFlow.hasMixedRequestPaths(
+          const <String>['field_vacuum_truck', 'field_mobile_mechanic'],
+        ),
+        isFalse,
       );
     });
   });
@@ -78,6 +84,24 @@ void main() {
         'pickup',
         'delivery',
       ]));
+    });
+
+    test('mixed freight and field work requires separate requests', () {
+      final issues = DispatchRequestFlow.reviewIssues(
+        serviceCodes: const <String>[
+          'transport_flat_deck',
+          'field_vacuum_truck',
+        ],
+        pickupLabel: 'Grande Prairie yard',
+        deliveryLabel: 'Lease 12-34',
+        requestedAt: DateTime(2026, 9, 5, 8),
+        details: 'Move equipment and complete tank cleanout.',
+        contactPreference: DispatchContactPreference.inApp,
+      );
+      expect(
+        issues.where((issue) => issue.field == 'services').single.message,
+        contains('separate requests'),
+      );
     });
 
     test('phone preference requires a phone number', () {
