@@ -68,6 +68,17 @@ void main() {
     expect(requests, contains('Cancel and create a new request'));
   });
 
+  test('field-service requests never advertise freight quote state in My Requests', () {
+    final requests = source(
+      'lib/marketplace/marketplace_dispatch_my_requests_page.dart',
+    );
+    expect(requests, contains("'Matching'"));
+    expect(requests, contains("'Not opened yet'"));
+    expect(requests, contains("'RECEIVED'"));
+    expect(requests, contains('Directory → Get Quote'));
+    expect(requests, contains('before provider matching is opened'));
+  });
+
   test('client contact choices are backed by server verified-contact policy', () {
     final wizard = source(
       'lib/marketplace/marketplace_dispatch_request_service_page.dart',
