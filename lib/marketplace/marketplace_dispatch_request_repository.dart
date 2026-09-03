@@ -113,6 +113,21 @@ class MarketplaceDispatchRequestRepository {
     return '${result['jobId'] ?? jobId}';
   }
 
+  Future<void> updateFieldServiceRequest({
+    required String jobId,
+    required String title,
+    required DateTime requestedAt,
+    required String details,
+  }) async {
+    await _commands.execute('updateDispatchFieldRequest', {
+      'requestId': _firestore.collection('dispatch_jobs').doc().id,
+      'jobId': jobId,
+      'title': title.trim(),
+      'truckingDate': requestedAt.millisecondsSinceEpoch,
+      'loadDetails': details.trim(),
+    });
+  }
+
   String _locationLabel(MarketplaceLocation location) {
     final publicName = location.publicName.trim();
     if (publicName.isNotEmpty) return publicName;
