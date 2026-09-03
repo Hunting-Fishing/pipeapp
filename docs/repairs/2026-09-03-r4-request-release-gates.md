@@ -63,7 +63,25 @@ The request-path derivation was designed to choose a form shape, not to enforce 
 - Flutter and Functions tests lock the mixed-path rejection on both sides of the trust boundary.
 - My Requests labels field-service drafts as `RECEIVED`, shows that provider matching is not opened yet, and directs customers to Directory → Get Quote for immediate provider-specific outreach instead of advertising freight quotes.
 
+## 4. Cancellation privacy contract produced a false release failure
+
+### Symptom
+
+The protected Functions suite reported one failing contract even though the cancellation command writes `cancellationReason` only to `privateChanges`. The failing source test used a greedy expression beginning at `publicChanges` and therefore continued into the later `privateChanges` object, incorrectly reporting the private cancellation reason as public.
+
+### Root cause
+
+The test asserted privacy against an unbounded source range rather than the `publicChanges` object itself. This coupled the contract to unrelated source text that follows the public object and created a false negative without identifying an actual data-exposure defect.
+
+### Permanent repair
+
+- Production cancellation behavior was left unchanged because the implementation already separates public and private writes correctly.
+- The contract now extracts the explicit `publicChanges` object with a non-greedy boundary and asserts that object does not contain `cancellationReason`.
+- The test still requires the private cancellation reason and public cancellation lifecycle fields to be present, so it preserves coverage in both directions.
+- Release policy: source-level privacy contracts must scope assertions to the actual object or operation being protected; a broad greedy match must not be used as a proxy for a data boundary.
+
 ## Release rules going forward
 
 1. Any new state introduced into a collection with broader historical read rules must receive an explicit read-visibility review and emulator contract before production. UI filtering is not a privacy boundary.
 2. A multi-service request may combine services only when they share the same authoritative matching lifecycle. A convenient client form must never collapse separate server workflows into the wrong marketplace path.
+3. Privacy/source contracts must assert a bounded object, write, or behavior. Do not allow a regex to traverse unrelated later code and turn a correct privacy boundary into a false release failure.
