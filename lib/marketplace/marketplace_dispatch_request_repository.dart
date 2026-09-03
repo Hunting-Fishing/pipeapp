@@ -71,6 +71,7 @@ class MarketplaceDispatchRequestRepository {
   }) async {
     final pickupLabel = _locationLabel(pickupOrWorkSite);
     final deliveryLabel = delivery == null ? '' : _locationLabel(delivery);
+    final fieldService = requestPath == 'field_service';
     final result = await _commands.execute('createDispatchJob', {
       'requestId': jobId,
       'jobId': jobId,
@@ -87,6 +88,14 @@ class MarketplaceDispatchRequestRepository {
       'pickupPoint': {
         'latitude': pickupOrWorkSite.exactGeoPoint.latitude,
         'longitude': pickupOrWorkSite.exactGeoPoint.longitude,
+      },
+      if (fieldService) ...{
+        'workSiteAddress': pickupOrWorkSite.address.trim(),
+        'workSiteNearestTown': pickupOrWorkSite.nearestTown.trim(),
+        'workSiteRegion': pickupOrWorkSite.region.trim(),
+        'workSitePostalCode': pickupOrWorkSite.postalCode.trim(),
+        'workSiteCountry': pickupOrWorkSite.country.trim(),
+        'workSiteAccessNotes': pickupOrWorkSite.accessNotes.trim(),
       },
       if (delivery != null) ...{
         'deliveryPoint': {
