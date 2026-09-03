@@ -101,6 +101,14 @@ function sameStrings(first, second) {
   return first.every((value, index) => value === second[index]);
 }
 
+function dispatchJobId(request) {
+  const jobId = String(request.data && request.data.jobId || "").trim();
+  if (!jobId || jobId.length > 180 || jobId.includes("/")) {
+    throw new HttpsError("invalid-argument", "jobId is missing or invalid.");
+  }
+  return jobId;
+}
+
 async function stampDispatchRequestMetadata(jobId, metadata) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
@@ -212,6 +220,16 @@ async function createDispatchJobWithRequestAdapter(request) {
   return result;
 }
 
+async function updateDispatchJobWithRequestRouter(request) {
+  requireAuthenticatedIdentity(request);
+  const jobId = dispatchJobId(request);
+  const snapshot = await admin.firestore().collection("dispatch_jobs").doc(jobId).get();
+  if (snapshot.exists && snapshot.data().requestPath === "field_service") {
+    return dispatchFieldRequestCommands.updateFieldServiceRequest(request);
+  }
+  return dispatchCommands.updateDispatchJob(request);
+}
+
 exports.getPaymentProviderReadiness = onCall(
     protectedCallableOptions,
     readinessAdmin.getPaymentProviderReadiness,
@@ -316,10 +334,12 @@ exports.createDispatchJob = onCall(
     ),
 );
 
-exports.updateDispatchFieldRequest = onCall(
+// Keep the existing public edit callable. Field-service drafts route to the R4
+// field command; freight jobs continue through the established route-aware edit.
+exports.updateDispatchJob = onCall(
     protectedCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
-        dispatchFieldRequestCommands.updateFieldServiceRequest,
+        updateDispatchJobWithRequestRouter,
     ),
 );
 
