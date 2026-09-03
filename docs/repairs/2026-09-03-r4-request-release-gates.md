@@ -2,7 +2,7 @@
 
 ## Scope
 
-This record covers the two defects found while preparing Release 4 (Dispatch Request Service) for merge and production publication. Neither defect was bypassed; both were repaired at the owning layer and locked with validation.
+This record covers the defects found while preparing Release 4 (Dispatch Request Service) for merge and production publication. None were bypassed; each was repaired at the owning layer and locked with validation.
 
 ## 1. Firebase Functions lint failure in request attachments
 
@@ -44,6 +44,26 @@ The existing `dispatch_jobs` collection was designed for the legacy freight work
   - another signed-in user can still read an open freight job and its revision.
 - The rules test is part of the normal rules-test command and therefore part of the protected R4 release workflow.
 
-## Release rule going forward
+## 3. Mixed freight and field services could cross the R4 matching boundary
 
-Any new state introduced into a collection with broader historical read rules must receive an explicit read-visibility review and emulator contract before production. UI filtering is not a privacy boundary.
+### Symptom
+
+The multi-service selector allowed a customer to combine route-based work, such as pipe hauling, with on-site work, such as vacuum truck or crane service. The original path rule treated any request containing transportation or pilot work as `freight_route`. That meant a mixed request could enter the proven freight quote board even though R4 deliberately does not publish on-site service requests into matching yet.
+
+### Root cause
+
+The request-path derivation was designed to choose a form shape, not to enforce a release boundary between two different provider-matching lifecycles. Multi-select made that distinction operationally important.
+
+### Permanent repair
+
+- The client review identifies mixed route-based and field-service selections and tells the customer to create separate requests so each reaches the correct provider workflow.
+- The server independently rejects mixed request paths with `invalid-argument`; bypassing the client cannot push field-service work into the freight board.
+- Pure transportation/pilot requests continue through `freight_route` unchanged.
+- Pure crane/field requests continue through the private R4 `field_service` draft lifecycle.
+- Flutter and Functions tests lock the mixed-path rejection on both sides of the trust boundary.
+- My Requests labels field-service drafts as `RECEIVED`, shows that provider matching is not opened yet, and directs customers to Directory → Get Quote for immediate provider-specific outreach instead of advertising freight quotes.
+
+## Release rules going forward
+
+1. Any new state introduced into a collection with broader historical read rules must receive an explicit read-visibility review and emulator contract before production. UI filtering is not a privacy boundary.
+2. A multi-service request may combine services only when they share the same authoritative matching lifecycle. A convenient client form must never collapse separate server workflows into the wrong marketplace path.
