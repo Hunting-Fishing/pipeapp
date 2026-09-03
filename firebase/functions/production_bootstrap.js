@@ -41,6 +41,9 @@ const {
   adaptDispatchRequestInput,
 } = require("./dispatch_request_input_adapter");
 const {
+  createDispatchFieldRequestCommands,
+} = require("./dispatch_field_request_commands");
+const {
   createDispatchRequestAttachmentCommands,
 } = require("./dispatch_request_attachment_commands");
 const {
@@ -71,6 +74,7 @@ const marketplaceTaxRecovery = createMarketplaceTaxRecovery(admin);
 const membershipPlanManagement = createMembershipPlanManagement(admin);
 const membershipProviderStateSync = createMembershipProviderStateSync(admin);
 const dispatchCommands = createDispatchCommands(admin);
+const dispatchFieldRequestCommands = createDispatchFieldRequestCommands(admin);
 const dispatchRequestAttachmentCommands =
   createDispatchRequestAttachmentCommands(admin);
 const membershipProviderAccess = createDispatchSubscriptionProviderAccess(admin);
@@ -167,6 +171,22 @@ async function createDispatchJobWithRequestAdapter(request) {
       throw new HttpsError(error.code, error.message);
     }
     throw error;
+  }
+
+  if (adapted.enhanced && adapted.metadata &&
+      adapted.metadata.requestPath === "field_service") {
+    const result = await dispatchFieldRequestCommands.createFieldServiceRequest(
+        {...request, data: adapted.commandData},
+        adapted.metadata,
+    );
+    const jobId = String(result && result.jobId ||
+      request.data && request.data.jobId || "").trim();
+    await dispatchRequestAttachmentCommands.finalizeDispatchRequestAttachments({
+      uid: identity.uid,
+      jobId,
+      attachments: adapted.metadata.attachments,
+    });
+    return result;
   }
 
   const result = await dispatchCommands.createDispatchJob({
@@ -293,6 +313,13 @@ exports.createDispatchJob = onCall(
     protectedCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
         createDispatchJobWithRequestAdapter,
+    ),
+);
+
+exports.updateDispatchFieldRequest = onCall(
+    protectedCallableOptions,
+    policyAcceptanceCommands.requireCurrentPolicies(
+        dispatchFieldRequestCommands.updateFieldServiceRequest,
     ),
 );
 
