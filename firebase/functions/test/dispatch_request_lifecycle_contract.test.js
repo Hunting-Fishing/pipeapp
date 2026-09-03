@@ -56,10 +56,12 @@ test("cancellation command preserves private reason and public lifecycle event",
   assert.match(lifecycle, /event: "request_cancelled"/);
   assert.match(lifecycle, /status: "request_cancelled"/);
   assert.match(lifecycle, /validityStatus: "inactive"/);
-  assert.doesNotMatch(
-      lifecycle,
-      /publicChanges\s*=\s*\{[\s\S]*cancellationReason:/,
+
+  const publicChanges = lifecycle.match(
+      /const publicChanges\s*=\s*\{([\s\S]*?)\n\s*\};/,
   );
+  assert.ok(publicChanges, "publicChanges object must remain explicit");
+  assert.doesNotMatch(publicChanges[1], /cancellationReason\s*:/);
 });
 
 test("Functions check command includes all R4 request modules", () => {
