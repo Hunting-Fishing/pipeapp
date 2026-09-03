@@ -127,7 +127,7 @@ class _MarketplaceDispatchMyRequestsPageState
                   ),
                 ),
                 const SizedBox(width: 8),
-                _StatusChip(status: status),
+                _StatusChip(status: status, fieldService: fieldService),
               ],
             ),
             const SizedBox(height: 12),
@@ -149,11 +149,29 @@ class _MarketplaceDispatchMyRequestsPageState
               fieldService ? 'Service needed' : 'Pickup date',
               date == null ? 'To be confirmed' : _dateLabel(date),
             ),
-            _fact(
-              Icons.request_quote_outlined,
-              'Quotes',
-              '${data['bidCount'] ?? 0} submitted',
-            ),
+            if (fieldService)
+              _fact(
+                Icons.hub_outlined,
+                'Matching',
+                'Not opened yet',
+              )
+            else
+              _fact(
+                Icons.request_quote_outlined,
+                'Quotes',
+                '${data['bidCount'] ?? 0} submitted',
+              ),
+            if (fieldService) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'For immediate provider outreach, use Directory → Get Quote.',
+                style: TextStyle(
+                  color: PipeBuyerColors.muted,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ],
             if ((data['attachmentCount'] as num? ?? 0) > 0)
               _fact(
                 Icons.attach_file_outlined,
@@ -251,7 +269,8 @@ class _MarketplaceDispatchMyRequestsPageState
           barrierDismissible: false,
           builder: (dialogContext) => StatefulBuilder(
             builder: (context, update) => AlertDialog(
-              title: Text(fieldService ? 'Edit service request' : 'Edit Dispatch request'),
+              title:
+                  Text(fieldService ? 'Edit service request' : 'Edit Dispatch request'),
               content: SizedBox(
                 width: 580,
                 child: SingleChildScrollView(
@@ -298,7 +317,9 @@ class _MarketplaceDispatchMyRequestsPageState
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.calendar_month_outlined),
                         title: Text(
-                          fieldService ? 'Service needed' : 'Requested pickup date',
+                          fieldService
+                              ? 'Service needed'
+                              : 'Requested pickup date',
                         ),
                         subtitle: Text(_dateLabel(requestedAt)),
                         trailing: const Icon(Icons.edit_calendar_outlined),
@@ -307,12 +328,15 @@ class _MarketplaceDispatchMyRequestsPageState
                           final first = DateTime(now.year, now.month, now.day);
                           final selected = await showDatePicker(
                             context: dialogContext,
-                            initialDate:
-                                requestedAt.isBefore(first) ? first : requestedAt,
+                            initialDate: requestedAt.isBefore(first)
+                                ? first
+                                : requestedAt,
                             firstDate: first,
                             lastDate: first.add(const Duration(days: 730)),
                           );
-                          if (selected != null) update(() => requestedAt = selected);
+                          if (selected != null) {
+                            update(() => requestedAt = selected);
+                          }
                         },
                       ),
                       TextField(
@@ -369,9 +393,8 @@ class _MarketplaceDispatchMyRequestsPageState
 
     try {
       final pickup = '${data['pickupLabel'] ?? ''}'.trim();
-      final delivery = fieldService
-          ? pickup
-          : '${data['deliveryLabel'] ?? ''}'.trim();
+      final delivery =
+          fieldService ? pickup : '${data['deliveryLabel'] ?? ''}'.trim();
       await _repository.updateJob(
         jobId: request.id,
         title: title.text,
@@ -379,8 +402,9 @@ class _MarketplaceDispatchMyRequestsPageState
         delivery: delivery,
         truckingDate: requestedAt,
         loadDetails: details.text,
-        estimatedWeightKg:
-            fieldService ? data['estimatedWeightKg'] as num? : num.tryParse(weight.text),
+        estimatedWeightKg: fieldService
+            ? data['estimatedWeightKg'] as num?
+            : num.tryParse(weight.text),
       );
       if (mounted) {
         PipeFeedback.show(
@@ -410,6 +434,7 @@ class _MarketplaceDispatchMyRequestsPageState
   Future<void> _cancelRequest(
     QueryDocumentSnapshot<Map<String, dynamic>> request,
   ) async {
+    final fieldService = request.data()['requestPath'] == 'field_service';
     final reason = TextEditingController();
     final confirmed = await showDialog<bool>(
           context: context,
@@ -423,8 +448,10 @@ class _MarketplaceDispatchMyRequestsPageState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'This closes the request before award and invalidates pending carrier quotes. This action is recorded in request history.',
+                  Text(
+                    fieldService
+                        ? 'This closes the service request before provider matching is opened. The cancellation is recorded in request history.'
+                        : 'This closes the request before award and invalidates pending carrier quotes. The cancellation is recorded in request history.',
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -470,7 +497,9 @@ class _MarketplaceDispatchMyRequestsPageState
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: 'Request cancelled. Pending carrier quotes are no longer active.',
+          message: fieldService
+              ? 'Service request cancelled.'
+              : 'Request cancelled. Pending carrier quotes are no longer active.',
           tone: PipeStatusTone.success,
         );
       }
@@ -493,6 +522,7 @@ class _MarketplaceDispatchMyRequestsPageState
   Future<void> _showHistory(
     QueryDocumentSnapshot<Map<String, dynamic>> request,
   ) async {
+    final fieldService = request.data()['requestPath'] == 'field_service';
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -549,7 +579,7 @@ class _MarketplaceDispatchMyRequestsPageState
                               style: const TextStyle(fontWeight: FontWeight.w900),
                             ),
                             subtitle: Text(
-                              '${('${data['status'] ?? ''}').toUpperCase()}'
+                              '${_statusLabel('${data['status'] ?? ''}', fieldService)}'
                               '${created == null ? '' : ' • ${_dateTimeLabel(created)}'}',
                             ),
                           ),
@@ -568,11 +598,18 @@ class _MarketplaceDispatchMyRequestsPageState
 
   String _eventLabel(String event) => switch (event) {
         'request_created' => 'Request submitted',
+        'service_request_received' => 'Request received',
         'request_updated' => 'Request edited',
+        'service_request_updated' => 'Request edited',
         'request_cancelled' => 'Request cancelled',
         'request_published' => 'Request opened',
         _ => event.replaceAll('_', ' '),
       };
+
+  String _statusLabel(String status, bool fieldService) =>
+      fieldService && status == 'draft'
+          ? 'RECEIVED'
+          : status.replaceAll('_', ' ').toUpperCase();
 
   String _dateLabel(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -582,13 +619,16 @@ class _MarketplaceDispatchMyRequestsPageState
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
+  const _StatusChip({required this.status, required this.fieldService});
 
   final String status;
+  final bool fieldService;
 
   @override
   Widget build(BuildContext context) {
-    final label = status.replaceAll('_', ' ').toUpperCase();
+    final label = fieldService && status == 'draft'
+        ? 'RECEIVED'
+        : status.replaceAll('_', ' ').toUpperCase();
     final color = switch (status) {
       'open' => PipeBuyerColors.success,
       'cancelled' => PipeBuyerColors.danger,
