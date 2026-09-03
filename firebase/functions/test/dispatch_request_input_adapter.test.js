@@ -11,15 +11,23 @@ const {
 test("server derives freight path from transportation and pilot services", () => {
   assert.equal(deriveRequestPath(["transport_pipe_hauling"]), "freight_route");
   assert.equal(deriveRequestPath(["pilot_route_survey"]), "freight_route");
-  assert.equal(
-      deriveRequestPath(["field_vacuum_truck", "transport_flat_deck"]),
-      "freight_route",
-  );
 });
 
 test("server derives field-service path from crane and field services", () => {
   assert.equal(deriveRequestPath(["crane_picker_truck"]), "field_service");
   assert.equal(deriveRequestPath(["field_vacuum_truck"]), "field_service");
+});
+
+test("server rejects mixed freight and field services", () => {
+  assert.throws(
+      () => deriveRequestPath([
+        "field_vacuum_truck",
+        "transport_flat_deck",
+      ]),
+      (error) => error &&
+        error.code === "invalid-argument" &&
+        error.message.includes("separate requests"),
+  );
 });
 
 test("unknown or excessive service codes fail closed", () => {
