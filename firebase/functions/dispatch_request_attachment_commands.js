@@ -1,6 +1,5 @@
 "use strict";
 
-const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AccountSecurityError,
@@ -28,13 +27,6 @@ function requiredId(data, fieldName) {
     );
   }
   return value;
-}
-
-function receiptReference(db, uid, commandName, requestId) {
-  const digest = crypto.createHash("sha256")
-      .update(`${uid}|${commandName}|${requestId}`)
-      .digest("hex");
-  return db.collection("marketplace_command_receipts").doc(digest);
 }
 
 function command(handler) {
