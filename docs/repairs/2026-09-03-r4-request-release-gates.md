@@ -97,9 +97,28 @@ The R4 workflow launched Firestore and Storage emulators with project `demo-pipe
 - Kept the R4 draft-only Firestore contract isolated under its own test project because it does not rely on a Storage-to-Firestore cross-service lookup.
 - The full Firestore and Storage rules suite remains mandatory before callable integration and release build steps can run.
 
+## 6. Marketplace monetization trigger could overwrite an established payment state
+
+### Symptom
+
+After the R4 rules gate was repaired, authenticated callable integration reached the existing Marketplace completion flow and reproduced a payment-state race. The test established `paymentProviderStatus: external_agreed`, but `updateMarketplaceTransaction` later rejected completion because the status had returned to an unpaid state.
+
+### Root cause
+
+`onMarketplaceTransactionCreatedMonetization` snapshots the marketplace fee asynchronously after an accepted transaction is created. Its transaction correctly re-reads the current transaction document, but the write then unconditionally set `paymentProviderStatus: not_started`. If external settlement or another legitimate payment state was established before that asynchronous fee-snapshot transaction completed, the fee trigger could overwrite the newer payment state.
+
+### Permanent repair
+
+- The monetization snapshot still initializes a new transaction to `not_started` when no payment provider state exists.
+- If a current payment provider state already exists, the trigger now preserves that state instead of replacing it.
+- No completion gate was weakened: `updateMarketplaceTransaction` still requires `paid` or `external_agreed` before completion.
+- The protected authenticated callable integration remains the regression contract for this race and must pass before release.
+- Release policy: asynchronous enrichment triggers may add missing lifecycle defaults, but must not overwrite a newer authoritative state that was established after the triggering document was created.
+
 ## Release rules going forward
 
 1. Any new state introduced into a collection with broader historical read rules must receive an explicit read-visibility review and emulator contract before production. UI filtering is not a privacy boundary.
 2. A multi-service request may combine services only when they share the same authoritative matching lifecycle. A convenient client form must never collapse separate server workflows into the wrong marketplace path.
 3. Privacy/source contracts must assert a bounded object, write, or behavior. Do not allow a regex to traverse unrelated later code and turn a correct privacy boundary into a false release failure.
 4. Emulator project IDs used by cross-service security rules must match the project ID used by the rule test fixtures. A verification workflow must not silently change that namespace when Storage rules depend on Firestore documents.
+5. Asynchronous enrichment/defaulting triggers must preserve newer authoritative lifecycle state when they re-read a document after creation.
