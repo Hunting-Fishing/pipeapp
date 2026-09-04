@@ -80,8 +80,26 @@ The test asserted privacy against an unbounded source range rather than the `pub
 - The test still requires the private cancellation reason and public cancellation lifecycle fields to be present, so it preserves coverage in both directions.
 - Release policy: source-level privacy contracts must scope assertions to the actual object or operation being protected; a broad greedy match must not be used as a proxy for a data boundary.
 
+## 5. R4 rules workflow used a different emulator project from Storage cross-service tests
+
+### Symptom
+
+The protected rules step failed five Storage tests. Valid chat attachments, listing media, Dispatch request attachments, and report evidence uploads were denied, while the Storage emulator logged null-value evaluation errors at the two `firestore.get(...)` calls used by upload authorization and listing-draft ownership.
+
+### Root cause
+
+The R4 workflow launched Firestore and Storage emulators with project `demo-pipe-buyer-r4-rules`, while the established Storage rules test environment and its Firestore fixtures use `demo-pipe-buyer-rules`. Storage rules make cross-service `firestore.get(...)` calls, so the project mismatch caused the authorization and listing-draft lookups to resolve outside the fixture namespace and return null. The production rules themselves matched the proven R3 rules pattern; this was a verification-environment wiring defect.
+
+### Permanent repair
+
+- Changed only the R4 rules-workflow emulator project from `demo-pipe-buyer-r4-rules` to the established `demo-pipe-buyer-rules` used by `storage_rules.test.js` and the protected deployment verification path.
+- Did not weaken or bypass Storage or Firestore rules.
+- Kept the R4 draft-only Firestore contract isolated under its own test project because it does not rely on a Storage-to-Firestore cross-service lookup.
+- The full Firestore and Storage rules suite remains mandatory before callable integration and release build steps can run.
+
 ## Release rules going forward
 
 1. Any new state introduced into a collection with broader historical read rules must receive an explicit read-visibility review and emulator contract before production. UI filtering is not a privacy boundary.
 2. A multi-service request may combine services only when they share the same authoritative matching lifecycle. A convenient client form must never collapse separate server workflows into the wrong marketplace path.
 3. Privacy/source contracts must assert a bounded object, write, or behavior. Do not allow a regex to traverse unrelated later code and turn a correct privacy boundary into a false release failure.
+4. Emulator project IDs used by cross-service security rules must match the project ID used by the rule test fixtures. A verification workflow must not silently change that namespace when Storage rules depend on Firestore documents.
