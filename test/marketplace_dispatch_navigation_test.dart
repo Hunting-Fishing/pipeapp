@@ -87,10 +87,12 @@ void main() {
     expect(find.text('Pilot'), findsNothing);
     expect(find.text('List your business'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Directory'));
     await tester.tap(find.text('Directory'));
     await tester.pump();
     expect(selected, DispatchSection.directory);
 
+    await tester.ensureVisible(find.text('List your business'));
     await tester.tap(find.text('List your business'));
     await tester.pump();
     expect(providerActionCount, 1);
@@ -138,7 +140,6 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    var requestCount = 0;
     var directoryCount = 0;
     var jobsCount = 0;
     var businessCount = 0;
@@ -146,7 +147,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: MarketplaceDispatchCustomerHome(
-          onRequestService: () => requestCount += 1,
+          onRequestService: () {},
           onBrowseDirectory: () => directoryCount += 1,
           onBrowseJobs: () => jobsCount += 1,
           onListBusiness: () => businessCount += 1,
@@ -156,17 +157,22 @@ void main() {
 
     expect(find.text('I need a service'), findsOneWidget);
     expect(find.text('I provide services'), findsOneWidget);
+    expect(find.text('Request a service'), findsOneWidget);
     expect(find.text('Browse directory'), findsOneWidget);
+    expect(find.text('Browse Jobs'), findsOneWidget);
+    expect(find.text('List your business'), findsOneWidget);
 
-    await tester.tap(find.text('Request a service'));
+    // Request Service now opens the real R4 review-before-submit modal. This
+    // Firebase-free presentation test verifies the entry is present, while the
+    // dedicated R4 source contracts verify the modal routing itself.
     await tester.tap(find.text('Browse directory'));
     await tester.tap(find.text('Browse Jobs'));
     await tester.tap(find.text('List your business'));
     await tester.pump();
 
-    expect(requestCount, 1);
     expect(directoryCount, 1);
     expect(jobsCount, 1);
     expect(businessCount, 1);
+    expect(tester.takeException(), isNull);
   });
 }
