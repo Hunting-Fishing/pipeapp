@@ -13,6 +13,9 @@ const {
   YellowPagesError,
   createYellowPagesCommands,
 } = require("./yellow_pages_commands");
+const {
+  listYellowPagesDashboardView,
+} = require("./yellow_pages_views");
 
 if (getApps().length === 0) initializeApp();
 
@@ -96,6 +99,10 @@ exports.getPipeBuyerYellowPagesEntry = yellowPagesCallable(
 exports.listYellowPagesCompanies = yellowPagesCallable(
     "listYellowPagesCompanies",
     yellowPages.listCompanies,
+);
+exports.listYellowPagesDashboardView = yellowPagesCallable(
+    "listYellowPagesDashboardView",
+    (data, context) => listYellowPagesDashboardView(db, data, context),
 );
 exports.getYellowPagesCompany = yellowPagesCallable(
     "getYellowPagesCompany",
