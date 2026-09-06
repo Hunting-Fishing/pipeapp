@@ -16,6 +16,10 @@ const {
 const {
   listYellowPagesDashboardView,
 } = require("./yellow_pages_views");
+const {
+  getCurrentPublicEntry,
+  listCurrentPublicEntries,
+} = require("./yellow_pages_public");
 
 if (getApps().length === 0) initializeApp();
 
@@ -90,11 +94,11 @@ exports.getYellowPagesAccess = yellowPagesCallable(
 );
 exports.listPipeBuyerYellowPages = yellowPagesCallable(
     "listPipeBuyerYellowPages",
-    yellowPages.listPublic,
+    (data) => listCurrentPublicEntries(db, data),
 );
 exports.getPipeBuyerYellowPagesEntry = yellowPagesCallable(
     "getPipeBuyerYellowPagesEntry",
-    yellowPages.getPublic,
+    (data) => getCurrentPublicEntry(db, data),
 );
 exports.listYellowPagesCompanies = yellowPagesCallable(
     "listYellowPagesCompanies",
