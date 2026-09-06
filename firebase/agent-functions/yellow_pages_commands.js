@@ -63,11 +63,11 @@ function sourceReferences(value) {
   })).filter((entry) => entry.sourceName || entry.sourceUrl || entry.sourceExternalId);
 }
 
-function parsePaidThrough(value) {
+function parseTimestamp(value, label) {
   if (value == null || value === "") return null;
   const date = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(date.getTime())) {
-    throw new YellowPagesError("invalid-argument", "A valid paid-through date is required.");
+    throw new YellowPagesError("invalid-argument", `A valid ${label} is required.`);
   }
   return Timestamp.fromDate(date);
 }
@@ -161,7 +161,7 @@ function createYellowPagesCommands({db, auth}) {
   if (!db || !auth) throw new Error("Yellow Pages commands require Firestore and Auth.");
 
   return {
-    async getAccess(data, context) {
+    async getAccess(_data, context) {
       if (!context || !context.auth) {
         return {authorized: false, reason: "signed_out"};
       }
@@ -325,7 +325,10 @@ function createYellowPagesCommands({db, auth}) {
       const summary = text(data && data.summary, 3000);
       if (!eventType) throw new YellowPagesError("invalid-argument", "A contact event type is required.");
       const nextFollowUpRaw = data && data.nextFollowUpAt;
-      const nextFollowUpAt = nextFollowUpRaw ? parsePaidThrough(nextFollowUpRaw) : null;
+      const nextFollowUpAt = nextFollowUpRaw ? parseTimestamp(nextFollowUpRaw, "follow-up date") : null;
+      if (nextFollowUpAt && nextFollowUpAt.toMillis() <= Date.now()) {
+        throw new YellowPagesError("failed-precondition", "Follow-up time must be in the future.");
+      }
       const event = await db.collection(PRIVATE_CONTACT_EVENTS).add({
         schemaVersion: 1,
         companyId: record.id,
@@ -408,8 +411,12 @@ function createYellowPagesCommands({db, auth}) {
       const snapshot = await ref.get();
       if (!snapshot.exists) throw new YellowPagesError("not-found", "Company record not found.");
       const nonExpiringPaid = status === "paid" && data && data.nonExpiringPaid === true;
-      const paidThrough = status === "paid" && !nonExpiringPaid ? parsePaidThrough(data && data.paidThrough) : null;
-      if (status === "paid" && !nonExpiringPaid && paidThrough.toMillis() <= Date.now()) {
+      const paidThrough = status === "paid" && !nonExpiringPaid ?
+        parseTimestamp(data && data.paidThrough, "paid-through date") : null;
+      if (status === "paid" && !nonExpiringPaid && !paidThrough) {
+        throw new YellowPagesError("invalid-argument", "Paid-through is required for a paid listing.");
+      }
+      if (paidThrough && paidThrough.toMillis() <= Date.now()) {
         throw new YellowPagesError("failed-precondition", "Paid-through must be in the future.");
       }
       await ref.update({
@@ -449,7 +456,8 @@ function createYellowPagesCommands({db, auth}) {
       }
       await ref.update({
         publicationStatus: status,
-        publishedAt: status === "published" ? (company.publishedAt || FieldValue.serverTimestamp()) : company.publishedAt || null,
+        publishedAt: status === "published" ?
+          (company.publishedAt || FieldValue.serverTimestamp()) : company.publishedAt || null,
         publishedByUid: status === "published" ? actor.uid : company.publishedByUid || null,
         publicationReviewNote: text(data && data.reviewNote, 2000),
         updatedAt: FieldValue.serverTimestamp(),
@@ -460,7 +468,7 @@ function createYellowPagesCommands({db, auth}) {
       return {companyId, publicationStatus: status};
     },
 
-    async listStaff(data, context) {
+    async listStaff(_data, context) {
       await requireActor(db, context, ["manager", "administrator"]);
       const snapshot = await db.collection(STAFF)
           .orderBy(FieldPath.documentId())
@@ -499,7 +507,10 @@ function createYellowPagesCommands({db, auth}) {
       if (active) claims.yellowPagesRole = role;
       else delete claims.yellowPagesRole;
       await auth.setCustomUserClaims(user.uid, claims);
-      await db.collection(STAFF).doc(user.uid).set({
+
+      const rosterRef = db.collection(STAFF).doc(user.uid);
+      const rosterSnapshot = await rosterRef.get();
+      const rosterWrite = {
         uid: user.uid,
         email,
         displayName: text(user.displayName, 160),
@@ -507,8 +518,12 @@ function createYellowPagesCommands({db, auth}) {
         active,
         updatedAt: FieldValue.serverTimestamp(),
         updatedByUid: actor.uid,
-        ...(active ? {createdAt: FieldValue.serverTimestamp(), createdByUid: actor.uid} : {}),
-      }, {merge: true});
+      };
+      if (!rosterSnapshot.exists) {
+        rosterWrite.createdAt = FieldValue.serverTimestamp();
+        rosterWrite.createdByUid = actor.uid;
+      }
+      await rosterRef.set(rosterWrite, {merge: true});
       await auth.revokeRefreshTokens(user.uid);
       await audit(db, actor, active ? "staff_access_granted" : "staff_access_revoked", null, {
         targetUid: user.uid,
