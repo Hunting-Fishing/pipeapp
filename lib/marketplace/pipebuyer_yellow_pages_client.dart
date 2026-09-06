@@ -137,6 +137,22 @@ class PipeBuyerYellowPagesClient {
     return _pageFromResult(result, 'companies');
   }
 
+  Future<PipeBuyerYellowPagesPage<Map<String, dynamic>>> listDashboardView(
+    String view, {
+    String? cursor,
+    int pageSize = 50,
+  }) async {
+    final result = await _call(
+      'listYellowPagesDashboardView',
+      <String, Object?>{
+        'view': view,
+        'pageSize': pageSize,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+    return _pageFromResult(result, 'companies');
+  }
+
   Future<Map<String, dynamic>> getCompany(String companyId) {
     return _call(
       'getYellowPagesCompany',
