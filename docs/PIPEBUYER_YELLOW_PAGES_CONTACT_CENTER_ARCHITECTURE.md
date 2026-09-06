@@ -313,7 +313,7 @@ Import rules:
 
 ## Server command boundary
 
-The dedicated Yellow Pages Functions codebase should expose a narrow set of callable commands. Planned commands include:
+A dedicated Yellow Pages module inside the repository's existing `firebase/agent-functions` Functions codebase exposes the narrow callable command surface. Reusing the existing codebase keeps the repository's current CI, lint, release-gate, and Firebase deployment wiring intact while keeping Yellow Pages logic in separate source modules.
 
 Public-safe:
 
@@ -357,7 +357,7 @@ The Yellow Pages should not read private Dispatch carrier records or overwrite `
 
 ## Delivery sequence
 
-1. Add isolated Yellow Pages Firebase Functions codebase and test authorization/status/public projection policy.
+1. Add isolated Yellow Pages modules to the existing `firebase/agent-functions` codebase and test authorization/status/public projection policy.
 2. Add private Contact Center Flutter access client + role-gated dashboard shell.
 3. Add public PipeBuyer Yellow Pages page backed by public-safe server data.
 4. Add company/contact editing, queue assignment, event history, DNC, and follow-ups.
