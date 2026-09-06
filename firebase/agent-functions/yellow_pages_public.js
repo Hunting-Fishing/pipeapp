@@ -52,20 +52,24 @@ async function listCurrentPublicEntries(db, data) {
         .limit(SCAN_BATCH_SIZE);
     if (cursor) query = query.startAfter(cursor);
     const snapshot = await query.get();
-    hasMore = snapshot.docs.length === SCAN_BATCH_SIZE;
     if (snapshot.empty) {
       hasMore = false;
       break;
     }
 
+    let consumed = 0;
     for (const doc of snapshot.docs) {
+      consumed += 1;
       lastScannedId = doc.id;
       cursor = doc.id;
       const entry = doc.data() || {};
-      if (!isPublicEntryCurrent(entry)) continue;
-      entries.push({id: doc.id, ...jsonSafe(entry)});
+      if (isPublicEntryCurrent(entry)) {
+        entries.push({id: doc.id, ...jsonSafe(entry)});
+      }
       if (entries.length >= limit) break;
     }
+    hasMore = consumed < snapshot.docs.length ||
+      snapshot.docs.length === SCAN_BATCH_SIZE;
   }
 
   return {
