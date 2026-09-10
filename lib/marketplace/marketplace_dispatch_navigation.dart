@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_directory.dart';
+import 'marketplace_dispatch_my_requests_page.dart';
+import 'marketplace_dispatch_request_service_page.dart';
 
 enum DispatchSection {
   dashboard,
@@ -16,6 +18,21 @@ enum DispatchAccountRole {
   providerOnly,
   customerAndProvider,
 }
+
+Future<String?> _openDispatchRequestService(BuildContext context) =>
+    Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        fullscreenDialog: true,
+        builder: (_) => const MarketplaceDispatchRequestServicePage(),
+      ),
+    );
+
+Future<void> _openMyDispatchRequests(BuildContext context) =>
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const MarketplaceDispatchMyRequestsPage(),
+      ),
+    );
 
 class DispatchAccountState {
   const DispatchAccountState({
@@ -91,7 +108,7 @@ class DispatchAccountState {
   }
 }
 
-class MarketplaceDispatchNavigation extends StatelessWidget {
+class MarketplaceDispatchNavigation extends StatefulWidget {
   const MarketplaceDispatchNavigation({
     super.key,
     required this.selected,
@@ -106,7 +123,61 @@ class MarketplaceDispatchNavigation extends StatelessWidget {
   final VoidCallback onProviderAction;
 
   @override
+  State<MarketplaceDispatchNavigation> createState() =>
+      _MarketplaceDispatchNavigationState();
+}
+
+class _MarketplaceDispatchNavigationState
+    extends State<MarketplaceDispatchNavigation> {
+  bool _openingRequestService = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleLegacyRequestInterception();
+  }
+
+  @override
+  void didUpdateWidget(covariant MarketplaceDispatchNavigation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected != widget.selected) {
+      _scheduleLegacyRequestInterception();
+    }
+  }
+
+  void _scheduleLegacyRequestInterception() {
+    if (widget.selected != DispatchSection.requestService ||
+        _openingRequestService) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted ||
+          widget.selected != DispatchSection.requestService ||
+          _openingRequestService) {
+        return;
+      }
+      await _launchRequestService(resetSelection: true);
+    });
+  }
+
+  Future<void> _launchRequestService({required bool resetSelection}) async {
+    if (_openingRequestService) return;
+    setState(() => _openingRequestService = true);
+    try {
+      await _openDispatchRequestService(context);
+    } finally {
+      if (mounted) {
+        setState(() => _openingRequestService = false);
+        if (resetSelection) widget.onSelected(DispatchSection.dashboard);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final visibleSelection = widget.selected == DispatchSection.requestService
+        ? DispatchSection.dashboard
+        : widget.selected;
     final navigation = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SegmentedButton<DispatchSection>(
@@ -133,19 +204,40 @@ class MarketplaceDispatchNavigation extends StatelessWidget {
             label: Text('Jobs'),
           ),
         ],
-        selected: {selected},
-        onSelectionChanged: (value) => onSelected(value.first),
+        selected: {visibleSelection},
+        onSelectionChanged: (value) {
+          final next = value.first;
+          if (next == DispatchSection.requestService) {
+            _launchRequestService(resetSelection: false);
+            return;
+          }
+          widget.onSelected(next);
+        },
       ),
     );
 
+    final myRequestsAction = OutlinedButton.icon(
+      onPressed: () => _openMyDispatchRequests(context),
+      icon: const Icon(Icons.assignment_outlined),
+      label: const Text('My Requests'),
+    );
     final providerAction = OutlinedButton.icon(
-      onPressed: onProviderAction,
+      onPressed: widget.onProviderAction,
       icon: Icon(
-        accountState.providerRegistered
+        widget.accountState.providerRegistered
             ? Icons.business_center_outlined
             : Icons.add_business_outlined,
       ),
-      label: Text(accountState.providerActionLabel),
+      label: Text(widget.accountState.providerActionLabel),
+    );
+    final roleBadge = PipeBuyerStatusBadge(
+      label: widget.accountState.roleLabel,
+      icon: widget.accountState.providerRegistered
+          ? Icons.swap_horiz_rounded
+          : Icons.person_outline,
+      tone: widget.accountState.providerRegistered
+          ? PipeBuyerStatusTone.premium
+          : PipeBuyerStatusTone.info,
     );
 
     return LayoutBuilder(
@@ -156,19 +248,14 @@ class MarketplaceDispatchNavigation extends StatelessWidget {
             children: [
               navigation,
               const SizedBox(height: 10),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(child: providerAction),
-                  const SizedBox(width: 8),
-                  PipeBuyerStatusBadge(
-                    label: accountState.roleLabel,
-                    icon: accountState.providerRegistered
-                        ? Icons.swap_horiz_rounded
-                        : Icons.person_outline,
-                    tone: accountState.providerRegistered
-                        ? PipeBuyerStatusTone.premium
-                        : PipeBuyerStatusTone.info,
-                  ),
+                  myRequestsAction,
+                  providerAction,
+                  roleBadge,
                 ],
               ),
             ],
@@ -178,15 +265,9 @@ class MarketplaceDispatchNavigation extends StatelessWidget {
           children: [
             Expanded(child: navigation),
             const SizedBox(width: 12),
-            PipeBuyerStatusBadge(
-              label: accountState.roleLabel,
-              icon: accountState.providerRegistered
-                  ? Icons.swap_horiz_rounded
-                  : Icons.person_outline,
-              tone: accountState.providerRegistered
-                  ? PipeBuyerStatusTone.premium
-                  : PipeBuyerStatusTone.info,
-            ),
+            myRequestsAction,
+            const SizedBox(width: 8),
+            roleBadge,
             const SizedBox(width: 8),
             providerAction,
           ],
@@ -205,6 +286,8 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
     required this.onListBusiness,
   });
 
+  // Retained as part of the existing constructor contract while R4 routes the
+  // action to the dedicated review-before-submit page.
   final VoidCallback onRequestService;
   final VoidCallback onBrowseDirectory;
   final VoidCallback onBrowseJobs;
@@ -252,7 +335,7 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                   runSpacing: 10,
                   children: [
                     FilledButton.icon(
-                      onPressed: onRequestService,
+                      onPressed: () => _openDispatchRequestService(context),
                       icon: const Icon(Icons.add_road_outlined),
                       label: const Text('Request Service'),
                     ),
@@ -310,7 +393,7 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                         runSpacing: 10,
                         children: [
                           FilledButton.icon(
-                            onPressed: onRequestService,
+                            onPressed: () => _openDispatchRequestService(context),
                             icon: const Icon(Icons.add_road_outlined),
                             label: const Text('Request a service'),
                           ),

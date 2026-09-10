@@ -81,7 +81,9 @@ function createMarketplaceMonetization(admin) {
       firestoreTransaction.update(transactionRef, {
         marketplaceFeeSnapshot: storedSnapshot,
         marketplaceFeeStatus: "pending_collection",
-        paymentProviderStatus: "not_started",
+        paymentProviderStatus:
+          String(currentData.paymentProviderStatus || "").trim() ||
+          "not_started",
         updatedAt: FieldValue.serverTimestamp(),
       });
 

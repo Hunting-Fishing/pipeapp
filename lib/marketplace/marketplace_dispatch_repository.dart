@@ -338,6 +338,17 @@ class MarketplaceDispatchRepository {
     });
   }
 
+  Future<void> cancelJob({
+    required String jobId,
+    String reason = '',
+  }) async {
+    await _commands.execute('cancelDispatchJob', {
+      'requestId': _firestore.collection('dispatch_jobs').doc().id,
+      'jobId': jobId,
+      if (reason.trim().isNotEmpty) 'reason': reason.trim(),
+    });
+  }
+
   Future<void> bid({
     required String jobId,
     required num amount,
