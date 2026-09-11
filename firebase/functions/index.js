@@ -345,6 +345,12 @@ exports.publishDispatchJob = onCall(
     dispatchCommands.publishDispatchJob,
   ),
 );
+exports.cancelDispatchQuote = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    dispatchCommands.cancelDispatchQuote,
+  ),
+);
 exports.submitDispatchQuote = onCall(
   protectedCallableOptions,
   policyAcceptanceCommands.requireCurrentPolicies(
