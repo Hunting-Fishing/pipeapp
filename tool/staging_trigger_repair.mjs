@@ -4,12 +4,23 @@ import fs from "node:fs";
 import process from "node:process";
 import {pathToFileURL} from "node:url";
 
-export const REPAIR_CONTRACT = Object.freeze({
-  projectId: "pipebuyer-5c77f",
-  functionId: "protectAuctionReserve",
-  codebase: "marketplace",
-  region: "us-central1",
+export const REPAIR_CONTRACTS = Object.freeze({
+  protectAuctionReserve: Object.freeze({
+    projectId: "pipebuyer-5c77f",
+    functionId: "protectAuctionReserve",
+    codebase: "marketplace",
+    region: "us-central1",
+  }),
+  onTagRequestCreated: Object.freeze({
+    projectId: "pipebuyer-5c77f",
+    functionId: "onTagRequestCreated",
+    codebase: "marketplace",
+    region: "us-central1",
+  }),
 });
+
+export const DEFAULT_REPAIR_FUNCTION_ID = "protectAuctionReserve";
+export const REPAIR_CONTRACT = REPAIR_CONTRACTS[DEFAULT_REPAIR_FUNCTION_ID];
 
 const DELETABLE_STALE_STATES = new Set(["ACTIVE", "FAILED"]);
 
@@ -20,6 +31,14 @@ function inventoryRows(inventory) {
   return inventory.result;
 }
 
+function repairContract(functionId) {
+  const contract = REPAIR_CONTRACTS[functionId];
+  if (!contract) {
+    throw new Error(`Repair target ${functionId} is not allowlisted.`);
+  }
+  return contract;
+}
+
 function classifyTrigger(fn) {
   if (fn.eventTrigger) return "background";
   if (fn.callableTrigger) return "callable";
@@ -28,25 +47,26 @@ function classifyTrigger(fn) {
   return "unknown";
 }
 
-function namedRows(inventory) {
-  return inventoryRows(inventory).filter((fn) => fn?.id === REPAIR_CONTRACT.functionId);
+function namedRows(inventory, contract) {
+  return inventoryRows(inventory).filter((fn) => fn?.id === contract.functionId);
 }
 
-function matchingRows(inventory) {
-  return namedRows(inventory).filter((fn) =>
-    fn?.project === REPAIR_CONTRACT.projectId &&
-    fn?.region === REPAIR_CONTRACT.region &&
-    fn?.codebase === REPAIR_CONTRACT.codebase,
+function matchingRows(inventory, contract) {
+  return namedRows(inventory, contract).filter((fn) =>
+    fn?.project === contract.projectId &&
+    fn?.region === contract.region &&
+    fn?.codebase === contract.codebase,
   );
 }
 
-export function assessStaleHttpsRepair(inventory) {
-  const named = namedRows(inventory);
-  const rows = matchingRows(inventory);
+export function assessStaleHttpsRepair(inventory, functionId = DEFAULT_REPAIR_FUNCTION_ID) {
+  const contract = repairContract(functionId);
+  const named = namedRows(inventory, contract);
+  const rows = matchingRows(inventory, contract);
   if (named.length !== 1 || rows.length !== 1) {
     throw new Error(
-      `Expected exactly one ${REPAIR_CONTRACT.codebase}:${REPAIR_CONTRACT.functionId} ` +
-      `in ${REPAIR_CONTRACT.projectId}/${REPAIR_CONTRACT.region}; ` +
+      `Expected exactly one ${contract.codebase}:${contract.functionId} ` +
+      `in ${contract.projectId}/${contract.region}; ` +
       `found ${named.length} named target(s) and ${rows.length} exact match(es).`,
     );
   }
@@ -55,7 +75,7 @@ export function assessStaleHttpsRepair(inventory) {
   const trigger = classifyTrigger(target);
   if (trigger !== "https") {
     throw new Error(
-      `Refusing repair because ${REPAIR_CONTRACT.functionId} is ${trigger}, not stale HTTPS.`,
+      `Refusing repair because ${contract.functionId} is ${trigger}, not stale HTTPS.`,
     );
   }
 
@@ -68,35 +88,38 @@ export function assessStaleHttpsRepair(inventory) {
     trigger,
     state: target.state ?? null,
     platform: target.platform ?? null,
-    ...REPAIR_CONTRACT,
+    ...contract,
   };
 }
 
-export function assertRepairAbsent(inventory) {
-  const rows = namedRows(inventory);
+export function assertRepairAbsent(inventory, functionId = DEFAULT_REPAIR_FUNCTION_ID) {
+  const contract = repairContract(functionId);
+  const rows = namedRows(inventory, contract);
   if (rows.length !== 0) {
     throw new Error(
-      `Expected ${REPAIR_CONTRACT.functionId} to be absent from staging after deletion; ` +
+      `Expected ${contract.functionId} to be absent from staging after deletion; ` +
       `found ${rows.length}.`,
     );
   }
-  return {absent: true, ...REPAIR_CONTRACT};
+  return {absent: true, ...contract};
 }
 
 function usage() {
-  return "Usage: node tool/staging_trigger_repair.mjs <assess|assert-absent> <inventory.json>";
+  return "Usage: node tool/staging_trigger_repair.mjs <assess|assert-absent> [allowlisted-function-id] <inventory.json>";
 }
 
 function main(argv) {
-  const [mode, inventoryPath, ...extra] = argv;
-  if (!mode || !inventoryPath || extra.length > 0 || !["assess", "assert-absent"].includes(mode)) {
+  const [mode, ...args] = argv;
+  if (!mode || !["assess", "assert-absent"].includes(mode) || ![1, 2].includes(args.length)) {
     throw new Error(usage());
   }
 
+  const functionId = args.length === 2 ? args[0] : DEFAULT_REPAIR_FUNCTION_ID;
+  const inventoryPath = args.length === 2 ? args[1] : args[0];
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, "utf8"));
   const result = mode === "assess"
-    ? assessStaleHttpsRepair(inventory)
-    : assertRepairAbsent(inventory);
+    ? assessStaleHttpsRepair(inventory, functionId)
+    : assertRepairAbsent(inventory, functionId);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
