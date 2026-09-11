@@ -25,6 +25,7 @@ const {
   validateDispatchJobInput,
   validateDispatchJobPublish,
   validateDispatchQuote,
+  validateDispatchQuoteCancellation,
   validateDispatchProviderApplication,
   validateDispatchProviderDecision,
   validateDispatchTransactionAction,
@@ -678,7 +679,7 @@ function createDispatchCommands(admin) {
       const existingMatches = quotes.docs.filter(
           (candidate) =>
             candidate.data().carrierUid === uid &&
-            candidate.data().status === "pending",
+            ["pending", "cancelled"].includes(candidate.data().status),
       );
       if (existingMatches.length > 1) {
         throw new CommandPolicyError(
@@ -709,6 +710,9 @@ function createDispatchCommands(admin) {
       const revision = existingBid ?
         Number(existingBid.revision || 1) + 1 :
         1;
+      const quoteVersion = existingBid ?
+        Number(existingBid.quoteVersion || existingBid.revision || 1) + 1 :
+        1;
       const carrierName =
         String(carrier.operatingName || carrier.companyName ||
           "Dispatch carrier").slice(0, 160);
@@ -724,8 +728,11 @@ function createDispatchCommands(admin) {
         quoteBreakdown: quote.quoteBreakdown,
         quoteReference: existingBid && existingBid.quoteReference ||
           `PBQ-${bidRef.id.slice(0, 10).toUpperCase()}`,
-        quoteVersion: revision,
+        quoteVersion,
         validityStatus: "active",
+        supersededThroughVersion: Math.max(0, quoteVersion - 1),
+        cancellationReason: null,
+        cancelledAt: null,
         note: quote.note,
         availableDate: Timestamp.fromMillis(quote.availableDate),
         vehicleId,
@@ -741,6 +748,7 @@ function createDispatchCommands(admin) {
         bidId: bidRef.id,
         jobId,
         revision,
+        quoteVersion,
         quoteReference: values.quoteReference,
         created: !existingBid,
       };
@@ -787,6 +795,114 @@ function createDispatchCommands(admin) {
       transaction.create(receiptRef, {
         actorUid: uid,
         command: "submitDispatchQuote",
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return result;
+    });
+  });
+
+  const cancelDispatchQuote = dispatchCommand(async (request) => {
+    const uid = requireAuth(request);
+    const requestId = requiredId(request.data, "requestId");
+    const bidId = requiredId(request.data, "bidId");
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "cancelDispatchQuote",
+        requestId,
+    );
+    const bidRef = db.collection("dispatch_bids").doc(bidId);
+
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const bidSnapshot = await transaction.get(bidRef);
+      const bidData = bidSnapshot.exists ? bidSnapshot.data() : null;
+      const jobId = String(bidData && bidData.jobId || "");
+      const jobRef = jobId ? db.collection("dispatch_jobs").doc(jobId) : null;
+      const jobSnapshot = jobRef ? await transaction.get(jobRef) : null;
+      const jobData = jobSnapshot && jobSnapshot.exists ? jobSnapshot.data() : null;
+      const job = jobData ? {...jobData, id: jobId} : null;
+      const cancellation = validateDispatchQuoteCancellation({
+        job,
+        bid: bidData,
+        actorUid: uid,
+        reason: request.data && request.data.reason,
+      });
+      const quoteVersion = Number(
+          bidData.quoteVersion || bidData.revision || 1,
+      );
+      if (cancellation.alreadyApplied) {
+        const result = {
+          bidId,
+          jobId,
+          quoteVersion,
+          status: "cancelled",
+          validityStatus: "cancelled",
+          alreadyCancelled: true,
+        };
+        transaction.create(receiptRef, {
+          actorUid: uid,
+          command: "cancelDispatchQuote",
+          result,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        return result;
+      }
+
+      const revision = Number(bidData.revision || 1) + 1;
+      const changes = {
+        status: "cancelled",
+        validityStatus: "cancelled",
+        cancellationReason: cancellation.reason || "",
+        cancelledAt: FieldValue.serverTimestamp(),
+        revision,
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      const result = {
+        bidId,
+        jobId,
+        revision,
+        quoteVersion,
+        status: "cancelled",
+        validityStatus: "cancelled",
+        alreadyCancelled: false,
+      };
+      transaction.update(bidRef, changes);
+      transaction.create(
+          bidRef.collection("revisions").doc(String(revision)),
+          {
+            ...bidData,
+            ...changes,
+            quoteVersion,
+            event: "quote_cancelled",
+            actorUid: uid,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.set(
+          db.collection("users")
+              .doc(job.createdByUid)
+              .collection("notifications")
+              .doc(receiptRef.id),
+          {
+            recipientUid: job.createdByUid,
+            actorUid: uid,
+            type: "dispatch",
+            jobId,
+            bidId,
+            title: "Carrier quote cancelled",
+            body: cancellation.reason ?
+              `The carrier cancelled Version ${quoteVersion}: ${cancellation.reason}` :
+              `The carrier cancelled Version ${quoteVersion} of their Dispatch quote.`,
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.create(receiptRef, {
+        actorUid: uid,
+        command: "cancelDispatchQuote",
         result,
         createdAt: FieldValue.serverTimestamp(),
       });
@@ -1132,6 +1248,7 @@ function createDispatchCommands(admin) {
 
   return {
     awardDispatchQuote,
+    cancelDispatchQuote,
     createDispatchJob,
     reviewDispatchProvider,
     publishDispatchJob,
