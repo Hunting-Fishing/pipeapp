@@ -125,7 +125,7 @@ jobs:
 
       - name: Record repair evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: staging-protect-auction-reserve-trigger-repair-${{ inputs.commit_sha }}-${{ github.run_id }}
           path: |

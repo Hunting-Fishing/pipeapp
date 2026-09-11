@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload callable integration log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: callable-integration-log
           path: callable-integration.log
