@@ -26,26 +26,36 @@ jobs:
 
           path = Path('.github/workflows/deploy.yml')
           text = path.read_text()
+          marker = '  visual-acceptance:\n'
+          if marker not in text:
+              raise SystemExit('visual acceptance job was not found')
 
-          old_env = '''    env:\n      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}\n      PIPE_DEPLOY_ENVIRONMENT_GUARD: ${{ secrets.PIPE_DEPLOY_ENVIRONMENT_GUARD }}\n      PIPE_APP_CHECK_WEB_DEBUG_TOKEN: ${{ secrets.PIPE_APP_CHECK_WEB_DEBUG_TOKEN }}\n'''
-          new_env = '''    env:\n      PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}\n      PIPE_DEPLOY_ENVIRONMENT_GUARD: ${{ secrets.PIPE_DEPLOY_ENVIRONMENT_GUARD }}\n      PIPE_APP_CHECK_MODE: ${{ inputs.app_check_mode }}\n      PIPE_APP_CHECK_WEB_DEBUG_TOKEN: ${{ secrets.PIPE_APP_CHECK_WEB_DEBUG_TOKEN }}\n'''
-          if old_env not in text:
-              raise SystemExit('visual acceptance env block did not match expected source')
-          text = text.replace(old_env, new_env, 1)
+          head, visual = text.split(marker, 1)
+
+          mode_line = "      PIPE_APP_CHECK_MODE: $" + "{{ inputs.app_check_mode }}\n"
+          if '      PIPE_APP_CHECK_MODE:' not in visual:
+              guard_prefix = '      PIPE_DEPLOY_ENVIRONMENT_GUARD:'
+              guard_at = visual.find(guard_prefix)
+              if guard_at < 0:
+                  raise SystemExit('visual acceptance environment guard was not found')
+              insert_at = visual.find('\n', guard_at) + 1
+              if insert_at <= 0:
+                  raise SystemExit('visual acceptance environment guard line is malformed')
+              visual = visual[:insert_at] + mode_line + visual[insert_at:]
 
           old_guard = '''          if ([string]::IsNullOrWhiteSpace($env:PIPE_APP_CHECK_WEB_DEBUG_TOKEN)) {\n            throw 'PIPE_APP_CHECK_WEB_DEBUG_TOKEN is not configured in the selected GitHub Environment.'\n          }\n'''
           new_guard = '''          if ($env:PIPE_APP_CHECK_MODE -ne 'disabled' -and\n              [string]::IsNullOrWhiteSpace($env:PIPE_APP_CHECK_WEB_DEBUG_TOKEN)) {\n            throw 'PIPE_APP_CHECK_WEB_DEBUG_TOKEN is required when App Check is observe or enforce.'\n          }\n'''
-          if old_guard not in text:
+          if old_guard not in visual:
               raise SystemExit('visual acceptance debug-token guard did not match expected source')
-          text = text.replace(old_guard, new_guard, 1)
+          visual = visual.replace(old_guard, new_guard, 1)
 
           old_summary = "            '- App Check: registered CI debug token injected only into the headless browser',\n"
           new_summary = '''            $(if ($env:PIPE_APP_CHECK_MODE -eq 'disabled') {\n              '- App Check: disabled for this release; no CI debug token required'\n            } else {\n              '- App Check: registered CI debug token injected only into the headless browser'\n            }),\n'''
-          if old_summary not in text:
+          if old_summary not in visual:
               raise SystemExit('visual acceptance summary line did not match expected source')
-          text = text.replace(old_summary, new_summary, 1)
+          visual = visual.replace(old_summary, new_summary, 1)
 
-          path.write_text(text)
+          path.write_text(head + marker + visual)
 
       - name: Commit patch
         shell: bash
