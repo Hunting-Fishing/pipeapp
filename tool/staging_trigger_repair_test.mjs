@@ -3,17 +3,19 @@ import test from "node:test";
 
 import {
   REPAIR_CONTRACT,
+  REPAIR_CONTRACTS,
   assessStaleHttpsRepair,
   assertRepairAbsent,
 } from "./staging_trigger_repair.mjs";
 
-function staleHttps(overrides = {}) {
+function staleHttps(functionId = REPAIR_CONTRACT.functionId, overrides = {}) {
+  const contract = REPAIR_CONTRACTS[functionId];
   return {
     platform: "gcfv2",
-    id: REPAIR_CONTRACT.functionId,
-    project: REPAIR_CONTRACT.projectId,
-    region: REPAIR_CONTRACT.region,
-    codebase: REPAIR_CONTRACT.codebase,
+    id: contract.functionId,
+    project: contract.projectId,
+    region: contract.region,
+    codebase: contract.codebase,
     state: "ACTIVE",
     httpsTrigger: {},
     environmentVariables: {FUNCTION_SIGNATURE_TYPE: "http"},
@@ -21,27 +23,33 @@ function staleHttps(overrides = {}) {
   };
 }
 
-test("permits only the proven stale staging HTTPS function", () => {
+test("preserves the original protectAuctionReserve repair contract", () => {
   const result = assessStaleHttpsRepair({result: [staleHttps()]});
   assert.equal(result.safeToDelete, true);
   assert.equal(result.trigger, "https");
-  assert.equal(result.state, "ACTIVE");
-  assert.equal(result.projectId, "pipebuyer-5c77f");
+  assert.equal(result.functionId, "protectAuctionReserve");
 });
 
-test("permits the same proven stale HTTPS identity when Firebase reports FAILED", () => {
-  const result = assessStaleHttpsRepair({result: [staleHttps({state: "FAILED"})]});
+test("permits the proven onTagRequestCreated stale HTTPS identity", () => {
+  const result = assessStaleHttpsRepair(
+    {result: [staleHttps("onTagRequestCreated", {state: "FAILED"})]},
+    "onTagRequestCreated",
+  );
   assert.equal(result.safeToDelete, true);
   assert.equal(result.trigger, "https");
   assert.equal(result.state, "FAILED");
-  assert.equal(result.functionId, "protectAuctionReserve");
+  assert.equal(result.functionId, "onTagRequestCreated");
+  assert.equal(result.projectId, "pipebuyer-5c77f");
 });
 
 test("rejects the desired Firestore background trigger", () => {
   assert.throws(
     () => assessStaleHttpsRepair({
-      result: [staleHttps({httpsTrigger: undefined, eventTrigger: {eventType: "written"}})],
-    }),
+      result: [staleHttps("onTagRequestCreated", {
+        httpsTrigger: undefined,
+        eventTrigger: {eventType: "google.cloud.firestore.document.v1.created"},
+      })],
+    }, "onTagRequestCreated"),
     /background, not stale HTTPS/u,
   );
 });
@@ -49,50 +57,77 @@ test("rejects the desired Firestore background trigger", () => {
 test("rejects production even when the function name matches", () => {
   assert.throws(
     () => assessStaleHttpsRepair({
-      result: [staleHttps({project: "flutter-flow-pipe"})],
-    }),
+      result: [staleHttps("onTagRequestCreated", {project: "flutter-flow-pipe"})],
+    }, "onTagRequestCreated"),
     /0 exact match/u,
   );
 });
 
 test("rejects wrong region or codebase", () => {
   assert.throws(
-    () => assessStaleHttpsRepair({result: [staleHttps({region: "europe-west1"})]}),
+    () => assessStaleHttpsRepair(
+      {result: [staleHttps("onTagRequestCreated", {region: "europe-west1"})]},
+      "onTagRequestCreated",
+    ),
     /0 exact match/u,
   );
   assert.throws(
-    () => assessStaleHttpsRepair({result: [staleHttps({codebase: "functions"})]}),
+    () => assessStaleHttpsRepair(
+      {result: [staleHttps("onTagRequestCreated", {codebase: "functions"})]},
+      "onTagRequestCreated",
+    ),
     /0 exact match/u,
   );
 });
 
 test("rejects ambiguous duplicate targets and unexpected lifecycle states", () => {
   assert.throws(
-    () => assessStaleHttpsRepair({result: [staleHttps(), staleHttps()]}),
+    () => assessStaleHttpsRepair({
+      result: [staleHttps("onTagRequestCreated"), staleHttps("onTagRequestCreated")],
+    }, "onTagRequestCreated"),
     /2 named target/u,
   );
   assert.throws(
-    () => assessStaleHttpsRepair({result: [staleHttps({state: "DEPLOYING"})]}),
+    () => assessStaleHttpsRepair(
+      {result: [staleHttps("onTagRequestCreated", {state: "DEPLOYING"})]},
+      "onTagRequestCreated",
+    ),
     /state is DEPLOYING/u,
   );
 });
 
-test("post-delete contract requires the exact staging target to be absent", () => {
+test("rejects any function id outside the explicit repair allowlist", () => {
+  assert.throws(
+    () => assessStaleHttpsRepair({result: []}, "stripeMarketplaceWebhook"),
+    /not allowlisted/u,
+  );
+  assert.throws(
+    () => assertRepairAbsent({result: []}, "acceptMarketplaceDispute"),
+    /not allowlisted/u,
+  );
+});
+
+test("post-delete contract requires the selected staging target to be absent", () => {
   assert.deepEqual(
-    assertRepairAbsent({result: []}),
-    {absent: true, ...REPAIR_CONTRACT},
+    assertRepairAbsent({result: []}, "onTagRequestCreated"),
+    {absent: true, ...REPAIR_CONTRACTS.onTagRequestCreated},
   );
   assert.throws(
-    () => assertRepairAbsent({result: [staleHttps()]}),
-    /to be absent from staging after deletion/u,
-  );
-  assert.throws(
-    () => assertRepairAbsent({result: [staleHttps({region: "europe-west1"})]}),
+    () => assertRepairAbsent(
+      {result: [staleHttps("onTagRequestCreated")]},
+      "onTagRequestCreated",
+    ),
     /to be absent from staging after deletion/u,
   );
 });
 
 test("malformed inventories fail closed", () => {
-  assert.throws(() => assessStaleHttpsRepair({}), /result array/u);
-  assert.throws(() => assertRepairAbsent(null), /result array/u);
+  assert.throws(
+    () => assessStaleHttpsRepair({}, "onTagRequestCreated"),
+    /result array/u,
+  );
+  assert.throws(
+    () => assertRepairAbsent(null, "onTagRequestCreated"),
+    /result array/u,
+  );
 });
