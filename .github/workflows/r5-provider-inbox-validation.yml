@@ -1,0 +1,36 @@
+name: R5 provider inbox validation
+
+on:
+  push:
+    branches:
+      - feature/r5-dispatch-provider-inbox-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact branch commit
+        uses: actions/checkout@v7.0.0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze application and tests
+        run: dart analyze lib test
+
+      - name: Run focused provider inbox tests
+        run: flutter test test/dispatch_provider_inbox_state_test.dart
+
+      - name: Run complete Flutter suite
+        run: flutter test
