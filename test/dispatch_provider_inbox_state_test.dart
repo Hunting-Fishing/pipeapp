@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pipebuyer/marketplace/marketplace_dispatch_provider_inbox.dart';
+import 'package:pipe_app/marketplace/marketplace_dispatch_provider_inbox.dart';
 
 void main() {
   test('carrier-owned workflow states surface the correct next action', () {
