@@ -20,7 +20,7 @@ jobs:
       TARGET_REF: main
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
