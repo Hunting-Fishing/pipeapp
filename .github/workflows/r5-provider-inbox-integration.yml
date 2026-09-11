@@ -1,0 +1,40 @@
+name: R5 provider inbox integration
+
+on:
+  push:
+    branches:
+      - feature/r5-dispatch-provider-inbox-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/r5-dispatch-provider-inbox-20260911
+
+      - name: Apply guarded provider inbox integration
+        run: node tool/apply_r5_dispatch_provider_inbox.mjs
+
+      - name: Verify clean patch formatting
+        run: git diff --check
+
+      - name: Commit integrated dashboard
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- lib/marketplace/marketplace_dispatch_dashboard.dart; then
+            echo "Provider inbox already integrated."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/marketplace/marketplace_dispatch_dashboard.dart
+          git commit -m "Integrate R5 provider inbox into Dispatch dashboard"
+          git push origin HEAD:feature/r5-dispatch-provider-inbox-20260911
