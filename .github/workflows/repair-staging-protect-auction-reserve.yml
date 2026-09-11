@@ -1,4 +1,4 @@
-name: Repair staging protectAuctionReserve trigger drift
+name: Repair staging onTagRequestCreated trigger drift
 
 on:
   push:
@@ -27,7 +27,8 @@ jobs:
     timeout-minutes: 15
     environment: staging
     env:
-      PIPE_RELEASE_SHA: ${{ inputs.commit_sha || 'ca22a57d46ea0bf0ecf764e439acc992302d40c6' }}
+      PIPE_RELEASE_SHA: ${{ inputs.commit_sha || '051be3626a650f2e716cf654fc8d740e5a932635' }}
+      PIPE_REPAIR_FUNCTION_ID: onTagRequestCreated
       PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
       PIPE_DEPLOY_ENVIRONMENT_GUARD: ${{ secrets.PIPE_DEPLOY_ENVIRONMENT_GUARD }}
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
@@ -52,6 +53,10 @@ jobs:
           fi
           if [[ "$PIPE_FIREBASE_PROJECT_ID" == "flutter-flow-pipe" ]]; then
             echo "::error::Production project is forbidden for this repair."
+            exit 1
+          fi
+          if [[ "$PIPE_REPAIR_FUNCTION_ID" != "onTagRequestCreated" ]]; then
+            echo "::error::This ops run is hard-limited to onTagRequestCreated."
             exit 1
           fi
           if [[ -z "${FIREBASE_TOKEN:-}" ]]; then
@@ -101,7 +106,7 @@ jobs:
             --token "$FIREBASE_TOKEN" \
             --json > build/staging-functions-before-repair.json
           node tool/staging_trigger_repair.mjs \
-            assess build/staging-functions-before-repair.json \
+            assess "$PIPE_REPAIR_FUNCTION_ID" build/staging-functions-before-repair.json \
             > build/staging-trigger-repair-assessment.json
           cat build/staging-trigger-repair-assessment.json
 
@@ -109,7 +114,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          firebase functions:delete protectAuctionReserve \
+          firebase functions:delete "$PIPE_REPAIR_FUNCTION_ID" \
             --region us-central1 \
             --project "$PIPE_FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" \
@@ -124,7 +129,7 @@ jobs:
             --token "$FIREBASE_TOKEN" \
             --json > build/staging-functions-after-repair.json
           node tool/staging_trigger_repair.mjs \
-            assert-absent build/staging-functions-after-repair.json \
+            assert-absent "$PIPE_REPAIR_FUNCTION_ID" build/staging-functions-after-repair.json \
             > build/staging-trigger-repair-result.json
           cat build/staging-trigger-repair-result.json
 
@@ -132,7 +137,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: staging-protect-auction-reserve-trigger-repair-${{ env.PIPE_RELEASE_SHA }}-${{ github.run_id }}
+          name: staging-on-tag-request-created-trigger-repair-${{ env.PIPE_RELEASE_SHA }}-${{ github.run_id }}
           path: |
             build/staging-functions-before-repair.json
             build/staging-trigger-repair-assessment.json
