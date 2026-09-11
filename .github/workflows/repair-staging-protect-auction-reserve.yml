@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 15
     environment: staging
     env:
-      PIPE_RELEASE_SHA: ${{ inputs.commit_sha || '953c5fd9759682bfb9f88b519e2df2bd53ffb7bd' }}
+      PIPE_RELEASE_SHA: ${{ inputs.commit_sha || 'ca22a57d46ea0bf0ecf764e439acc992302d40c6' }}
       PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
       PIPE_DEPLOY_ENVIRONMENT_GUARD: ${{ secrets.PIPE_DEPLOY_ENVIRONMENT_GUARD }}
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
