@@ -11,6 +11,8 @@ export const REPAIR_CONTRACT = Object.freeze({
   region: "us-central1",
 });
 
+const DELETABLE_STALE_STATES = new Set(["ACTIVE", "FAILED"]);
+
 function inventoryRows(inventory) {
   if (!inventory || !Array.isArray(inventory.result)) {
     throw new Error("Firebase function inventory must contain a result array.");
@@ -50,10 +52,6 @@ export function assessStaleHttpsRepair(inventory) {
   }
 
   const target = rows[0];
-  if (target.state && target.state !== "ACTIVE") {
-    throw new Error(`Refusing repair because deployed function state is ${target.state}.`);
-  }
-
   const trigger = classifyTrigger(target);
   if (trigger !== "https") {
     throw new Error(
@@ -61,9 +59,14 @@ export function assessStaleHttpsRepair(inventory) {
     );
   }
 
+  if (target.state && !DELETABLE_STALE_STATES.has(target.state)) {
+    throw new Error(`Refusing repair because deployed function state is ${target.state}.`);
+  }
+
   return {
     safeToDelete: true,
     trigger,
+    state: target.state ?? null,
     platform: target.platform ?? null,
     ...REPAIR_CONTRACT,
   };

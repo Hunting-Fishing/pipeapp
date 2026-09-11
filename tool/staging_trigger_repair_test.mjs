@@ -25,7 +25,16 @@ test("permits only the proven stale staging HTTPS function", () => {
   const result = assessStaleHttpsRepair({result: [staleHttps()]});
   assert.equal(result.safeToDelete, true);
   assert.equal(result.trigger, "https");
+  assert.equal(result.state, "ACTIVE");
   assert.equal(result.projectId, "pipebuyer-5c77f");
+});
+
+test("permits the same proven stale HTTPS identity when Firebase reports FAILED", () => {
+  const result = assessStaleHttpsRepair({result: [staleHttps({state: "FAILED"})]});
+  assert.equal(result.safeToDelete, true);
+  assert.equal(result.trigger, "https");
+  assert.equal(result.state, "FAILED");
+  assert.equal(result.functionId, "protectAuctionReserve");
 });
 
 test("rejects the desired Firestore background trigger", () => {
@@ -57,14 +66,14 @@ test("rejects wrong region or codebase", () => {
   );
 });
 
-test("rejects ambiguous duplicate targets and inactive resources", () => {
+test("rejects ambiguous duplicate targets and unexpected lifecycle states", () => {
   assert.throws(
     () => assessStaleHttpsRepair({result: [staleHttps(), staleHttps()]}),
     /2 named target/u,
   );
   assert.throws(
-    () => assessStaleHttpsRepair({result: [staleHttps({state: "FAILED"})]}),
-    /state is FAILED/u,
+    () => assessStaleHttpsRepair({result: [staleHttps({state: "DEPLOYING"})]}),
+    /state is DEPLOYING/u,
   );
 });
 

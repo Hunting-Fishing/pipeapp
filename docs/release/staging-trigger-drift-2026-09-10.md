@@ -12,9 +12,11 @@ The same R3 production evidence records `protectAuctionReserve` as an active Gen
 
 `acceptMarketplaceDispute` remains a Gen2 callable and is not modified by this repair. The retained R4 staging deployment evidence does not reach an `acceptMarketplaceDispute` startup failure, so changing its business logic would not be evidence-based.
 
+Repair workflow run `34610925599` then inventoried staging before deletion. Firebase reported exactly one `marketplace:protectAuctionReserve` in project `pipebuyer-5c77f`, region `us-central1`, platform `gcfv2`, with an `httpsTrigger`, but lifecycle state `FAILED`. The original guard rejected every non-`ACTIVE` state, so it failed closed and skipped deletion. This run therefore supplied additional live evidence without mutating staging.
+
 ## Repair contract
 
-`.github/workflows/repair-staging-protect-auction-reserve.yml` is intentionally narrow. It requires the protected `staging` environment, exact project `pipebuyer-5c77f`, exact function `marketplace:protectAuctionReserve`, exact region `us-central1`, and a deployed HTTPS trigger before deletion is permitted. A background, callable, unknown, missing, duplicated, inactive, wrong-project, wrong-region, or wrong-codebase target fails closed.
+`.github/workflows/repair-staging-protect-auction-reserve.yml` is intentionally narrow. It requires the protected `staging` environment, exact project `pipebuyer-5c77f`, exact function `marketplace:protectAuctionReserve`, exact region `us-central1`, exact `marketplace` codebase, and an HTTPS trigger before deletion is permitted. The only permitted lifecycle states are `ACTIVE` and `FAILED`, because both represent the already-proven stale HTTPS identity that must be removed before Firebase can recreate the function as the reviewed Firestore trigger. A background, callable, unknown, missing, duplicated, unexpected-state, wrong-project, wrong-region, or wrong-codebase target fails closed.
 
 After deletion, the workflow requires the stale function identity to be absent and preserves the before/after inventories as an Actions artifact. It does not deploy production and it does not promote a release.
 
