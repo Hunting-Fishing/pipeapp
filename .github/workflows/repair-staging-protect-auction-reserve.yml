@@ -1,6 +1,11 @@
 name: Repair staging protectAuctionReserve trigger drift
 
 on:
+  push:
+    branches:
+      - ops/run-staging-protect-auction-reserve
+    paths:
+      - .github/workflows/repair-staging-protect-auction-reserve.yml
   workflow_dispatch:
     inputs:
       commit_sha:
@@ -22,7 +27,7 @@ jobs:
     timeout-minutes: 15
     environment: staging
     env:
-      PIPE_RELEASE_SHA: ${{ inputs.commit_sha }}
+      PIPE_RELEASE_SHA: ${{ inputs.commit_sha || '953c5fd9759682bfb9f88b519e2df2bd53ffb7bd' }}
       PIPE_FIREBASE_PROJECT_ID: ${{ vars.PIPE_FIREBASE_PROJECT_ID }}
       PIPE_DEPLOY_ENVIRONMENT_GUARD: ${{ secrets.PIPE_DEPLOY_ENVIRONMENT_GUARD }}
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
@@ -57,7 +62,7 @@ jobs:
       - name: Check out exact repair commit
         uses: actions/checkout@v7.0.0
         with:
-          ref: ${{ inputs.commit_sha }}
+          ref: ${{ env.PIPE_RELEASE_SHA }}
           fetch-depth: 0
 
       - name: Prove exact reviewed source
@@ -127,7 +132,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: staging-protect-auction-reserve-trigger-repair-${{ inputs.commit_sha }}-${{ github.run_id }}
+          name: staging-protect-auction-reserve-trigger-repair-${{ env.PIPE_RELEASE_SHA }}-${{ github.run_id }}
           path: |
             build/staging-functions-before-repair.json
             build/staging-trigger-repair-assessment.json
