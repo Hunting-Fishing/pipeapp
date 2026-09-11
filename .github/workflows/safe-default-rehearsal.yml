@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7
 
       - name: Validate isolated staging selection
         shell: pwsh
