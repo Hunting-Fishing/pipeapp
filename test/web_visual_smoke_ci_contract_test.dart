@@ -30,22 +30,49 @@ void main() {
     );
   });
 
-  test('debug token remains a protected visual-job secret only', () {
+  test('debug token remains protected and required only when App Check is active', () {
+    const tokenSecret =
+        r'PIPE_APP_CHECK_WEB_DEBUG_TOKEN: ${{ secrets.PIPE_APP_CHECK_WEB_DEBUG_TOKEN }}';
+    final visualJobIndex = workflow.indexOf('  visual-acceptance:');
+
+    expect(visualJobIndex, greaterThan(-1));
+    expect(tokenSecret.allMatches(workflow), hasLength(1));
+    expect(workflow.indexOf('PIPE_APP_CHECK_WEB_DEBUG_TOKEN:'),
+        greaterThan(visualJobIndex));
     expect(
-      r'PIPE_APP_CHECK_WEB_DEBUG_TOKEN: ${{ secrets.PIPE_APP_CHECK_WEB_DEBUG_TOKEN }}'
-          .allMatches(workflow),
-      hasLength(1),
+      workflow.substring(visualJobIndex),
+      contains(r'PIPE_APP_CHECK_MODE: ${{ inputs.app_check_mode }}'),
+    );
+    expect(
+      workflow.substring(visualJobIndex),
+      contains("\$env:PIPE_APP_CHECK_MODE -ne 'disabled' -and"),
+    );
+    expect(
+      workflow.substring(visualJobIndex),
+      contains(
+        '[string]::IsNullOrWhiteSpace('
+        '\$env:PIPE_APP_CHECK_WEB_DEBUG_TOKEN)',
+      ),
     );
     expect(
       workflow,
       contains(
-        'PIPE_APP_CHECK_WEB_DEBUG_TOKEN is not configured in the selected '
-        'GitHub Environment.',
+        'PIPE_APP_CHECK_WEB_DEBUG_TOKEN is required when App Check is observe '
+        'or enforce.',
       ),
     );
     expect(
-      workflow.indexOf('PIPE_APP_CHECK_WEB_DEBUG_TOKEN:'),
-      greaterThan(workflow.indexOf('visual-acceptance:')),
+      workflow,
+      isNot(
+        contains(
+          'PIPE_APP_CHECK_WEB_DEBUG_TOKEN is not configured in the selected '
+          'GitHub Environment.',
+        ),
+      ),
+    );
+    expect(
+      workflow.substring(visualJobIndex),
+      contains('App Check: disabled for this release; no CI debug token required'),
     );
     expect(script, isNot(contains('Write-Host \$AppCheckDebugToken')));
     expect(script, isNot(contains('Write-Output \$AppCheckDebugToken')));
