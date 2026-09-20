@@ -371,6 +371,17 @@ class MarketplaceDispatchRepository {
     });
   }
 
+  Future<void> cancelBid({
+    required String bidId,
+    String reason = '',
+  }) async {
+    await _commands.execute('cancelDispatchQuote', {
+      'requestId': _firestore.collection('dispatch_bids').doc().id,
+      'bidId': bidId,
+      if (reason.trim().isNotEmpty) 'reason': reason.trim(),
+    });
+  }
+
   Future<void> updateBid({
     required String bidId,
     required num amount,
@@ -416,6 +427,10 @@ class MarketplaceDispatchRepository {
     String receiverName = '',
     String deliveryNote = '',
     String proofStoragePath = '',
+    String bolNumber = '',
+    String bolShipperReference = '',
+    int? bolPieceCount,
+    String bolNotes = '',
   }) async {
     await _commands.execute('updateDispatchTransaction', {
       'requestId': _firestore.collection('dispatch_transactions').doc().id,
@@ -428,6 +443,11 @@ class MarketplaceDispatchRepository {
       if (deliveryNote.trim().isNotEmpty) 'deliveryNote': deliveryNote.trim(),
       if (proofStoragePath.trim().isNotEmpty)
         'proofStoragePath': proofStoragePath.trim(),
+      if (bolNumber.trim().isNotEmpty) 'bolNumber': bolNumber.trim(),
+      if (bolShipperReference.trim().isNotEmpty)
+        'bolShipperReference': bolShipperReference.trim(),
+      if (bolPieceCount != null) 'bolPieceCount': bolPieceCount,
+      if (bolNotes.trim().isNotEmpty) 'bolNotes': bolNotes.trim(),
     });
   }
 }

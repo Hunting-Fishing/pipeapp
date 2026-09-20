@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_repository.dart';
+import 'marketplace_dispatch_provider_inbox.dart';
 import 'marketplace_dispatch_quote_form.dart';
 import 'marketplace_dispatch_onboarding.dart';
 import 'industrial_icon_assets.dart';
@@ -90,6 +91,11 @@ class _MarketplaceDispatchDashboardState
                 ),
                 const SizedBox(height: 16),
                 _summaryCards(),
+                const SizedBox(height: 16),
+                MarketplaceDispatchProviderInbox(
+                  repository: widget.repo,
+                  onOpenJobs: widget.onBrowseJobs,
+                ),
                 const SizedBox(height: 16),
                 _operationsMap(mapCenter),
                 const SizedBox(height: 20),

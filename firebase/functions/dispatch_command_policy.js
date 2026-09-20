@@ -472,7 +472,11 @@ function validateDispatchQuote({
     existingBid &&
     (existingBid.carrierUid !== actorUid ||
      existingBid.jobId !== data.jobId ||
-     existingBid.status !== "pending")
+     !["pending", "cancelled"].includes(existingBid.status) ||
+     (existingBid.status === "pending" &&
+       dispatchQuoteValidityStatus(existingBid) !== "active") ||
+     (existingBid.status === "cancelled" &&
+       dispatchQuoteValidityStatus(existingBid) !== "cancelled"))
   ) {
     throw new CommandPolicyError(
         "failed-precondition",
@@ -526,6 +530,56 @@ function validateDispatchQuote({
   return {amount, note, availableDate, ...breakdown};
 }
 
+function dispatchQuoteValidityStatus(bid) {
+  const raw = String(bid && bid.validityStatus || "").trim().toLowerCase();
+  if (!raw) return "active";
+  if (["active", "cancelled"].includes(raw)) return raw;
+  return "invalid";
+}
+
+function validateDispatchQuoteCancellation({
+  job,
+  bid,
+  actorUid,
+  reason = "",
+}) {
+  if (!bid || !job || bid.jobId !== job.id) {
+    throw new CommandPolicyError(
+        "not-found",
+        "This carrier quote is unavailable.",
+    );
+  }
+  if (bid.carrierUid !== actorUid) {
+    throw new CommandPolicyError(
+        "permission-denied",
+        "Only the submitting carrier can cancel this quote.",
+    );
+  }
+  const validityStatus = dispatchQuoteValidityStatus(bid);
+  if (bid.status === "cancelled" && validityStatus === "cancelled") {
+    return {
+      alreadyApplied: true,
+      reason: String(bid.cancellationReason || reason || "").trim(),
+    };
+  }
+  if (job.status !== "open" ||
+      bid.status !== "pending" ||
+      validityStatus !== "active") {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "This carrier quote can no longer be cancelled.",
+    );
+  }
+  const cancellationReason = String(reason || "").trim();
+  if (cancellationReason.length > 500) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Quote cancellation reason must be 500 characters or fewer.",
+    );
+  }
+  return {alreadyApplied: false, reason: cancellationReason};
+}
+
 function validateDispatchAward(job, bid, actorUid) {
   if (!job || job.createdByUid !== actorUid) {
     throw new CommandPolicyError(
@@ -543,6 +597,7 @@ function validateDispatchAward(job, bid, actorUid) {
     !bid ||
     bid.jobId !== job.id ||
     bid.status !== "pending" ||
+    dispatchQuoteValidityStatus(bid) !== "active" ||
     !String(bid.carrierUid || "") ||
     !Number.isFinite(Number(bid.amount)) ||
     Number(bid.amount) <= 0
@@ -642,6 +697,51 @@ function validateDispatchTransactionAction({
       scheduledDate,
     };
   }
+  if (action === "record_bol") {
+    if (actorRole !== "carrier") {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "Only the awarded carrier can record the bill of lading.",
+      );
+    }
+    if (!["accepted", "scheduled"].includes(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "The bill of lading can only be recorded after award acceptance and before transport starts.",
+      );
+    }
+    const bolNumber = requireText(data.bolNumber, "Bill of lading number", 120);
+    const shipperReference = optionalText(
+        data.bolShipperReference,
+        "BOL shipper reference",
+        160,
+    );
+    const notes = optionalText(data.bolNotes, "BOL notes", 2000);
+    let pieceCount = null;
+    if (data.bolPieceCount !== null && data.bolPieceCount !== undefined &&
+        String(data.bolPieceCount).trim() !== "") {
+      pieceCount = Number(data.bolPieceCount);
+      if (!Number.isInteger(pieceCount) || pieceCount <= 0 || pieceCount > 1000000) {
+        throw new CommandPolicyError(
+            "invalid-argument",
+            "BOL piece count must be a positive whole number.",
+        );
+      }
+    }
+    const billOfLading = {
+      number: bolNumber,
+      shipperReference,
+      pieceCount,
+      notes,
+    };
+    const existing = dispatchTransaction.billOfLading;
+    const alreadyApplied = Boolean(existing &&
+      String(existing.number || "") === bolNumber &&
+      String(existing.shipperReference || "") === shipperReference &&
+      Number(existing.pieceCount || 0) === Number(pieceCount || 0) &&
+      String(existing.notes || "") === notes);
+    return {status, actorRole, alreadyApplied, billOfLading};
+  }
   if (action === "start_transit") {
     if (actorRole !== "carrier") {
       throw new CommandPolicyError(
@@ -656,6 +756,14 @@ function validateDispatchTransactionAction({
       throw new CommandPolicyError(
           "failed-precondition",
           "Schedule pickup before marking this load in transit.",
+      );
+    }
+    if (Number(dispatchTransaction.workflowVersion || 1) >= 2 &&
+        (!dispatchTransaction.billOfLading ||
+         !String(dispatchTransaction.billOfLading.number || "").trim())) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "Record the bill of lading before starting transport.",
       );
     }
     return {status: "in_transit", actorRole, alreadyApplied: false};
@@ -784,6 +892,7 @@ function validateDispatchTransactionAction({
 module.exports = {
   DISPATCH_ACTIVE_TRANSACTION_STATES,
   DISPATCH_TERMINAL_TRANSACTION_STATES,
+  dispatchQuoteValidityStatus,
   rejectClientRouteFields,
   validateDispatchAward,
   validateDispatchJobChange,
@@ -791,6 +900,7 @@ module.exports = {
   validateDispatchJobPublish,
   validateDispatchQuote,
   validateDispatchQuoteBreakdown,
+  validateDispatchQuoteCancellation,
   validateDispatchProviderApplication,
   validateDispatchProviderDecision,
   validateDispatchTransactionAction,

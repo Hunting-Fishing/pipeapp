@@ -11,6 +11,7 @@ import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_repository.dart';
+import 'marketplace_dispatch_quote_validity.dart';
 import 'marketplace_dispatch_company_profile_page.dart';
 import 'marketplace_dispatch_directory.dart';
 import 'marketplace_dispatch_distance.dart';
@@ -909,7 +910,7 @@ class _JobBoardState extends State<_JobBoard> {
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                         subtitle: Text(
-                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()}\n${data['note'] ?? ''}',
+                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()} • Version ${dispatchQuoteVersion(data)}\n${dispatchQuoteValidityStatus(data) == 'cancelled' ? 'QUOTE CANCELLED - NO LONGER VALID\n' : ''}${data['note'] ?? ''}',
                         ),
                         isThreeLine: true,
                         trailing: const Icon(Icons.chevron_right),
@@ -1252,7 +1253,7 @@ class _JobBoardState extends State<_JobBoard> {
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                         subtitle: Text(
-                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()} • ${data['revision'] ?? 1} revision(s)\n${data['note'] ?? ''}',
+                          '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()} • Version ${dispatchQuoteVersion(data)}\n${dispatchQuoteValidityStatus(data) == 'cancelled' ? 'QUOTE CANCELLED - NO LONGER VALID\n' : ''}${data['note'] ?? ''}',
                         ),
                         isThreeLine: true,
                         trailing: Row(
@@ -1278,10 +1279,11 @@ class _JobBoardState extends State<_JobBoard> {
                                     '${data['carrierName'] ?? 'Carrier'} quote history',
                                 query: () => repo.bidHistoryQuery(bid.id),
                                 amountLabel: 'Quoted total',
+                                currentQuote: data,
                               ),
                               icon: const Icon(Icons.history_outlined),
                             ),
-                            if (data['status'] == 'pending')
+                            if (dispatchQuoteIsCurrentAndAwardable(data))
                               FilledButton(
                                 onPressed: () async {
                                   final confirmed = await showDialog<bool>(
@@ -1359,6 +1361,9 @@ class _JobBoardState extends State<_JobBoard> {
   ) async {
     final jobData = job.data() ?? const <String, dynamic>{};
     final data = bid.data();
+    final quoteVersion = dispatchQuoteVersion(data);
+    final quoteValidity = dispatchQuoteValidityStatus(data);
+    final quoteCancelled = quoteValidity == 'cancelled';
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1390,7 +1395,9 @@ class _JobBoardState extends State<_JobBoard> {
                   ),
                 ),
                 Card(
-                  color: const Color(0xFFEAF4FD),
+                  color: quoteCancelled
+                      ? const Color(0xFFFFEBEE)
+                      : const Color(0xFFEAF4FD),
                   child: ListTile(
                     title: Text(
                       marketplaceMoney(data['amount'] as num? ?? 0),
@@ -1400,12 +1407,35 @@ class _JobBoardState extends State<_JobBoard> {
                       ),
                     ),
                     subtitle: Text(
-                      '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()}\n${data['note'] ?? ''}',
+                      '${data['vehicleName'] ?? 'Fleet vehicle'} • ${('${data['status'] ?? 'pending'}').toUpperCase()}\nVersion $quoteVersion • ${quoteCancelled ? 'CANCELLED - NO LONGER VALID' : 'Current server validity: ACTIVE'}\n${data['note'] ?? ''}',
                     ),
                     isThreeLine: true,
-                    trailing: Chip(label: Text('REV ${data['revision'] ?? 1}')),
+                    trailing: Chip(label: Text('Version $quoteVersion')),
                   ),
                 ),
+                if (quoteCancelled) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFCDD2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'QUOTE CANCELLED - NO LONGER VALID',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .5,
+                      ),
+                    ),
+                  ),
+                ],
                 if (data['status'] == 'awarded' ||
                     !const {'draft', 'open'}.contains(jobData['status'])) ...[
                   const SizedBox(height: 8),
@@ -1436,7 +1466,7 @@ class _JobBoardState extends State<_JobBoard> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: data['status'] == 'pending' &&
+                        onPressed: const {'pending', 'cancelled'}.contains(data['status']) &&
                                 jobData['status'] == 'open'
                             ? () {
                                 Navigator.pop(sheetContext);
@@ -1444,7 +1474,9 @@ class _JobBoardState extends State<_JobBoard> {
                               }
                             : null,
                         icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Edit quote'),
+                        label: Text(quoteCancelled
+                            ? 'Create new version'
+                            : 'Edit quote'),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1457,6 +1489,7 @@ class _JobBoardState extends State<_JobBoard> {
                             title: 'Carrier quote history',
                             query: () => repo.bidHistoryQuery(bid.id),
                             amountLabel: 'Quoted total',
+                            currentQuote: data,
                           );
                         },
                         icon: const Icon(Icons.history_outlined),
@@ -1465,6 +1498,21 @@ class _JobBoardState extends State<_JobBoard> {
                     ),
                   ],
                 ),
+                if (dispatchQuoteIsCurrentAndAwardable(data) &&
+                    jobData['status'] == 'open') ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(sheetContext);
+                        await _cancelCarrierQuote(context, bid);
+                      },
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancel current quote'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1473,11 +1521,80 @@ class _JobBoardState extends State<_JobBoard> {
     );
   }
 
+  Future<void> _cancelCarrierQuote(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> bid,
+  ) async {
+    final reason = TextEditingController();
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Cancel carrier quote?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'This makes the current version immediately non-awardable. The historical version remains visible for audit.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reason,
+                  maxLength: 500,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason (optional)',
+                    hintText: 'Equipment unavailable, scheduling conflict, etc.',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Keep quote'),
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Cancel quote'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    final cancellationReason = reason.text.trim();
+    reason.dispose();
+    if (!confirmed) return;
+    try {
+      await repo.cancelBid(bidId: bid.id, reason: cancellationReason);
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: 'Carrier quote cancelled. It can no longer be awarded.',
+          tone: PipeStatusTone.success,
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(
+            error,
+            fallback: 'The carrier quote could not be cancelled.',
+          ),
+          tone: PipeStatusTone.error,
+        );
+      }
+    }
+  }
+
   Future<void> _showRevisionHistory({
     required BuildContext context,
     required String title,
     required Query<Map<String, dynamic>> Function() query,
     required String? amountLabel,
+    Map<String, dynamic>? currentQuote,
   }) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -1515,23 +1632,60 @@ class _JobBoardState extends State<_JobBoard> {
                   itemBuilder: (_, revision) {
                     final data = revision.data();
                     final amount = data['amount'] as num?;
+                    final presentation = currentQuote == null
+                        ? null
+                        : dispatchQuoteVersionPresentation(
+                            currentQuote: currentQuote,
+                            revision: data,
+                          );
+                    final versionLabel = presentation?.label;
                     return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          child: Text('${data['revision'] ?? '—'}'),
-                        ),
-                        title: Text(
-                          amountLabel != null && amount != null
-                              ? '$amountLabel • ${marketplaceMoney(amount)}'
-                              : _dispatchEventLabel(
-                                  '${data['event'] ?? 'updated'}',
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (presentation?.isInvalid == true)
+                            IgnorePointer(
+                              child: Transform.rotate(
+                                angle: -0.10,
+                                child: Opacity(
+                                  opacity: .11,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(18),
+                                    child: Text(
+                                      presentation!.watermark,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                        subtitle: Text(
-                          '${_dispatchEventLabel('${data['event'] ?? 'updated'}')} • ${('${data['status'] ?? ''}').toUpperCase()}\n${_dispatchDateLabel(data)}${('${data['note'] ?? ''}').trim().isEmpty ? '' : '\n${data['note']}'}',
-                        ),
-                        isThreeLine: true,
+                              ),
+                            ),
+                          ListTile(
+                            leading: CircleAvatar(
+                              child: Text(
+                                presentation == null
+                                    ? '${data['revision'] ?? '—'}'
+                                    : '${presentation.version}',
+                              ),
+                            ),
+                            title: Text(
+                              amountLabel != null && amount != null
+                                  ? '$amountLabel • ${marketplaceMoney(amount)}'
+                                  : _dispatchEventLabel(
+                                      '${data['event'] ?? 'updated'}',
+                                    ),
+                              style: const TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                            subtitle: Text(
+                              '${versionLabel == null ? '' : '$versionLabel\n'}${_dispatchEventLabel('${data['event'] ?? 'updated'}')} • ${('${data['status'] ?? ''}').toUpperCase()}\n${_dispatchDateLabel(data)}${('${data['note'] ?? ''}').trim().isEmpty ? '' : '\n${data['note']}'}',
+                            ),
+                            isThreeLine: true,
+                          ),
+                        ],
                       ),
                     );
                   },
