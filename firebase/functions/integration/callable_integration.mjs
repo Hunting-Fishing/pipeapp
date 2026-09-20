@@ -1706,6 +1706,19 @@ try {
     {
       token: carrier.token,
       data: {
+        requestId: `dispatch-bol-${now}`,
+        jobId,
+        action: "record_bol",
+        bolNumber: `BOL-${now}`,
+        bolShipperReference: "Integration shipper reference",
+        bolPieceCount: 12,
+        bolNotes: "Integration BOL recorded before transport.",
+      },
+      status: "scheduled",
+    },
+    {
+      token: carrier.token,
+      data: {
         requestId: `dispatch-transit-${now}`,
         jobId,
         action: "start_transit",
