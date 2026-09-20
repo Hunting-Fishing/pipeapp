@@ -427,6 +427,10 @@ class MarketplaceDispatchRepository {
     String receiverName = '',
     String deliveryNote = '',
     String proofStoragePath = '',
+    String bolNumber = '',
+    String bolShipperReference = '',
+    int? bolPieceCount,
+    String bolNotes = '',
   }) async {
     await _commands.execute('updateDispatchTransaction', {
       'requestId': _firestore.collection('dispatch_transactions').doc().id,
@@ -439,6 +443,11 @@ class MarketplaceDispatchRepository {
       if (deliveryNote.trim().isNotEmpty) 'deliveryNote': deliveryNote.trim(),
       if (proofStoragePath.trim().isNotEmpty)
         'proofStoragePath': proofStoragePath.trim(),
+      if (bolNumber.trim().isNotEmpty) 'bolNumber': bolNumber.trim(),
+      if (bolShipperReference.trim().isNotEmpty)
+        'bolShipperReference': bolShipperReference.trim(),
+      if (bolPieceCount != null) 'bolPieceCount': bolPieceCount,
+      if (bolNotes.trim().isNotEmpty) 'bolNotes': bolNotes.trim(),
     });
   }
 }

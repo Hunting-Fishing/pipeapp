@@ -77,6 +77,11 @@ class _MarketplaceDispatchTransactionCardState
     final proof = transaction['proofOfDelivery'] is Map
         ? Map<String, dynamic>.from(transaction['proofOfDelivery'] as Map)
         : const <String, dynamic>{};
+    final bol = transaction['billOfLading'] is Map
+        ? Map<String, dynamic>.from(transaction['billOfLading'] as Map)
+        : const <String, dynamic>{};
+    final workflowVersion =
+        (transaction['workflowVersion'] as num?)?.toInt() ?? 1;
     final amount = marketplaceMoney(transaction['amount'] as num? ?? 0);
 
     return Container(
@@ -123,6 +128,15 @@ class _MarketplaceDispatchTransactionCardState
                 ),
                 const SizedBox(height: 10),
                 _progress(status),
+                if (workflowVersion >= 2 || bol.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  _billOfLading(
+                    bol,
+                    carrier: carrier,
+                    editable: carrier &&
+                        const {'accepted', 'scheduled'}.contains(status),
+                  ),
+                ],
                 if (proof.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   _proofOfDelivery(proof),
@@ -412,6 +426,75 @@ class _MarketplaceDispatchTransactionCardState
           ),
         ],
       );
+
+  Widget _billOfLading(
+    Map<String, dynamic> bol, {
+    required bool carrier,
+    required bool editable,
+  }) {
+    final hasBol = bol.isNotEmpty && '${bol['number'] ?? ''}'.trim().isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: hasBol ? const Color(0xFFF4F8FC) : PipeBuyerColors.orangeSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasBol
+              ? PipeBuyerColors.industrialBlue.withValues(alpha: .24)
+              : PipeBuyerColors.orange.withValues(alpha: .30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.description_outlined,
+                color: hasBol
+                    ? PipeBuyerColors.industrialBlue
+                    : PipeBuyerColors.orange,
+              ),
+              const SizedBox(width: 9),
+              const Expanded(
+                child: Text(
+                  'Bill of lading',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                ),
+              ),
+              if (hasBol) const Chip(label: Text('RECORDED')),
+            ],
+          ),
+          const SizedBox(height: 7),
+          if (hasBol) ...[
+            Text('BOL # ${bol['number']}',
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+            if ('${bol['shipperReference'] ?? ''}'.trim().isNotEmpty)
+              Text('Shipper reference: ${bol['shipperReference']}'),
+            if (bol['pieceCount'] != null) Text('Pieces: ${bol['pieceCount']}'),
+            if ('${bol['notes'] ?? ''}'.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('${bol['notes']}'),
+              ),
+          ] else
+            const Text(
+              'A bill of lading must be recorded before a new R5 Dispatch load can start transport.',
+            ),
+          if (carrier && editable) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : () => _recordBol(bol),
+              icon: const Icon(Icons.edit_document),
+              label: Text(
+                  hasBol ? 'Edit bill of lading' : 'Record bill of lading'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _proofOfDelivery(Map<String, dynamic> proof) => Container(
         width: double.infinity,
@@ -783,8 +866,7 @@ class _MarketplaceDispatchTransactionCardState
         ),
       );
 
-  Widget _primary(String label, IconData icon, VoidCallback action) =>
-      SizedBox(
+  Widget _primary(String label, IconData icon, VoidCallback action) => SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
           onPressed: _busy ? null : action,
@@ -797,6 +879,93 @@ class _MarketplaceDispatchTransactionCardState
           label: Text(label),
         ),
       );
+
+  Future<void> _recordBol(Map<String, dynamic> existing) async {
+    final number = TextEditingController(text: '${existing['number'] ?? ''}');
+    final reference =
+        TextEditingController(text: '${existing['shipperReference'] ?? ''}');
+    final pieces = TextEditingController(
+        text:
+            existing['pieceCount'] == null ? '' : '${existing['pieceCount']}');
+    final notes = TextEditingController(text: '${existing['notes'] ?? ''}');
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Bill of lading'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: number,
+                      maxLength: 120,
+                      decoration:
+                          const InputDecoration(labelText: 'BOL number *'),
+                    ),
+                    TextField(
+                      controller: reference,
+                      maxLength: 160,
+                      decoration: const InputDecoration(
+                          labelText: 'Shipper / PO reference'),
+                    ),
+                    TextField(
+                      controller: pieces,
+                      keyboardType: TextInputType.number,
+                      decoration:
+                          const InputDecoration(labelText: 'Piece count'),
+                    ),
+                    TextField(
+                      controller: notes,
+                      maxLength: 2000,
+                      minLines: 2,
+                      maxLines: 5,
+                      decoration:
+                          const InputDecoration(labelText: 'Load notes'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (number.text.trim().isNotEmpty) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                },
+                child: const Text('Save BOL'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    final bolNumber = number.text.trim();
+    final bolReference = reference.text.trim();
+    final parsedPieces = int.tryParse(pieces.text.trim());
+    final bolNotes = notes.text.trim();
+    number.dispose();
+    reference.dispose();
+    pieces.dispose();
+    notes.dispose();
+    if (!confirmed || bolNumber.isEmpty) return;
+    await _run(
+      () => widget.repository.updateDispatchTransaction(
+        jobId: widget.jobId,
+        action: 'record_bol',
+        bolNumber: bolNumber,
+        bolShipperReference: bolReference,
+        bolPieceCount: parsedPieces,
+        bolNotes: bolNotes,
+      ),
+      'Bill of lading recorded.',
+    );
+  }
 
   Future<void> _schedule() async {
     final now = DateTime.now();
@@ -1043,7 +1212,8 @@ class _MarketplaceDispatchTransactionCardState
                     padding: const EdgeInsets.fromLTRB(18, 16, 12, 14),
                     decoration: const BoxDecoration(
                       color: PipeBuyerColors.ink,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(22)),
                     ),
                     child: Row(
                       children: [
@@ -1051,7 +1221,8 @@ class _MarketplaceDispatchTransactionCardState
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: PipeBuyerColors.orange.withValues(alpha: .14),
+                            color:
+                                PipeBuyerColors.orange.withValues(alpha: .14),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -1102,7 +1273,8 @@ class _MarketplaceDispatchTransactionCardState
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
                             itemCount: revisions.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 9),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 9),
                             itemBuilder: (_, index) {
                               final data = revisions[index].data();
                               final created =
@@ -1146,7 +1318,8 @@ class _MarketplaceDispatchTransactionCardState
                                     const SizedBox(width: 11),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             _statusLabel(historyStatus),
@@ -1167,7 +1340,8 @@ class _MarketplaceDispatchTransactionCardState
                                             const SizedBox(height: 5),
                                             Text(
                                               reason,
-                                              style: const TextStyle(height: 1.4),
+                                              style:
+                                                  const TextStyle(height: 1.4),
                                             ),
                                           ],
                                         ],
@@ -1286,9 +1460,8 @@ class _PrivateDispatchRoute extends StatelessWidget {
           final address = '${route['deliveryAddress'] ?? ''}'.trim();
           final accessNotes = '${route['deliveryAccessNotes'] ?? ''}'.trim();
           final pickup = _pointLabel(route['pickupPoint']);
-          final delivery = address.isEmpty
-              ? _pointLabel(route['deliveryPoint'])
-              : address;
+          final delivery =
+              address.isEmpty ? _pointLabel(route['deliveryPoint']) : address;
 
           return Container(
             width: double.infinity,

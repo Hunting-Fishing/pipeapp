@@ -697,6 +697,51 @@ function validateDispatchTransactionAction({
       scheduledDate,
     };
   }
+  if (action === "record_bol") {
+    if (actorRole !== "carrier") {
+      throw new CommandPolicyError(
+          "permission-denied",
+          "Only the awarded carrier can record the bill of lading.",
+      );
+    }
+    if (!["accepted", "scheduled"].includes(status)) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "The bill of lading can only be recorded after award acceptance and before transport starts.",
+      );
+    }
+    const bolNumber = requireText(data.bolNumber, "Bill of lading number", 120);
+    const shipperReference = optionalText(
+        data.bolShipperReference,
+        "BOL shipper reference",
+        160,
+    );
+    const notes = optionalText(data.bolNotes, "BOL notes", 2000);
+    let pieceCount = null;
+    if (data.bolPieceCount !== null && data.bolPieceCount !== undefined &&
+        String(data.bolPieceCount).trim() !== "") {
+      pieceCount = Number(data.bolPieceCount);
+      if (!Number.isInteger(pieceCount) || pieceCount <= 0 || pieceCount > 1000000) {
+        throw new CommandPolicyError(
+            "invalid-argument",
+            "BOL piece count must be a positive whole number.",
+        );
+      }
+    }
+    const billOfLading = {
+      number: bolNumber,
+      shipperReference,
+      pieceCount,
+      notes,
+    };
+    const existing = dispatchTransaction.billOfLading;
+    const alreadyApplied = Boolean(existing &&
+      String(existing.number || "") === bolNumber &&
+      String(existing.shipperReference || "") === shipperReference &&
+      Number(existing.pieceCount || 0) === Number(pieceCount || 0) &&
+      String(existing.notes || "") === notes);
+    return {status, actorRole, alreadyApplied, billOfLading};
+  }
   if (action === "start_transit") {
     if (actorRole !== "carrier") {
       throw new CommandPolicyError(
@@ -711,6 +756,14 @@ function validateDispatchTransactionAction({
       throw new CommandPolicyError(
           "failed-precondition",
           "Schedule pickup before marking this load in transit.",
+      );
+    }
+    if (Number(dispatchTransaction.workflowVersion || 1) >= 2 &&
+        (!dispatchTransaction.billOfLading ||
+         !String(dispatchTransaction.billOfLading.number || "").trim())) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "Record the bill of lading before starting transport.",
       );
     }
     return {status: "in_transit", actorRole, alreadyApplied: false};

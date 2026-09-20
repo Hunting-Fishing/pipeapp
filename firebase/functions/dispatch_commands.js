@@ -990,6 +990,8 @@ function createDispatchCommands(admin) {
         vehicleId: bid.vehicleId || null,
         vehicleName: bid.vehicleName || null,
         status: "awarded",
+        workflowVersion: 2,
+        billOfLading: null,
         proposedAvailableDate: bid.availableDate || null,
         requestedTruckingDate: job.truckingDate || null,
         scheduledDate: null,
@@ -1123,6 +1125,10 @@ function createDispatchCommands(admin) {
           proofOfDelivery: transition.proofOfDelivery,
           deliveredAt: FieldValue.serverTimestamp(),
         } : {}),
+        ...(transition.billOfLading ? {
+          billOfLading: transition.billOfLading,
+          bolRecordedAt: FieldValue.serverTimestamp(),
+        } : {}),
         ...(transition.reason ? {reason: transition.reason} : {}),
         ...(action === "accept_award" ? {
           acceptedAt: FieldValue.serverTimestamp(),
@@ -1155,6 +1161,9 @@ function createDispatchCommands(admin) {
             } : {}),
             ...(transition.proofOfDelivery ? {
               proofOfDelivery: transition.proofOfDelivery,
+            } : {}),
+            ...(transition.billOfLading ? {
+              billOfLading: transition.billOfLading,
             } : {}),
             ...(transition.reason ? {reason: transition.reason} : {}),
             createdAt: FieldValue.serverTimestamp(),
