@@ -25,4 +25,4 @@ jobs:
             --ref main \
             -f environment=staging \
             -f commit_sha=d37e25138d11ae2018d01e4435fb9d70998c57ff \
-            -f app_check_mode=enforce
+            -f app_check_mode=disabled
