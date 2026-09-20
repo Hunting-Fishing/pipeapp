@@ -1,0 +1,28 @@
+name: Temporary R5 staging deploy dispatcher
+
+on:
+  push:
+    branches:
+      - ops/r5-release-dispatch-20260920
+    paths:
+      - .github/workflows/r5-release-dispatch-trigger.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch verified staging release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy.yml \
+            --repo Hunting-Fishing/pipeapp \
+            --ref main \
+            -f environment=staging \
+            -f commit_sha=d37e25138d11ae2018d01e4435fb9d70998c57ff \
+            -f app_check_mode=enforce
