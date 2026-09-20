@@ -87,7 +87,14 @@ void main() {
     );
     expect(commands, contains('quoteBreakdown: quote.quoteBreakdown'));
     expect(commands, contains('quoteReference:'));
-    expect(commands, contains('quoteVersion: revision'));
+    expect(commands, contains('const quoteVersion = existingBid ?'));
+    expect(
+      commands,
+      contains(
+        'Number(existingBid.quoteVersion || existingBid.revision || 1) + 1',
+      ),
+    );
+    expect(commands, contains('quoteVersion,'));
     expect(commands, contains('validityStatus: "active"'));
   });
 
