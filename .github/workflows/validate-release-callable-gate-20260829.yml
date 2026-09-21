@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Check out repair branch
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7
         with:
           ref: fix/release-callable-gate-20260829
           fetch-depth: 0
