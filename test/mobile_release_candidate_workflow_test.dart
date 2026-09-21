@@ -85,7 +85,8 @@ void main() {
     expect(workflow, contains('retention-days: 14'));
     expect(workflow, contains('compression-level: 0'));
     expect(workflow, contains('if: always()'));
-    expect(workflow, contains('fastlane pilot upload'));
+    expect(workflow, contains('xcrun altool --upload-app'));
+    expect(workflow, contains('continue-on-error: false'));
     expect(workflow, isNot(contains('play.google.com')));
 
 
