@@ -524,6 +524,18 @@ jobs:
           printf '%s' "$profile_destination" > "$RUNNER_TEMP/pipe-buyer-profile-path.txt"
           printf '%s' "$keychain_path" > "$RUNNER_TEMP/pipe-buyer-keychain-path.txt"
 
+          # Bind this build to the exact profile installed above. Xcode can
+          # resolve a freshly installed profile by UUID more reliably than by
+          # display name, especially on hosted runners.
+          /usr/bin/sed -i '' \\
+            "s/PROVISIONING_PROFILE_SPECIFIER = \"[^\"]*\";/PROVISIONING_PROFILE_SPECIFIER = \"$profile_uuid\";/" \\
+            ios/Runner.xcodeproj/project.pbxproj
+          grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$profile_uuid\";" \\
+            ios/Runner.xcodeproj/project.pbxproj || {
+            echo "Failed to bind Xcode to the installed provisioning profile UUID." >&2
+            exit 1
+          }
+
           flutter config --enable-swift-package-manager
           flutter pub get
           # IMPORTANT: Do NOT set FLUTTER_XCODE_* environment variables for code signing.
