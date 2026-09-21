@@ -625,52 +625,60 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload signed IPA to App Store Connect
-        continue-on-error: true
+        continue-on-error: false
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${APP_STORE_CONNECT_KEY_ID:-}" || -z "${APP_STORE_CONNECT_ISSUER_ID:-}" || -z "${APP_STORE_CONNECT_API_KEY_P8:-}" ]]; then
-            echo "App Store Connect API key secrets not fully configured; skipping automated upload."
-            exit 0
+          if [[ -z "\${APP_STORE_CONNECT_KEY_ID:-}" || -z "\${APP_STORE_CONNECT_ISSUER_ID:-}" || -z "\${APP_STORE_CONNECT_API_KEY_P8:-}" ]]; then
+            echo "App Store Connect API key secrets are required for a production upload." >&2
+            exit 1
           fi
-          # Write the p8 private key to all locations searched by Apple tools:
-          # ~/.appstoreconnect/private_keys/, ~/.private_keys/, and ./private_keys/
+          # Apple tools look for AuthKey_<KEY_ID>.p8 in these locations.
           mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys ./private_keys
-          p8_filename="AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$HOME/.appstoreconnect/private_keys/$p8_filename"
-          printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$HOME/.private_keys/$p8_filename"
-          printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "./private_keys/$p8_filename"
-          chmod 600 "$HOME/.appstoreconnect/private_keys/$p8_filename" "$HOME/.private_keys/$p8_filename" "./private_keys/$p8_filename"
+          p8_filename="AuthKey_\${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s\n' "\$APP_STORE_CONNECT_API_KEY_P8" > "\$HOME/.appstoreconnect/private_keys/\$p8_filename"
+          printf '%s\n' "\$APP_STORE_CONNECT_API_KEY_P8" > "\$HOME/.private_keys/\$p8_filename"
+          printf '%s\n' "\$APP_STORE_CONNECT_API_KEY_P8" > "./private_keys/\$p8_filename"
+          chmod 600 "\$HOME/.appstoreconnect/private_keys/\$p8_filename" "\$HOME/.private_keys/\$p8_filename" "./private_keys/\$p8_filename"
 
-          candidate_ipa="$(find build/release-candidate/ios -name '*.ipa' | head -n 1)"
-          [[ -n "$candidate_ipa" ]] || { echo 'No signed IPA found for upload.' >&2; exit 1; }
-          echo "Uploading $candidate_ipa to App Store Connect..."
+          cleanup_upload_material() {
+            rm -f "\$HOME/.appstoreconnect/private_keys/\$p8_filename" "\$HOME/.private_keys/\$p8_filename" "./private_keys/\$p8_filename"
+          }
+          trap cleanup_upload_material EXIT
 
-          p8_file_path="$HOME/.private_keys/$p8_filename"
-          echo "Uploading $candidate_ipa to App Store Connect using Fastlane..."
-          if command -v fastlane > /dev/null 2>&1; then
-            export APP_STORE_CONNECT_API_KEY_KEY_ID="$APP_STORE_CONNECT_KEY_ID"
-            export APP_STORE_CONNECT_API_KEY_ISSUER_ID="$APP_STORE_CONNECT_ISSUER_ID"
-            export APP_STORE_CONNECT_API_KEY_KEY_FILEPATH="$p8_file_path"
+          candidate_ipa="\$(find build/release-candidate/ios -name '*.ipa' | head -n 1)"
+          [[ -n "\$candidate_ipa" ]] || { echo 'No signed IPA found for upload.' >&2; exit 1; }
+          echo "Uploading \$candidate_ipa to App Store Connect..."
+
+          if xcrun --find altool >/dev/null 2>&1; then
+            echo "Uploading \$candidate_ipa using Apple's altool..."
+            xcrun altool --upload-app \
+              --type ios \
+              --file "\$candidate_ipa" \
+              --apiKey "\$APP_STORE_CONNECT_KEY_ID" \
+              --apiIssuer "\$APP_STORE_CONNECT_ISSUER_ID"
+          elif command -v fastlane >/dev/null 2>&1; then
+            echo "Uploading \$candidate_ipa using Fastlane..."
+            export APP_STORE_CONNECT_API_KEY_KEY_ID="\$APP_STORE_CONNECT_KEY_ID"
+            export APP_STORE_CONNECT_API_KEY_ISSUER_ID="\$APP_STORE_CONNECT_ISSUER_ID"
+            export APP_STORE_CONNECT_API_KEY_KEY_FILEPATH="\$HOME/.private_keys/\$p8_filename"
             export APP_STORE_CONNECT_API_KEY_IS_KEY_CONTENT_BASE64=false
             fastlane pilot upload \
-              --ipa "$candidate_ipa" \
+              --ipa "\$candidate_ipa" \
               --skip_waiting_for_build_processing true \
               --skip_submission true
           else
-            echo "Fastlane is not available; skipping automated upload."
+            echo "Neither Apple's altool nor Fastlane is available on the runner." >&2
+            exit 1
           fi
 
-
-
-          rm -f "$HOME/.appstoreconnect/private_keys/$p8_filename" "$HOME/.private_keys/$p8_filename" "./private_keys/$p8_filename"
-          echo "Successfully uploaded $candidate_ipa to App Store Connect!"
+          echo "Successfully uploaded \$candidate_ipa to App Store Connect."
           {
             echo ""
             echo "### 🚀 App Store Connect Upload"
             echo "- Status: **Successfully uploaded to App Store Connect!**"
-            echo "- The build will appear in your [App Store Connect](https://appstoreconnect.apple.com) dashboard under **TestFlight / Builds** in a few minutes."
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo "- The build will appear in your [App Store Connect](https://appstoreconnect.apple.com) dashboard after Apple's processing completes."
+          } >> "\$GITHUB_STEP_SUMMARY"
 
 
       - name: Remove Apple signing material
