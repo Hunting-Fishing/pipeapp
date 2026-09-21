@@ -527,14 +527,11 @@ jobs:
           # Bind this build to the exact profile installed above. Xcode can
           # resolve a freshly installed profile by UUID more reliably than by
           # display name, especially on hosted runners.
-          /usr/bin/sed -i '' \\
-            "s/PROVISIONING_PROFILE_SPECIFIER = \"[^\"]*\";/PROVISIONING_PROFILE_SPECIFIER = \"$profile_uuid\";/" \\
-            ios/Runner.xcodeproj/project.pbxproj
-          grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$profile_uuid\";" \\
-            ios/Runner.xcodeproj/project.pbxproj || {
+          /usr/bin/sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"[^\"]*\";/PROVISIONING_PROFILE_SPECIFIER = \"$profile_uuid\";/" ios/Runner.xcodeproj/project.pbxproj
+          if ! grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$profile_uuid\";" ios/Runner.xcodeproj/project.pbxproj; then
             echo "Failed to bind Xcode to the installed provisioning profile UUID." >&2
             exit 1
-          }
+          fi
 
           flutter config --enable-swift-package-manager
           flutter pub get
