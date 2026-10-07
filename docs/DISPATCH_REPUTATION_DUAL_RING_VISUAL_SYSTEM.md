@@ -100,3 +100,24 @@ The public provider/seller projection may contain only bounded fields such as:
 - `lastCalculatedAt`
 
 It must not contain raw report counts, reporter identities, private security state, internal moderation evidence, exact scoring inputs or private contact data.
+
+## Implemented projection (first slice)
+
+`firebase/functions/public_trust_projection.js` now writes the server-owned fields to
+`public_seller_profiles/{uid}` and `public_business_profiles/{uid}`. Firestore rules block
+owners from writing them (`serverOwnedPublicTrustKeys`), and a contract test keeps the rules
+list and the module list identical.
+
+Published today:
+
+- `membershipTier`: `vip` while `vip_memberships/{uid}` is current, otherwise `standard`.
+  Bronze/Silver/Gold are not projected until their billing products exist.
+- `completedTransactionCount`: marketplace sales with `status == completed` for the seller.
+- `reputationStatus`: always `new`. No numeric `reputationScore` is published until a reviewed
+  scoring policy defines the confidence threshold, so the client keeps the blue
+  **NEW / Building reputation** state.
+
+Triggers: `vip_memberships/{uid}` writes, `marketplace_transactions` completion changes, and
+creation of either public profile. After deploying the rules guard, run
+`npm run backfill:public-trust -- --project <id>` (dry run), then add `--apply`, to remove any
+trust fields a client wrote earlier.
