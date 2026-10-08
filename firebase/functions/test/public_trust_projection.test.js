@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {test} = require("node:test");
 const {
+  REPUTATION_MIN_COMPLETED_SALES,
   SERVER_OWNED_PUBLIC_TRUST_KEYS,
   buildProfileUpdate,
   buildPublicTrustProjection,
@@ -34,11 +35,30 @@ test("projection never publishes a numeric score or unlaunched tiers", () => {
   });
   assert.equal(vip.membershipTier, "vip");
   assert.equal(vip.completedTransactionCount, 7);
-  assert.equal(vip.reputationStatus, "new");
+  assert.equal(vip.reputationStatus, "emerging");
   assert.equal("reputationScore" in vip, false);
   const standard = buildPublicTrustProjection({uid: "u1", completedTransactionCount: -4, nowMillis: NOW});
   assert.equal(standard.membershipTier, "standard");
   assert.equal(standard.completedTransactionCount, 0);
+});
+
+test("three completed sales leave the NEW state, fewer do not, and membership never matters", () => {
+  assert.equal(REPUTATION_MIN_COMPLETED_SALES, 3);
+  const status = (count, vipMembership) => buildPublicTrustProjection({
+    uid: "u1", vipMembership, completedTransactionCount: count, nowMillis: NOW,
+  }).reputationStatus;
+  const vip = {ownerUid: "u1", active: true, currentPeriodEnd: FUTURE};
+  assert.equal(status(0), "new");
+  assert.equal(status(2), "new");
+  assert.equal(status(2, vip), "new");
+  assert.equal(status(3), "emerging");
+  assert.equal(status(3, vip), "emerging");
+  assert.equal(status(40), "emerging");
+  for (const count of [0, 2, 3, 40]) {
+    const projection = buildPublicTrustProjection({uid: "u1", completedTransactionCount: count, nowMillis: NOW});
+    assert.equal("reputationScore" in projection, false);
+    assert.equal(projection.scoreVersion, 0);
+  }
 });
 
 test("profile update is null when current and deletes client-forged trust fields", () => {
