@@ -106,10 +106,25 @@ function profileName(data, fallback) {
   ).trim() || fallback;
 }
 
-function createCommunicationCommands(admin) {
+function createCommunicationCommands(
+    admin,
+    {pairBlockStatus = async () => ({blocked: false})} = {},
+) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
+  // New contact is refused when either member blocked the other. The message
+  // does not reveal that the other member was the one who blocked.
+  async function assertNotBlocked(actorUid, otherUid) {
+    const status = await pairBlockStatus(actorUid, otherUid);
+    if (!status.blocked) return;
+    throw new HttpsError(
+        "permission-denied",
+        status.blockedByViewer ?
+          "Unblock this member before contacting them again." :
+          "This member is not accepting new contact right now.",
+    );
+  }
   const secured = (scope, handler) => command(async (request) => {
     const identity = requireAuthenticatedIdentity(request);
     await enforceUserRateLimit({db, admin, request, scope});
@@ -154,6 +169,12 @@ function createCommunicationCommands(admin) {
         );
         const conversationRef = db.collection("conversations")
             .doc(conversationId);
+        if (!(await conversationRef.get()).exists) {
+          await assertNotBlocked(
+              uid,
+              uid === sellerUid ? buyerUid : sellerUid,
+          );
+        }
         const [businessProfile, personalProfile] = await Promise.all([
           db.collection("public_business_profiles").doc(buyerUid).get(),
           db.collection("public_seller_profiles").doc(buyerUid).get(),
@@ -242,6 +263,9 @@ function createCommunicationCommands(admin) {
         const conversationId = businessConversationIdFor(uid, providerUid);
         const conversationRef = db.collection("conversations")
             .doc(conversationId);
+        if (!(await conversationRef.get()).exists) {
+          await assertNotBlocked(uid, providerUid);
+        }
         return db.runTransaction(async (transaction) => {
           const existing = await transaction.get(conversationRef);
           if (!existing.exists) {

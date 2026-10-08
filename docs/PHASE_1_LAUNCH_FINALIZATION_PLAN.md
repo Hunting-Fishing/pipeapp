@@ -643,3 +643,9 @@ Only one gate is `in progress` at a time. A gate is marked complete only when
 its code, tests, staging evidence, error handling, deployment record, and
 rollback evidence are committed together. Passing compilation alone does not
 close a gate.
+
+
+## Pending (not deployed): block enforcement for new contact
+
+Branch `feat/block-enforcement` extends the production pair block so it also stops **new** contact, not only messages: new offers (`createMarketplaceOffer`), new Marketplace and business conversations, and new Dispatch quotes (`submitDispatchQuote`). Existing conversations stay reachable so history, reporting, and unblocking still work. Refusals use neutral wording and never reveal who blocked whom. Dispatch conversations for an already-awarded job are intentionally unchanged. Covered by contract tests and a new authenticated callable scenario in `integration/callable_integration.mjs`. This is **not** in production until merged and released through the protected pipeline.
+

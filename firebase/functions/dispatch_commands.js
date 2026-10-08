@@ -153,7 +153,10 @@ function createJobPrivateValues(admin, input, uid) {
   };
 }
 
-function createDispatchCommands(admin) {
+function createDispatchCommands(
+    admin,
+    {pairBlockStatus = async () => ({blocked: false})} = {},
+) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
@@ -690,6 +693,20 @@ function createDispatchCommands(admin) {
       const existingSnapshot = existingMatches[0] || null;
       const existingBid = existingSnapshot ? existingSnapshot.data() : null;
       const job = jobSnapshot.exists ? jobSnapshot.data() : null;
+      if (job && job.createdByUid) {
+        const blockStatus = await pairBlockStatus(
+            uid,
+            String(job.createdByUid),
+        );
+        if (blockStatus.blocked) {
+          throw new CommandPolicyError(
+              "permission-denied",
+              blockStatus.blockedByViewer ?
+                "Unblock this member before quoting their job." :
+                "This customer is not accepting new quotes right now.",
+          );
+        }
+      }
       const carrier =
         carrierSnapshot.exists ? carrierSnapshot.data() : null;
       const vehicle =
