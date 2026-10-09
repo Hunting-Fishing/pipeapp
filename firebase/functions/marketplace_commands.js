@@ -114,7 +114,10 @@ function receiptData(uid, commandName, result, FieldValue) {
   };
 }
 
-function createMarketplaceCommands(admin) {
+function createMarketplaceCommands(
+    admin,
+    {pairBlockStatus = async () => ({blocked: false})} = {},
+) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const Timestamp = admin.firestore.Timestamp;
@@ -2075,6 +2078,20 @@ function createMarketplaceCommands(admin) {
       if (receipt.exists) return receipt.data().result;
       const listingSnapshot = await transaction.get(listingRef);
       const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
+      if (listing && listing.sellerUid) {
+        const blockStatus = await pairBlockStatus(
+            uid,
+            String(listing.sellerUid),
+        );
+        if (blockStatus.blocked) {
+          throw new CommandPolicyError(
+              "permission-denied",
+              blockStatus.blockedByViewer ?
+                "Unblock this member before sending another offer." :
+                "This seller is not accepting new offers right now.",
+          );
+        }
+      }
       const privateListingLocationSnapshot =
         request.data.truckingPlan === "request_dispatch" ?
           await transaction.get(privateListingLocationRef) :

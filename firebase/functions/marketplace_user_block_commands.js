@@ -76,6 +76,18 @@ function createMarketplaceUserBlockCommands(admin) {
     };
   }
 
+  // Used by commands that start new contact (offers, new conversations,
+  // quotes). Returns the same shape as statusFor; never throws on its own so
+  // each command can raise its own error type.
+  async function pairBlockStatus(actorUid, otherUid) {
+    const actor = String(actorUid || "").trim();
+    const other = String(otherUid || "").trim();
+    if (!actor || !other || actor === other) {
+      return {blocked: false, blockedByViewer: false, blockedViewer: false};
+    }
+    return statusFor(actor, other);
+  }
+
   const readMarketplaceUserBlockStatus = async (request) => {
     try {
       const identity = requireAuthenticatedIdentity(request);
@@ -156,6 +168,7 @@ function createMarketplaceUserBlockCommands(admin) {
   }
 
   return {
+    pairBlockStatus,
     readMarketplaceUserBlockStatus,
     setMarketplaceUserBlocked,
     requireConversationMessagingAllowed,

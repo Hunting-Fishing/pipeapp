@@ -94,13 +94,16 @@ const accountCommands = createAccountCommands(admin);
 const administratorRoleCommands = createAdministratorRoleCommands(admin);
 const accountPrivacyCommands = createAccountPrivacyCommands(admin);
 const accountVerificationCommands = createAccountVerificationCommands(admin);
-const communicationCommands = createCommunicationCommands(admin);
-const dispatchCommands = createDispatchCommands(admin);
+const marketplaceUserBlockCommands = createMarketplaceUserBlockCommands(admin);
+const blockEnforcement = {
+  pairBlockStatus: marketplaceUserBlockCommands.pairBlockStatus,
+};
+const communicationCommands = createCommunicationCommands(admin, blockEnforcement);
+const dispatchCommands = createDispatchCommands(admin, blockEnforcement);
 const dispatchDirectoryProjection = createDispatchDirectoryProjection(admin);
 const dispatchDirectorySearch = createDispatchDirectorySearch(admin);
 const dispatchCredentialMonitor = createDispatchCredentialMonitor(admin);
-const marketplaceCommands = createMarketplaceCommands(admin);
-const marketplaceUserBlockCommands = createMarketplaceUserBlockCommands(admin);
+const marketplaceCommands = createMarketplaceCommands(admin, blockEnforcement);
 const publicTrustProjection = createPublicTrustProjection(admin);
 const marketplaceListingLifecycle = createMarketplaceListingLifecycle(admin);
 const marketplaceListingInsights = createMarketplaceListingInsights(admin);

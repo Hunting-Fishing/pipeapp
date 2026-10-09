@@ -1961,6 +1961,66 @@ try {
   const communicationReceipts = await db
       .collection("communication_command_receipts").get();
   assert.equal(communicationReceipts.size, 3);
+  // A pair block must also stop NEW contact (offers, new conversations), not
+  // only messages. Existing conversations stay reachable so the blocker can
+  // unblock and both members can read history.
+  const blockListingId = `block-listing-${now}`;
+  await call("createMarketplaceListing", seller.token, {
+    listingId: blockListingId,
+    listing: listingInput("Block enforcement listing"),
+    location: locationInput(),
+  });
+  const blockOfferData = (requestId) => ({
+    requestId,
+    listingId: blockListingId,
+    offeredUnitPrice: 70,
+    requestedQuantity: 54,
+    truckingPlan: "buyer_arranged",
+  });
+  await call("setMarketplaceUserBlocked", seller.token, {
+    conversationId: conversationFirst.conversationId,
+    blocked: true,
+  });
+  const blockedOffer = await expectCallableError(
+      "createMarketplaceOffer",
+      buyer.token,
+      blockOfferData(`blocked-offer-${now}`),
+      "PERMISSION_DENIED",
+  );
+  assert.match(blockedOffer.message, /not accepting new offers/);
+  await assertCollectionSize(
+      "offers",
+      0,
+      [["listingId", "==", blockListingId]],
+  );
+  const blockedConversation = await expectCallableError(
+      "openMarketplaceConversation",
+      buyer.token,
+      {listingId: blockListingId},
+      "PERMISSION_DENIED",
+  );
+  assert.match(blockedConversation.message, /not accepting new contact/);
+  const reopened = await call(
+      "openMarketplaceConversation",
+      buyer.token,
+      {listingId: offerListingId},
+  );
+  assert.equal(reopened.conversationId, conversationFirst.conversationId);
+  await call("setMarketplaceUserBlocked", seller.token, {
+    conversationId: conversationFirst.conversationId,
+    blocked: false,
+  });
+  await call(
+      "createMarketplaceOffer",
+      buyer.token,
+      blockOfferData(`unblocked-offer-${now}`),
+  );
+  await assertCollectionSize(
+      "offers",
+      1,
+      [["listingId", "==", blockListingId]],
+  );
+
   console.log(
       "Callable integration passed: trusted media hashes, duplicate-photo " +
       "and message-safety review signals, private listing drafts, saved listings, " +
