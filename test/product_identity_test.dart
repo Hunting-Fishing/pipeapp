@@ -60,7 +60,7 @@ void main() {
     expect(mobileRelease, contains('workflow_dispatch:'));
     expect(mobileRelease, contains('ios:'));
     expect(mobileRelease, contains('name: Build signed Apple IPA'));
-    expect(mobileRelease, contains('runs-on: macos-15'));
+    expect(mobileRelease, contains('runs-on: macos-26'));
     expect(mobileRelease, contains('flutter build ipa'));
 
     expect(pubspec, contains('flutter_native_splash: ^2.4.8'));
