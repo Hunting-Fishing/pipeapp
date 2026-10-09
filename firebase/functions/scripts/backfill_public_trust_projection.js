@@ -9,7 +9,10 @@
 // Run it right after deploying the firestore.rules guard so any trust fields a
 // client wrote earlier (fake VIP tier, reputation, reviews) are removed.
 
-const admin = require("firebase-admin");
+const {applicationDefault, getApps, initializeApp} =
+  require("firebase-admin/app");
+const {FieldPath, getFirestore} = require("firebase-admin/firestore");
+const {createAdminRuntime} = require("../admin_runtime");
 const {
   PUBLIC_PROFILE_COLLECTIONS,
   createPublicTrustProjection,
@@ -34,12 +37,11 @@ function parseArguments(argv) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-    projectId: options.project,
-  });
-  const db = admin.firestore();
-  const projection = createPublicTrustProjection(admin);
+  if (getApps().length === 0) {
+    initializeApp({credential: applicationDefault(), projectId: options.project});
+  }
+  const db = getFirestore();
+  const projection = createPublicTrustProjection(createAdminRuntime());
   const seen = new Set();
   let inspected = 0;
   let changed = 0;
@@ -48,7 +50,7 @@ async function main() {
     let cursor = null;
     for (;;) {
       let query = db.collection(collection)
-          .orderBy(admin.firestore.FieldPath.documentId())
+          .orderBy(FieldPath.documentId())
           .limit(options.pageSize);
       if (cursor) query = query.startAfter(cursor);
       const page = await query.get();
