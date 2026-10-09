@@ -6,6 +6,7 @@ const {
   createAdministratorRoleCommands,
 } = require("./administrator_role_commands");
 const { createAccountCommands } = require("./account_commands");
+const { createPublicTrustProjection } = require("./public_trust_projection");
 const {
   createAccountVerificationCommands,
 } = require("./account_verification_commands");
@@ -100,6 +101,7 @@ const dispatchDirectorySearch = createDispatchDirectorySearch(admin);
 const dispatchCredentialMonitor = createDispatchCredentialMonitor(admin);
 const marketplaceCommands = createMarketplaceCommands(admin);
 const marketplaceUserBlockCommands = createMarketplaceUserBlockCommands(admin);
+const publicTrustProjection = createPublicTrustProjection(admin);
 const marketplaceListingLifecycle = createMarketplaceListingLifecycle(admin);
 const marketplaceListingInsights = createMarketplaceListingInsights(admin);
 const moderationCommands = createModerationCommands(admin);
@@ -703,6 +705,54 @@ exports.onUserScoreEventCreated = onDocumentCreated(
         read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+    return null;
+  },
+);
+
+// Server-owned public trust projection (membership tier, completed sales).
+// Clients cannot write these fields; see firestore.rules and
+// public_trust_projection.js.
+exports.syncPublicTrustOnVipChange = onDocumentWritten(
+  "vip_memberships/{uid}",
+  async (event) => {
+    await publicTrustProjection.syncUser(event.params.uid);
+    return null;
+  },
+);
+
+exports.syncPublicTrustOnTransactionChange = onDocumentWritten(
+  "marketplace_transactions/{transactionId}",
+  async (event) => {
+    const before = event.data.before.exists ? event.data.before.data() : {};
+    const after = event.data.after.exists ? event.data.after.data() : {};
+    if (before.status !== "completed" && after.status !== "completed") {
+      return null;
+    }
+    if (before.status === after.status && before.sellerUid === after.sellerUid) {
+      return null;
+    }
+    const sellers = new Set(
+      [before.sellerUid, after.sellerUid].filter((value) => value),
+    );
+    for (const sellerUid of sellers) {
+      await publicTrustProjection.syncUser(sellerUid);
+    }
+    return null;
+  },
+);
+
+exports.syncPublicTrustOnSellerProfileCreated = onDocumentCreated(
+  "public_seller_profiles/{uid}",
+  async (event) => {
+    await publicTrustProjection.syncUser(event.params.uid);
+    return null;
+  },
+);
+
+exports.syncPublicTrustOnBusinessProfileCreated = onDocumentCreated(
+  "public_business_profiles/{uid}",
+  async (event) => {
+    await publicTrustProjection.syncUser(event.params.uid);
     return null;
   },
 );

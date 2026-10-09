@@ -56,6 +56,32 @@ service cloud.firestore {
         request.resource.data.updatedByUid == request.auth.uid;
     }
 
+    // Reputation, review, membership, and verification display fields are
+    // server-owned. Public profile documents are owner-editable, so without this
+    // guard a user could publish a fake VIP tier, 100 score, or 5.0 reviews that
+    // other users see in the Directory and on profiles.
+    function serverOwnedPublicTrustKeys() {
+      return [
+        'reputationScore', 'reputationStatus', 'reviewAverage', 'reviewCount',
+        'completedTransactionCount', 'responseBand', 'reliabilityBand',
+        'scoreVersion', 'membershipTier', 'subscriptionTier', 'membership',
+        'vipActive', 'isVip', 'vipStatus', 'vipExpiresAt', 'verified',
+        'accountVerified', 'verificationStatus', 'userScore', 'userScoreStanding',
+        'trustProjectionVersion', 'lastCalculatedAt'
+      ];
+    }
+
+    function ownerMayCreatePublicProfile(ownerId) {
+      return owns(ownerId) &&
+        !request.resource.data.keys().hasAny(serverOwnedPublicTrustKeys());
+    }
+
+    function ownerMayUpdatePublicProfile(ownerId) {
+      return owns(ownerId) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(serverOwnedPublicTrustKeys());
+    }
+
     match /users/{uid} {
       allow create: if owns(uid) &&
         request.resource.data.accountType in ['personal', 'business'] &&
@@ -76,7 +102,12 @@ service cloud.firestore {
           'accountVerificationVersion', 'verificationSyncedAt',
           'accountVerificationStatus', 'accountVerificationRevision',
           'accountVerificationReviewVersion', 'accountVerificationReviewedAt',
-          'accountStatus', 'deletionScheduledAt'
+          'accountStatus', 'deletionScheduledAt',
+          // Membership/VIP state is written only by Stripe webhook and native
+          // billing Functions. Clients read it for display; never write it.
+          'isVip', 'vipActive', 'vipStatus', 'vipExpiresAt', 'vipUntil',
+          'vipSubscriptionId', 'vipUpdatedAt', 'membership',
+          'membershipTier', 'subscriptionTier', 'subscriptionStatus'
         ]);
       allow update: if isAdmin();
 
@@ -110,11 +141,10 @@ service cloud.firestore {
         allow update: if owns(uid) &&
           request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['read', 'readAt']);
-        allow create: if signedIn() &&
-          request.resource.data.recipientUid == uid &&
-          request.resource.data.actorUid == request.auth.uid &&
-          request.resource.data.type in
-            ['message', 'offer', 'location_request', 'dispatch'];
+        // Notifications are created only by trusted Functions. A client-create
+        // rule would let any signed-in user write arbitrary alerts into another
+        // user's inbox.
+        allow create: if false;
       }
 
       match /notification_endpoints/{endpointId} {
@@ -171,7 +201,9 @@ service cloud.firestore {
 
     match /public_business_profiles/{businessId} {
       allow read: if true;
-      allow create, update, delete: if owns(businessId) || isAdmin();
+      allow create: if ownerMayCreatePublicProfile(businessId) || isAdmin();
+      allow update: if ownerMayUpdatePublicProfile(businessId) || isAdmin();
+      allow delete: if owns(businessId) || isAdmin();
     }
 
     // Directory entries are a server-owned public projection. Providers edit
@@ -185,7 +217,9 @@ service cloud.firestore {
 
     match /public_seller_profiles/{sellerId} {
       allow read: if true;
-      allow create, update, delete: if owns(sellerId) || isAdmin();
+      allow create: if ownerMayCreatePublicProfile(sellerId) || isAdmin();
+      allow update: if ownerMayUpdatePublicProfile(sellerId) || isAdmin();
+      allow delete: if owns(sellerId) || isAdmin();
     }
 
     match /marketplace_tags/{tagId} {
@@ -544,8 +578,21 @@ service cloud.firestore {
     }
 
     match /location_requests/{requestId} {
+      // Bounded shape, real listing owner, no self-requests, and a capped note,
+      // so a signed-in user cannot flood arbitrary members with free-form docs.
       allow create: if signedIn() &&
-        request.resource.data.requesterUid == request.auth.uid;
+        request.resource.data.keys().hasOnly([
+          'listingId', 'requesterUid', 'sellerUid', 'note', 'status', 'createdAt'
+        ]) &&
+        request.resource.data.requesterUid == request.auth.uid &&
+        request.resource.data.sellerUid != request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.listingId is string &&
+        request.resource.data.note is string &&
+        request.resource.data.note.size() <= 500 &&
+        request.resource.data.createdAt == request.time &&
+        get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId))
+          .data.sellerUid == request.resource.data.sellerUid;
       allow read: if signedIn() &&
         (resource.data.requesterUid == request.auth.uid ||
          resource.data.sellerUid == request.auth.uid);
