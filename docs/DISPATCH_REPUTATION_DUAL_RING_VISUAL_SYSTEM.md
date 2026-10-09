@@ -113,9 +113,11 @@ Published today:
 - `membershipTier`: `vip` while `vip_memberships/{uid}` is current, otherwise `standard`.
   Bronze/Silver/Gold are not projected until their billing products exist.
 - `completedTransactionCount`: marketplace sales with `status == completed` for the seller.
-- `reputationStatus`: always `new`. No numeric `reputationScore` is published until a reviewed
-  scoring policy defines the confidence threshold, so the client keeps the blue
-  **NEW / Building reputation** state.
+- `reputationStatus`: `new` below 3 completed marketplace sales, `emerging` at 3 or more
+  (product decision 2026-10-08). Dispatch memberships stay `standard` for now. No numeric
+  `reputationScore` is published yet: the server never adjusts `users.userScore` (flat 70), so
+  publishing it would fabricate a score. The client keeps the blue **NEW / Building reputation**
+  state until a reviewed scoring formula exists.
 
 Triggers: `vip_memberships/{uid}` writes, `marketplace_transactions` completion changes, and
 creation of either public profile. After deploying the rules guard, run

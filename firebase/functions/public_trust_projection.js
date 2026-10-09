@@ -9,9 +9,11 @@
 //
 // Policy boundaries (docs/DISPATCH_REPUTATION_DUAL_RING_VISUAL_SYSTEM.md):
 //  - Membership never feeds reputation.
-//  - No numeric reputation score is published until a reviewed scoring policy
-//    defines the confidence threshold; until then the status stays "new" and the
-//    client renders the blue "Building reputation" state.
+//  - Status is "new" below REPUTATION_MIN_COMPLETED_SALES completed sales and
+//    "emerging" at or above it. No numeric reputation score is published yet:
+//    the server never adjusts users.userScore (it is a flat 70 for everyone), so
+//    publishing it would fabricate a score. The client keeps the blue
+//    "Building reputation" state until a reviewed scoring formula exists.
 //  - Only "vip" and "standard" are published. Bronze/Silver/Gold are not live
 //    billing products and must not be projected.
 
@@ -21,6 +23,10 @@ const PUBLIC_PROFILE_COLLECTIONS = Object.freeze([
 ]);
 
 const PROJECTION_VERSION = 1;
+
+// Product decision (2026-10-08): a member leaves the blue "NEW" state only after
+// at least this many completed marketplace sales.
+const REPUTATION_MIN_COMPLETED_SALES = 3;
 
 // Must match serverOwnedPublicTrustKeys() in firebase/firestore.rules.
 const SERVER_OWNED_PUBLIC_TRUST_KEYS = Object.freeze([
@@ -57,7 +63,8 @@ function buildPublicTrustProjection({
   return {
     membershipTier: vipMembershipCurrent(vipMembership, uid, nowMillis) ?
       "vip" : "standard",
-    reputationStatus: "new",
+    reputationStatus: count >= REPUTATION_MIN_COMPLETED_SALES ?
+      "emerging" : "new",
     completedTransactionCount: count,
     scoreVersion: 0,
     trustProjectionVersion: PROJECTION_VERSION,
@@ -137,6 +144,7 @@ function createPublicTrustProjection(admin) {
 module.exports = {
   PROJECTION_VERSION,
   PUBLIC_PROFILE_COLLECTIONS,
+  REPUTATION_MIN_COMPLETED_SALES,
   SERVER_OWNED_PUBLIC_TRUST_KEYS,
   buildProfileUpdate,
   buildPublicTrustProjection,
