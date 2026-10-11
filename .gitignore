@@ -50,3 +50,6 @@ android/app/*.jks
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Emulator-only payment secrets used by local callable integration runs
+firebase/functions/.secret.local
