@@ -10,10 +10,11 @@
 // Policy boundaries (docs/DISPATCH_REPUTATION_DUAL_RING_VISUAL_SYSTEM.md):
 //  - Membership never feeds reputation.
 //  - Status is "new" below REPUTATION_MIN_COMPLETED_SALES completed sales and
-//    "emerging" at or above it. No numeric reputation score is published yet:
-//    the server never adjusts users.userScore (it is a flat 70 for everyone), so
-//    publishing it would fabricate a score. The client keeps the blue
-//    "Building reputation" state until a reviewed scoring formula exists.
+//    "emerging" at or above it. A numeric score (scoreVersion 1, the USER_SCORE_*
+//    constants above) is published only for "emerging" members whose account is
+//    not scheduled for deletion. It is computed here from the policy inputs and
+//    does not read users.userScore, which the server never adjusts (flat 70).
+//    Below the threshold the client keeps the blue "Building reputation" state.
 //  - Only "vip" and "standard" are published. Bronze/Silver/Gold are not live
 //    billing products and must not be projected.
 
@@ -27,6 +28,24 @@ const PROJECTION_VERSION = 1;
 // Product decision (2026-10-08): a member leaves the blue "NEW" state only after
 // at least this many completed marketplace sales.
 const REPUTATION_MIN_COMPLETED_SALES = 3;
+
+// User Score v1 (approved 2026-10-11), built only from inputs that
+// firebase/USER_SCORE_POLICY.md already defines:
+//   70 neutral start
+//   + 10 when identity/business verification was approved by an administrator
+//   + 2 per completed marketplace sale, capped at +10
+//   + the sum of administrator-confirmed adjustments in user_score_events
+//   clamped to 0..100.
+// "Consistent response and fulfillment history (up to +5)" is not collected yet
+// and contributes nothing. Reversals on appeal must be recorded as an offsetting
+// user_score_events entry.
+const USER_SCORE_BASE = 70;
+const USER_SCORE_VERIFIED_BONUS = 10;
+const USER_SCORE_POINTS_PER_SALE = 2;
+const USER_SCORE_SALES_BONUS_CAP = 10;
+const USER_SCORE_VERSION = 1;
+const SCORE_EVENT_READ_LIMIT = 500;
+const INELIGIBLE_ACCOUNT_STATUSES = Object.freeze(["deletion_scheduled"]);
 
 // Must match serverOwnedPublicTrustKeys() in firebase/firestore.rules.
 const SERVER_OWNED_PUBLIC_TRUST_KEYS = Object.freeze([
@@ -52,23 +71,61 @@ function vipMembershipCurrent(membership, uid, nowMillis = Date.now()) {
     timestampMillis(membership.currentPeriodEnd) > nowMillis;
 }
 
+function sumScoreAdjustments(events) {
+  let total = 0;
+  for (const event of events || []) {
+    const change = Number(event && event.change);
+    if (Number.isFinite(change)) total += change;
+  }
+  return total;
+}
+
+// Membership is deliberately not an input: paying never raises reputation.
+function computeUserScoreV1({
+  accountVerified,
+  completedTransactionCount,
+  adjustmentTotal,
+}) {
+  const sales = Number.isSafeInteger(completedTransactionCount) &&
+    completedTransactionCount > 0 ? completedTransactionCount : 0;
+  const adjustment = Number.isFinite(adjustmentTotal) ? adjustmentTotal : 0;
+  const raw = USER_SCORE_BASE +
+    (accountVerified === true ? USER_SCORE_VERIFIED_BONUS : 0) +
+    Math.min(USER_SCORE_SALES_BONUS_CAP, USER_SCORE_POINTS_PER_SALE * sales) +
+    adjustment;
+  return Math.max(0, Math.min(100, Math.round(raw)));
+}
+
 function buildPublicTrustProjection({
   uid,
   vipMembership,
   completedTransactionCount,
+  accountVerified = false,
+  accountStatus,
+  adjustmentTotal = 0,
   nowMillis = Date.now(),
 }) {
   const count = Number.isSafeInteger(completedTransactionCount) &&
     completedTransactionCount > 0 ? completedTransactionCount : 0;
-  return {
+  const experienced = count >= REPUTATION_MIN_COMPLETED_SALES;
+  const scorable = experienced &&
+    !INELIGIBLE_ACCOUNT_STATUSES.includes(accountStatus);
+  const projection = {
     membershipTier: vipMembershipCurrent(vipMembership, uid, nowMillis) ?
       "vip" : "standard",
-    reputationStatus: count >= REPUTATION_MIN_COMPLETED_SALES ?
-      "emerging" : "new",
+    reputationStatus: experienced ? "emerging" : "new",
     completedTransactionCount: count,
-    scoreVersion: 0,
+    scoreVersion: scorable ? USER_SCORE_VERSION : 0,
     trustProjectionVersion: PROJECTION_VERSION,
   };
+  if (scorable) {
+    projection.reputationScore = computeUserScoreV1({
+      accountVerified,
+      completedTransactionCount: count,
+      adjustmentTotal,
+    });
+  }
+  return projection;
 }
 
 // Returns the update to apply to one public profile, or null when the document
@@ -117,15 +174,27 @@ function createPublicTrustProjection(admin) {
     const existing = snapshots.filter((snapshot) => snapshot.exists);
     if (existing.length === 0) return {updated: [], projection: null};
 
-    const [membershipSnapshot, completed] = await Promise.all([
-      db.collection("vip_memberships").doc(id).get(),
-      completedSaleCount(id),
-    ]);
+    const [membershipSnapshot, completed, userSnapshot, eventSnapshot] =
+      await Promise.all([
+        db.collection("vip_memberships").doc(id).get(),
+        completedSaleCount(id),
+        db.collection("users").doc(id).get(),
+        db.collection("user_score_events")
+            .where("userUid", "==", id)
+            .limit(SCORE_EVENT_READ_LIMIT)
+            .get(),
+      ]);
+    const user = userSnapshot.exists ? userSnapshot.data() : {};
     const projection = buildPublicTrustProjection({
       uid: id,
       vipMembership: membershipSnapshot.exists ?
         membershipSnapshot.data() : null,
       completedTransactionCount: completed,
+      accountVerified: user.accountVerified === true,
+      accountStatus: user.accountStatus,
+      adjustmentTotal: sumScoreAdjustments(
+          eventSnapshot.docs.map((document) => document.data()),
+      ),
       nowMillis,
     });
     const updated = [];
@@ -146,8 +215,11 @@ module.exports = {
   PUBLIC_PROFILE_COLLECTIONS,
   REPUTATION_MIN_COMPLETED_SALES,
   SERVER_OWNED_PUBLIC_TRUST_KEYS,
+  USER_SCORE_VERSION,
   buildProfileUpdate,
   buildPublicTrustProjection,
+  computeUserScoreV1,
   createPublicTrustProjection,
+  sumScoreAdjustments,
   vipMembershipCurrent,
 };

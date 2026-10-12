@@ -744,6 +744,39 @@ exports.syncPublicTrustOnTransactionChange = onDocumentWritten(
   },
 );
 
+// Administrator score adjustments and verification/account-status changes feed
+// the public User Score, so they re-run the projection.
+exports.syncPublicTrustOnScoreEvent = onDocumentWritten(
+  "user_score_events/{eventId}",
+  async (event) => {
+    const before = event.data.before.exists ? event.data.before.data() : {};
+    const after = event.data.after.exists ? event.data.after.data() : {};
+    const members = new Set(
+      [before.userUid, after.userUid].filter((value) => value),
+    );
+    for (const memberUid of members) {
+      await publicTrustProjection.syncUser(memberUid);
+    }
+    return null;
+  },
+);
+
+exports.syncPublicTrustOnAccountChange = onDocumentWritten(
+  "users/{uid}",
+  async (event) => {
+    const before = event.data.before.exists ? event.data.before.data() : {};
+    const after = event.data.after.exists ? event.data.after.data() : {};
+    if (
+      before.accountVerified === after.accountVerified &&
+      before.accountStatus === after.accountStatus
+    ) {
+      return null;
+    }
+    await publicTrustProjection.syncUser(event.params.uid);
+    return null;
+  },
+);
+
 exports.syncPublicTrustOnSellerProfileCreated = onDocumentCreated(
   "public_seller_profiles/{uid}",
   async (event) => {

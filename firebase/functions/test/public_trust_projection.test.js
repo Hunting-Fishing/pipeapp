@@ -9,13 +9,18 @@ const {
   SERVER_OWNED_PUBLIC_TRUST_KEYS,
   buildProfileUpdate,
   buildPublicTrustProjection,
+  computeUserScoreV1,
   createPublicTrustProjection,
+  sumScoreAdjustments,
   vipMembershipCurrent,
 } = require("../public_trust_projection");
 
 const FieldValue = {delete: () => "__DELETE__", serverTimestamp: () => "__TS__"};
 const NOW = Date.UTC(2026, 9, 6);
 const FUTURE = NOW + 86_400_000;
+const project = (overrides) => buildPublicTrustProjection({
+  uid: "u1", completedTransactionCount: 0, nowMillis: NOW, ...overrides,
+});
 
 test("only a current VIP membership owned by the user publishes the vip tier", () => {
   const active = {ownerUid: "u1", active: true, currentPeriodEnd: FUTURE};
@@ -26,57 +31,82 @@ test("only a current VIP membership owned by the user publishes the vip tier", (
   assert.equal(vipMembershipCurrent(null, "u1", NOW), false);
 });
 
-test("projection never publishes a numeric score or unlaunched tiers", () => {
-  const vip = buildPublicTrustProjection({
-    uid: "u1",
-    vipMembership: {ownerUid: "u1", active: true, currentPeriodEnd: FUTURE},
-    completedTransactionCount: 7,
-    nowMillis: NOW,
-  });
-  assert.equal(vip.membershipTier, "vip");
-  assert.equal(vip.completedTransactionCount, 7);
-  assert.equal(vip.reputationStatus, "emerging");
-  assert.equal("reputationScore" in vip, false);
-  const standard = buildPublicTrustProjection({uid: "u1", completedTransactionCount: -4, nowMillis: NOW});
-  assert.equal(standard.membershipTier, "standard");
-  assert.equal(standard.completedTransactionCount, 0);
+test("User Score v1 follows the policy inputs and caps", () => {
+  const score = (o) => computeUserScoreV1({accountVerified: false, completedTransactionCount: 0, adjustmentTotal: 0, ...o});
+  assert.equal(score({}), 70);
+  assert.equal(score({accountVerified: true}), 80);
+  assert.equal(score({completedTransactionCount: 1}), 72);
+  assert.equal(score({completedTransactionCount: 3}), 76);
+  assert.equal(score({completedTransactionCount: 5}), 80);
+  assert.equal(score({completedTransactionCount: 500}), 80, "sales bonus is capped at +10");
+  assert.equal(score({accountVerified: true, completedTransactionCount: 5}), 90);
+  assert.equal(score({accountVerified: true, completedTransactionCount: 99, adjustmentTotal: 40}), 100);
+  assert.equal(score({adjustmentTotal: -25}), 45);
+  assert.equal(score({adjustmentTotal: -500}), 0, "clamped at 0");
+  assert.equal(score({adjustmentTotal: 500}), 100, "clamped at 100");
+  assert.equal(score({adjustmentTotal: Number.NaN}), 70);
+  assert.equal(score({completedTransactionCount: 2.5}), 70, "non-integer counts are ignored");
 });
 
-test("three completed sales leave the NEW state, fewer do not, and membership never matters", () => {
+test("score adjustments sum only numeric administrator changes", () => {
+  assert.equal(sumScoreAdjustments([{change: -8}, {change: 2}, {change: "x"}, {}, null, {change: 3}]), -3);
+  assert.equal(sumScoreAdjustments([]), 0);
+  assert.equal(sumScoreAdjustments(undefined), 0);
+});
+
+test("three completed sales leave NEW; below that no score is published", () => {
   assert.equal(REPUTATION_MIN_COMPLETED_SALES, 3);
-  const status = (count, vipMembership) => buildPublicTrustProjection({
-    uid: "u1", vipMembership, completedTransactionCount: count, nowMillis: NOW,
-  }).reputationStatus;
-  const vip = {ownerUid: "u1", active: true, currentPeriodEnd: FUTURE};
-  assert.equal(status(0), "new");
-  assert.equal(status(2), "new");
-  assert.equal(status(2, vip), "new");
-  assert.equal(status(3), "emerging");
-  assert.equal(status(3, vip), "emerging");
-  assert.equal(status(40), "emerging");
-  for (const count of [0, 2, 3, 40]) {
-    const projection = buildPublicTrustProjection({uid: "u1", completedTransactionCount: count, nowMillis: NOW});
-    assert.equal("reputationScore" in projection, false);
+  for (const count of [0, 1, 2]) {
+    const projection = project({completedTransactionCount: count});
+    assert.equal(projection.reputationStatus, "new");
     assert.equal(projection.scoreVersion, 0);
+    assert.equal("reputationScore" in projection, false);
   }
+  const three = project({completedTransactionCount: 3});
+  assert.equal(three.reputationStatus, "emerging");
+  assert.equal(three.scoreVersion, 1);
+  assert.equal(three.reputationScore, 76);
+  assert.equal(project({completedTransactionCount: 3, accountVerified: true}).reputationScore, 86);
+  assert.equal(project({completedTransactionCount: 3, adjustmentTotal: -10}).reputationScore, 66);
 });
 
-test("profile update is null when current and deletes client-forged trust fields", () => {
-  const projection = buildPublicTrustProjection({uid: "u1", completedTransactionCount: 0, nowMillis: NOW});
+test("membership never changes the score, and Dispatch/VIP are not inputs", () => {
+  const vip = {ownerUid: "u1", active: true, currentPeriodEnd: FUTURE};
+  const plain = project({completedTransactionCount: 4, accountVerified: true});
+  const paid = project({completedTransactionCount: 4, accountVerified: true, vipMembership: vip});
+  assert.equal(paid.membershipTier, "vip");
+  assert.equal(plain.membershipTier, "standard");
+  assert.equal(paid.reputationScore, plain.reputationScore);
+  assert.equal(paid.reputationStatus, plain.reputationStatus);
+});
+
+test("accounts scheduled for deletion are experienced but never scored", () => {
+  const leaving = project({completedTransactionCount: 9, accountStatus: "deletion_scheduled"});
+  assert.equal(leaving.reputationStatus, "emerging");
+  assert.equal(leaving.scoreVersion, 0);
+  assert.equal("reputationScore" in leaving, false);
+  assert.equal("reputationScore" in project({completedTransactionCount: 9, accountStatus: "active"}), true);
+  assert.equal("reputationScore" in project({completedTransactionCount: 9}), true);
+});
+
+test("profile update is null when current, deletes forged and no-longer-eligible trust fields", () => {
+  const projection = project({completedTransactionCount: 0});
   assert.equal(buildProfileUpdate({...projection, displayName: "A"}, projection, FieldValue), null);
-  const update = buildProfileUpdate(
+  const forged = buildProfileUpdate(
       {displayName: "A", reputationScore: 100, reviewAverage: 5, membershipTier: "vip"},
       projection,
       FieldValue,
   );
-  assert.equal(update.reputationScore, "__DELETE__");
-  assert.equal(update.reviewAverage, "__DELETE__");
-  assert.equal(update.membershipTier, "standard");
-  assert.equal(update.lastCalculatedAt, "__TS__");
-  assert.equal("displayName" in update, false);
+  assert.equal(forged.reputationScore, "__DELETE__");
+  assert.equal(forged.reviewAverage, "__DELETE__");
+  assert.equal(forged.membershipTier, "standard");
+  assert.equal(forged.lastCalculatedAt, "__TS__");
+  assert.equal("displayName" in forged, false);
+  const scored = project({completedTransactionCount: 3});
+  assert.equal(buildProfileUpdate({...scored}, scored, FieldValue), null);
 });
 
-function fakeAdmin({docs = {}, completed = 0}) {
+function fakeAdmin({docs = {}, completed = 0, events = []}) {
   const writes = [];
   const db = {
     collection: (name) => ({
@@ -93,30 +123,48 @@ function fakeAdmin({docs = {}, completed = 0}) {
       where() {
         return this;
       },
+      limit() {
+        return this;
+      },
+      get: async () => ({docs: name === "user_score_events" ? events.map((e) => ({data: () => e})) : []}),
       count: () => ({get: async () => ({data: () => ({count: completed})})}),
     }),
   };
-  const admin = {firestore: Object.assign(() => db, {FieldValue})};
-  return {admin, writes};
+  return {admin: {firestore: Object.assign(() => db, {FieldValue})}, writes};
 }
 
-test("syncUser updates existing public profiles only and reads VIP from the server record", async () => {
+test("syncUser publishes a policy-based score from verification, sales and admin adjustments", async () => {
   const {admin, writes} = fakeAdmin({
-    completed: 3,
+    completed: 4,
+    events: [{change: -5}, {change: 2}],
     docs: {
       "public_business_profiles/u1": {reputationScore: 100},
+      "users/u1": {accountVerified: true, accountStatus: "active"},
       "vip_memberships/u1": {ownerUid: "u1", active: true, currentPeriodEnd: FUTURE},
     },
   });
   const result = await createPublicTrustProjection(admin).syncUser("u1", {nowMillis: NOW});
   assert.deepEqual(result.updated, ["public_business_profiles/u1"]);
   assert.equal(writes.length, 1);
-  assert.equal(writes[0][1].membershipTier, "vip");
-  assert.equal(writes[0][1].completedTransactionCount, 3);
-  assert.equal(writes[0][1].reputationScore, "__DELETE__");
+  const update = writes[0][1];
+  assert.equal(update.membershipTier, "vip");
+  assert.equal(update.completedTransactionCount, 4);
+  assert.equal(update.reputationStatus, "emerging");
+  assert.equal(update.scoreVersion, 1);
+  assert.equal(update.reputationScore, 85, "70 + 10 verified + 8 sales - 3 adjustments");
 });
 
-test("syncUser creates nothing when the user has no public profile and supports dry runs", async () => {
+test("syncUser removes a forged score from a member below the threshold", async () => {
+  const {admin, writes} = fakeAdmin({
+    completed: 1,
+    docs: {"public_seller_profiles/u1": {reputationScore: 100, reputationStatus: "established"}, "users/u1": {}},
+  });
+  await createPublicTrustProjection(admin).syncUser("u1", {nowMillis: NOW});
+  assert.equal(writes[0][1].reputationScore, "__DELETE__");
+  assert.equal(writes[0][1].reputationStatus, "new");
+});
+
+test("syncUser creates nothing without a public profile and supports dry runs", async () => {
   const none = fakeAdmin({});
   assert.deepEqual((await createPublicTrustProjection(none.admin).syncUser("u9")).updated, []);
   assert.equal(none.writes.length, 0);
