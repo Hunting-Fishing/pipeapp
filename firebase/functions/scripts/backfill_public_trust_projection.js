@@ -13,10 +13,7 @@ const {applicationDefault, getApps, initializeApp} =
   require("firebase-admin/app");
 const {FieldPath, getFirestore} = require("firebase-admin/firestore");
 const {createAdminRuntime} = require("../admin_runtime");
-const {
-  PUBLIC_PROFILE_COLLECTIONS,
-  createPublicTrustProjection,
-} = require("../public_trust_projection");
+const {createPublicTrustProjection} = require("../public_trust_projection");
 
 function parseArguments(argv) {
   const options = {apply: false, project: "", pageSize: 200};
@@ -42,36 +39,30 @@ async function main() {
   }
   const db = getFirestore();
   const projection = createPublicTrustProjection(createAdminRuntime());
-  const seen = new Set();
   let inspected = 0;
   let changed = 0;
-
-  for (const collection of PUBLIC_PROFILE_COLLECTIONS) {
-    let cursor = null;
-    for (;;) {
-      let query = db.collection(collection)
-          .orderBy(FieldPath.documentId())
-          .limit(options.pageSize);
-      if (cursor) query = query.startAfter(cursor);
-      const page = await query.get();
-      if (page.empty) break;
-      for (const document of page.docs) {
-        inspected++;
-        if (seen.has(document.id)) continue;
-        seen.add(document.id);
-        const result = await projection.syncUser(document.id, {
-          dryRun: !options.apply,
-        });
-        changed += result.updated.length;
-      }
-      cursor = page.docs[page.docs.length - 1];
+  let cursor = null;
+  for (;;) {
+    let query = db.collection("users")
+        .orderBy(FieldPath.documentId())
+        .limit(options.pageSize);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    if (page.empty) break;
+    for (const document of page.docs) {
+      inspected++;
+      const result = await projection.syncUser(document.id, {
+        dryRun: !options.apply,
+      });
+      changed += result.updated.length;
     }
+    cursor = page.docs[page.docs.length - 1];
   }
   console.log(JSON.stringify({
     project: options.project,
     mode: options.apply ? "apply" : "dry-run",
-    profileDocumentsInspected: inspected,
-    profileDocumentsChanged: changed,
+    usersInspected: inspected,
+    documentsChanged: changed,
   }, null, 2));
 }
 

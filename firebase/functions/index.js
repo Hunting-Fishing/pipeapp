@@ -728,7 +728,8 @@ exports.syncPublicTrustOnTransactionChange = onDocumentWritten(
   async (event) => {
     const before = event.data.before.exists ? event.data.before.data() : {};
     const after = event.data.after.exists ? event.data.after.data() : {};
-    if (before.status !== "completed" && after.status !== "completed") {
+    const scored = ["completed", "cancelled"];
+    if (!scored.includes(before.status) && !scored.includes(after.status)) {
       return null;
     }
     if (before.status === after.status && before.sellerUid === after.sellerUid) {
@@ -774,6 +775,70 @@ exports.syncPublicTrustOnAccountChange = onDocumentWritten(
     }
     await publicTrustProjection.syncUser(event.params.uid);
     return null;
+  },
+);
+
+// Confirmed moderation outcomes (and appeal results) change the User Score
+// automatically; a pending report never does.
+exports.syncPublicTrustOnReport = onDocumentWritten(
+  "trust_reports/{reportId}",
+  async (event) => {
+    const before = event.data.before.exists ? event.data.before.data() : {};
+    const after = event.data.after.exists ? event.data.after.data() : {};
+    if (before.status === after.status &&
+        before.reportedUid === after.reportedUid &&
+        before.reason === after.reason) {
+      return null;
+    }
+    const members = new Set(
+      [before.reportedUid, after.reportedUid].filter((value) => value),
+    );
+    for (const memberUid of members) {
+      await publicTrustProjection.syncUser(memberUid);
+    }
+    return null;
+  },
+);
+
+// Daily safety net: re-derives every member's score and public trust fields so
+// time-based changes (for example an expired VIP period) and any missed event
+// are corrected without anyone lifting a finger. It resumes from a stored
+// cursor, so large member counts are spread across runs.
+exports.reconcilePublicTrust = onSchedule(
+  {
+    schedule: "every day 03:30",
+    timeZone: "America/Edmonton",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    retryCount: 1,
+  },
+  async () => {
+    const stateRef = admin.firestore()
+      .collection("trust_reconciliation").doc("public_trust");
+    const state = await stateRef.get();
+    let cursor = state.exists ? String(state.data().cursor || "") : "";
+    const deadline = Date.now() + 480000;
+    let inspected = 0;
+    let changed = 0;
+    while (Date.now() < deadline) {
+      const batch = await publicTrustProjection.reconcileBatch({
+        afterUid: cursor,
+        limit: 100,
+      });
+      inspected += batch.inspected;
+      changed += batch.changed;
+      cursor = batch.nextCursor;
+      await stateRef.set({
+        cursor,
+        lastBatchAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      if (!cursor) break;
+    }
+    await stateRef.set({
+      lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastRunInspected: inspected,
+      lastRunChanged: changed,
+    }, { merge: true });
   },
 );
 
