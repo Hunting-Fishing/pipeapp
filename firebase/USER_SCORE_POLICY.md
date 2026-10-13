@@ -33,15 +33,31 @@ Public profiles show the current score, verification state, and high-level stand
 ## Appeals and retention
 
 Users may appeal confirmed decisions. Admins record the reason, reviewer, evidence outcome, and any reversal. Pending reports are not displayed as guilt. Confirmed safety records are retained as required for fraud prevention and legal compliance.
-## Implementation: public score v1
+## Implementation: automated User Score (v2)
 
-The public score is computed by `functions/public_trust_projection.js` (`scoreVersion` 1) and written to the
-public seller and business profiles. It does not read `users.userScore`, which the server never adjusts.
+Nothing is entered by hand. `functions/public_trust_projection.js` derives the score from server data and
+writes it to the private `users/{uid}.userScore` (used by the auction thresholds above) and, from 3 completed
+sales, to the public seller and business profiles (`scoreVersion` 2). It re-runs on every event that can change
+it and once a day (`reconcilePublicTrust`, resumable) so nothing drifts.
 
-- 70 neutral start.
-- +10 when administrator-approved identity/business verification is on file (`accountVerified`).
-- +2 per completed marketplace sale, capped at +10.
-- Plus the sum of `change` values in `user_score_events` for the member. **A reversal on appeal must be
-  recorded as an offsetting event**; editing history is not required.
-- Clamped to 0..100. Published only from 3 completed sales, and not for accounts scheduled for deletion.
-- Not yet implemented: consistent response and fulfillment history (up to +5).
+| Input | Points | Source |
+|---|---|---|
+| Neutral start | 70 | policy |
+| Administrator-approved verification | +10 | `users.accountVerified` |
+| Completed marketplace sales | +2 each, max +10 | `marketplace_transactions` (`status == completed`) |
+| Fulfillment | up to +5 from 3 sales: completed / (completed + cancelled by the seller) | `marketplace_transactions` (`cancelledByUid == seller`) |
+| Confirmed moderation outcome | per incident, see below | `trust_reports` with status `violation_confirmed` or `appeal_upheld` |
+| Exceptional administrator adjustment | any | `user_score_events` (optional) |
+
+Result is clamped to 0..100. Membership is never an input. Disputes are accusations, not proof, so they are not
+counted.
+
+**Moderation points** (an administrator's review is the trigger; the points are applied and reversed
+automatically): fraud or scam -40, hate/threats -25, prohibited or unsafe item -25, misleading information -15,
+reused photos -15, duplicate listing -10, spam -10, vulgar or harassing content -5, other -3. One incident
+(same listing, message, or offer) counts once, at its worst reason. The total penalty is floored at -100.
+Pending, dismissed, under-appeal, and overturned reports never change a score, so an overturned appeal restores
+the points by itself. These values sit inside the ranges above and live in `REPORT_REASON_PENALTIES`.
+
+Public display: from 3 completed sales, unless the account is scheduled for deletion. Not implemented yet:
+response-time history and verified reviews.
