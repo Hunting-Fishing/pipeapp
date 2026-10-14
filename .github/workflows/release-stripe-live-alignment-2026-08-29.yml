@@ -164,7 +164,7 @@ jobs:
           echo "Live legal documents match the exact release source."
 
       - name: Install Node and Firebase CLI for policy publication
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
           cache: npm
