@@ -292,3 +292,58 @@ test("report evidence admin access requires approved MFA claims", async () => {
       "report_evidence/buyer/report-1/report-upload",
   )));
 });
+
+test("listing videos accept every phone container up to 100 MB and nothing else", async () => {
+  const buyerStorage = testEnvironment
+      .authenticatedContext("buyer")
+      .storage();
+  const video = (name) => ref(
+      buyerStorage,
+      `listing_media/buyer/listing-draft/${name}`,
+  );
+  const tiny = () => Uint8Array.from([1, 2, 3, 4]);
+
+  for (const [name, contentType] of [
+    ["video.mp4", "video/mp4"],
+    ["video.mov", "video/quicktime"],
+    ["video.m4v", "video/x-m4v"],
+    ["video.3gp", "video/3gpp"],
+    ["video.3g2", "video/3gpp2"],
+    ["video.webm", "video/webm"],
+  ]) {
+    await assertSucceeds(uploadBytes(video(name), tiny(), {contentType}));
+  }
+
+  // Above the former 25 MB cap, still within the 100 MB limit.
+  await assertSucceeds(uploadBytes(
+      video("video.mp4"),
+      new Uint8Array(26 * 1024 * 1024),
+      {contentType: "video/mp4"},
+  ));
+  await assertFails(uploadBytes(
+      video("video.mp4"),
+      new Uint8Array(101 * 1024 * 1024),
+      {contentType: "video/mp4"},
+  ));
+
+  await assertFails(uploadBytes(video("video.avi"), tiny(), {contentType: "video/x-msvideo"}));
+  await assertFails(uploadBytes(video("video.mkv"), tiny(), {contentType: "video/x-matroska"}));
+  await assertFails(uploadBytes(video("video.mp4"), tiny(), {contentType: "image/jpeg"}));
+});
+
+test("listing photos are stored only as JPEG or PNG (the app converts other formats first)", async () => {
+  const buyerStorage = testEnvironment
+      .authenticatedContext("buyer")
+      .storage();
+  const photo = (name) => ref(
+      buyerStorage,
+      `listing_media/buyer/listing-draft/${name}`,
+  );
+  const tiny = () => Uint8Array.from([1, 2, 3, 4]);
+
+  await assertSucceeds(uploadBytes(photo("photo_2.jpg"), tiny(), {contentType: "image/jpeg"}));
+  await assertSucceeds(uploadBytes(photo("photo_3.png"), tiny(), {contentType: "image/png"}));
+  await assertFails(uploadBytes(photo("photo_4.heic"), tiny(), {contentType: "image/heic"}));
+  await assertFails(uploadBytes(photo("photo_4.webp"), tiny(), {contentType: "image/webp"}));
+  await assertFails(uploadBytes(photo("photo_4.gif"), tiny(), {contentType: "image/gif"}));
+});
