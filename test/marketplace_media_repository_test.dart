@@ -3,7 +3,10 @@ import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import 'package:pipe_app/marketplace/marketplace_media_repository.dart';
+
+Uint8List _tinyJpeg() => img.encodeJpg(img.Image(width: 8, height: 8));
 
 void main() {
   test('retryable media failures preserve monotonic byte progress', () async {
@@ -36,7 +39,7 @@ void main() {
       listingId: 'listing-1',
       photos: [
         XFile.fromData(
-          Uint8List.fromList([1, 2, 3, 4]),
+          _tinyJpeg(),
           name: 'pipe.jpg',
           mimeType: 'image/jpeg',
         ),
@@ -80,7 +83,7 @@ void main() {
       repository.upload(
         listingId: 'listing-1',
         photos: [
-          XFile.fromData(Uint8List.fromList([1]), name: 'private.jpg'),
+          XFile.fromData(_tinyJpeg(), name: 'private.jpg'),
         ],
       ),
       throwsA(
@@ -115,7 +118,7 @@ void main() {
         listingId: 'listing-1',
         photos: [
           XFile.fromData(
-            Uint8List(MarketplaceMediaRepository.maxPhotoBytes + 1),
+            Uint8List(MarketplaceMediaRepository.maxRawPhotoBytes + 1),
             name: 'oversize.jpg',
           ),
         ],

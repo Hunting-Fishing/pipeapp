@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'marketplace_image_normalizer.dart';
+
 class ListingMediaUploadResult {
   const ListingMediaUploadResult(
       {required this.imageUrls, required this.imageHashes, this.videoUrl});
@@ -81,7 +83,15 @@ class MarketplaceMediaRepository {
 
   static const maxPhotos = 12;
   static const maxPhotoBytes = 5 * 1024 * 1024;
-  static const maxVideoBytes = 25 * 1024 * 1024;
+
+  /// Phones save 8-25 MB originals. They are scaled and re-encoded to fit
+  /// [maxPhotoBytes] before upload, so the picker accepts much larger files.
+  static const maxRawPhotoBytes = 40 * 1024 * 1024;
+  static const maxVideoBytes = 100 * 1024 * 1024;
+
+  /// Containers phones record video in: MP4/M4V (Android, iPhone), MOV (iPhone),
+  /// 3GP/3G2 (older Android), WebM.
+  static const videoExtensions = {'mp4', 'mov', 'm4v', '3gp', '3g2', 'webm'};
   static const maxUploadAttempts = 3;
 
   final FirebaseStorage? _storage;
@@ -99,7 +109,7 @@ class MarketplaceMediaRepository {
     if (available <= 0) return const [];
     final accepted = <XFile>[];
     for (final file in files.take(available)) {
-      if (await file.length() <= maxPhotoBytes) accepted.add(file);
+      if (await file.length() <= maxRawPhotoBytes) accepted.add(file);
     }
     return accepted;
   }
@@ -112,7 +122,7 @@ class MarketplaceMediaRepository {
       maxWidth: 2000,
       maxHeight: 2000,
     );
-    if (file == null || await file.length() > maxPhotoBytes) return null;
+    if (file == null || await file.length() > maxRawPhotoBytes) return null;
     return file;
   }
 
@@ -140,21 +150,14 @@ class MarketplaceMediaRepository {
     var completed = 0;
     for (var index = 0; index < photos.length; index++) {
       final file = photos[index];
-      final extension = _extension(file.name, 'jpg');
-      final bytes = await file.readAsBytes();
-      if (bytes.length > maxPhotoBytes) {
-        throw MarketplaceMediaUploadException(
-          code: 'photo-too-large',
-          fileName: file.name,
-          userMessage:
-              '${file.name} is larger than 5 MB. Remove it or choose a smaller photo.',
-        );
-      }
+      final normalized = await _normalizePhoto(file);
+      final bytes = normalized.bytes;
       imageHashes.add(sha256.convert(bytes).toString());
       imageUrls.add(await _uploadWithRetry(
-        path: 'listing_media/$uid/$listingId/photo_${index + 1}.$extension',
+        path:
+            'listing_media/$uid/$listingId/photo_${index + 1}.${normalized.extension}',
         bytes: bytes,
-        contentType: _imageContentType(extension),
+        contentType: normalized.contentType,
         timeout: const Duration(seconds: 60),
         fileName: file.name,
         completedFiles: completed,
@@ -174,13 +177,21 @@ class MarketplaceMediaRepository {
     String? videoUrl;
     if (video != null) {
       final extension = _extension(video.name, 'mp4');
+      if (!videoExtensions.contains(extension)) {
+        throw MarketplaceMediaUploadException(
+          code: 'unsupported-video-format',
+          fileName: video.name,
+          userMessage:
+              '${video.name} is not a video format Pipe Buyer accepts. Choose an MP4, MOV, M4V, 3GP or WebM video.',
+        );
+      }
       final bytes = await video.readAsBytes();
       if (bytes.length > maxVideoBytes) {
         throw MarketplaceMediaUploadException(
           code: 'video-too-large',
           fileName: video.name,
           userMessage:
-              '${video.name} is larger than 25 MB. Remove it or choose a smaller video.',
+              '${video.name} is larger than 100 MB. Trim it or choose a shorter video.',
         );
       }
       videoUrl = await _uploadWithRetry(
@@ -342,9 +353,47 @@ class MarketplaceMediaRepository {
     return dot < 0 ? fallback : name.substring(dot + 1).toLowerCase();
   }
 
-  String _imageContentType(String extension) =>
-      extension == 'png' ? 'image/png' : 'image/jpeg';
+  /// Reads the photo's real format from its bytes and converts anything other
+  /// than a normal JPEG/PNG (WebP, GIF, HEIC/AVIF where decodable, BMP, TIFF,
+  /// oversized files) into a JPEG every viewer can display.
+  Future<NormalizedImage> _normalizePhoto(XFile file) async {
+    final bytes = await file.readAsBytes();
+    if (bytes.length > maxRawPhotoBytes) {
+      throw MarketplaceMediaUploadException(
+        code: 'photo-too-large',
+        fileName: file.name,
+        userMessage:
+            '${file.name} is larger than 40 MB. Remove it or choose a smaller photo.',
+      );
+    }
+    try {
+      return await normalizeImageForUpload(
+        bytes,
+        fileName: file.name,
+        maxBytes: maxPhotoBytes,
+      );
+    } on UnsupportedImageFormatException catch (error) {
+      throw MarketplaceMediaUploadException(
+        code: 'unsupported-photo-format',
+        fileName: file.name,
+        userMessage: error.userMessage,
+      );
+    } on ImageTooLargeException {
+      throw MarketplaceMediaUploadException(
+        code: 'photo-too-large',
+        fileName: file.name,
+        userMessage:
+            '${file.name} is still too large after it was shrunk. Choose a smaller photo.',
+      );
+    }
+  }
 
-  String _videoContentType(String extension) =>
-      extension == 'mov' ? 'video/quicktime' : 'video/mp4';
+  String _videoContentType(String extension) => switch (extension) {
+        'mov' => 'video/quicktime',
+        'm4v' => 'video/x-m4v',
+        '3gp' => 'video/3gpp',
+        '3g2' => 'video/3gpp2',
+        'webm' => 'video/webm',
+        _ => 'video/mp4',
+      };
 }
