@@ -13,6 +13,11 @@ class _Upload {
   final int length;
 }
 
+/// `XFile.fromData` ignores `name` on the VM, so give it a path as well. Real
+/// picked files always carry both.
+XFile _file(Uint8List bytes, String name) =>
+    XFile.fromData(bytes, name: name, path: name);
+
 MarketplaceMediaRepository _repository(List<_Upload> uploads) {
   return MarketplaceMediaRepository(
     userIdProvider: () => 'seller-1',
@@ -116,9 +121,9 @@ void main() {
         final result = await _repository(uploads).upload(
           listingId: 'listing-1',
           photos: const [],
-          video: XFile.fromData(
+          video: _file(
             Uint8List.fromList(List<int>.filled(32, 7)),
-            name: 'walkaround.${entry.key.toUpperCase()}',
+            'walkaround.${entry.key.toUpperCase()}',
           ),
         );
         expect(uploads.single.path,
@@ -134,7 +139,7 @@ void main() {
         _repository(uploads).upload(
           listingId: 'listing-1',
           photos: const [],
-          video: XFile.fromData(Uint8List(16), name: 'clip.avi'),
+          video: _file(Uint8List(16), 'clip.avi'),
         ),
         throwsA(
           isA<MarketplaceMediaUploadException>()
@@ -151,9 +156,9 @@ void main() {
         _repository(uploads).upload(
           listingId: 'listing-1',
           photos: const [],
-          video: XFile.fromData(
+          video: _file(
             Uint8List(MarketplaceMediaRepository.maxVideoBytes + 1),
-            name: 'long.mp4',
+            'long.mp4',
           ),
         ),
         throwsA(
