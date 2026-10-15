@@ -252,6 +252,33 @@ void main() {
     expect(nativeBilling, contains("const Text('Privacy Policy')"));
   });
 
+  test('Android subscription UI includes renewal and legal disclosures', () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+
+    expect(
+      nativeBilling,
+      contains("nativeMembershipPlatformName() == 'android'"),
+    );
+    expect(
+      nativeBilling,
+      contains('Payment is charged to your Google Play account'),
+    );
+    expect(nativeBilling, contains('renews automatically unless'));
+    expect(nativeBilling, contains('price and billing period shown above'));
+    expect(nativeBilling, contains("'Play subscription settings.'"));
+    expect(nativeBilling, contains("const Text('Google Play subscriptions')"));
+    expect(
+      "const Text('Terms of Service')".allMatches(nativeBilling).length,
+      greaterThanOrEqualTo(2),
+    );
+    expect(
+      "const Text('Privacy Policy')".allMatches(nativeBilling).length,
+      greaterThanOrEqualTo(2),
+    );
+  });
+
   test('native product lookup prefers platform-specific server catalogs', () {
     final nativeBilling = File(
       'lib/marketplace/native_membership_billing.dart',

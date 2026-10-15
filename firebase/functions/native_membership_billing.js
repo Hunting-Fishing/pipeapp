@@ -1467,7 +1467,10 @@ function createNativeMembershipBilling(admin) {
     }
   };
 
-  const reconcileNativeMembershipSubscriptions = async ({startAfter = ""} = {}) => {
+  const reconcileNativeMembershipSubscriptions = async ({
+    startAfter = "",
+    maxPages,
+  } = {}) => {
     const readiness = await loadNativeBillingReadiness(db);
     if (!readiness.enabled) {
       return {
@@ -1556,6 +1559,7 @@ function createNativeMembershipBilling(admin) {
       reconcileDocument,
       startAfter,
       pageSize: NATIVE_RECONCILIATION_LIMIT,
+      ...(maxPages == null ? {} : {maxPages}),
     });
   };
 

@@ -16,6 +16,7 @@ const {
 const NOTIFICATION_COLLECTION = "app_store_notification_events";
 const ACCOUNT_TOKEN_COLLECTION = "native_membership_account_tokens";
 const DEFAULT_NOTIFICATION_LEASE_MILLIS = 5 * 60 * 1000;
+const DEFAULT_NOTIFICATION_RETENTION_MILLIS = 35 * 24 * 60 * 60 * 1000;
 const MAX_SIGNED_PAYLOAD_LENGTH = 200000;
 
 class AppStoreNotificationError extends Error {
@@ -55,12 +56,21 @@ function createFirestoreNotificationEventStore({
   admin,
   now = () => Date.now(),
   leaseMillis = DEFAULT_NOTIFICATION_LEASE_MILLIS,
+  retentionMillis = DEFAULT_NOTIFICATION_RETENTION_MILLIS,
 }) {
   if (!db || typeof db.runTransaction !== "function" ||
-      !admin || !admin.firestore || !admin.firestore.FieldValue) {
+      !admin || !admin.firestore || !admin.firestore.FieldValue ||
+      !admin.firestore.Timestamp ||
+      typeof admin.firestore.Timestamp.fromMillis !== "function") {
     throw new TypeError("Firestore notification event store is not configured.");
   }
+  if (!Number.isFinite(retentionMillis) ||
+      retentionMillis < DEFAULT_NOTIFICATION_RETENTION_MILLIS) {
+    throw new RangeError("App Store notification retention is too short.");
+  }
   const FieldValue = admin.firestore.FieldValue;
+  const Timestamp = admin.firestore.Timestamp;
+  const retentionExpiresAt = () => Timestamp.fromMillis(now() + retentionMillis);
 
   return {
     async begin(event) {
@@ -88,6 +98,7 @@ function createFirestoreNotificationEventStore({
           leaseId,
           attemptCount: Number(existing.attemptCount || 0) + 1,
           leaseExpiresAtMillis: now() + leaseMillis,
+          retentionExpiresAt: retentionExpiresAt(),
           updatedAt: FieldValue.serverTimestamp(),
           ...(snapshot.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
         }, {merge: true});
@@ -117,6 +128,7 @@ function createFirestoreNotificationEventStore({
                 .digest("hex") : "",
           leaseId: "",
           leaseExpiresAtMillis: 0,
+          retentionExpiresAt: retentionExpiresAt(),
           processedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
@@ -141,6 +153,7 @@ function createFirestoreNotificationEventStore({
           retryable: error && error.retryable !== false,
           leaseId: "",
           leaseExpiresAtMillis: 0,
+          retentionExpiresAt: retentionExpiresAt(),
           lastFailedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
@@ -204,6 +217,7 @@ function createAppStoreServerNotificationProcessor({
   eventStore,
   resolveOwnerByAccountToken,
   authorizeOwnerForEnvironment,
+  mutationEnabled,
   beginReconciliation,
   loadProviderState,
   reconcileSubscription,
@@ -218,6 +232,7 @@ function createAppStoreServerNotificationProcessor({
     eventStore && eventStore.fail,
     resolveOwnerByAccountToken,
     authorizeOwnerForEnvironment,
+    mutationEnabled,
     beginReconciliation,
     loadProviderState,
     reconcileSubscription,
@@ -263,6 +278,21 @@ function createAppStoreServerNotificationProcessor({
           "The App Store notification app identifier did not match this app.",
           {httpStatus: 400, retryable: false},
       );
+    }
+
+    if (notificationType !== "TEST") {
+      const enabled = await mutationEnabled({
+        expectedEnvironment,
+        notificationType,
+        subtype,
+      });
+      if (enabled !== true) {
+        throw new AppStoreNotificationError(
+            "notification_mutation_disabled",
+            "App Store lifecycle processing is not enabled for this environment.",
+            {httpStatus: 503, retryable: true},
+        );
+      }
     }
 
     const claim = await eventStore.begin({
@@ -511,6 +541,7 @@ module.exports = {
   ACCOUNT_TOKEN_COLLECTION,
   AppStoreNotificationError,
   DEFAULT_NOTIFICATION_LEASE_MILLIS,
+  DEFAULT_NOTIFICATION_RETENTION_MILLIS,
   MAX_SIGNED_PAYLOAD_LENGTH,
   NOTIFICATION_COLLECTION,
   accountTokenDocumentId,

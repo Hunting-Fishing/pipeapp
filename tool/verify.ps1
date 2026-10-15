@@ -30,6 +30,9 @@ Assert-NativeSuccess 'Flutter SDK inspection'
 Write-Host 'Validating PowerShell release tools'
 $releaseToolScripts = @(
   (Join-Path $workspace 'tool\verify.ps1'),
+  (Join-Path $workspace 'tool\deploy_formal_hosting_only.ps1'),
+  (Join-Path $workspace 'tool\deploy_production_local.ps1'),
+  (Join-Path $workspace 'tool\verify_live_pipebuyer_release.ps1'),
   (Join-Path $workspace 'tool\callable_emulator_integration.ps1'),
   (Join-Path $workspace 'tool\web_visual_smoke.ps1'),
   (Join-Path $workspace 'tool\phase1_safe_default_rehearsal.ps1')
@@ -67,7 +70,7 @@ node --test tool/oauth_branding_test.mjs
 Assert-NativeSuccess 'OAuth branding tests'
 
 Write-Host 'Testing release manifest controls'
-node --test tool/release_manifest_test.mjs
+node --test tool/release_marker_test.mjs tool/release_manifest_test.mjs
 Assert-NativeSuccess 'Release manifest tests'
 
 Write-Host 'Testing deployed Function parity controls'
@@ -149,6 +152,12 @@ if (-not $SkipWebBuild) {
   Write-Host 'Building the web release'
   flutter build web --release @diagnosticDefines
   Assert-NativeSuccess 'Flutter web release build'
+  Write-Host 'Recording the deterministic web release marker'
+  node tool/release_marker.mjs `
+    --environment local-verification `
+    --release-sha $releaseSha `
+    --output build/web/pipe-release.json
+  Assert-NativeSuccess 'Release marker generation'
   Write-Host 'Recording the verified release manifest'
   node tool/release_manifest.mjs `
     --environment local-verification `

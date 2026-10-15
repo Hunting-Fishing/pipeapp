@@ -828,6 +828,43 @@ class _NativeMembershipPlanButtonState
                   ],
                 ),
               ],
+              if (nativeMembershipPlatformName() == 'android') ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Payment is charged to your Google Play account at '
+                  'confirmation. The subscription renews automatically unless '
+                  'canceled. The price and billing period shown above are '
+                  'supplied by Google Play. Manage or cancel it in your Google '
+                  'Play subscription settings.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => _openLegalDocument(
+                        nativeMembershipTermsUrl,
+                        'Terms of Service',
+                      ),
+                      child: const Text('Terms of Service'),
+                    ),
+                    TextButton(
+                      onPressed: () => _openLegalDocument(
+                        nativeMembershipPrivacyUrl,
+                        'Privacy Policy',
+                      ),
+                      child: const Text('Privacy Policy'),
+                    ),
+                    TextButton(
+                      onPressed: _openStoreSubscriptionManagement,
+                      child: const Text('Google Play subscriptions'),
+                    ),
+                  ],
+                ),
+              ],
             ],
           );
         },

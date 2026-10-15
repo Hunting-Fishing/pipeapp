@@ -112,6 +112,10 @@ Firestore uses collections and documents rather than SQL tables.
 - `native_membership_reconciliation_leases/{uid}`: server-only monotonic
   generation used to prevent older Store API responses from applying after a
   newer purchase verification, notification, or scheduled reconciliation.
+- `native_membership_reconciliation_checkpoints/scheduled`: server-only durable
+  page cursor, execution lease, result counts, and failure state for the bounded
+  scheduled reconciliation runner. A failed page preserves its starting cursor
+  so the next invocation retries rather than skipping failed accounts.
 - `membership_billing_intents/{uid}`: server-only purchase/restore reservation
   shared by App Store, Google Play, and Stripe membership checkout. The opaque
   nonce, owner, target product/plan, billing channel, status, and expiry prevent
@@ -126,10 +130,17 @@ Firestore uses collections and documents rather than SQL tables.
   snapshot rather than recomputing configuration, customer, or promotion data.
 - `app_store_notification_events/{sha256}`: server-only App Store Server
   Notifications V2 idempotency leases and outcomes. Signed payloads and private
-  keys are never stored in this collection.
+  keys are never stored in this collection. `retentionExpiresAt` is a Firestore
+  timestamp set at least 35 days after the latest processing attempt; production
+  must configure a TTL policy on that field only after retention approval.
 - `platform_configuration/native_membership_billing`: server-owned global and
   per-store readiness switches. Source availability does not imply that a
-  mutation endpoint is exported or enabled.
+  mutation endpoint is exported or enabled. The recognized purchase fields are
+  `enabled`, `appleEnabled`, `appleSandboxEnabled`, and `googleEnabled`. App
+  Store lifecycle notifications additionally require the environment-specific
+  `appleSandboxNotificationMutationsEnabled` or
+  `appleProductionNotificationMutationsEnabled` switch; neither is implied by a
+  purchase-readiness field.
 
 ## Listing query budgets
 

@@ -291,6 +291,13 @@ try {
       throw 'Production build/web/main.dart.js is missing.'
     }
 
+    Invoke-Checked 'Recording deterministic production release marker' {
+      node tool/release_marker.mjs `
+        --environment production `
+        --release-sha $releaseSha `
+        --output build/web/pipe-release.json
+    }
+
     Write-Host "`n======================================================" -ForegroundColor Yellow
     Write-Host ' DEPLOYING VERIFIED FORMAL WEB BUILD TO PRODUCTION' -ForegroundColor Yellow
     Write-Host " Project: $projectId" -ForegroundColor Yellow

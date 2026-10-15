@@ -81,4 +81,3 @@ Privacy Policy: https://www.pipebuyer.com/privacy
   grace period, refund/revocation, delayed approval, and lost-response replay.
 - TestFlight evidence on supported physical iPhone and iPad devices.
 - Final legal/product approval of the listing copy and subscription disclosures.
-

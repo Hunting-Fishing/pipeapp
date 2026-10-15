@@ -134,6 +134,10 @@ jobs:
             --dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED="$PIPE_REMOTE_DIAGNOSTICS_ENABLED"
           restore_worker
           trap - EXIT
+          node tool/release_marker.mjs \
+            --environment "$PIPE_ENV" \
+            --release-sha "$PIPE_RELEASE_SHA" \
+            --output build/web/pipe-release.json
 
       - name: Publish hosting and marketplace functions
         shell: bash

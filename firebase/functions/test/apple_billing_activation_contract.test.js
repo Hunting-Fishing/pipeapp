@@ -46,6 +46,9 @@ test("Apple helper is present but cannot be activated by importing bootstrap", (
       packageJson.dependencies["@apple/app-store-server-library"],
       "3.1.0",
   );
+  assert.doesNotMatch(bootstrap, /apple_native_billing_composition/);
+  assert.doesNotMatch(bootstrap, /native_membership_reconciliation_runner/);
+  assert.doesNotMatch(bootstrap, /native_membership_account_backfill/);
 });
 
 test("Apple allowlist omits unconfigured VIP while shared Google catalog remains", () => {
@@ -113,6 +116,15 @@ test("purchase verification requires the preflight intent token", () => {
       verification,
       /Mobile membership purchasing is not enabled yet/,
   );
+});
+
+test("scheduled reconciliation accepts a one-page durable checkpoint bound", () => {
+  const billing = source("native_membership_billing.js");
+  const start = billing.indexOf("const reconcileNativeMembershipSubscriptions");
+  const end = billing.indexOf("getNativeMembershipBillingStatus,", start);
+  const reconciliation = billing.slice(start, end);
+  assert.match(reconciliation, /maxPages/);
+  assert.match(reconciliation, /reconcileNativeMembershipPages/);
 });
 
 test("both Stripe subscription checkout commands claim the shared intent", () => {

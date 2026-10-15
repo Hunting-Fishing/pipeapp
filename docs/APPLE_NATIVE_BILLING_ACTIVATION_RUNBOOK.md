@@ -21,6 +21,10 @@ product merely because it is not approved for Apple.
   App Store Server Notifications endpoint.
 - No production secret, notification URL, scheduled job, or readiness flag is
   created or enabled by the prerequisite change.
+- `apple_native_billing_composition.js` contains reviewed Sandbox and Production
+  composition factories, but `production_bootstrap.js` does not import or export
+  them. Constructing either composition requires the three Apple IAP secret
+  bindings and preserves the library's Production-app-ID/Sandbox-no-app-ID rule.
 - Apple signed data is handled by `@apple/app-store-server-library` 3.1.0.
   Unsigned JWS payload decoding is not an activation path.
 - Apple G2 and G3 public roots are vendored under
@@ -45,6 +49,16 @@ product merely because it is not approved for Apple.
 - Server-only notification/idempotency/account-index collections are denied to
   clients by the ruleset's default deny behavior and are documented in
   `firebase/FIRESTORE_SCHEMA.md`; do not add client grants.
+- Lifecycle notification processing is independently fail-closed through
+  `appleSandboxNotificationMutationsEnabled` and
+  `appleProductionNotificationMutationsEnabled`. A verified `TEST` notification
+  may be acknowledged while the applicable switch is false; every non-`TEST`
+  notification receives a retryable response before an idempotency lease or
+  entitlement mutation.
+- Notification idempotency records carry a `retentionExpiresAt` timestamp at
+  least 35 days after the latest processing attempt. Approve and configure the
+  Firestore TTL policy before activation; never shorten it below Apple's retry
+  window.
 
 ## Account and App Store Connect prerequisites
 
@@ -94,7 +108,9 @@ All gates below must pass on the exact release commit:
    race.
 5. Existing `native_membership_accounts` documents are backfilled into the
    hashed `native_membership_account_tokens` reverse index by a reviewed,
-   admin-only job. Abort if any token maps to more than one user.
+   admin-only job. Run its dry-run first, then require `confirmWrite: true` for
+   the write pass. Abort before writes if any source or existing index token maps
+   to more than one user.
 6. Firestore backup/restore and event retention are approved for
    `app_store_notification_events`. Notification UUID records must outlive
    Apple's retry window.
@@ -104,6 +120,10 @@ All gates below must pass on the exact release commit:
 8. The scheduled reconciliation composition durably stores `nextCursor` after
    every successful page, resumes it on the next invocation, and retries or
    alerts whenever `failed > 0`. An in-memory cursor is not sufficient.
+   `native_membership_reconciliation_runner.js` processes one bounded page per
+   invocation, owns a Firestore execution lease, preserves the page's starting
+   cursor on failure, and emits structured success/failure logs. It remains
+   unexported until the activation change is approved.
 
 ## Staged server activation
 
@@ -126,7 +146,9 @@ Do not combine all of these steps into one blind production change.
 3. Add an activation gate ahead of all notification mutations. The endpoint may
    acknowledge Apple's `TEST` notification while disabled, but a lifecycle
    event must not mutate membership until the environment-specific gate is
-   deliberately enabled.
+   deliberately enabled. Keep
+   `appleSandboxNotificationMutationsEnabled: false` and
+   `appleProductionNotificationMutationsEnabled: false` when first deploying.
 4. Export only the Sandbox HTTPS endpoint first and deploy it with App Check not
    required (Apple, not a Firebase client, calls this endpoint). Keep the signed
    payload verifier, request-size limit, and POST-only behavior enabled.

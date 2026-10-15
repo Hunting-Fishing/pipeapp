@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   AppStoreNotificationError,
+  DEFAULT_NOTIFICATION_RETENTION_MILLIS,
   createAppStoreServerNotificationHttpHandler,
   createAppStoreServerNotificationProcessor,
   createFirestoreNotificationEventStore,
@@ -83,6 +84,7 @@ function processorFixture(overrides = {}) {
       (async () => "user-1"),
     authorizeOwnerForEnvironment: overrides.authorizeOwnerForEnvironment ||
       (async () => true),
+    mutationEnabled: overrides.mutationEnabled || (async () => true),
     beginReconciliation: overrides.beginReconciliation || (async () => 1),
     loadProviderState: overrides.loadProviderState || (async () => ({
       ownerUid: "user-1",
@@ -138,9 +140,23 @@ test("Firestore idempotency completion requires the acquired lease", async () =>
   };
   const store = createFirestoreNotificationEventStore({
     db,
-    admin: {firestore: {FieldValue: {serverTimestamp: () => "timestamp"}}},
+    admin: {firestore: {
+      FieldValue: {serverTimestamp: () => "timestamp"},
+      Timestamp: {fromMillis: (value) => ({millis: value})},
+    }},
     now: () => 1000,
   });
+  assert.throws(
+      () => createFirestoreNotificationEventStore({
+        db,
+        admin: {firestore: {
+          FieldValue: {serverTimestamp: () => "timestamp"},
+          Timestamp: {fromMillis: (value) => ({millis: value})},
+        }},
+        retentionMillis: DEFAULT_NOTIFICATION_RETENTION_MILLIS - 1,
+      }),
+      /retention is too short/,
+  );
   const claim = await store.begin({
     notificationUUID,
     notificationType: "TEST",
@@ -153,6 +169,9 @@ test("Firestore idempotency completion requires the acquired lease", async () =>
   );
   await store.complete(notificationUUID, {status: "processed"}, claim);
   assert.equal((await store.begin({notificationUUID})).state, "duplicate");
+  assert.equal(documents.get(
+      `app_store_notification_events/${notificationDocumentId(notificationUUID)}`,
+  ).retentionExpiresAt.millis, 1000 + DEFAULT_NOTIFICATION_RETENTION_MILLIS);
 });
 
 test("verified lifecycle notification reconciles before applying entitlement", async () => {
@@ -285,6 +304,38 @@ test("test notifications verify without mutating membership", async () => {
   assert.equal(fixture.cleared.length, 0);
 });
 
+test("disabled mutation gate acknowledges TEST but leaves lifecycle retryable", async () => {
+  const disabledLifecycle = processorFixture({
+    mutationEnabled: async () => false,
+  });
+  await assert.rejects(
+      disabledLifecycle.processNotification("signed-notification"),
+      (error) => error instanceof AppStoreNotificationError &&
+        error.code === "notification_mutation_disabled" &&
+        error.httpStatus === 503 && error.retryable === true,
+  );
+  assert.equal(disabledLifecycle.eventStore.beginCount, 0);
+  assert.equal(disabledLifecycle.applied.length, 0);
+  assert.equal(disabledLifecycle.cleared.length, 0);
+
+  const disabledTest = processorFixture({
+    mutationEnabled: async () => false,
+    verifier: {
+      async verifyAndDecodeNotification() {
+        return notification({notificationType: "TEST", data: {}});
+      },
+      async verifyAndDecodeTransaction() {
+        throw new Error("transaction verifier should not be called");
+      },
+    },
+  });
+  const result = await disabledTest.processNotification("signed-notification");
+  assert.equal(result.outcome, "test_verified");
+  assert.equal(disabledTest.eventStore.beginCount, 1);
+  assert.equal(disabledTest.applied.length, 0);
+  assert.equal(disabledTest.cleared.length, 0);
+});
+
 test("unverified outer payload cannot reserve an idempotency record", async () => {
   const eventStore = createMemoryEventStore();
   const fixture = processorFixture({
@@ -368,4 +419,23 @@ test("notification HTTP handler rejects invalid input and retries unknown failur
   }, failureResponse);
   assert.equal(failureResponse.statusCode, 500);
   assert.equal(failureResponse.body.code, "notification_processing_failed");
+});
+
+test("notification HTTP handler requests retry while mutation is disabled", async () => {
+  const handler = createAppStoreServerNotificationHttpHandler({
+    processNotification: async () => {
+      throw new AppStoreNotificationError(
+          "notification_mutation_disabled",
+          "disabled",
+          {httpStatus: 503, retryable: true},
+      );
+    },
+  });
+  const response = fakeHttpResponse();
+  await handler({
+    method: "POST",
+    body: {signedPayload: "x".repeat(64)},
+  }, response);
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.body.code, "notification_mutation_disabled");
 });
