@@ -16,6 +16,7 @@ const {
 } = require("./stripe_marketplace_commands");
 const {
   safeConfiguredUrl,
+  stripeCheckoutRequestSnapshot,
   stripeFormRequest,
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
@@ -27,6 +28,20 @@ const {
   taxBillingPrepared,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
+const {
+  nativeProviderStateBlocksNewCheckout,
+  providerStateBlocksNewCheckout,
+} = require("./dispatch_subscription_provider_access");
+const {
+  MEMBERSHIP_BILLING_INTENT_COLLECTION,
+  STRIPE_CHECKOUT_INTENT_TTL_MS,
+  billingIntentActive,
+  claimBillingIntentInTransaction,
+  failStripeCheckoutReservation,
+  makeStripeCheckoutReservationRetryable,
+  nativeBillingIntentCoordinationEnabled,
+  stripeCheckoutStateOpen,
+} = require("./membership_billing_intent");
 
 const CHECKOUT_CREATION_LEASE_MS = 2 * 60 * 1000;
 const CHECKOUT_FALLBACK_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -108,7 +123,11 @@ function reusableCheckoutState(
 function createdCheckoutBlocksPlanChange(state, plan, nowMillis = Date.now()) {
   if (!state || state.status !== "created") return false;
   if (timestampMillis(state.expiresAt) <= nowMillis) return false;
-  return Boolean(state.plan && state.plan !== plan);
+  // The exact plan/promotion combination was already returned by
+  // reusableCheckoutState. Any other live session must remain the sole
+  // chargeable session until it expires; do not create a second same-plan
+  // session merely to change a promotion.
+  return Boolean(state.plan);
 }
 
 function checkoutAttemptKey(uid, attemptNumber) {
@@ -192,23 +211,127 @@ function createDispatchSubscriptionCommands(admin) {
         promotionCodeEntryAllowed(plan, couponId) && !promotionCodeId;
       const referrerUid = relationshipSnapshot.exists ?
         String(relationshipSnapshot.data().referrerUid || "").trim() : "";
+      const checkoutRequestBaseFields = stripeCheckoutRequestSnapshot({
+        mode: "subscription",
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        client_reference_id: uid,
+        ...(stripeCustomerId ? {customer: stripeCustomerId} : {}),
+        billing_address_collection: "required",
+        allow_promotion_codes: allowPromotionCodes ? "true" : "false",
+        "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
+        "line_items[0][price]": priceId,
+        "line_items[0][quantity]": 1,
+        ...(promotionCodeId ? {
+          "discounts[0][promotion_code]": promotionCodeId,
+        } : couponId ? {"discounts[0][coupon]": couponId} : {}),
+        "metadata[billingType]": "dispatch_subscription",
+        "metadata[pipeBuyerUid]": uid,
+        "metadata[dispatchPlan]": plan,
+        "metadata[taxCollectionStatus]": collectionStatus,
+        ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
+        ...(promotionCodeId ? {
+          "metadata[promotionCodeId]": promotionCodeId,
+        } : {}),
+        ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
+        "subscription_data[metadata][billingType]": "dispatch_subscription",
+        "subscription_data[metadata][pipeBuyerUid]": uid,
+        "subscription_data[metadata][dispatchPlan]": plan,
+        "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
+        ...(promotionCodeId ? {
+          "subscription_data[metadata][promotionCodeId]": promotionCodeId,
+        } : {}),
+        ...(referrerUid ? {
+          "subscription_data[metadata][affiliateReferrerUid]": referrerUid,
+        } : {}),
+      });
 
       const stateRef = db.collection("dispatch_subscription_checkout_state").doc(uid);
       const membershipRef = db.collection("dispatch_memberships").doc(uid);
+      const billingConfigRef = db.collection("platform_configuration")
+          .doc("native_membership_billing");
+      const billingIntentRef = db.collection(MEMBERSHIP_BILLING_INTENT_COLLECTION)
+          .doc(uid);
+      const dispatchProviderRef = db.collection("dispatch_subscription_provider_state")
+          .doc(uid);
+      const vipProviderRef = db.collection("vip_subscription_provider_state").doc(uid);
+      const nativeProviderRef = db.collection("native_membership_provider_state")
+          .doc(uid);
+      const vipCheckoutRef = db.collection("vip_subscription_checkout_state").doc(uid);
       const nowMillis = Date.now();
       const reservation = await db.runTransaction(async (transaction) => {
-        const [stateSnapshot, membershipSnapshot] = await Promise.all([
+        const [
+          stateSnapshot,
+          membershipSnapshot,
+          billingConfigSnapshot,
+          billingIntentSnapshot,
+          dispatchProviderSnapshot,
+          vipProviderSnapshot,
+          nativeProviderSnapshot,
+          vipCheckoutSnapshot,
+        ] = await Promise.all([
           transaction.get(stateRef),
           transaction.get(membershipRef),
+          transaction.get(billingConfigRef),
+          transaction.get(billingIntentRef),
+          transaction.get(dispatchProviderRef),
+          transaction.get(vipProviderRef),
+          transaction.get(nativeProviderRef),
+          transaction.get(vipCheckoutRef),
         ]);
         const state = stateSnapshot.exists ? stateSnapshot.data() : {};
         const membership = membershipSnapshot.exists ? membershipSnapshot.data() : null;
+        const dispatchProvider = dispatchProviderSnapshot.exists ?
+          dispatchProviderSnapshot.data() : null;
+        const vipProvider = vipProviderSnapshot.exists ?
+          vipProviderSnapshot.data() : null;
+        const nativeProvider = nativeProviderSnapshot.exists ?
+          nativeProviderSnapshot.data() : null;
 
         if (dispatchMembershipIsCurrent(membership, nowMillis)) {
           throw new HttpsError(
               "failed-precondition",
               "Your Dispatch membership is already active.",
           );
+        }
+        if (providerStateBlocksNewCheckout(dispatchProvider) ||
+            providerStateBlocksNewCheckout(vipProvider) ||
+            nativeProviderStateBlocksNewCheckout(nativeProvider, uid, nowMillis)) {
+          throw new HttpsError(
+              "failed-precondition",
+              "An existing paid membership subscription already exists. Use Change plan instead of starting a second subscription.",
+          );
+        }
+        const existingBillingIntent = billingIntentSnapshot.exists ?
+          billingIntentSnapshot.data() : null;
+        const coordinateBillingIntent = nativeBillingIntentCoordinationEnabled(
+            billingConfigSnapshot.exists ? billingConfigSnapshot.data() : null,
+        ) || billingIntentActive(existingBillingIntent, uid, nowMillis);
+        if (coordinateBillingIntent && stripeCheckoutStateOpen(
+            vipCheckoutSnapshot.exists ? vipCheckoutSnapshot.data() : null,
+            uid,
+            nowMillis,
+        )) {
+          throw new HttpsError(
+              "failed-precondition",
+              "Another membership checkout is already open.",
+          );
+        }
+        let billingIntentClaim = null;
+        if (coordinateBillingIntent) {
+          billingIntentClaim = claimBillingIntentInTransaction({
+            transaction,
+            intentRef: billingIntentRef,
+            intentSnapshot: billingIntentSnapshot,
+            admin,
+            uid,
+            channel: "stripe",
+            platform: "web",
+            productId,
+            planId: `dispatch_${plan}`,
+            nowMillis,
+            ttlMillis: STRIPE_CHECKOUT_INTENT_TTL_MS,
+          });
         }
 
         if (reusableCheckoutState(
@@ -223,6 +346,8 @@ function createDispatchSubscriptionCommands(admin) {
             checkoutUrl: String(state.checkoutUrl),
             attemptNumber: Number(state.attemptNumber || 1),
             promotionCodeEntryAllowed: state.promotionCodeEntryAllowed === true,
+            billingIntentToken: billingIntentClaim &&
+              billingIntentClaim.intentToken || "",
           };
         }
 
@@ -238,13 +363,26 @@ function createDispatchSubscriptionCommands(admin) {
           }
           const attemptNumber = Math.max(1, Number(state.attemptNumber || 1));
           if (stateLeaseExpiry > nowMillis) {
-            return {busy: true, attemptNumber};
+            return {
+              busy: true,
+              attemptNumber,
+              billingIntentToken: billingIntentClaim &&
+                billingIntentClaim.intentToken || "",
+            };
           }
           transaction.set(stateRef, {
             leaseExpiresAt: Timestamp.fromMillis(nowMillis + CHECKOUT_CREATION_LEASE_MS),
             updatedAt: FieldValue.serverTimestamp(),
           }, {merge: true});
-          return {attemptNumber};
+          const checkoutRequestFields = stripeCheckoutRequestSnapshot(
+              state.checkoutRequestFields,
+          );
+          return {
+            attemptNumber,
+            checkoutRequestFields,
+            billingIntentToken: billingIntentClaim &&
+              billingIntentClaim.intentToken || "",
+          };
         }
 
         if (createdCheckoutBlocksPlanChange(state, plan, nowMillis)) {
@@ -253,13 +391,13 @@ function createDispatchSubscriptionCommands(admin) {
               "A different Dispatch membership checkout is already open. Finish or let that checkout expire before changing plans.",
           );
         }
-        // An open Checkout Session for this same plan is allowed to be replaced
-        // only when its promotion differs from the user's current request. This
-        // makes applying/changing a promo work without relaxing the plan guard.
-
         const previousAttempt = Number(state.attemptNumber || 0);
         const attemptNumber = Number.isSafeInteger(previousAttempt) && previousAttempt >= 0 ?
           previousAttempt + 1 : 1;
+        const checkoutRequestFields = stripeCheckoutRequestSnapshot({
+          ...checkoutRequestBaseFields,
+          "metadata[checkoutAttempt]": String(attemptNumber),
+        });
         transaction.set(stateRef, {
           ownerUid: uid,
           plan,
@@ -269,6 +407,7 @@ function createDispatchSubscriptionCommands(admin) {
           promotionCodeEntryAllowed: allowPromotionCodes,
           promotionCodeId: promotionCodeId || null,
           attemptNumber,
+          checkoutRequestFields,
           checkoutSessionId: FieldValue.delete(),
           checkoutUrl: FieldValue.delete(),
           leaseExpiresAt: Timestamp.fromMillis(nowMillis + CHECKOUT_CREATION_LEASE_MS),
@@ -276,7 +415,12 @@ function createDispatchSubscriptionCommands(admin) {
           updatedAt: FieldValue.serverTimestamp(),
           ...(stateSnapshot.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
         }, {merge: true});
-        return {attemptNumber};
+        return {
+          attemptNumber,
+          checkoutRequestFields,
+          billingIntentToken: billingIntentClaim &&
+            billingIntentClaim.intentToken || "",
+        };
       });
 
       if (reservation.reuse) {
@@ -306,43 +450,31 @@ function createDispatchSubscriptionCommands(admin) {
           secretKey,
           path: "/v1/checkout/sessions",
           idempotencyKey: checkoutAttemptKey(uid, reservation.attemptNumber),
-          fields: {
-            mode: "subscription",
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-            client_reference_id: uid,
-            ...(stripeCustomerId ? {customer: stripeCustomerId} : {}),
-            billing_address_collection: "required",
-            allow_promotion_codes: allowPromotionCodes ? "true" : "false",
-            "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
-            "line_items[0][price]": priceId,
-            "line_items[0][quantity]": 1,
-            ...(promotionCodeId ? {
-              "discounts[0][promotion_code]": promotionCodeId,
-            } : couponId ? {"discounts[0][coupon]": couponId} : {}),
-            "metadata[billingType]": "dispatch_subscription",
-            "metadata[pipeBuyerUid]": uid,
-            "metadata[dispatchPlan]": plan,
-            "metadata[taxCollectionStatus]": collectionStatus,
-            "metadata[checkoutAttempt]": String(reservation.attemptNumber),
-            ...(couponId ? {"metadata[promotionCouponId]": couponId} : {}),
-            ...(promotionCodeId ? {
-              "metadata[promotionCodeId]": promotionCodeId,
-            } : {}),
-            ...(referrerUid ? {"metadata[affiliateReferrerUid]": referrerUid} : {}),
-            "subscription_data[metadata][billingType]": "dispatch_subscription",
-            "subscription_data[metadata][pipeBuyerUid]": uid,
-            "subscription_data[metadata][dispatchPlan]": plan,
-            "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
-            ...(promotionCodeId ? {
-              "subscription_data[metadata][promotionCodeId]": promotionCodeId,
-            } : {}),
-            ...(referrerUid ? {
-              "subscription_data[metadata][affiliateReferrerUid]": referrerUid,
-            } : {}),
-          },
+          fields: reservation.checkoutRequestFields,
         });
       } catch (error) {
+        if (error instanceof HttpsError && error.details &&
+            error.details.stripeRequestDefinitiveFailure === true) {
+          await failStripeCheckoutReservation({
+            db,
+            admin,
+            uid,
+            stateRef,
+            attemptNumber: reservation.attemptNumber,
+            intentToken: reservation.billingIntentToken,
+            failureCode: `stripe_${error.code || "rejected"}`,
+          });
+        } else {
+          await makeStripeCheckoutReservationRetryable({
+            db,
+            admin,
+            uid,
+            stateRef,
+            attemptNumber: reservation.attemptNumber,
+            intentToken: reservation.billingIntentToken,
+            failureCode: "stripe_ambiguous_failure",
+          });
+        }
         if (promotionCodeId && error instanceof HttpsError) {
           throw new HttpsError(
               error.code,
@@ -354,6 +486,15 @@ function createDispatchSubscriptionCommands(admin) {
       const sessionId = String(checkout.id || "");
       const checkoutUrl = String(checkout.url || "");
       if (!sessionId.startsWith("cs_") || !checkoutUrl.startsWith("https://")) {
+        await makeStripeCheckoutReservationRetryable({
+          db,
+          admin,
+          uid,
+          stateRef,
+          attemptNumber: reservation.attemptNumber,
+          intentToken: reservation.billingIntentToken,
+          failureCode: "stripe_ambiguous_response",
+        });
         throw new HttpsError("internal", "Stripe did not return a valid subscription checkout.");
       }
       const providerExpiryMillis = Number(checkout.expires_at || 0) * 1000;

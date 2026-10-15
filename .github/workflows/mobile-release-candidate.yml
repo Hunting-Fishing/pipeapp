@@ -488,6 +488,7 @@ jobs:
           profile_team="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile_plist")"
           profile_app="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile_plist")"
           profile_push="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$profile_plist" 2>/dev/null || true)"
+          profile_apple_sign_in="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin:0' "$profile_plist" 2>/dev/null || true)"
           [[ "$profile_team" == "$IOS_DEVELOPMENT_TEAM" ]] || {
             echo "Provisioning profile team does not match IOS_DEVELOPMENT_TEAM." >&2
             exit 1
@@ -498,6 +499,10 @@ jobs:
           }
           [[ "$profile_push" == "production" ]] || {
             echo "Provisioning profile must include production Push Notifications." >&2
+            exit 1
+          }
+          [[ "$profile_apple_sign_in" == "Default" ]] || {
+            echo "Provisioning profile must include Sign in with Apple." >&2
             exit 1
           }
           export_team="$(/usr/libexec/PlistBuddy -c 'Print :teamID' "$export_options_path")"

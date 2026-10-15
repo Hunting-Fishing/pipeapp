@@ -18,6 +18,7 @@ import 'core/design/pipe_buyer_theme.dart';
 import 'core/diagnostics/app_diagnostics.dart';
 import 'core/startup/pipe_startup_monitor.dart';
 import 'marketplace/marketplace_notification_service.dart';
+import 'marketplace/native_membership_billing.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/internationalization.dart';
@@ -103,6 +104,7 @@ Future<FFAppState> _initializePipeBuyer(
       progress: progress,
     ),
   );
+  await NativeMembershipPurchaseCoordinator.instance.initialize();
 
   startupMonitor.startStage(
     id: 'theme',

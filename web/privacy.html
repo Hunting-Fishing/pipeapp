@@ -23,12 +23,12 @@
   <div class="container">
     <h1>Privacy Policy for Pipe Buyer</h1>
     <p><strong>Effective Date:</strong> August 29, 2026<br>
-    <strong>Last updated:</strong> August 29, 2026</p>
+    <strong>Last updated:</strong> October 16, 2026</p>
 
     <p><strong>Application Overview:</strong> Pipe Buyer, accessible at <a href="https://www.pipebuyer.com">https://www.pipebuyer.com</a>, is a business-to-business marketplace for industrial equipment and materials. The platform includes listings, wanted ads, offers, timed buying and auction tools, messaging, seller payout onboarding, enabled payment features, and a freight Dispatch network. Initial operations focus on Canada and the United States.</p>
 
     <div class="highlight-box">
-      <p style="margin:0"><strong>Payments and seller payouts are handled through approved providers such as Stripe.</strong> Pipe Buyer stores the provider identifiers, payment status, transaction amounts, fee calculations, subscription state, payout-readiness state, and reconciliation records needed to operate the platform. Stripe-hosted Checkout and Stripe Connect collect sensitive card, bank, identity, and payout information directly. Pipe Buyer does not ask users to enter raw card numbers, CVV values, routing/account numbers, IBANs, or tax IDs into Pipe Buyer for Stripe seller onboarding.</p>
+      <p style="margin:0"><strong>Payments and seller payouts are handled through approved providers such as Stripe and Apple.</strong> Pipe Buyer stores the provider identifiers, payment status, transaction amounts, fee calculations, subscription state, payout-readiness state, and reconciliation records needed to operate the platform. Stripe-hosted Checkout and Stripe Connect collect sensitive card, bank, identity, and payout information directly. Apple processes eligible iOS in-app subscription purchases through the App Store. Pipe Buyer does not ask users to enter raw card numbers, CVV values, routing/account numbers, IBANs, or tax IDs into Pipe Buyer for Stripe seller onboarding or an Apple App Store purchase.</p>
     </div>
 
     <h2>1. Information We Collect</h2>
@@ -42,13 +42,13 @@
       <tr><td>Messages and attachments</td><td>Messages and files you choose to send to other users, used to provide in-app communication and investigate reported abuse.</td></tr>
       <tr><td>Location and dispatch information</td><td>Listing location, map coordinates, service area, pickup/delivery points, route-related details, and device location when you grant permission.</td></tr>
       <tr><td>Transaction records</td><td>Offers, bids, timed-sale outcomes, accepted quantities and totals, seller/buyer identifiers, transaction status, refunds, disputes, and audit history.</td></tr>
-      <tr><td>Subscription and payment metadata</td><td>Stripe customer/subscription/session/payment identifiers, current plan, invoice/payment status, amount/currency, fee schedule revision, tax/reconciliation status, refund and dispute identifiers, and related provider events.</td></tr>
+      <tr><td>Subscription and payment metadata</td><td>Stripe customer/subscription/session/payment identifiers; Apple product, original transaction, latest transaction, storefront environment, renewal and expiration status; a Pipe Buyer-generated pseudonymous app-account token used to associate an App Store purchase with the correct account; current plan; amount/currency; fee schedule revision; tax/reconciliation status; refund and dispute identifiers; and related provider events.</td></tr>
       <tr><td>Seller payout metadata</td><td>Stripe connected-account identifier, seller country, onboarding status, transfer capability/readiness, payout holds, and transfer identifiers. Stripe collects the underlying bank, identity, and tax information required for its onboarding.</td></tr>
       <tr><td>Safety and support information</td><td>Reports, evidence, appeals, fraud-review information, support enquiries, and administrative action records.</td></tr>
       <tr><td>Device and diagnostic information</td><td>Session/device identifiers, notification tokens, crash/performance measurements, abuse-rate-limit records, and security telemetry used to protect and improve the service.</td></tr>
     </table>
 
-    <p>We may also receive information from payment providers when a payment, subscription, refund, dispute, transfer, payout, or verification status changes. We use provider-signed webhooks and server-side verification rather than trusting a browser return page as proof of payment.</p>
+    <p>We may also receive information from payment providers when a payment, subscription, renewal, expiration, refund, revocation, dispute, transfer, payout, or verification status changes. We use provider-signed webhooks or notifications and server-side verification, including App Store transaction-status verification where enabled, rather than trusting a browser return page or device-only claim as proof of payment.</p>
 
     <p><strong>Payment data we deliberately do not store in Pipe Buyer:</strong> full payment card numbers, CVV values, raw bank account/routing numbers, raw IBAN/SWIFT payout credentials, or Stripe seller-onboarding identity documents. Those details are collected and handled by Stripe or another approved provider on its secure surfaces.</p>
 
@@ -82,6 +82,8 @@
 
     <h2>4. Payment Provider and Financial Data Sharing</h2>
     <p><strong>Stripe.</strong> Pipe Buyer uses Stripe for enabled payment processing, subscriptions, seller onboarding, connected-account transfers, refunds, disputes, and related payment services. Information necessary to create or administer those services may be shared with Stripe, including your name, email, business/display name, country, Pipe Buyer account reference, transaction references, amounts, currency, and transaction metadata. Stripe separately collects payment credentials, bank details, identity verification data, and other information required under Stripe’s own terms and privacy practices.</p>
+
+    <p><strong>Apple App Store.</strong> In supported iOS builds, Pipe Buyer uses Apple’s StoreKit and App Store services for eligible digital-subscription purchases. Apple receives the selected product and a Pipe Buyer-generated pseudonymous app-account token used to associate the resulting transaction with the correct Pipe Buyer account. Apple separately processes your Apple Account, storefront, device, payment credential, tax, purchase, renewal, cancellation, and refund information under Apple’s terms and privacy practices. Pipe Buyer receives the App Store transaction and subscription-status information needed to verify and administer access, but does not receive your full payment-card details from Apple.</p>
 
     <p>Pipe Buyer may retain Stripe object identifiers and status information so that a transaction can be traced from the business event to the provider event and accounting record. We do not use a payment provider to expose one user's private financial credentials to another user.</p>
 
@@ -123,7 +125,7 @@
       <li><strong>Sessions:</strong> review or revoke supported active sessions.</li>
       <li><strong>Notifications:</strong> manage push permissions and in-app preferences.</li>
       <li><strong>Location:</strong> grant or revoke device location permission in device/browser settings.</li>
-      <li><strong>Payment methods and subscription management:</strong> where available, use Stripe-hosted billing management for payment methods, plan changes, and cancellation.</li>
+      <li><strong>Payment methods and subscription management:</strong> where available, use Stripe-hosted billing management for web subscriptions or your Apple Account subscription settings for an iOS App Store subscription.</li>
     </ul>
 
     <p>Users may have additional privacy rights under applicable Canadian, United States, or other privacy laws. To exercise a right not available directly in the application, contact us.</p>

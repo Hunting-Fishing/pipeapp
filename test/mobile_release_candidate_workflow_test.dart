@@ -66,12 +66,21 @@ void main() {
     // FLUTTER_XCODE_* env-var exports must not be used — they spread provisioning
     // profile assignment to every SPM dependency target which cannot accept one.
     expect(workflow, isNot(contains('export FLUTTER_XCODE_CODE_SIGN_STYLE')));
-    expect(workflow, isNot(contains('export FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER')));
-    expect(workflow, isNot(contains('export FLUTTER_XCODE_CODE_SIGN_IDENTITY')));
+    expect(workflow,
+        isNot(contains('export FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER')));
+    expect(
+        workflow, isNot(contains('export FLUTTER_XCODE_CODE_SIGN_IDENTITY')));
+    expect(
+      workflow,
+      contains("Print :Entitlements:com.apple.developer.applesignin:0"),
+    );
+    expect(
+      workflow,
+      contains('Provisioning profile must include Sign in with Apple.'),
+    );
     expect(workflow, contains('codesign --verify --deep --strict'));
     expect(workflow, contains("candidateId: 'ios-ipa'"));
   });
-
 
   test('candidate evidence is SHA-bound, retained, and not store-approved', () {
     expect(
@@ -88,9 +97,6 @@ void main() {
     expect(workflow, contains('xcrun altool --upload-app'));
     expect(workflow, contains('continue-on-error: false'));
     expect(workflow, isNot(contains('play.google.com')));
-
-
-
   });
 
   test('controlled Firebase project guards apply to both candidates', () {

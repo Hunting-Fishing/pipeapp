@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pipe_app/marketplace/native_membership_billing.dart';
 
 void main() {
   test('VIP and Dispatch route native builds to store billing controls', () {
@@ -40,13 +41,231 @@ void main() {
     final verifyIndex =
         nativeBilling.indexOf("'verifyNativeMembershipPurchase'");
     final completeIndex = nativeBilling.indexOf('completePurchase(purchase)');
+    final preflightIndex =
+        nativeBilling.indexOf("'preflightNativeMembershipPurchase'");
+    final buyIndex = nativeBilling.indexOf('_iap.buyNonConsumable');
 
+    expect(preflightIndex, greaterThanOrEqualTo(0));
+    expect(buyIndex, greaterThan(preflightIndex));
+    expect(nativeBilling, contains("preflight['purchaseIntentToken']"));
+    expect(nativeBilling, contains("'purchaseIntentToken': intent.token"));
+    expect(nativeBilling, contains('SharedPreferences.getInstance()'));
+    expect(
+      nativeBilling,
+      contains("'releaseNativeMembershipPurchaseIntent'"),
+    );
     expect(verifyIndex, greaterThanOrEqualTo(0));
     expect(completeIndex, greaterThan(verifyIndex));
     expect(nativeBilling, contains('applicationUserName: accountToken'));
     expect(nativeBilling, contains('ReplacementMode.deferred'));
     expect(nativeBilling, contains('ReplacementMode.withTimeProration'));
     expect(nativeBilling, contains('restorePurchases'));
+  });
+
+  test('native restore always leaves its busy state', () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+    final restoreIndex = nativeBilling.indexOf(
+      'await _iap.restorePurchases(applicationUserName: accountToken);',
+    );
+    final finallyIndex = nativeBilling.indexOf('} finally {', restoreIndex);
+    final resetIndex = nativeBilling.indexOf(
+      'setState(() => _restoreBusy = false);',
+      finallyIndex,
+    );
+
+    expect(restoreIndex, greaterThanOrEqualTo(0));
+    expect(
+      nativeBilling.indexOf("'preflightNativeMembershipRestore'"),
+      lessThan(restoreIndex),
+    );
+    expect(finallyIndex, greaterThan(restoreIndex));
+    expect(resetIndex, greaterThan(finallyIndex));
+  });
+
+  test(
+      'purchase updates bind account/product and reject unbound terminal release',
+      () {
+    expect(
+      nativePurchaseIntentMatchesUpdate(
+        intentPlatform: 'ios',
+        intentProductId: 'pipebuyer_dispatch_monthly',
+        intentOwnerUid: 'user-1',
+        restore: false,
+        updatePlatform: 'ios',
+        updateProductId: 'pipebuyer_dispatch_monthly',
+        currentOwnerUid: 'user-1',
+      ),
+      isTrue,
+    );
+    expect(
+      nativePurchaseIntentMatchesUpdate(
+        intentPlatform: 'ios',
+        intentProductId: 'pipebuyer_dispatch_monthly',
+        intentOwnerUid: 'user-1',
+        restore: false,
+        updatePlatform: 'ios',
+        updateProductId: 'pipebuyer_dispatch_yearly',
+        currentOwnerUid: 'user-1',
+      ),
+      isFalse,
+    );
+    expect(
+      nativePurchaseIntentMatchesUpdate(
+        intentPlatform: 'ios',
+        intentProductId: 'pipebuyer_dispatch_monthly',
+        intentOwnerUid: 'user-1',
+        restore: false,
+        updatePlatform: 'ios',
+        updateProductId: 'pipebuyer_dispatch_monthly',
+        currentOwnerUid: 'user-2',
+      ),
+      isFalse,
+    );
+    expect(
+      nativePurchaseIntentMatchesUpdate(
+        intentPlatform: 'ios',
+        intentProductId: '*',
+        intentOwnerUid: 'user-1',
+        restore: true,
+        updatePlatform: 'ios',
+        updateProductId: 'pipebuyer_dispatch_yearly',
+        currentOwnerUid: 'user-1',
+      ),
+      isTrue,
+    );
+    expect(
+      nativePurchaseTerminalMayReleaseIntent(
+        accountPlatformProductMatch: true,
+        exactProviderAttemptBound: false,
+      ),
+      isFalse,
+      reason: 'a stale same-product terminal update has no server nonce',
+    );
+  });
+
+  test('pending purchase keeps a server-authoritative token-bound reservation',
+      () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+
+    expect(nativeBilling, contains("'markNativeMembershipPurchasePending'"));
+    expect(nativeBilling, contains("productId: '*'"));
+    expect(nativeBilling, contains('_intentRecordKeyPrefix'));
+    expect(nativeBilling, contains('jsonEncode(<String, Object?>'));
+    expect(nativeBilling, contains('preferences.setString(key, encoded)'));
+    expect(nativeBilling, contains('preferences.getString(key) == encoded'));
+    expect(nativeBilling, contains("'resumeNativeMembershipPurchaseIntent'"));
+    expect(nativeBilling,
+        contains('SharedPreferences is only a best-effort cache'));
+    expect(nativeBilling, contains('clearPurchaseIntentIfMatches'));
+  });
+
+  test('restart recovery consults the server before any same-product cache',
+      () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+    final resolveStart = nativeBilling.indexOf(
+      'Future<_NativePurchaseIntentRecord> _resolvePurchaseIntent',
+    );
+    final resolveEnd = nativeBilling.indexOf(
+      'String _purchaseKey',
+      resolveStart,
+    );
+    final recovery = nativeBilling.substring(resolveStart, resolveEnd);
+
+    expect(resolveStart, greaterThanOrEqualTo(0));
+    expect(recovery, contains("'resumeNativeMembershipPurchaseIntent'"));
+    expect(recovery, isNot(contains('_loadPurchaseIntent(ownerUid)')));
+    expect(recovery, contains('resumedOwnerUid != ownerUid'));
+  });
+
+  test('one app-lifetime coordinator observes prior-session store updates', () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+    final main = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      RegExp(r'purchaseStream\.listen').allMatches(nativeBilling).length,
+      1,
+    );
+    expect(
+        nativeBilling, contains('class NativeMembershipPurchaseCoordinator'));
+    expect(nativeBilling, contains('FirebaseAuth.instance.authStateChanges()'));
+    expect(nativeBilling, contains('_deferredPurchases'));
+    expect(
+      main,
+      contains('NativeMembershipPurchaseCoordinator.instance.initialize()'),
+    );
+    final bootstrapCall = main.indexOf('await _initializePipeBuyer');
+    final runApp = main.indexOf('runApp(ChangeNotifierProvider', bootstrapCall);
+    final firebaseInit = main.indexOf('await initFirebase(');
+    final observerInit = main
+        .indexOf('NativeMembershipPurchaseCoordinator.instance.initialize()');
+    expect(bootstrapCall, greaterThanOrEqualTo(0));
+    expect(runApp, greaterThan(bootstrapCall));
+    expect(observerInit, greaterThan(firebaseInit));
+  });
+
+  test('empty restore result settles only the active wildcard intent', () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+    final emptyBatch = nativeBilling.indexOf('if (purchases.isEmpty)');
+    final restoreBinding = nativeBilling.indexOf(
+      'intent.token == _activeRestoreIntentToken',
+      emptyBatch,
+    );
+    final release = nativeBilling.indexOf(
+      'await releasePurchaseIntent(intent.token)',
+      restoreBinding,
+    );
+    final clear = nativeBilling.indexOf(
+      'await clearPurchaseIntentIfMatches(',
+      release,
+    );
+
+    expect(emptyBatch, greaterThanOrEqualTo(0));
+    expect(restoreBinding, greaterThan(emptyBatch));
+    expect(release, greaterThan(restoreBinding));
+    expect(clear, greaterThan(release));
+  });
+
+  test('iOS subscription UI includes renewal and legal disclosures', () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+
+    expect(nativeBilling, contains("nativeMembershipPlatformName() == 'ios'"));
+    expect(nativeBilling, contains('renews automatically unless canceled'));
+    expect(
+      nativeBilling,
+      contains('least 24 hours before the current period ends.'),
+    );
+    expect(nativeBilling, contains('https://www.pipebuyer.com/terms'));
+    expect(nativeBilling, contains('https://www.pipebuyer.com/privacy'));
+    expect(nativeBilling, contains("const Text('Terms of Service')"));
+    expect(nativeBilling, contains("const Text('Privacy Policy')"));
+  });
+
+  test('native product lookup prefers platform-specific server catalogs', () {
+    final nativeBilling = File(
+      'lib/marketplace/native_membership_billing.dart',
+    ).readAsStringSync();
+
+    expect(nativeBilling, contains("status['appleProductIds']"));
+    expect(nativeBilling, contains("status['googleProductIds']"));
+    expect(nativeBilling, contains("<String, Object?>{'platform': platform}"));
+    expect(
+      nativeBilling,
+      contains(
+        "platformProductIds is List ? platformProductIds : status['productIds']",
+      ),
+    );
   });
 
   test('native verification stays fail-closed until store secrets activate',
@@ -56,6 +275,22 @@ void main() {
     ).readAsStringSync();
 
     expect(bootstrap, contains('exports.getNativeMembershipBillingStatus'));
+    expect(bootstrap,
+        isNot(contains('exports.preflightNativeMembershipPurchase')));
+    expect(
+        bootstrap, isNot(contains('exports.preflightNativeMembershipRestore')));
+    expect(
+      bootstrap,
+      isNot(contains('exports.releaseNativeMembershipPurchaseIntent')),
+    );
+    expect(
+      bootstrap,
+      isNot(contains('exports.resumeNativeMembershipPurchaseIntent')),
+    );
+    expect(
+      bootstrap,
+      isNot(contains('exports.markNativeMembershipPurchasePending')),
+    );
     expect(
         bootstrap, isNot(contains('exports.verifyNativeMembershipPurchase')));
     expect(

@@ -100,6 +100,36 @@ Firestore uses collections and documents rather than SQL tables.
 - `users/{uid}/saved_listings/{listingId}`: saved ads.
 - `users/{uid}/followed_sellers/{sellerUid}`: followed sellers and notification preference.
 - `users/{uid}/notifications/{notificationId}`: server-created marketplace notifications.
+- `native_membership_accounts/{uid}`: server-owned StoreKit/Play account
+  binding containing the UUID passed to the store as the account token.
+- `native_membership_account_tokens/{sha256}`: server-only reverse index from a
+  hashed native account token to exactly one UID. The unhashed token remains a
+  field only so the server can detect hash/index corruption before applying an
+  App Store notification.
+- `native_membership_provider_state/{uid}`: server-owned current native
+  subscription provider, verified product, original transaction/order,
+  expiration, renewal, and reconciliation state.
+- `native_membership_reconciliation_leases/{uid}`: server-only monotonic
+  generation used to prevent older Store API responses from applying after a
+  newer purchase verification, notification, or scheduled reconciliation.
+- `membership_billing_intents/{uid}`: server-only purchase/restore reservation
+  shared by App Store, Google Play, and Stripe membership checkout. The opaque
+  nonce, owner, target product/plan, billing channel, status, and expiry prevent
+  two channels from passing their pre-charge gates concurrently. Native
+  `active`/`pending` reservations span the delayed-approval window; completed
+  nonces retain only a bounded exact-verification replay window so a lost
+  response can be recovered without authorizing a new or different purchase.
+- `dispatch_subscription_checkout_state/{uid}` and
+  `vip_subscription_checkout_state/{uid}`: server-owned Stripe Checkout
+  reservation state. Each in-flight attempt persists the exact sanitized form
+  request used with its Stripe idempotency key; ambiguous retries replay that
+  snapshot rather than recomputing configuration, customer, or promotion data.
+- `app_store_notification_events/{sha256}`: server-only App Store Server
+  Notifications V2 idempotency leases and outcomes. Signed payloads and private
+  keys are never stored in this collection.
+- `platform_configuration/native_membership_billing`: server-owned global and
+  per-store readiness switches. Source availability does not imply that a
+  mutation endpoint is exported or enabled.
 
 ## Listing query budgets
 

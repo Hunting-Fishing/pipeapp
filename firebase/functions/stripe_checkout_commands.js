@@ -86,6 +86,34 @@ function safeStripeLogPath(path) {
   return String(path || "").split("?", 1)[0];
 }
 
+function stripeCheckoutRequestSnapshot(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "The Stripe checkout request cannot be resumed safely.",
+    );
+  }
+  const snapshot = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!key || key.length > 180 ||
+        !["string", "number", "boolean"].includes(typeof item)) {
+      throw new HttpsError(
+          "failed-precondition",
+          "The Stripe checkout request cannot be resumed safely.",
+      );
+    }
+    snapshot[key] = item;
+  }
+  if (!Object.keys(snapshot).length ||
+      Buffer.byteLength(JSON.stringify(snapshot), "utf8") > 32 * 1024) {
+    throw new HttpsError(
+        "failed-precondition",
+        "The Stripe checkout request cannot be resumed safely.",
+    );
+  }
+  return snapshot;
+}
+
 async function stripeFormRequest({
   secretKey,
   path,
@@ -114,9 +142,20 @@ async function stripeFormRequest({
     payload = null;
   }
   if (!response.ok) {
-    const stripeCode = String(
-        payload && payload.error && (payload.error.code || payload.error.type) || "",
+    const stripeErrorCode = String(
+        payload && payload.error && payload.error.code || "",
     ).slice(0, 120);
+    const stripeErrorType = String(
+        payload && payload.error && payload.error.type || "",
+    ).slice(0, 120);
+    const stripeCode = stripeErrorCode || stripeErrorType;
+    const ambiguousStripeCode = new Set([
+      "idempotency_error",
+      "idempotency_key_in_use",
+    ]);
+    const stripeIdempotencyAmbiguous =
+      ambiguousStripeCode.has(stripeErrorCode.toLowerCase()) ||
+      ambiguousStripeCode.has(stripeErrorType.toLowerCase());
     console.error("Stripe Checkout request failed", {
       path: safeStripeLogPath(path),
       status: response.status,
@@ -125,6 +164,14 @@ async function stripeFormRequest({
     throw new HttpsError(
         response.status === 429 ? "resource-exhausted" : "failed-precondition",
         "Stripe could not start this marketplace payment.",
+        {
+          stripeRequestDefinitiveFailure:
+            response.status >= 400 && response.status < 500 &&
+            !new Set([408, 409, 424, 429]).has(response.status) &&
+            !stripeIdempotencyAmbiguous,
+          stripeHttpStatus: response.status,
+          stripeCode,
+        },
     );
   }
   return payload || {};
@@ -373,5 +420,6 @@ module.exports = {
   requirePlatformFeeBillingReady,
   safeConfiguredUrl,
   safeStripeLogPath,
+  stripeCheckoutRequestSnapshot,
   stripeFormRequest,
 };

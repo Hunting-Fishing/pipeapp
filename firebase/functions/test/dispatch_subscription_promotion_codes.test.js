@@ -170,7 +170,7 @@ test("stale or differently-discounted Checkout sessions are never reused", () =>
   );
 });
 
-test("open Checkout blocks changing plans but not changing promo on same plan", () => {
+test("open Checkout blocks every non-reusable plan or promo replacement", () => {
   const now = Date.now();
   const state = {
     status: "created",
@@ -179,7 +179,7 @@ test("open Checkout blocks changing plans but not changing promo on same plan", 
     expiresAt: now + 60_000,
   };
   assert.equal(createdCheckoutBlocksPlanChange(state, "yearly", now), true);
-  assert.equal(createdCheckoutBlocksPlanChange(state, "monthly", now), false);
+  assert.equal(createdCheckoutBlocksPlanChange(state, "monthly", now), true);
   assert.equal(
       createdCheckoutBlocksPlanChange({...state, expiresAt: now - 1}, "yearly", now),
       false,
