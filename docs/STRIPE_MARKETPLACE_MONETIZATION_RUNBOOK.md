@@ -29,24 +29,58 @@ Dispatch products use Stripe tax code `txcd_10103001` (business-use SaaS). Under
 
 ## 3. Launch marketplace fee policy
 
-The server fee schedule in `firebase/functions/marketplace_fee_policy.js` is versioned as `2026-08-09-launch-v1`.
+The server fee schedule in `firebase/functions/marketplace_fee_policy.js` is
+versioned as `2026-10-16-sale-only-v4` with collection timing
+`sale_payment`.
+
+- Marketplace and auction listings have no upfront listing fee.
+- For an on-platform sale, the seller fee is collected when the buyer's payment
+  succeeds. Seller proceeds remain `pending_release` while physical fulfillment
+  is pending and are transferred only after completion and financial release
+  checks pass.
+- For an approved external-settlement sale, no buyer proceeds move through Pipe
+  Buyer; the seller pays the separately invoiced fee after both parties confirm
+  the external settlement.
+- Auctions, accepted offers, and fixed-price sales use the same server-owned
+  fee policy; a client cannot choose a cheaper fee path.
+- Every accepted transaction receives an immutable server-side fee snapshot.
+  The v4 schedule applies only to newly accepted transactions after deployment;
+  later policy changes do not rewrite earlier snapshots.
+- Every listing starts on equipment pricing. Seller-selected category,
+  product type, title, and embedded fee fields are non-authoritative. Pipe
+  pricing requires a separate `marketplace_fee_classifications/{listingId}`
+  record written by the MFA administrator callable with source
+  `administrator_approved_catalog`, tied to the same seller, catalog values,
+  and listing revision. Missing, revoked, stale, or mismatched approval records
+  fail closed to equipment pricing.
 
 ### Pipe / tubing / casing
 
+- Eligibility requires the current server-only administrator approval above;
+  catalog selection by the seller is necessary for review but never sufficient.
 - Base: CA$1 / US$1 per stick or joint sold.
-- Recommended minimum: $25.
-- Recommended percentage cap: 3% of final negotiated sale value.
-- Recommended absolute cap: $5,000.
-- The lower cap can override the minimum on unusually low-value transactions so the platform fee never becomes economically unreasonable relative to the sale.
+- Percentage cap: 3% of the agreed sale value.
+- Absolute cap: CA$2,500 / US$2,500.
+- The charged amount is the lowest of the per-item calculation, the 3% cap,
+  and the absolute cap. The fair-value cap can therefore produce a fee below
+  $1 on an unusually small sale.
 
 ### Equipment / vehicles / buildings / other assets
 
-- Under $10,000: 5%.
-- $10,000–$49,999: 3%.
-- $50,000–$249,999: 2%.
-- $250,000+: 1%.
+The percentages are progressive marginal brackets, not one percentage applied
+to the entire sale:
 
-Every accepted transaction receives an immutable server-side fee snapshot. Later fee-policy changes do not alter already accepted deals.
+| Portion of agreed sale price | Fee on that portion |
+| --- | ---: |
+| First $5,000 | 3.0% |
+| Over $5,000 through $25,000 | 2.5% |
+| Over $25,000 through $100,000 | 2.0% |
+| Over $100,000 through $250,000 | 1.5% |
+| Over $250,000 | 1.0% |
+
+The overall equipment fee has a CA$1 / US$1 minimum, a CA$2,500 / US$2,500
+maximum, and can never exceed the agreed sale amount. Marginal calculation
+avoids a fee jump when a sale crosses a bracket boundary.
 
 ## 4. Affiliate program
 
@@ -82,10 +116,16 @@ The implementation uses Separate Charges and Transfers.
 2. Firebase snapshots final quantity, price, currency and marketplace fee.
 3. Seller must have an active Stripe recipient `stripe_transfers` capability.
 4. Buyer starts Stripe Checkout from the authenticated Pipe Buyer transaction.
-5. Stripe confirms the payment through a signed webhook.
-6. Pipe Buyer retains its marketplace fee and any tax amount that the approved tax model requires the platform to retain.
-7. Firebase creates the seller Transfer using the original Stripe charge as `source_transaction`.
-8. Transaction and affiliate ledgers are finalized server-side.
+5. Stripe confirms the buyer payment through a signed webhook.
+6. Pipe Buyer records the seller fee as collected and retains any tax amount
+   that the approved tax model requires the platform to retain.
+7. Seller proceeds remain `pending_release`; no seller Transfer is created
+   merely because buyer payment succeeded.
+8. After confirmed physical fulfillment, Firebase rechecks payment, dispute,
+   refund, financial-hold, and recipient readiness state.
+9. Firebase creates the seller Transfer exactly once using the original Stripe
+   charge as `source_transaction`, then finalizes the transaction and affiliate
+   ledgers server-side.
 
 Client code can never provide authoritative price, tax, commission, seller-proceeds or payout values.
 
@@ -206,6 +246,8 @@ Do not switch to production until all tests pass.
 - Duplicate checkout creation attempt.
 - Seller transfer succeeds exactly once.
 - No transfer occurs before payment success.
+- A successful buyer payment collects the seller fee but does not release seller
+  proceeds before fulfillment is confirmed.
 - Final sale price/quantity cannot be modified by the Flutter client.
 
 ### External settlement

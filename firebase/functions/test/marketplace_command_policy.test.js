@@ -321,6 +321,34 @@ test("listing edits are owner-only, revision-safe, and field-bounded", () => {
   );
 });
 
+test("listing edits reject contact details but allow industrial identifiers", () => {
+  const base = {...marketplaceListing(), revision: 4};
+  for (const patch of [
+    {title: "Call 780-555-1212"},
+    {description: "Email sales (at) example (dot) com"},
+  ]) {
+    assert.throws(
+        () => validateListingDetailsUpdate({
+          listing: base,
+          actorUid: "seller",
+          data: {expectedRevision: 4, patch},
+        }),
+        (error) => error.code === "invalid-argument",
+    );
+  }
+  assert.doesNotThrow(() => validateListingDetailsUpdate({
+    listing: base,
+    actorUid: "seller",
+    data: {
+      expectedRevision: 4,
+      patch: {
+        title: "CAT-320-2026 API 5CT pipe",
+        description: "5-1/2 pipe, $100,000, inspected 2026-10-16.",
+      },
+    },
+  }));
+});
+
 test("normal listing transitions enforce a finite lifecycle", () => {
   assert.equal(validateListingTransition({
     listing: marketplaceListing(),
@@ -614,6 +642,63 @@ test("listing offers use authoritative participants and quantity", () => {
       }),
       (error) => error.code === "invalid-argument",
   );
+});
+
+test("offer notes and Dispatch access notes reject contact details", () => {
+  const listing = {
+    sellerUid: "seller",
+    status: "active",
+    transactionType: "Marketplace",
+    quantity: 54,
+  };
+  const base = {
+    listing,
+    conversation: null,
+    actorUid: "buyer",
+    now,
+  };
+  assert.throws(
+      () => validateOfferProposal({
+        ...base,
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 70,
+          requestedQuantity: 54,
+          note: "Email buyer@example.com",
+          truckingPlan: "buyer_arranged",
+        },
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+  assert.throws(
+      () => validateOfferProposal({
+        ...base,
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 70,
+          requestedQuantity: 54,
+          truckingPlan: "request_dispatch",
+          truckingDate: now.getTime() + 7 * 24 * 60 * 60 * 1000,
+          dispatchDelivery: {
+            label: "Dawson Creek yard",
+            latitude: 55.7596,
+            longitude: -120.2377,
+            accessNotes: "Telegram @yard_contact",
+          },
+        },
+      }),
+      (error) => error.code === "invalid-argument",
+  );
+  assert.doesNotThrow(() => validateOfferProposal({
+    ...base,
+    data: {
+      listingId: "listing",
+      offeredUnitPrice: 70,
+      requestedQuantity: 54,
+      note: "API 5CT, 5-1/2 pipe, inspected 2026-10-16.",
+      truckingPlan: "buyer_arranged",
+    },
+  }));
 });
 
 test("marketplace transaction completes only after both parties confirm", () => {

@@ -35,6 +35,7 @@ import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_dashboard.dart';
 import 'marketplace_about_page.dart';
+import 'marketplace_fee_guide.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -429,10 +430,10 @@ Future<void> _showUserScore(
         'Add your public business name and description.'
       ),
       (
-        'Business contact',
-        '${business['publicPhone'] ?? ''}'.trim().isNotEmpty &&
-            '${business['publicEmail'] ?? ''}'.trim().isNotEmpty,
-        'Add a public business phone and email.'
+        'Protected business contact',
+        data['emailOwnershipVerified'] == true &&
+            data['phoneOwnershipVerified'] == true,
+        'Verify the business email and mobile number kept in your private account.'
       ),
       (
         'Service area',
@@ -1903,23 +1904,27 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                             border: Border.all(
                                                 color:
                                                     const Color(0xFFFFC46B))),
-                                        child: const Column(
+                                        child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text('Custom auction fees',
+                                              const Text(
+                                                  'Sale-only auction fees',
                                                   style: TextStyle(
                                                       fontWeight:
                                                           FontWeight.w900)),
-                                              SizedBox(height: 5),
-                                              Text(
-                                                  'â€¢ \$29.99 upfront listing fee\nâ€¢ 5% of the completed sale\nâ€¢ Additional auction-service fees may apply later'),
-                                              SizedBox(height: 5),
-                                              Text(
-                                                  'The upfront fee and final sale fee are separate. Charges must be reviewed before payment.',
+                                              const SizedBox(height: 5),
+                                              const Text(
+                                                  'No listing fee. The seller fee is calculated from the final agreed sale and collected when the buyer pays.'),
+                                              const SizedBox(height: 5),
+                                              const Text(
+                                                  'The exact server-verified fee is shown before payment.',
                                                   style: TextStyle(
                                                       fontSize: 12,
-                                                      color: Color(0xFF7A4A00)))
+                                                      color:
+                                                          Color(0xFF7A4A00))),
+                                              const SizedBox(height: 8),
+                                              const MarketplaceFeeInfoButton(),
                                             ]))
                                   ],
                                   if (formError != null) ...[
@@ -2034,8 +2039,9 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                       _auctionReviewRow('Auction type',
                           customDuration ? 'Custom' : 'Standard timed'),
                       if (customDuration) ...[
-                        _auctionReviewRow('Upfront fee', '\$29.99'),
-                        _auctionReviewRow('Sale fee', '5% of completed sale'),
+                        _auctionReviewRow('Listing fee', 'Free'),
+                        _auctionReviewRow(
+                            'Seller fee', 'Collected when the buyer pays'),
                         const Padding(
                             padding: EdgeInsets.only(top: 8),
                             child: Text(
@@ -2044,6 +2050,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                 style: TextStyle(
                                     fontSize: 12, color: Color(0xFF7A4A00))))
                       ],
+                      const SizedBox(height: 10),
+                      const MarketplaceFeeInfoButton(),
                       const Divider(height: 24),
                       const Text(
                           'Bidding starts immediately. Auction notifications will be enabled.',
@@ -3173,6 +3181,13 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePolicyCenterPage()))),
+      ListTile(
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: const Text('Marketplace fee guide'),
+          subtitle: const Text(
+              'See sale-only seller fees, progressive bands, examples, and the maximum fee.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showMarketplaceFeeGuide(context)),
       ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('About Pipe Buyer'),

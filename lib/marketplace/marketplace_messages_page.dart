@@ -156,35 +156,35 @@ class _ActivityLimitNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    container: true,
-    label: message,
-    child: Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+        container: true,
+        label: message,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _LoadFailure extends StatelessWidget {
@@ -193,22 +193,22 @@ class _LoadFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MarketplaceDataStateView.failure(
-    error: error,
-    resource: 'Conversations',
-    retryLabel: 'Refresh account',
-    onRetry: () async {
-      await FirebaseAuth.instance.currentUser?.reload();
-      await FirebaseAuth.instance.currentUser?.getIdToken(true);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text('Account refreshed. Messages will reconnect.'),
-          ),
-        );
-      }
-    },
-  );
+        error: error,
+        resource: 'Conversations',
+        retryLabel: 'Refresh account',
+        onRetry: () async {
+          await FirebaseAuth.instance.currentUser?.reload();
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                behavior: SnackBarBehavior.floating,
+                content: Text('Account refreshed. Messages will reconnect.'),
+              ),
+            );
+          }
+        },
+      );
 }
 
 class _ConversationNegotiationPanel extends StatefulWidget {
@@ -329,8 +329,8 @@ class _ConversationNegotiationPanelState
                             currentPrice == null
                                 ? 'Price available on request'
                                 : '\$${currentPrice.toStringAsFixed(2)}'
-                                      '${basis.isEmpty ? '' : ' • $basis'}'
-                                      '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
+                                    '${basis.isEmpty ? '' : ' • $basis'}'
+                                    '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -487,7 +487,7 @@ class _ConversationNegotiationPanelState
           final offeredUnit = num.tryParse(price.text.replaceAll(',', '')) ?? 0;
           final requestedQty =
               int.tryParse(quantity.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
-              0;
+                  0;
           final askingUnit = listing['price'] as num? ?? 0;
           final askingTotal = askingUnit * requestedQty;
           final offeredTotal = offeredUnit * requestedQty;
@@ -528,7 +528,7 @@ class _ConversationNegotiationPanelState
                               askingUnit == 0
                                   ? 'Seller price available on request'
                                   : 'Seller asks \$${askingUnit.toStringAsFixed(2)}'
-                                        '${basis.isEmpty ? '' : ' • $basis'}',
+                                      '${basis.isEmpty ? '' : ' • $basis'}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                               ),
@@ -552,8 +552,8 @@ class _ConversationNegotiationPanelState
                         ),
                         validator: (value) =>
                             (int.tryParse(value ?? '') ?? 0) <= 0
-                            ? 'Enter a valid quantity'
-                            : null,
+                                ? 'Enter a valid quantity'
+                                : null,
                       ),
                       if (available != null) ...[
                         const SizedBox(height: 8),
@@ -596,10 +596,10 @@ class _ConversationNegotiationPanelState
                         ),
                         validator: (value) =>
                             (num.tryParse(value?.replaceAll(',', '') ?? '') ??
-                                    0) <=
-                                0
-                            ? 'Enter a valid price'
-                            : null,
+                                        0) <=
+                                    0
+                                ? 'Enter a valid price'
+                                : null,
                       ),
                       if (askingUnit > 0) ...[
                         const SizedBox(height: 8),
@@ -643,14 +643,14 @@ class _ConversationNegotiationPanelState
                                     isOverQuantity
                                         ? Icons.error_outline
                                         : isFullQuantity
-                                        ? Icons.check_circle
-                                        : Icons.pie_chart_outline,
+                                            ? Icons.check_circle
+                                            : Icons.pie_chart_outline,
                                     size: 18,
                                     color: isOverQuantity
                                         ? Colors.red
                                         : isFullQuantity
-                                        ? Colors.green.shade700
-                                        : Colors.orange.shade800,
+                                            ? Colors.green.shade700
+                                            : Colors.orange.shade800,
                                   ),
                                   const SizedBox(width: 7),
                                   Expanded(
@@ -658,15 +658,15 @@ class _ConversationNegotiationPanelState
                                       isOverQuantity
                                           ? 'Quantity exceeds available inventory'
                                           : isFullQuantity
-                                          ? 'ALL — full available quantity'
-                                          : 'Partial quantity offer',
+                                              ? 'ALL — full available quantity'
+                                              : 'Partial quantity offer',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w800,
                                         color: isOverQuantity
                                             ? Colors.red
                                             : isFullQuantity
-                                            ? Colors.green.shade700
-                                            : Colors.orange.shade800,
+                                                ? Colors.green.shade700
+                                                : Colors.orange.shade800,
                                       ),
                                     ),
                                   ),
@@ -816,8 +816,7 @@ class _ConversationNegotiationPanelState
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed:
-                    requestedQty <= 0 ||
+                onPressed: requestedQty <= 0 ||
                         offeredUnit <= 0 ||
                         isOverQuantity ||
                         truckingPlan == null ||
@@ -853,13 +852,11 @@ class _ConversationNegotiationPanelState
     final askingUnit = listing['price'] as num? ?? 0;
     final available = (listing['quantity'] as num?)?.toInt();
     final difference = (unitPrice - askingUnit) * requestedQuantity;
-    final differencePercent = askingUnit == 0
-        ? 0
-        : (unitPrice - askingUnit) / askingUnit * 100;
+    final differencePercent =
+        askingUnit == 0 ? 0 : (unitPrice - askingUnit) / askingUnit * 100;
     final isAll = available != null && requestedQuantity == available;
     final isFullPrice = askingUnit > 0 && unitPrice == askingUnit;
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (confirmationContext) => AlertDialog(
             icon: const Icon(Icons.analytics_outlined, size: 38),
@@ -875,9 +872,8 @@ class _ConversationNegotiationPanelState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _offerReviewCard(
-                      icon: isAll
-                          ? Icons.check_circle
-                          : Icons.pie_chart_outline,
+                      icon:
+                          isAll ? Icons.check_circle : Icons.pie_chart_outline,
                       color: isAll ? Colors.green : Colors.orange,
                       title: isAll
                           ? 'ALL — full available quantity'
@@ -891,20 +887,19 @@ class _ConversationNegotiationPanelState
                       icon: isFullPrice
                           ? Icons.check_circle
                           : difference < 0
-                          ? Icons.trending_down
-                          : Icons.trending_up,
+                              ? Icons.trending_down
+                              : Icons.trending_up,
                       color: isFullPrice
                           ? Colors.green
                           : difference < 0
-                          ? Colors.deepOrange
-                          : Colors.green,
+                              ? Colors.deepOrange
+                              : Colors.green,
                       title: isFullPrice
                           ? 'FULL ASKING PRICE'
                           : difference < 0
-                          ? 'Below asking price'
-                          : 'Above asking price',
-                      detail:
-                          '\$${unitPrice.toStringAsFixed(2)} per unit • '
+                              ? 'Below asking price'
+                              : 'Above asking price',
+                      detail: '\$${unitPrice.toStringAsFixed(2)} per unit • '
                           '${difference >= 0 ? '+' : '-'}\$${difference.abs().toStringAsFixed(2)} '
                           '(${differencePercent >= 0 ? '+' : ''}${differencePercent.toStringAsFixed(1)}%)',
                     ),
@@ -923,14 +918,12 @@ class _ConversationNegotiationPanelState
                     const SizedBox(height: 8),
                     _offerReviewCard(
                       icon: truckingPlan!.icon,
-                      color:
-                          truckingPlan ==
+                      color: truckingPlan ==
                               MarketplaceTruckingPlan.requestDispatch
                           ? const Color(0xFF0878E8)
                           : Colors.blueGrey,
                       title: truckingPlan!.label,
-                      detail:
-                          truckingPlan ==
+                      detail: truckingPlan ==
                               MarketplaceTruckingPlan.requestDispatch
                           ? 'Dispatch destination: ${dispatchDeliveryLocation!.publicName}'
                           : truckingPlan!.description,
@@ -989,8 +982,8 @@ class _ConversationNegotiationPanelState
             message: truckingPlan == MarketplaceTruckingPlan.requestDispatch
                 ? 'Offer submitted. Dispatch request is live for carrier bids.'
                 : initialOffer == null
-                ? 'Offer submitted and added to offer history.'
-                : 'Counter offer sent and added to offer history.',
+                    ? 'Offer submitted and added to offer history.'
+                    : 'Counter offer sent and added to offer history.',
             tone: PipeStatusTone.success,
           );
         }
@@ -1013,35 +1006,38 @@ class _ConversationNegotiationPanelState
   }
 
   Widget _chatOfferLine(String label, num amount) => Row(
-    children: [
-      Expanded(child: Text(label)),
-      const SizedBox(width: 10),
-      Text(
-        '\$${amount.toStringAsFixed(2)}',
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      ),
-    ],
-  );
+        children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 10),
+          Text(
+            '\$${amount.toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ],
+      );
 
   Widget _offerDateTile({
     required String label,
     required IconData icon,
     required DateTime? value,
     required VoidCallback onTap,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 7),
-    child: OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 48),
-        alignment: Alignment.centerLeft,
-      ),
-      onPressed: onTap,
-      icon: Icon(icon),
-      label: Text(
-        value == null ? 'Select $label' : '$label: ${_formatOfferDate(value)}',
-      ),
-    ),
-  );
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 7),
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 48),
+            alignment: Alignment.centerLeft,
+          ),
+          onPressed: onTap,
+          icon: Icon(icon),
+          label: Text(
+            value == null
+                ? 'Select $label'
+                : '$label: ${_formatOfferDate(value)}',
+          ),
+        ),
+      );
 
   Future<DateTime?> _pickOfferDate(BuildContext context, DateTime? current) =>
       showDatePicker(
@@ -1068,44 +1064,45 @@ class _ConversationNegotiationPanelState
     required Color color,
     required String title,
     required String detail,
-  }) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .1),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: color.withValues(alpha: .35)),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, color: color),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(fontWeight: FontWeight.w900, color: color),
-              ),
-              Text(detail),
-            ],
-          ),
+  }) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: .35)),
         ),
-      ],
-    ),
-  );
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(fontWeight: FontWeight.w900, color: color),
+                  ),
+                  Text(detail),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _reviewDate(String label, DateTime date) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(
-      children: [
-        const Icon(Icons.calendar_month_outlined, size: 18),
-        const SizedBox(width: 7),
-        Expanded(child: Text('$label: ${_formatOfferDate(date)}')),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_month_outlined, size: 18),
+            const SizedBox(width: 7),
+            Expanded(child: Text('$label: ${_formatOfferDate(date)}')),
+          ],
+        ),
+      );
 }
 
 class MarketplaceNegotiationHistory extends StatelessWidget {
@@ -1155,22 +1152,21 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             compact: true,
           );
         }
-        final events =
-            snapshot.data!.docs
-                .where(
-                  (doc) =>
-                      (isSeller || doc.data()['buyerUid'] == buyerUid) &&
-                      doc.data()['sellerUid'] == sellerUid &&
-                      doc.data()['status'] != 'archived',
-                )
-                .toList()
-              ..sort((a, b) {
-                final at = a.data()['createdAt'] as Timestamp?;
-                final bt = b.data()['createdAt'] as Timestamp?;
-                return (bt?.millisecondsSinceEpoch ?? 0).compareTo(
-                  at?.millisecondsSinceEpoch ?? 0,
-                );
-              });
+        final events = snapshot.data!.docs
+            .where(
+              (doc) =>
+                  (isSeller || doc.data()['buyerUid'] == buyerUid) &&
+                  doc.data()['sellerUid'] == sellerUid &&
+                  doc.data()['status'] != 'archived',
+            )
+            .toList()
+          ..sort((a, b) {
+            final at = a.data()['createdAt'] as Timestamp?;
+            final bt = b.data()['createdAt'] as Timestamp?;
+            return (bt?.millisecondsSinceEpoch ?? 0).compareTo(
+              at?.millisecondsSinceEpoch ?? 0,
+            );
+          });
         if (events.isEmpty) {
           return Center(
             child: Text(
@@ -1311,10 +1307,10 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   onTap: isSeller
                       ? () => _showOfferBuyerProfile(
-                          context,
-                          '${event['buyerUid'] ?? ''}',
-                          '${event['buyerDisplayName'] ?? ''}',
-                        )
+                            context,
+                            '${event['buyerUid'] ?? ''}',
+                            '${event['buyerDisplayName'] ?? ''}',
+                          )
                       : null,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1347,10 +1343,10 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                     offerStatus == 'completed'
                         ? Icons.verified_outlined
                         : offerStatus == 'disputed'
-                        ? Icons.report_problem_outlined
-                        : offerStatus == 'cancelled'
-                        ? Icons.cancel_outlined
-                        : Icons.check_circle,
+                            ? Icons.report_problem_outlined
+                            : offerStatus == 'cancelled'
+                                ? Icons.cancel_outlined
+                                : Icons.check_circle,
                     size: 17,
                   ),
                   label: Text(offerStatus.toUpperCase()),
@@ -1368,16 +1364,12 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               Expanded(
                 child: _metric(
                   'UNIT PRICE',
-                  '${priceDifference > 0
-                      ? '↑ '
-                      : priceDifference < 0
-                      ? '↓ '
-                      : '= '}\$${price.toStringAsFixed(2)}',
+                  '${priceDifference > 0 ? '↑ ' : priceDifference < 0 ? '↓ ' : '= '}\$${price.toStringAsFixed(2)}',
                   priceDifference > 0
                       ? Colors.green
                       : priceDifference < 0
-                      ? Colors.deepOrange
-                      : Colors.blue,
+                          ? Colors.deepOrange
+                          : Colors.blue,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1387,9 +1379,9 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   isAll
                       ? 'ALL • $quantity'
                       : availableQuantity == null
-                      ? '$quantity'
-                      : '$quantity / $availableQuantity'
-                            '${quantityPercent == null ? '' : ' • ${quantityPercent.toStringAsFixed(0)}%'}',
+                          ? '$quantity'
+                          : '$quantity / $availableQuantity'
+                              '${quantityPercent == null ? '' : ' • ${quantityPercent.toStringAsFixed(0)}%'}',
                   isAll ? Colors.green : Colors.orange,
                 ),
               ),
@@ -1575,16 +1567,12 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               Expanded(
                 child: _metric(
                   'UNIT PRICE',
-                  '${difference > 0
-                      ? '↑ '
-                      : difference < 0
-                      ? '↓ '
-                      : '= '}\$${price.toStringAsFixed(2)}',
+                  '${difference > 0 ? '↑ ' : difference < 0 ? '↓ ' : '= '}\$${price.toStringAsFixed(2)}',
                   difference > 0
                       ? Colors.green
                       : difference < 0
-                      ? Colors.deepOrange
-                      : Colors.blue,
+                          ? Colors.deepOrange
+                          : Colors.blue,
                 ),
               ),
               const SizedBox(width: 7),
@@ -1594,8 +1582,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   isAll
                       ? 'ALL • $quantity'
                       : availableQuantity == null
-                      ? '$quantity'
-                      : '$quantity / $availableQuantity • ${percent?.toStringAsFixed(0)}%',
+                          ? '$quantity'
+                          : '$quantity / $availableQuantity • ${percent?.toStringAsFixed(0)}%',
                   isAll ? Colors.green : Colors.orange,
                 ),
               ),
@@ -1637,21 +1625,21 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
         dispatch
             ? Icons.route_outlined
             : buyerArranged
-            ? Icons.local_shipping_outlined
-            : Icons.handshake_outlined,
+                ? Icons.local_shipping_outlined
+                : Icons.handshake_outlined,
         size: 16,
         color: dispatch
             ? const Color(0xFF0878E8)
             : buyerArranged
-            ? Colors.green.shade700
-            : Colors.blueGrey,
+                ? Colors.green.shade700
+                : Colors.blueGrey,
       ),
       label: Text(
         dispatch
             ? 'Dispatch requested'
             : buyerArranged
-            ? 'Buyer has trucking'
-            : 'Pickup / seller-arranged',
+                ? 'Buyer has trucking'
+                : 'Pickup / seller-arranged',
       ),
     );
   }
@@ -1696,11 +1684,13 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   '${business['serviceAreaLabel'] ?? personal['baseCommunity']}',
                 ),
               ),
-            if ('${business['website'] ?? ''}'.isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.language),
-                title: Text('${business['website']}'),
+            const ListTile(
+              leading: Icon(Icons.lock_outline),
+              title: Text('Direct contact details are protected'),
+              subtitle: Text(
+                'Use in-app messages. Eligible members can share contact details after a transaction relationship is established.',
               ),
+            ),
           ],
         ),
         actions: [
@@ -1810,31 +1800,31 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
   }
 
   Widget _metric(String label, String value, Color color) => Container(
-    padding: const EdgeInsets.all(9),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .09),
-      borderRadius: BorderRadius.circular(9),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: color,
-          ),
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .09),
+          borderRadius: BorderRadius.circular(9),
         ),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w900),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class MarketplaceTransactionPanel extends StatefulWidget {
@@ -1861,172 +1851,178 @@ class _MarketplaceTransactionPanelState
   @override
   Widget build(
     BuildContext context,
-  ) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    stream: FirebaseFirestore.instance
-        .collection('marketplace_transactions')
-        .doc(widget.offerId)
-        .snapshots(),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return _notice(
-          Icons.sync_problem_outlined,
-          'Transaction details could not be loaded. Your offer was not changed.',
-          Colors.red,
-        );
-      }
-      if (!snapshot.hasData) {
-        return const LinearProgressIndicator(minHeight: 3);
-      }
-      final transaction =
-          snapshot.data!.data() ??
-          <String, dynamic>{
-            'status': 'pending_completion',
-            'buyerConfirmed': false,
-            'sellerConfirmed': false,
-          };
-      final status = '${transaction['status'] ?? 'pending_completion'}';
-      final buyerConfirmed = transaction['buyerConfirmed'] == true;
-      final sellerConfirmed = transaction['sellerConfirmed'] == true;
-      final terminal = const {
-        'completed',
-        'cancelled',
-        'disputed',
-      }.contains(status);
-      final userConfirmed = widget.isSeller ? sellerConfirmed : buyerConfirmed;
-      final paymentStatus =
-          '${transaction['paymentProviderStatus'] ?? 'not_started'}';
-      final paymentReadyForCompletion =
-          paymentStatus == 'paid' || paymentStatus == 'external_agreed';
-      final dispatchRequested =
-          '${widget.offer['truckingPlan'] ?? ''}' == 'request_dispatch';
-      final journeyStatus = marketplaceTransactionJourneyStatus(
-        transaction,
-        viewerIsBuyer: !widget.isSeller,
-        dispatchRequested: dispatchRequested,
-      );
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: _statusColor(status).withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _statusColor(status).withValues(alpha: .55),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.fact_check_outlined, color: _statusColor(status)),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Transaction checklist',
-                    style: TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ),
-                Chip(label: Text(_statusLabel(status))),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              '${_money(transaction['agreedTotal'] ?? widget.offer['offeredTotal'])} • '
-              '${transaction['agreedQuantity'] ?? widget.offer['requestedQuantity'] ?? 0} units',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 10),
-            MarketplaceJourneyStatusCard(status: journeyStatus),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _confirmation(
-                    'Buyer',
-                    buyerConfirmed,
-                    'Purchase received',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _confirmation(
-                    'Seller',
-                    sellerConfirmed,
-                    'Sale fulfilled',
-                  ),
-                ),
-              ],
-            ),
-            if ('${transaction['reason'] ?? ''}'.isNotEmpty) ...[
-              const SizedBox(height: 9),
-              Text(
-                'Reason: ${transaction['reason']}',
-                style: const TextStyle(fontSize: 12),
+  ) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('marketplace_transactions')
+            .doc(widget.offerId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _notice(
+              Icons.sync_problem_outlined,
+              'Transaction details could not be loaded. Your offer was not changed.',
+              Colors.red,
+            );
+          }
+          if (!snapshot.hasData) {
+            return const LinearProgressIndicator(minHeight: 3);
+          }
+          final transaction = snapshot.data!.data() ??
+              <String, dynamic>{
+                'status': 'pending_completion',
+                'buyerConfirmed': false,
+                'sellerConfirmed': false,
+              };
+          final status = '${transaction['status'] ?? 'pending_completion'}';
+          final buyerConfirmed = transaction['buyerConfirmed'] == true;
+          final sellerConfirmed = transaction['sellerConfirmed'] == true;
+          final terminal = const {
+            'completed',
+            'cancelled',
+            'disputed',
+          }.contains(status);
+          final userConfirmed =
+              widget.isSeller ? sellerConfirmed : buyerConfirmed;
+          final paymentStatus =
+              '${transaction['paymentProviderStatus'] ?? 'not_started'}';
+          final paymentReadyForCompletion =
+              paymentStatus == 'paid' || paymentStatus == 'external_agreed';
+          final dispatchRequested =
+              '${widget.offer['truckingPlan'] ?? ''}' == 'request_dispatch';
+          final journeyStatus = marketplaceTransactionJourneyStatus(
+            transaction,
+            viewerIsBuyer: !widget.isSeller,
+            dispatchRequested: dispatchRequested,
+          );
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _statusColor(status).withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _statusColor(status).withValues(alpha: .55),
               ),
-            ],
-            const SizedBox(height: 10),
-            MarketplaceSecurePaymentPanel(
-              transactionId: widget.offerId,
-              isBuyer: !widget.isSeller,
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!terminal && !userConfirmed && paymentReadyForCompletion)
-                  FilledButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () => _confirmCompletion(transaction),
-                    icon: const Icon(Icons.verified_outlined),
-                    label: Text(
-                      widget.isSeller
-                          ? 'Confirm fulfilled'
-                          : 'Confirm received',
+                Row(
+                  children: [
+                    Icon(Icons.fact_check_outlined,
+                        color: _statusColor(status)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Transaction checklist',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
                     ),
+                    Chip(label: Text(_statusLabel(status))),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${_money(transaction['agreedTotal'] ?? widget.offer['offeredTotal'])} • '
+                  '${transaction['agreedQuantity'] ?? widget.offer['requestedQuantity'] ?? 0} units',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 10),
+                MarketplaceJourneyStatusCard(status: journeyStatus),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _confirmation(
+                        'Buyer',
+                        buyerConfirmed,
+                        'Purchase received',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _confirmation(
+                        'Seller',
+                        sellerConfirmed,
+                        'Sale fulfilled',
+                      ),
+                    ),
+                  ],
+                ),
+                if ('${transaction['reason'] ?? ''}'.isNotEmpty) ...[
+                  const SizedBox(height: 9),
+                  Text(
+                    'Reason: ${transaction['reason']}',
+                    style: const TextStyle(fontSize: 12),
                   ),
-                if (status == 'completed' && dispatchRequested)
-                  FilledButton.tonalIcon(
-                    onPressed: () => MarketplaceNavigation.goToDispatch(context),
-                    icon: const Icon(Icons.local_shipping_outlined),
-                    label: const Text('Continue to Dispatch'),
-                  ),
-                if (!terminal && !buyerConfirmed && !sellerConfirmed)
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : () => _reasonAction('cancel'),
-                    icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Cancel'),
-                  ),
-                if (!terminal)
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : () => _reasonAction('dispute'),
-                    icon: const Icon(Icons.report_problem_outlined),
-                    label: const Text('Open dispute'),
-                  ),
-                TextButton.icon(
-                  onPressed: snapshot.data!.exists ? _showHistory : null,
-                  icon: const Icon(Icons.history),
-                  label: const Text('History'),
+                ],
+                const SizedBox(height: 10),
+                MarketplaceSecurePaymentPanel(
+                  transactionId: widget.offerId,
+                  isBuyer: !widget.isSeller,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    if (!terminal &&
+                        !userConfirmed &&
+                        paymentReadyForCompletion)
+                      FilledButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _confirmCompletion(transaction),
+                        icon: const Icon(Icons.verified_outlined),
+                        label: Text(
+                          widget.isSeller
+                              ? 'Confirm fulfilled'
+                              : 'Confirm received',
+                        ),
+                      ),
+                    if (status == 'completed' && dispatchRequested)
+                      FilledButton.tonalIcon(
+                        onPressed: () =>
+                            MarketplaceNavigation.goToDispatch(context),
+                        icon: const Icon(Icons.local_shipping_outlined),
+                        label: const Text('Continue to Dispatch'),
+                      ),
+                    if (!terminal && !buyerConfirmed && !sellerConfirmed)
+                      OutlinedButton.icon(
+                        onPressed: _busy ? null : () => _reasonAction('cancel'),
+                        icon: const Icon(Icons.cancel_outlined),
+                        label: const Text('Cancel'),
+                      ),
+                    if (!terminal)
+                      OutlinedButton.icon(
+                        onPressed:
+                            _busy ? null : () => _reasonAction('dispute'),
+                        icon: const Icon(Icons.report_problem_outlined),
+                        label: const Text('Open dispute'),
+                      ),
+                    TextButton.icon(
+                      onPressed: snapshot.data!.exists ? _showHistory : null,
+                      icon: const Icon(Icons.history),
+                      label: const Text('History'),
+                    ),
+                  ],
+                ),
+                if (_busy) ...[
+                  const SizedBox(height: 8),
+                  const LinearProgressIndicator(minHeight: 3),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  paymentReadyForCompletion
+                      ? 'For Pipe Buyer Stripe payments, seller proceeds remain pending until completion is confirmed. Pipe Buyer is not an escrow or trust account.'
+                      : 'Secure payment is required before completion can be confirmed. Deposit/split payments are not enabled yet.',
+                  style: const TextStyle(fontSize: 10.5, color: Colors.black54),
                 ),
               ],
             ),
-            if (_busy) ...[
-              const SizedBox(height: 8),
-              const LinearProgressIndicator(minHeight: 3),
-            ],
-            const SizedBox(height: 6),
-            Text(
-              paymentReadyForCompletion
-                  ? 'For Pipe Buyer Stripe payments, seller proceeds remain pending until completion is confirmed. Pipe Buyer is not an escrow or trust account.'
-                  : 'Secure payment is required before completion can be confirmed. Deposit/split payments are not enabled yet.',
-              style: const TextStyle(fontSize: 10.5, color: Colors.black54),
-            ),
-          ],
-        ),
+          );
+        },
       );
-    },
-  );
 
   Widget _confirmation(String party, bool confirmed, String detail) =>
       Container(
@@ -2063,23 +2059,22 @@ class _MarketplaceTransactionPanelState
       );
 
   Widget _notice(IconData icon, String message, Color color) => Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .08),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, color: color),
-        const SizedBox(width: 8),
-        Expanded(child: Text(message)),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      );
 
   Future<void> _confirmCompletion(Map<String, dynamic> transaction) async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             icon: const Icon(Icons.verified_outlined, size: 38),
@@ -2162,8 +2157,8 @@ class _MarketplaceTransactionPanelState
         message: action == 'confirm_completion'
             ? 'Your confirmation was recorded.'
             : action == 'cancel'
-            ? 'The transaction was cancelled.'
-            : 'The dispute was opened for review.',
+                ? 'The transaction was cancelled.'
+                : 'The dispute was opened for review.',
         tone: PipeStatusTone.success,
       );
     } catch (error, stackTrace) {
@@ -2266,21 +2261,21 @@ class _MarketplaceTransactionPanelState
       '${date.minute.toString().padLeft(2, '0')}';
 
   String _statusLabel(String status) => switch (status) {
-    'pending_completion' => 'AWAITING BOTH',
-    'awaiting_buyer_confirmation' => 'AWAITING BUYER',
-    'awaiting_seller_confirmation' => 'AWAITING SELLER',
-    'completed' => 'COMPLETED',
-    'cancelled' => 'CANCELLED',
-    'disputed' => 'DISPUTED',
-    _ => status.replaceAll('_', ' ').toUpperCase(),
-  };
+        'pending_completion' => 'AWAITING BOTH',
+        'awaiting_buyer_confirmation' => 'AWAITING BUYER',
+        'awaiting_seller_confirmation' => 'AWAITING SELLER',
+        'completed' => 'COMPLETED',
+        'cancelled' => 'CANCELLED',
+        'disputed' => 'DISPUTED',
+        _ => status.replaceAll('_', ' ').toUpperCase(),
+      };
 
   Color _statusColor(String status) => switch (status) {
-    'completed' => Colors.green,
-    'cancelled' => Colors.blueGrey,
-    'disputed' => Colors.deepOrange,
-    _ => const Color(0xFF0878E8),
-  };
+        'completed' => Colors.green,
+        'cancelled' => Colors.blueGrey,
+        'disputed' => Colors.deepOrange,
+        _ => const Color(0xFF0878E8),
+      };
 }
 
 class _BuyerOfferName extends StatelessWidget {
@@ -2313,15 +2308,15 @@ class _BuyerOfferName extends StatelessWidget {
   }
 
   Widget _label(String value) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
-      const Text(
-        'Current offer',
-        style: TextStyle(fontSize: 11, color: Colors.black54),
-      ),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const Text(
+            'Current offer',
+            style: TextStyle(fontSize: 11, color: Colors.black54),
+          ),
+        ],
+      );
 }
 
 class _BuyerOfferAvatar extends StatelessWidget {
@@ -2345,8 +2340,8 @@ class _BuyerOfferAvatar extends StatelessWidget {
         builder: (context, snapshot) {
           final business = snapshot.data?[0].data() ?? {};
           final personal = snapshot.data?[1].data() ?? {};
-          final url = '${business['photoUrl'] ?? personal['photoUrl'] ?? ''}'
-              .trim();
+          final url =
+              '${business['photoUrl'] ?? personal['photoUrl'] ?? ''}'.trim();
           return MarketplaceAvatarImage(
             photoUrl: url,
             size: 36,
@@ -2404,22 +2399,22 @@ class ListingMessageBadge extends StatelessWidget {
 class _SignedOutMessages extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MarketplaceAuthRequiredCard(
-    title: 'Marketplace Messages',
-    description:
-        'Sign in or create a free account to chat directly with equipment buyers & sellers, send quotes, and negotiate deals.',
-    icon: Icons.forum_outlined,
-  );
+        title: 'Marketplace Messages',
+        description:
+            'Sign in or create a free account to chat directly with equipment buyers & sellers, send quotes, and negotiate deals.',
+        icon: Icons.forum_outlined,
+      );
 }
 
 class _EmptyMessages extends StatelessWidget {
   const _EmptyMessages();
   @override
   Widget build(BuildContext context) => const MarketplaceDataStateView(
-    kind: MarketplaceDataStateKind.empty,
-    icon: Icons.chat_bubble_outline,
-    title: 'No marketplace conversations yet',
-    message: 'Open a listing and message the seller to begin.',
-  );
+        kind: MarketplaceDataStateKind.empty,
+        icon: Icons.chat_bubble_outline,
+        title: 'No marketplace conversations yet',
+        message: 'Open a listing and message the seller to begin.',
+      );
 }
 
 /// Participant-only full-page conversation destination for restored links.
@@ -2495,16 +2490,16 @@ class _ConversationRouteFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Marketplace conversation')),
-    body: MarketplaceDataStateView(
-      kind: MarketplaceDataStateKind.unavailable,
-      icon: Icons.forum_outlined,
-      title: 'Conversation unavailable',
-      message: message,
-      primaryLabel: 'Return to Marketplace',
-      onPrimary: () => context.go('/'),
-    ),
-  );
+        appBar: AppBar(title: const Text('Marketplace conversation')),
+        body: MarketplaceDataStateView(
+          kind: MarketplaceDataStateKind.unavailable,
+          icon: Icons.forum_outlined,
+          title: 'Conversation unavailable',
+          message: message,
+          primaryLabel: 'Return to Marketplace',
+          onPrimary: () => context.go('/'),
+        ),
+      );
 }
 
 class MarketplaceChatPage extends StatefulWidget {
@@ -2585,7 +2580,9 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 enabled: !_blockBusy,
                 child: ListTile(
                   leading: Icon(
-                    _blockedByMe ? Icons.person_add_alt_1 : Icons.block_outlined,
+                    _blockedByMe
+                        ? Icons.person_add_alt_1
+                        : Icons.block_outlined,
                     color: _blockedByMe ? Colors.green : Colors.deepOrange,
                   ),
                   title: Text(_blockedByMe ? 'Unblock member' : 'Block member'),
@@ -2617,7 +2614,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               color: Colors.orange.shade50,
               child: ListTile(
                 dense: true,
-                leading: const Icon(Icons.block_outlined, color: Colors.deepOrange),
+                leading:
+                    const Icon(Icons.block_outlined, color: Colors.deepOrange),
                 title: Text(
                   _blockedByMe
                       ? 'You blocked this member'
@@ -2688,9 +2686,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                     final hiddenByModeration =
                         message['moderationVisibility'] == 'hidden';
                     return Align(
-                      alignment: mine
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
+                      alignment:
+                          mine ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 310),
                         margin: const EdgeInsets.symmetric(vertical: 3),
@@ -2815,9 +2812,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                   const SizedBox(width: 6),
                   IconButton.filled(
                     tooltip: 'Send message',
-                    onPressed: _sending || _blockedByMe || _blockedMe
-                        ? null
-                        : _send,
+                    onPressed:
+                        _sending || _blockedByMe || _blockedMe ? null : _send,
                     icon: const Icon(Icons.send_rounded),
                   ),
                 ],
@@ -2850,8 +2846,10 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            icon: Icon(blocking ? Icons.block_outlined : Icons.person_add_alt_1),
-            title: Text(blocking ? 'Block this member?' : 'Unblock this member?'),
+            icon:
+                Icon(blocking ? Icons.block_outlined : Icons.person_add_alt_1),
+            title:
+                Text(blocking ? 'Block this member?' : 'Unblock this member?'),
             content: Text(
               blocking
                   ? 'They will no longer be able to exchange direct messages with you. Existing messages and any Trust & Safety reports stay saved.'
@@ -2915,9 +2913,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
     final members = List<String>.from(
       conversation['memberUids'] ?? const <String>[],
     );
-    final otherUid = members
-        .where((member) => member != currentUid)
-        .firstOrNull;
+    final otherUid =
+        members.where((member) => member != currentUid).firstOrNull;
     if (otherUid == null || !mounted) {
       if (mounted) {
         PipeFeedback.show(
@@ -3067,8 +3064,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
       final contentType = extension == 'png'
           ? 'image/png'
           : extension == 'webp'
-          ? 'image/webp'
-          : 'image/jpeg';
+              ? 'image/webp'
+              : 'image/jpeg';
       final authorization = await _actions.authorizeUpload(
         purpose: 'chat_attachment',
         originalName: file.name,

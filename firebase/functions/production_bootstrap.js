@@ -69,7 +69,7 @@ const {stripeSecretKey} = require("./stripe_marketplace_commands");
 
 const admin = createAdminRuntime();
 const readinessAdmin = createPaymentReadinessAdmin(admin);
-const marketplaceFeeAdmin = createMarketplaceFeeAdmin();
+const marketplaceFeeAdmin = createMarketplaceFeeAdmin(admin);
 const marketplaceTaxCompliance = createMarketplaceTaxCompliance(admin);
 const marketplaceTaxClaimLink = createMarketplaceTaxClaimLink(admin);
 const marketplaceTaxRegistrationAdmin =
@@ -269,6 +269,16 @@ exports.setPaymentProviderReadiness = onCall(
 exports.getMarketplaceFeeCatalog = onCall(
     protectedCallableOptions,
     marketplaceFeeAdmin.getMarketplaceFeeCatalog,
+);
+
+exports.getPublicMarketplaceFeeCatalog = onCall(
+    protectedCallableOptions,
+    marketplaceFeeAdmin.getPublicMarketplaceFeeCatalog,
+);
+
+exports.setMarketplaceListingFeeClassification = onCall(
+    protectedCallableOptions,
+    marketplaceFeeAdmin.setMarketplaceListingFeeClassification,
 );
 
 exports.getMarketplaceTaxProfile = onCall(

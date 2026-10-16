@@ -46,6 +46,7 @@ const {
   requirePhase1Feature,
 } = require("./phase1_feature_flags");
 const {buildDispatchRouteState} = require("./dispatch_routing_policy");
+const {launchMarketplaceFeeSchedule} = require("./marketplace_fee_policy");
 const {
   DAY_MS,
   MARKETPLACE_LISTING_ACTIVE_DAYS,
@@ -219,6 +220,7 @@ function createMarketplaceCommands(
         listingDurationDays: MARKETPLACE_LISTING_ACTIVE_DAYS,
         renewalCount: 0,
         lifecycleVersion: 1,
+        revision: 1,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         source: "marketplace_callable",
@@ -1248,6 +1250,9 @@ function createMarketplaceCommands(
         "lastMatchedAt", "publishedAt", "expiresAt", "renewedAt",
         "expiredAt", "listingDurationDays", "renewalCount",
         "lifecycleVersion", "expiryWarningSentAt", "expiryWarningFor",
+        "marketplaceFeeClass", "marketplaceFeeUnit",
+        "marketplaceFeeClassSource",
+        "marketplaceFeeClassificationRevision",
       ]) delete clone[field];
       Object.assign(clone, {
         status: "active",
@@ -1378,9 +1383,12 @@ function createMarketplaceCommands(
         auctionDurationDays: conversion.durationDays,
         customAuction: conversion.customAuction,
         bidWithdrawalAfterDays: conversion.customAuction ? 32 : null,
-        customAuctionUpfrontFee: conversion.customAuction ? 29.99 : 0,
-        customAuctionSaleFeePercent: conversion.customAuction ? 5 : 0,
-        additionalAuctionFeesDisclosure: conversion.customAuction,
+        customAuctionUpfrontFee: FieldValue.delete(),
+        customAuctionSaleFeePercent: FieldValue.delete(),
+        additionalAuctionFeesDisclosure: FieldValue.delete(),
+        marketplaceListingFee: 0,
+        marketplaceFeeTiming: launchMarketplaceFeeSchedule.collectionTiming,
+        marketplaceFeeScheduleRevision: launchMarketplaceFeeSchedule.revision,
         auctionStartAt: Timestamp.fromMillis(conversion.auctionStartAt),
         auctionEndAt: Timestamp.fromMillis(conversion.auctionEndAt),
         auctionStatus: "live",

@@ -30,7 +30,7 @@ void main() {
     );
     expect(
       repository,
-      contains('DispatchPublicGeographyProjection.serviceArea'),
+      isNot(contains('DispatchPublicGeographyProjection.serviceArea')),
     );
     expect(repository, contains("'serviceArea': serviceArea.toMap()"));
     expect(geography, contains("precisionCode = 'approximate_1km'"));
@@ -48,17 +48,5 @@ void main() {
     final publicBlock = repository.substring(publicStart, privateStart);
     expect(publicBlock, isNot(contains('serviceArea.toMap()')));
     expect(publicBlock, isNot(contains("'companyName'")));
-  });
-
-  test('public service-area projection omits exact place points and boundaries',
-      () {
-    final source = File(
-      'lib/marketplace/marketplace_dispatch_geography.dart',
-    ).readAsStringSync();
-
-    expect(source, contains("'name': place.name.trim()"));
-    expect(source, contains("'osmId': place.osmId.trim()"));
-    expect(source, isNot(contains("'point': place.point")));
-    expect(source, isNot(contains("'boundaryRings': place.boundaryRings")));
   });
 }

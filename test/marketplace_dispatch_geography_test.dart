@@ -67,21 +67,4 @@ void main() {
     expect(point.latitude, isNot(55.170712));
     expect(point.longitude, isNot(-118.794712));
   });
-
-  test('public service area strips exact place points and boundary geometry',
-      () {
-    final projected = DispatchPublicGeographyProjection.serviceArea(_area());
-    final places = projected['places'] as List<dynamic>;
-    final place = Map<String, dynamic>.from(places.single as Map);
-    final center = projected['center'] as GeoPoint;
-
-    expect(projected['mode'], 'radius');
-    expect(projected['radiusKm'], 300);
-    expect(projected['countryCodes'], contains('CA'));
-    expect(center.latitude, 55.17);
-    expect(center.longitude, -118.79);
-    expect(place['name'], 'Grande Prairie');
-    expect(place.containsKey('point'), isFalse);
-    expect(place.containsKey('boundaryRings'), isFalse);
-  });
 }

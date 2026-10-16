@@ -15,13 +15,16 @@ const {
 } = require("@firebase/rules-unit-testing");
 const {
   deleteDoc,
+  deleteField,
   doc,
+  GeoPoint,
   serverTimestamp,
   setDoc,
   updateDoc,
 } = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-trust-rules";
+const firestorePort = Number(process.env.FIRESTORE_EMULATOR_PORT || 8080);
 let testEnvironment;
 
 before(async () => {
@@ -31,7 +34,7 @@ before(async () => {
   );
   testEnvironment = await initializeTestEnvironment({
     projectId,
-    firestore: {rules, host: "127.0.0.1", port: 8080},
+    firestore: {rules, host: "127.0.0.1", port: firestorePort},
   });
 });
 
@@ -96,7 +99,132 @@ for (const [collection, label] of [
 
     await assertFails(setDoc(ref, {displayName: "A", reputationScore: 100}));
     await assertFails(setDoc(ref, {displayName: "A", membershipTier: "vip"}));
-    await assertSucceeds(setDoc(ref, {displayName: "A"}));
+    await assertFails(setDoc(ref, {displayName: "A", publicPhone: "+1 555 0100"}));
+    await assertFails(setDoc(ref, {displayName: "A", publicEmail: "seller@example.com"}));
+    await assertFails(setDoc(ref, {displayName: "A", website: "example.com"}));
+    await assertFails(setDoc(ref, {displayName: "A", telegram: "@direct_deals"}));
+    await assertFails(setDoc(ref, {displayName: "A", directContact: "hidden"}));
+    await assertFails(setDoc(ref, {displayName: "seller@example.com"}));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      description: "Call +1 (555) 555-0100",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      description: "See https://example.com for pricing",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "sales at example dot com",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      description: "See example dot com for pricing",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      sellerBio: "555-1234",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      photoUrl: "https://example.com/avatar.png",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      approvedTagIds: ["sales at example dot com"],
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      serviceCountryCodes: ["example dot com"],
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      dispatchProfile: {website: "example.com"},
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      dispatchProfile: {description: "Telegram @direct_deals"},
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      dispatchProfile: {operatingName: "A", telegram: "@direct_deals"},
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      dispatchProfile: {
+        operatingName: "A",
+        serviceCodes: ["sales at example dot com"],
+      },
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      dispatchProfile: {
+        operatingName: "A",
+        serviceArea: {
+          mode: "places",
+          centerLabel: "Grande Prairie",
+          places: [{name: "example dot com"}],
+        },
+      },
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      primaryCommunity: {
+        publicLocationName: "Grande Prairie, Alberta",
+        directContact: "seller at example dot com",
+      },
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      primaryCommunityGeoPoint: "sales at example dot com",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      updatedAt: "555-1234",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      visualSandbox: "example dot com",
+    }));
+    await assertFails(setDoc(ref, {
+      displayName: "A",
+      schemaVersion: "sales at example dot com",
+    }));
+    await assertSucceeds(setDoc(ref, {
+      displayName: "A",
+      description: "CAT-320-2026 excavator with API 5CT casing",
+      photoUrl: "https://firebasestorage.googleapis.com/v0/b/" +
+        "flutter-flow-pipe.firebasestorage.app/o/" +
+        "profile_media%2Fuser123%2Favatar_1792156800000.png?alt=media",
+    }));
+    await assertSucceeds(updateDoc(ref, {
+      dispatchProfile: {
+        schemaVersion: 2,
+        operatingName: "CAT-320-2026 Transport",
+        businessType: "corporation",
+        description: "API 5CT pipe and heavy-equipment transport",
+        serviceCodes: ["transport_pipe_hauling"],
+        serviceAreaLabel: "Grande Prairie, Alberta",
+        homeLocation: {
+          label: "Grande Prairie, Alberta",
+          point: new GeoPoint(55.17, -118.8),
+          precision: "approximate_1km",
+          source: "service_area_center",
+        },
+        availability: "available_now",
+        emergencyCallout: true,
+        remoteSiteCapable: true,
+        profileCompleteness: 100,
+      },
+    }));
+    await assertSucceeds(updateDoc(ref, {
+      primaryCommunityGeoPoint: new GeoPoint(55.17, -118.8),
+      dispatchProfileUpdatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      contactPrivacyMigratedAt: serverTimestamp(),
+      visualSandbox: false,
+      schemaVersion: 2,
+    }));
     await assertSucceeds(updateDoc(ref, {displayName: "B"}));
     await assertFails(updateDoc(ref, {membershipTier: "vip"}));
     await assertFails(updateDoc(ref, {reviewAverage: 5, reviewCount: 99}));
@@ -118,6 +246,28 @@ for (const [collection, label] of [
     await assertFails(updateDoc(ref, {membershipTier: "vip"}));
     await assertFails(updateDoc(ref, {completedTransactionCount: 300}));
   });
+
+  test(`${label} public profile owners can remove legacy contact keys`, async () => {
+    await seed((db) => setDoc(doc(db, collection, "u1"), {
+      displayName: "Legacy",
+      publicPhone: "+1 555 0100",
+      publicEmail: "seller@example.com",
+      website: "example.com",
+      dispatchProfile: {website: "dispatch.example.com"},
+    }));
+    const ref = doc(
+        testEnvironment.authenticatedContext("u1").firestore(),
+        collection,
+        "u1",
+    );
+    await assertSucceeds(updateDoc(ref, {
+      displayName: "Private",
+      publicPhone: deleteField(),
+      publicEmail: deleteField(),
+      website: deleteField(),
+      "dispatchProfile.website": deleteField(),
+    }));
+  });
 }
 
 test("location requests are bounded and must target the listing's real seller", async () => {
@@ -130,7 +280,7 @@ test("location requests are bounded and must target the listing's real seller", 
     listingId: "listingA",
     requesterUid: "buyer",
     sellerUid: "seller",
-    note: "Where exactly is the pipe yard?",
+    note: "",
     status: "pending",
     createdAt: serverTimestamp(),
   });
@@ -138,6 +288,9 @@ test("location requests are bounded and must target the listing's real seller", 
     setDoc(doc(requester, "location_requests", id), {...valid(), ...overrides});
 
   await assertSucceeds(request("ok", {}));
+  await assertFails(request("free-form-note", {
+    note: "Call me with the exact yard location",
+  }));
   await assertFails(request("wrong-seller", {sellerUid: "someone-else"}));
   await assertFails(request("spoofed-requester", {requesterUid: "not-me"}));
   await assertFails(request("long-note", {note: "x".repeat(501)}));

@@ -142,7 +142,6 @@ function buildDispatchDirectoryEntry({businessId, publicBusiness, carrier}) {
   const availability = cleanCode(profile.availability) || "unavailable";
   const businessType = cleanCode(profile.businessType) || "other";
   const description = cleanText(profile.description || business.description, MAX_SUMMARY_LENGTH);
-  const website = cleanText(profile.website || business.website, 260);
   const geography = publicGeography(profile);
   const capabilityTokens = [
     ...serviceCodes.map((code) => `service:${code}`),
@@ -181,7 +180,6 @@ function buildDispatchDirectoryEntry({businessId, publicBusiness, carrier}) {
     emergencyCallout: profile.emergencyCallout === true,
     remoteSiteCapable: profile.remoteSiteCapable === true,
     publicSummary: description,
-    website,
     profileCompleteness: Math.max(
         0,
         Math.min(100, Number(profile.profileCompleteness) || 0),

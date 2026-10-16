@@ -4,6 +4,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/native_membership_billing.dart';
 
 void main() {
+  test('annual store savings copy is derived from live localized prices', () {
+    expect(
+      nativeMembershipAnnualSavingsLabel(
+        monthlyPrice: 24.99,
+        annualPrice: 249.99,
+      ),
+      'Save 17% • about 2 months free with annual billing',
+    );
+    expect(
+      nativeMembershipAnnualSavingsLabel(
+        monthlyPrice: 24.99,
+        annualPrice: 299.99,
+      ),
+      isNull,
+      reason: 'the UI must not claim savings before the store price changes',
+    );
+  });
+
   test('VIP and Dispatch route native builds to store billing controls', () {
     final dispatch = File(
       'lib/marketplace/marketplace_dispatch_subscription_checkout.dart',

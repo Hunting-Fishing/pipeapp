@@ -44,6 +44,7 @@ import 'marketplace_dispatch_page.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_data_state.dart';
 import 'marketplace_freight_quote.dart';
+import 'marketplace_fee_guide.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_catalog_photo_assets.dart';
 import 'marketplace_listing_status.dart';
@@ -1136,7 +1137,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               auctionsEnabled: _features.auctions,
               wantedAdsEnabled: _features.wantedAds,
               regulatedListingsEnabled: _features.regulatedListings,
-              paidFeaturesEnabled: _features.paidFeatures,
               onHome: () => setState(() => _tab = 0))
           : const _FeatureUnavailablePage(feature: 'Marketplace'),
       _features.marketplace
@@ -2722,6 +2722,8 @@ class _BrowsePageState extends State<_BrowsePage> {
                       icon: const Icon(Icons.grid_view_rounded, size: 18),
                       label: Text(widget.category ?? 'All categories'))),
               const SizedBox(width: 8),
+              const MarketplaceFeeInfoButton(compact: true),
+              const SizedBox(width: 6),
               IconButton.filledTonal(
                   tooltip: 'Listing color key',
                   onPressed: () => showMarketplaceListingLegend(context),
@@ -4562,42 +4564,37 @@ class _ListingDetailsState extends State<_ListingDetails> {
                   : '$label: ${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}')));
 
   Future<void> _requestLocation() async {
-    final note = await _textDialog(
-        _isWanted ? 'Confirm delivery area' : 'Request pickup location',
-        _isWanted
-            ? 'Please confirm the delivery destination or service area for this request.'
-            : 'Please share pickup directions and an available viewing time.',
-        'Send request');
-    if (note == null) return;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(
+              _isWanted ? 'Confirm delivery area' : 'Request pickup location',
+            ),
+            content: const Text(
+              'This sends a private location request without contact details. Continue the conversation in Pipe Buyer messages.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Send request'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
     try {
       await _actions.requestLocation(
-          listingId: listing.id, sellerUid: listing.sellerUid, note: note);
+          listingId: listing.id, sellerUid: listing.sellerUid);
       _notice(
           'Location request sent to the ${_isWanted ? 'buyer' : 'seller'}.');
     } catch (error) {
       _notice(_actionError(error));
     }
-  }
-
-  Future<String?> _textDialog(
-      String title, String initial, String action) async {
-    final controller = TextEditingController(text: initial);
-    final result = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: Text(title),
-                content: TextField(controller: controller, maxLines: 4),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel')),
-                  FilledButton(
-                      onPressed: () =>
-                          Navigator.pop(context, controller.text.trim()),
-                      child: Text(action))
-                ]));
-    controller.dispose();
-    return result == null || result.isEmpty ? null : result;
   }
 
   void _showSellerProfile() {
@@ -4625,7 +4622,6 @@ class _StableCreateListingPage extends StatefulWidget {
     required this.auctionsEnabled,
     required this.wantedAdsEnabled,
     required this.regulatedListingsEnabled,
-    required this.paidFeaturesEnabled,
     this.initialAuction = false,
     this.initialWanted = false,
   });
@@ -4636,7 +4632,6 @@ class _StableCreateListingPage extends StatefulWidget {
   final bool auctionsEnabled;
   final bool wantedAdsEnabled;
   final bool regulatedListingsEnabled;
-  final bool paidFeaturesEnabled;
 
   @override
   State<_StableCreateListingPage> createState() =>
@@ -4698,7 +4693,6 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   final List<XFile> _photos = [];
   int? _thumbnailPhotoIndex;
   XFile? _video;
-  bool _boostRequested = false;
   MarketplaceLocation? _location;
   bool _publishing = false;
   bool _selectingPhotos = false;
@@ -5626,14 +5620,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               enabled: _priceBasis != 'Call for price',
               decoration: InputDecoration(
                   labelText: isWanted
-                      ? 'Target budget / price (CAD)'
+                      ? 'Target budget / price (USD)'
                       : isMachine
                           ? (_isAuction
-                              ? 'Starting bid (CAD) *'
-                              : 'Equipment asking price (CAD)')
+                              ? 'Starting bid (USD) *'
+                              : 'Equipment asking price (USD)')
                           : (_isAuction
-                              ? 'Starting bid (CAD) *'
-                              : 'Price (CAD)'),
+                              ? 'Starting bid (USD) *'
+                              : 'Price (USD)'),
                   hintText: isWanted
                       ? 'Optional — helps suppliers assess the request'
                       : _isAuction
@@ -5647,6 +5641,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   ? 'Enter a starting bid'
                   : null,
             ),
+            if (!isWanted) ...[
+              const SizedBox(height: 8),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: MarketplaceFeeInfoButton(),
+              ),
+            ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: displayedPriceBasis,
@@ -5915,23 +5916,6 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                           style: const TextStyle(fontSize: 11, color: _muted)),
                     ],
                   ),
-                ),
-              ),
-            ],
-            if (widget.paidFeaturesEnabled) ...[
-              const SizedBox(height: 12),
-              Card(
-                margin: EdgeInsets.zero,
-                color: const Color(0xFFFFF5E8),
-                child: SwitchListTile(
-                  value: _boostRequested,
-                  onChanged: (value) => setState(() => _boostRequested = value),
-                  secondary:
-                      const Icon(Icons.rocket_launch_outlined, color: _orange),
-                  title: const Text('Boost listing — \$3',
-                      style: TextStyle(fontWeight: FontWeight.w900)),
-                  subtitle: const Text(
-                      'Marks this listing for checkout. Boost activates after payment is connected and confirmed.'),
                 ),
               ),
             ],
@@ -6310,7 +6294,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                     const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: const [MarketplaceMoneyInputFormatter()],
                 decoration: const InputDecoration(
-                    labelText: 'Minimum bid increase (CAD) *',
+                    labelText: 'Minimum bid increase (USD) *',
                     prefixIcon: Icon(Icons.trending_up)),
                 validator: (value) {
                   final amount = num.tryParse(
@@ -6530,11 +6514,6 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _showDisabledFeature('Property and rights listings');
       return;
     }
-    if (_boostRequested && !widget.paidFeaturesEnabled) {
-      setState(() => _boostRequested = false);
-      _showDisabledFeature('Paid listing boosts');
-      return;
-    }
     if (!_formKey.currentState!.validate()) return;
     if (_location == null) {
       PipeFeedback.show(
@@ -6697,7 +6676,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         'priceBasis': _priceBasis,
         'priceFlexibility': _priceFlexibility,
         'openToOffers': _priceFlexibility == 'Open to offers',
-        'currency': 'CAD',
+        'currency': 'USD',
         'description': _description.text.trim(),
         'sellerName': user.displayName ?? user.email ?? 'Marketplace seller',
         'sellerPhotoUrl': user.photoURL,
@@ -6708,10 +6687,6 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         'mediaPhotoCount': queuedPhotos.length,
         'hasVideo': queuedVideo != null,
         'mediaUploadStatus': hasQueuedMedia ? 'queued' : 'none',
-        'boostRequested': _boostRequested,
-        'boostPrice': _boostRequested ? 3 : null,
-        'boostCurrency': _boostRequested ? 'CAD' : null,
-        'boostStatus': _boostRequested ? 'awaiting_payment_setup' : 'none',
         'viewCount': 0,
         'saveCount': 0,
         'shareCount': 0,
@@ -6821,7 +6796,6 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         _propertyInterest = 'Freehold / fee simple';
         _propertyOffering = 'Land only';
         _propertyFeatures.clear();
-        _boostRequested = false;
         _location = null;
         _auctionStartAt = null;
         _auctionEndAt = null;
@@ -7332,7 +7306,7 @@ class _AddListingPageState extends State<_AddListingPage> {
                       'gradeOrSchedule': _gradeController.text.trim(),
                       'transactionType': _transaction,
                       'price': num.tryParse(rawPrice),
-                      'currency': 'CAD',
+                      'currency': 'USD',
                       'description': _descriptionController.text.trim(),
                       'sellerName': user?.displayName ?? 'Marketplace seller',
                       'sellerVerified': false,

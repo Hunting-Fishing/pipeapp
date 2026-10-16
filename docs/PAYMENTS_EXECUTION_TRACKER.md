@@ -17,12 +17,13 @@ When repairing a payment defect, record the root cause, exact repair, verificati
 
 ## P0 — Financial truth
 
-- [x] Server fee policy is versioned as `2026-08-10-launch-v2`.
-- [x] Pipe/tubing/casing seller fee is server-authoritative: CAD/USD $1 per stick/joint, $25 minimum, $5,000 maximum.
-- [x] Equipment/assets seller fee is server-authoritative: $25 minimum; 5% under $10k, 3% $10k–$49,999.99, 2% $50k–$249,999.99, 1% $250k+.
+- [x] Server fee policy is versioned as `2026-10-16-sale-only-v4`.
+- [x] Marketplace and auction listings have no upfront listing fee; the seller fee is collected only on a completed sale.
+- [x] Pipe/tubing/casing seller fee is server-authoritative: CAD/USD $1 per sold stick/item, capped at the lower of 3% of the sale or $2,500.
+- [x] Equipment/assets seller fee is server-authoritative and marginal: 3% / 2.5% / 2% / 1.5% / 1% bands, $1 minimum, and $2,500 maximum.
 - [x] Accepted transaction fee snapshots are designed to be immutable.
 - [x] Current main server policy still specifies `affiliateShareBps: 2000` (20%).
-- [ ] Reconcile older monetization documentation with current launch-v2 server policy.
+- [ ] Continue reconciling any older non-historical monetization documentation with the current sale-only v3 server policy.
 - [ ] Resolve open affiliate economics proposal before enabling affiliate payouts.
 - [ ] Confirm every checkout/admin/user-facing fee display matches server policy.
 

@@ -31,6 +31,13 @@ Firestore uses collections and documents rather than SQL tables.
   Clients cannot read or write them; an expiration scheduler removes old data.
 - `public_listings/{listingId}`: published searchable listings and the
   seller-selected public location. Unpublished drafts are never stored here.
+- `marketplace_fee_classifications/{listingId}`: server-only administrator
+  decision that can approve the discounted pipe fee for one exact listing,
+  seller, catalog category/product type, and listing revision. Seller-selected
+  listing fields never grant the discount; missing, revoked, stale, or
+  mismatched decisions fail closed to the equipment fee.
+- `marketplace_fee_classification_events/{eventId}`: immutable server-written
+  audit history for pipe fee-class approvals and revocations.
 - `marketplace_listing_drafts/{listingId}`: private, owner-readable,
   server-written listing payload, exact location, expected media counts, upload
   manifest, retry state, and 30-day expiry. Publication is a server transaction
@@ -198,6 +205,7 @@ idempotency receipt. The current callable commands are:
 - `acceptAuctionBidBelowReserve`
 - `createMarketplaceOffer`
 - `acceptMarketplaceOffer`
+- `setMarketplaceListingFeeClassification` (MFA administrator only)
 - `createDispatchJob`
 - `updateDispatchJob`
 - `publishDispatchJob`

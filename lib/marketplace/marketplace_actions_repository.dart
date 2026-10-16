@@ -311,13 +311,14 @@ class MarketplaceActionsRepository {
   Future<void> requestLocation({
     required String listingId,
     required String sellerUid,
-    String note = '',
   }) =>
       _firestore.collection('location_requests').add({
         'listingId': listingId,
         'requesterUid': uid,
         'sellerUid': sellerUid,
-        'note': note,
+        // Free-form contact details belong in the protected message flow, not
+        // in this client-created request document.
+        'note': '',
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });

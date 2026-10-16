@@ -1,5 +1,10 @@
 "use strict";
 
+const {
+  contactSharingSignals,
+  listingContactSignals,
+} = require("./marketplace_contact_policy");
+
 class ListingPolicyError extends Error {
   constructor(code, message) {
     super(message);
@@ -98,6 +103,10 @@ const serverOwnedFields = new Set([
   "requestType",
   "matchCount",
   "lastMatchedAt",
+  "marketplaceFeeClass",
+  "marketplaceFeeUnit",
+  "marketplaceFeeClassSource",
+  "marketplaceFeeClassificationRevision",
 ]);
 
 const longTextFields = new Set([
@@ -256,6 +265,22 @@ function validateLocation(value) {
   ]) {
     clean[field] = String(value[field] || "").trim().slice(0, 1200);
   }
+  const locationContactFields = [
+    "publicName",
+    "address",
+    "nearestTown",
+    "accessNotes",
+    "region",
+    "postalCode",
+    "country",
+  ];
+  if (locationContactFields.some((field) =>
+    contactSharingSignals(clean[field]).length > 0)) {
+    invalid(
+        "Remove phone numbers, email addresses, websites, and contact handles " +
+        "from location notes.",
+    );
+  }
   return clean;
 }
 
@@ -360,6 +385,12 @@ function validateMarketplaceListingInput(
     delete listing.buyItNowPrice;
     delete listing.bidCount;
     delete listing.auctionStatus;
+  }
+  if (listingContactSignals(listing).length > 0) {
+    invalid(
+        "Remove phone numbers, email addresses, websites, and contact handles. " +
+        "Keep buyer and seller communication in secure marketplace messages.",
+    );
   }
   return listing;
 }

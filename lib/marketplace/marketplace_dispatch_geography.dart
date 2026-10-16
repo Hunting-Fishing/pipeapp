@@ -17,32 +17,6 @@ class DispatchPublicGeographyProjection {
         'source': 'service_area_center',
       };
 
-  static Map<String, dynamic> serviceArea(MarketplaceServiceArea area) => {
-        'schemaVersion': 1,
-        'mode': area.mode.name,
-        'centerLabel': area.centerLabel.trim(),
-        'center': _approximatePoint(
-          area.center.latitude,
-          area.center.longitude,
-        ),
-        'radiusKm': area.radiusKm,
-        'countryCodes': area.countryCodes,
-        'regionKeys': area.regionKeys,
-        'placeKeys': area.placeKeys,
-        'places': area.places
-            .map(
-              (place) => <String, dynamic>{
-                'name': place.name.trim(),
-                'region': place.region.trim(),
-                'country': place.country.trim(),
-                'countryCode': place.countryCode.trim().toUpperCase(),
-                'osmType': place.osmType.trim(),
-                'osmId': place.osmId.trim(),
-              },
-            )
-            .toList(),
-      };
-
   static GeoPoint _approximatePoint(double latitude, double longitude) =>
       GeoPoint(
         _roundCoordinate(latitude),

@@ -31,6 +31,7 @@ const {
 } = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-rules";
+const firestorePort = Number(process.env.FIRESTORE_EMULATOR_PORT || 8080);
 let testEnvironment;
 
 function phase1Features(overrides = {}) {
@@ -65,7 +66,7 @@ before(async () => {
     firestore: {
       rules,
       host: "127.0.0.1",
-      port: 8080,
+      port: firestorePort,
     },
   });
 });

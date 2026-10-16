@@ -12,6 +12,8 @@ const {doc, setDoc, Timestamp} = require("firebase/firestore");
 const {deleteObject, getBytes, ref, uploadBytes} = require("firebase/storage");
 
 const projectId = "demo-pipe-buyer-rules";
+const firestorePort = Number(process.env.FIRESTORE_EMULATOR_PORT || 8080);
+const storagePort = Number(process.env.STORAGE_EMULATOR_PORT || 9199);
 let testEnvironment;
 
 before(async () => {
@@ -23,7 +25,7 @@ before(async () => {
           "utf8",
       ),
       host: "127.0.0.1",
-      port: 8080,
+      port: firestorePort,
     },
     storage: {
       rules: fs.readFileSync(
@@ -31,7 +33,7 @@ before(async () => {
           "utf8",
       ),
       host: "127.0.0.1",
-      port: 9199,
+      port: storagePort,
     },
   });
 });

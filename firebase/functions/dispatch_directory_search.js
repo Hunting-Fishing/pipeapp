@@ -97,7 +97,6 @@ function publicDirectoryResult(document, distanceKm) {
     id: cleanText(document.id, 180),
     operatingName: cleanText(data.operatingName || data.companyName, 180),
     publicSummary: cleanText(data.publicSummary),
-    website: cleanText(data.website, 260),
     serviceCodes: cleanStringList(data.serviceCodes),
     serviceAreaSummary: cleanText(data.serviceAreaSummary, 260),
     publicLocation: {

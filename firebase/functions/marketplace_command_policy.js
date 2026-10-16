@@ -1,6 +1,11 @@
 "use strict";
 
 const {
+  contactSharingSignals,
+  listingContactSignals,
+} = require("./marketplace_contact_policy");
+
+const {
   approvedAccountVerification,
 } = require("./account_verification_policy");
 
@@ -159,7 +164,7 @@ function validateAuctionConversion({
   if (customAuction && paidFeaturesEnabled !== true) {
     throw new CommandPolicyError(
         "failed-precondition",
-        "Paid custom auctions are not currently available.",
+        "Custom-duration auctions are not currently available.",
     );
   }
   const nowMillis = timestampMillis(now);
@@ -287,6 +292,13 @@ function validateListingDetailsUpdate({listing, actorUid, data}) {
       }
       changes[key] = value;
     }
+  }
+  if (listingContactSignals(changes).length > 0) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Remove phone numbers, email addresses, websites, and contact handles. " +
+        "Keep buyer and seller communication in secure marketplace messages.",
+    );
   }
   return {changes, currentRevision, nextRevision: currentRevision + 1};
 }
@@ -1054,6 +1066,13 @@ function validateOfferProposal({
         "Offer conditions must be 2,000 characters or fewer.",
     );
   }
+  if (contactSharingSignals(note).length > 0) {
+    throw new CommandPolicyError(
+        "invalid-argument",
+        "Offer notes cannot include phone numbers, email addresses, websites, " +
+        "or contact handles. Keep negotiation in secure messages.",
+    );
+  }
   const truckingPlan = String(data.truckingPlan || "");
   if (!TRUCKING_PLANS.has(truckingPlan)) {
     throw new CommandPolicyError(
@@ -1085,6 +1104,12 @@ function validateOfferProposal({
       );
     }
     dispatchDelivery = validateDispatchDelivery(data.dispatchDelivery);
+    if (contactSharingSignals(dispatchDelivery.accessNotes).length > 0) {
+      throw new CommandPolicyError(
+          "invalid-argument",
+          "Dispatch access notes cannot include contact details.",
+      );
+    }
   }
 
   return {

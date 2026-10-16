@@ -71,8 +71,8 @@ class MarketplaceDispatchCompanyProfileRepository {
         publicBusiness['description'],
       ]),
       website: _firstText([
-        publicDispatch['website'],
-        publicBusiness['website'],
+        privateDispatch['website'],
+        privateBusiness['website'],
       ]),
       serviceCodes: serviceCodes,
       serviceAreaLabel: _firstText([
@@ -109,15 +109,10 @@ class MarketplaceDispatchCompanyProfileRepository {
         'operatingName': draft.operatingName.trim(),
         'businessType': draft.businessType.code,
         'description': draft.description.trim(),
-        'website': draft.website.trim(),
         'serviceCodes': draft.normalizedServiceCodes,
         'serviceAreaLabel': draft.effectiveServiceAreaLabel,
         if (serviceArea != null)
           'homeLocation': DispatchPublicGeographyProjection.homeLocation(
-            serviceArea,
-          ),
-        if (serviceArea != null)
-          'serviceArea': DispatchPublicGeographyProjection.serviceArea(
             serviceArea,
           ),
         'availability': draft.availability.code,
@@ -128,6 +123,7 @@ class MarketplaceDispatchCompanyProfileRepository {
       final privateProfile = <String, dynamic>{
         'schemaVersion': 2,
         'companyName': draft.companyName.trim(),
+        'website': draft.website.trim(),
         if (serviceArea != null) 'serviceArea': serviceArea.toMap(),
       };
 
@@ -136,7 +132,9 @@ class MarketplaceDispatchCompanyProfileRepository {
         {
           'ownerUid': uid,
           'publicName': draft.operatingName.trim(),
-          'website': draft.website.trim(),
+          'publicPhone': FieldValue.delete(),
+          'publicEmail': FieldValue.delete(),
+          'website': FieldValue.delete(),
           'description': draft.description.trim(),
           'serviceAreaLabel': draft.effectiveServiceAreaLabel,
           'dispatchProfile': publicProfile,
@@ -151,6 +149,7 @@ class MarketplaceDispatchCompanyProfileRepository {
           'ownerUid': uid,
           'memberUids': FieldValue.arrayUnion([uid]),
           'legalName': draft.companyName.trim(),
+          'website': draft.website.trim(),
           'dispatchProfile': privateProfile,
           'dispatchProfileUpdatedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),

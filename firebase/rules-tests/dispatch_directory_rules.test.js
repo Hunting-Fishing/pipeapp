@@ -11,6 +11,7 @@ const {
 const {doc, getDoc, setDoc, Timestamp} = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-dispatch-directory-rules";
+const firestorePort = Number(process.env.FIRESTORE_EMULATOR_PORT || 8080);
 let testEnvironment;
 
 function featureFlags(dispatch = true) {
@@ -34,7 +35,7 @@ before(async () => {
     firestore: {
       rules: fs.readFileSync(path.join(__dirname, "..", "firestore.rules"), "utf8"),
       host: "127.0.0.1",
-      port: 8080,
+      port: firestorePort,
     },
   });
 });

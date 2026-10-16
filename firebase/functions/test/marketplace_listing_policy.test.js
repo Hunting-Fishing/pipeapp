@@ -69,6 +69,31 @@ test("rejects unsupported fields and nested client data", () => {
   );
 });
 
+test("rejects contact details across public listing text", () => {
+  for (const overrides of [
+    {description: "Email sales (at) example (dot) com"},
+    {model: "Details at pipebuyer.com"},
+    {propertyFeatures: ["Fenced", "Telegram @pipe_sales"]},
+    {title: "Call 780-555-1212 for details"},
+  ]) {
+    assert.throws(
+        () => validateMarketplaceListingInput(validListing(overrides), now),
+        (error) => error instanceof ListingPolicyError &&
+          error.code === "invalid-argument",
+    );
+  }
+});
+
+test("accepts industrial specifications, prices, and calendar dates", () => {
+  const result = validateMarketplaceListingInput(validListing({
+    title: "CAT-320-2026 excavator",
+    productType: "API 5CT casing",
+    pipeSize: "5-1/2 pipe",
+    description: "Asking $100,000; inspected 2026-10-16.",
+  }), now);
+  assert.equal(result.title, "CAT-320-2026 excavator");
+});
+
 test("requires complete future auction timing and positive pricing", () => {
   const result = validateMarketplaceListingInput(validListing({
     transactionType: "Auction",
@@ -119,6 +144,15 @@ test("keeps auction reserve private and validates mapped locations", () => {
         publicName: "Invalid",
       }),
       (error) => error instanceof ListingPolicyError,
+  );
+  assert.throws(
+      () => validateLocation({
+        visibility: "approximate",
+        point: {latitude: 55.76, longitude: -120.24},
+        publicName: "Call 780-555-1212 for the yard location",
+      }),
+      (error) => error instanceof ListingPolicyError &&
+        error.code === "invalid-argument",
   );
 });
 

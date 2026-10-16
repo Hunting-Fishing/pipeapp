@@ -8,7 +8,9 @@ Verified in App Store Connect on 2026-10-16:
 - Bundle ID: `Pipe.Buyerapp`
 - Subscription group: `Pipe Buyer Memberships` (`22481870`)
 - `pipebuyer_dispatch_monthly`: one month, USD 24.99 tier, 175 storefronts
-- `pipebuyer_dispatch_yearly`: one year, USD 299.99 tier, 175 storefronts
+- `pipebuyer_dispatch_yearly`: one year, current verified USD 299.99 tier,
+  175 storefronts. The approved launch target is USD 249.99, pending an
+  external App Store Connect price-schedule change and subsequent verification.
 - Both subscriptions: level 1, `Prepare for Submission`
 - iOS version `1.0.0`: `Prepare for Submission`
 - The app itself is free (`USD 0.00`) and available in all 175 storefronts.
@@ -130,6 +132,13 @@ Dispatch membership features. Payment is charged to your Apple Account at
 confirmation. The subscription renews automatically unless canceled at least
 24 hours before the end of the current period. Manage or cancel it in your App
 Store subscription settings.
+
+The approved United States launch target is USD 24.99 per month or USD 249.99
+per year. At those targets, yearly billing saves about two monthly payments,
+or approximately 17%, compared with paying monthly for twelve months. Apple
+shows the applicable localized storefront price before purchase. Do not publish
+the USD 249.99 claim in App Store metadata or screenshots until that external
+price schedule has been saved and verified in App Store Connect.
 
 Availability of marketplace, Dispatch, payment, carrier, and regulated
 features varies by location and account eligibility.

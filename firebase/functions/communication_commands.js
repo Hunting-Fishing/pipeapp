@@ -7,6 +7,8 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
+const {paidMembershipCurrentForUser} = require("./dispatch_membership_access");
+const {contactSharingSignals} = require("./marketplace_contact_policy");
 const {
   CommunicationPolicyError,
   downloadUrlMatchesStoragePath,
@@ -106,6 +108,96 @@ function profileName(data, fallback) {
   ).trim() || fallback;
 }
 
+const ACCEPTED_OFFER_LISTING_STATUSES = new Set(["pending_sale", "sold"]);
+const WON_AUCTION_STATUSES = new Set([
+  "won",
+  "bought_now",
+  "accepted_below_reserve",
+]);
+const AWARDED_DISPATCH_STATUSES = new Set([
+  "awarded",
+  "accepted",
+  "scheduled",
+  "in_transit",
+  "delivered",
+  "closed",
+  "disputed",
+]);
+
+function exactContactSharingParticipants(actorUid, recipientUid, firstUid, secondUid) {
+  const actor = String(actorUid || "").trim();
+  const recipient = String(recipientUid || "").trim();
+  const first = String(firstUid || "").trim();
+  const second = String(secondUid || "").trim();
+  if (!actor || !recipient || actor === recipient || !first || !second ||
+      first === second) {
+    return false;
+  }
+  return new Set([actor, recipient]).size === 2 &&
+    [actor, recipient].every((uid) => uid === first || uid === second) &&
+    [first, second].every((uid) => uid === actor || uid === recipient);
+}
+
+function contactSharingAuthorization({
+  hasActiveMembership,
+  actorUid,
+  recipientUid,
+  relationshipType,
+  relationship,
+}) {
+  if (hasActiveMembership !== true) {
+    return Object.freeze({allowed: false, reason: "membership_required"});
+  }
+  const data = relationship && typeof relationship === "object" ?
+    relationship : {};
+
+  if (relationshipType === "marketplace_listing") {
+    const sellerUid = String(data.sellerUid || "").trim();
+    const listingStatus = String(data.status || "").trim();
+    const acceptedOfferId = String(data.acceptedOfferId || "").trim();
+    const acceptedBuyerUid = String(data.acceptedBuyerUid || "").trim();
+    if (acceptedOfferId &&
+        ACCEPTED_OFFER_LISTING_STATUSES.has(listingStatus) &&
+        exactContactSharingParticipants(
+            actorUid,
+            recipientUid,
+            sellerUid,
+            acceptedBuyerUid,
+        )) {
+      return Object.freeze({allowed: true, reason: "accepted_offer"});
+    }
+
+    const auctionStatus = String(data.auctionStatus || "").trim();
+    const acceptedBidAmount = Number(data.acceptedBidAmount || 0);
+    const winningBuyerUid = auctionStatus === "bought_now" ?
+      String(data.buyNowBuyerUid || data.acceptedBidderUid || "").trim() :
+      String(data.acceptedBidderUid || "").trim();
+    if (WON_AUCTION_STATUSES.has(auctionStatus) &&
+        Number.isFinite(acceptedBidAmount) && acceptedBidAmount > 0 &&
+        exactContactSharingParticipants(
+            actorUid,
+            recipientUid,
+            sellerUid,
+            winningBuyerUid,
+        )) {
+      return Object.freeze({allowed: true, reason: "won_auction"});
+    }
+  } else if (relationshipType === "dispatch_job") {
+    const status = String(data.status || "").trim();
+    if (AWARDED_DISPATCH_STATUSES.has(status) &&
+        exactContactSharingParticipants(
+            actorUid,
+            recipientUid,
+            data.customerUid,
+            data.carrierUid,
+        )) {
+      return Object.freeze({allowed: true, reason: "awarded_dispatch"});
+    }
+  }
+
+  return Object.freeze({allowed: false, reason: "relationship_required"});
+}
+
 function createCommunicationCommands(
     admin,
     {pairBlockStatus = async () => ({blocked: false})} = {},
@@ -124,6 +216,73 @@ function createCommunicationCommands(
           "Unblock this member before contacting them again." :
           "This member is not accepting new contact right now.",
     );
+  }
+  async function assertContactSharingAllowed(
+      transaction,
+      {conversation, uid, recipientUid, includesAttachment, text},
+  ) {
+    const signals = contactSharingSignals(text);
+    if (signals.length === 0 && !includesAttachment) return;
+
+    const [dispatchMembershipSnapshot, vipMembershipSnapshot] =
+      await Promise.all([
+        transaction.get(db.collection("dispatch_memberships").doc(uid)),
+        transaction.get(db.collection("vip_memberships").doc(uid)),
+      ]);
+    const nowMillis = Date.now();
+    const hasMembership = paidMembershipCurrentForUser(
+        dispatchMembershipSnapshot.exists ?
+          dispatchMembershipSnapshot.data() : null,
+        uid,
+        nowMillis,
+    ) || paidMembershipCurrentForUser(
+        vipMembershipSnapshot.exists ? vipMembershipSnapshot.data() : null,
+        uid,
+        nowMillis,
+    );
+    if (!hasMembership) {
+      throw new HttpsError(
+          "failed-precondition",
+          "An active membership is required to share contact details or " +
+          "attachments. Ordinary in-app messages remain available.",
+      );
+    }
+
+    let relationshipType = "";
+    let relationship = null;
+    const listingId = String(conversation.listingId || "").trim();
+    if (listingId) {
+      const listingSnapshot = await transaction.get(
+          db.collection("public_listings").doc(listingId),
+      );
+      relationshipType = "marketplace_listing";
+      relationship = listingSnapshot.exists ? listingSnapshot.data() : null;
+    } else if (conversation.contextType === "dispatch_job") {
+      const jobId = String(
+          conversation.dispatchJobId || conversation.contextId || "",
+      ).trim();
+      if (jobId) {
+        const dispatchSnapshot = await transaction.get(
+            db.collection("dispatch_transactions").doc(jobId),
+        );
+        relationshipType = "dispatch_job";
+        relationship = dispatchSnapshot.exists ? dispatchSnapshot.data() : null;
+      }
+    }
+    const authorization = contactSharingAuthorization({
+      hasActiveMembership: hasMembership,
+      actorUid: uid,
+      recipientUid,
+      relationshipType,
+      relationship,
+    });
+    if (!authorization.allowed) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Contact sharing unlocks only after an offer is accepted, an auction " +
+          "is won, or a Dispatch quote is awarded.",
+      );
+    }
   }
   const secured = (scope, handler) => command(async (request) => {
     const identity = requireAuthenticatedIdentity(request);
@@ -502,6 +661,7 @@ function createCommunicationCommands(
         const authorizationId = requiredId(request.data, "requestId");
         const upload = validateUploadInput(request.data || {});
         let targetId;
+        let chatConversation = null;
         if (upload.purpose === "chat_attachment") {
           targetId = requiredId(upload, "conversationId");
           const conversation = await db.collection("conversations")
@@ -514,6 +674,7 @@ function createCommunicationCommands(
                 "Only conversation members can attach files.",
             );
           }
+          chatConversation = conversation.data();
         } else {
           targetId = requiredId(upload, "reportId");
         }
@@ -525,6 +686,23 @@ function createCommunicationCommands(
         const expiresAt = Timestamp.fromMillis(Date.now() + 15 * 60 * 1000);
         const result = await db.runTransaction(async (transaction) => {
           const existing = await transaction.get(reference);
+          if (chatConversation) {
+            const members = chatConversation.memberUids.map(String);
+            const recipientUid = members.find((memberUid) => memberUid !== uid);
+            if (!recipientUid) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "The conversation recipient is unavailable.",
+              );
+            }
+            await assertContactSharingAllowed(transaction, {
+              conversation: chatConversation,
+              uid,
+              recipientUid,
+              includesAttachment: true,
+              text: "",
+            });
+          }
           if (existing.exists) {
             const current = existing.data();
             if (current.ownerUid !== uid || current.storagePath !== storagePath ||
@@ -667,6 +845,13 @@ function createCommunicationCommands(
                 "The conversation recipient is unavailable.",
             );
           }
+          await assertContactSharingAllowed(transaction, {
+            conversation,
+            uid,
+            recipientUid,
+            includesAttachment: Boolean(input.attachment),
+            text: input.text,
+          });
           let attachment = null;
           let authorizationRef = null;
           if (input.attachment) {
@@ -943,6 +1128,8 @@ async function cleanupExpiredMediaUploadAuthorizations(
 
 module.exports = {
   cleanupExpiredMediaUploadAuthorizations,
+  contactSharingAuthorization,
   conversationIdFor,
   createCommunicationCommands,
+  exactContactSharingParticipants,
 };

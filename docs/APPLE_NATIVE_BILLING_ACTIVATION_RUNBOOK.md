@@ -9,8 +9,15 @@ This runbook covers the Pipe Buyer iOS app (`Pipe.Buyerapp`, Apple app ID
 | Product | Price | State for this launch |
 | --- | ---: | --- |
 | `pipebuyer_dispatch_monthly` | User-approved target USD 25/month; App Store tier USD 24.99/month | Configure and test |
-| `pipebuyer_dispatch_yearly` | User-approved target USD 300/year; App Store tier USD 299.99/year | Configure and test |
+| `pipebuyer_dispatch_yearly` | User-approved launch target USD 249.99/year; current verified App Store tier USD 299.99/year | Change the external price schedule, then configure and test |
 | `pipebuyer_vip_monthly` | Not approved | Do not configure or expose on Apple |
+
+At USD 24.99 monthly and USD 249.99 yearly, the yearly option saves about two
+monthly payments, or approximately 17%, compared with twelve monthly payments.
+Use that approximate wording instead of claiming an exact two free months. The
+USD 249.99 yearly target is not active merely because it appears in source or
+this runbook; App Store Connect must be changed and the saved price schedule
+verified before metadata, review screenshots, or release evidence use it.
 
 The Google Play catalog remains independent. Do not remove or rename a Google
 product merely because it is not approved for Apple.
@@ -137,11 +144,15 @@ the Account Holder's direct review and submission.
 
 1. The Paid Applications agreement is active, with banking and tax information
    accepted for every entity that will sell the subscription worldwide.
-2. The subscription group contains exactly the two approved Dispatch products
-   at the App Store tiers USD 24.99/month and USD 299.99/year (the approved
-   commercial targets are USD 25/month and USD 300/year), with availability
-   set to all 175 storefronts. The products and storefront coverage exist, but
-   both products remain `Prepare for Submission` and lack review screenshots.
+2. The subscription group contains exactly the two approved Dispatch products,
+   with USD 24.99/month and the approved USD 249.99/year launch target available
+   in all 175 storefronts. The yearly product was last verified externally at
+   USD 299.99/year, so changing and re-verifying its App Store Connect price
+   schedule remains an explicit operator step. The products and storefront
+   coverage exist, but both products remain `Prepare for Submission` and lack
+   review screenshots. At the approved targets, describe yearly savings as
+   "about two months" or "approximately 17%," subject to Apple's localized
+   storefront pricing.
 3. Localizations, review screenshots, review notes, and the app's subscription
    disclosure/Terms/Privacy links are complete. The pending app version still
    lacks a selected current build, description, and App Store screenshots. Its

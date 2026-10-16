@@ -55,6 +55,27 @@ String nativeMembershipPlanLabel(String plan) => switch (plan) {
       _ => 'Membership',
     };
 
+String? nativeMembershipAnnualSavingsLabel({
+  required double monthlyPrice,
+  required double annualPrice,
+}) {
+  if (!monthlyPrice.isFinite ||
+      !annualPrice.isFinite ||
+      monthlyPrice <= 0 ||
+      annualPrice <= 0) {
+    return null;
+  }
+  final fullYear = monthlyPrice * 12;
+  final saved = fullYear - annualPrice;
+  final monthsSaved = saved / monthlyPrice;
+  if (monthsSaved < .5) return null;
+  final percentSaved = (saved / fullYear * 100).round();
+  final monthLabel = (monthsSaved - monthsSaved.round()).abs() < .08
+      ? '${monthsSaved.round()}'
+      : monthsSaved.toStringAsFixed(1);
+  return 'Save $percentSaved% • about $monthLabel months free with annual billing';
+}
+
 bool nativePurchaseIntentMatchesUpdate({
   required String intentPlatform,
   required String intentProductId,
@@ -714,6 +735,16 @@ class _NativeMembershipPlanButtonState
           final product =
               targetProductId == null ? null : products[targetProductId];
           final targetLabel = nativeMembershipPlanLabel(widget.targetPlan);
+          final monthlyProduct =
+              products[nativeMembershipProductIds['dispatch_monthly']];
+          final annualSavings = widget.targetPlan == 'dispatch_yearly' &&
+                  product != null &&
+                  monthlyProduct != null
+              ? nativeMembershipAnnualSavingsLabel(
+                  monthlyPrice: monthlyProduct.rawPrice,
+                  annualPrice: product.rawPrice,
+                )
+              : null;
 
           if (!enabled) {
             return SizedBox(
@@ -781,6 +812,17 @@ class _NativeMembershipPlanButtonState
                             : 'Change to $targetLabel • ${product.price}',
                   ),
                 ),
+              if (annualSavings != null) ...[
+                const SizedBox(height: 7),
+                Text(
+                  annualSavings,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
               if (widget.targetPlan == 'dispatch_monthly') ...[
                 const SizedBox(height: 6),
                 TextButton.icon(

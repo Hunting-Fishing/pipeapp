@@ -71,15 +71,300 @@ service cloud.firestore {
       ];
     }
 
+    function serverManagedPublicProjectionKeys() {
+      return ['approvedTagIds'];
+    }
+
+    function publicContactKeys() {
+      return [
+        'publicPhone', 'publicEmail', 'website', 'phone', 'email',
+        'phoneNumber', 'contactPhone', 'contactEmail', 'contactUrl'
+      ];
+    }
+
+    // Public profile documents are world-readable. Keep their schema bounded so
+    // clients cannot evade the explicit contact-key checks by inventing fields
+    // such as `telegram`, `whatsapp`, or `directContact`.
+    function publicProfileAllowedKeys() {
+      return [
+        'ownerUid', 'displayName', 'accountType', 'description', 'sellerBio',
+        'baseCommunity', 'primaryCommunity', 'primaryCommunityGeoPoint',
+        'primaryCommunityTown', 'primaryCommunityRegion',
+        'primaryCommunityCountry', 'photoUrl', 'approvedTagIds', 'publicName',
+        'serviceAreaLabel', 'dispatchProfile',
+        'dispatchProfileUpdatedAt', 'createdAt', 'updatedAt', 'visualSandbox',
+        'contactPrivacyMigratedAt', 'schemaVersion',
+        'reputationScore', 'reputationStatus', 'reviewAverage', 'reviewCount',
+        'completedTransactionCount', 'responseBand', 'reliabilityBand',
+        'scoreVersion', 'membershipTier', 'subscriptionTier', 'membership',
+        'vipActive', 'isVip', 'vipStatus', 'vipExpiresAt', 'verified',
+        'accountVerified', 'verificationStatus', 'userScore',
+        'userScoreStanding', 'trustProjectionVersion', 'lastCalculatedAt'
+      ];
+    }
+
+    function publicDispatchProfileAllowedKeys() {
+      return [
+        'schemaVersion', 'operatingName', 'businessType', 'description',
+        'serviceCodes', 'serviceAreaLabel', 'homeLocation',
+        'availability', 'emergencyCallout', 'remoteSiteCapable',
+        'profileCompleteness'
+      ];
+    }
+
+    function publicDispatchServiceCodes() {
+      return [
+        'transport_flat_deck', 'transport_step_deck', 'transport_lowboy',
+        'transport_winch_truck', 'transport_hotshot',
+        'transport_pipe_hauling', 'transport_heavy_equipment',
+        'transport_general_freight', 'transport_local_haul',
+        'transport_long_distance', 'transport_oversize_overweight',
+        'transport_dangerous_goods', 'pilot_escort_vehicle',
+        'pilot_lead_car', 'pilot_chase_car', 'pilot_high_pole',
+        'pilot_route_survey', 'pilot_traffic_control',
+        'pilot_permit_assistance', 'crane_picker_truck',
+        'crane_crane_truck', 'crane_mobile_crane', 'crane_knuckle_boom',
+        'crane_telehandler', 'crane_forklift', 'crane_rigging',
+        'field_grading', 'field_road_maintenance', 'field_snow_removal',
+        'field_water_truck', 'field_vacuum_truck', 'field_hydrovac',
+        'field_mobile_mechanic', 'field_mobile_welding',
+        'field_tire_service', 'field_fuel_lube', 'field_towing_recovery',
+        'field_equipment_servicing', 'field_labour', 'field_site_support'
+      ];
+    }
+
+    function optionalPublicEnumIsSafe(data, field, allowed) {
+      return !(field in data) || data[field] == null ||
+        (data[field] is string && data[field] in allowed);
+    }
+
+    function optionalPublicPhotoUrlIsSafe(data) {
+      return !('photoUrl' in data) || data.photoUrl == null ||
+        data.photoUrl == '' ||
+        (data.photoUrl is string && data.photoUrl.matches(
+          'https://firebasestorage[.]googleapis[.]com/v0/b/' +
+          '[a-zA-Z0-9._-]{3,200}/o/profile_media%2[Ff]' +
+          '[a-zA-Z0-9._~-]{3,128}%2[Ff]avatar_[0-9]{10,20}[.]png' +
+          '[?]alt=media(&token=[a-zA-Z0-9_-]{8,200})?'
+        ));
+    }
+
+    function publicProfileNonTextFieldsAreBounded(data) {
+      return (!('primaryCommunityGeoPoint' in data) ||
+          data.primaryCommunityGeoPoint == null ||
+          data.primaryCommunityGeoPoint is latlng) &&
+        (!('dispatchProfileUpdatedAt' in data) ||
+          data.dispatchProfileUpdatedAt == null ||
+          data.dispatchProfileUpdatedAt is timestamp) &&
+        (!('createdAt' in data) || data.createdAt == null ||
+          data.createdAt is timestamp) &&
+        (!('updatedAt' in data) || data.updatedAt == null ||
+          data.updatedAt is timestamp) &&
+        (!('contactPrivacyMigratedAt' in data) ||
+          data.contactPrivacyMigratedAt == null ||
+          data.contactPrivacyMigratedAt is timestamp) &&
+        (!('visualSandbox' in data) || data.visualSandbox is bool) &&
+        (!('schemaVersion' in data) || data.schemaVersion is int);
+    }
+
+    function publicPrimaryCommunityIsBounded(data) {
+      return !('primaryCommunity' in data) || data.primaryCommunity == null ||
+        (data.primaryCommunity is map &&
+          data.primaryCommunity.keys().hasOnly([
+            'locationVisibility', 'publicLocationName', 'nearestTown',
+            'region', 'country', 'approximateRadiusKm', 'publicGeoPoint'
+          ]) &&
+          optionalPublicEnumIsSafe(
+            data.primaryCommunity,
+            'locationVisibility',
+            ['exact', 'approximate', 'on_request', 'hidden']
+          ) &&
+          optionalPublicTextIsSafe(data.primaryCommunity, 'publicLocationName') &&
+          optionalPublicTextIsSafe(data.primaryCommunity, 'nearestTown') &&
+          optionalPublicTextIsSafe(data.primaryCommunity, 'region') &&
+          optionalPublicTextIsSafe(data.primaryCommunity, 'country') &&
+          (!('approximateRadiusKm' in data.primaryCommunity) ||
+            data.primaryCommunity.approximateRadiusKm is number) &&
+          (!('publicGeoPoint' in data.primaryCommunity) ||
+            data.primaryCommunity.publicGeoPoint is latlng));
+    }
+
+    function publicDispatchHomeLocationIsBounded(profile) {
+      return !('homeLocation' in profile) || profile.homeLocation == null ||
+        (profile.homeLocation is map &&
+          profile.homeLocation.keys().hasOnly([
+            'label', 'point', 'precision', 'source'
+          ]) &&
+          optionalPublicTextIsSafe(profile.homeLocation, 'label') &&
+          optionalPublicEnumIsSafe(
+            profile.homeLocation,
+            'precision',
+            ['approximate_1km']
+          ) &&
+          optionalPublicEnumIsSafe(
+            profile.homeLocation,
+            'source',
+            ['service_area_center']
+          ) &&
+          (!('point' in profile.homeLocation) ||
+            profile.homeLocation.point is latlng));
+    }
+
+    function publicDispatchProfileIsBounded(data) {
+      return !('dispatchProfile' in data) || data.dispatchProfile == null ||
+        (data.dispatchProfile is map &&
+          data.dispatchProfile.keys().hasOnly(publicDispatchProfileAllowedKeys()) &&
+          optionalPublicTextIsSafe(data.dispatchProfile, 'operatingName') &&
+          optionalPublicEnumIsSafe(
+            data.dispatchProfile,
+            'businessType',
+            [
+              'owner_operator', 'sole_proprietorship', 'partnership',
+              'corporation', 'other'
+            ]
+          ) &&
+          optionalPublicTextIsSafe(data.dispatchProfile, 'description') &&
+          optionalPublicTextIsSafe(
+            data.dispatchProfile,
+            'serviceAreaLabel'
+          ) &&
+          (!('serviceCodes' in data.dispatchProfile) ||
+            (data.dispatchProfile.serviceCodes is list &&
+              data.dispatchProfile.serviceCodes.size() <= 40 &&
+              data.dispatchProfile.serviceCodes.hasOnly(
+                publicDispatchServiceCodes()
+              ))) &&
+          optionalPublicEnumIsSafe(
+            data.dispatchProfile,
+            'availability',
+            [
+              'available_now', 'available_today', 'available_this_week',
+              'unavailable'
+            ]
+          ) &&
+          (!('schemaVersion' in data.dispatchProfile) ||
+            data.dispatchProfile.schemaVersion is int) &&
+          (!('emergencyCallout' in data.dispatchProfile) ||
+            data.dispatchProfile.emergencyCallout is bool) &&
+          (!('remoteSiteCapable' in data.dispatchProfile) ||
+            data.dispatchProfile.remoteSiteCapable is bool) &&
+          (!('profileCompleteness' in data.dispatchProfile) ||
+            (data.dispatchProfile.profileCompleteness is int &&
+              data.dispatchProfile.profileCompleteness >= 0 &&
+              data.dispatchProfile.profileCompleteness <= 100)) &&
+          publicDispatchHomeLocationIsBounded(data.dispatchProfile));
+    }
+
+    function excludesObviousContactText(value) {
+      return !value.matches(
+        '(?i)(.*((https?://|www[.])|' +
+        '[a-z0-9][a-z0-9-]{0,62}[ ]*' +
+        '([.]|[(][ ]*dot[ ]*[)]|\\[[ ]*dot[ ]*\\]|[ ]+dot[ ]+)' +
+        '[ ]*[a-z]{2,24}|' +
+        '[+][0-9][0-9 ().-]{5,}[0-9]|' +
+        '(call|cell|mobile|phone|tel|text|sms|whatsapp|signal)' +
+        '[^0-9]{0,16}[0-9][0-9 ().-]{5,}[0-9]|' +
+        '@[a-z0-9_][a-z0-9_.-]{1,31}).*|' +
+        '(^|.*[^a-z0-9-])[0-9]{3}[-.][0-9]{4}' +
+        '([^a-z0-9-].*|$)|' +
+        '(^|.*[^a-z0-9-])[0-9]{3}[ ().-]+[0-9]{3}' +
+        '[ ().-]+[0-9]{4}([^a-z0-9-].*|$)|' +
+        '(^|.*[^0-9])[0-9]{10,15}([^0-9].*|$))'
+      );
+    }
+
+    function optionalPublicTextIsSafe(data, field) {
+      return !(field in data) || data[field] == null ||
+        (data[field] is string && excludesObviousContactText(data[field]));
+    }
+
+    function excludesPublicContactText(data) {
+      return optionalPublicTextIsSafe(data, 'displayName') &&
+        optionalPublicTextIsSafe(data, 'publicName') &&
+        optionalPublicTextIsSafe(data, 'description') &&
+        optionalPublicTextIsSafe(data, 'sellerBio') &&
+        optionalPublicTextIsSafe(data, 'baseCommunity') &&
+        optionalPublicTextIsSafe(data, 'primaryCommunityTown') &&
+        optionalPublicTextIsSafe(data, 'primaryCommunityRegion') &&
+        optionalPublicTextIsSafe(data, 'primaryCommunityCountry') &&
+        optionalPublicTextIsSafe(data, 'serviceAreaLabel') &&
+        (!('dispatchProfile' in data) ||
+          (data.dispatchProfile is map &&
+            optionalPublicTextIsSafe(data.dispatchProfile, 'operatingName') &&
+            optionalPublicTextIsSafe(data.dispatchProfile, 'description') &&
+            optionalPublicTextIsSafe(
+              data.dispatchProfile,
+              'serviceAreaLabel'
+            )));
+    }
+
+    function excludesPublicContactFields(data) {
+      return data.keys().hasOnly(publicProfileAllowedKeys()) &&
+        !data.keys().hasAny(publicContactKeys()) &&
+        (!('dispatchProfile' in data) ||
+          (data.dispatchProfile is map &&
+            !data.dispatchProfile.keys().hasAny(publicContactKeys()))) &&
+        publicPrimaryCommunityIsBounded(data) &&
+        publicDispatchProfileIsBounded(data) &&
+        optionalPublicPhotoUrlIsSafe(data) &&
+        publicProfileNonTextFieldsAreBounded(data) &&
+        (!('ownerUid' in data) || data.ownerUid == request.auth.uid) &&
+        optionalPublicEnumIsSafe(
+          data,
+          'accountType',
+          ['personal', 'business']
+        ) &&
+        excludesPublicContactText(data);
+    }
+
+    function updatedPublicProfileIsSafe(data, changed) {
+      return data.keys().hasOnly(publicProfileAllowedKeys()) &&
+        !data.keys().hasAny(publicContactKeys()) &&
+        (!('dispatchProfile' in data) ||
+          (data.dispatchProfile is map &&
+            !data.dispatchProfile.keys().hasAny(publicContactKeys()))) &&
+        (!changed.hasAny([
+            'displayName', 'publicName', 'description', 'sellerBio',
+            'baseCommunity', 'primaryCommunityTown',
+            'primaryCommunityRegion', 'primaryCommunityCountry',
+            'serviceAreaLabel'
+          ]) || excludesPublicContactText(data)) &&
+        (!changed.hasAny(['primaryCommunity']) ||
+          publicPrimaryCommunityIsBounded(data)) &&
+        (!changed.hasAny(['dispatchProfile']) ||
+          publicDispatchProfileIsBounded(data)) &&
+        (!changed.hasAny(['photoUrl']) || optionalPublicPhotoUrlIsSafe(data)) &&
+        (!changed.hasAny([
+            'primaryCommunityGeoPoint', 'dispatchProfileUpdatedAt',
+            'createdAt', 'updatedAt', 'contactPrivacyMigratedAt',
+            'visualSandbox', 'schemaVersion'
+          ]) || publicProfileNonTextFieldsAreBounded(data)) &&
+        (!('ownerUid' in data) || data.ownerUid == request.auth.uid) &&
+        (!changed.hasAny(['accountType']) || optionalPublicEnumIsSafe(
+          data,
+          'accountType',
+          ['personal', 'business']
+        ));
+    }
+
     function ownerMayCreatePublicProfile(ownerId) {
       return owns(ownerId) &&
-        !request.resource.data.keys().hasAny(serverOwnedPublicTrustKeys());
+        !request.resource.data.keys().hasAny(serverOwnedPublicTrustKeys()) &&
+        !request.resource.data.keys()
+          .hasAny(serverManagedPublicProjectionKeys()) &&
+        excludesPublicContactFields(request.resource.data);
     }
 
     function ownerMayUpdatePublicProfile(ownerId) {
       return owns(ownerId) &&
         !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(serverOwnedPublicTrustKeys());
+          .hasAny(serverOwnedPublicTrustKeys()) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(serverManagedPublicProjectionKeys()) &&
+        updatedPublicProfileIsSafe(
+          request.resource.data,
+          request.resource.data.diff(resource.data).affectedKeys()
+        );
     }
 
     match /users/{uid} {
@@ -536,6 +821,19 @@ service cloud.firestore {
       }
     }
 
+    // Discounted pipe pricing is never derived from the seller-authored
+    // listing. Only the MFA-protected server command may write this approval;
+    // the fee snapshot path fails closed when it is missing or stale.
+    match /marketplace_fee_classifications/{listingId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /marketplace_fee_classification_events/{eventId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /wanted_matches/{matchId} {
       allow read: if phase1FeatureEnabled('wantedAds') &&
         signedIn() &&
@@ -578,8 +876,8 @@ service cloud.firestore {
     }
 
     match /location_requests/{requestId} {
-      // Bounded shape, real listing owner, no self-requests, and a capped note,
-      // so a signed-in user cannot flood arbitrary members with free-form docs.
+      // Bounded shape, real listing owner, no self-requests, and no free-form
+      // note that could bypass protected contact sharing.
       allow create: if signedIn() &&
         request.resource.data.keys().hasOnly([
           'listingId', 'requesterUid', 'sellerUid', 'note', 'status', 'createdAt'
@@ -589,7 +887,7 @@ service cloud.firestore {
         request.resource.data.status == 'pending' &&
         request.resource.data.listingId is string &&
         request.resource.data.note is string &&
-        request.resource.data.note.size() <= 500 &&
+        request.resource.data.note.size() == 0 &&
         request.resource.data.createdAt == request.time &&
         get(/databases/$(database)/documents/public_listings/$(request.resource.data.listingId))
           .data.sellerUid == request.resource.data.sellerUid;

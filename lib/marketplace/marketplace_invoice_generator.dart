@@ -1,62 +1,177 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 
 class MarketplaceInvoice {
-  const MarketplaceInvoice({
-    required this.invoiceId,
+  const MarketplaceInvoice._({
+    required this.transactionId,
     required this.listingTitle,
     required this.sellerName,
     required this.buyerName,
-    required this.unitPrice,
-    required this.quantity,
-    required this.unitLabel,
-    this.freightCharge = 0.0,
-    this.sellerFeeRate = 0.025,
-    this.escrowFeeRate = 0.010,
-    required this.issueDate,
-    required this.dueDate,
-    this.status = 'Unpaid',
+    required this.currency,
+    required this.grossSaleMinor,
+    required this.marketplaceFeeMinor,
+    required this.sellerProceedsBeforeTaxMinor,
+    required this.feePayer,
+    required this.feeScheduleRevision,
+    required this.paymentProviderStatus,
+    required this.sellerPayoutStatus,
   });
 
-  final String invoiceId;
+  factory MarketplaceInvoice.fromMarketplaceTransaction({
+    required String transactionId,
+    required Map<String, dynamic> transaction,
+    String sellerName = 'Seller',
+    String buyerName = 'Successful buyer',
+  }) {
+    final rawSnapshot = transaction['marketplaceFeeSnapshot'];
+    if (rawSnapshot is! Map) {
+      throw const FormatException(
+        'A server marketplace fee snapshot is required.',
+      );
+    }
+    final snapshot = Map<String, dynamic>.from(rawSnapshot);
+    if ('${snapshot['source'] ?? ''}'.trim() != 'server_fee_policy') {
+      throw const FormatException(
+        'The marketplace fee snapshot is not server verified.',
+      );
+    }
+
+    final grossSaleMinor = _requiredMinor(snapshot, 'agreedTotalMinor');
+    final marketplaceFeeMinor = _requiredMinor(
+      snapshot,
+      'marketplaceFeeMinor',
+    );
+    final sellerProceedsBeforeTaxMinor = _requiredMinor(
+      snapshot,
+      'sellerProceedsBeforeTaxMinor',
+    );
+    if (marketplaceFeeMinor > grossSaleMinor ||
+        sellerProceedsBeforeTaxMinor != grossSaleMinor - marketplaceFeeMinor) {
+      throw const FormatException(
+        'The server marketplace fee snapshot is internally inconsistent.',
+      );
+    }
+
+    final currency = '${snapshot['currency'] ?? transaction['currency'] ?? ''}'
+        .trim()
+        .toUpperCase();
+    if (!RegExp(r'^[A-Z]{3}$').hasMatch(currency)) {
+      throw const FormatException(
+        'The server marketplace fee snapshot has no valid currency.',
+      );
+    }
+    final feeScheduleRevision = '${snapshot['scheduleRevision'] ?? ''}'.trim();
+    if (feeScheduleRevision.isEmpty) {
+      throw const FormatException(
+        'The server marketplace fee snapshot has no schedule revision.',
+      );
+    }
+
+    return MarketplaceInvoice._(
+      transactionId: transactionId.trim(),
+      listingTitle:
+          '${transaction['listingTitle'] ?? 'Marketplace sale'}'.trim(),
+      sellerName: sellerName.trim().isEmpty ? 'Seller' : sellerName.trim(),
+      buyerName:
+          buyerName.trim().isEmpty ? 'Successful buyer' : buyerName.trim(),
+      currency: currency,
+      grossSaleMinor: grossSaleMinor,
+      marketplaceFeeMinor: marketplaceFeeMinor,
+      sellerProceedsBeforeTaxMinor: sellerProceedsBeforeTaxMinor,
+      feePayer: '${snapshot['feePayer'] ?? 'seller'}'.trim().toLowerCase(),
+      feeScheduleRevision: feeScheduleRevision,
+      paymentProviderStatus:
+          '${transaction['paymentProviderStatus'] ?? 'not_started'}'
+              .trim()
+              .toLowerCase(),
+      sellerPayoutStatus:
+          '${transaction['sellerPayoutStatus'] ?? 'not_released'}'
+              .trim()
+              .toLowerCase(),
+    );
+  }
+
+  final String transactionId;
   final String listingTitle;
   final String sellerName;
   final String buyerName;
-  final double unitPrice;
-  final int quantity;
-  final String unitLabel;
-  final double freightCharge;
-  final double sellerFeeRate;
-  final double escrowFeeRate;
-  final DateTime issueDate;
-  final DateTime dueDate;
-  final String status;
+  final String currency;
+  final int grossSaleMinor;
+  final int marketplaceFeeMinor;
+  final int sellerProceedsBeforeTaxMinor;
+  final String feePayer;
+  final String feeScheduleRevision;
+  final String paymentProviderStatus;
+  final String sellerPayoutStatus;
 
-  double get subtotal => unitPrice * quantity;
-  double get sellerCommissionFee => subtotal * sellerFeeRate;
-  double get escrowProtectionFee => subtotal * escrowFeeRate;
-  double get totalDue => subtotal + escrowProtectionFee + freightCharge;
+  bool get paid => paymentProviderStatus == 'paid';
+
+  String get paymentProviderStatusLabel =>
+      _statusLabel(paymentProviderStatus, fallback: 'Not started');
+
+  String get sellerPayoutStatusLabel =>
+      _statusLabel(sellerPayoutStatus, fallback: 'Not released');
+
+  String money(int amountMinor) => NumberFormat.currency(
+        locale: 'en_US',
+        name: currency,
+        symbol: '$currency ',
+        decimalDigits: 2,
+      ).format(amountMinor / 100);
 
   Map<String, dynamic> toJson() => {
-        'invoiceId': invoiceId,
+        'transactionId': transactionId,
         'listingTitle': listingTitle,
         'sellerName': sellerName,
         'buyerName': buyerName,
-        'unitPrice': unitPrice,
-        'quantity': quantity,
-        'unitLabel': unitLabel,
-        'subtotal': subtotal,
-        'sellerCommissionFee': sellerCommissionFee,
-        'escrowProtectionFee': escrowProtectionFee,
-        'freightCharge': freightCharge,
-        'totalDue': totalDue,
-        'issueDate': issueDate.toIso8601String(),
-        'dueDate': dueDate.toIso8601String(),
-        'status': status,
+        'currency': currency,
+        'grossSaleMinor': grossSaleMinor,
+        'marketplaceFeeMinor': marketplaceFeeMinor,
+        'sellerProceedsBeforeTaxMinor': sellerProceedsBeforeTaxMinor,
+        'feePayer': feePayer,
+        'feeScheduleRevision': feeScheduleRevision,
+        'paymentProviderStatus': paymentProviderStatus,
+        'sellerPayoutStatus': sellerPayoutStatus,
       };
+
+  static int _requiredMinor(Map<String, dynamic> snapshot, String field) {
+    final value = snapshot[field];
+    if (value is! num ||
+        !value.isFinite ||
+        value < 0 ||
+        value.roundToDouble() != value.toDouble()) {
+      throw FormatException(
+          'The server marketplace fee snapshot has no $field.');
+    }
+    return value.toInt();
+  }
+
+  static String _statusLabel(String value, {required String fallback}) {
+    if (value.isEmpty) return fallback;
+    return switch (value) {
+      'not_started' => 'Not started',
+      'checkout_created' => 'Checkout ready',
+      'processing' => 'Processing',
+      'paid' => 'Paid',
+      'failed' => 'Failed',
+      'external_agreed' => 'External settlement agreed',
+      'partially_refunded' => 'Partially refunded',
+      'refunded' => 'Refunded',
+      'pending_release' => 'Pending release',
+      'released' => 'Released',
+      'blocked_seller_not_ready' => 'Seller setup required',
+      'blocked_financial_hold' => 'Financial hold',
+      'not_released' => 'Not released',
+      _ => value
+          .split('_')
+          .where((part) => part.isNotEmpty)
+          .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+          .join(' '),
+    };
+  }
 }
 
 class MarketplaceInvoiceDialog extends StatelessWidget {
@@ -64,7 +179,16 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
 
   final MarketplaceInvoice invoice;
 
-  bool get _paid => invoice.status.trim().toLowerCase() == 'paid';
+  PipeBuyerStatusTone get _paymentTone =>
+      switch (invoice.paymentProviderStatus) {
+        'paid' => PipeBuyerStatusTone.success,
+        'processing' || 'checkout_created' => PipeBuyerStatusTone.info,
+        'failed' ||
+        'refunded' ||
+        'partially_refunded' =>
+          PipeBuyerStatusTone.warning,
+        _ => PipeBuyerStatusTone.neutral,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -78,18 +202,18 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _invoiceHeader(context),
+              _recordHeader(context),
               const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 560;
                   final seller = _MetaField(
-                    label: 'ISSUED BY (SELLER)',
+                    label: 'SELLER',
                     value: invoice.sellerName,
                     icon: Icons.storefront_outlined,
                   );
                   final buyer = _MetaField(
-                    label: 'BILLED TO (BUYER)',
+                    label: 'SUCCESSFUL BUYER',
                     value: invoice.buyerName,
                     icon: Icons.person_outline,
                   );
@@ -107,39 +231,11 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 8),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 560;
-                  final issue = _MetaField(
-                    label: 'ISSUE DATE',
-                    value: _formatDate(invoice.issueDate),
-                    icon: Icons.event_note_outlined,
-                  );
-                  final due = _MetaField(
-                    label: 'PAYMENT DUE DATE',
-                    value: _formatDate(invoice.dueDate),
-                    icon: Icons.event_busy_outlined,
-                  );
-                  if (compact) {
-                    return Column(
-                      children: [issue, const SizedBox(height: 8), due],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: issue),
-                      const SizedBox(width: 8),
-                      Expanded(child: due),
-                    ],
-                  );
-                },
-              ),
               const SizedBox(height: 16),
               PipeBuyerSectionCard(
-                title: 'Itemized summary',
+                title: 'Server-verified sale breakdown',
                 subtitle:
-                    'Buyer-facing amount due for this marketplace transaction.',
+                    'Amounts come from the immutable marketplace fee snapshot.',
                 leading: const _SectionIcon(
                   Icons.receipt_long_outlined,
                   tone: PipeBuyerStatusTone.info,
@@ -148,27 +244,20 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                   children: [
                     _itemRow(
                       context,
+                      'Gross sale',
                       invoice.listingTitle,
-                      '${invoice.quantity} ${invoice.unitLabel} × \$${invoice.unitPrice.toStringAsFixed(2)}',
-                      '\$${invoice.subtotal.toStringAsFixed(2)}',
+                      invoice.money(invoice.grossSaleMinor),
                       isBoldTitle: true,
                     ),
-                    const Divider(height: 24),
+                    const SizedBox(height: 10),
                     _itemRow(
                       context,
-                      'Escrow Protection Fee (${(invoice.escrowFeeRate * 100).toStringAsFixed(1)}%)',
-                      'Secure funds custody & inspection hold',
-                      '\$${invoice.escrowProtectionFee.toStringAsFixed(2)}',
+                      invoice.feePayer == 'seller'
+                          ? 'Pipe Buyer seller fee'
+                          : 'Pipe Buyer marketplace fee',
+                      'Fee schedule ${invoice.feeScheduleRevision}',
+                      '-${invoice.money(invoice.marketplaceFeeMinor)}',
                     ),
-                    if (invoice.freightCharge > 0) ...[
-                      const SizedBox(height: 10),
-                      _itemRow(
-                        context,
-                        'Freight & Delivery Dispatch',
-                        'Carrier transit charge',
-                        '\$${invoice.freightCharge.toStringAsFixed(2)}',
-                      ),
-                    ],
                     const Divider(height: 26),
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -176,15 +265,14 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                         color: PipeBuyerColors.orangeSoft,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color:
-                              PipeBuyerColors.orange.withValues(alpha: .18),
+                          color: PipeBuyerColors.orange.withValues(alpha: .18),
                         ),
                       ),
                       child: Row(
                         children: [
                           const Expanded(
                             child: Text(
-                              'TOTAL AMOUNT DUE',
+                              'SELLER PROCEEDS BEFORE TAX',
                               style: TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 13,
@@ -192,10 +280,12 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '\$${invoice.totalDue.toStringAsFixed(2)}',
+                            invoice.money(
+                              invoice.sellerProceedsBeforeTaxMinor,
+                            ),
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
-                              fontSize: 23,
+                              fontSize: 21,
                               color: PipeBuyerColors.orangePressed,
                             ),
                           ),
@@ -206,27 +296,56 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 560;
+                  final payment = _MetaField(
+                    label: 'PAYMENT PROVIDER STATUS',
+                    value: invoice.paymentProviderStatusLabel,
+                    icon: Icons.payments_outlined,
+                  );
+                  final payout = _MetaField(
+                    label: 'SELLER PAYOUT STATUS',
+                    value: invoice.sellerPayoutStatusLabel,
+                    icon: Icons.account_balance_outlined,
+                  );
+                  if (compact) {
+                    return Column(
+                      children: [payment, const SizedBox(height: 8), payout],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: payment),
+                      const SizedBox(width: 8),
+                      Expanded(child: payout),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
                   color: PipeBuyerColors.industrialBlue.withValues(alpha: .06),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: PipeBuyerColors.industrialBlue.withValues(alpha: .16),
+                    color:
+                        PipeBuyerColors.industrialBlue.withValues(alpha: .16),
                   ),
                 ),
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      Icons.shield_outlined,
+                      Icons.verified_user_outlined,
                       size: 20,
                       color: PipeBuyerColors.industrialBlue,
                     ),
                     SizedBox(width: 9),
                     Expanded(
                       child: Text(
-                        'Seller marketplace commission is accounted for separately from the buyer-facing amount due shown on this invoice.',
+                        'This record explains the server-approved sale and fee. It does not create a charge, move funds, or represent an escrow or trust account.',
                         style: TextStyle(fontSize: 11),
                       ),
                     ),
@@ -234,44 +353,10 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 480;
-                  final close = OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    label: const Text('Close'),
-                  );
-                  final pay = FilledButton.icon(
-                    onPressed: _paid
-                        ? null
-                        : () {
-                            PipeFeedback.show(
-                              context,
-                              message:
-                                  'Redirecting to Instant Payment & Wire Transfer gateway…',
-                              tone: PipeStatusTone.success,
-                            );
-                          },
-                    icon: Icon(
-                      _paid ? Icons.check_circle_outline : Icons.payment,
-                    ),
-                    label: Text(_paid ? 'Paid' : 'Pay Now'),
-                  );
-                  if (compact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [pay, const SizedBox(height: 8), close],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: close),
-                      const SizedBox(width: 10),
-                      Expanded(flex: 2, child: pay),
-                    ],
-                  );
-                },
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+                label: const Text('Close'),
               ),
             ],
           ),
@@ -280,7 +365,7 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
     );
   }
 
-  Widget _invoiceHeader(BuildContext context) => Container(
+  Widget _recordHeader(BuildContext context) => Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -312,7 +397,7 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'PIPE BUYER INVOICE',
+                    'PIPE BUYER SALE RECORD',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -322,7 +407,7 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   SelectableText(
-                    'ID: ${invoice.invoiceId}',
+                    'Transaction: ${invoice.transactionId}',
                     style: const TextStyle(
                       color: Colors.white60,
                       fontSize: 11,
@@ -332,13 +417,11 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
               ),
             ),
             PipeBuyerStatusBadge(
-              label: invoice.status.toUpperCase(),
-              icon: _paid
+              label: invoice.paymentProviderStatusLabel.toUpperCase(),
+              icon: invoice.paid
                   ? Icons.check_circle_outline
                   : Icons.schedule_outlined,
-              tone: _paid
-                  ? PipeBuyerStatusTone.success
-                  : PipeBuyerStatusTone.warning,
+              tone: _paymentTone,
             ),
           ],
         ),
@@ -361,8 +444,7 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  fontWeight:
-                      isBoldTitle ? FontWeight.w900 : FontWeight.w700,
+                  fontWeight: isBoldTitle ? FontWeight.w900 : FontWeight.w700,
                   fontSize: 13,
                 ),
               ),
@@ -393,9 +475,6 @@ class MarketplaceInvoiceDialog extends StatelessWidget {
       ],
     );
   }
-
-  String _formatDate(DateTime date) =>
-      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
 
 class _MetaField extends StatelessWidget {

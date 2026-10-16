@@ -75,6 +75,29 @@ void main() {
     expect(source, isNot(contains('clientSecretEntryAllowed = true')));
   });
 
+  test('customer marketplace UI has no legacy listing or escrow fees', () {
+    final source = [
+      'lib/marketplace/marketplace_invoice_generator.dart',
+      'lib/marketplace/marketplace_account_hub.dart',
+      'lib/marketplace/oil_gas_marketplace.dart',
+    ].map((path) => File(path).readAsStringSync()).join('\n');
+
+    const prohibited = <String>[
+      r'\$29.99 upfront listing fee',
+      '5% of the completed sale',
+      'sellerCommissionFee',
+      'escrowProtectionFee',
+      'Escrow Protection Fee',
+      'View Itemized Invoice',
+    ];
+    for (final value in prohibited) {
+      expect(source, isNot(contains(value)), reason: value);
+    }
+    expect(source, contains('No listing fee'));
+    expect(source, contains('MarketplaceFeeInfoButton'));
+    expect(source, contains('marketplaceFeeSnapshot'));
+  });
+
   test('architecture requires server secrets and verified webhooks', () {
     final source = File(
       'docs/PAYMENT_PROVIDER_ARCHITECTURE.md',
