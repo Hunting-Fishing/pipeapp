@@ -37,6 +37,16 @@ function transactionIdFromRequest(request) {
   return value;
 }
 
+function nextExternalFeeCheckoutAttempt(sale) {
+  const current = Number(sale && sale.marketplaceFeeCheckoutAttempt);
+  if (Number.isSafeInteger(current) && current > 0) return current + 1;
+  return 1;
+}
+
+function externalFeeCheckoutIdempotencyKey(transactionId, attempt) {
+  return `pipebuyer-external-fee-${transactionId}-attempt-${attempt}`;
+}
+
 function participantRole(sale, uid) {
   if (sale && sale.buyerUid === uid) return "buyer";
   if (sale && sale.sellerUid === uid) return "seller";
@@ -182,6 +192,47 @@ function createExternalSettlementCommands(admin) {
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
+      const existingSessionId = String(sale.stripeMarketplaceFeeSessionId || "");
+      if (existingSessionId &&
+          ["checkout_created", "processing"].includes(
+              String(sale.marketplaceFeeStatus || ""),
+          )) {
+        const existingSession = await stripeFormRequest({
+          secretKey: stripeSecretKey.value(),
+          path: `/v1/checkout/sessions/${encodeURIComponent(existingSessionId)}`,
+          method: "GET",
+          fields: {},
+        });
+        const existingStatus = String(existingSession.status || "");
+        const existingUrl = String(existingSession.url || "");
+        if (existingStatus === "open" && existingUrl.startsWith("https://")) {
+          return {
+            transactionId,
+            checkoutSessionId: existingSessionId,
+            checkoutUrl: existingUrl,
+            alreadyPaid: false,
+            alreadyCreated: true,
+            awaitingWebhook: false,
+            taxCollectionStatus: collectionStatus,
+          };
+        }
+        if (existingStatus === "complete") {
+          return {
+            transactionId,
+            checkoutSessionId: existingSessionId,
+            alreadyPaid: false,
+            alreadyCreated: true,
+            awaitingWebhook: true,
+            taxCollectionStatus: collectionStatus,
+          };
+        }
+        if (existingStatus !== "expired") {
+          throw new HttpsError(
+              "failed-precondition",
+              "The existing marketplace fee checkout is not ready to be replaced.",
+          );
+        }
+      }
       const productLabel = fee.feeClass === "pipe" ?
         "Pipe Buyer Marketplace Fee - Pipe" :
         "Pipe Buyer Marketplace Fee - Equipment & Assets";
@@ -189,10 +240,14 @@ function createExternalSettlementCommands(admin) {
           feeMinor,
           collectionStatus,
       );
+      const checkoutAttempt = nextExternalFeeCheckoutAttempt(sale);
       const session = await stripeFormRequest({
         secretKey: stripeSecretKey.value(),
         path: "/v1/checkout/sessions",
-        idempotencyKey: `pipebuyer-external-fee-${transactionId}-${sale.revision || 1}`,
+        idempotencyKey: externalFeeCheckoutIdempotencyKey(
+            transactionId,
+            checkoutAttempt,
+        ),
         fields: {
           mode: "payment",
           success_url: successUrl,
@@ -212,6 +267,7 @@ function createExternalSettlementCommands(admin) {
           "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
           "metadata[sellerUid]": String(sale.sellerUid || ""),
           "metadata[taxCollectionStatus]": collectionStatus,
+          "metadata[checkoutAttempt]": String(checkoutAttempt),
         },
       });
       const sessionId = String(session.id || "");
@@ -222,6 +278,7 @@ function createExternalSettlementCommands(admin) {
       await transactionRef.set({
         marketplaceFeeStatus: "checkout_created",
         stripeMarketplaceFeeSessionId: sessionId,
+        marketplaceFeeCheckoutAttempt: checkoutAttempt,
         marketplaceFeeTaxCollectionStatus: collectionStatus,
         marketplaceFeeTaxExposureReviewRequired:
           collectionStatus === "registration_pending",
@@ -235,7 +292,10 @@ function createExternalSettlementCommands(admin) {
         transactionId,
         checkoutSessionId: sessionId,
         checkoutUrl,
+        checkoutAttempt,
         alreadyPaid: false,
+        alreadyCreated: false,
+        awaitingWebhook: false,
         taxCollectionStatus: collectionStatus,
       };
     } catch (error) {
@@ -259,5 +319,7 @@ function createExternalSettlementCommands(admin) {
 
 module.exports = {
   createExternalSettlementCommands,
+  externalFeeCheckoutIdempotencyKey,
+  nextExternalFeeCheckoutAttempt,
   participantRole,
 };
