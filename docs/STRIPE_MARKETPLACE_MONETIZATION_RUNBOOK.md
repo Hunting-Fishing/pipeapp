@@ -10,7 +10,7 @@ Buyers remain normal Pipe Buyer users. They do **not** create or log into a sepa
 
 ### Sellers and affiliates receiving payouts
 
-A user only needs Stripe Connect payout onboarding when Pipe Buyer will send money to that user. Pipe Buyer calls the Stripe Accounts v2 recipient onboarding flow and stores only the Stripe connected-account ID and readiness status. Stripe collects the required identity/business/bank payout data.
+A user only needs Stripe Connect payout onboarding when Pipe Buyer will send money to that user. The current implementation creates a minimal Connect v1 Express account and stores only the connected-account ID and readiness status. Stripe-hosted onboarding collects the required identity, business, and bank payout data. Revalidate this deliberately pinned API choice against the current Stripe account configuration and supported cross-border flow before production activation; do not silently switch account models during launch.
 
 The same verified recipient account can be used for seller proceeds and eligible affiliate commission payouts.
 
@@ -19,7 +19,7 @@ The same verified recipient account can be used for seller proceeds and eligible
 | Resource | Stripe identifier / behavior |
 |---|---|
 | Dispatch Monthly CAD | `prod_V2WkE5D16GhGaD` / `price_1U2SYGDkO07WMXyRm6xbprUn` — CA$25 monthly |
-| Dispatch Yearly CAD | `prod_V2WsPl25y7Qe6A` / `price_1U2XDVDkO07WMXyRS0eCYKCh` — CA$300 yearly recurring |
+| Dispatch Yearly CAD | `prod_V2WkE5D16GhGaD` / `price_1U7bTCDkO07WMXyRvLkWVHHu` — CA$300 yearly recurring |
 | Pipe marketplace fee | `prod_V2cTDvqWIPAZEm` / `price_1U2XEPDkO07WMXyRJciY3faj` — CA$1/stick base reporting product |
 | Equipment/assets marketplace fee | `prod_V2cTrDBcQDhMKq` — dynamic amount calculated by Firebase |
 | 1 year free Dispatch | coupon `PIPEBUYER_FREE_1Y` — 100% for 12 months |
@@ -41,8 +41,17 @@ versioned as `2026-10-16-sale-only-v4` with collection timing
 - For an approved external-settlement sale, no buyer proceeds move through Pipe
   Buyer; the seller pays the separately invoiced fee after both parties confirm
   the external settlement.
-- Auctions, accepted offers, and fixed-price sales use the same server-owned
+- Timed Buying sales and accepted Marketplace offers use the same server-owned
   fee policy; a client cannot choose a cheaper fee path.
+- Wanted Ads are discovery only. A match must become a Marketplace offer or a
+  Timed Buying listing; a Wanted Ad cannot create a transaction, payment, fee,
+  or third settlement path.
+- New Marketplace and Timed Buying listings are USD-only. Legacy accepted
+  records retain their original currency and immutable fee snapshot.
+- Sale-forming price bases are total or server-verifiable whole-item counts.
+  Measured-area/length, bundle, lease, and call-for-price labels are discovery
+  fields for Wanted Ads only until an authoritative measurement snapshot is
+  implemented. Malformed legacy terms fail closed rather than being guessed.
 - Every accepted transaction receives an immutable server-side fee snapshot.
   The v4 schedule applies only to newly accepted transactions after deployment;
   later policy changes do not rewrite earlier snapshots.
@@ -103,8 +112,10 @@ Pipe Buyer can allow cash, wire, cheque, PO or other negotiated settlement outsi
 2. Buyer and seller each confirm external settlement in Pipe Buyer.
 3. Pipe Buyer records the transaction as externally settled/agreed.
 4. The seller is billed only the Pipe Buyer marketplace fee through a separate Stripe Checkout Session.
-5. Stripe Tax can calculate tax on Pipe Buyer’s fee once the required registrations and tax-liability configuration are approved.
-6. Affiliate commission becomes payable only after Pipe Buyer’s fee clears.
+5. The sale cannot be completed until that marketplace fee is confirmed as collected by the signed Stripe webhook.
+6. Before both-party agreement or any Stripe/fee activity, either participant can withdraw a one-sided external-settlement choice; the server advances the settlement generation so stale attempts cannot revive it.
+7. Stripe Tax can calculate tax on Pipe Buyer’s fee once the required registrations and tax-liability configuration are approved.
+8. Affiliate commission becomes payable only after Pipe Buyer’s fee clears.
 
 No buyer-to-seller funds move through Pipe Buyer in this path.
 
@@ -116,16 +127,27 @@ The implementation uses Separate Charges and Transfers.
 2. Firebase snapshots final quantity, price, currency and marketplace fee.
 3. Seller must have an active Stripe recipient `stripe_transfers` capability.
 4. Buyer starts Stripe Checkout from the authenticated Pipe Buyer transaction.
-5. Stripe confirms the buyer payment through a signed webhook.
-6. Pipe Buyer records the seller fee as collected and retains any tax amount
+5. The server transactionally reserves one settlement mode and a stable
+   checkout attempt/idempotency key; retries reuse that attempt and cannot race
+   an external-settlement choice.
+6. Stripe confirms the buyer payment through a signed webhook. The webhook
+   must match the active transaction, session, checkout attempt, settlement
+   generation, amount, currency, and immutable fee snapshot before it can
+   advance payment state.
+7. Pipe Buyer records the seller fee as collected and retains any tax amount
    that the approved tax model requires the platform to retain.
-7. Seller proceeds remain `pending_release`; no seller Transfer is created
+8. Seller proceeds remain `pending_release`; no seller Transfer is created
    merely because buyer payment succeeded.
-8. After confirmed physical fulfillment, Firebase rechecks payment, dispute,
+9. After confirmed physical fulfillment, Firebase rechecks payment, dispute,
    refund, financial-hold, and recipient readiness state.
-9. Firebase creates the seller Transfer exactly once using the original Stripe
+10. Firebase creates the seller Transfer exactly once using the original Stripe
    charge as `source_transaction`, then finalizes the transaction and affiliate
    ledgers server-side.
+
+A transaction cannot be marked completed merely because its provider status
+once became paid. The server also requires the snapshotted seller fee to be
+collected and rejects completion while reconciliation, refund exposure,
+dispute/chargeback state, or any financial hold is present.
 
 Client code can never provide authoritative price, tax, commission, seller-proceeds or payout values.
 
@@ -177,7 +199,9 @@ Before creating live connected accounts:
 2. Complete the platform profile.
 3. Review and acknowledge that Pipe Buyer owns platform pricing and negative-balance/loss responsibility for the marketplace charge model.
 4. Enable Radar / marketplace fraud controls appropriate to the risk profile.
-5. Use Accounts v2 recipient configuration for new marketplace payout accounts.
+5. Confirm the current Connect v1 Express configuration still supports the
+   chosen separate-charges-and-transfers and cross-border payout model. Any
+   future Accounts v2 migration requires a separately tested design change.
 6. Use Express Dashboard / Stripe-hosted onboarding unless the embedded onboarding implementation is deliberately chosen later.
 
 ## 10. Webhook endpoint
@@ -193,8 +217,17 @@ Minimum events currently handled:
 - `checkout.session.completed`
 - `checkout.session.async_payment_succeeded`
 - `checkout.session.async_payment_failed`
+- `checkout.session.expired`
 - `invoice.paid`
 - `charge.refunded`
+- `refund.created`
+- `refund.updated`
+- `refund.failed`
+- `charge.dispute.created`
+- `charge.dispute.updated`
+- `charge.dispute.closed`
+- `charge.dispute.funds_withdrawn`
+- `charge.dispute.funds_reinstated`
 
 The webhook verifies Stripe’s signature against the raw request body and records processed event IDs in `stripe_webhook_events` for idempotency.
 
@@ -269,13 +302,33 @@ Do not switch to production until all tests pass.
 - Affiliate without payout onboarding is held as `eligible_payout_setup_required`.
 - Affiliate payout idempotency prevents duplicate Transfer.
 
+### Recovery and ordering
+
+- Checkout response is lost after Stripe may have created the Session — retry
+  reuses the same immutable attempt and idempotency key.
+- Checkout Session expires — only the currently reserved attempt is released;
+  a stale expiration cannot erase a replacement or downgrade paid/refunded
+  state.
+- Refund or dispute arrives before Checkout completion — later settlement
+  imports the current Charge state and must not mark refunded or disputed funds
+  payable.
+- Refund state updates share a Stripe timestamp — terminal success/failure
+  outranks pending state and event IDs provide deterministic ordering.
+- Seller or affiliate transfer response is lost — retry uses the exact reserved
+  amount, currency, destination, source charge, and idempotency key.
+- Refund/dispute races a transfer — financial-epoch and dispatch-lease checks
+  prevent stale finalization; a transfer that escaped the race receives a
+  durable compensating reversal/hold instead of being treated as payable.
+
 ## 14. Production activation order
 
 1. Complete current Pipe Buyer Stripe account identity/liveness verification.
 2. Complete B.C. business registration being used for the MVP.
 3. Confirm Connect platform responsibilities in Stripe.
 4. Deploy the branch to a Firebase sandbox/staging environment.
-5. Install `STRIPE_SECRET_KEY` and webhook secret through Secret Manager.
+5. Install sandbox-only `STRIPE_SECRET_KEY` and webhook secret through Secret
+   Manager. Use an isolated project, webhook destination, environment stamp,
+   and tester cohort; sandbox events must fail closed against production data.
 6. Set callback/checkout URLs.
 7. Enable `stripeConnectOnboardingEnabled` in sandbox and test seller onboarding.
 8. Register and verify the Stripe webhook endpoint.
@@ -286,6 +339,12 @@ Do not switch to production until all tests pass.
 13. Enable marketplace checkout.
 14. Enable affiliate payouts only after accounting/tax-reporting treatment and refund policy are approved.
 15. Change `stripeMode` to production only after explicit go-live approval.
+
+Before steps 13-15, approve a high-value payment-method and margin policy.
+Full-GMV card processing on a six-figure sale can cost more than the capped
+seller fee. Do not enable that path until its processor cost, dispute exposure,
+and cross-border settlement economics are proven; the fee-only external-
+settlement path remains the safer default for large B2B transactions.
 
 ## 15. Files added by this implementation
 

@@ -224,8 +224,9 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
                         icon: Icons.campaign_outlined,
-                        title: 'Post wanted / RFQ',
-                        subtitle: 'Tell the market exactly what you need.',
+                        title: 'Post wanted ad',
+                        subtitle:
+                            'Find matching inventory, then buy through Marketplace or Timed Buying.',
                         onTap: onWanted,
                       ),
                     ),

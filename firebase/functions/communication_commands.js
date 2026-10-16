@@ -166,6 +166,18 @@ function contactSharingAuthorization({
         )) {
       return Object.freeze({allowed: true, reason: "accepted_offer"});
     }
+    const completedBuyerUid = String(
+        data.completedBuyerUid || "",
+    ).trim();
+    if (completedBuyerUid &&
+        exactContactSharingParticipants(
+            actorUid,
+            recipientUid,
+            sellerUid,
+            completedBuyerUid,
+        )) {
+      return Object.freeze({allowed: true, reason: "completed_offer"});
+    }
 
     const auctionStatus = String(data.auctionStatus || "").trim();
     const acceptedBidAmount = Number(data.acceptedBidAmount || 0);
@@ -252,11 +264,24 @@ function createCommunicationCommands(
     let relationship = null;
     const listingId = String(conversation.listingId || "").trim();
     if (listingId) {
-      const listingSnapshot = await transaction.get(
-          db.collection("public_listings").doc(listingId),
-      );
+      const listingRef = db.collection("public_listings").doc(listingId);
+      const listingSnapshot = await transaction.get(listingRef);
       relationshipType = "marketplace_listing";
       relationship = listingSnapshot.exists ? listingSnapshot.data() : null;
+      if (relationship) {
+        const sellerUid = String(relationship.sellerUid || "").trim();
+        const buyerUid = uid === sellerUid ? recipientUid : uid;
+        if (buyerUid && buyerUid !== sellerUid) {
+          const completedBuyerSnapshot = await transaction.get(
+              listingRef.collection("completed_buyers").doc(buyerUid),
+          );
+          if (completedBuyerSnapshot.exists &&
+              completedBuyerSnapshot.data().sellerUid === sellerUid &&
+              completedBuyerSnapshot.data().buyerUid === buyerUid) {
+            relationship = {...relationship, completedBuyerUid: buyerUid};
+          }
+        }
+      }
     } else if (conversation.contextType === "dispatch_job") {
       const jobId = String(
           conversation.dispatchJobId || conversation.contextId || "",

@@ -3,10 +3,16 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
+  auctionListingLifecycleStatus,
   CommandPolicyError,
+  isTotalPriceBasis,
+  marketplaceOfferInventoryCompletion,
+  marketplaceOfferInventoryReservation,
+  marketplaceTransactionCurrency,
   minimumAuctionBid,
   validateAuctionConversion,
   validateAuctionFinalization,
+  validateTimedAuctionAdministration,
   validateAuctionTransactionAction,
   validateAcceptBelowReserve,
   validateBuyNow,
@@ -24,6 +30,19 @@ const {
 
 const now = new Date("2026-07-19T12:00:00.000Z");
 
+test("terminal auction outcomes leave the active scheduler population", () => {
+  for (const status of ["won", "bought_now", "accepted_below_reserve"]) {
+    assert.equal(auctionListingLifecycleStatus(status), "pending_sale");
+  }
+  for (const status of ["ended", "cancelled"]) {
+    assert.equal(auctionListingLifecycleStatus(status), "archived");
+  }
+  assert.throws(
+      () => auctionListingLifecycleStatus("live"),
+      (error) => error instanceof CommandPolicyError && error.code === "internal",
+  );
+});
+
 function marketplaceListing(overrides = {}) {
   return {
     sellerUid: "seller",
@@ -32,6 +51,7 @@ function marketplaceListing(overrides = {}) {
     price: 73,
     priceBasis: "Per piece",
     quantity: 54,
+    currency: "USD",
     ...overrides,
   };
 }
@@ -56,11 +76,14 @@ test("expired auctions finalize to a winner only when reserve is met", () => {
     auctionEndAt: new Date(now.getTime() - 1000),
     currentBid: 100,
     highBidderUid: "buyer",
+    quantity: 1,
+    priceBasis: "Per item",
+    currency: "USD",
   };
   assert.deepEqual(
       validateAuctionFinalization({
         listing,
-        privateAuction: {reservePrice: 90},
+        privateAuction: {ownerUid: "seller", reservePrice: 90},
         now,
       }),
       {
@@ -73,7 +96,7 @@ test("expired auctions finalize to a winner only when reserve is met", () => {
   assert.equal(
       validateAuctionFinalization({
         listing,
-        privateAuction: {reservePrice: 110},
+        privateAuction: {ownerUid: "seller", reservePrice: 110},
         now,
       }).auctionStatus,
       "ended",
@@ -106,6 +129,7 @@ test("auction settlements require both confirmations and control defaults", () =
     actorUid: "buyer",
     action: "confirm_completion",
     paymentProviderStatus: "paid",
+    marketplaceFeeStatus: "collected",
   });
   assert.equal(buyer.status, "awaiting_seller_confirmation");
   const seller = validateAuctionTransactionAction({
@@ -114,6 +138,7 @@ test("auction settlements require both confirmations and control defaults", () =
     actorUid: "seller",
     action: "confirm_completion",
     paymentProviderStatus: "paid",
+    marketplaceFeeStatus: "collected",
   });
   assert.equal(seller.status, "completed");
   assert.equal(seller.buyerConfirmed, true);
@@ -140,10 +165,63 @@ test("auction settlements require both confirmations and control defaults", () =
   );
 });
 
+test("auction administrator cancellation is blocked after payment begins", () => {
+  const listing = {id: "auction", sellerUid: "seller"};
+  const sale = {
+    listingId: "auction",
+    buyerUid: "buyer",
+    sellerUid: "seller",
+    status: "pending_completion",
+    buyerConfirmed: false,
+    sellerConfirmed: false,
+  };
+  const cancellation = validateAuctionTransactionAction({
+    sale,
+    listing,
+    actorUid: "administrator",
+    action: "admin_cancel",
+    reason: "Administrator verified that both parties withdrew before payment.",
+    administrator: true,
+  });
+  assert.equal(cancellation.status, "cancelled");
+
+  for (const overrides of [
+    {
+      paymentProviderStatus: "paid",
+      paymentState: {paymentProviderStatus: "paid"},
+    },
+    {
+      paymentProviderStatus: "checkout_created",
+      paymentState: {
+        paymentProviderStatus: "checkout_created",
+        stripeCheckoutSessionId: "cs_auction",
+      },
+    },
+    {
+      sale: {...sale, buyerConfirmed: true},
+    },
+  ]) {
+    assert.throws(
+        () => validateAuctionTransactionAction({
+          sale: overrides.sale || sale,
+          listing,
+          actorUid: "administrator",
+          action: "admin_cancel",
+          reason: "Administrator attempted cancellation after payment began.",
+          administrator: true,
+          ...overrides,
+        }),
+        (error) => error.code === "failed-precondition" &&
+          /cancellation is unavailable/u.test(error.message),
+    );
+  }
+});
+
 function liveAuction(overrides = {}) {
   return {
     transactionType: "Auction",
     sellerUid: "seller",
+    ownerUid: "seller",
     status: "active",
     auctionStatus: "live",
     auctionStartAt: new Date("2026-07-01T00:00:00.000Z"),
@@ -152,6 +230,9 @@ function liveAuction(overrides = {}) {
     currentBid: 0,
     minimumBidIncrement: 5,
     buyItNowPrice: 200,
+    quantity: 1,
+    priceBasis: "Per item",
+    currency: "USD",
     ...overrides,
   };
 }
@@ -162,6 +243,104 @@ test("minimum bid follows starting price then current plus increment", () => {
       minimumAuctionBid(liveAuction({currentBid: 125})),
       130,
   );
+});
+
+test("timed-auction administration extends the authoritative close time", () => {
+  const listing = liveAuction({
+    auctionStartAt: new Date("2026-07-01T00:00:00.000Z"),
+    auctionEndAt: new Date("2026-07-20T12:00:00.000Z"),
+    currentBid: 145,
+    highBidderUid: "buyer",
+    bidCount: 4,
+  });
+  const result = validateTimedAuctionAdministration({
+    listing,
+    sale: null,
+    payment: null,
+    action: "extend_24h",
+    now,
+  });
+  assert.equal(
+      result.auctionEndAt,
+      listing.auctionEndAt.getTime() + 24 * 60 * 60 * 1000,
+  );
+  assert.equal(listing.currentBid, 145);
+  assert.equal(listing.highBidderUid, "buyer");
+  assert.equal(listing.bidCount, 4);
+});
+
+test("timed-auction administration enforces expiry and duration bounds", () => {
+  assert.throws(
+      () => validateTimedAuctionAdministration({
+        listing: liveAuction({
+          auctionStartAt: new Date("2026-07-01T00:00:00.000Z"),
+          auctionEndAt: new Date(now.getTime() - 1),
+        }),
+        action: "extend_24h",
+        now,
+      }),
+      (error) => error.code === "failed-precondition" &&
+        /cannot be reopened/u.test(error.message),
+  );
+  assert.throws(
+      () => validateTimedAuctionAdministration({
+        listing: liveAuction({
+          auctionStartAt: new Date("2025-07-25T12:00:00.000Z"),
+          auctionEndAt: new Date("2026-07-20T12:00:00.000Z"),
+        }),
+        action: "extend_24h",
+        now,
+      }),
+      (error) => error.code === "failed-precondition" &&
+        /360-day/u.test(error.message),
+  );
+});
+
+test("timed-auction administration blocks sale and payment outcomes", () => {
+  for (const state of [
+    {
+      listing: liveAuction({status: "pending_sale", auctionStatus: "won"}),
+    },
+    {
+      listing: liveAuction(),
+      sale: {status: "pending_completion", buyerUid: "buyer"},
+    },
+    {
+      listing: liveAuction(),
+      payment: {paymentProviderStatus: "paid"},
+    },
+  ]) {
+    assert.throws(
+        () => validateTimedAuctionAdministration({
+          ...state,
+          action: "cancel",
+          now,
+        }),
+        (error) => error.code === "failed-precondition" &&
+          /sale or payment outcome/u.test(error.message),
+    );
+  }
+});
+
+test("force end and pre-sale cancellation are server-planned states", () => {
+  const listing = liveAuction({currentBid: 145, highBidderUid: "buyer"});
+  const forceEnd = validateTimedAuctionAdministration({
+    listing,
+    action: "force_end",
+    now,
+  });
+  assert.equal(forceEnd.auctionEndAt, now.getTime());
+  assert.equal(forceEnd.auctionStatus, "live");
+
+  const cancellation = validateTimedAuctionAdministration({
+    listing,
+    action: "cancel",
+    now,
+  });
+  assert.equal(cancellation.status, "archived");
+  assert.equal(cancellation.auctionStatus, "cancelled");
+  assert.equal(listing.currentBid, 145);
+  assert.equal(listing.highBidderUid, "buyer");
 });
 
 test("marketplace conversion derives authoritative auction analytics", () => {
@@ -223,6 +402,25 @@ test("marketplace conversion enforces ownership and seller eligibility", () => {
       }),
       (error) => error.code === "failed-precondition",
   );
+  for (const transactionType of ["For Rent", "Request for Quote"]) {
+    assert.throws(
+        () => validateAuctionConversion({
+          listing: marketplaceListing({transactionType}),
+          actorUid: "seller",
+          user: verifiedSeller(),
+          administrator: false,
+          data: {
+            startingBid: 73,
+            minimumBidIncrement: 1,
+            durationDays: 7,
+          },
+          paidFeaturesEnabled: false,
+          now,
+        }),
+        (error) => error.code === "failed-precondition" &&
+          /Only a For Sale Marketplace listing/u.test(error.message),
+    );
+  }
 });
 
 test("custom auctions remain disabled until paid features are live", () => {
@@ -362,6 +560,23 @@ test("normal listing transitions enforce a finite lifecycle", () => {
   }).status, "active");
   assert.throws(
       () => validateListingTransition({
+        listing: marketplaceListing(),
+        actorUid: "seller",
+        action: "mark_sold",
+      }),
+      (error) => error.code === "failed-precondition" &&
+        /accepted offer/u.test(error.message),
+  );
+  assert.throws(
+      () => validateListingTransition({
+        listing: marketplaceListing({status: "pending_sale"}),
+        actorUid: "seller",
+        action: "mark_sold",
+      }),
+      (error) => error.code === "failed-precondition",
+  );
+  assert.throws(
+      () => validateListingTransition({
         listing: marketplaceListing({status: "sold"}),
         actorUid: "seller",
         action: "activate",
@@ -424,6 +639,21 @@ test("bid must meet the server-calculated minimum", () => {
   assert.deepEqual(
       validatePlaceBid(liveAuction(), "buyer", 100, now),
       {amount: 100, minimum: 100},
+  );
+  assert.throws(
+      () => validatePlaceBid(
+          liveAuction({currentBid: 190, minimumBidIncrement: 10}),
+          "buyer",
+          200,
+          now,
+      ),
+      (error) => error.code === "failed-precondition" &&
+        /Buy It Now/u.test(error.message),
+  );
+  assert.throws(
+      () => validateBuyNow(liveAuction({currentBid: 200}), "buyer", now),
+      (error) => error.code === "failed-precondition" &&
+        /no longer available/u.test(error.message),
   );
 });
 
@@ -559,11 +789,15 @@ test("only the seller can accept a pending complete offer", () => {
     buyerUid: "buyer",
     listingId: "listing",
     status: "pending",
+    currency: "USD",
   };
   const listing = {
     sellerUid: "seller",
     status: "active",
     transactionType: "Marketplace",
+    currency: "USD",
+    quantity: 1,
+    priceBasis: "Per item",
   };
   assert.doesNotThrow(
       () => validateOfferAcceptance(offer, "seller", listing),
@@ -590,12 +824,63 @@ test("only the seller can accept a pending complete offer", () => {
   );
 });
 
+test("offer acceptance rechecks listing type, currency, and firm price", () => {
+  const listing = marketplaceListing({
+    openToOffers: false,
+    priceFlexibility: "Firm",
+    price: 73,
+    quantity: 10,
+  });
+  const offer = {
+    sellerUid: "seller",
+    buyerUid: "buyer",
+    listingId: "listing",
+    status: "pending",
+    requestedQuantity: 4,
+    offeredTotal: 292,
+    currency: "USD",
+  };
+  assert.doesNotThrow(() => validateOfferAcceptance(offer, "seller", listing));
+  assert.throws(
+      () => validateOfferAcceptance(
+          {...offer, offeredTotal: 291.99},
+          "seller",
+          listing,
+      ),
+      (error) => error.code === "failed-precondition" && /firm-price/u.test(error.message),
+  );
+  assert.throws(
+      () => validateOfferAcceptance(
+          {...offer, currency: "CAD"},
+          "seller",
+          listing,
+      ),
+      (error) => error.code === "failed-precondition" && /currency/u.test(error.message),
+  );
+  for (const transactionType of [
+    "Auction",
+    "For Rent",
+    "Request for Quote",
+    "Wanted / Seeking",
+  ]) {
+    assert.throws(
+        () => validateOfferAcceptance(
+            offer,
+            "seller",
+            {...listing, transactionType},
+        ),
+        (error) => error.code === "failed-precondition",
+    );
+  }
+});
+
 test("listing offers use authoritative participants and quantity", () => {
   const listing = {
     sellerUid: "seller",
     status: "active",
     transactionType: "Marketplace",
     quantity: 54,
+    priceBasis: "Per piece",
   };
   const proposal = validateOfferProposal({
     listing,
@@ -644,12 +929,205 @@ test("listing offers use authoritative participants and quantity", () => {
   );
 });
 
+test("firm listings accept only the authoritative asking price", () => {
+  const base = {
+    conversation: null,
+    actorUid: "buyer",
+    now,
+  };
+  const perUnit = marketplaceListing({
+    openToOffers: false,
+    priceFlexibility: "Firm",
+    price: 73,
+    quantity: 54,
+  });
+  assert.equal(validateOfferProposal({
+    ...base,
+    listing: perUnit,
+    data: {
+      listingId: "listing",
+      offeredUnitPrice: 73,
+      requestedQuantity: 25,
+      truckingPlan: "buyer_arranged",
+    },
+  }).offeredTotal, 1825);
+  assert.throws(
+      () => validateOfferProposal({
+        ...base,
+        listing: perUnit,
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 72.99,
+          requestedQuantity: 25,
+          truckingPlan: "buyer_arranged",
+        },
+      }),
+      (error) => error.code === "failed-precondition" && /firm-price/u.test(error.message),
+  );
+
+  const totalBasis = marketplaceListing({
+    openToOffers: false,
+    priceFlexibility: "Firm",
+    price: 1200,
+    priceBasis: "Total for all",
+    quantity: 4,
+  });
+  assert.equal(validateOfferProposal({
+    ...base,
+    listing: totalBasis,
+    data: {
+      listingId: "listing",
+      offeredUnitPrice: 900,
+      requestedQuantity: 3,
+      truckingPlan: "buyer_arranged",
+    },
+  }).offeredTotal, 900);
+  assert.throws(
+      () => validateOfferProposal({
+        ...base,
+        listing: totalBasis,
+        data: {
+          listingId: "listing",
+          offeredUnitPrice: 899.99,
+          requestedQuantity: 3,
+          truckingPlan: "buyer_arranged",
+        },
+      }),
+      (error) => error.code === "failed-precondition",
+  );
+});
+
+test("non-sale listing models cannot enter the Marketplace offer workflow", () => {
+  for (const transactionType of [
+    "Auction",
+    "For Rent",
+    "Request for Quote",
+    "Wanted / Seeking",
+  ]) {
+    assert.throws(
+        () => validateOfferProposal({
+          listing: marketplaceListing({transactionType}),
+          conversation: null,
+          actorUid: "buyer",
+          data: {
+            listingId: "listing",
+            offeredUnitPrice: 73,
+            requestedQuantity: 1,
+            truckingPlan: "buyer_arranged",
+          },
+          now,
+        }),
+        (error) => error.code === "failed-precondition",
+    );
+  }
+});
+
+test("new transaction records require an explicit supported currency", () => {
+  assert.equal(marketplaceTransactionCurrency("usd"), "USD");
+  assert.equal(marketplaceTransactionCurrency("CAD"), "CAD");
+  for (const value of [null, "", "EUR", "US"] ) {
+    assert.throws(
+        () => marketplaceTransactionCurrency(value),
+        (error) => error.code === "failed-precondition",
+    );
+  }
+});
+
+test("total-basis offer input is a total and basis comes from listing", () => {
+  const listing = {
+    sellerUid: "seller",
+    status: "active",
+    transactionType: "Marketplace",
+    quantity: 4,
+    priceBasis: "Total for all",
+  };
+  const proposal = validateOfferProposal({
+    listing,
+    conversation: null,
+    actorUid: "buyer",
+    data: {
+      listingId: "listing",
+      offeredUnitPrice: 900,
+      requestedQuantity: 3,
+      priceBasis: "Per piece",
+      truckingPlan: "buyer_arranged",
+    },
+    now,
+  });
+  assert.equal(isTotalPriceBasis("Total asking price"), true);
+  assert.equal(isTotalPriceBasis("Total for all"), true);
+  assert.equal(isTotalPriceBasis("Per piece"), false);
+  assert.equal(proposal.priceBasis, "Total for all");
+  assert.equal(proposal.totalPriceBasis, true);
+  assert.equal(proposal.enteredOfferAmount, 900);
+  assert.equal(proposal.offeredTotal, 900);
+  assert.equal(proposal.offeredUnitPrice, 300);
+});
+
+test("partial offer inventory is reserved and reopened with the remainder", () => {
+  const reservation = marketplaceOfferInventoryReservation(
+      {requestedQuantity: 25},
+      {quantity: 54, price: 73, priceBasis: "Per piece"},
+  );
+  assert.deepEqual(reservation, {
+    inventoryQuantityAtAcceptance: 54,
+    inventoryPriceAtAcceptance: 73,
+    inventoryPriceBasisAtAcceptance: "Per piece",
+    reservedQuantity: 25,
+    remainingQuantityAfterAcceptance: 29,
+    partialQuantitySale: true,
+  });
+  assert.deepEqual(marketplaceOfferInventoryCompletion(
+      reservation,
+      {quantity: 54, price: 73, priceBasis: "Per piece"},
+  ), {
+    partialQuantitySale: true,
+    remainingQuantity: 29,
+    remainingTotalPrice: null,
+  });
+  assert.throws(
+      () => marketplaceOfferInventoryReservation(
+          {requestedQuantity: 55},
+          {quantity: 54, price: 73, priceBasis: "Per piece"},
+      ),
+      (error) => error.code === "failed-precondition",
+  );
+});
+
+test("partial total-basis inventory keeps a truthful remaining lot price", () => {
+  const reservation = marketplaceOfferInventoryReservation(
+      {requestedQuantity: 3},
+      {quantity: 4, price: 1200, priceBasis: "Total for all"},
+  );
+  assert.deepEqual(marketplaceOfferInventoryCompletion(
+      reservation,
+      {quantity: 4, price: 1200, priceBasis: "Total for all"},
+  ), {
+    partialQuantitySale: true,
+    remainingQuantity: 1,
+    remainingTotalPrice: 300,
+  });
+  const fullReservation = marketplaceOfferInventoryReservation(
+      {requestedQuantity: 4},
+      {quantity: 4, price: 1200, priceBasis: "Total for all"},
+  );
+  assert.deepEqual(marketplaceOfferInventoryCompletion(
+      fullReservation,
+      {quantity: 4, price: 1200, priceBasis: "Total for all"},
+  ), {
+    partialQuantitySale: false,
+    remainingQuantity: 0,
+    remainingTotalPrice: null,
+  });
+});
+
 test("offer notes and Dispatch access notes reject contact details", () => {
   const listing = {
     sellerUid: "seller",
     status: "active",
     transactionType: "Marketplace",
     quantity: 54,
+    priceBasis: "Per piece",
   };
   const base = {
     listing,
@@ -732,6 +1210,7 @@ test("marketplace transaction completes only after both parties confirm", () => 
       buyerConfirmed: false,
       sellerConfirmed: false,
       paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "collected",
     },
     offer,
     actorUid: "buyer",
@@ -749,6 +1228,7 @@ test("marketplace transaction completes only after both parties confirm", () => 
       buyerConfirmed: true,
       sellerConfirmed: false,
       paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "collected",
     },
     offer,
     actorUid: "seller",
@@ -788,6 +1268,93 @@ test("transaction cancellation and disputes are participant controlled", () => {
     reason: "The delivered quantity does not match the agreement.",
   });
   assert.equal(disputed.status, "disputed");
+  for (const paymentProviderStatus of [
+    "checkout_created",
+    "processing",
+    "paid",
+    "external_agreed",
+    "refunded",
+    "unknown_provider_state",
+  ]) {
+    assert.throws(
+        () => validateMarketplaceTransactionAction({
+          sale: {
+            offerId: "offer",
+            buyerUid: "buyer",
+            sellerUid: "seller",
+            status: "pending_completion",
+            paymentProviderStatus,
+          },
+          offer,
+          actorUid: "buyer",
+          action: "cancel",
+          reason: "The parties mutually agreed not to proceed.",
+        }),
+        (error) => error.code === "failed-precondition" &&
+          /dispute or request refund review/u.test(error.message),
+    );
+  }
+  for (const paymentMarker of [
+    {stripeCheckoutSessionId: "cs_checkout"},
+    {stripePaymentIntentId: "pi_paid"},
+    {stripeChargeId: "ch_paid"},
+    {externalSettlementBuyerConfirmed: true},
+    {externalSettlementSellerConfirmed: true},
+  ]) {
+    assert.throws(
+        () => validateMarketplaceTransactionAction({
+          sale: {
+            offerId: "offer",
+            buyerUid: "buyer",
+            sellerUid: "seller",
+            status: "pending_completion",
+            paymentProviderStatus: "not_started",
+            ...paymentMarker,
+          },
+          offer,
+          actorUid: "seller",
+          action: "cancel",
+          reason: "The parties mutually agreed not to proceed.",
+        }),
+        (error) => error.code === "failed-precondition",
+    );
+  }
+  const failedCheckoutCancellation = validateMarketplaceTransactionAction({
+    sale: {
+      offerId: "offer",
+      buyerUid: "buyer",
+      sellerUid: "seller",
+      status: "pending_completion",
+      paymentProviderStatus: "failed",
+    },
+    offer,
+    actorUid: "seller",
+    action: "cancel",
+    reason: "The payment failed before Stripe created a checkout session.",
+  });
+  assert.equal(failedCheckoutCancellation.status, "cancelled");
+  for (const failedCheckoutMarker of [
+    {stripeCheckoutSessionId: "cs_failed"},
+    {stripeCheckoutAttemptId: "attempt_failed"},
+  ]) {
+    assert.throws(
+        () => validateMarketplaceTransactionAction({
+          sale: {
+            offerId: "offer",
+            buyerUid: "buyer",
+            sellerUid: "seller",
+            status: "pending_completion",
+            paymentProviderStatus: "failed",
+            ...failedCheckoutMarker,
+          },
+          offer,
+          actorUid: "seller",
+          action: "cancel",
+          reason: "A late Stripe result could still settle this checkout.",
+        }),
+        (error) => error.code === "failed-precondition",
+    );
+  }
   assert.throws(
       () => validateMarketplaceTransactionAction({
         sale: null,
@@ -822,6 +1389,7 @@ test("seller counter-offers require the real listing conversation", () => {
       status: "active",
       transactionType: "Marketplace",
       quantity: 54,
+      priceBasis: "Per piece",
     },
     conversation: {
       listingId: "listing",
@@ -846,6 +1414,7 @@ test("seller counter-offers require the real listing conversation", () => {
           status: "active",
           transactionType: "Marketplace",
           quantity: 54,
+          priceBasis: "Per piece",
         },
         conversation: {
           listingId: "listing",
@@ -871,6 +1440,7 @@ test("Dispatch offers require a dated mapped destination", () => {
     status: "active",
     transactionType: "Marketplace",
     quantity: 54,
+    priceBasis: "Per piece",
   };
   assert.throws(
       () => validateOfferProposal({

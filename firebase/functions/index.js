@@ -500,6 +500,12 @@ exports.finalizeAuction = onCall(
     marketplaceCommands.finalizeAuction,
   ),
 );
+exports.administerTimedAuction = onCall(
+  protectedCallableOptions,
+  policyAcceptanceCommands.requireCurrentPolicies(
+    marketplaceCommands.administerTimedAuction,
+  ),
+);
 exports.updateAuctionTransaction = onCall(
   protectedCallableOptions,
   policyAcceptanceCommands.requireCurrentPolicies(
@@ -507,20 +513,67 @@ exports.updateAuctionTransaction = onCall(
   ),
 );
 
+const TIMED_AUCTION_MONITOR_PAGE_SIZE = 100;
+
+async function rotatingTimedAuctionPage(query, cursorEndAt, cursorListingId) {
+  const ordered = query
+    .orderBy("auctionEndAt", "asc")
+    .orderBy(admin.firestore.FieldPath.documentId(), "asc");
+  const hasCursor = cursorEndAt &&
+    typeof cursorEndAt.toMillis === "function" &&
+    String(cursorListingId || "").trim();
+  let page = await (hasCursor ?
+    ordered.startAfter(cursorEndAt, String(cursorListingId)).limit(
+      TIMED_AUCTION_MONITOR_PAGE_SIZE,
+    ) :
+    ordered.limit(TIMED_AUCTION_MONITOR_PAGE_SIZE)).get();
+  // A durable rotating cursor prevents persistent malformed records at the
+  // front of a bounded query from starving every later auction. Wrap after
+  // reaching the end so failed records are still retried on a later run.
+  if (page.empty && hasCursor) {
+    page = await ordered.limit(TIMED_AUCTION_MONITOR_PAGE_SIZE).get();
+  }
+  return page;
+}
+
+function timedAuctionCursorUpdate(snapshot, prefix) {
+  if (snapshot.empty) return {};
+  const last = snapshot.docs[snapshot.docs.length - 1];
+  return {
+    [`${prefix}AuctionEndAt`]: last.get("auctionEndAt"),
+    [`${prefix}ListingId`]: last.id,
+  };
+}
+
 exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
   const now = admin.firestore.Timestamp.now();
   const endingCutoff = admin.firestore.Timestamp.fromMillis(
     now.toMillis() + 24 * 60 * 60 * 1000,
   );
+  const monitorStateRef = admin.firestore()
+    .collection("platform_runtime")
+    .doc("timed_auction_monitor");
+  const monitorStateSnapshot = await monitorStateRef.get();
+  const monitorState = monitorStateSnapshot.exists ?
+    monitorStateSnapshot.data() : {};
   const base = admin.firestore().collection("public_listings")
     .where("transactionType", "==", "Auction")
-    .where("status", "==", "active");
-  const expired = await base.where("auctionEndAt", "<=", now).limit(100).get();
+    .where("status", "==", "active")
+    // Filter terminal auctions in Firestore before applying the bounded page.
+    // Otherwise 100 historical terminal documents can permanently starve newer
+    // expired live auctions from server-side winner finalization.
+    .where("auctionStatus", "in", ["live", "scheduled"]);
+  const expired = await rotatingTimedAuctionPage(
+    base.where("auctionEndAt", "<=", now),
+    monitorState.expiredAuctionEndAt,
+    monitorState.expiredListingId,
+  );
+  let finalizationFailures = 0;
   for (const document of expired.docs) {
-    if (!["live", "scheduled"].includes(document.data().auctionStatus)) continue;
     try {
       await marketplaceCommands.finalizeAuctionRecord(document.id);
     } catch (error) {
+      finalizationFailures += 1;
       console.error("Scheduled auction finalization failed", {
         listingId: document.id,
         error,
@@ -528,17 +581,20 @@ exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
     }
   }
 
-  const endingSoon = await base
-    .where("auctionEndAt", ">", now)
-    .where("auctionEndAt", "<=", endingCutoff)
-    .limit(100)
-    .get();
+  const endingSoon = await rotatingTimedAuctionPage(
+    base
+      .where("auctionEndAt", ">", now)
+      .where("auctionEndAt", "<=", endingCutoff),
+    monitorState.endingSoonAuctionEndAt,
+    monitorState.endingSoonListingId,
+  );
   const writer = admin.firestore().bulkWriter();
+  let notificationsQueued = 0;
   for (const document of endingSoon.docs) {
     const auction = document.data();
     if (auction.notifyAuctionEnding === false ||
-        auction.endingNotificationSentAt != null ||
-        !["live", "scheduled"].includes(auction.auctionStatus)) continue;
+        auction.endingNotificationSentAt != null) continue;
+    notificationsQueued += 1;
     writer.update(document.ref, {
       endingNotificationSentAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -554,6 +610,15 @@ exports.monitorTimedAuctions = onSchedule("every 15 minutes", async () => {
     });
   }
   await writer.close();
+  await monitorStateRef.set({
+    ...timedAuctionCursorUpdate(expired, "expired"),
+    ...timedAuctionCursorUpdate(endingSoon, "endingSoon"),
+    lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastExpiredPageCount: expired.size,
+    lastFinalizationFailureCount: finalizationFailures,
+    lastEndingSoonPageCount: endingSoon.size,
+    lastEndingNotificationCount: notificationsQueued,
+  }, {merge: true});
 });
 
 // Creates in-app alerts for buyers who saved a seller profile and enabled

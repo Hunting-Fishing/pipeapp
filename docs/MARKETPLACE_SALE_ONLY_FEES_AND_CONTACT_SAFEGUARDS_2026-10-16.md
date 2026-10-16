@@ -9,9 +9,51 @@ this change.
 Pipe Buyer will not charge an upfront marketplace or auction listing fee at
 launch. For an on-platform sale, the server-calculated seller fee is collected
 when the buyer's payment succeeds. Seller proceeds remain pending until
-physical fulfillment is confirmed and financial release checks pass. Auctions,
-accepted offers, and fixed-price sales use the same fee policy so changing the
-sale format cannot change the fee.
+physical fulfillment is confirmed and financial release checks pass. Timed
+Buying sales and accepted Marketplace offers use the same fee policy so
+changing the sale format cannot change the fee.
+
+## Two sale paths, one payment pipeline
+
+The user journeys remain deliberately distinct before a sale commitment:
+
+| Path | How a sale is formed | What does not create a fee |
+| --- | --- | --- |
+| Marketplace | A buyer submits an offer and the seller accepts it. A full-price offer is handled by the same acceptance command. | Creating, viewing, messaging about, or making an offer on a listing. |
+| Timed Buying | The server records a winning bid after expiry, a seller-accepted leading bid below reserve, or an exercised Buy It Now price. | Creating the timed listing, watching it, or placing a bid. |
+
+After that commitment, both paths create an authoritative
+`marketplace_transactions` record. Timed Buying first records its immutable
+winner in `auction_transactions`, then mirrors it to
+`marketplace_transactions/auction_{listingId}`. The shared transaction is the
+only route into fee snapshotting, Stripe checkout, webhook reconciliation,
+refund/dispute handling, and seller-proceeds release. Clients cannot select a
+different fee schedule by choosing a different sale path.
+
+Wanted Ads are discovery only. A Wanted Ad may connect a buyer with suitable
+inventory, but it cannot be accepted, paid, completed, or charged as a third
+sale type. A matched item must continue through a Marketplace offer or a Timed
+Buying listing before any authoritative transaction or seller fee can exist.
+
+Marketplace offers may reserve less than the full available quantity. The
+server snapshots that inventory when the seller accepts, prevents another
+sale from changing the reserved lot, and only decrements and reopens the
+remaining listing after paid completion. A cancelled pre-payment transaction
+releases the reservation. Timed Buying sells the configured auction lot as a
+single outcome; it does not silently split the winning lot after bidding.
+
+New Marketplace and Timed Buying listings are USD-only. Existing accepted
+transactions keep their original immutable currency and fee snapshot; this
+change does not reprice or convert legacy CAD records.
+
+At launch, sale-forming price bases are deliberately limited to totals and
+server-verifiable item counts: total price, per item/piece/joint/machine as
+appropriate. Per-foot, per-metre, per-acre, per-hectare, per-bundle, lease, and
+call-for-price labels may still describe a Wanted Ad, but cannot form a sale or
+auction until Pipe Buyer can snapshot their authoritative measure. Sale and
+auction quantities must be whole numbers from 1 through 1,000,000. Malformed
+legacy basis, quantity, reserve, or conflicting prior auction-result records
+fail closed for administrator repair instead of being silently repriced.
 
 ### Equipment and other assets
 
@@ -83,6 +125,9 @@ direct contact exchange a controlled capability:
 - Public seller and business screens do not intentionally render phone, email,
   or website fields. Dispatch directory projections and search results omit the
   website field.
+- Server-derived public seller, bidder, and offer names reject phone, email,
+  URL, and recognized handle signals. Authentication email is never used as a
+  public fallback; unsafe or absent names become a neutral marketplace alias.
 - Profile editing stores direct contact details under the owner's private
   business document and deletes the corresponding public keys.
 - A message containing a recognized phone, email, website, or contact handle —
@@ -106,6 +151,10 @@ direct contact exchange a controlled capability:
   that later activity stays on-platform. Terms enforcement, audit signals,
   reporting, repeat-offender review, and fair fee collection remain necessary.
   No technical filter can guarantee that circumvention never occurs.
+- The current contact relationship gate starts after an offer is accepted or
+  an auction winner is recorded, not after buyer payment. Paid membership is
+  an additional backstop, but this still cannot guarantee collection of every
+  commission if the parties deliberately move the sale off-platform.
 - Legacy public data must be migrated. The guarded utility scans both
   `public_business_profiles` and `public_seller_profiles`, moves recognized
   contact values without overwriting current private values, and removes the
@@ -117,9 +166,26 @@ direct contact exchange a controlled capability:
   and a deterministic fingerprint before Firebase access. Those controls do
   not replace an approved backup, credential review, reconciled dry-run counts,
   or explicit action-time approval; write mode has not been run.
-- The server fee policy currently configures CAD and USD. Worldwide listing
-  visibility does not mean every currency, payment method, tax treatment, or
-  regulated marketplace service is launch-ready worldwide.
+- The fee engine retains CAD support for immutable legacy transactions, while
+  new Marketplace and Timed Buying listings are USD-only. Worldwide listing
+  visibility does not mean every payment method, tax treatment, settlement
+  jurisdiction, or regulated marketplace service is launch-ready worldwide.
+- Full-GMV card checkout is not yet economically approved for high-value
+  equipment. A percentage-based processor charge can exceed Pipe Buyer's
+  $2,500 seller-fee cap on a six-figure sale. The launch payment-method policy
+  must either preserve a positive margin with an approved high-value rail and
+  pricing model, or route the parties through the fee-only external-settlement
+  path; production checkout stays disabled until that decision is tested.
+- Stripe sandbox work must use an isolated non-production project/secret,
+  webhook destination, and environment identity. Sandbox events and records
+  must not be able to mutate production transactions, and production payment,
+  payout, and readiness switches remain false until the full test matrix is
+  reconciled.
+- Timed Buying still needs an explicit product decision for hard close versus
+  anti-sniping extensions, and for the payment grace/default/reoffer sequence.
+  The scheduler uses durable rotating cursors so one repeatedly failing auction
+  cannot indefinitely prevent later expired auctions from being examined, but
+  operational retry/alert evidence is still required in sandbox.
 - An administrator approval is operational evidence, not a permanent product
   entitlement. Any seller detail revision invalidates it and requires a new
   review before another transaction can receive pipe pricing.
@@ -161,7 +227,11 @@ direct contact exchange a controlled capability:
    settlement. Confirm no charge occurs for listing creation, the seller fee is
    collected when buyer payment succeeds, seller payout remains pending until
    fulfillment and release checks pass, and old transaction snapshots are not
-   recalculated.
+   recalculated. Include response-loss retries, expired Checkout Sessions,
+   out-of-order completion/refund/dispute events, partial and full refunds,
+   simultaneous payout/refund attempts, and exact-once compensation checks.
+   Completion must stay blocked while any settlement-reconciliation token,
+   refund exposure, dispute, chargeback, or financial hold is present.
 9. Separately change the Apple yearly price schedule to USD 249.99 only with
    action-time approval. Re-read the saved App Store Connect state, then update
    screenshots, localized disclosures, and Sandbox/TestFlight evidence.

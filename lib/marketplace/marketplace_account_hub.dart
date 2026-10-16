@@ -1083,6 +1083,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
     final isAuction = data['transactionType'] == 'Auction';
     final isWanted = data['transactionType'] == 'Wanted / Seeking';
+    final isMarketplaceSale = data['transactionType'] == 'For Sale' ||
+        data['transactionType'] == 'Marketplace';
     final currentBid = data['currentBid'] as num? ?? 0;
     final reserve = data['reservePrice'] as num?;
     final reserveProgress = reserve == null || reserve <= 0
@@ -1149,7 +1151,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             const SizedBox(height: 12),
             _listingLifecycleCard(data),
           ],
-          if (!isAuction && !isWanted && widget.auctionsEnabled) ...[
+          if (isMarketplaceSale && widget.auctionsEnabled) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
                 onPressed:
@@ -1293,6 +1295,9 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
   Widget _listingLifecycleCard(Map<String, dynamic> data) {
     final status = '${data['status'] ?? 'active'}';
     final isWanted = data['transactionType'] == 'Wanted / Seeking';
+    final isAuction = data['transactionType'] == 'Auction';
+    final isMarketplaceSale = data['transactionType'] == 'For Sale' ||
+        data['transactionType'] == 'Marketplace';
     final wantedJourneyStatus =
         isWanted ? marketplaceWantedJourneyStatus(data) : null;
     final busy = _listingActionBusy != null;
@@ -1317,11 +1322,6 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             onPressed: busy ? null : () => _transitionListing('mark_fulfilled'),
             icon: const Icon(Icons.task_alt),
             label: const Text('Mark request fulfilled')),
-      if (!isWanted && (status == 'active' || status == 'pending_sale'))
-        FilledButton.tonalIcon(
-            onPressed: busy ? null : () => _transitionListing('mark_sold'),
-            icon: const Icon(Icons.task_alt),
-            label: const Text('Mark sold')),
       if (status == 'active' ||
           status == 'paused' ||
           status == 'sold' ||
@@ -1384,6 +1384,21 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
               if (wantedJourneyStatus != null) ...[
                 const SizedBox(height: 10),
                 MarketplaceJourneyStatusCard(status: wantedJourneyStatus),
+              ],
+              if (!isWanted) ...[
+                const SizedBox(height: 10),
+                Text(
+                  status == 'pending_sale'
+                      ? isAuction
+                          ? 'Timed Buying selected the buyer. Complete payment, the marketplace fee, and settlement confirmations from the transaction record.'
+                          : 'An accepted offer reserved this listing. Complete payment, the marketplace fee, and settlement confirmations from the transaction record.'
+                      : isAuction
+                          ? 'Timed Buying closes only through Buy It Now, an accepted below-reserve bid, or the authoritative auction finalizer.'
+                          : isMarketplaceSale
+                              ? 'For Sale listings become sold only after an accepted offer completes the authoritative payment or external-settlement flow.'
+                              : 'This legacy listing type cannot enter a sale or Timed Buying workflow. Archive it and create a supported For Sale listing.',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                ),
               ],
               const SizedBox(height: 6),
               if (busy)
@@ -1485,7 +1500,6 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     const labels = {
       'pause': 'Pause this listing?',
       'activate': 'Reactivate this listing?',
-      'mark_sold': 'Mark this listing as sold?',
       'mark_fulfilled': 'Mark this wanted request as fulfilled?',
       'archive': 'Archive this listing?',
     };

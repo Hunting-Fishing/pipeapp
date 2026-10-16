@@ -60,7 +60,7 @@ Future<void> _pumpAndCaptureHero(
   expect(find.text('Browse inventory'), findsOneWidget);
   expect(find.text('Sell something'), findsOneWidget);
   expect(find.text('Request service'), findsOneWidget);
-  expect(find.text('Post wanted / RFQ'), findsOneWidget);
+  expect(find.text('Post wanted ad'), findsOneWidget);
   expect(find.text('Verified Businesses'), findsOneWidget);
 
   final assetNames = tester

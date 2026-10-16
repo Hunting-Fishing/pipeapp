@@ -3,19 +3,54 @@ import 'package:flutter/material.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_money.dart';
 
+bool marketplaceUsesTotalPriceBasis(String value) {
+  final normalized = value.trim().toLowerCase();
+  return normalized == 'total asking price' || normalized == 'total for all';
+}
+
+bool marketplaceListingUsesFirmPrice(Map<String, dynamic> listing) =>
+    listing['openToOffers'] == false ||
+    '${listing['priceFlexibility'] ?? ''}'.trim().toLowerCase() == 'firm';
+
+bool marketplaceListingSupportsPurchaseOffers(Map<String, dynamic> listing) {
+  final transactionType = '${listing['transactionType'] ?? ''}'.trim();
+  return transactionType == 'For Sale' || transactionType == 'Marketplace';
+}
+
+num marketplaceFirmOfferAmount({
+  required num askingPrice,
+  required int listedQuantity,
+  required int requestedQuantity,
+  required String priceBasis,
+}) {
+  if (askingPrice <= 0 ||
+      listedQuantity <= 0 ||
+      requestedQuantity <= 0 ||
+      requestedQuantity > listedQuantity) {
+    return 0;
+  }
+  final amount = marketplaceUsesTotalPriceBasis(priceBasis)
+      ? askingPrice * requestedQuantity / listedQuantity
+      : askingPrice;
+  return (amount * 100).round() / 100;
+}
+
 class MarketplaceOfferAnalysis {
   const MarketplaceOfferAnalysis({
     required this.listedQuantity,
     required this.requestedQuantity,
     required this.askingUnitPrice,
     required this.offeredUnitPrice,
+    this.priceBasis = '',
   });
 
   final int listedQuantity;
   final int requestedQuantity;
   final num askingUnitPrice;
   final num offeredUnitPrice;
+  final String priceBasis;
 
+  bool get usesTotalPriceBasis => marketplaceUsesTotalPriceBasis(priceBasis);
   int get normalizedRequestedQuantity =>
       requestedQuantity.clamp(0, listedQuantity).toInt();
   int get remainingQuantity => (listedQuantity - normalizedRequestedQuantity)
@@ -26,14 +61,28 @@ class MarketplaceOfferAnalysis {
       : normalizedRequestedQuantity / listedQuantity * 100;
   double get remainingQuantityPercent =>
       listedQuantity <= 0 ? 0 : remainingQuantity / listedQuantity * 100;
-  num get fullListingAskValue => askingUnitPrice * listedQuantity;
-  num get requestedAskValue => askingUnitPrice * normalizedRequestedQuantity;
-  num get offeredTotal => offeredUnitPrice * normalizedRequestedQuantity;
-  num get remainingAskValue => askingUnitPrice * remainingQuantity;
-  num get unitDifference => offeredUnitPrice - askingUnitPrice;
+  num get normalizedAskingUnitPrice => usesTotalPriceBasis && listedQuantity > 0
+      ? askingUnitPrice / listedQuantity
+      : askingUnitPrice;
+  num get normalizedOfferedUnitPrice =>
+      usesTotalPriceBasis && normalizedRequestedQuantity > 0
+          ? offeredUnitPrice / normalizedRequestedQuantity
+          : offeredUnitPrice;
+  num get fullListingAskValue => usesTotalPriceBasis
+      ? askingUnitPrice
+      : normalizedAskingUnitPrice * listedQuantity;
+  num get requestedAskValue =>
+      normalizedAskingUnitPrice * normalizedRequestedQuantity;
+  num get offeredTotal => usesTotalPriceBasis
+      ? offeredUnitPrice
+      : normalizedOfferedUnitPrice * normalizedRequestedQuantity;
+  num get remainingAskValue => normalizedAskingUnitPrice * remainingQuantity;
+  num get unitDifference =>
+      normalizedOfferedUnitPrice - normalizedAskingUnitPrice;
   num get requestedValueDifference => offeredTotal - requestedAskValue;
-  double get priceDifferencePercent =>
-      askingUnitPrice == 0 ? 0 : unitDifference / askingUnitPrice * 100;
+  double get priceDifferencePercent => normalizedAskingUnitPrice == 0
+      ? 0
+      : unitDifference / normalizedAskingUnitPrice * 100;
   bool get valid =>
       listedQuantity > 0 &&
       normalizedRequestedQuantity > 0 &&
@@ -110,8 +159,12 @@ class MarketplaceOfferAnalysisCard extends StatelessWidget {
                     '${analysis.listedQuantity} $unitLabel',
                   ),
                   _MetricRow(
-                    'Asking price',
-                    '${marketplaceMoney(analysis.askingUnitPrice)} / $unitLabel',
+                    analysis.usesTotalPriceBasis
+                        ? 'Full-lot asking total'
+                        : 'Asking price',
+                    analysis.usesTotalPriceBasis
+                        ? marketplaceMoney(analysis.fullListingAskValue)
+                        : '${marketplaceMoney(analysis.normalizedAskingUnitPrice)} / $unitLabel',
                   ),
                   _MetricRow(
                     'Full listing value',
@@ -129,8 +182,12 @@ class MarketplaceOfferAnalysisCard extends StatelessWidget {
                     '${analysis.normalizedRequestedQuantity} $unitLabel ($requestedPercent%)',
                   ),
                   _MetricRow(
-                    'Offer price',
-                    '${marketplaceMoney(analysis.offeredUnitPrice)} / $unitLabel',
+                    analysis.usesTotalPriceBasis
+                        ? 'Offer total entered'
+                        : 'Offer price',
+                    analysis.usesTotalPriceBasis
+                        ? marketplaceMoney(analysis.offeredTotal)
+                        : '${marketplaceMoney(analysis.normalizedOfferedUnitPrice)} / $unitLabel',
                   ),
                   _MetricRow(
                     'Offer total',
@@ -179,7 +236,9 @@ class MarketplaceOfferAnalysisCard extends StatelessWidget {
                 ),
                 const Divider(height: 16),
                 _DenseComparisonRow(
-                  label: 'Unit price difference',
+                  label: analysis.usesTotalPriceBasis
+                      ? 'Implied unit difference'
+                      : 'Unit price difference',
                   value:
                       '${_signedMoney(analysis.unitDifference)} / $unitLabel  (${_signedPercent(analysis.priceDifferencePercent)})',
                   valueColor: differenceColor,

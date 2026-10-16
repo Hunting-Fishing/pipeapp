@@ -17,6 +17,7 @@ import 'marketplace_command_client.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_offer_schedule.dart';
+import 'marketplace_offer_analysis.dart';
 import 'marketplace_account_hub.dart';
 import 'marketplace_trucking_plan.dart';
 import 'marketplace_location.dart';
@@ -282,8 +283,11 @@ class _ConversationNegotiationPanelState
               .snapshots(),
           builder: (context, listingSnapshot) {
             final listing = listingSnapshot.data?.data() ?? {};
+            final supportsPurchaseOffers =
+                marketplaceListingSupportsPurchaseOffers(listing);
             if (widget.openComposerOnLoad &&
                 !_openedInitialComposer &&
+                supportsPurchaseOffers &&
                 conversation != null &&
                 listing.isNotEmpty) {
               _openedInitialComposer = true;
@@ -300,10 +304,13 @@ class _ConversationNegotiationPanelState
             final askingPrice = listing['price'] as num?;
             final available = (listing['quantity'] as num?)?.toInt();
             final basis = '${listing['priceBasis'] ?? ''}';
+            final totalPriceBasis = marketplaceUsesTotalPriceBasis(basis);
             final latest = Map<String, dynamic>.from(
               conversation?['latestNegotiation'] as Map? ?? {},
             );
-            final currentPrice = latest['unitPrice'] as num? ?? askingPrice;
+            final currentPrice = totalPriceBasis
+                ? latest['total'] as num? ?? askingPrice
+                : latest['unitPrice'] as num? ?? askingPrice;
             final currentQuantity =
                 (latest['quantity'] as num?)?.toInt() ?? available;
             return Material(
@@ -347,7 +354,13 @@ class _ConversationNegotiationPanelState
                         onPressed: () => _openOffers(conversation!, listing),
                         icon: const Icon(Icons.handshake_outlined),
                         label: Text(
-                          latest.isEmpty ? 'Make offer' : 'Offers & history',
+                          latest.isEmpty
+                              ? supportsPurchaseOffers
+                                  ? marketplaceListingUsesFirmPrice(listing)
+                                      ? 'Offer asking price'
+                                      : 'Make offer'
+                                  : 'Offer history'
+                              : 'Offers & history',
                         ),
                       ),
                     ),
@@ -366,6 +379,9 @@ class _ConversationNegotiationPanelState
     Map<String, dynamic> listing,
   ) async {
     if (!_features.offers) return;
+    final supportsPurchaseOffers =
+        marketplaceListingSupportsPurchaseOffers(listing);
+    final firmPrice = marketplaceListingUsesFirmPrice(listing);
     final sellerUid = '${conversation['sellerUid'] ?? ''}';
     final members = List<String>.from(
       conversation['memberUids'] ?? const <String>[],
@@ -419,18 +435,28 @@ class _ConversationNegotiationPanelState
                     listingId: '${conversation['listingId']}',
                     askingPrice: listing['price'] as num?,
                     availableQuantity: (listing['quantity'] as num?)?.toInt(),
+                    priceBasis: '${listing['priceBasis'] ?? ''}',
                   ),
                 ),
                 const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: FilledButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'offer'),
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Make or revise offer'),
+                if (supportsPurchaseOffers)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'offer'),
+                      icon: Icon(firmPrice
+                          ? Icons.price_check_outlined
+                          : Icons.edit_outlined),
+                      label: Text(firmPrice
+                          ? 'Offer at asking price'
+                          : 'Make or revise offer'),
+                    ),
+                  )
+                else
+                  const Text(
+                    'New purchase offers are unavailable for this listing type. Existing offer history remains read-only.',
                   ),
-                ),
               ],
             ),
           ),
@@ -448,12 +474,24 @@ class _ConversationNegotiationPanelState
     Map<String, dynamic>? initialOffer,
   }) async {
     if (!_features.offers) return;
+    if (!marketplaceListingSupportsPurchaseOffers(listing)) return;
+    final firmPrice = marketplaceListingUsesFirmPrice(listing);
     final latest = Map<String, dynamic>.from(
       conversation['latestNegotiation'] as Map? ?? {},
     );
+    final priceBasis = '${listing['priceBasis'] ?? ''}';
+    final totalPriceBasis = marketplaceUsesTotalPriceBasis(priceBasis);
+    final initialPriceAmount = totalPriceBasis
+        ? (initialOffer?['offeredTotal'] ??
+            latest['total'] ??
+            listing['price'] ??
+            '')
+        : (initialOffer?['offeredUnitPrice'] ??
+            latest['unitPrice'] ??
+            listing['price'] ??
+            '');
     final price = TextEditingController(
-      text:
-          '${initialOffer?['offeredUnitPrice'] ?? latest['unitPrice'] ?? listing['price'] ?? ''}',
+      text: '$initialPriceAmount',
     );
     final quantity = TextEditingController(
       text:
@@ -484,27 +522,47 @@ class _ConversationNegotiationPanelState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, refresh) {
-          final offeredUnit = num.tryParse(price.text.replaceAll(',', '')) ?? 0;
           final requestedQty =
               int.tryParse(quantity.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
                   0;
           final askingUnit = listing['price'] as num? ?? 0;
-          final askingTotal = askingUnit * requestedQty;
-          final offeredTotal = offeredUnit * requestedQty;
+          final available = (listing['quantity'] as num?)?.toInt();
+          if (firmPrice && requestedQty > 0 && available != null) {
+            final firmAmount = marketplaceFirmOfferAmount(
+              askingPrice: askingUnit,
+              listedQuantity: available,
+              requestedQuantity: requestedQty,
+              priceBasis: priceBasis,
+            );
+            final firmText = firmAmount.toStringAsFixed(2);
+            if (price.text != firmText) price.text = firmText;
+          }
+          final offeredUnit = num.tryParse(price.text.replaceAll(',', '')) ?? 0;
+          final analysis = MarketplaceOfferAnalysis(
+            listedQuantity: available ?? (requestedQty > 0 ? requestedQty : 1),
+            requestedQuantity: requestedQty,
+            askingUnitPrice: askingUnit,
+            offeredUnitPrice: offeredUnit,
+            priceBasis: priceBasis,
+          );
+          final askingTotal = analysis.requestedAskValue;
+          final offeredTotal = analysis.offeredTotal;
           final difference = offeredTotal - askingTotal;
           final percent = askingTotal == 0 ? 0 : difference / askingTotal * 100;
-          final available = (listing['quantity'] as num?)?.toInt();
-          final basis = '${listing['priceBasis'] ?? ''}';
           final isFullQuantity = available != null && requestedQty == available;
           final isOverQuantity = available != null && requestedQty > available;
-          final isFullPrice = askingUnit > 0 && offeredUnit == askingUnit;
+          final isFullPrice = askingTotal > 0 && offeredTotal == askingTotal;
           return AlertDialog(
             insetPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 20,
             ),
             title: Text(
-              initialOffer == null ? 'Make an offer' : 'Make a counter offer',
+              firmPrice
+                  ? 'Offer at the asking price'
+                  : initialOffer == null
+                      ? 'Make an offer'
+                      : 'Make a counter offer',
             ),
             content: Form(
               key: formKey,
@@ -528,7 +586,7 @@ class _ConversationNegotiationPanelState
                               askingUnit == 0
                                   ? 'Seller price available on request'
                                   : 'Seller asks \$${askingUnit.toStringAsFixed(2)}'
-                                      '${basis.isEmpty ? '' : ' • $basis'}',
+                                      '${priceBasis.isEmpty ? '' : ' • $priceBasis'}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                               ),
@@ -581,18 +639,25 @@ class _ConversationNegotiationPanelState
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: price,
+                        readOnly: firmPrice,
                         autofocus: true,
                         onChanged: (_) => refresh(() {}),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
                         decoration: InputDecoration(
-                          labelText: 'Offer price',
+                          labelText: totalPriceBasis
+                              ? 'Offer total'
+                              : 'Offer unit price',
                           hintText: 'e.g. 70.00',
                           prefixText: '\$ ',
-                          helperText: basis.isEmpty
-                              ? 'Enter your price using the listing’s pricing unit.'
-                              : 'Price ${basis.toLowerCase()}',
+                          helperText: firmPrice
+                              ? 'Firm price set by the seller.'
+                              : totalPriceBasis
+                                  ? 'Enter the total you offer for the selected quantity.'
+                                  : priceBasis.isEmpty
+                                      ? 'Enter your price using the listing’s pricing unit.'
+                                      : 'Price ${priceBasis.toLowerCase()}',
                         ),
                         validator: (value) =>
                             (num.tryParse(value?.replaceAll(',', '') ?? '') ??
@@ -615,10 +680,15 @@ class _ConversationNegotiationPanelState
                             label: Text(
                               isFullPrice
                                   ? 'FULL ASKING PRICE'
-                                  : 'Match full asking price',
+                                  : totalPriceBasis
+                                      ? 'Match prorated asking total'
+                                      : 'Match asking unit price',
                             ),
                             onSelected: (_) {
-                              price.text = askingUnit.toStringAsFixed(2);
+                              price.text = (totalPriceBasis
+                                      ? analysis.requestedAskValue
+                                      : analysis.normalizedAskingUnitPrice)
+                                  .toStringAsFixed(2);
                               refresh(() {});
                             },
                           ),
@@ -847,15 +917,24 @@ class _ConversationNegotiationPanelState
       note.dispose();
       return;
     }
-    final unitPrice = num.parse(price.text.replaceAll(',', ''));
+    final enteredOfferAmount = num.parse(price.text.replaceAll(',', ''));
     final requestedQuantity = int.parse(quantity.text);
     final askingUnit = listing['price'] as num? ?? 0;
     final available = (listing['quantity'] as num?)?.toInt();
-    final difference = (unitPrice - askingUnit) * requestedQuantity;
-    final differencePercent =
-        askingUnit == 0 ? 0 : (unitPrice - askingUnit) / askingUnit * 100;
+    final reviewAnalysis = MarketplaceOfferAnalysis(
+      listedQuantity: available ?? requestedQuantity,
+      requestedQuantity: requestedQuantity,
+      askingUnitPrice: askingUnit,
+      offeredUnitPrice: enteredOfferAmount,
+      priceBasis: priceBasis,
+    );
+    final difference = reviewAnalysis.requestedValueDifference;
+    final differencePercent = reviewAnalysis.requestedAskValue == 0
+        ? 0
+        : difference / reviewAnalysis.requestedAskValue * 100;
     final isAll = available != null && requestedQuantity == available;
-    final isFullPrice = askingUnit > 0 && unitPrice == askingUnit;
+    final isFullPrice = reviewAnalysis.requestedAskValue > 0 &&
+        reviewAnalysis.offeredTotal == reviewAnalysis.requestedAskValue;
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (confirmationContext) => AlertDialog(
@@ -899,14 +978,18 @@ class _ConversationNegotiationPanelState
                           : difference < 0
                               ? 'Below asking price'
                               : 'Above asking price',
-                      detail: '\$${unitPrice.toStringAsFixed(2)} per unit • '
-                          '${difference >= 0 ? '+' : '-'}\$${difference.abs().toStringAsFixed(2)} '
-                          '(${differencePercent >= 0 ? '+' : ''}${differencePercent.toStringAsFixed(1)}%)',
+                      detail: totalPriceBasis
+                          ? '\$${enteredOfferAmount.toStringAsFixed(2)} total for selected quantity • '
+                              '${difference >= 0 ? '+' : '-'}\$${difference.abs().toStringAsFixed(2)} '
+                              '(${differencePercent >= 0 ? '+' : ''}${differencePercent.toStringAsFixed(1)}%)'
+                          : '\$${enteredOfferAmount.toStringAsFixed(2)} per unit • '
+                              '${difference >= 0 ? '+' : '-'}\$${difference.abs().toStringAsFixed(2)} '
+                              '(${differencePercent >= 0 ? '+' : ''}${differencePercent.toStringAsFixed(1)}%)',
                     ),
                     const SizedBox(height: 12),
                     _chatOfferLine(
                       'Offer total',
-                      unitPrice * requestedQuantity,
+                      reviewAnalysis.offeredTotal,
                     ),
                     const Divider(),
                     if (purchaseDate != null)
@@ -965,7 +1048,7 @@ class _ConversationNegotiationPanelState
           conversationId: widget.conversationId,
           listingId: '${conversation['listingId']}',
           sellerUid: '${conversation['sellerUid']}',
-          unitPrice: unitPrice,
+          unitPrice: enteredOfferAmount,
           quantity: requestedQuantity,
           priceBasis: '${listing['priceBasis'] ?? ''}',
           note: note.text,
@@ -1114,6 +1197,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     required this.sellerUid,
     this.askingPrice,
     this.availableQuantity,
+    this.priceBasis = '',
   });
   final String listingId;
   final String listingTitle;
@@ -1121,6 +1205,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
   final String sellerUid;
   final num? askingPrice;
   final int? availableQuantity;
+  final String priceBasis;
 
   @override
   Widget build(BuildContext context) {
@@ -1168,9 +1253,11 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             );
           });
         if (events.isEmpty) {
+          final totalPriceBasis = marketplaceUsesTotalPriceBasis(priceBasis);
           return Center(
             child: Text(
               'Seller asks ${askingPrice == null ? 'contact for price' : '\$${askingPrice!.toStringAsFixed(2)}'}'
+              '${totalPriceBasis ? ' total' : ''}'
               '${availableQuantity == null ? '' : ' for up to $availableQuantity units'}.\n'
               'No offers have been submitted yet.',
               textAlign: TextAlign.center,
@@ -1273,7 +1360,12 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     final price = event['offeredUnitPrice'] as num? ?? 0;
     final quantity = (event['requestedQuantity'] as num?)?.toInt() ?? 0;
     final total = event['offeredTotal'] as num? ?? price * quantity;
-    final isAll = availableQuantity != null && quantity == availableQuantity;
+    final totalPriceBasis = event['offerAmountType'] == 'total' ||
+        marketplaceUsesTotalPriceBasis('${event['priceBasis'] ?? ''}');
+    final availableAtOffer =
+        (event['availableQuantityAtOffer'] as num?)?.toInt() ??
+            availableQuantity;
+    final isAll = availableAtOffer != null && quantity == availableAtOffer;
     final milestones = marketplaceOfferMilestones(event);
     final revisionCount = revisions.length;
     final offerStatus = '${event['status'] ?? 'pending'}';
@@ -1283,10 +1375,15 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
       'cancelled',
       'disputed',
     }.contains(offerStatus);
-    final priceDifference = askingPrice == null ? 0 : price - askingPrice!;
-    final quantityPercent = availableQuantity == null || availableQuantity == 0
+    final comparisonAmount = totalPriceBasis ? total : price;
+    final askingComparison = totalPriceBasis
+        ? event['askingTotal'] as num?
+        : event['askingUnitPrice'] as num? ?? askingPrice;
+    final priceDifference = event['differenceAmount'] as num? ??
+        (askingComparison == null ? 0 : comparisonAmount - askingComparison);
+    final quantityPercent = availableAtOffer == null || availableAtOffer == 0
         ? null
-        : quantity / availableQuantity! * 100;
+        : quantity / availableAtOffer * 100;
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -1363,8 +1460,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             children: [
               Expanded(
                 child: _metric(
-                  'UNIT PRICE',
-                  '${priceDifference > 0 ? '↑ ' : priceDifference < 0 ? '↓ ' : '= '}\$${price.toStringAsFixed(2)}',
+                  totalPriceBasis ? 'OFFER TOTAL' : 'UNIT PRICE',
+                  '${priceDifference > 0 ? '↑ ' : priceDifference < 0 ? '↓ ' : '= '}\$${comparisonAmount.toStringAsFixed(2)}',
                   priceDifference > 0
                       ? Colors.green
                       : priceDifference < 0
@@ -1378,9 +1475,9 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   'QUANTITY',
                   isAll
                       ? 'ALL • $quantity'
-                      : availableQuantity == null
+                      : availableAtOffer == null
                           ? '$quantity'
-                          : '$quantity / $availableQuantity'
+                          : '$quantity / $availableAtOffer'
                               '${quantityPercent == null ? '' : ' • ${quantityPercent.toStringAsFixed(0)}%'}',
                   isAll ? Colors.green : Colors.orange,
                 ),
@@ -1388,8 +1485,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _metric(
-                  'TOTAL',
-                  '\$${total.toStringAsFixed(2)}',
+                  totalPriceBasis ? 'UNIT PRICE' : 'TOTAL',
+                  '\$${(totalPriceBasis ? price : total).toStringAsFixed(2)}',
                   isBest ? Colors.green : Colors.blueGrey,
                 ),
               ),
@@ -1532,11 +1629,21 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     final price = offer['offeredUnitPrice'] as num? ?? 0;
     final quantity = (offer['requestedQuantity'] as num?)?.toInt() ?? 0;
     final total = offer['offeredTotal'] as num? ?? price * quantity;
-    final difference = askingPrice == null ? 0 : price - askingPrice!;
-    final isAll = availableQuantity != null && quantity == availableQuantity;
-    final percent = availableQuantity == null || availableQuantity == 0
+    final totalPriceBasis = offer['offerAmountType'] == 'total' ||
+        marketplaceUsesTotalPriceBasis('${offer['priceBasis'] ?? ''}');
+    final availableAtOffer =
+        (offer['availableQuantityAtOffer'] as num?)?.toInt() ??
+            availableQuantity;
+    final comparisonAmount = totalPriceBasis ? total : price;
+    final askingComparison = totalPriceBasis
+        ? offer['askingTotal'] as num?
+        : offer['askingUnitPrice'] as num? ?? askingPrice;
+    final difference = offer['differenceAmount'] as num? ??
+        (askingComparison == null ? 0 : comparisonAmount - askingComparison);
+    final isAll = availableAtOffer != null && quantity == availableAtOffer;
+    final percent = availableAtOffer == null || availableAtOffer == 0
         ? null
-        : quantity / availableQuantity! * 100;
+        : quantity / availableAtOffer * 100;
     final milestones = marketplaceOfferMilestones(offer);
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1566,8 +1673,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             children: [
               Expanded(
                 child: _metric(
-                  'UNIT PRICE',
-                  '${difference > 0 ? '↑ ' : difference < 0 ? '↓ ' : '= '}\$${price.toStringAsFixed(2)}',
+                  totalPriceBasis ? 'OFFER TOTAL' : 'UNIT PRICE',
+                  '${difference > 0 ? '↑ ' : difference < 0 ? '↓ ' : '= '}\$${comparisonAmount.toStringAsFixed(2)}',
                   difference > 0
                       ? Colors.green
                       : difference < 0
@@ -1581,17 +1688,17 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   'QUANTITY',
                   isAll
                       ? 'ALL • $quantity'
-                      : availableQuantity == null
+                      : availableAtOffer == null
                           ? '$quantity'
-                          : '$quantity / $availableQuantity • ${percent?.toStringAsFixed(0)}%',
+                          : '$quantity / $availableAtOffer • ${percent?.toStringAsFixed(0)}%',
                   isAll ? Colors.green : Colors.orange,
                 ),
               ),
               const SizedBox(width: 7),
               Expanded(
                 child: _metric(
-                  'TOTAL',
-                  '\$${total.toStringAsFixed(2)}',
+                  totalPriceBasis ? 'UNIT PRICE' : 'TOTAL',
+                  '\$${(totalPriceBasis ? price : total).toStringAsFixed(2)}',
                   Colors.blueGrey,
                 ),
               ),

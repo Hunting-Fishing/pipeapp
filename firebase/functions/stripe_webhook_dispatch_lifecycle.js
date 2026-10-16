@@ -60,14 +60,15 @@ function isDispatchProviderStateEvent(event) {
 }
 
 function createStripeWebhookDispatchLifecycleWrapper({
-  admin,
   baseHandler,
   dispatchSubscriptionLifecycle,
   vipSubscriptionLifecycle,
   stripeWebhookSecret,
 }) {
-  const db = admin.firestore();
-  const FieldValue = admin.firestore.FieldValue;
+  const webhookEventStore = baseHandler.webhookEventStore;
+  if (!webhookEventStore) {
+    throw new TypeError("The Stripe webhook event store is unavailable.");
+  }
 
   return async (request, response) => {
     const rawBody = request.rawBody;
@@ -89,13 +90,28 @@ function createStripeWebhookDispatchLifecycleWrapper({
     }
 
     const eventId = String(event.id || "");
-    const eventRef = eventId.startsWith("evt_") ?
-      db.collection("stripe_webhook_events").doc(eventId) : null;
-    if (eventRef) {
-      const existing = await eventRef.get();
-      if (existing.exists && existing.data().status === "processed") {
-        return baseHandler(request, response);
-      }
+    if (!eventId.startsWith("evt_")) {
+      return baseHandler(request, response);
+    }
+    let claim;
+    try {
+      claim = await webhookEventStore.begin({eventId, type: event.type});
+    } catch (error) {
+      console.error("Subscription webhook claim failed", {
+        eventId,
+        type: event.type,
+        error,
+      });
+      response.status(500).send("Webhook claim failed");
+      return;
+    }
+    if (claim.state === "duplicate") {
+      response.status(200).send("Already processed");
+      return;
+    }
+    if (claim.state !== "acquired") {
+      response.status(409).send("Webhook processing in progress");
+      return;
     }
 
     try {
@@ -147,21 +163,18 @@ function createStripeWebhookDispatchLifecycleWrapper({
         type: event.type,
         error,
       });
-      if (eventRef) {
-        await eventRef.set({
-          eventId,
-          type: String(event.type || ""),
-          status: "failed",
-          updatedAt: FieldValue.serverTimestamp(),
-        }, {merge: true});
-      }
+      await webhookEventStore.fail(eventId, error, claim);
       response.status(500).send("Webhook processing failed");
       return;
     }
 
     // The established handler remains the single owner of the processed event
     // ledger and of all existing checkout/refund/dispute behavior.
-    return baseHandler(request, response);
+    return baseHandler(request, response, {
+      claim,
+      event,
+      webhookEventStore,
+    });
   };
 }
 

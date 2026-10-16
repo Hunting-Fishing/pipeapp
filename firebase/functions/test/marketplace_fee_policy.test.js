@@ -212,3 +212,16 @@ test("supports USD without changing the one-dollar-per-stick concept", () => {
   assert.equal(fee.marketplaceFeeMinor, 25000);
   assert.equal(fee.currency, "USD");
 });
+
+test("rejects a missing transaction currency instead of assuming CAD", () => {
+  assert.throws(
+      () => calculateMarketplaceFeeSnapshot({
+        listing: {category: "Heavy Equipment"},
+        agreedQuantity: 1,
+        agreedTotal: 5000,
+      }),
+      (error) => error &&
+        error.name === "MarketplaceFeePolicyError" &&
+        error.code === "invalid-argument",
+  );
+});

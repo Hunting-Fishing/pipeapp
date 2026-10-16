@@ -39,7 +39,7 @@ test("Timed Buying transport listing accepts professional structured asset facts
       auctionEndAt: end,
       priceBasis: "Total asking price",
       priceFlexibility: "Open to offers",
-      currency: "CAD",
+      currency: "USD",
       description: "Service truck with field equipment and maintenance records.",
     },
     now,
@@ -51,6 +51,7 @@ test("Timed Buying transport listing accepts professional structured asset facts
   assert.equal(listing.serialNumber, "1FDXE4FS0JDC00001");
   assert.equal(listing.minimumBidIncrement, 500);
   assert.equal(listing.auctionStatus, "scheduled");
+  assert.equal(listing.currency, "USD");
 });
 
 test("standard pipe listing retains structured comparison fields", () => {
@@ -70,7 +71,7 @@ test("standard pipe listing retains structured comparison fields", () => {
       price: 48,
       priceBasis: "Per joint",
       priceFlexibility: "Open to offers",
-      currency: "CAD",
+      currency: "USD",
       description: "Used production tubing available for pickup.",
     },
     now,
@@ -79,6 +80,7 @@ test("standard pipe listing retains structured comparison fields", () => {
   assert.equal(listing.transactionType, "For Sale");
   assert.equal(listing.pipeSize, "2-7/8 in");
   assert.equal(listing.quantity, 120);
+  assert.equal(listing.currency, "USD");
   assert.equal(listing.auctionStartAt, undefined);
   assert.equal(listing.minimumBidIncrement, undefined);
 });

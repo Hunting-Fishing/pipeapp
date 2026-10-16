@@ -120,6 +120,17 @@ const longTextFields = new Set([
 
 const dateFields = new Set(["auctionStartAt", "auctionEndAt"]);
 
+const MARKETPLACE_MAX_QUANTITY = 1_000_000;
+const marketplacePriceBases = new Map([
+  ["total", {canonical: "Total asking price", kind: "total"}],
+  ["total asking price", {canonical: "Total asking price", kind: "total"}],
+  ["total for all", {canonical: "Total for all", kind: "total"}],
+  ["per piece", {canonical: "Per piece", kind: "count"}],
+  ["per joint", {canonical: "Per joint", kind: "count"}],
+  ["per item", {canonical: "Per item", kind: "count"}],
+  ["price per machine", {canonical: "Price per machine", kind: "count"}],
+]);
+
 const searchIndexVersion = 2;
 const maximumSearchTokens = 480;
 
@@ -183,6 +194,56 @@ function buildMarketplaceSearchTokens(listing) {
 
 function invalid(message) {
   throw new ListingPolicyError("invalid-argument", message);
+}
+
+function marketplacePriceBasis(value) {
+  return marketplacePriceBases.get(
+      String(value || "").trim().toLowerCase(),
+  ) || null;
+}
+
+function marketplaceQuantity(value, {allowMissingTotal = false, priceBasis} = {}) {
+  if (value == null || value === "") {
+    const basis = marketplacePriceBasis(priceBasis);
+    return allowMissingTotal && basis && basis.kind === "total" ? 1 : null;
+  }
+  if (typeof value !== "number" ||
+      !Number.isSafeInteger(value) ||
+      value < 1 ||
+      value > MARKETPLACE_MAX_QUANTITY) {
+    return null;
+  }
+  return value;
+}
+
+function normalizeMarketplaceSaleTerms(listing) {
+  const basis = marketplacePriceBasis(listing.priceBasis);
+  if (!basis) {
+    invalid(
+        "Choose a total price or a supported count-based price. Per-length, " +
+        "per-area, lease, bundle, and call-for-price sales are unavailable " +
+        "until their settlement units can be verified.",
+    );
+  }
+  const quantity = marketplaceQuantity(listing.quantity, {
+    allowMissingTotal: true,
+    priceBasis: basis.canonical,
+  });
+  if (quantity == null) {
+    invalid("Quantity must be a whole number between 1 and 1,000,000.");
+  }
+  listing.priceBasis = basis.canonical;
+  listing.quantity = quantity;
+}
+
+function auctionMoney(value, fieldName, {optional = false} = {}) {
+  if (optional && (value == null || value === "")) return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000_000 ||
+      Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001) {
+    invalid(`${fieldName} must be a positive amount with no more than two decimals.`);
+  }
+  return amount;
 }
 
 function isPlainObject(value) {
@@ -316,6 +377,39 @@ function validateMarketplaceListingInput(
     invalid("Listing destination is invalid.");
   }
   listing.transactionType = transactionType;
+  const requestedCurrency = String(listing.currency || "").trim().toUpperCase();
+  if (requestedCurrency && requestedCurrency !== "USD") {
+    invalid("Marketplace and Timed Buying listings must use USD.");
+  }
+  listing.currency = "USD";
+  if (transactionType === "For Sale" || transactionType === "Auction") {
+    normalizeMarketplaceSaleTerms(listing);
+  }
+  if (transactionType === "For Sale") {
+    const requestedFlexibility = String(
+        listing.priceFlexibility || "",
+    ).trim();
+    if (requestedFlexibility &&
+        !["Open to offers", "Firm"].includes(requestedFlexibility)) {
+      invalid("Price flexibility must be Open to offers or Firm.");
+    }
+    if (listing.openToOffers != null &&
+        typeof listing.openToOffers !== "boolean") {
+      invalid("Offer availability must be true or false.");
+    }
+    const priceFlexibility = requestedFlexibility ||
+      (listing.openToOffers === false ? "Firm" : "Open to offers");
+    const openToOffers = priceFlexibility === "Open to offers";
+    if (typeof listing.openToOffers === "boolean" &&
+        listing.openToOffers !== openToOffers) {
+      invalid("Offer availability must match the selected price flexibility.");
+    }
+    if (!openToOffers) {
+      listing.price = auctionMoney(listing.price, "Firm asking price");
+    }
+    listing.priceFlexibility = priceFlexibility;
+    listing.openToOffers = openToOffers;
+  }
   if (transactionType === "Wanted / Seeking") {
     listing.wantedStatus = "open";
     listing.responseCount = 0;
@@ -361,18 +455,33 @@ function validateMarketplaceListingInput(
   if (transactionType === "Auction") {
     const start = Number(listing.auctionStartAt);
     const end = Number(listing.auctionEndAt);
-    const startingBid = Number(listing.startingBid);
-    const increment = Number(listing.minimumBidIncrement);
+    const startingBid = auctionMoney(listing.startingBid, "Starting bid");
+    const increment = auctionMoney(
+        listing.minimumBidIncrement,
+        "Minimum bid increase",
+    );
+    const buyItNowPrice = auctionMoney(
+        listing.buyItNowPrice,
+        "Buy It Now price",
+        {optional: true},
+    );
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
       invalid("Choose a valid auction start and end time.");
     }
     if (end <= now.getTime()) invalid("Auction end time must be in the future.");
-    if (!Number.isFinite(startingBid) || startingBid <= 0) {
-      invalid("Starting bid must be greater than zero.");
+    if (end - start > 360 * 24 * 60 * 60 * 1000) {
+      invalid("Auction duration cannot exceed 360 days.");
     }
-    if (!Number.isFinite(increment) || increment <= 0) {
-      invalid("Minimum bid increase must be greater than zero.");
+    if (increment < 0.5 || increment > 1000) {
+      invalid("Minimum bid increase must be between 0.50 and 1,000.00.");
     }
+    if (buyItNowPrice != null && buyItNowPrice < startingBid) {
+      invalid("Buy It Now must be at least the starting bid and reserve price.");
+    }
+    listing.startingBid = startingBid;
+    listing.minimumBidIncrement = increment;
+    if (buyItNowPrice == null) delete listing.buyItNowPrice;
+    else listing.buyItNowPrice = buyItNowPrice;
     listing.currentBid = 0;
     listing.bidCount = 0;
     listing.auctionStatus = start > now.getTime() ? "scheduled" : "live";
@@ -395,17 +504,62 @@ function validateMarketplaceListingInput(
   return listing;
 }
 
-function validateReserve(data, transactionType) {
-  const reservePrice = Number(data && data.reservePrice);
-  const reserveTotal = Number(data && data.reserveTotal);
-  if (transactionType !== "Auction" || !Number.isFinite(reservePrice) ||
-      reservePrice <= 0) {
+function validateReserve(data, transactionType, listing = null) {
+  if (transactionType !== "Auction") {
     return null;
+  }
+  const reservePrice = auctionMoney(
+      data && data.reservePrice,
+      "Reserve price",
+      {optional: true},
+  );
+  if (reservePrice == null) {
+    if (data &&
+        Object.prototype.hasOwnProperty.call(data, "reserveTotal") &&
+        data.reserveTotal != null && data.reserveTotal !== "") {
+      invalid("Reserve total requires a valid reserve price.");
+    }
+    return null;
+  }
+  const startingBid = auctionMoney(
+      listing && listing.startingBid != null ?
+        listing.startingBid : data && data.startingBid,
+      "Starting bid",
+  );
+  const buyItNowPrice = auctionMoney(
+      listing && listing.buyItNowPrice != null ?
+        listing.buyItNowPrice : data && data.buyItNowPrice,
+      "Buy It Now price",
+      {optional: true},
+  );
+  if (reservePrice < startingBid) {
+    invalid("Reserve price must be at least the starting bid.");
+  }
+  if (buyItNowPrice != null && buyItNowPrice < reservePrice) {
+    invalid("Buy It Now must be at least the starting bid and reserve price.");
+  }
+  const reserveTotal = auctionMoney(
+      data && data.reserveTotal,
+      "Reserve total",
+      {optional: true},
+  );
+  if (reserveTotal != null && listing) {
+    const basis = marketplacePriceBasis(listing.priceBasis);
+    const quantity = marketplaceQuantity(listing.quantity, {
+      allowMissingTotal: true,
+      priceBasis: listing.priceBasis,
+    });
+    const expectedReserveTotal = basis && basis.kind === "total" ?
+      reservePrice : reservePrice * quantity;
+    if (!basis || quantity == null ||
+        Math.round(reserveTotal * 100) !==
+          Math.round(expectedReserveTotal * 100)) {
+      invalid("Reserve total must match the reserve price and listing quantity.");
+    }
   }
   return {
     reservePrice,
-    ...(Number.isFinite(reserveTotal) && reserveTotal > 0 ?
-      {reserveTotal} : {}),
+    ...(reserveTotal == null ? {} : {reserveTotal}),
   };
 }
 
@@ -501,9 +655,12 @@ function validateListingMediaManifest(data, options) {
 }
 
 module.exports = {
+  MARKETPLACE_MAX_QUANTITY,
   ListingPolicyError,
   buildMarketplaceSearchTokens,
   listingMediaObjectPath,
+  marketplacePriceBasis,
+  marketplaceQuantity,
   normalizeMarketplaceSearchText,
   searchIndexVersion,
   validateLocation,

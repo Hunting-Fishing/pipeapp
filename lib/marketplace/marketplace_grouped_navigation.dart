@@ -50,7 +50,7 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
             _NavItem(
               icon: Icons.campaign_outlined,
               selectedIcon: Icons.campaign_rounded,
-              label: 'Wanted Ads & RFQs',
+              label: 'Wanted Ads',
               selected: false,
               onTap: onWanted,
             ),

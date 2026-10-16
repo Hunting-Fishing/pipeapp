@@ -131,6 +131,24 @@ test("won-auction authorization binds the exact seller and winning buyer", () =>
   }), {allowed: false, reason: "relationship_required"});
 });
 
+test("completed partial-sale buyers retain the membership contact unlock", () => {
+  assert.deepEqual(authorize({
+    relationship: {
+      sellerUid: "seller-1",
+      completedBuyerUid: "buyer-1",
+      status: "active",
+    },
+  }), {allowed: true, reason: "completed_offer"});
+  assert.deepEqual(authorize({
+    recipientUid: "different-buyer",
+    relationship: {
+      sellerUid: "seller-1",
+      completedBuyerUid: "buyer-1",
+      status: "active",
+    },
+  }), {allowed: false, reason: "relationship_required"});
+});
+
 test("awarded Dispatch authorization rejects pre-award and cancelled jobs", () => {
   const base = {
     actorUid: "customer-1",

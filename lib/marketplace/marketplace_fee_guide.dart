@@ -5,6 +5,20 @@ import 'package:flutter/material.dart';
 import 'marketplace_command_client.dart';
 
 const String marketplaceFeeScheduleRevision = '2026-10-16-sale-only-v4';
+const String marketplaceSalePathDisclosure =
+    'List with an asking price, receive an offer, and choose whether to accept it. '
+    'An accepted offer creates the sale transaction; a message or offer by itself does not.';
+const String timedBuyingSalePathDisclosure =
+    'Set a timed bidding window, minimum increase, optional reserve, and optional Buy It Now price. '
+    'A winning bid, an accepted below-reserve bid, or Buy It Now creates the sale transaction.';
+const String sharedSaleFeeDisclosure =
+    'Both paths list for free and use the same server-verified seller fee at settlement. '
+    'With Pipe Buyer checkout, the fee is retained from seller proceeds after the buyer pays. '
+    'With confirmed external settlement, the seller pays the fee separately before completion. '
+    'Placing a bid does not create a fee.';
+const String wantedDiscoveryDisclosure =
+    'Wanted ads help buyers and sellers find matching inventory. They are not a third sale path: '
+    'the purchase must continue through a matched Marketplace listing or Timed Buying.';
 
 class MarketplaceFeeCatalog {
   const MarketplaceFeeCatalog({
@@ -280,8 +294,8 @@ class _MarketplaceFeeGuideSheetState extends State<MarketplaceFeeGuideSheet> {
                         const SizedBox(height: 10),
                         Text(
                           catalog.listingFee == 0
-                              ? 'List free. The seller fee is collected when the buyer pays. Seller payout remains pending until fulfillment is confirmed. There is no auction listing fee.'
-                              : 'The listing fee is ${_usd(catalog.listingFee)}. The seller sale fee is collected when the buyer pays, and seller payout remains pending until fulfillment is confirmed.',
+                              ? 'List free. The seller fee is collected at sale settlement, never for listing or bidding. With Pipe Buyer checkout, seller proceeds remain pending until fulfillment is confirmed.'
+                              : 'The listing fee is ${_usd(catalog.listingFee)}. The seller sale fee is collected at settlement; with Pipe Buyer checkout, seller proceeds remain pending until fulfillment is confirmed.',
                           style: const TextStyle(fontSize: 16, height: 1.35),
                         ),
                         const SizedBox(height: 6),
@@ -304,9 +318,32 @@ class _MarketplaceFeeGuideSheetState extends State<MarketplaceFeeGuideSheet> {
                         _FeeSection(
                           title: 'Listing',
                           child: _FeeValueRow(
-                            label: 'Marketplace and auction listing fee',
+                            label: 'Marketplace and Timed Buying listing fee',
                             value: _usd(catalog.listingFee),
                             emphasized: true,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        const _FeeSection(
+                          title: 'Two ways to sell and buy',
+                          child: Column(
+                            children: [
+                              _TransactionPathRow(
+                                icon: Icons.storefront_outlined,
+                                title: 'Marketplace',
+                                description: marketplaceSalePathDisclosure,
+                              ),
+                              Divider(height: 24),
+                              _TransactionPathRow(
+                                icon: Icons.timer_outlined,
+                                title: 'Timed Buying',
+                                description: timedBuyingSalePathDisclosure,
+                              ),
+                              SizedBox(height: 12),
+                              _FeeNotice(text: sharedSaleFeeDisclosure),
+                              SizedBox(height: 8),
+                              _FeeNotice(text: wantedDiscoveryDisclosure),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -425,6 +462,40 @@ class _FeeSection extends StatelessWidget {
             child,
           ],
         ),
+      );
+}
+
+class _TransactionPathRow extends StatelessWidget {
+  const _TransactionPathRow({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 3),
+                Text(description, style: const TextStyle(height: 1.35)),
+              ],
+            ),
+          ),
+        ],
       );
 }
 

@@ -69,7 +69,7 @@ function fromMinorUnits(amountMinor) {
 }
 
 function normalizeCurrency(value) {
-  const currency = String(value || "CAD").trim().toUpperCase();
+  const currency = String(value || "").trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(currency)) invalid("The transaction currency is invalid.");
   return currency;
 }

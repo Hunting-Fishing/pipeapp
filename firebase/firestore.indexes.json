@@ -175,6 +175,10 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "auctionStatus",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "auctionEndAt",
           "order": "ASCENDING"
         }
@@ -232,6 +236,10 @@
         },
         {
           "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auctionStatus",
           "order": "ASCENDING"
         },
         {

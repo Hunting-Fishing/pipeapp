@@ -60,6 +60,57 @@ const _orange = Color(0xFF0F52BA);
 const _muted = Color(0xFF64748B);
 const _otherCatalogValue = 'Other / not listed';
 
+List<String> marketplacePriceBasisOptionsFor({
+  required String? category,
+  required String? productType,
+  required bool wanted,
+}) {
+  final isPipe = category == 'Pipe, Tubing & Materials' ||
+      const {
+        'Drill Pipe',
+        'Casing',
+        'Tubing',
+        'Line Pipe',
+        'OCTG',
+        'Sucker Rod'
+      }.contains(productType);
+  final isMachine = category == 'Heavy Equipment';
+  final isProperty = category == 'Site & Property';
+  if (!wanted) {
+    if (isProperty) return const ['Total asking price'];
+    if (isMachine) {
+      return const ['Total asking price', 'Price per machine'];
+    }
+    if (isPipe) return const ['Per piece', 'Per joint', 'Total for all'];
+    return const ['Total asking price', 'Per item'];
+  }
+  if (isMachine) {
+    return const ['Total asking price', 'Price per machine', 'Call for price'];
+  }
+  if (isProperty) {
+    return const [
+      'Total asking price',
+      'Per acre',
+      'Per hectare',
+      'Monthly lease',
+      'Annual lease',
+      'Call for price'
+    ];
+  }
+  if (isPipe) {
+    return const [
+      'Per piece',
+      'Total for all',
+      'Per foot',
+      'Per metre',
+      'Per joint',
+      'Per bundle',
+      'Call for price'
+    ];
+  }
+  return const ['Total asking price', 'Per item', 'Call for price'];
+}
+
 List<String> marketplaceConditionsFor(String? category, String? productType) {
   if (category == 'Pipe, Tubing & Materials' ||
       const {
@@ -599,13 +650,6 @@ IconData marketplaceIconFor(String? value) {
   return (icon: Icons.help_outline, color: const Color(0xFF66758A));
 }
 
-IconData _listingTypeIcon(String value) => switch (value) {
-      'For Sale' => Icons.sell_outlined,
-      'For Rent' => Icons.event_available_outlined,
-      'Request for Quote' => Icons.request_quote_outlined,
-      _ => Icons.inventory_2_outlined,
-    };
-
 IconData _priceBasisIcon(String value) {
   final label = value.toLowerCase();
   if (label.contains('call')) return Icons.phone_outlined;
@@ -751,6 +795,9 @@ class MarketplaceListing {
   final String acceptedOfferId;
   final num? originalPrice;
   final DateTime? auctionEndAt;
+  bool get supportsMarketplaceOffers =>
+      marketplaceListingSupportsPurchaseOffers(details);
+  bool get usesFirmPrice => marketplaceListingUsesFirmPrice(details);
   String get id =>
       documentId ?? title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
 
@@ -1437,7 +1484,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                 ),
                 _DrawerDestination(
                   icon: Icons.request_quote_outlined,
-                  label: 'Wanted ads & RFQs',
+                  label: 'Wanted ads',
                   selected: false,
                   onTap: () {
                     Navigator.of(context).pop();
@@ -3884,7 +3931,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                               listingId: listing.id,
                               sellerUid: listing.sellerUid)
                         ]))),
-                if (_features.offers) ...[
+                if (_features.offers && listing.supportsMarketplaceOffers) ...[
                   const SizedBox(width: 10),
                   Expanded(
                       child: FilledButton(
@@ -3892,7 +3939,21 @@ class _ListingDetailsState extends State<_ListingDetails> {
                           style: FilledButton.styleFrom(
                               backgroundColor: _orange,
                               foregroundColor: Colors.white),
-                          child: const Text('Make offer')))
+                          child: Text(listing.usesFirmPrice
+                              ? 'Offer asking price'
+                              : 'Make offer')))
+                ] else if (_features.auctions &&
+                    listing.transactionType == 'Auction') ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: FilledButton.icon(
+                          onPressed: () => context
+                              .push(MarketplaceDeepLinks.auction(listing.id)),
+                          style: FilledButton.styleFrom(
+                              backgroundColor: _orange,
+                              foregroundColor: Colors.white),
+                          icon: const Icon(Icons.gavel_outlined),
+                          label: const Text('View Timed Buying')))
                 ],
               ]),
             if (_features.dispatch) ...[
@@ -4241,16 +4302,13 @@ class _ListingDetailsState extends State<_ListingDetails> {
       _notice('Offers are temporarily unavailable.');
       return;
     }
-    if (listing.transactionType == 'Auction') {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return _notice('Sign in to participate in auctions.');
-      final user =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final score = (user.data()?['userScore'] as num?)?.toInt() ?? 70;
-      if (score <= 50) {
-        return _notice(
-            'A User Score above 50 is required to participate in auctions.');
+    if (!listing.supportsMarketplaceOffers) {
+      if (listing.transactionType == 'Auction') {
+        await context.push(MarketplaceDeepLinks.auction(listing.id));
+      } else {
+        _notice('This listing type does not support purchase offers.');
       }
+      return;
     }
     if (!mounted) return;
     final amount =
@@ -4266,15 +4324,27 @@ class _ListingDetailsState extends State<_ListingDetails> {
     final submitted = await showDialog<bool>(
         context: context,
         builder: (context) => StatefulBuilder(builder: (context, refresh) {
-              final offeredUnit =
-                  num.tryParse(amount.text.replaceAll(',', '')) ?? 0;
               final requestedQty = int.tryParse(
                       quantity.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
                   0;
               final askingUnit = listing.numericPrice ?? 0;
               final listedQty =
                   listing.quantity ?? (requestedQty > 0 ? requestedQty : 1);
+              if (listing.usesFirmPrice && requestedQty > 0) {
+                final firmAmount = marketplaceFirmOfferAmount(
+                  askingPrice: askingUnit,
+                  listedQuantity: listedQty,
+                  requestedQuantity: requestedQty,
+                  priceBasis: listing.priceBasis,
+                );
+                final firmText = firmAmount.toStringAsFixed(2);
+                if (amount.text != firmText) amount.text = firmText;
+              }
+              final offeredUnit =
+                  num.tryParse(amount.text.replaceAll(',', '')) ?? 0;
               final basisLower = listing.priceBasis.toLowerCase();
+              final totalPriceBasis =
+                  marketplaceUsesTotalPriceBasis(listing.priceBasis);
               final unitLabel = basisLower.contains('joint')
                   ? 'joints'
                   : basisLower.contains('piece') || basisLower.contains('each')
@@ -4286,12 +4356,15 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 requestedQuantity: requestedQty,
                 askingUnitPrice: askingUnit,
                 offeredUnitPrice: offeredUnit,
+                priceBasis: listing.priceBasis,
               );
               return AlertDialog(
                   insetPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 10),
-                  title: const Text('Make an offer'),
+                  title: Text(listing.usesFirmPrice
+                      ? 'Offer at the asking price'
+                      : 'Make an offer'),
                   content: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 520),
                       child: SingleChildScrollView(
@@ -4328,15 +4401,22 @@ class _ListingDetailsState extends State<_ListingDetails> {
                         const SizedBox(height: 10),
                         TextField(
                             controller: amount,
+                            readOnly: listing.usesFirmPrice,
                             onChanged: (_) => refresh(() {}),
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
                             decoration: InputDecoration(
-                                labelText: 'Offer price',
+                                labelText: totalPriceBasis
+                                    ? 'Offer total'
+                                    : 'Offer unit price',
                                 hintText: 'e.g. 70.00',
-                                helperText: listing.priceBasis.isEmpty
-                                    ? 'Enter your price using the listing’s pricing unit.'
-                                    : 'Price ${listing.priceBasis.toLowerCase()}',
+                                helperText: listing.usesFirmPrice
+                                    ? 'Firm price set by the seller.'
+                                    : totalPriceBasis
+                                        ? 'Enter the total you offer for the selected quantity.'
+                                        : listing.priceBasis.isEmpty
+                                            ? 'Enter your price using the listing’s pricing unit.'
+                                            : 'Price ${listing.priceBasis.toLowerCase()}',
                                 prefixText: '\$ ')),
                         const SizedBox(height: 10),
                         if (requestedQty > 0 && offeredUnit > 0)
@@ -4681,7 +4761,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   String _inspectionStatus = 'Not inspected / unknown';
   String _pipeBand = 'No band / unknown';
   String _listingType = 'For Sale';
-  String _priceBasis = 'Per piece';
+  String _priceBasis = 'Total asking price';
   String _priceFlexibility = 'Open to offers';
   String _landAreaUnit = 'Acres';
   String _buildingAreaUnit = 'Square feet';
@@ -4764,6 +4844,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         default:
           _listingType = 'For Sale';
       }
+      final supportedPriceBases = marketplacePriceBasisOptionsFor(
+        category: _category,
+        productType: _productType,
+        wanted: _isWanted,
+      );
+      if (!supportedPriceBases.contains(_priceBasis)) {
+        _priceBasis = supportedPriceBases.first;
+      }
     });
   }
 
@@ -4793,7 +4881,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         ? 'Tell suppliers what you need, the quantity, acceptable condition, budget, and delivery area.'
         : _isAuction
             ? 'Set a timed bidding window, starting bid, reserve, and optional Buy It Now price.'
-            : 'Sell, rent, or request a quote through the main Marketplace.';
+            : 'List physical equipment or materials for sale in the Marketplace.';
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -4817,7 +4905,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.storefront_outlined),
                     title: Text('Marketplace'),
-                    subtitle: Text('Sell, rent, or request a quote'))),
+                    subtitle: Text('Sell equipment or materials'))),
             if (widget.auctionsEnabled)
               const PopupMenuItem(
                   value: 'Auction',
@@ -4950,33 +5038,16 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         }.contains(_productType);
     final isMachine = _category == 'Heavy Equipment';
     final isProperty = _isProperty;
-    final priceBasisOptions = isMachine
-        ? const ['Total asking price', 'Price per machine', 'Call for price']
-        : isProperty
-            ? const [
-                'Total asking price',
-                'Per acre',
-                'Per hectare',
-                'Monthly lease',
-                'Annual lease',
-                'Call for price'
-              ]
-            : isPipe
-                ? const [
-                    'Per piece',
-                    'Total for all',
-                    'Per foot',
-                    'Per metre',
-                    'Per joint',
-                    'Per bundle',
-                    'Call for price'
-                  ]
-                : const ['Total asking price', 'Per item', 'Call for price'];
+    final isWanted = _isWanted;
+    final priceBasisOptions = marketplacePriceBasisOptionsFor(
+      category: _category,
+      productType: _productType,
+      wanted: isWanted,
+    );
     final displayedPriceBasis = priceBasisOptions.contains(_priceBasis)
         ? _priceBasis
         : priceBasisOptions.first;
     final conditionOptions = marketplaceConditionsFor(_category, _productType);
-    final isWanted = _isWanted;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: [
@@ -5582,31 +5653,31 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             ),
             const SizedBox(height: 12),
             if (!_isAuction && !isWanted)
-              DropdownButtonFormField<String>(
-                initialValue: _listingType,
-                decoration: const InputDecoration(
-                    labelText: 'Marketplace listing type *',
-                    prefixIcon: Icon(Icons.sell_outlined)),
-                selectedItemBuilder: (context) => const [
-                  'For Sale',
-                  'For Rent',
-                  'Request for Quote',
-                ]
-                    .map((value) => Align(
-                        alignment: Alignment.centerLeft, child: Text(value)))
-                    .toList(),
-                items: const [
-                  'For Sale',
-                  'For Rent',
-                  'Request for Quote',
-                ]
-                    .map((type) => DropdownMenuItem(
-                        value: type,
-                        child: MarketplaceFormOption(
-                            label: type, icon: _listingTypeIcon(type))))
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => _listingType = value ?? 'For Sale'),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF4FD),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFC9DDF0)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.sell_outlined, color: Color(0xFF144B76)),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('For Sale',
+                            style: TextStyle(fontWeight: FontWeight.w900)),
+                        Text(
+                          'Rental and request-for-quote workflows are not available until their own contracts and fee rules are implemented.',
+                          style: TextStyle(fontSize: 11, color: _muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]),
               )
             else if (_isAuction)
               _auctionSetupCard(),
@@ -5617,7 +5688,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: const [MarketplaceMoneyInputFormatter()],
-              enabled: _priceBasis != 'Call for price',
+              enabled: displayedPriceBasis != 'Call for price',
               decoration: InputDecoration(
                   labelText: isWanted
                       ? 'Target budget / price (USD)'
@@ -5634,12 +5705,21 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                           ? 'Required starting bid'
                           : 'Leave blank for contact seller',
                   prefixIcon: const Icon(Icons.attach_money)),
-              validator: (value) => _isAuction &&
-                      num.tryParse(value?.replaceAll(RegExp(r'[^0-9.]'), '') ??
-                              '') ==
-                          null
-                  ? 'Enter a starting bid'
-                  : null,
+              validator: (value) {
+                final amount = num.tryParse(
+                  value?.replaceAll(RegExp(r'[^0-9.]'), '') ?? '',
+                );
+                if (_isAuction && amount == null) {
+                  return 'Enter a starting bid';
+                }
+                if (!isWanted &&
+                    !_isAuction &&
+                    _priceFlexibility == 'Firm' &&
+                    (amount == null || amount <= 0)) {
+                  return 'Firm listings require an asking price';
+                }
+                return null;
+              },
             ),
             if (!isWanted) ...[
               const SizedBox(height: 8),
@@ -5650,6 +5730,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
+              key: ValueKey(
+                  'price-basis-$_listingType-${_category ?? ''}-${_productType ?? ''}'),
               initialValue: displayedPriceBasis,
               isExpanded: true,
               decoration: InputDecoration(
@@ -6577,6 +6659,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           }.contains(_productType);
       final isMachine = _category == 'Heavy Equipment';
       final isProperty = _isProperty;
+      final supportedPriceBases = marketplacePriceBasisOptionsFor(
+        category: _category,
+        productType: _productType,
+        wanted: _isWanted,
+      );
+      final effectivePriceBasis = supportedPriceBases.contains(_priceBasis)
+          ? _priceBasis
+          : supportedPriceBases.first;
       final landAreaInput = propertyNumber(_landArea.text);
       final landArea = convertPropertyArea(landAreaInput, _landAreaUnit);
       final monthlyRevenue = marketplaceMoneyValue(_monthlyRevenue.text);
@@ -6673,7 +6763,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           'auctionStatus':
               _auctionStartAt!.isAfter(DateTime.now()) ? 'scheduled' : 'live',
         },
-        'priceBasis': _priceBasis,
+        'priceBasis': effectivePriceBasis,
         'priceFlexibility': _priceFlexibility,
         'openToOffers': _priceFlexibility == 'Open to offers',
         'currency': 'USD',
@@ -6789,7 +6879,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         _equipmentYear = null;
         _maintenanceHistory = 'Unknown / not available';
         _operatingStatus = 'Operational';
-        _priceBasis = 'Per piece';
+        _priceBasis = 'Total asking price';
         _priceFlexibility = 'Open to offers';
         _landAreaUnit = 'Acres';
         _buildingAreaUnit = 'Square feet';

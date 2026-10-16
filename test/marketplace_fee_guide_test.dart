@@ -68,4 +68,17 @@ void main() {
       marketplaceFeeScheduleRevision,
     );
   });
+
+  test('fee guide distinguishes Marketplace from Timed Buying', () {
+    expect(marketplaceSalePathDisclosure, contains('accepted offer'));
+    expect(marketplaceSalePathDisclosure,
+        contains('creates the sale transaction'));
+    expect(timedBuyingSalePathDisclosure, contains('winning bid'));
+    expect(timedBuyingSalePathDisclosure, contains('Buy It Now'));
+    expect(sharedSaleFeeDisclosure, contains('Both paths list for free'));
+    expect(sharedSaleFeeDisclosure,
+        contains('Placing a bid does not create a fee'));
+    expect(wantedDiscoveryDisclosure, contains('not a third sale path'));
+    expect(wantedDiscoveryDisclosure, contains('matched Marketplace listing'));
+  });
 }

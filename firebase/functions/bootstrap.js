@@ -217,6 +217,10 @@ exports.confirmExternalSettlement = onCall(
     protectedCallableOptions,
     externalSettlementCommands.confirmExternalSettlement,
 );
+exports.withdrawExternalSettlement = onCall(
+    protectedCallableOptions,
+    externalSettlementCommands.withdrawExternalSettlement,
+);
 exports.requestMarketplaceRefund = onCall(
     protectedCallableOptions,
     marketplaceFinancialResolution.requestMarketplaceRefund,
