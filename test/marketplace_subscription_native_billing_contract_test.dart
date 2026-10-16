@@ -295,15 +295,13 @@ void main() {
     );
   });
 
-  test('native verification is limited to the Apple Sandbox pilot surface',
-      () {
+  test('native verification is limited to the Apple Sandbox pilot surface', () {
     final bootstrap = File(
       'firebase/functions/production_bootstrap.js',
     ).readAsStringSync();
 
     expect(bootstrap, contains('exports.getNativeMembershipBillingStatus'));
-    expect(
-        bootstrap, contains('exports.preflightNativeMembershipPurchase'));
+    expect(bootstrap, contains('exports.preflightNativeMembershipPurchase'));
     expect(bootstrap, contains('exports.preflightNativeMembershipRestore'));
     expect(
       bootstrap,
@@ -317,8 +315,7 @@ void main() {
       bootstrap,
       contains('exports.markNativeMembershipPurchasePending'),
     );
-    expect(
-        bootstrap, contains('exports.verifyNativeMembershipPurchase'));
+    expect(bootstrap, contains('exports.verifyNativeMembershipPurchase'));
     expect(bootstrap, contains('appleSandboxCohortOnly: true'));
     expect(bootstrap, contains('secrets: APPLE_IAP_SECRET_NAMES'));
     expect(
