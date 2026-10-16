@@ -95,6 +95,7 @@ function claimBillingIntentInTransaction({
   nowMillis = Date.now(),
   ttlMillis,
   sandboxAllowed = false,
+  requireSandboxAllowedAtClaim = false,
 }) {
   const existing = intentSnapshot.exists ? intentSnapshot.data() : null;
   if (billingIntentActive(existing, uid, nowMillis)) {
@@ -116,6 +117,13 @@ function claimBillingIntentInTransaction({
           "The existing membership billing attempt cannot be resumed safely.",
       );
     }
+    if (requireSandboxAllowedAtClaim &&
+        existing.sandboxAllowedAtClaim !== true) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Start this Apple Sandbox purchase again before continuing.",
+      );
+    }
     return {
       intentToken: existing.intentToken,
       expiresAtMillis: timestampMillis(
@@ -129,6 +137,13 @@ function claimBillingIntentInTransaction({
   if (!Number.isSafeInteger(boundedTtl) || boundedTtl < 60 * 1000 ||
       boundedTtl > MAX_BILLING_INTENT_TTL_MS) {
     throw new TypeError("Membership billing intent TTL is invalid.");
+  }
+  if (requireSandboxAllowedAtClaim &&
+      (channel !== "app_store" || sandboxAllowed !== true)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Apple Sandbox access must be verified before starting this purchase.",
+    );
   }
   const intentToken = crypto.randomBytes(32).toString("base64url");
   const expiresAtMillis = nowMillis + boundedTtl;
@@ -162,18 +177,34 @@ function markBillingIntentPendingInTransaction({
   intentSnapshot,
   admin,
   expected,
+  requireSandboxAllowedAtClaim = false,
   nowMillis = Date.now(),
 }) {
   const intent = intentSnapshot.exists ? intentSnapshot.data() : null;
   requireBillingIntent(intent, expected, nowMillis);
+  if (requireSandboxAllowedAtClaim &&
+      intent.sandboxAllowedAtClaim !== true) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Start this Apple Sandbox purchase again before continuing.",
+    );
+  }
   if (String(intent.channel || "") === "stripe") {
     throw new HttpsError(
         "failed-precondition",
         "Only a mobile store purchase can be marked pending.",
     );
   }
+  const existingExpiresAtMillis = timestampMillis(
+      intent.expiresAtMillis || intent.expiresAt,
+  );
+  const pendingAlreadyRecorded = String(intent.status || "") === "pending" ||
+    timestampMillis(intent.pendingAt) > 0;
+  if (pendingAlreadyRecorded) {
+    return {...intent, status: "pending", expiresAtMillis: existingExpiresAtMillis};
+  }
   const expiresAtMillis = Math.max(
-      timestampMillis(intent.expiresAtMillis || intent.expiresAt),
+      existingExpiresAtMillis,
       nowMillis + NATIVE_PURCHASE_PENDING_TTL_MS,
   );
   transaction.set(intentRef, {

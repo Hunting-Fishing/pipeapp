@@ -1,6 +1,7 @@
 # Apple native billing activation runbook
 
-Status: source prerequisites only; production activation is intentionally blocked.
+Status: Sandbox TEST-notification endpoint deployed, registered, and verified;
+production activation is intentionally blocked.
 
 This runbook covers the Pipe Buyer iOS app (`Pipe.Buyerapp`, Apple app ID
 `6795847447`) and its approved Dispatch subscription products:
@@ -16,14 +17,44 @@ product merely because it is not approved for Apple.
 
 ## Current fail-closed state
 
-- `production_bootstrap.js` exports only the authenticated billing status
-  callable. It does **not** export purchase verification, reconciliation, or an
-  App Store Server Notifications endpoint.
-- No production secret, notification URL, scheduled job, or readiness flag is
-  created or enabled by the prerequisite change.
+- **Deployed cloud state:** only the authenticated billing status callable and
+  one Sandbox App Store Server Notifications V2 endpoint are live for native
+  billing. The endpoint is ACTIVE in `us-central1`, and its HTTPS URL is
+  registered only in App Store Connect's Sandbox Server URL field; the saved
+  value was verified after a page reload. No Production Server URL is set. The
+  deployed Sandbox handler is the earlier hard-disabled lifecycle build: it can
+  verify a `TEST` notification, while lifecycle traffic remains retryable before
+  an idempotency reservation or entitlement mutation.
+- **Checked-out source, not deployed:** `production_bootstrap.js` stages an
+  iOS-only internal Sandbox cohort. It exports status, purchase/restore
+  preflight, intent resume/pending/release, purchase verification, and the
+  Sandbox notification endpoint. Entry and verification recheck the current
+  `appleSandboxTester` Admin Auth claim; a stale or missing claim returns a
+  normal fail-closed status without creating or exposing an account token.
+  Purchase/restore also require `appleSandboxEnabled: true`, and their server
+  intents retain claim-time authorization. Verification is pinned strictly to
+  Apple's Sandbox environment. The readiness switches stop new intents; an
+  exact in-flight intent may still finish after readiness is disabled so an
+  already accepted StoreKit transaction is not stranded, but it must pass a
+  fresh tester-claim check. Google billing, scheduled reconciliation, and a
+  Production notification endpoint remain absent. The staged notification
+  handler uses the environment-specific Firestore mutation gate instead of the
+  deployed hard override.
+- The native-billing readiness document does not exist in the live `(default)`
+  database, so every readiness and notification-mutation switch currently
+  resolves false. Deploying the staged source alone must not expose a purchase
+  button or enable lifecycle mutations.
+- The three Apple IAP credentials are provisioned in production Secret Manager.
+  No scheduled job, Production notification URL, tester claim, or readiness
+  flag was created or enabled by the local cohort change.
+- On 2026-10-16 at 04:47:26 UTC, Apple's Sandbox test-notification status was
+  `SUCCESS`. Firestore recorded one `TEST` event as `processed` with outcome
+  `test_verified`, attempt count 1, no owner binding, and a cleared processing
+  lease. No test token, notification UUID, document ID, signed payload, or
+  credential identifier is copied into this runbook.
 - `apple_native_billing_composition.js` contains reviewed Sandbox and Production
-  composition factories, but `production_bootstrap.js` does not import or export
-  them. Constructing either composition requires the three Apple IAP secret
+  composition factories, but `production_bootstrap.js` imports only the Sandbox
+  factory. Constructing either composition requires the three Apple IAP secret
   bindings and preserves the library's Production-app-ID/Sandbox-no-app-ID rule.
 - Apple signed data is handled by `@apple/app-store-server-library` 3.1.0.
   Unsigned JWS payload decoding is not an activation path.
@@ -59,29 +90,81 @@ product merely because it is not approved for Apple.
   least 35 days after the latest processing attempt. Approve and configure the
   Firestore TTL policy before activation; never shorten it below Apple's retry
   window.
+- The 2026-10-16 live cloud audit verified Gate 5 with zero legacy account or
+  reverse-index documents and zero conflicts. Gate 6 is incomplete: no
+  `retentionExpiresAt` TTL policy exists and point-in-time recovery is disabled.
+  Gate 7 is incomplete: no billing log-based metric or alert policy exists.
+  Gate 8 is incomplete: no reconciliation function, scheduler, durable
+  checkpoint, or active lease is deployed.
+
+## Internal Sandbox tester claim
+
+`firebase/functions/scripts/set_apple_sandbox_tester_claim.js` is the reviewed
+operator tool for granting or revoking the internal cohort claim. It is dry-run
+by default, accepts only the exact `flutter-flow-pipe` project, preserves all
+unrelated custom claims, and represents the selected account with a stable,
+non-secret SHA-256 fingerprint rather than email or UID. An apply requires that
+fingerprint, re-reads the full claim set immediately before the write, aborts if
+it drifted, skips an already-satisfied change, and verifies any applied change.
+
+In PowerShell, set the separate guard value first:
+
+```powershell
+$env:PIPE_APPLE_SANDBOX_CLAIM_GUARD = "CONFIRM_FLUTTER_FLOW_PIPE_APPLE_SANDBOX_TESTER"
+$testerEmail = "replace-with-exact-tester-email"
+npm --prefix firebase/functions run manage:apple-sandbox-tester -- --project flutter-flow-pipe --email $testerEmail --grant
+```
+
+Review the redacted dry-run result, then copy its exact `targetFingerprint` and
+repeat the command with the same selector plus `--apply --confirm-target`:
+
+```powershell
+$targetFingerprint = "copy-the-64-character-targetFingerprint-from-dry-run"
+npm --prefix firebase/functions run manage:apple-sandbox-tester -- --project flutter-flow-pipe --email $testerEmail --grant --apply --confirm-target $targetFingerprint
+```
+
+The tester must then refresh their Firebase ID token. Granting or revoking the
+claim is an authenticated account-permission change and requires explicit
+operator approval at execution time.
 
 ## Account and App Store Connect prerequisites
 
-Complete these items in App Store Connect before any server export:
+Complete these items in App Store Connect before submission or paid activation.
+The live 2026-10-16 audit found the Paid Apps Agreement in `Pending User Info`,
+DSA trader compliance incomplete, no bank account, and the Canadian and U.S.
+tax questionnaires incomplete. Those identity, banking, and tax forms require
+the Account Holder's direct review and submission.
 
 1. The Paid Applications agreement is active, with banking and tax information
    accepted for every entity that will sell the subscription worldwide.
 2. The subscription group contains exactly the two approved Dispatch products
    at the App Store tiers USD 24.99/month and USD 299.99/year (the approved
    commercial targets are USD 25/month and USD 300/year), with availability
-   set to all 175 storefronts. Confirm Apple's storefront price equalization
-   before saving.
+   set to all 175 storefronts. The products and storefront coverage exist, but
+   both products remain `Prepare for Submission` and lack review screenshots.
 3. Localizations, review screenshots, review notes, and the app's subscription
-   disclosure/Terms/Privacy links are complete.
-4. Create a dedicated **In-App Purchase** private key under Users and Access >
+   disclosure/Terms/Privacy links are complete. The pending app version still
+   lacks a selected current build, description, and App Store screenshots. Its
+   Support, Marketing, and Privacy URLs still use the legacy Firebase host and
+   should be reconciled to the live `www.pipebuyer.com` pages.
+4. Reconcile the App Privacy answers with `ios/Runner/PrivacyInfo.xcprivacy`
+   and actual app behavior. The published App Store declaration currently lists
+   only seven data types, while the checked-in manifest covers additional
+   financial, location, media, messaging, support, purchase, crash, and
+   diagnostic data. Do not submit until every collected/linked/tracking answer
+   is confirmed.
+5. Complete and validate the optional accessibility labels only after the
+   common-task device matrix passes; the App Store section is currently not
+   started.
+6. Create a dedicated **In-App Purchase** private key under Users and Access >
    Integrations. Do not reuse an App Store Connect API key intended only for
    build upload.
-5. Record the key ID and issuer ID and download the `.p8` key once. Store them
+7. Record the key ID and issuer ID and download the `.p8` key once. Store them
    only in the deployment secret manager as:
    - `APPLE_IAP_PRIVATE_KEY`
    - `APPLE_IAP_KEY_ID`
    - `APPLE_IAP_ISSUER_ID`
-6. Confirm the App Store Server Notifications setting uses version 2. Use a
+8. Confirm the App Store Server Notifications setting uses version 2. Use a
    separate Sandbox URL and Production URL so each endpoint can pin exactly one
    environment.
 
@@ -158,19 +241,37 @@ Do not combine all of these steps into one blind production change.
    back to Sandbox for ordinary accounts.
 5. Register the Sandbox URL in App Store Connect, request a test notification,
    and verify a successful event record without an entitlement mutation.
-6. Exercise StoreKit/TestFlight cases for initial buy, renewal, cancel with paid
-   access through expiry, billing retry, grace period, recovery, product change,
-   refund/revoke, restore, duplicate delivery, and out-of-order delivery.
-   TestFlight traffic uses Apple's Sandbox environment.
-7. Export a bounded scheduled reconciliation job only after notification tests
+6. After code review, deploy the staged iOS-only cohort surface with every
+   readiness and notification-mutation switch still false. The authenticated
+   callables must be discovered and deployed with
+   `PIPE_ENFORCE_APP_CHECK=true`; the repository default is false and is not an
+   acceptable production deployment value. Verify the deployed function
+   inventory and callable App Check options exactly; do not export Google
+   billing, reconciliation, or a Production notification endpoint in this
+   stage.
+7. Select one exact internal tester, dry-run and then explicitly approve the
+   custom-claim grant, and refresh that account's Firebase ID token. For the
+   controlled pilot, set `enabled`, `appleEnabled`, and
+   `appleSandboxEnabled` true while keeping `googleEnabled` false. Keep both
+   notification-mutation gates false while proving the separately gated
+   Sandbox purchase/verification path. Successful verification is still a
+   mutating operation: it writes reconciliation and membership-entitlement
+   state for the tester in the live `(default)` Firestore database.
+8. Upload a current iOS build (build number at least 10), attach both first-time
+   subscription products to the app version, and exercise StoreKit/TestFlight
+   cases for initial buy, renewal, cancel with paid access through expiry,
+   billing retry, grace period, recovery, product change, refund/revoke,
+   restore, duplicate delivery, and out-of-order delivery. TestFlight traffic
+   uses Apple's Sandbox environment. The only live build is the stale build 9,
+   so it cannot validate this source.
+9. Export a bounded scheduled reconciliation job only after notification tests
    pass. Continue with `nextCursor` until `complete: true`; alert rather than
    silently abandoning failed documents.
-8. Deploy the Production notification endpoint with its mutation gate still
+10. Deploy the Production notification endpoint with its mutation gate still
    disabled. Register its URL, send Apple's production test notification, and
    confirm signature verification and idempotency telemetry.
-9. Export purchase preflight, restore preflight, authenticated intent resume,
-   pending-intent update, intent release, and purchase verification together
-   for an internal release cohort. The app-lifetime purchase observer must use
+11. Before widening the release cohort, confirm the app-lifetime purchase
+   observer uses
    the signed-in account's server-authoritative exact product intent whenever
    its per-account local cache is absent or mismatched, send that nonce with
    verification after a restart, mark the exact product/token pending, and
@@ -181,7 +282,7 @@ Do not combine all of these steps into one blind production change.
    a safety margin; restore uses a separate ten-minute non-charging window and
    settles immediately when the store returns an empty restore batch. Do not
    expose a buy button merely by enabling the global configuration document.
-10. When evidence is approved, enable Apple purchases and notification mutation
+12. When evidence is approved, enable Apple purchases and notification mutation
     in that order, then widen the release cohort. Leave Google readiness and its
     product list unchanged.
 
@@ -218,7 +319,13 @@ Capture timestamps and identifiers, but never signed payloads or private keys:
 
 ## Rollback
 
-1. Disable the Apple purchase and notification-mutation gates first.
+1. Disable the Apple purchase and notification-mutation gates first. This stops
+   new purchase/restore intents and notification mutations. Exact StoreKit
+   attempts already accepted before the change can still verify while their
+   tester claim remains current, preventing a paid transaction from being
+   stranded without access. For an emergency hard stop, revoke the selected
+   account's `appleSandboxTester` claim and require token refresh, then manually
+   reconcile any transaction Apple may already have accepted.
 2. Remove the Production notification URL in App Store Connect if the endpoint
    is unsafe or returning repeated errors. Preserve idempotency records and
    logs for investigation.

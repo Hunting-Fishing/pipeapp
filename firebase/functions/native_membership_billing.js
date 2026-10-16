@@ -106,6 +106,17 @@ function normalizePrivateKey(value) {
   return String(value || "").replace(/\\n/g, "\n").trim();
 }
 
+function requireAppleSandboxEntitlement(entitlement) {
+  if (!entitlement ||
+      String(entitlement.environment || "").toLowerCase() !== "sandbox") {
+    throw new HttpsError(
+        "failed-precondition",
+        "This staged billing pilot accepts Apple Sandbox transactions only.",
+    );
+  }
+  return entitlement;
+}
+
 function googleServiceAccount() {
   let account;
   try {
@@ -187,10 +198,22 @@ async function appleCurrentEntitlement({
   transactionId,
   accountToken,
   allowSandbox = false,
+  sandboxOnly = false,
   createServerEnvironment = appleServerEnvironment,
   fetchCurrentEntitlement = fetchVerifiedAppleCurrentEntitlement,
   transactionNotFound = isAppleTransactionNotFound,
 }) {
+  if (sandboxOnly) {
+    const sandbox = createServerEnvironment("Sandbox");
+    const entitlement = await fetchCurrentEntitlement({
+      ...sandbox,
+      transactionId,
+      expectedAccountToken: accountToken,
+      expectedEnvironment: sandbox.environment,
+    });
+    return requireAppleSandboxEntitlement(entitlement);
+  }
+
   const production = createServerEnvironment("Production");
   try {
     const entitlement = await fetchCurrentEntitlement({
@@ -331,6 +354,71 @@ async function appleSandboxAllowedForCurrentAccount(admin, readiness, request, u
   return appleSandboxAccountAllowed(admin, uid);
 }
 
+function requireAppleSandboxCohortPlatform(platform) {
+  if (platform !== "ios") {
+    throw new HttpsError(
+        "failed-precondition",
+        "This staged mobile billing pilot is available only on iOS.",
+    );
+  }
+}
+
+async function requireAppleSandboxCohortAccount({
+  admin,
+  request,
+  uid,
+  readiness = {appleSandboxEnabled: true},
+}) {
+  const allowed = readiness.appleSandboxEnabled === true &&
+    await appleSandboxCohortAccountAllowed({admin, request, uid});
+  if (!allowed) {
+    throw new HttpsError(
+        "permission-denied",
+        "This Apple Sandbox billing pilot is not enabled for this account.",
+    );
+  }
+  return true;
+}
+
+async function appleSandboxCohortAccountAllowed({admin, request, uid}) {
+  return appleSandboxAllowedForCurrentAccount(
+      admin,
+      {appleSandboxEnabled: true},
+      request,
+      uid,
+  );
+}
+
+function requireAppleSandboxIntent(intent) {
+  if (!intent || intent.sandboxAllowedAtClaim !== true) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Start this Apple Sandbox purchase again before continuing.",
+    );
+  }
+  return intent;
+}
+
+function unavailableNativeMembershipBillingStatus() {
+  return {
+    available: false,
+    appleEnabled: false,
+    appleSandboxEnabled: false,
+    googleEnabled: false,
+    bundleId: APPLE_BUNDLE_ID,
+    packageName: GOOGLE_PACKAGE_NAME,
+    productIds: [],
+    appleProductIds: [],
+    googleProductIds: [],
+    storeAccountToken: "",
+    currentPlan: "free",
+    currentProvider: "free",
+    nativeActive: false,
+    purchaseBlockedByStripe: false,
+    pendingPlan: "",
+  };
+}
+
 async function loadNativeBillingReadiness(db) {
   const snapshot = await db.collection("platform_configuration")
       .doc("native_membership_billing").get();
@@ -409,6 +497,7 @@ async function claimNativeMembershipPurchaseIntent({
   product,
   restore = false,
   sandboxAllowed = false,
+  requireSandboxAllowedAtClaim = false,
   nowMillis = Date.now(),
 }) {
   const intentRef = db.collection(MEMBERSHIP_BILLING_INTENT_COLLECTION).doc(uid);
@@ -452,6 +541,14 @@ async function claimNativeMembershipPurchaseIntent({
       throw new HttpsError(
           "failed-precondition",
           "Mobile membership purchasing is not enabled yet.",
+      );
+    }
+    if (requireSandboxAllowedAtClaim &&
+        (platform !== "ios" || readiness.appleSandboxEnabled !== true ||
+         sandboxAllowed !== true)) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Apple Sandbox purchasing is not enabled for this pilot.",
       );
     }
     const stripeDispatch = stripeDispatchSnapshot.exists ?
@@ -512,6 +609,7 @@ async function claimNativeMembershipPurchaseIntent({
       ttlMillis: restore ?
         NATIVE_RESTORE_INTENT_TTL_MS : NATIVE_PURCHASE_INTENT_TTL_MS,
       sandboxAllowed,
+      requireSandboxAllowedAtClaim,
     });
     return {
       ...claim,
@@ -530,11 +628,12 @@ async function requireNativeMembershipPurchaseIntent({
   product,
   intentToken,
   restore = false,
+  requireSandboxAllowedAtClaim = false,
 }) {
   const snapshot = await db.collection(MEMBERSHIP_BILLING_INTENT_COLLECTION)
       .doc(uid).get();
   const intent = snapshot.exists ? snapshot.data() : null;
-  return requireBillingIntentForVerification(intent, {
+  const verifiedIntent = requireBillingIntentForVerification(intent, {
     uid,
     channel: platform === "ios" ? "app_store" : "google_play",
     platform,
@@ -542,6 +641,8 @@ async function requireNativeMembershipPurchaseIntent({
     planId: restore ? "restore" : product.planId,
     intentToken,
   });
+  return requireSandboxAllowedAtClaim ?
+    requireAppleSandboxIntent(verifiedIntent) : verifiedIntent;
 }
 
 function resumableNativeMembershipIntent(intent, {
@@ -549,9 +650,12 @@ function resumableNativeMembershipIntent(intent, {
   platform,
   product,
   allowRestore = false,
+  requireSandboxAllowedAtClaim = false,
   nowMillis = Date.now(),
 }) {
   if (!intent || !validIntentToken(intent.intentToken)) return null;
+  if (requireSandboxAllowedAtClaim &&
+      intent.sandboxAllowedAtClaim !== true) return null;
   const channel = platform === "ios" ? "app_store" : "google_play";
   const exactExpected = {
     uid,
@@ -952,7 +1056,9 @@ async function clearExpiredNativeEntitlement({
   });
 }
 
-function createNativeMembershipBilling(admin) {
+function createNativeMembershipBilling(admin, {
+  appleSandboxCohortOnly = false,
+} = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
 
@@ -963,10 +1069,24 @@ function createNativeMembershipBilling(admin) {
       const requestedPlatform = normalizeNativePlatform(
           request.data && request.data.platform,
       );
+      if (appleSandboxCohortOnly && requestedPlatform !== "ios") {
+        return unavailableNativeMembershipBillingStatus();
+      }
       const googleProductIds = Object.keys(NATIVE_MEMBERSHIP_PRODUCTS);
       const appleProductIds = [...APPLE_NATIVE_MEMBERSHIP_PRODUCT_IDS];
-      const [readiness, accountToken, state, stripeState] = await Promise.all([
-        loadNativeBillingReadiness(db),
+      const readiness = await loadNativeBillingReadiness(db);
+      const sandboxCohortAllowed = appleSandboxCohortOnly &&
+        await appleSandboxCohortAccountAllowed({
+          admin,
+          request,
+          uid: identity.uid,
+        });
+      const sandboxCohortReady = sandboxCohortAllowed &&
+        readiness.appleSandboxEnabled === true;
+      if (appleSandboxCohortOnly && !sandboxCohortReady) {
+        return unavailableNativeMembershipBillingStatus();
+      }
+      const [accountToken, state, stripeState] = await Promise.all([
         ensureStoreAccountToken(db, admin, identity.uid),
         currentMembershipState(db, identity.uid),
         stripeProviderState(db, identity.uid),
@@ -979,10 +1099,13 @@ function createNativeMembershipBilling(admin) {
           identity.uid,
       );
       return {
-        available: readiness.enabled,
-        appleEnabled: readiness.appleEnabled,
-        appleSandboxEnabled: appleSandboxAllowedForRequest(readiness, request),
-        googleEnabled: readiness.googleEnabled,
+        available: appleSandboxCohortOnly ?
+          sandboxCohortReady : readiness.enabled,
+        appleEnabled: appleSandboxCohortOnly ?
+          sandboxCohortReady : readiness.appleEnabled,
+        appleSandboxEnabled: appleSandboxCohortOnly ?
+          sandboxCohortReady : appleSandboxAllowedForRequest(readiness, request),
+        googleEnabled: appleSandboxCohortOnly ? false : readiness.googleEnabled,
         bundleId: APPLE_BUNDLE_ID,
         packageName: GOOGLE_PACKAGE_NAME,
         // productIds remains the platform-selected compatibility field. The
@@ -990,7 +1113,7 @@ function createNativeMembershipBilling(admin) {
         productIds: requestedPlatform === "ios" ?
           appleProductIds : googleProductIds,
         appleProductIds,
-        googleProductIds,
+        googleProductIds: appleSandboxCohortOnly ? [] : googleProductIds,
         storeAccountToken: accountToken,
         currentPlan: state.currentPlan.id,
         currentProvider: stripeManaged ? "stripe" :
@@ -1027,6 +1150,9 @@ function createNativeMembershipBilling(admin) {
             "The mobile membership purchase is invalid.",
         );
       }
+      if (appleSandboxCohortOnly) {
+        requireAppleSandboxCohortPlatform(platform);
+      }
       const [readiness, policyStatus] = await Promise.all([
         loadNativeBillingReadiness(db),
         currentPolicyAcceptanceStatus(db, identity.uid),
@@ -1045,16 +1171,25 @@ function createNativeMembershipBilling(admin) {
             "Review and accept the current policies before purchasing.",
         );
       }
-      const [accountToken, sandboxAllowed] = await Promise.all([
-        ensureStoreAccountToken(db, admin, identity.uid),
-        platform === "ios" ?
-          appleSandboxAllowedForCurrentAccount(
+      const sandboxAllowed = platform === "ios" ?
+        appleSandboxCohortOnly ?
+          await requireAppleSandboxCohortAccount({
+            admin,
+            request,
+            uid: identity.uid,
+            readiness,
+          }) :
+          await appleSandboxAllowedForCurrentAccount(
               admin,
               readiness,
               request,
               identity.uid,
-          ) : false,
-      ]);
+          ) : false;
+      const accountToken = await ensureStoreAccountToken(
+          db,
+          admin,
+          identity.uid,
+      );
       const intent = await claimNativeMembershipPurchaseIntent({
         db,
         admin,
@@ -1062,6 +1197,7 @@ function createNativeMembershipBilling(admin) {
         platform,
         product,
         sandboxAllowed,
+        requireSandboxAllowedAtClaim: appleSandboxCohortOnly,
       });
       return {
         ready: true,
@@ -1102,6 +1238,9 @@ function createNativeMembershipBilling(admin) {
             "The mobile membership restore platform is invalid.",
         );
       }
+      if (appleSandboxCohortOnly) {
+        requireAppleSandboxCohortPlatform(platform);
+      }
       const [readiness, policyStatus] = await Promise.all([
         loadNativeBillingReadiness(db),
         currentPolicyAcceptanceStatus(db, identity.uid),
@@ -1120,16 +1259,25 @@ function createNativeMembershipBilling(admin) {
             "Review and accept the current policies before restoring.",
         );
       }
-      const [accountToken, sandboxAllowed] = await Promise.all([
-        ensureStoreAccountToken(db, admin, identity.uid),
-        platform === "ios" ?
-          appleSandboxAllowedForCurrentAccount(
+      const sandboxAllowed = platform === "ios" ?
+        appleSandboxCohortOnly ?
+          await requireAppleSandboxCohortAccount({
+            admin,
+            request,
+            uid: identity.uid,
+            readiness,
+          }) :
+          await appleSandboxAllowedForCurrentAccount(
               admin,
               readiness,
               request,
               identity.uid,
-          ) : false,
-      ]);
+          ) : false;
+      const accountToken = await ensureStoreAccountToken(
+          db,
+          admin,
+          identity.uid,
+      );
       const intent = await claimNativeMembershipPurchaseIntent({
         db,
         admin,
@@ -1138,6 +1286,7 @@ function createNativeMembershipBilling(admin) {
         product: null,
         restore: true,
         sandboxAllowed,
+        requireSandboxAllowedAtClaim: appleSandboxCohortOnly,
       });
       return {
         ready: true,
@@ -1178,6 +1327,14 @@ function createNativeMembershipBilling(admin) {
             "The mobile membership recovery request is invalid.",
         );
       }
+      if (appleSandboxCohortOnly) {
+        requireAppleSandboxCohortPlatform(platform);
+        await requireAppleSandboxCohortAccount({
+          admin,
+          request,
+          uid: identity.uid,
+        });
+      }
       const snapshot = await db.collection(MEMBERSHIP_BILLING_INTENT_COLLECTION)
           .doc(identity.uid).get();
       const resumed = resumableNativeMembershipIntent(
@@ -1187,6 +1344,7 @@ function createNativeMembershipBilling(admin) {
             platform,
             product,
             allowRestore: request.data && request.data.restore === true,
+            requireSandboxAllowedAtClaim: appleSandboxCohortOnly,
           },
       );
       if (!resumed) return {found: false};
@@ -1264,6 +1422,14 @@ function createNativeMembershipBilling(admin) {
             "The pending mobile membership purchase is invalid.",
         );
       }
+      if (appleSandboxCohortOnly) {
+        requireAppleSandboxCohortPlatform(platform);
+        await requireAppleSandboxCohortAccount({
+          admin,
+          request,
+          uid: identity.uid,
+        });
+      }
       const intentRef = db.collection(MEMBERSHIP_BILLING_INTENT_COLLECTION)
           .doc(identity.uid);
       const pending = await db.runTransaction(async (transaction) => {
@@ -1281,6 +1447,7 @@ function createNativeMembershipBilling(admin) {
             planId: product.planId,
             intentToken,
           },
+          requireSandboxAllowedAtClaim: appleSandboxCohortOnly,
         });
       });
       return {
@@ -1311,6 +1478,9 @@ function createNativeMembershipBilling(admin) {
       if (!platform || !product || !appleProductAllowed) {
         throw new HttpsError("invalid-argument", "The mobile membership purchase is invalid.");
       }
+      if (appleSandboxCohortOnly) {
+        requireAppleSandboxCohortPlatform(platform);
+      }
       const restore = request.data && request.data.restore === true;
       const purchaseIntentToken = String(
           request.data && request.data.purchaseIntentToken || "",
@@ -1332,7 +1502,15 @@ function createNativeMembershipBilling(admin) {
         product,
         intentToken: purchaseIntentToken,
         restore,
+        requireSandboxAllowedAtClaim: appleSandboxCohortOnly,
       });
+      if (appleSandboxCohortOnly) {
+        await requireAppleSandboxCohortAccount({
+          admin,
+          request,
+          uid: identity.uid,
+        });
+      }
       const [accountToken, stripeState, nativeSnapshot] = await Promise.all([
         ensureStoreAccountToken(db, admin, identity.uid),
         stripeProviderState(db, identity.uid),
@@ -1371,7 +1549,11 @@ function createNativeMembershipBilling(admin) {
           transactionId: purchaseId,
           accountToken,
           allowSandbox,
+          sandboxOnly: appleSandboxCohortOnly,
         });
+        if (appleSandboxCohortOnly) {
+          entitlement = requireAppleSandboxEntitlement(entitlement);
+        }
       } else {
         purchaseToken = String(
             request.data && request.data.serverVerificationData || "",
@@ -1417,6 +1599,9 @@ function createNativeMembershipBilling(admin) {
           accountToken,
           environment: entitlement.environment,
         });
+        if (appleSandboxCohortOnly) {
+          entitlement = requireAppleSandboxEntitlement(entitlement);
+        }
       } else {
         entitlement = await googleCurrentEntitlement({purchaseToken, accountToken});
       }
@@ -1597,6 +1782,10 @@ module.exports = {
   nativeMembershipSecretNames,
   nativeProviderCurrent,
   providerSubscriptionKey,
+  requireAppleSandboxCohortAccount,
+  requireAppleSandboxCohortPlatform,
+  requireAppleSandboxEntitlement,
+  requireAppleSandboxIntent,
   requireNativeMembershipPurchaseIntent,
   resumableNativeMembershipIntent,
   stripeProviderBlocksNativePurchase,

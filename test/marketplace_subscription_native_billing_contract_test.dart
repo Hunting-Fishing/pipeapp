@@ -295,34 +295,39 @@ void main() {
     );
   });
 
-  test('native verification stays fail-closed until store secrets activate',
+  test('native verification is limited to the Apple Sandbox pilot surface',
       () {
     final bootstrap = File(
       'firebase/functions/production_bootstrap.js',
     ).readAsStringSync();
 
     expect(bootstrap, contains('exports.getNativeMembershipBillingStatus'));
-    expect(bootstrap,
-        isNot(contains('exports.preflightNativeMembershipPurchase')));
     expect(
-        bootstrap, isNot(contains('exports.preflightNativeMembershipRestore')));
+        bootstrap, contains('exports.preflightNativeMembershipPurchase'));
+    expect(bootstrap, contains('exports.preflightNativeMembershipRestore'));
     expect(
       bootstrap,
-      isNot(contains('exports.releaseNativeMembershipPurchaseIntent')),
+      contains('exports.releaseNativeMembershipPurchaseIntent'),
     );
     expect(
       bootstrap,
-      isNot(contains('exports.resumeNativeMembershipPurchaseIntent')),
+      contains('exports.resumeNativeMembershipPurchaseIntent'),
     );
     expect(
       bootstrap,
-      isNot(contains('exports.markNativeMembershipPurchasePending')),
+      contains('exports.markNativeMembershipPurchasePending'),
     );
     expect(
-        bootstrap, isNot(contains('exports.verifyNativeMembershipPurchase')));
+        bootstrap, contains('exports.verifyNativeMembershipPurchase'));
+    expect(bootstrap, contains('appleSandboxCohortOnly: true'));
+    expect(bootstrap, contains('secrets: APPLE_IAP_SECRET_NAMES'));
     expect(
       bootstrap,
       isNot(contains('exports.reconcileNativeMembershipSubscriptions')),
+    );
+    expect(
+      bootstrap,
+      isNot(contains('exports.appStoreServerNotifications =')),
     );
   });
 }

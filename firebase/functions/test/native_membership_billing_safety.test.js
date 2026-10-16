@@ -10,8 +10,13 @@ const {
   beginNativeMembershipReconciliation,
   claimNativeMembershipPurchaseIntent,
   clearExpiredNativeEntitlement,
+  createNativeMembershipBilling,
   ensureStoreAccountToken,
   nativeBillingReadiness,
+  requireAppleSandboxCohortAccount,
+  requireAppleSandboxCohortPlatform,
+  requireAppleSandboxEntitlement,
+  requireAppleSandboxIntent,
   resumableNativeMembershipIntent,
   stripeMembershipBlocksNativePurchase,
 } = require("../native_membership_billing");
@@ -58,6 +63,23 @@ test("intent recovery is exact, account-bound, and restore-controlled", () => {
     product,
     nowMillis: now,
   }), null);
+  assert.equal(resumableNativeMembershipIntent(active, {
+    uid: "user-1",
+    platform: "ios",
+    product,
+    requireSandboxAllowedAtClaim: true,
+    nowMillis: now,
+  }), null);
+  assert.equal(resumableNativeMembershipIntent({
+    ...active,
+    sandboxAllowedAtClaim: true,
+  }, {
+    uid: "user-1",
+    platform: "ios",
+    product,
+    requireSandboxAllowedAtClaim: true,
+    nowMillis: now,
+  }).intentToken, token);
 
   const restore = {
     ...active,
@@ -94,6 +116,67 @@ function fakeAdmin() {
       },
     },
   };
+}
+
+function statusHarness({configuration, customClaims}) {
+  const reads = [];
+  const writes = [];
+  const calls = {authReads: 0};
+  const db = {
+    collection(name) {
+      return {
+        doc(id) {
+          const ref = {
+            collection: name,
+            id,
+            async get() {
+              reads.push({collection: name, id});
+              if (name === "platform_configuration") {
+                return {
+                  exists: configuration != null,
+                  data: () => configuration || {},
+                };
+              }
+              return {exists: false, data: () => ({})};
+            },
+          };
+          return ref;
+        },
+      };
+    },
+    async runTransaction(callback) {
+      return callback({
+        async get(ref) {
+          reads.push({collection: ref.collection, id: ref.id});
+          return {exists: false, data: () => ({})};
+        },
+        set(ref, value) {
+          writes.push({collection: ref.collection, id: ref.id, value});
+        },
+      });
+    },
+  };
+  function firestore() {
+    return db;
+  }
+  firestore.Timestamp = {
+    now: () => ({toMillis: () => Date.now()}),
+    fromMillis: (value) => ({millis: value}),
+  };
+  firestore.FieldValue = {
+    delete: () => "delete-field",
+    serverTimestamp: () => "server-timestamp",
+  };
+  const admin = {
+    firestore,
+    auth: () => ({
+      getUser: async () => {
+        calls.authReads += 1;
+        return {customClaims: customClaims || {}};
+      },
+    }),
+  };
+  return {admin, calls, reads, writes};
 }
 
 test("Apple Sandbox fallback requires both readiness and a tester claim", () => {
@@ -145,6 +228,210 @@ test("Apple Sandbox fallback rechecks the current Admin Auth claim", async () =>
   ), true);
 });
 
+test("Apple Sandbox cohort rejects Android and stale tester claims", async () => {
+  assert.throws(
+      () => requireAppleSandboxCohortPlatform("android"),
+      (error) => error.code === "failed-precondition",
+  );
+  assert.doesNotThrow(() => requireAppleSandboxCohortPlatform("ios"));
+  const request = {auth: {token: {appleSandboxTester: true}}};
+  await assert.rejects(() => requireAppleSandboxCohortAccount({
+    admin: {
+      auth: () => ({getUser: async () => ({customClaims: {}})}),
+    },
+    request,
+    uid: "user-1",
+  }), (error) => error.code === "permission-denied");
+  assert.equal(await requireAppleSandboxCohortAccount({
+    admin: {
+      auth: () => ({
+        getUser: async () => ({
+          customClaims: {appleSandboxTester: true},
+        }),
+      }),
+    },
+    request,
+    uid: "user-1",
+  }), true);
+});
+
+test("Apple Sandbox cohort requires claim-time approval on its intent", () => {
+  assert.throws(
+      () => requireAppleSandboxIntent({sandboxAllowedAtClaim: false}),
+      (error) => error.code === "failed-precondition",
+  );
+  const intent = {sandboxAllowedAtClaim: true};
+  assert.equal(requireAppleSandboxIntent(intent), intent);
+});
+
+test("cohort status fails closed before account-token access", async () => {
+  const harness = statusHarness({
+    configuration: {
+      enabled: true,
+      appleEnabled: true,
+      appleSandboxEnabled: true,
+    },
+    customClaims: {},
+  });
+  const billing = createNativeMembershipBilling(harness.admin, {
+    appleSandboxCohortOnly: true,
+  });
+  const status = await billing.getNativeMembershipBillingStatus({
+    auth: {
+      uid: "user-1",
+      token: {
+        email_verified: true,
+        appleSandboxTester: true,
+      },
+    },
+    data: {platform: "ios"},
+  });
+  assert.equal(status.available, false);
+  assert.equal(status.appleEnabled, false);
+  assert.equal(status.appleSandboxEnabled, false);
+  assert.equal(status.storeAccountToken, "");
+  assert.equal(
+      harness.reads.some(({collection}) =>
+        collection === "native_membership_accounts" ||
+        collection === "native_membership_account_tokens"),
+      false,
+  );
+  assert.equal(
+      harness.writes.some(({collection}) =>
+        collection === "native_membership_accounts" ||
+        collection === "native_membership_account_tokens"),
+      false,
+  );
+});
+
+test("cohort status enables Apple only with Sandbox readiness", async () => {
+  const disabled = statusHarness({
+    configuration: {
+      enabled: true,
+      appleEnabled: true,
+      appleSandboxEnabled: false,
+    },
+    customClaims: {appleSandboxTester: true},
+  });
+  const disabledBilling = createNativeMembershipBilling(disabled.admin, {
+    appleSandboxCohortOnly: true,
+  });
+  const request = {
+    auth: {
+      uid: "user-1",
+      token: {email_verified: true, appleSandboxTester: true},
+    },
+    data: {platform: "ios"},
+  };
+  const disabledStatus =
+    await disabledBilling.getNativeMembershipBillingStatus(request);
+  assert.equal(disabledStatus.appleEnabled, false);
+  assert.equal(disabledStatus.storeAccountToken, "");
+
+  const enabled = statusHarness({
+    configuration: {
+      enabled: true,
+      appleEnabled: true,
+      appleSandboxEnabled: true,
+    },
+    customClaims: {appleSandboxTester: true},
+  });
+  const enabledBilling = createNativeMembershipBilling(enabled.admin, {
+    appleSandboxCohortOnly: true,
+  });
+  const enabledStatus =
+    await enabledBilling.getNativeMembershipBillingStatus(request);
+  assert.equal(enabledStatus.available, true);
+  assert.equal(enabledStatus.appleEnabled, true);
+  assert.equal(enabledStatus.appleSandboxEnabled, true);
+  assert.match(enabledStatus.storeAccountToken, /^[0-9a-f-]{36}$/);
+});
+
+test("cohort Android status is passive while preflight remains blocked", async () => {
+  const harness = statusHarness({
+    configuration: {
+      enabled: true,
+      appleEnabled: true,
+      appleSandboxEnabled: true,
+    },
+    customClaims: {appleSandboxTester: true},
+  });
+  const billing = createNativeMembershipBilling(harness.admin, {
+    appleSandboxCohortOnly: true,
+  });
+  const request = {
+    auth: {
+      uid: "user-1",
+      token: {email_verified: true, appleSandboxTester: true},
+    },
+    data: {platform: "android"},
+  };
+  const status = await billing.getNativeMembershipBillingStatus(request);
+  assert.equal(status.available, false);
+  assert.equal(status.appleEnabled, false);
+  assert.equal(status.appleSandboxEnabled, false);
+  assert.equal(status.googleEnabled, false);
+  assert.equal(status.storeAccountToken, "");
+  assert.equal(harness.calls.authReads, 0);
+  assert.deepEqual(
+      [...new Set(harness.reads.map(({collection}) => collection))],
+      ["security_rate_limits"],
+  );
+  assert.equal(
+      harness.writes.every(({collection}) =>
+        collection === "security_rate_limits"),
+      true,
+  );
+
+  await assert.rejects(() => billing.preflightNativeMembershipPurchase({
+    ...request,
+    data: {
+      platform: "android",
+      productId: "pipebuyer_dispatch_monthly",
+    },
+  }), (error) => error.code === "failed-precondition");
+  assert.equal(harness.calls.authReads, 0);
+});
+
+test("cohort resume and pending reject a revoked tester claim", async () => {
+  const harness = statusHarness({
+    configuration: {},
+    customClaims: {},
+  });
+  const billing = createNativeMembershipBilling(harness.admin, {
+    appleSandboxCohortOnly: true,
+  });
+  const auth = {
+    uid: "user-1",
+    token: {
+      email_verified: true,
+      appleSandboxTester: true,
+    },
+  };
+  await assert.rejects(() =>
+    billing.resumeNativeMembershipPurchaseIntent({
+      auth,
+      data: {
+        platform: "ios",
+        productId: "pipebuyer_dispatch_monthly",
+      },
+    }), (error) => error.code === "permission-denied");
+  await assert.rejects(() =>
+    billing.markNativeMembershipPurchasePending({
+      auth,
+      data: {
+        platform: "ios",
+        productId: "pipebuyer_dispatch_monthly",
+        purchaseIntentToken: "p".repeat(43),
+      },
+    }), (error) => error.code === "permission-denied");
+  assert.equal(
+      harness.reads.some(({collection}) =>
+        collection === "membership_billing_intents"),
+      false,
+  );
+});
+
 test("Apple transaction lookup cannot fall back to Sandbox without approval", async () => {
   const environments = [];
   const createServerEnvironment = (environment) => {
@@ -181,6 +468,55 @@ test("Apple transaction lookup cannot fall back to Sandbox without approval", as
   });
   assert.equal(entitlement.planId, "dispatch_monthly");
   assert.deepEqual(environments, ["Production", "Sandbox"]);
+});
+
+test("cohort transaction lookup uses Sandbox only", async () => {
+  const environments = [];
+  const entitlement = await appleCurrentEntitlement({
+    transactionId: "200000000000001",
+    accountToken: "123e4567-e89b-42d3-a456-426614174000",
+    sandboxOnly: true,
+    createServerEnvironment(environment) {
+      environments.push(environment);
+      return {
+        environment,
+        apiClient: {},
+        verifier: {},
+      };
+    },
+    fetchCurrentEntitlement: async ({expectedEnvironment}) => ({
+      environment: expectedEnvironment,
+      planId: "dispatch_monthly",
+    }),
+  });
+  assert.equal(entitlement.environment, "Sandbox");
+  assert.deepEqual(environments, ["Sandbox"]);
+});
+
+test("cohort transaction lookup rejects non-Sandbox proof", async () => {
+  const environments = [];
+  await assert.rejects(() => appleCurrentEntitlement({
+    transactionId: "200000000000001",
+    accountToken: "123e4567-e89b-42d3-a456-426614174000",
+    sandboxOnly: true,
+    createServerEnvironment(environment) {
+      environments.push(environment);
+      return {
+        environment,
+        apiClient: {},
+        verifier: {},
+      };
+    },
+    fetchCurrentEntitlement: async () => ({
+      environment: "Production",
+      planId: "dispatch_monthly",
+    }),
+  }), (error) => error.code === "failed-precondition");
+  assert.deepEqual(environments, ["Sandbox"]);
+  assert.throws(
+      () => requireAppleSandboxEntitlement({environment: "Production"}),
+      (error) => error.code === "failed-precondition",
+  );
 });
 
 test("native entitlement transaction rechecks active Stripe ownership", async () => {

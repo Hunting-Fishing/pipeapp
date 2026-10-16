@@ -123,12 +123,30 @@ test("Sandbox and Production compositions bind exact environments and IAP secret
   assert.deepEqual(production.secretNames, APPLE_IAP_SECRET_NAMES);
 });
 
-test("production bootstrap does not import or export activation composition", () => {
+test("production bootstrap wires Sandbox endpoint to its configuration gate", () => {
   const bootstrap = fs.readFileSync(
       path.resolve(__dirname, "..", "production_bootstrap.js"),
       "utf8",
   );
-  assert.doesNotMatch(bootstrap, /apple_native_billing_composition/);
-  assert.doesNotMatch(bootstrap, /appStoreServerNotifications/);
+  assert.match(bootstrap, /apple_native_billing_composition/);
+  assert.match(
+      bootstrap,
+      /exports\.appStoreServerNotificationsSandbox\s*=\s*onRequest/,
+  );
+  assert.match(bootstrap, /cors:\s*false/);
+  assert.match(bootstrap, /invoker:\s*"public"/);
+  assert.match(bootstrap, /secrets:\s*APPLE_IAP_SECRET_NAMES/);
+  assert.doesNotMatch(
+      bootstrap,
+      /loadMutationGate:\s*async\s*\(\)\s*=>\s*false/,
+  );
+  assert.doesNotMatch(
+      bootstrap,
+      /exports\.appStoreServerNotifications\s*=/,
+  );
+  assert.doesNotMatch(
+      bootstrap,
+      /createAppleProductionServerNotificationComposition/,
+  );
   assert.doesNotMatch(bootstrap, /backfillNativeMembershipAccountTokensForAdmin/);
 });

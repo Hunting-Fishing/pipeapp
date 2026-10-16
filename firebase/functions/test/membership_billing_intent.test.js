@@ -75,6 +75,42 @@ test("native preflight claims an opaque, bounded billing intent", () => {
   assert.equal(transaction.writes.length, 1);
   assert.equal(transaction.writes[0].value.channel, "app_store");
   assert.equal(transaction.writes[0].value.status, "active");
+  assert.equal(transaction.writes[0].value.sandboxAllowedAtClaim, false);
+});
+
+test("Sandbox cohort intent records and preserves its claim-time gate", () => {
+  const transaction = transactionRecorder();
+  const input = {
+    transaction,
+    intentRef: "intent/user-1",
+    intentSnapshot: snapshot(null),
+    admin,
+    uid: "user-1",
+    channel: "app_store",
+    platform: "ios",
+    productId: "pipebuyer_dispatch_monthly",
+    planId: "dispatch_monthly",
+    nowMillis: 1_000,
+    ttlMillis: NATIVE_PURCHASE_INTENT_TTL_MS,
+    sandboxAllowed: true,
+    requireSandboxAllowedAtClaim: true,
+  };
+  const result = claimBillingIntentInTransaction(input);
+  assert.equal(result.reused, false);
+  assert.equal(transaction.writes[0].value.sandboxAllowedAtClaim, true);
+
+  const unapproved = {
+    ...transaction.writes[0].value,
+    intentToken: result.intentToken,
+    expiresAtMillis: result.expiresAtMillis,
+    sandboxAllowedAtClaim: false,
+  };
+  assert.throws(() => claimBillingIntentInTransaction({
+    ...input,
+    transaction: transactionRecorder(),
+    intentSnapshot: snapshot(unapproved),
+    nowMillis: 2_000,
+  }), /Start this Apple Sandbox purchase again/);
 });
 
 test("a fresh intent clears replay metadata from the prior token", () => {
@@ -243,6 +279,46 @@ test("pending Apple approval extends beyond 24 hours and blocks Stripe", () => {
       pending.expiresAtMillis,
       nowMillis + NATIVE_PURCHASE_PENDING_TTL_MS,
   );
+  const persistedPending = {
+    ...pending,
+    pendingAt: {toMillis: () => nowMillis + 1},
+  };
+  const repeatedTransaction = transactionRecorder();
+  const repeated = markBillingIntentPendingInTransaction({
+    transaction: repeatedTransaction,
+    intentRef: "intent/user-1",
+    intentSnapshot: snapshot(persistedPending),
+    admin,
+    expected: {
+      uid: "user-1",
+      channel: "app_store",
+      platform: "ios",
+      productId: "pipebuyer_dispatch_monthly",
+      planId: "dispatch_monthly",
+      intentToken: intent.intentToken,
+    },
+    nowMillis: nowMillis + (2 * 60 * 60 * 1000),
+  });
+  assert.equal(repeated.expiresAtMillis, pending.expiresAtMillis);
+  assert.equal(repeatedTransaction.writes.length, 0);
+  const rejectedTransaction = transactionRecorder();
+  assert.throws(() => markBillingIntentPendingInTransaction({
+    transaction: rejectedTransaction,
+    intentRef: "intent/user-1",
+    intentSnapshot: snapshot(intent),
+    admin,
+    expected: {
+      uid: "user-1",
+      channel: "app_store",
+      platform: "ios",
+      productId: "pipebuyer_dispatch_monthly",
+      planId: "dispatch_monthly",
+      intentToken: intent.intentToken,
+    },
+    requireSandboxAllowedAtClaim: true,
+    nowMillis,
+  }), /Start this Apple Sandbox purchase again/);
+  assert.equal(rejectedTransaction.writes.length, 0);
   assert.throws(() => claimBillingIntentInTransaction({
     transaction: transactionRecorder(),
     intentRef: "intent/user-1",
