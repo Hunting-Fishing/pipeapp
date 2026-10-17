@@ -5,22 +5,16 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   APPLE_BUNDLE_ID,
+  APPLE_NATIVE_MEMBERSHIP_PRODUCT_IDS,
   GOOGLE_PACKAGE_NAME,
-  appleStatusEntitlement,
   appleTransactionEntitlement,
-  decodeJwsPayload,
+  appleNativeMembershipProduct,
   googleSubscriptionEntitlement,
   nativeMembershipProduct,
   normalizeNativePlatform,
 } = require("../native_membership_policy");
 
 const accountToken = "123e4567-e89b-42d3-a456-426614174000";
-
-function fakeJws(payload) {
-  const header = Buffer.from(JSON.stringify({alg: "ES256"})).toString("base64url");
-  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  return `${header}.${body}.signature`;
-}
 
 test("native membership catalog maps only approved store products", () => {
   assert.equal(nativeMembershipProduct("pipebuyer_dispatch_monthly").planId,
@@ -29,6 +23,11 @@ test("native membership catalog maps only approved store products", () => {
       "dispatch_yearly");
   assert.equal(nativeMembershipProduct("pipebuyer_vip_monthly").planId,
       "vip_monthly");
+  assert.equal(appleNativeMembershipProduct("pipebuyer_vip_monthly"), null);
+  assert.deepEqual(APPLE_NATIVE_MEMBERSHIP_PRODUCT_IDS, [
+    "pipebuyer_dispatch_monthly",
+    "pipebuyer_dispatch_yearly",
+  ]);
   assert.equal(nativeMembershipProduct("unknown"), null);
   assert.equal(APPLE_BUNDLE_ID, "Pipe.Buyerapp");
   assert.equal(GOOGLE_PACKAGE_NAME, "Pipe.Buyerapp");
@@ -42,7 +41,7 @@ test("Apple entitlement requires bundle, account binding, approved product and e
   const payload = {
     bundleId: APPLE_BUNDLE_ID,
     appAccountToken: accountToken,
-    productId: "pipebuyer_vip_monthly",
+    productId: "pipebuyer_dispatch_monthly",
     transactionId: "200000000000001",
     originalTransactionId: "200000000000000",
     expiresDate: now + 3600000,
@@ -50,7 +49,7 @@ test("Apple entitlement requires bundle, account binding, approved product and e
     inAppOwnershipType: "PURCHASED",
   };
   const entitlement = appleTransactionEntitlement(payload, accountToken, now);
-  assert.equal(entitlement.planId, "vip_monthly");
+  assert.equal(entitlement.planId, "dispatch_monthly");
   assert.equal(entitlement.provider, "app_store");
   assert.equal(appleTransactionEntitlement(
       {...payload, appAccountToken: crypto.randomUUID()}, accountToken, now), null);
@@ -60,38 +59,12 @@ test("Apple entitlement requires bundle, account binding, approved product and e
       {...payload, expiresDate: now - 1}, accountToken, now), null);
   assert.equal(appleTransactionEntitlement(
       {...payload, revocationDate: now}, accountToken, now), null);
-});
-
-test("Apple status uses the latest entitled transaction and renewal target", () => {
-  const now = Date.UTC(2026, 7, 30);
-  const transaction = {
-    bundleId: APPLE_BUNDLE_ID,
-    appAccountToken: accountToken,
-    productId: "pipebuyer_vip_monthly",
-    transactionId: "200000000000002",
-    originalTransactionId: "200000000000000",
-    expiresDate: now + 7200000,
-    environment: "Production",
-  };
-  const response = {
-    bundleId: APPLE_BUNDLE_ID,
-    data: [{
-      lastTransactions: [{
-        status: 1,
-        signedTransactionInfo: fakeJws(transaction),
-        signedRenewalInfo: fakeJws({
-          autoRenewStatus: 1,
-          autoRenewProductId: "pipebuyer_dispatch_monthly",
-        }),
-      }],
-    }],
-  };
-  const entitlement = appleStatusEntitlement(response, accountToken, now);
-  assert.equal(entitlement.planId, "vip_monthly");
-  assert.equal(entitlement.pendingProductId, "pipebuyer_dispatch_monthly");
-  assert.equal(entitlement.autoRenewEnabled, true);
-  assert.equal(decodeJwsPayload(fakeJws(transaction)).transactionId,
-      transaction.transactionId);
+  assert.equal(appleTransactionEntitlement(
+      {...payload, productId: "pipebuyer_vip_monthly"}, accountToken, now), null);
+  assert.equal(appleTransactionEntitlement(
+      {...payload, inAppOwnershipType: undefined}, accountToken, now), null);
+  assert.equal(appleTransactionEntitlement(
+      {...payload, inAppOwnershipType: "FAMILY_SHARED"}, accountToken, now), null);
 });
 
 test("Google entitlement binds obfuscated account ID and preserves paid cancellation", () => {

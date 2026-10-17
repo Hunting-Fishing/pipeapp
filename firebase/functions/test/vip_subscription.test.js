@@ -5,6 +5,7 @@ const test = require("node:test");
 const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 const {membershipPlanCatalog} = require("../membership_plan_policy");
 const {
+  createdVipCheckoutBlocksNewAttempt,
   providerStateBlocksCheckout,
   requireVipSubscriptionReady,
   selectedVipPlan,
@@ -75,6 +76,21 @@ test("provider state blocks duplicate VIP checkout before invoice access exists"
     subscriptionId: "sub_live123",
     blocksNewCheckout: false,
   }, "buyer_123"), false);
+});
+
+test("open VIP Checkout blocks same-plan promo replacement", () => {
+  const now = Date.now();
+  assert.equal(createdVipCheckoutBlocksNewAttempt({
+    status: "created",
+    plan: "monthly",
+    promotionCodeId: "promo_old",
+    expiresAt: now + 60_000,
+  }, now), true);
+  assert.equal(createdVipCheckoutBlocksNewAttempt({
+    status: "created",
+    plan: "monthly",
+    expiresAt: now - 1,
+  }, now), false);
 });
 
 test("VIP checkout uses metadata before a subscription price exists", () => {

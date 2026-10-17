@@ -53,8 +53,8 @@ class _MarketplaceProfileTagsState extends State<MarketplaceProfileTags> {
                   .orderBy('label')
                   .limit(defaultReferenceDataLimit)
                   .snapshots(),
-              builder: (context, catalogSnapshot) => StreamBuilder<
-                  QuerySnapshot<Map<String, dynamic>>>(
+              builder: (context, catalogSnapshot) =>
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
                     .doc(user.uid)
@@ -80,9 +80,10 @@ class _MarketplaceProfileTagsState extends State<MarketplaceProfileTags> {
                     for (final doc in selectedSnapshot.data?.docs ?? const [])
                       doc.id: doc.data()
                   };
-                  final catalog = [...?catalogSnapshot.data?.docs]
-                    ..sort((a, b) => '${a.data()['label']}'
-                        .compareTo('${b.data()['label']}'));
+                  final catalog = [
+                    ...?catalogSnapshot.data?.docs
+                  ]..sort((a, b) =>
+                      '${a.data()['label']}'.compareTo('${b.data()['label']}'));
                   final categories = catalog
                       .map((doc) => '${doc.data()['category']}')
                       .toSet()
@@ -278,8 +279,6 @@ class _MarketplaceProfileTagsState extends State<MarketplaceProfileTags> {
         .doc(user.uid)
         .collection('profile_tags')
         .doc(tagId);
-    final publicProfile =
-        firestore.collection('public_seller_profiles').doc(user.uid);
     final batch = firestore.batch();
     if (selected) {
       batch.set(userTag, {
@@ -290,28 +289,6 @@ class _MarketplaceProfileTagsState extends State<MarketplaceProfileTags> {
       });
     } else {
       batch.delete(userTag);
-    }
-    batch.set(
-        publicProfile,
-        {
-          'ownerUid': user.uid,
-          'displayName': user.displayName ?? '',
-          'accountType': widget.accountType,
-          'approvedTagIds': selected
-              ? FieldValue.arrayUnion([tagId])
-              : FieldValue.arrayRemove([tagId]),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true));
-    if (widget.accountType == 'business') {
-      batch.set(
-          firestore.collection('public_business_profiles').doc(user.uid),
-          {
-            'approvedTagIds': selected
-                ? FieldValue.arrayUnion([tagId])
-                : FieldValue.arrayRemove([tagId]),
-          },
-          SetOptions(merge: true));
     }
     await batch.commit();
   }
@@ -585,9 +562,11 @@ class _CategoryChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? PipeBuyerColors.orange : Theme.of(context).dividerColor;
+    final color =
+        selected ? PipeBuyerColors.orange : Theme.of(context).dividerColor;
     return Material(
-      color: selected ? PipeBuyerColors.orangeSoft : Theme.of(context).cardColor,
+      color:
+          selected ? PipeBuyerColors.orangeSoft : Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: color, width: selected ? 1.5 : 1),
@@ -668,10 +647,7 @@ class _SpecialtyChip extends StatelessWidget {
           size: 17,
           color: selected
               ? PipeBuyerColors.orangePressed
-              : Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: .58),
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: .58),
         ),
         label: Text(
           label,
@@ -761,55 +737,57 @@ class _TagModerationPanel extends StatelessWidget {
   const _TagModerationPanel();
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<
-          QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('tag_requests')
-          .where('status', isEqualTo: 'pending')
-          .orderBy('createdAt', descending: true)
-          .limit(defaultActivityFeedLimit)
-          .snapshots(),
-      builder: (context, snapshot) {
-        final requests = snapshot.data?.docs ?? const [];
-        return Container(
-          decoration: BoxDecoration(
-            color: PipeBuyerColors.industrialBlue.withValues(alpha: .045),
-            borderRadius: BorderRadius.circular(13),
-            border: Border.all(
-              color: PipeBuyerColors.industrialBlue.withValues(alpha: .16),
-            ),
-          ),
-          child: ExpansionTile(
-            shape: const Border(),
-            collapsedShape: const Border(),
-            leading: Badge(
-                isLabelVisible: requests.isNotEmpty,
-                label: Text('${requests.length}'),
-                child: const Icon(Icons.admin_panel_settings_outlined)),
-            title: const Text('Administrator specialty approvals',
-                style: TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text('${requests.length} pending request(s)'),
-            children: requests
-                .map((request) => ListTile(
-                      title: Text('${request.data()['label']}'),
-                      subtitle: Text('${request.data()['requestedByEmail']}'),
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                        IconButton(
-                            tooltip: 'Reject',
-                            onPressed: () => _moderate(request, false),
-                            icon: const Icon(Icons.close,
-                                color: PipeBuyerColors.danger)),
-                        IconButton(
-                            tooltip: 'Approve',
-                            onPressed: () => _moderate(request, true),
-                            icon: const Icon(Icons.check,
-                                color: PipeBuyerColors.success)),
-                      ]),
-                    ))
-                .toList(),
-          ),
-        );
-      });
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('tag_requests')
+              .where('status', isEqualTo: 'pending')
+              .orderBy('createdAt', descending: true)
+              .limit(defaultActivityFeedLimit)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final requests = snapshot.data?.docs ?? const [];
+            return Container(
+              decoration: BoxDecoration(
+                color: PipeBuyerColors.industrialBlue.withValues(alpha: .045),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                  color: PipeBuyerColors.industrialBlue.withValues(alpha: .16),
+                ),
+              ),
+              child: ExpansionTile(
+                shape: const Border(),
+                collapsedShape: const Border(),
+                leading: Badge(
+                    isLabelVisible: requests.isNotEmpty,
+                    label: Text('${requests.length}'),
+                    child: const Icon(Icons.admin_panel_settings_outlined)),
+                title: const Text('Administrator specialty approvals',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text('${requests.length} pending request(s)'),
+                children: requests
+                    .map((request) => ListTile(
+                          title: Text('${request.data()['label']}'),
+                          subtitle:
+                              Text('${request.data()['requestedByEmail']}'),
+                          trailing:
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                            IconButton(
+                                tooltip: 'Reject',
+                                onPressed: () => _moderate(request, false),
+                                icon: const Icon(Icons.close,
+                                    color: PipeBuyerColors.danger)),
+                            IconButton(
+                                tooltip: 'Approve',
+                                onPressed: () => _moderate(request, true),
+                                icon: const Icon(Icons.check,
+                                    color: PipeBuyerColors.success)),
+                          ]),
+                        ))
+                    .toList(),
+              ),
+            );
+          });
 
   Future<void> _moderate(
       QueryDocumentSnapshot<Map<String, dynamic>> request, bool approve) async {

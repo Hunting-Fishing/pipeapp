@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_admin_role_manager.dart';
+import 'marketplace_command_client.dart';
 import 'marketplace_payment_readiness.dart';
 
 class MarketplaceAdminDashboard extends StatefulWidget {
@@ -37,6 +38,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   bool _auctionsEnabled = true;
   bool _wantedMatchingEnabled = true;
   bool _maintenanceMode = false;
+  final Map<String, String> _auctionActionRequestIds = {};
+  final Set<String> _auctionActionsInProgress = {};
 
   @override
   void initState() {
@@ -992,8 +995,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
 
         for (final doc in docs) {
           final data = doc.data();
-          final bid = (data['highestBid'] as num?)?.toDouble() ??
-              ((data['unitPrice'] as num?)?.toDouble() ?? 0.0);
+          final bid = (data['currentBid'] as num?)?.toDouble() ??
+              ((data['startingBid'] as num?)?.toDouble() ?? 0.0);
           grossAuctionVolume += bid;
           if (data['reserveMet'] == true) reserveMetCount++;
 
@@ -1334,11 +1337,14 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 final data = doc.data();
                 final listingId = doc.id;
                 final title = '${data['title'] ?? 'Pipe Auction'}';
-                final currentBid = (data['highestBid'] as num?)?.toDouble() ??
-                    ((data['unitPrice'] as num?)?.toDouble() ?? 0.0);
+                final currentBid = (data['currentBid'] as num?)?.toDouble() ??
+                    ((data['startingBid'] as num?)?.toDouble() ?? 0.0);
                 final reserveMet = data['reserveMet'] == true;
                 final sellerEmail =
                     '${data['sellerEmail'] ?? data['sellerUid'] ?? 'Seller'}';
+                final auctionStatus = '${data['auctionStatus'] ?? ''}';
+                final controlsEnabled = data['status'] == 'active' &&
+                    const {'live', 'scheduled'}.contains(auctionStatus);
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -1384,24 +1390,30 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: () =>
-                                  _adminAuctionAction(listingId, 'force_end'),
+                              onPressed: controlsEnabled
+                                  ? () => _adminAuctionAction(
+                                      listingId, 'force_end')
+                                  : null,
                               icon:
                                   const Icon(Icons.gavel, color: Colors.purple),
                               label: const Text('Force End & Settle'),
                             ),
                             const SizedBox(width: 8),
                             OutlinedButton.icon(
-                              onPressed: () =>
-                                  _adminAuctionAction(listingId, 'extend_24h'),
+                              onPressed: controlsEnabled
+                                  ? () => _adminAuctionAction(
+                                      listingId, 'extend_24h')
+                                  : null,
                               icon: const Icon(Icons.more_time,
                                   color: Colors.blue),
                               label: const Text('Extend +24 Hours'),
                             ),
                             const SizedBox(width: 8),
                             OutlinedButton.icon(
-                              onPressed: () =>
-                                  _adminAuctionAction(listingId, 'cancel'),
+                              onPressed: controlsEnabled
+                                  ? () =>
+                                      _adminAuctionAction(listingId, 'cancel')
+                                  : null,
                               icon: const Icon(Icons.cancel_outlined,
                                   color: Colors.red),
                               label: const Text('Cancel Auction'),
@@ -1420,33 +1432,25 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   }
 
   Future<void> _adminAuctionAction(String listingId, String action) async {
+    final actionKey = '$listingId:$action';
+    if (_auctionActionsInProgress.contains(actionKey)) return;
+    final requestId = _auctionActionRequestIds.putIfAbsent(
+      actionKey,
+      () => FirebaseFirestore.instance
+          .collection('marketplace_command_receipts')
+          .doc()
+          .id,
+    );
+    if (mounted) {
+      setState(() => _auctionActionsInProgress.add(actionKey));
+    }
     try {
-      if (action == 'force_end') {
-        await FirebaseFirestore.instance
-            .collection('public_listings')
-            .doc(listingId)
-            .set({
-          'status': 'Ended',
-          'auctionEndedAt': FieldValue.serverTimestamp(),
-          'endedByAdmin': FirebaseAuth.instance.currentUser?.email ?? 'admin',
-        }, SetOptions(merge: true));
-      } else if (action == 'extend_24h') {
-        await FirebaseFirestore.instance
-            .collection('public_listings')
-            .doc(listingId)
-            .set({
-          'auctionExtendedCount': FieldValue.increment(1),
-          'extendedByAdminAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } else if (action == 'cancel') {
-        await FirebaseFirestore.instance
-            .collection('public_listings')
-            .doc(listingId)
-            .set({
-          'status': 'Cancelled',
-          'cancelledByAdminAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
+      await MarketplaceCommandClient().execute('administerTimedAuction', {
+        'listingId': listingId,
+        'action': action,
+        'requestId': requestId,
+      });
+      _auctionActionRequestIds.remove(actionKey);
 
       if (mounted) {
         PipeFeedback.show(
@@ -1458,7 +1462,14 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     } catch (e) {
       if (mounted) {
         PipeFeedback.show(context,
-            message: 'Auction action failed: $e', tone: PipeStatusTone.error);
+            message: marketplaceCommandErrorMessage(e),
+            tone: PipeStatusTone.error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _auctionActionsInProgress.remove(actionKey));
+      } else {
+        _auctionActionsInProgress.remove(actionKey);
       }
     }
   }

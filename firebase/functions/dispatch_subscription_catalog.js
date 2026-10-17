@@ -27,7 +27,7 @@ const {
 function planCatalogEntry(product) {
   const amountMinor = Number(product && product.unitAmountMinor || 0);
   return {
-    currency: String(product && product.currency || "CAD").toUpperCase(),
+    currency: String(product && product.currency || "USD").toUpperCase(),
     amountMinor,
     amount: Number((amountMinor / 100).toFixed(2)),
     interval: String(product && product.billingInterval || ""),
@@ -37,10 +37,10 @@ function planCatalogEntry(product) {
 function dispatchSubscriptionPlanCatalog() {
   return {
     monthly: planCatalogEntry(
-        stripeMarketplaceConfig.products.dispatchMonthlyCad,
+        stripeMarketplaceConfig.products.dispatchMonthlyUsd,
     ),
     yearly: planCatalogEntry(
-        stripeMarketplaceConfig.products.dispatchYearlyCad,
+        stripeMarketplaceConfig.products.dispatchYearlyUsd,
     ),
   };
 }

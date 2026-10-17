@@ -95,11 +95,13 @@ test("bounded auction queries have required indexes", () => {
     [
       {fieldPath: "transactionType", order: "ASCENDING"},
       {fieldPath: "status", order: "ASCENDING"},
+      {fieldPath: "auctionStatus", order: "ASCENDING"},
       {fieldPath: "auctionEndAt", order: "ASCENDING"},
     ],
     [
       {fieldPath: "transactionType", order: "ASCENDING"},
       {fieldPath: "status", order: "ASCENDING"},
+      {fieldPath: "auctionStatus", order: "ASCENDING"},
       {fieldPath: "auctionEndAt", order: "DESCENDING"},
     ],
     [

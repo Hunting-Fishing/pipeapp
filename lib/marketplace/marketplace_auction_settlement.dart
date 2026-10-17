@@ -1,14 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auction_repository.dart';
+import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_escrow_repository.dart';
 import 'marketplace_data_state.dart';
+import 'marketplace_deep_links.dart';
 import 'marketplace_money.dart';
 import 'marketplace_invoice_generator.dart';
 import 'marketplace_journey_status.dart';
@@ -63,36 +66,37 @@ class _MarketplaceAuctionSettlementState
       );
 
   Widget _finalizeCard() => PipeBuyerSectionCard(
-    title: 'Finalize auction result',
-    subtitle:
-        'The timer has ended. Confirm the server-calculated winner or no-sale result before settlement begins.',
-    leading: const _SectionIcon(
-      Icons.gavel_outlined,
-      tone: PipeBuyerStatusTone.warning,
-    ),
-    trailing: const PipeBuyerStatusBadge(
-      label: 'ACTION REQUIRED',
-      icon: Icons.schedule_outlined,
-      tone: PipeBuyerStatusTone.warning,
-    ),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: FilledButton.icon(
-        onPressed: _busy ? null : _finalize,
-        icon: _busy
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.fact_check_outlined),
-        label: Text(_busy ? 'Finalizing result…' : 'Finalize result'),
-      ),
-    ),
-  );
+        title: 'Finalize auction result',
+        subtitle:
+            'The timer has ended. Confirm the server-calculated winner or no-sale result before settlement begins.',
+        leading: const _SectionIcon(
+          Icons.gavel_outlined,
+          tone: PipeBuyerStatusTone.warning,
+        ),
+        trailing: const PipeBuyerStatusBadge(
+          label: 'ACTION REQUIRED',
+          icon: Icons.schedule_outlined,
+          tone: PipeBuyerStatusTone.warning,
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: _busy ? null : _finalize,
+            icon: _busy
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.fact_check_outlined),
+            label: Text(_busy ? 'Finalizing result…' : 'Finalize result'),
+          ),
+        ),
+      );
 
   Widget _settlementCard(Map<String, dynamic> sale) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final buyer = uid == sale['buyerUid'];
+    final seller = uid != null && uid == sale['sellerUid'];
     final status = '${sale['status'] ?? 'pending_completion'}';
     final buyerConfirmed = sale['buyerConfirmed'] == true;
     final sellerConfirmed = sale['sellerConfirmed'] == true;
@@ -153,9 +157,8 @@ class _MarketplaceAuctionSettlementState
                 _SettlementFact(
                   label: 'Your role',
                   value: buyer ? 'Successful buyer' : 'Seller',
-                  icon: buyer
-                      ? Icons.person_outline
-                      : Icons.storefront_outlined,
+                  icon:
+                      buyer ? Icons.person_outline : Icons.storefront_outlined,
                   tone: PipeBuyerStatusTone.neutral,
                 ),
               ];
@@ -239,41 +242,24 @@ class _MarketplaceAuctionSettlementState
                   payLabel: 'Pay winning bid',
                 ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      final price =
-                          (sale['winningBidAmount'] as num?)?.toDouble() ?? 0.0;
-                      final title =
-                          '${widget.listing['title'] ?? 'Auction Item'}';
-                      final invoice = MarketplaceInvoice(
-                        invoiceId:
-                            'INV-${widget.listingId.substring(0, 8).toUpperCase()}',
-                        listingTitle: title,
-                        sellerName:
-                            '${widget.listing['sellerName'] ?? 'Seller'}',
-                        buyerName:
-                            '${sale['winningBidderName'] ?? 'Winning Bidder'}',
-                        unitPrice: price,
-                        quantity: 1,
-                        unitLabel: 'lot',
-                        issueDate: DateTime.now(),
-                        dueDate: DateTime.now().add(const Duration(days: 7)),
-                        status: sale['escrowStatus'] == 'released'
-                            ? 'Paid'
-                            : 'Unpaid',
-                      );
-                      showDialog<void>(
-                        context: context,
-                        builder: (_) =>
-                            MarketplaceInvoiceDialog(invoice: invoice),
-                      );
-                    },
-                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                    label: const Text('View Itemized Invoice'),
-                  ),
+                _MarketplaceAuctionSaleRecordButton(
+                  transactionId: 'auction_${widget.listingId}',
+                  sellerName: '${widget.listing['sellerName'] ?? 'Seller'}',
+                  buyerName:
+                      '${sale['winningBidderName'] ?? 'Successful buyer'}',
                 ),
+                if (seller &&
+                    '${sale['buyerUid'] ?? ''}'.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : () => _messageWinner(sale),
+                      icon: const Icon(Icons.forum_outlined),
+                      label: const Text('Message winner'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -331,10 +317,10 @@ class _MarketplaceAuctionSettlementState
                   onPressed: _busy
                       ? null
                       : () => _reasonAction(
-                          buyer
-                              ? 'report_seller_default'
-                              : 'report_buyer_default',
-                        ),
+                            buyer
+                                ? 'report_seller_default'
+                                : 'report_buyer_default',
+                          ),
                   icon: const Icon(Icons.gavel_outlined),
                   label: Text(
                     buyer ? 'Report seller default' : 'Report buyer default',
@@ -358,50 +344,51 @@ class _MarketplaceAuctionSettlementState
   }
 
   Widget _confirmation(String label, bool confirmed) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(
-      color: (confirmed ? PipeBuyerColors.success : PipeBuyerColors.warning)
-          .withValues(alpha: .07),
-      borderRadius: BorderRadius.circular(11),
-      border: Border.all(
-        color: (confirmed ? PipeBuyerColors.success : PipeBuyerColors.warning)
-            .withValues(alpha: .18),
-      ),
-    ),
-    child: Row(
-      children: [
-        Icon(
-          confirmed ? Icons.check_circle : Icons.schedule_outlined,
-          color: confirmed ? PipeBuyerColors.success : PipeBuyerColors.warning,
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: (confirmed ? PipeBuyerColors.success : PipeBuyerColors.warning)
+              .withValues(alpha: .07),
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color:
+                (confirmed ? PipeBuyerColors.success : PipeBuyerColors.warning)
+                    .withValues(alpha: .18),
           ),
         ),
-        PipeBuyerStatusBadge(
-          label: confirmed ? 'CONFIRMED' : 'WAITING',
-          icon: confirmed ? Icons.check : Icons.schedule_outlined,
-          tone: confirmed
-              ? PipeBuyerStatusTone.success
-              : PipeBuyerStatusTone.warning,
+        child: Row(
+          children: [
+            Icon(
+              confirmed ? Icons.check_circle : Icons.schedule_outlined,
+              color:
+                  confirmed ? PipeBuyerColors.success : PipeBuyerColors.warning,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            PipeBuyerStatusBadge(
+              label: confirmed ? 'CONFIRMED' : 'WAITING',
+              icon: confirmed ? Icons.check : Icons.schedule_outlined,
+              tone: confirmed
+                  ? PipeBuyerStatusTone.success
+                  : PipeBuyerStatusTone.warning,
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 
   Future<void> _finalize() => _run(
-    () => MarketplaceAuctionRepository().finalizeAuction(
-      listingId: widget.listingId,
-    ),
-    'Auction result finalized.',
-  );
+        () => MarketplaceAuctionRepository().finalizeAuction(
+          listingId: widget.listingId,
+        ),
+        'Auction result finalized.',
+      );
 
   Future<void> _confirmCompletion() async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Confirm completion?'),
@@ -429,6 +416,39 @@ class _MarketplaceAuctionSettlementState
       ),
       'Your completion confirmation was recorded.',
     );
+  }
+
+  Future<void> _messageWinner(Map<String, dynamic> sale) async {
+    if (_busy) return;
+    final winnerUid = '${sale['buyerUid'] ?? ''}'.trim();
+    if (winnerUid.isEmpty) {
+      PipeFeedback.show(
+        context,
+        message: 'The authoritative auction winner is unavailable.',
+        tone: PipeStatusTone.error,
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final conversationId =
+          await MarketplaceActionsRepository().ensureTimedBuyingConversation(
+        listingId: widget.listingId,
+        winnerUid: winnerUid,
+      );
+      if (!mounted) return;
+      await context.push(MarketplaceDeepLinks.conversation(conversationId));
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _reasonAction(String action) async {
@@ -522,21 +542,19 @@ class _MarketplaceAuctionSettlementState
           width: 520,
           child: ListView(
             shrinkWrap: true,
-            children: history.docs
-                .map((document) {
-                  final data = document.data();
-                  return ListTile(
-                    leading: CircleAvatar(
-                      child: Text('${data['revision'] ?? 1}'),
-                    ),
-                    title: Text(_statusLabel('${data['status'] ?? 'created'}')),
-                    subtitle: Text(
-                      '${data['event'] ?? 'auction_won'}'
-                      '${data['reason'] == null ? '' : '\n${data['reason']}'}',
-                    ),
-                  );
-                })
-                .toList(growable: false),
+            children: history.docs.map((document) {
+              final data = document.data();
+              return ListTile(
+                leading: CircleAvatar(
+                  child: Text('${data['revision'] ?? 1}'),
+                ),
+                title: Text(_statusLabel('${data['status'] ?? 'created'}')),
+                subtitle: Text(
+                  '${data['event'] ?? 'auction_won'}'
+                  '${data['reason'] == null ? '' : '\n${data['reason']}'}',
+                ),
+              );
+            }).toList(growable: false),
           ),
         ),
         actions: [
@@ -550,22 +568,24 @@ class _MarketplaceAuctionSettlementState
   }
 
   PipeBuyerStatusTone _statusTone(String status) => switch (status) {
-    'completed' => PipeBuyerStatusTone.success,
-    'disputed' ||
-    'buyer_default_reported' ||
-    'seller_default_reported' => PipeBuyerStatusTone.danger,
-    'cancelled' => PipeBuyerStatusTone.neutral,
-    _ => PipeBuyerStatusTone.warning,
-  };
+        'completed' => PipeBuyerStatusTone.success,
+        'disputed' ||
+        'buyer_default_reported' ||
+        'seller_default_reported' =>
+          PipeBuyerStatusTone.danger,
+        'cancelled' => PipeBuyerStatusTone.neutral,
+        _ => PipeBuyerStatusTone.warning,
+      };
 
   IconData _statusIcon(String status) => switch (status) {
-    'completed' => Icons.check_circle_outline,
-    'disputed' => Icons.report_problem_outlined,
-    'buyer_default_reported' ||
-    'seller_default_reported' => Icons.gavel_outlined,
-    'cancelled' => Icons.cancel_outlined,
-    _ => Icons.schedule_outlined,
-  };
+        'completed' => Icons.check_circle_outline,
+        'disputed' => Icons.report_problem_outlined,
+        'buyer_default_reported' ||
+        'seller_default_reported' =>
+          Icons.gavel_outlined,
+        'cancelled' => Icons.cancel_outlined,
+        _ => Icons.schedule_outlined,
+      };
 
   PipeBuyerStatusTone _escrowTone(String status) {
     final normalized = status.trim().toLowerCase();
@@ -579,16 +599,84 @@ class _MarketplaceAuctionSettlementState
   }
 
   String _statusLabel(String status) => switch (status) {
-    'pending_completion' => 'PENDING',
-    'awaiting_buyer_confirmation' => 'WAITING FOR BUYER',
-    'awaiting_seller_confirmation' => 'WAITING FOR SELLER',
-    'completed' => 'COMPLETED',
-    'disputed' => 'DISPUTED',
-    'buyer_default_reported' => 'BUYER DEFAULT REPORTED',
-    'seller_default_reported' => 'SELLER DEFAULT REPORTED',
-    'cancelled' => 'CANCELLED',
-    _ => status.replaceAll('_', ' ').toUpperCase(),
-  };
+        'pending_completion' => 'PENDING',
+        'awaiting_buyer_confirmation' => 'WAITING FOR BUYER',
+        'awaiting_seller_confirmation' => 'WAITING FOR SELLER',
+        'completed' => 'COMPLETED',
+        'disputed' => 'DISPUTED',
+        'buyer_default_reported' => 'BUYER DEFAULT REPORTED',
+        'seller_default_reported' => 'SELLER DEFAULT REPORTED',
+        'cancelled' => 'CANCELLED',
+        _ => status.replaceAll('_', ' ').toUpperCase(),
+      };
+}
+
+class _MarketplaceAuctionSaleRecordButton extends StatelessWidget {
+  const _MarketplaceAuctionSaleRecordButton({
+    required this.transactionId,
+    required this.sellerName,
+    required this.buyerName,
+  });
+
+  final String transactionId;
+  final String sellerName;
+  final String buyerName;
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('marketplace_transactions')
+            .doc(transactionId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          MarketplaceInvoice? invoice;
+          if (snapshot.hasData && snapshot.data!.exists) {
+            try {
+              invoice = MarketplaceInvoice.fromMarketplaceTransaction(
+                transactionId: transactionId,
+                transaction: snapshot.data!.data() ?? const <String, dynamic>{},
+                sellerName: sellerName,
+                buyerName: buyerName,
+              );
+            } on FormatException {
+              invoice = null;
+            }
+          }
+
+          final loading = snapshot.connectionState == ConnectionState.waiting;
+          final unavailable = snapshot.hasError;
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: invoice == null
+                  ? null
+                  : () => showDialog<void>(
+                        context: context,
+                        builder: (_) =>
+                            MarketplaceInvoiceDialog(invoice: invoice!),
+                      ),
+              icon: Icon(
+                unavailable
+                    ? Icons.error_outline
+                    : invoice == null
+                        ? Icons.hourglass_top_rounded
+                        : Icons.receipt_long_outlined,
+                size: 18,
+              ),
+              label: Text(
+                unavailable
+                    ? 'Sale fee record unavailable'
+                    : loading
+                        ? 'Loading sale fee record…'
+                        : invoice == null
+                            ? 'Preparing server-verified fee record…'
+                            : 'View sale fee breakdown',
+              ),
+            ),
+          );
+        },
+      );
 }
 
 class _SettlementFact extends StatelessWidget {
@@ -625,11 +713,11 @@ class _SettlementFact extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: .56),
-                    fontWeight: FontWeight.w700,
-                  ),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: .56),
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Text(

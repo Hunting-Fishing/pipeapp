@@ -122,18 +122,21 @@ private Phase 1 acceptance bundle.
 
 ## Apple compile gate
 
-The `Quality` workflow has a separate pinned `macos-15` job that compiles the
-`iphoneos` release target with `--no-codesign` and verifies that Xcode produced
-`build/ios/iphoneos/Runner.app`. This catches broken Pods, plugins, native
-configuration, privacy resources, and Xcode project changes on every pull
-request without requiring distribution credentials in ordinary CI.
+The current `Quality` workflow is manual Linux validation and explicitly does
+not provide a macOS/iOS compile. Do not cite it as Apple-native build evidence.
+The current Apple compile path is the manually dispatched
+`mobile-release-candidate.yml` workflow on a pinned macOS runner. It performs a
+distribution-signed archive, exports an IPA, verifies its signature and bundle
+metadata, and uploads the candidate to App Store Connect.
 
-The output is deliberately not uploaded or described as an IPA. It is unsigned
-compile evidence only. Gate 6 still requires a separately controlled,
-distribution-signed archive, exported IPA, store validation, and physical-device
+Because that workflow consumes signing credentials, a store build number, and
+an App Store upload, it is a controlled release action rather than an ordinary
+pull-request compile check. A future unsigned macOS pull-request job may restore
+early native compile coverage, but no such job exists at this checkpoint. Gate
+6 still requires the exact signed IPA, App Store validation, and physical-device
 acceptance bound to the exact release SHA.
 
-The first macOS compile exposed two Apple-native defects that Windows could not
+Historical macOS compile evidence exposed two Apple-native defects that Windows could not
 detect: the old splash generator's Swift Package Manager metadata used an
 invalid public-header path, and the Turkish and German `InfoPlist.strings`
 entries shared one Xcode object identifier. The repair upgrades

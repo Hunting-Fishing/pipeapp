@@ -17,18 +17,24 @@ When repairing a payment defect, record the root cause, exact repair, verificati
 
 ## P0 — Financial truth
 
-- [x] Server fee policy is versioned as `2026-08-10-launch-v2`.
-- [x] Pipe/tubing/casing seller fee is server-authoritative: CAD/USD $1 per stick/joint, $25 minimum, $5,000 maximum.
-- [x] Equipment/assets seller fee is server-authoritative: $25 minimum; 5% under $10k, 3% $10k–$49,999.99, 2% $50k–$249,999.99, 1% $250k+.
+- [x] Server fee policy is versioned as `2026-10-16-sale-only-v4`.
+- [x] Marketplace and auction listings have no upfront listing fee; the seller fee is collected only on a completed sale.
+- [x] Pipe/tubing/casing seller fee is server-authoritative: CAD/USD $1 per sold stick/item, capped at the lower of 3% of the sale or $2,500.
+- [x] Equipment/assets seller fee is server-authoritative and marginal: 3% / 2.5% / 2% / 1.5% / 1% bands, $1 minimum, and $2,500 maximum.
 - [x] Accepted transaction fee snapshots are designed to be immutable.
 - [x] Current main server policy still specifies `affiliateShareBps: 2000` (20%).
-- [ ] Reconcile older monetization documentation with current launch-v2 server policy.
+- [ ] Continue reconciling any older non-historical monetization documentation with the current sale-only v3 server policy.
 - [ ] Resolve open affiliate economics proposal before enabling affiliate payouts.
 - [ ] Confirm every checkout/admin/user-facing fee display matches server policy.
 
 ## Live Stripe products/prices
 
 - [x] Live Pipe Buyer Stripe account identified.
+- [x] Dispatch Monthly USD recurring price exists: US$25/month.
+- [x] Dispatch Yearly USD recurring price exists: US$250/year.
+- [x] US$250/year saves exactly US$50 against twelve monthly payments,
+  equal to two monthly payments (16.667%).
+- [x] The USD monthly price is the unified Dispatch product's default price.
 - [x] Dispatch Monthly CAD recurring price exists: CA$25/month.
 - [x] Dispatch Yearly CAD recurring price exists: CA$300/year.
 - [x] Pipe Marketplace Fee product exists with launch-v2 metadata.
@@ -53,8 +59,13 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [x] Already-processed events return safely without running money movement again.
 - [x] Failed webhook processing is recorded and returns non-2xx so Stripe can retry.
 - [x] Seller Transfers use a stable transaction idempotency key.
-- [ ] Verify production `STRIPE_WEBHOOK_SECRET` deployment without exposing secret value.
-- [ ] Verify production `STRIPE_SECRET_KEY` deployment without exposing secret value.
+- [ ] Verify production `STRIPE_WEBHOOK_SECRET` and sandbox
+  `STRIPE_WEBHOOK_SECRET_SANDBOX` bindings without exposing either value.
+- [ ] Verify `STRIPE_SECRET_PRODUCTION` and `STRIPE_SECRET_SANDBOX` bindings
+  without exposing either value.
+- [ ] Verify the thin Accounts v2 destination secrets are isolated as
+  `STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_PRODUCTION` and
+  `STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_SANDBOX`.
 - [ ] Run controlled duplicate-event acceptance test.
 - [ ] Run out-of-order event acceptance test.
 - [ ] Verify failed-event operational alert/review path.
@@ -69,8 +80,10 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [x] Paid-feature and Dispatch feature gates are enforced.
 - [x] Checkout uses server-configured Stripe Price IDs.
 - [x] Client cannot supply authoritative subscription amount.
-- [x] Monthly maps to intended recurring CAD price.
-- [x] Yearly maps to intended recurring CAD price.
+- [x] Monthly maps to the intended recurring USD price.
+- [x] Yearly maps to the intended discounted recurring USD price.
+- [x] Legacy CAD monthly/yearly Price IDs remain recognizable for delayed
+  invoices and webhook replays but are not selected for new checkout sessions.
 - [x] Checkout uses Stripe `mode=subscription`.
 - [x] Billing address collection is required.
 - [x] Promotion coupons are chosen from server-owned entitlement records.
@@ -136,6 +149,12 @@ Do not activate this merely because code exists.
 - [x] Seller transfer uses `source_transaction`.
 - [x] Seller transfer is idempotent by Pipe Buyer transaction ID.
 - [x] Checkout subtotal is checked against immutable sale snapshot.
+- [x] Full-sale checkout fails closed unless a separately approved Stripe
+  payment-method configuration and conservative provider-cost ceiling leave
+  positive minimum net platform revenue for the exact sale after affiliate
+  commission and any configured automatic-tax uplift.
+- [x] Unsupported currency, amount, payment rail, or insufficient fee margin is
+  declined before Stripe Checkout rather than using a guessed processing rate.
 - [ ] Confirm Connect platform profile and accepted loss-liability responsibilities.
 - [ ] Confirm Radar for Platforms/risk strategy.
 - [ ] Confirm current connected-account onboarding model matches current Stripe guidance.
@@ -148,6 +167,11 @@ Do not activate this merely because code exists.
 - [ ] Prove no seller Transfer occurs before final provider success.
 - [ ] Prove seller Transfer occurs exactly once.
 - [ ] Prove every cent reconciles.
+- [ ] Approve and record the full-GMV economics evidence revision, Stripe
+  payment-method configuration, USD transaction cap, provider-cost ceiling,
+  automatic-tax uplift ceiling, and minimum net platform revenue; otherwise
+  keep full-sale checkout disabled and use only the separately approved
+  fee-only external-settlement path.
 
 ---
 
@@ -224,13 +248,40 @@ P7 definition of done: every Pipe Buyer dollar can be traced from business trans
 
 # Findings / repair log
 
+## 2026-10-18 — Live USD Dispatch pricing created and selected
+
+Observed: the unified live Dispatch product had only the intended CAD recurring
+prices and a legacy one-time CAD price. The approved web price schedule is
+US$25/month and US$250/year.
+
+Repair/action: created immutable recurring USD monthly and yearly prices on the
+existing unified Dispatch product, made the USD monthly price the product
+default, and changed product catalog metadata from CAD/Canada to USD/global.
+The annual price itself carries the discount; no coupon was added. Existing CAD
+prices were retained because provider event replay and older clients can still
+refer to immutable Price IDs.
+
+Verification: the live product page showed five prices, US$25/month marked
+Default, US$250/year, and zero active subscriptions on both new prices. The
+checked-out server configuration uses the new USD Price IDs for new checkout
+and recognizes the two legacy CAD recurring IDs for lifecycle events.
+
+Status: catalog and branch wiring complete; production checkout remains
+fail-closed until the production webhook, restricted-key, tax, reconciliation,
+Connect account migration, and release gates are verified.
+
 ## 2026-08-21 — Live Stripe object audit
 
-Observed: multiple active Dispatch prices/products exist, including intended recurring CAD monthly/yearly objects plus older one-time CAD prices and an active US$25/month legacy/international product.
+Observed: multiple active Dispatch prices/products existed, including recurring
+CAD monthly/yearly objects, older one-time CAD prices, and an active US$25/month
+legacy/international product.
 
 Root cause: not yet classified; likely prior setup iterations. Do not assume these are safe to delete.
 
-Repair/action: dependency audit first. Current Firebase `stripe_marketplace_config.js` explicitly uses the intended recurring CAD monthly/yearly Price IDs, so new Dispatch checkout is not selecting the one-time prices.
+Repair/action: dependency audit first. This historical entry predates the
+2026-10-18 USD catalog cutover; current branch configuration now selects the
+unified product's new USD recurring Price IDs and preserves the CAD recurring
+IDs only for lifecycle-event recognition.
 
 Verification: live Stripe products/prices compared against current `main` Firebase configuration.
 
@@ -243,3 +294,39 @@ Observed: production Stripe webhook is already live and enabled.
 Verification: live Stripe endpoint event list matches Firebase webhook handler coverage for Checkout, subscription invoice paid, refunds, and disputes.
 
 Status: architecture verified; secret deployment and controlled retry/duplicate acceptance still pending.
+
+## 2026-10-17 — Accounts v2 and live capability hardening
+
+Implemented locally: new seller accounts use Accounts v2 recipient
+configuration with Express dashboard access, Pipe Buyer fee collection and
+negative balance liability, and requested `stripe_transfers`. Checkout and
+seller release now fail closed unless a fresh Stripe read reports that exact
+configuration, an active transfer capability, and an active Stripe-balance
+payout capability. The v1 payment snapshot catalog remains separate from the
+Accounts v2 thin-event catalog.
+
+Still required before activation:
+
+- [ ] Confirm Accounts v2 access on the production Stripe account.
+- [ ] Re-onboard or otherwise migrate the existing v1 connected seller account;
+  the server intentionally refuses to infer v2 readiness from v1 booleans.
+  Use the MFA-admin prepare command, seller-owned onboarding-link command, and
+  explicit MFA-admin activation command. Activation must preserve the legacy
+  account/audit record and is blocked by unsettled, held, refund/dispute, or
+  seller-recovery obligations and by an unreviewed transaction set over the
+  400-document atomic bound.
+- [ ] Deploy the dedicated `stripeAccountsV2Webhook` endpoint and bind its
+  separate production and sandbox Accounts v2 signing secrets.
+- [ ] Create a thin-format connected-account event destination for
+  `v2.core.account.updated`, recipient capability/configuration updates,
+  defaults, identity, requirements, and future-requirements updates. Do not
+  substitute the v1 snapshot `account.updated` event.
+- [ ] Bind `STRIPE_WEBHOOK_SECRET_SANDBOX` to the existing snapshot payment
+  endpoint and prove the endpoint rejects a mismatched event `livemode`.
+- [ ] Prove pending/restricted/active capability transitions in an isolated
+  Stripe sandbox.
+- [ ] Prove Checkout and Transfer both fail before a capability becomes active
+  and remain blocked after it becomes restricted.
+
+Status: code verified locally; Stripe account access, webhook subscription,
+legacy seller migration, and sandbox acceptance remain provisional.

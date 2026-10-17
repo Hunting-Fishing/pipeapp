@@ -184,7 +184,7 @@ function listingInput(title = "Integration pipe") {
     priceBasis: "Per piece",
     quantity: 54,
     condition: "Ready for use",
-    currency: "CAD",
+    currency: "USD",
     description: "Emulator-only production command integration fixture.",
   };
 }
@@ -756,6 +756,46 @@ try {
   );
   assert.equal(sellerConversation.conversationId,
       conversationFirst.conversationId);
+  await expectCallableError(
+      "authorizeMarketplaceUpload",
+      buyer.token,
+      {
+        requestId: `chat-upload-membership-blocked-${now}`,
+        purpose: "chat_attachment",
+        conversationId: conversationFirst.conversationId,
+        originalName: "blocked-integration.jpg",
+        contentType: "image/jpeg",
+        sizeBytes: 4,
+      },
+      "FAILED_PRECONDITION",
+  );
+  // Attachments and contact-bearing media are intentionally membership-gated.
+  // Give the buyer a current test membership before exercising that path; plain
+  // marketplace messaging above remains available without this entitlement.
+  await db.doc(`dispatch_memberships/${buyer.uid}`).set({
+    ownerUid: buyer.uid,
+    active: true,
+    status: "active",
+    renewalStatus: "paid",
+    paymentIssue: false,
+    plan: "monthly",
+    subscriptionId: `sub_marketplace_integration_${now}`,
+    stripeCustomerId: `cus_marketplace_integration_${now}`,
+    currentPeriodStart: Timestamp.fromMillis(now - 24 * 60 * 60 * 1000),
+    currentPeriodEnd: Timestamp.fromMillis(now + 30 * 24 * 60 * 60 * 1000),
+    lastPaidInvoiceId: `in_marketplace_integration_${now}`,
+    createdAt: Timestamp.fromMillis(now - 24 * 60 * 60 * 1000),
+    updatedAt: Timestamp.fromMillis(now),
+  });
+  // The attachment path also requires a server-owned accepted-sale relationship.
+  // Seed that relationship only for this communication check, then restore the
+  // active listing so the later acceptance/lifecycle exercise remains independent.
+  await db.doc(`public_listings/${offerListingId}`).update({
+    status: "pending_sale",
+    acceptedOfferId: offerId,
+    acceptedBuyerUid: buyer.uid,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   const uploadAuthorization = await call(
       "authorizeMarketplaceUpload",
       buyer.token,
@@ -799,6 +839,12 @@ try {
       `conversations/${conversationFirst.conversationId}/messages`,
       1,
   );
+  await db.doc(`public_listings/${offerListingId}`).update({
+    status: "active",
+    acceptedOfferId: FieldValue.delete(),
+    acceptedBuyerUid: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   const flaggedMessageId = `message-safety-${now}`;
   await call("sendMarketplaceMessage", buyer.token, {
     requestId: flaggedMessageId,
@@ -1177,6 +1223,7 @@ try {
   assert.match(unpaidMarketplaceCompletion.message, /payment|settlement/i);
   await db.doc(`marketplace_transactions/${offerId}`).update({
     paymentProviderStatus: "external_agreed",
+    marketplaceFeeStatus: "collected",
     financialStatus: "external_settlement_confirmed",
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -1302,7 +1349,6 @@ try {
   for (const [action, status] of [
     ["pause", "paused"],
     ["activate", "active"],
-    ["mark_sold", "sold"],
     ["archive", "archived"],
   ]) {
     transitionNumber += 1;
@@ -1324,6 +1370,16 @@ try {
     assert.deepEqual(transitionRetry, transitionFirst);
     assert.equal(transitionFirst.status, status);
   }
+  await expectCallableError(
+      "transitionMarketplaceListing",
+      seller.token,
+      {
+        requestId: `transition-mark-sold-blocked-${now}`,
+        listingId: lifecycleListingId,
+        action: "mark_sold",
+      },
+      "FAILED_PRECONDITION",
+  );
   const relistedListingId = `relisted-${now}`;
   const relistData = {
     requestId: `relist-${now}`,
@@ -1418,6 +1474,11 @@ try {
       {listingId: auctionListingId},
   );
   assert.deepEqual(belowReserveRetry, belowReserveFirst);
+  const belowReserveListing = (
+    await db.doc(`public_listings/${auctionListingId}`).get()
+  ).data();
+  assert.equal(belowReserveListing.status, "pending_sale");
+  assert.equal(belowReserveListing.saleStatus, "pending_completion");
 
   const buyNowListingId = `buy-now-listing-${now}`;
   await call("createMarketplaceListing", seller.token, {
@@ -1444,6 +1505,8 @@ try {
   const boughtListing = (
     await db.doc(`public_listings/${buyNowListingId}`).get()
   ).data();
+  assert.equal(boughtListing.status, "pending_sale");
+  assert.equal(boughtListing.saleStatus, "pending_completion");
   assert.equal(boughtListing.auctionStatus, "bought_now");
   assert.equal(boughtListing.bidCount, 1);
   assert.equal(
@@ -1484,8 +1547,20 @@ try {
       await call("finalizeAuction", buyer.token, finalizeData),
       finalized,
   );
+  assert.deepEqual(
+      await call("finalizeAuction", buyer.token, {
+        ...finalizeData,
+        requestId: `finalize-auction-second-identity-${now}`,
+      }),
+      finalized,
+  );
   assert.equal(finalized.auctionStatus, "won");
   assert.equal(finalized.winnerUid, buyer.uid);
+  const finalizedListing = (
+    await db.doc(`public_listings/${finalizationListingId}`).get()
+  ).data();
+  assert.equal(finalizedListing.status, "pending_sale");
+  assert.equal(finalizedListing.saleStatus, "pending_completion");
   const auctionBuyerConfirmation = {
     requestId: `auction-buyer-confirm-${now}`,
     listingId: finalizationListingId,
@@ -1506,6 +1581,7 @@ try {
   );
   await db.doc(auctionPaymentPath).set({
     paymentProviderStatus: "external_agreed",
+    marketplaceFeeStatus: "collected",
     financialStatus: "external_settlement_confirmed",
     updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});

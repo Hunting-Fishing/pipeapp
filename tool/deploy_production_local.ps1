@@ -223,6 +223,13 @@ if (-not (Test-Path '.\build\web\firebase-messaging-sw.js')) {
   throw 'Production Firebase Messaging worker is missing from build/web.'
 }
 
+Invoke-Checked 'Recording deterministic production release marker' {
+  node tool/release_marker.mjs `
+    --environment production `
+    --release-sha $releaseSha `
+    --output build/web/pipe-release.json
+}
+
 Invoke-Checked 'Recording exact production release manifest' {
   node tool/release_manifest.mjs `
     --environment production `

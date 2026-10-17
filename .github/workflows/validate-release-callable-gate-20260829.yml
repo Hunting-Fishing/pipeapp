@@ -58,7 +58,11 @@ jobs:
           cat > firebase/functions/.secret.local <<'EOF'
           STRIPE_SECRET_KEY=sk_test_pipe_buyer_emulator_only
           STRIPE_SECRET_PRODUCTION=sk_test_pipe_buyer_production_binding_emulator_only
+          STRIPE_SECRET_SANDBOX=sk_test_pipe_buyer_sandbox_binding_emulator_only
           STRIPE_WEBHOOK_SECRET=whsec_pipe_buyer_emulator_only
+          STRIPE_WEBHOOK_SECRET_SANDBOX=whsec_pipe_buyer_sandbox_emulator_only
+          STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_PRODUCTION=whsec_pipe_buyer_accounts_v2_production_emulator_only
+          STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_SANDBOX=whsec_pipe_buyer_accounts_v2_sandbox_emulator_only
           EOF
 
       - name: Install pinned Firebase CLI

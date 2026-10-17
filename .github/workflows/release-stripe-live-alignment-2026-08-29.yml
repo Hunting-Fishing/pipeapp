@@ -32,6 +32,12 @@ jobs:
       POLICY_PUBLISH_URL: https://us-central1-flutter-flow-pipe.cloudfunctions.net/productionPolicyPublication
 
     steps:
+      - name: Intentional production safety hold
+        shell: bash
+        run: |
+          echo "::error::Historical production mutation workflow is intentionally disabled. Keep all production, readiness, and paid-feature flags false; use the current sandbox-first activation runbook."
+          exit 1
+
       - name: Check out exact release source
         uses: actions/checkout@v7.0.0
         with:

@@ -10,7 +10,10 @@ const {
   AdministratorAuthorizationError,
   requireAdministrator,
 } = require("./administrator_authorization");
-const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {
+  requireStripeTransactionMode,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 const {
   isStripeDisputeId,
   isStripeFileId,
@@ -126,6 +129,7 @@ function createStripeDisputeResponse(admin) {
           "Programmatic dispute evidence is not enabled yet.",
       );
     }
+    return String(data.stripeMode);
   }
 
   async function loadDisputeCase(caseId) {
@@ -142,9 +146,19 @@ function createStripeDisputeResponse(admin) {
     return {caseRef, financialCase, disputeId};
   }
 
-  async function retrieveOpenDispute(disputeId) {
+  async function requireDisputeTransactionMode(financialCase, stripeMode) {
+    const transactionId = cleanCaseId(financialCase.transactionId);
+    const snapshot = await db.collection("marketplace_transactions")
+        .doc(transactionId).get();
+    if (!snapshot.exists) {
+      throw new HttpsError("not-found", "The disputed transaction was not found.");
+    }
+    requireStripeTransactionMode(snapshot.data(), stripeMode);
+  }
+
+  async function retrieveOpenDispute(disputeId, secretKey) {
     const dispute = await stripeFinancialRequest({
-      secretKey: stripeSecretKey.value(),
+      secretKey,
       path: `/v1/disputes/${encodeURIComponent(disputeId)}`,
       method: "GET",
     });
@@ -167,17 +181,19 @@ function createStripeDisputeResponse(admin) {
     try {
       administratorUid = requireAdministrator(request);
       await enforceUserRateLimit({db, admin, request, scope: "administration"});
-      await requireEnabled();
+      const stripeMode = await requireEnabled();
+      const stripeSecret = stripeSecretValueForMode(stripeMode);
       const caseId = cleanCaseId(request.data && request.data.caseId);
       const evidence = normalizeEvidence(request.data && request.data.evidence);
       const {caseRef, financialCase, disputeId} = await loadDisputeCase(caseId);
+      await requireDisputeTransactionMode(financialCase, stripeMode);
       if (financialCase.finalEvidenceSubmittedAt) {
         throw new HttpsError(
             "failed-precondition",
             "Final evidence was already submitted for this dispute.",
         );
       }
-      await retrieveOpenDispute(disputeId);
+      await retrieveOpenDispute(disputeId, stripeSecret);
       const fields = {submit: "false"};
       for (const [field, value] of Object.entries(evidence)) {
         fields[`evidence[${field}]`] = value;
@@ -186,7 +202,7 @@ function createStripeDisputeResponse(admin) {
       fields["metadata[pipeBuyerTransactionId]"] =
         String(financialCase.transactionId || "");
       const dispute = await stripeFinancialRequest({
-        secretKey: stripeSecretKey.value(),
+        secretKey: stripeSecret,
         path: `/v1/disputes/${encodeURIComponent(disputeId)}`,
         fields,
       });
@@ -231,7 +247,8 @@ function createStripeDisputeResponse(admin) {
     try {
       administratorUid = requireAdministrator(request);
       await enforceUserRateLimit({db, admin, request, scope: "administration"});
-      await requireEnabled();
+      const stripeMode = await requireEnabled();
+      const stripeSecret = stripeSecretValueForMode(stripeMode);
       if (!request.data || request.data.confirmFinalSubmission !== true) {
         throw new HttpsError(
             "failed-precondition",
@@ -240,6 +257,7 @@ function createStripeDisputeResponse(admin) {
       }
       const caseId = cleanCaseId(request.data.caseId);
       const {caseRef, financialCase, disputeId} = await loadDisputeCase(caseId);
+      await requireDisputeTransactionMode(financialCase, stripeMode);
       if (!financialCase.stagedEvidenceHash) {
         throw new HttpsError(
             "failed-precondition",
@@ -254,7 +272,7 @@ function createStripeDisputeResponse(admin) {
           alreadySubmitted: true,
         };
       }
-      const before = await retrieveOpenDispute(disputeId);
+      const before = await retrieveOpenDispute(disputeId, stripeSecret);
       const submissionCount = Math.max(0, Number(
           before.evidence_details && before.evidence_details.submission_count || 0,
       ));
@@ -265,7 +283,7 @@ function createStripeDisputeResponse(admin) {
         );
       }
       const dispute = await stripeFinancialRequest({
-        secretKey: stripeSecretKey.value(),
+        secretKey: stripeSecret,
         path: `/v1/disputes/${encodeURIComponent(disputeId)}`,
         idempotencyKey: `pipebuyer-dispute-submit-${caseId}`,
         fields: {
@@ -312,7 +330,8 @@ function createStripeDisputeResponse(admin) {
     try {
       administratorUid = requireAdministrator(request);
       await enforceUserRateLimit({db, admin, request, scope: "administration"});
-      await requireEnabled();
+      const stripeMode = await requireEnabled();
+      const stripeSecret = stripeSecretValueForMode(stripeMode);
       if (!request.data || request.data.confirmIrreversibleLoss !== true) {
         throw new HttpsError(
             "failed-precondition",
@@ -320,10 +339,11 @@ function createStripeDisputeResponse(admin) {
         );
       }
       const caseId = cleanCaseId(request.data.caseId);
-      const {caseRef, disputeId} = await loadDisputeCase(caseId);
-      await retrieveOpenDispute(disputeId);
+      const {caseRef, financialCase, disputeId} = await loadDisputeCase(caseId);
+      await requireDisputeTransactionMode(financialCase, stripeMode);
+      await retrieveOpenDispute(disputeId, stripeSecret);
       const dispute = await stripeFinancialRequest({
-        secretKey: stripeSecretKey.value(),
+        secretKey: stripeSecret,
         path: `/v1/disputes/${encodeURIComponent(disputeId)}/close`,
         idempotencyKey: `pipebuyer-dispute-accept-${caseId}`,
         fields: {},

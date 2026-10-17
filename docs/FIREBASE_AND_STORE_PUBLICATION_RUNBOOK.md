@@ -187,6 +187,19 @@ Retain the `firebase-release-evidence-*` artifact and the workflow URL.
 - Complete internal testing, closed/open testing requirements when applicable,
   pre-launch report review, then promote the approved build to production.
 
+The repository's Google catalog identifiers are implementation inputs, not an
+approval of Play pricing or availability. Google Play product prices, base-plan
+IDs, launch countries, and the decision to offer `pipebuyer_vip_monthly` on
+Android remain external and unapproved. Do not copy Apple or Stripe pricing,
+country availability, or VIP scope into Play Console without separate product,
+legal, and release approval.
+
+The current Android client indexes returned subscription details by product ID
+and does not make an explicit base-plan or promotional-offer selection. Until a
+deterministic selection policy and focused tests are implemented, configure
+exactly one eligible base plan/offer for each approved Google product. Do not
+activate additional eligible base plans or offers for the same product ID.
+
 The repository currently compiles and targets Android API 36.
 
 ## 8. Apple publication

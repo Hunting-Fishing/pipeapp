@@ -21,6 +21,7 @@ const {
 } = require("firebase/firestore");
 
 const projectId = "demo-pipe-buyer-r4-draft-rules";
+const firestorePort = Number(process.env.FIRESTORE_EMULATOR_PORT || 8080);
 let testEnvironment;
 
 const administratorClaims = {
@@ -54,7 +55,7 @@ before(async () => {
     firestore: {
       rules,
       host: "127.0.0.1",
-      port: 8080,
+      port: firestorePort,
     },
   });
 });

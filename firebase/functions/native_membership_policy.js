@@ -21,6 +21,17 @@ const NATIVE_MEMBERSHIP_PRODUCTS = Object.freeze({
   }),
 });
 
+// Only the two Dispatch subscriptions are configured in App Store Connect.
+// Keep this Apple-specific allowlist separate from the shared catalog so the
+// existing Google Play product behavior does not change when Apple is enabled.
+const APPLE_NATIVE_MEMBERSHIP_PRODUCT_IDS = Object.freeze([
+  "pipebuyer_dispatch_monthly",
+  "pipebuyer_dispatch_yearly",
+]);
+const APPLE_NATIVE_MEMBERSHIP_PRODUCT_ID_SET = new Set(
+    APPLE_NATIVE_MEMBERSHIP_PRODUCT_IDS,
+);
+
 const GOOGLE_ENTITLED_STATES = new Set([
   "SUBSCRIPTION_STATE_ACTIVE",
   "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
@@ -36,24 +47,15 @@ function nativeMembershipProduct(value) {
   return NATIVE_MEMBERSHIP_PRODUCTS[productId] || null;
 }
 
+function appleNativeMembershipProduct(value) {
+  const productId = String(value || "").trim();
+  if (!APPLE_NATIVE_MEMBERSHIP_PRODUCT_ID_SET.has(productId)) return null;
+  return nativeMembershipProduct(productId);
+}
+
 function normalizeNativePlatform(value) {
   const platform = String(value || "").trim().toLowerCase();
   return new Set(["ios", "android"]).has(platform) ? platform : "";
-}
-
-function decodeBase64UrlJson(value) {
-  try {
-    const text = Buffer.from(String(value || ""), "base64url").toString("utf8");
-    const decoded = JSON.parse(text);
-    return decoded && typeof decoded === "object" ? decoded : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function decodeJwsPayload(jws) {
-  const parts = String(jws || "").split(".");
-  return parts.length === 3 ? decodeBase64UrlJson(parts[1]) : null;
 }
 
 function appleTransactionEntitlement(payload, expectedAccountToken, nowMillis = Date.now()) {
@@ -61,13 +63,13 @@ function appleTransactionEntitlement(payload, expectedAccountToken, nowMillis = 
   if (String(payload.bundleId || "") !== APPLE_BUNDLE_ID) return null;
   if (String(payload.appAccountToken || "").toLowerCase() !==
       String(expectedAccountToken || "").toLowerCase()) return null;
-  const product = nativeMembershipProduct(payload.productId);
+  const product = appleNativeMembershipProduct(payload.productId);
   if (!product) return null;
   const expiresAtMillis = Number(payload.expiresDate || 0);
   if (!Number.isFinite(expiresAtMillis) || expiresAtMillis <= nowMillis) return null;
   if (Number(payload.revocationDate || 0) > 0 || payload.isUpgraded === true) return null;
-  const ownership = String(payload.inAppOwnershipType || "PURCHASED");
-  if (ownership && ownership !== "PURCHASED") return null;
+  const ownership = String(payload.inAppOwnershipType || "");
+  if (ownership !== "PURCHASED") return null;
   const transactionId = String(payload.transactionId || "").trim();
   const originalTransactionId = String(payload.originalTransactionId || "").trim();
   if (!transactionId || !originalTransactionId) return null;
@@ -82,39 +84,6 @@ function appleTransactionEntitlement(payload, expectedAccountToken, nowMillis = 
     expiresAtMillis,
     environment: String(payload.environment || ""),
   };
-}
-
-function appleStatusEntitlement(statusResponse, expectedAccountToken, nowMillis = Date.now()) {
-  if (!statusResponse || String(statusResponse.bundleId || "") !== APPLE_BUNDLE_ID) {
-    return null;
-  }
-  let selected = null;
-  for (const group of Array.isArray(statusResponse.data) ? statusResponse.data : []) {
-    for (const item of Array.isArray(group && group.lastTransactions) ?
-      group.lastTransactions : []) {
-      const status = Number(item && item.status || 0);
-      if (!APPLE_ENTITLED_STATUSES.has(status)) continue;
-      const payload = decodeJwsPayload(item && item.signedTransactionInfo);
-      const entitlement = appleTransactionEntitlement(
-          payload,
-          expectedAccountToken,
-          nowMillis,
-      );
-      if (!entitlement) continue;
-      const renewal = decodeJwsPayload(item && item.signedRenewalInfo) || {};
-      const candidate = {
-        ...entitlement,
-        status: status === 4 ? "grace_period" : "active",
-        autoRenewEnabled: Number(renewal.autoRenewStatus || 0) === 1,
-        pendingProductId: nativeMembershipProduct(renewal.autoRenewProductId) ?
-          String(renewal.autoRenewProductId) : "",
-      };
-      if (!selected || candidate.expiresAtMillis > selected.expiresAtMillis) {
-        selected = candidate;
-      }
-    }
-  }
-  return selected;
 }
 
 function googleSubscriptionEntitlement(purchase, expectedAccountToken, nowMillis = Date.now()) {
@@ -160,12 +129,12 @@ function googleSubscriptionEntitlement(purchase, expectedAccountToken, nowMillis
 module.exports = {
   APPLE_BUNDLE_ID,
   APPLE_ENTITLED_STATUSES,
+  APPLE_NATIVE_MEMBERSHIP_PRODUCT_IDS,
   GOOGLE_ENTITLED_STATES,
   GOOGLE_PACKAGE_NAME,
   NATIVE_MEMBERSHIP_PRODUCTS,
-  appleStatusEntitlement,
+  appleNativeMembershipProduct,
   appleTransactionEntitlement,
-  decodeJwsPayload,
   googleSubscriptionEntitlement,
   nativeMembershipProduct,
   normalizeNativePlatform,

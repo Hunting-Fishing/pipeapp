@@ -158,8 +158,7 @@ class MarketplaceProfileRepository {
       ..remove('phone_number')
       ..remove('phoneE164');
     final userRef = _firestore.collection('users').doc(uid);
-    final publicRef =
-        _firestore.collection('public_seller_profiles').doc(uid);
+    final publicRef = _firestore.collection('public_seller_profiles').doc(uid);
     await _firestore.runTransaction((transaction) async {
       final userSnapshot = await transaction.get(userRef);
       final userValues = <String, dynamic>{
@@ -223,14 +222,14 @@ class MarketplaceProfileRepository {
         publicRef,
         {
           'publicName': values['publicName'],
-          'publicPhone': values['publicPhone'],
-          'publicEmail': values['publicEmail'],
-          'website': values['website'],
-          'serviceArea': values['serviceArea'],
+          'publicPhone': FieldValue.delete(),
+          'publicEmail': FieldValue.delete(),
+          'website': FieldValue.delete(),
+          'serviceArea': FieldValue.delete(),
           'serviceAreaLabel': values['serviceAreaLabel'],
-          'serviceCountryCodes': values['serviceCountryCodes'],
-          'serviceRegionKeys': values['serviceRegionKeys'],
-          'servicePlaceKeys': values['servicePlaceKeys'],
+          'serviceCountryCodes': FieldValue.delete(),
+          'serviceRegionKeys': FieldValue.delete(),
+          'servicePlaceKeys': FieldValue.delete(),
           'description': values['description'],
           'ownerUid': uid,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -243,6 +242,13 @@ class MarketplaceProfileRepository {
           'legalName': values['legalName'],
           'privateAddress': values['privateAddress'],
           'yardLocation': values['yardLocation'],
+          'serviceArea': values['serviceArea'],
+          'serviceCountryCodes': values['serviceCountryCodes'],
+          'serviceRegionKeys': values['serviceRegionKeys'],
+          'servicePlaceKeys': values['servicePlaceKeys'],
+          'contactPhone': values['publicPhone'],
+          'contactEmail': values['publicEmail'],
+          'website': values['website'],
           'ownerUid': uid,
           'memberUids': FieldValue.arrayUnion([uid]),
           'updatedAt': FieldValue.serverTimestamp(),

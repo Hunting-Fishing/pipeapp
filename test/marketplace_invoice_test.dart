@@ -1,48 +1,128 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/marketplace_invoice_generator.dart';
 
+Map<String, dynamic> marketplaceTransaction({
+  Map<String, dynamic>? feeSnapshot,
+  String paymentStatus = 'paid',
+  String payoutStatus = 'pending_release',
+}) =>
+    <String, dynamic>{
+      'listingTitle': '3 1/2 EUE Tubing J-55 9.3#',
+      'currency': 'USD',
+      'paymentProviderStatus': paymentStatus,
+      'sellerPayoutStatus': payoutStatus,
+      'marketplaceFeeSnapshot': feeSnapshot ??
+          <String, dynamic>{
+            'source': 'server_fee_policy',
+            'scheduleRevision': '2026-10-16-sale-v3',
+            'feePayer': 'seller',
+            'currency': 'USD',
+            'agreedTotalMinor': 1250000,
+            'marketplaceFeeMinor': 125000,
+            'sellerProceedsBeforeTaxMinor': 1125000,
+          },
+    };
+
 void main() {
-  group('MarketplaceInvoice Model Tests', () {
-    test('Calculates subtotal, fees, and total due accurately', () {
-      final invoice = MarketplaceInvoice(
-        invoiceId: 'INV-1001',
-        listingTitle: '3 1/2 EUE Tubing J-55 9.3#',
+  group('MarketplaceInvoice server snapshot', () {
+    test('uses immutable gross sale, seller fee, and seller proceeds', () {
+      final invoice = MarketplaceInvoice.fromMarketplaceTransaction(
+        transactionId: 'auction-listing-1',
+        transaction: marketplaceTransaction(),
         sellerName: 'Calgary Tubular Ltd',
         buyerName: 'Permian Energy Resources',
-        unitPrice: 12.50,
-        quantity: 1000,
-        unitLabel: 'ft',
-        freightCharge: 850.00,
-        issueDate: DateTime(2026, 8, 1),
-        dueDate: DateTime(2026, 8, 8),
       );
 
-      expect(invoice.subtotal, equals(12500.00));
-      expect(invoice.sellerCommissionFee, equals(312.50)); // 2.5% of 12500
-      expect(invoice.escrowProtectionFee, equals(125.00)); // 1.0% of 12500
-      expect(invoice.totalDue, equals(12500.00 + 125.00 + 850.00)); // 13475.00
-      expect(invoice.status, equals('Unpaid'));
+      expect(invoice.grossSaleMinor, 1250000);
+      expect(invoice.marketplaceFeeMinor, 125000);
+      expect(invoice.sellerProceedsBeforeTaxMinor, 1125000);
+      expect(invoice.feeScheduleRevision, '2026-10-16-sale-v3');
+      expect(invoice.paymentProviderStatusLabel, 'Paid');
+      expect(invoice.sellerPayoutStatusLabel, 'Pending release');
+      expect(invoice.money(invoice.grossSaleMinor), r'USD 12,500.00');
     });
 
-    test('Serializes invoice data to JSON cleanly', () {
-      final invoice = MarketplaceInvoice(
-        invoiceId: 'INV-2002',
-        listingTitle: 'Frac Tank 500 BBL',
-        sellerName: 'Midland Fleet Inc',
-        buyerName: 'Houston Oilfields',
-        unitPrice: 28000.00,
-        quantity: 1,
-        unitLabel: 'unit',
-        issueDate: DateTime(2026, 8, 1),
-        dueDate: DateTime(2026, 8, 8),
+    test('rejects missing, unverified, or inconsistent fee data', () {
+      expect(
+        () => MarketplaceInvoice.fromMarketplaceTransaction(
+          transactionId: 'missing',
+          transaction: const <String, dynamic>{},
+        ),
+        throwsFormatException,
       );
+      expect(
+        () => MarketplaceInvoice.fromMarketplaceTransaction(
+          transactionId: 'client-authored',
+          transaction: marketplaceTransaction(
+            feeSnapshot: <String, dynamic>{
+              'source': 'client',
+              'scheduleRevision': 'revision',
+              'currency': 'USD',
+              'agreedTotalMinor': 10000,
+              'marketplaceFeeMinor': 1000,
+              'sellerProceedsBeforeTaxMinor': 9000,
+            },
+          ),
+        ),
+        throwsFormatException,
+      );
+      expect(
+        () => MarketplaceInvoice.fromMarketplaceTransaction(
+          transactionId: 'inconsistent',
+          transaction: marketplaceTransaction(
+            feeSnapshot: <String, dynamic>{
+              'source': 'server_fee_policy',
+              'scheduleRevision': 'revision',
+              'currency': 'USD',
+              'agreedTotalMinor': 10000,
+              'marketplaceFeeMinor': 1000,
+              'sellerProceedsBeforeTaxMinor': 9500,
+            },
+          ),
+        ),
+        throwsFormatException,
+      );
+    });
 
-      final json = invoice.toJson();
-      expect(json['invoiceId'], equals('INV-2002'));
-      expect(json['subtotal'], equals(28000.00));
-      expect(json['sellerCommissionFee'], equals(700.00)); // 2.5%
-      expect(json['escrowProtectionFee'], equals(280.00)); // 1.0%
-      expect(json['totalDue'], equals(28280.00));
+    test('serializes provider-authored amounts without legacy fee fields', () {
+      final json = MarketplaceInvoice.fromMarketplaceTransaction(
+        transactionId: 'auction-listing-2',
+        transaction: marketplaceTransaction(
+          paymentStatus: 'checkout_created',
+          payoutStatus: 'not_released',
+        ),
+      ).toJson();
+
+      expect(json['grossSaleMinor'], 1250000);
+      expect(json['marketplaceFeeMinor'], 125000);
+      expect(json['sellerProceedsBeforeTaxMinor'], 1125000);
+      expect(json['paymentProviderStatus'], 'checkout_created');
+      expect(json, isNot(contains('sellerCommissionFee')));
+      expect(json, isNot(contains('escrowProtectionFee')));
+    });
+
+    test('auction settlement loads the server transaction before rendering',
+        () {
+      final settlement = File(
+        'lib/marketplace/marketplace_auction_settlement.dart',
+      ).readAsStringSync();
+      final generator = File(
+        'lib/marketplace/marketplace_invoice_generator.dart',
+      ).readAsStringSync();
+
+      expect(settlement, contains("collection('marketplace_transactions')"));
+      expect(settlement, contains("'auction_\${widget.listingId}'"));
+      expect(
+        settlement,
+        contains('MarketplaceInvoice.fromMarketplaceTransaction('),
+      );
+      expect(settlement, isNot(contains('View Itemized Invoice')));
+      expect(generator, isNot(contains('sellerFeeRate')));
+      expect(generator, isNot(contains('escrowFeeRate')));
+      expect(generator, isNot(contains('Escrow Protection Fee')));
+      expect(generator, isNot(contains("'Pay Now'")));
     });
   });
 }

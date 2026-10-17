@@ -60,6 +60,16 @@ Write-Host 'PIPE BUYER LIVE RELEASE VERIFICATION' -ForegroundColor Yellow
 Write-Host "Expected release SHA: $ReleaseSha" -ForegroundColor Yellow
 
 foreach ($hostName in $hosts) {
+  Write-Step "Checking deterministic release marker at $hostName"
+  node tool/release_marker.mjs `
+    --environment production `
+    --release-sha $ReleaseSha `
+    --verify-url "$hostName/pipe-release.json?release=$ReleaseSha"
+  if ($LASTEXITCODE -ne 0) {
+    throw "$hostName did not serve the exact deterministic release marker."
+  }
+  Write-Host 'Release marker: PASS' -ForegroundColor Green
+
   Write-Step "Checking live Flutter bundle at $hostName"
   $url = "$hostName/main.dart.js?release=$ReleaseSha"
   $response = Invoke-WebRequest `
@@ -144,5 +154,6 @@ Write-Host "Bundle bytes: $($bundleLengths[$customHost])" -ForegroundColor Green
 Write-Host "Release proof: $($releaseProofModes[$customHost])" -ForegroundColor Green
 Write-Host 'Firebase default host: PASS' -ForegroundColor Green
 Write-Host 'www.pipebuyer.com: PASS' -ForegroundColor Green
+Write-Host 'Deterministic release markers: PASS' -ForegroundColor Green
 Write-Host 'Dispatch feature markers: PASS' -ForegroundColor Green
 Write-Host 'Public routes: PASS' -ForegroundColor Green

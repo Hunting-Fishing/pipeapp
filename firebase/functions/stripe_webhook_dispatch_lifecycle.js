@@ -1,6 +1,5 @@
 "use strict";
 
-const {verifyStripeSignature} = require("./stripe_webhook");
 const {
   subscriptionMembershipPlan,
 } = require("./membership_plan_policy");
@@ -11,6 +10,10 @@ const DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS = new Set([
   "customer.subscription.deleted",
   "customer.subscription.paused",
   "customer.subscription.resumed",
+]);
+const SUBSCRIPTION_BILLING_EVENTS = new Set([
+  "invoice.paid",
+  "invoice.payment_failed",
 ]);
 
 function stripeEventFromRawBody(rawBody) {
@@ -60,42 +63,65 @@ function isDispatchProviderStateEvent(event) {
 }
 
 function createStripeWebhookDispatchLifecycleWrapper({
-  admin,
   baseHandler,
   dispatchSubscriptionLifecycle,
   vipSubscriptionLifecycle,
-  stripeWebhookSecret,
 }) {
-  const db = admin.firestore();
-  const FieldValue = admin.firestore.FieldValue;
+  const webhookEventStore = baseHandler.webhookEventStore;
+  if (!webhookEventStore) {
+    throw new TypeError("The Stripe webhook event store is unavailable.");
+  }
+  if (typeof baseHandler.verifyRequest !== "function") {
+    throw new TypeError("The Stripe webhook verifier is unavailable.");
+  }
 
   return async (request, response) => {
-    const rawBody = request.rawBody;
-    const signature = request.get("stripe-signature");
-    if (!verifyStripeSignature(
-        rawBody,
-        signature,
-        stripeWebhookSecret.value(),
-    )) {
-      // Delegate so the established handler remains authoritative for the
-      // exact HTTP error contract and audit behavior.
-      return baseHandler(request, response);
+    const verification = await baseHandler.verifyRequest(request);
+    if (!verification.ok) {
+      response.status(verification.statusCode).send(verification.message);
+      return;
     }
-
-    const event = stripeEventFromRawBody(rawBody);
-    if (!isDispatchProviderStateEvent(event) &&
-        !isVipCheckoutCompletedEvent(event)) {
-      return baseHandler(request, response);
+    const event = verification.event;
+    const subscriptionProviderEvent = isDispatchProviderStateEvent(event) ||
+      isVipCheckoutCompletedEvent(event) ||
+      SUBSCRIPTION_BILLING_EVENTS.has(String(event && event.type || ""));
+    if (!subscriptionProviderEvent) {
+      return baseHandler(request, response, {
+        event,
+        stripeMode: verification.stripeMode,
+        signatureVerified: true,
+      });
+    }
+    if (verification.stripeMode !== "production") {
+      response.status(409).send(
+          "Stripe subscription events require the production environment",
+      );
+      return;
     }
 
     const eventId = String(event.id || "");
-    const eventRef = eventId.startsWith("evt_") ?
-      db.collection("stripe_webhook_events").doc(eventId) : null;
-    if (eventRef) {
-      const existing = await eventRef.get();
-      if (existing.exists && existing.data().status === "processed") {
-        return baseHandler(request, response);
-      }
+    if (!eventId.startsWith("evt_")) {
+      return baseHandler(request, response);
+    }
+    let claim;
+    try {
+      claim = await webhookEventStore.begin({eventId, type: event.type});
+    } catch (error) {
+      console.error("Subscription webhook claim failed", {
+        eventId,
+        type: event.type,
+        error,
+      });
+      response.status(500).send("Webhook claim failed");
+      return;
+    }
+    if (claim.state === "duplicate") {
+      response.status(200).send("Already processed");
+      return;
+    }
+    if (claim.state !== "acquired") {
+      response.status(409).send("Webhook processing in progress");
+      return;
     }
 
     try {
@@ -147,26 +173,26 @@ function createStripeWebhookDispatchLifecycleWrapper({
         type: event.type,
         error,
       });
-      if (eventRef) {
-        await eventRef.set({
-          eventId,
-          type: String(event.type || ""),
-          status: "failed",
-          updatedAt: FieldValue.serverTimestamp(),
-        }, {merge: true});
-      }
+      await webhookEventStore.fail(eventId, error, claim);
       response.status(500).send("Webhook processing failed");
       return;
     }
 
     // The established handler remains the single owner of the processed event
     // ledger and of all existing checkout/refund/dispute behavior.
-    return baseHandler(request, response);
+    return baseHandler(request, response, {
+      claim,
+      event,
+      stripeMode: verification.stripeMode,
+      signatureVerified: true,
+      webhookEventStore,
+    });
   };
 }
 
 module.exports = {
   DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS,
+  SUBSCRIPTION_BILLING_EVENTS,
   createStripeWebhookDispatchLifecycleWrapper,
   isDispatchCheckoutCompletedEvent,
   isDispatchProviderStateEvent,

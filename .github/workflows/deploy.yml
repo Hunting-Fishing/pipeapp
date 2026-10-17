@@ -108,8 +108,9 @@ jobs:
             echo "::error::Staging cannot deploy to the production Firebase project."
             exit 1
           fi
-          if [[ "$PIPE_ENV" == "production" && "$PIPE_APP_CHECK_MODE" == "disabled" ]]; then
-            echo "::warning::App Check is disabled for this production release. Set app_check_mode to enforce before public launch."
+          if [[ "$PIPE_ENV" == "production" && "$PIPE_APP_CHECK_MODE" != "enforce" ]]; then
+            echo "::error::Production releases require app_check_mode=enforce."
+            exit 1
           fi
 
       - name: Check out exact release commit
@@ -153,6 +154,22 @@ jobs:
         with:
           node-version: 22
 
+      - name: Persist Functions App Check deployment option
+        shell: bash
+        run: |
+          set -euo pipefail
+          functions_env="firebase/functions/.env.${PIPE_FIREBASE_PROJECT_ID}"
+          umask 077
+          printf 'PIPE_ENFORCE_APP_CHECK=%s\n' \
+            "$PIPE_ENFORCE_APP_CHECK" > "$functions_env"
+          persisted_value="$(sed -n \
+            's/^PIPE_ENFORCE_APP_CHECK=//p' "$functions_env")"
+          if [[ "$persisted_value" != "$PIPE_ENFORCE_APP_CHECK" ]]; then
+            echo "::error::Functions App Check deployment option was not persisted."
+            exit 1
+          fi
+          echo "Functions App Check deployment option persisted for Firebase discovery."
+
       - name: Restore Flutter dependencies
         run: flutter pub get
 
@@ -163,7 +180,10 @@ jobs:
         run: flutter test
 
       - name: Test release manifest controls
-        run: node --test tool/release_manifest_test.mjs
+        run: >
+          node --test
+          tool/release_marker_test.mjs
+          tool/release_manifest_test.mjs
 
       - name: Test deployed Function parity controls
         run: node --test tool/function_parity_test.mjs
@@ -236,6 +256,10 @@ jobs:
             --dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED="$PIPE_REMOTE_DIAGNOSTICS_ENABLED"
           restore_worker
           trap - EXIT
+          node tool/release_marker.mjs \
+            --environment "$PIPE_ENV" \
+            --release-sha "$PIPE_RELEASE_SHA" \
+            --output build/web/pipe-release.json
           if [[ -n "$(git status --porcelain)" ]]; then
             git status --short
             echo "::error::Release preparation modified repository source."
@@ -288,6 +312,21 @@ jobs:
             --message "Pipe Buyer $PIPE_ENV $PIPE_RELEASE_SHA workflow ${{ github.run_id }}" \
             --force \
             --non-interactive 2>&1 | tee build/firebase-deploy.log
+
+      - name: Verify deployed release marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tool/release_marker.mjs \
+            --environment "$PIPE_ENV" \
+            --release-sha "$PIPE_RELEASE_SHA" \
+            --verify-url "https://$PIPE_FIREBASE_PROJECT_ID.web.app/pipe-release.json?release=$PIPE_RELEASE_SHA"
+          if [[ "$PIPE_ENV" == "production" ]]; then
+            node tool/release_marker.mjs \
+              --environment "$PIPE_ENV" \
+              --release-sha "$PIPE_RELEASE_SHA" \
+              --verify-url "https://www.pipebuyer.com/pipe-release.json?release=$PIPE_RELEASE_SHA"
+          fi
 
       - name: Prove deployed Function parity
         shell: bash
@@ -345,6 +384,7 @@ jobs:
           name: firebase-release-evidence-${{ inputs.environment }}-${{ inputs.commit_sha }}-${{ github.run_id }}
           path: |
             build/release-manifest.json
+            build/web/pipe-release.json
             build/firebase-deploy.log
             build/deployed-functions.json
             build/function-parity-marketplace.json

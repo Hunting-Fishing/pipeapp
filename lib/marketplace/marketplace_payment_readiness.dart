@@ -106,15 +106,29 @@ class _MarketplacePaymentReadinessPanelState
     final yearly = _map(dispatch['yearly']);
     final affiliate = _map(catalog['affiliate']);
     final taxCodes = _map(catalog['taxCodes']);
-    final tiers = _mapList(equipment['tiers']);
+    final brackets = _mapList(equipment['brackets']);
 
     final taxReady = readiness['stripeTaxReady'] == true;
     final taxPending = readiness['stripeTaxRegistrationPending'] == true;
-    final fullCheckout = readiness['stripeCheckoutEnabled'] == true;
+    final fullCheckoutSwitch = readiness['stripeCheckoutEnabled'] == true;
+    final fullGmvEconomics =
+        readiness['stripeFullGmvEconomicsApproved'] == true;
+    final fullCheckout = fullCheckoutSwitch && fullGmvEconomics;
     final feeBilling = readiness['stripeFeeBillingEnabled'] == true;
     final subscriptions = readiness['stripeSubscriptionsEnabled'] == true;
     final connect = readiness['stripeConnectOnboardingEnabled'] == true;
     final webhook = readiness['stripeWebhookVerified'] == true;
+    final stripeMode = '${readiness['stripeMode'] ?? ''}'.toLowerCase();
+    final activeEnvironmentLabel = stripeMode == 'sandbox'
+        ? 'SANDBOX'
+        : stripeMode == 'production'
+            ? 'LIVE'
+            : 'ENABLED';
+    final verifiedEnvironmentLabel = stripeMode == 'sandbox'
+        ? 'SANDBOX VERIFIED'
+        : stripeMode == 'production'
+            ? 'LIVE VERIFIED'
+            : 'VERIFIED';
 
     final taxStatus = taxReady
         ? 'Registered / tax-ready'
@@ -151,33 +165,38 @@ class _MarketplacePaymentReadinessPanelState
                 items: [
                   _ReadinessItem(
                     label: 'Fee billing',
-                    value: feeBilling ? 'LIVE' : 'OFF',
+                    value: feeBilling ? activeEnvironmentLabel : 'OFF',
                     icon: Icons.receipt_long_outlined,
                     enabled: feeBilling,
                   ),
                   _ReadinessItem(
                     label: 'Dispatch billing',
-                    value: subscriptions ? 'LIVE' : 'OFF',
+                    value: subscriptions ? activeEnvironmentLabel : 'OFF',
                     icon: Icons.local_shipping_outlined,
                     enabled: subscriptions,
                   ),
                   _ReadinessItem(
                     label: 'Seller Connect',
-                    value: connect ? 'LIVE' : 'OFF',
+                    value: connect ? activeEnvironmentLabel : 'OFF',
                     icon: Icons.account_balance_outlined,
                     enabled: connect,
                   ),
                   _ReadinessItem(
                     label: 'Signed webhook',
-                    value: webhook ? 'VERIFIED' : 'NOT VERIFIED',
+                    value: webhook ? verifiedEnvironmentLabel : 'NOT VERIFIED',
                     icon: Icons.verified_user_outlined,
                     enabled: webhook,
                   ),
                   _ReadinessItem(
                     label: 'Marketplace checkout',
-                    value: fullCheckout ? 'LIVE' : 'HELD',
+                    value: fullCheckout
+                        ? activeEnvironmentLabel
+                        : fullCheckoutSwitch
+                            ? 'ECONOMICS HOLD'
+                            : 'HELD',
                     icon: Icons.shopping_cart_checkout_outlined,
                     enabled: fullCheckout,
+                    pending: fullCheckoutSwitch && !fullGmvEconomics,
                   ),
                   _ReadinessItem(
                     label: 'Tax registration',
@@ -199,11 +218,11 @@ class _MarketplacePaymentReadinessPanelState
               _FeeCard(
                 title: 'Pipe / tubing / casing / OCTG',
                 headline:
-                    'CAD \$${_moneyAmount(pipe['unitFeeByCurrency'], 'CAD').toStringAsFixed(2)} per stick',
+                    'USD \$${_moneyAmount(pipe['unitFeeByCurrency'], 'USD').toStringAsFixed(2)} per sold stick or item',
                 lines: [
-                  'Minimum fee: CAD \$${_moneyAmount(pipe['minimumFeeByCurrency'], 'CAD').toStringAsFixed(2)}',
-                  'Maximum fee: CAD \$${_moneyAmount(pipe['maximumFeeByCurrency'], 'CAD').toStringAsFixed(2)}',
-                  'USD rule: \$${_moneyAmount(pipe['unitFeeByCurrency'], 'USD').toStringAsFixed(2)} per stick • minimum \$${_moneyAmount(pipe['minimumFeeByCurrency'], 'USD').toStringAsFixed(2)} • maximum \$${_moneyAmount(pipe['maximumFeeByCurrency'], 'USD').toStringAsFixed(2)}',
+                  'Percentage cap: ${(pipe['percentageCap'] as num? ?? 0).toStringAsFixed(1)}% of the agreed sale',
+                  'Absolute maximum: USD \$${_moneyAmount(pipe['maximumFeeByCurrency'], 'USD').toStringAsFixed(2)}',
+                  'Listing fee: USD \$${_moneyAmount(catalog['listingFeeByCurrency'], 'USD').toStringAsFixed(2)}',
                   'Fee payer: ${catalog['feePayer'] ?? 'seller'}',
                   'External-settlement sales use the same fee schedule.',
                 ],
@@ -214,16 +233,18 @@ class _MarketplacePaymentReadinessPanelState
               const _SectionTitle(
                 icon: Icons.precision_manufacturing_outlined,
                 title: 'Equipment & asset marketplace fees',
-                subtitle: 'Heavy equipment, vehicles, buildings and other assets',
+                subtitle:
+                    'Heavy equipment, vehicles, buildings and other assets',
               ),
               const SizedBox(height: 10),
               _FeeCard(
                 title: 'Asset marketplace schedule',
-                headline:
-                    'Minimum CAD \$${_moneyAmount(equipment['minimumFeeByCurrency'], 'CAD').toStringAsFixed(2)}',
+                headline: 'No listing fee • paid sales only',
                 lines: [
-                  for (var index = 0; index < tiers.length; index++)
-                    _tierLabel(tiers, index),
+                  for (var index = 0; index < brackets.length; index++)
+                    _bracketLabel(brackets, index),
+                  'Minimum seller fee: USD \$${_moneyAmount(equipment['minimumFeeByCurrency'], 'USD').toStringAsFixed(2)}',
+                  'Maximum seller fee: USD \$${_moneyAmount(equipment['maximumFeeByCurrency'], 'USD').toStringAsFixed(2)}',
                 ],
                 icon: Icons.construction_outlined,
                 accent: PipeBuyerColors.industrialBlue,
@@ -232,7 +253,8 @@ class _MarketplacePaymentReadinessPanelState
               const _SectionTitle(
                 icon: Icons.local_shipping_outlined,
                 title: 'Dispatch subscription fees',
-                subtitle: 'Recurring Dispatch access plans from the live catalog',
+                subtitle:
+                    'Recurring Dispatch access plans from the live catalog',
               ),
               const SizedBox(height: 10),
               _ResponsiveFeePair(
@@ -275,7 +297,8 @@ class _MarketplacePaymentReadinessPanelState
               _SectionTitle(
                 icon: Icons.account_balance_outlined,
                 title: 'Tax configuration',
-                subtitle: 'Application readiness and configured Stripe tax codes',
+                subtitle:
+                    'Application readiness and configured Stripe tax codes',
                 trailing: taxStatus,
               ),
               const SizedBox(height: 10),
@@ -301,18 +324,25 @@ class _MarketplacePaymentReadinessPanelState
     );
   }
 
-  String _tierLabel(List<Map<String, dynamic>> tiers, int index) {
-    final tier = tiers[index];
-    final percent = (tier['feePercent'] as num?)?.toDouble() ?? 0;
-    final upper = (tier['upToExclusive'] as num?)?.toDouble();
+  String _bracketLabel(List<Map<String, dynamic>> brackets, int index) {
+    final bracket = brackets[index];
+    final percent = (bracket['feePercent'] as num?)?.toDouble() ?? 0;
+    final upper = (bracket['upToExclusive'] as num?)?.toDouble();
     final lower = index == 0
         ? 0.0
-        : ((tiers[index - 1]['upToExclusive'] as num?)?.toDouble() ?? 0);
+        : ((brackets[index - 1]['upToExclusive'] as num?)?.toDouble() ?? 0);
     if (upper == null) {
-      return '${percent.toStringAsFixed(0)}% on sales of CAD \$${lower.toStringAsFixed(0)} and above';
+      return '${_feePercent(percent)}% on the portion above USD \$${lower.toStringAsFixed(0)}';
     }
-    return '${percent.toStringAsFixed(0)}% on sales from CAD \$${lower.toStringAsFixed(0)} to under CAD \$${upper.toStringAsFixed(0)}';
+    if (index == 0) {
+      return '${_feePercent(percent)}% on the first USD \$${upper.toStringAsFixed(0)}';
+    }
+    return '${_feePercent(percent)}% on the USD \$${lower.toStringAsFixed(0)}–\$${upper.toStringAsFixed(0)} portion';
   }
+
+  String _feePercent(double value) => value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
 }
 
 class MarketplaceTransactionRecordsPanel extends StatelessWidget {
@@ -420,11 +450,13 @@ class MarketplaceTransactionRecordsPanel extends StatelessWidget {
                       ((data['offeredUnitPrice'] as num?)?.toDouble() ?? 0) *
                           quantity;
                   final title = '${data['listingTitle'] ?? 'Marketplace item'}';
-                  final lifecycleStatus = '${data['status'] ?? 'recorded'}'.trim();
+                  final lifecycleStatus =
+                      '${data['status'] ?? 'recorded'}'.trim();
                   final providerStatus =
                       '${data['paymentProviderStatus'] ?? data['providerPaymentStatus'] ?? 'not connected'}'
                           .trim();
-                  final feeStatus = '${data['marketplaceFeeStatus'] ?? 'not billed'}';
+                  final feeStatus =
+                      '${data['marketplaceFeeStatus'] ?? 'not billed'}';
 
                   return _TransactionRecordCard(
                     title: title,
@@ -1101,7 +1133,8 @@ class _TaxStatusRow extends StatelessWidget {
         ),
         const SizedBox(width: 9),
         Expanded(
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          child:
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
         ),
         const SizedBox(width: 8),
         Text(

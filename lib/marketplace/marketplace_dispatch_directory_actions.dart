@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_actions_repository.dart';
@@ -13,8 +12,8 @@ import 'marketplace_reputation_badge.dart';
 
 /// Functional action surface used by Dispatch Directory provider cards.
 ///
-/// Direct contact actions come only from public fields the business explicitly
-/// publishes. In-app messaging remains available when phone/email are private.
+/// Direct contact details never come from public Directory documents. Members
+/// establish the relationship in-app before protected contact can be shared.
 class MarketplaceDispatchDirectoryBusinessActions extends StatefulWidget {
   const MarketplaceDispatchDirectoryBusinessActions({
     super.key,
@@ -130,25 +129,12 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
     );
   }
 
-  Future<void> _launch(Uri uri) async {
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
-        mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('This contact action could not be opened.')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
       future: _publicProfile,
       builder: (context, snapshot) {
         final profile = snapshot.data ?? const <String, dynamic>{};
-        final phone = '${profile['publicPhone'] ?? ''}'.trim();
-        final email = '${profile['publicEmail'] ?? ''}'.trim();
-        final website = '${profile['website'] ?? ''}'.trim();
         final membership = profile['membership'] is Map
             ? Map<String, dynamic>.from(profile['membership'] as Map)
             : const <String, dynamic>{};
@@ -195,26 +181,6 @@ class _MarketplaceDispatchDirectoryBusinessActionsState
                       icon: const Icon(Icons.storefront_outlined),
                       label: const Text('View Business'),
                     ),
-                    if (phone.isNotEmpty)
-                      IconButton.filledTonal(
-                        tooltip: 'Call published business phone',
-                        onPressed: () =>
-                            _launch(Uri(scheme: 'tel', path: phone)),
-                        icon: const Icon(Icons.phone_outlined),
-                      ),
-                    if (email.isNotEmpty)
-                      IconButton.filledTonal(
-                        tooltip: 'Email published business address',
-                        onPressed: () =>
-                            _launch(Uri(scheme: 'mailto', path: email)),
-                        icon: const Icon(Icons.email_outlined),
-                      ),
-                    if (_safeWebsite(website) case final uri?)
-                      IconButton.filledTonal(
-                        tooltip: 'Open business website',
-                        onPressed: () => _launch(uri),
-                        icon: const Icon(Icons.language_outlined),
-                      ),
                     if (_remoteActionsAvailable)
                       PopupMenuButton<String>(
                         tooltip: 'More business actions',
@@ -535,12 +501,6 @@ String _urgencyLabel(String value) => switch (value) {
       'emergency' => 'Emergency callout',
       _ => 'Flexible / planning',
     };
-
-Uri? _safeWebsite(String value) {
-  final uri = Uri.tryParse(value.trim());
-  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return null;
-  return uri;
-}
 
 String _friendlyError(Object error) {
   final text = '$error';

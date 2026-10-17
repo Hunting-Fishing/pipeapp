@@ -31,6 +31,13 @@ Firestore uses collections and documents rather than SQL tables.
   Clients cannot read or write them; an expiration scheduler removes old data.
 - `public_listings/{listingId}`: published searchable listings and the
   seller-selected public location. Unpublished drafts are never stored here.
+- `marketplace_fee_classifications/{listingId}`: server-only administrator
+  decision that can approve the discounted pipe fee for one exact listing,
+  seller, catalog category/product type, and listing revision. Seller-selected
+  listing fields never grant the discount; missing, revoked, stale, or
+  mismatched decisions fail closed to the equipment fee.
+- `marketplace_fee_classification_events/{eventId}`: immutable server-written
+  audit history for pipe fee-class approvals and revocations.
 - `marketplace_listing_drafts/{listingId}`: private, owner-readable,
   server-written listing payload, exact location, expected media counts, upload
   manifest, retry state, and 30-day expiry. Publication is a server transaction
@@ -100,6 +107,79 @@ Firestore uses collections and documents rather than SQL tables.
 - `users/{uid}/saved_listings/{listingId}`: saved ads.
 - `users/{uid}/followed_sellers/{sellerUid}`: followed sellers and notification preference.
 - `users/{uid}/notifications/{notificationId}`: server-created marketplace notifications.
+- `native_membership_accounts/{uid}`: server-owned StoreKit/Play account
+  binding containing the UUID passed to the store as the account token.
+- `native_membership_account_tokens/{sha256}`: server-only reverse index from a
+  hashed native account token to exactly one UID. The unhashed token remains a
+  field only so the server can detect hash/index corruption before applying an
+  App Store notification.
+- `native_membership_provider_state/{uid}`: server-owned current native
+  subscription provider, verified product, original transaction/order,
+  expiration, renewal, and reconciliation state.
+- `native_membership_reconciliation_leases/{uid}`: server-only monotonic
+  generation used to prevent older Store API responses from applying after a
+  newer purchase verification, notification, or scheduled reconciliation.
+- `native_membership_reconciliation_checkpoints/scheduled`: server-only durable
+  page cursor, execution lease, result counts, and failure state for the bounded
+  scheduled reconciliation runner. A failed page preserves its starting cursor
+  so the next invocation retries rather than skipping failed accounts.
+- `membership_billing_intents/{uid}`: server-only purchase/restore reservation
+  shared by App Store, Google Play, and Stripe membership checkout. The opaque
+  nonce, owner, target product/plan, billing channel, status, and expiry prevent
+  two channels from passing their pre-charge gates concurrently. Native
+  `active`/`pending` reservations span the delayed-approval window; completed
+  nonces retain only a bounded exact-verification replay window so a lost
+  response can be recovered without authorizing a new or different purchase.
+- `dispatch_subscription_checkout_state/{uid}` and
+  `vip_subscription_checkout_state/{uid}`: server-owned Stripe Checkout
+  reservation state. Each in-flight attempt persists the exact sanitized form
+  request used with its Stripe idempotency key; ambiguous retries replay that
+  snapshot rather than recomputing configuration, customer, or promotion data.
+- `app_store_notification_events/{sha256}`: server-only App Store Server
+  Notifications V2 idempotency leases and outcomes. Signed payloads and private
+  keys are never stored in this collection. `retentionExpiresAt` is a Firestore
+  timestamp set at least 35 days after the latest processing attempt; production
+  must configure a TTL policy on that field only after retention approval.
+- `platform_configuration/native_membership_billing`: server-owned global and
+  per-store readiness switches. Source availability does not imply that a
+  mutation endpoint is exported or enabled. The recognized purchase fields are
+  `enabled`, `appleEnabled`, `appleSandboxEnabled`, and `googleEnabled`. App
+  Store lifecycle notifications additionally require the environment-specific
+  `appleSandboxNotificationMutationsEnabled` or
+  `appleProductionNotificationMutationsEnabled` switch; neither is implied by a
+  purchase-readiness field.
+- `platform_configuration/payment_provider_readiness`: server-owned Stripe
+  activation and callback policy. Full buyer-sale checkout additionally
+  requires `stripeFullGmvEconomicsApproved`, an auditable
+  `stripeFullGmvEconomicsPolicyRevision`, an approved
+  `stripeFullGmvPaymentMethodConfigurationId`, and positive integer values for
+  `stripeFullGmvMaximumChargeMinorUsd`,
+  `stripeFullGmvMaximumProviderFeeBps`,
+  `stripeFullGmvMaximumProviderFeeFixedMinorUsd`, and
+  `stripeFullGmvMaximumTaxUpliftBps`, and
+  `stripeFullGmvMinimumNetRevenueMinorUsd`. Missing or zero economics values
+  fail closed. These fields are conservative approved bounds, not provider
+  fees guessed by the client or server. Runtime checkout rejects non-USD sales,
+  sales over the approved charge limit, and sales whose snapshotted Pipe Buyer
+  fee, after its affiliate commission, cannot cover the configured provider-cost
+  ceiling plus minimum net revenue. When automatic tax is active, the provider
+  cost base also includes the approved maximum tax uplift. Fee-only external
+  settlement uses a separate readiness gate.
+- `payment_provider_accounts/{uid}`: server-owned Stripe recipient state. New
+  records store `mode`, `connectAccountApiVersion=v2`, account object/config,
+  transfer and payout capability status, and payout holds. A legacy migration
+  stores the exact old/new account IDs and modes in `legacyMigration` while the
+  old account remains active; successful activation appends the old ID to
+  `legacyStripeAccountIds` and archives its immutable identity under
+  `legacy_accounts/{legacyAccountId}`. Clients cannot choose or swap accounts.
+- `stripe_provider_migration_audit/{auditId}`: immutable MFA-administrator
+  prepare/activation evidence, including operator, reason, seller, both Stripe
+  account IDs, both modes, and whether the active account was replaced.
+- Stripe-backed `marketplace_transactions/{transactionId}` records bind all
+  later Checkout, webhook, refund/dispute, seller-release and recovery work to
+  `stripeMode`. Full-GMV transactions also retain
+  `stripeSellerDestinationAccountId`; legacy migration annotates resolved
+  history with the old destination before activating a replacement account.
 
 ## Listing query budgets
 
@@ -157,6 +237,7 @@ idempotency receipt. The current callable commands are:
 - `acceptAuctionBidBelowReserve`
 - `createMarketplaceOffer`
 - `acceptMarketplaceOffer`
+- `setMarketplaceListingFeeClassification` (MFA administrator only)
 - `createDispatchJob`
 - `updateDispatchJob`
 - `publishDispatchJob`

@@ -22,6 +22,7 @@ const {
   membershipPlanMetadata,
   requestedMembershipPlan,
   subscriptionItem,
+  subscriptionItemForPlan,
   subscriptionMembershipPlan,
 } = require("./membership_plan_policy");
 
@@ -273,9 +274,9 @@ function createMembershipPlanManagement(admin) {
       path: `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
       method: "GET",
     });
-    const current = subscriptionItem(refreshed);
+    const current = subscriptionItemForPlan(refreshed, currentPlan);
     const period = subscriptionPeriodBounds(refreshed);
-    if (!current || current.priceId !== currentPlan.priceId) {
+    if (!current) {
       throw new HttpsError(
           "failed-precondition",
           "Stripe membership pricing changed before the plan update could be scheduled.",

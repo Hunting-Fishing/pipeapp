@@ -21,47 +21,11 @@ function createMarketplaceMonetization(admin) {
       });
       return null;
     }
-    const [listingSnapshot, relationshipSnapshot] = await Promise.all([
-      db.collection("public_listings").doc(listingId).get(),
-      db.collection("affiliate_relationships").doc(sellerUid).get(),
-    ]);
-    if (!listingSnapshot.exists) {
-      console.error("Marketplace monetization listing unavailable", {
-        transactionId,
-        listingId,
-      });
-      return null;
-    }
-
-    let feeSnapshot;
-    try {
-      feeSnapshot = calculateMarketplaceFeeSnapshot({
-        listing: listingSnapshot.data(),
-        agreedQuantity: transactionData.agreedQuantity,
-        agreedTotal: transactionData.agreedTotal,
-        currency: transactionData.currency,
-      });
-    } catch (error) {
-      if (error instanceof MarketplaceFeePolicyError) {
-        console.error("Marketplace fee snapshot rejected", {
-          transactionId,
-          code: error.code,
-          message: error.message,
-        });
-        return null;
-      }
-      throw error;
-    }
-
-    const relationship = relationshipSnapshot.exists ?
-      relationshipSnapshot.data() : null;
-    const referrerUid = String(
-        relationship && relationship.referrerUid || "",
-    ).trim();
-    const affiliateLedgerRef = referrerUid ?
-      db.collection("affiliate_commission_ledger")
-          .doc(`marketplace_${transactionId}`) :
-      null;
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const classificationRef = db
+        .collection("marketplace_fee_classifications").doc(listingId);
+    const relationshipRef = db
+        .collection("affiliate_relationships").doc(sellerUid);
 
     return db.runTransaction(async (firestoreTransaction) => {
       const current = await firestoreTransaction.get(transactionRef);
@@ -70,6 +34,64 @@ function createMarketplaceMonetization(admin) {
       if (currentData.marketplaceFeeSnapshot) {
         return currentData.marketplaceFeeSnapshot;
       }
+      if (String(currentData.listingId || "").trim() !== listingId ||
+          String(currentData.sellerUid || "").trim() !== sellerUid) {
+        console.error("Marketplace monetization transaction identity changed", {
+          transactionId,
+          listingId,
+        });
+        return null;
+      }
+      const listingSnapshot = await firestoreTransaction.get(listingRef);
+      const classificationSnapshot =
+        await firestoreTransaction.get(classificationRef);
+      const relationshipSnapshot =
+        await firestoreTransaction.get(relationshipRef);
+      if (!listingSnapshot.exists) {
+        console.error("Marketplace monetization listing unavailable", {
+          transactionId,
+          listingId,
+        });
+        return null;
+      }
+      const listing = {...listingSnapshot.data(), id: listingId};
+      if (String(listing.sellerUid || "").trim() !== sellerUid) {
+        console.error("Marketplace monetization seller mismatch", {
+          transactionId,
+          listingId,
+        });
+        return null;
+      }
+      let feeSnapshot;
+      try {
+        feeSnapshot = calculateMarketplaceFeeSnapshot({
+          listing,
+          feeClassification: classificationSnapshot.exists ?
+            classificationSnapshot.data() : null,
+          agreedQuantity: currentData.agreedQuantity,
+          agreedTotal: currentData.agreedTotal,
+          currency: currentData.currency,
+        });
+      } catch (error) {
+        if (error instanceof MarketplaceFeePolicyError) {
+          console.error("Marketplace fee snapshot rejected", {
+            transactionId,
+            code: error.code,
+            message: error.message,
+          });
+          return null;
+        }
+        throw error;
+      }
+      const relationship = relationshipSnapshot.exists ?
+        relationshipSnapshot.data() : null;
+      const referrerUid = String(
+          relationship && relationship.referrerUid || "",
+      ).trim();
+      const affiliateLedgerRef = referrerUid ?
+        db.collection("affiliate_commission_ledger")
+            .doc(`marketplace_${transactionId}`) :
+        null;
       const existingLedger = affiliateLedgerRef ?
         await firestoreTransaction.get(affiliateLedgerRef) :
         null;

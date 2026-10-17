@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Directory exposes functional business actions', () {
+  test('Directory exposes protected in-app business actions', () {
     final directory = File(
       'lib/marketplace/marketplace_dispatch_directory.dart',
     ).readAsStringSync();
@@ -28,23 +28,41 @@ void main() {
       "label: const Text('Get Quote')",
       "label: const Text('Message')",
       "label: const Text('View Business')",
-      "tooltip: 'Call published business phone'",
-      "tooltip: 'Email published business address'",
-      "tooltip: 'Open business website'",
       "title: Text('Report Business')",
       "targetType: 'user'",
       'GET QUOTE REQUEST',
     ]) {
-      expect(actions, contains(marker), reason: 'Missing action marker: $marker');
+      expect(actions, contains(marker),
+          reason: 'Missing action marker: $marker');
+    }
+
+    for (final publicContactAction in [
+      "tooltip: 'Call published business phone'",
+      "tooltip: 'Email published business address'",
+      "tooltip: 'Open business website'",
+      "profile['publicPhone']",
+      "profile['publicEmail']",
+      "profile['website']",
+    ]) {
+      expect(
+        actions,
+        isNot(contains(publicContactAction)),
+        reason: 'Directory must not expose $publicContactAction',
+      );
     }
 
     expect(repository, contains('Future<String> openBusinessConversation'));
-    expect(repository, contains("_commands.execute('openBusinessConversation'"));
+    expect(
+        repository, contains("_commands.execute('openBusinessConversation'"));
     expect(communication, contains('function businessConversationIdFor('));
-    expect(communication, contains('const openBusinessConversation = secured('));
+    expect(
+        communication, contains('const openBusinessConversation = secured('));
     expect(communication, contains('contextType: "business"'));
     expect(communication, contains('memberUids'));
-    expect(functionsIndex, contains('exports.openBusinessConversation = onCall('));
+    expect(communication, contains('assertContactSharingAllowed'));
+    expect(communication, contains('paidMembershipCurrentForUser'));
+    expect(
+        functionsIndex, contains('exports.openBusinessConversation = onCall('));
   });
 
   test('membership and reputation are independent dual rings', () {
@@ -69,7 +87,8 @@ void main() {
       'Raw user reports do not automatically reduce a score',
       'Building reputation',
     ]) {
-      expect(badge, contains(marker), reason: 'Missing reputation marker: $marker');
+      expect(badge, contains(marker),
+          reason: 'Missing reputation marker: $marker');
     }
   });
 }

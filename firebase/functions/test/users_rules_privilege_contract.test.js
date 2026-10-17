@@ -61,7 +61,7 @@ test("public profile trust deny-list covers reputation, tier, and verification f
   }
 });
 
-test("location requests are bounded, target the real listing owner, and cap the note", () => {
+test("location requests are bounded, target the real listing owner, and forbid free-form notes", () => {
   const block = rules.match(/match \/location_requests\/\{requestId\} \{([\s\S]*?)\n    \}/);
   assert.ok(block, "location_requests rules block is missing");
   const create = block[1].match(/allow create:([\s\S]*?);\s*allow read/);
@@ -69,6 +69,6 @@ test("location requests are bounded, target the real listing owner, and cap the 
   assert.match(create[1], /keys\(\)\.hasOnly\(\[/);
   assert.match(create[1], /sellerUid != request\.auth\.uid/);
   assert.match(create[1], /status == 'pending'/);
-  assert.match(create[1], /note\.size\(\) <= 500/);
+  assert.match(create[1], /note\.size\(\) == 0/);
   assert.match(create[1], /public_listings\/\$\(request\.resource\.data\.listingId\)/);
 });

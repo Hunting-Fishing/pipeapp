@@ -31,6 +31,12 @@ jobs:
       VERIFIED_RELEASE_RUN: "33238533449"
 
     steps:
+      - name: Intentional production safety hold
+        shell: bash
+        run: |
+          echo "::error::Historical production mutation workflow is intentionally disabled. Keep all production, readiness, and paid-feature flags false; use the current sandbox-first activation runbook."
+          exit 1
+
       - name: Check out current main
         uses: actions/checkout@v7.0.0
         with:

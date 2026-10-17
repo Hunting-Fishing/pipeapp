@@ -40,7 +40,8 @@ void main() {
     expect(analysis.valid, isTrue);
   });
 
-  test('requested quantity is capped for display but rejected for submission', () {
+  test('requested quantity is capped for display but rejected for submission',
+      () {
     const analysis = MarketplaceOfferAnalysis(
       listedQuantity: 54,
       requestedQuantity: 80,
@@ -52,5 +53,73 @@ void main() {
     expect(analysis.remainingQuantity, 0);
     expect(analysis.requestedQuantityPercent, 100);
     expect(analysis.valid, isFalse);
+  });
+
+  test('total-basis input stays a total and normalizes per requested unit', () {
+    const analysis = MarketplaceOfferAnalysis(
+      listedQuantity: 4,
+      requestedQuantity: 3,
+      askingUnitPrice: 1200,
+      offeredUnitPrice: 900,
+      priceBasis: 'Total for all',
+    );
+
+    expect(analysis.usesTotalPriceBasis, isTrue);
+    expect(analysis.fullListingAskValue, 1200);
+    expect(analysis.normalizedAskingUnitPrice, 300);
+    expect(analysis.requestedAskValue, 900);
+    expect(analysis.offeredTotal, 900);
+    expect(analysis.normalizedOfferedUnitPrice, 300);
+    expect(analysis.remainingAskValue, 300);
+    expect(analysis.requestedValueDifference, 0);
+    expect(analysis.valid, isTrue);
+  });
+
+  test('firm pricing follows server offer input semantics', () {
+    expect(
+      marketplaceListingSupportsPurchaseOffers({'transactionType': 'For Sale'}),
+      isTrue,
+    );
+    expect(
+      marketplaceListingSupportsPurchaseOffers({'transactionType': 'Auction'}),
+      isFalse,
+    );
+    expect(
+      marketplaceListingSupportsPurchaseOffers({'transactionType': 'For Rent'}),
+      isFalse,
+    );
+    expect(
+      marketplaceListingUsesFirmPrice({
+        'openToOffers': false,
+        'priceFlexibility': 'Open to offers',
+      }),
+      isTrue,
+    );
+    expect(
+      marketplaceListingUsesFirmPrice({'priceFlexibility': 'Firm'}),
+      isTrue,
+    );
+    expect(
+      marketplaceListingUsesFirmPrice({'openToOffers': true}),
+      isFalse,
+    );
+    expect(
+      marketplaceFirmOfferAmount(
+        askingPrice: 73,
+        listedQuantity: 54,
+        requestedQuantity: 25,
+        priceBasis: 'Per piece',
+      ),
+      73,
+    );
+    expect(
+      marketplaceFirmOfferAmount(
+        askingPrice: 1200,
+        listedQuantity: 4,
+        requestedQuantity: 3,
+        priceBasis: 'Total for all',
+      ),
+      900,
+    );
   });
 }

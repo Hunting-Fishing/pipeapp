@@ -12,6 +12,7 @@ const {
   membershipPlanChangeKind,
   membershipPlanForPriceId,
   membershipPlanMetadata,
+  subscriptionItemForPlan,
   subscriptionMembershipPlan,
 } = require("../membership_plan_policy");
 const {
@@ -21,6 +22,7 @@ const {
   subscriptionPeriodBounds,
   uniqueBlockingSubscriptionId,
 } = require("../membership_plan_management");
+const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 
 function timestamp(millis) {
   return {toMillis: () => millis};
@@ -53,6 +55,48 @@ test("approved Stripe prices map to one Pipe Buyer plan", () => {
     assert.equal(membershipPlanForPriceId(plans[id].priceId).id, id);
   }
   assert.equal(membershipPlanForPriceId("price_unknown"), null);
+});
+
+test("legacy CAD Dispatch prices remain recognizable for webhook replay", () => {
+  const products = stripeMarketplaceConfig.products;
+  assert.equal(
+      membershipPlanForPriceId(products.dispatchMonthlyCad.priceId).id,
+      "dispatch_monthly",
+  );
+  assert.equal(
+      membershipPlanForPriceId(products.dispatchYearlyCad.priceId).id,
+      "dispatch_yearly",
+  );
+});
+
+test("legacy Dispatch subscription items retain their provider Price IDs", () => {
+  const products = stripeMarketplaceConfig.products;
+  const plans = membershipPlanCatalog();
+  const monthly = {
+    items: {data: [{id: "si_monthly", price: {id: products.dispatchMonthlyCad.priceId}}]},
+  };
+  const yearly = {
+    items: {data: [{id: "si_yearly", price: {id: products.dispatchYearlyCad.priceId}}]},
+  };
+
+  assert.equal(
+      subscriptionItemForPlan(monthly, plans.dispatch_monthly).priceId,
+      products.dispatchMonthlyCad.priceId,
+  );
+  assert.equal(
+      subscriptionItemForPlan(yearly, plans.dispatch_yearly).priceId,
+      products.dispatchYearlyCad.priceId,
+  );
+  assert.equal(subscriptionItemForPlan(monthly, plans.dispatch_yearly), null);
+  assert.equal(subscriptionItemForPlan({
+    items: {data: [{id: "si_unknown", price: {id: "price_unknown"}}]},
+  }, plans.dispatch_monthly), null);
+  assert.equal(subscriptionItemForPlan({
+    items: {data: [
+      {id: "si_1", price: {id: products.dispatchMonthlyCad.priceId}},
+      {id: "si_2", price: {id: products.dispatchMonthlyCad.priceId}},
+    ]},
+  }, plans.dispatch_monthly), null);
 });
 
 test("subscription plan is derived from the actual single Stripe item price", () => {

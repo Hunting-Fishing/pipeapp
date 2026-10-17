@@ -3,8 +3,16 @@ import 'package:flutter/material.dart';
 /// Core Pipe Buyer brand colors shared across web, tablet, and mobile.
 abstract final class PipeBuyerColors {
   static const orange = Color(0xFFFF6A00);
+  // Existing foreground accent. It remains bright enough for small text on
+  // dark surfaces used throughout the marketplace.
   static const orangePressed = Color(0xFFE85F00);
+  // Dark enough to remain readable as action text on the light canvas.
+  static const orangeForegroundLight = Color(0xFFB84300);
+  // Dark enough for white text to meet WCAG AA on filled controls. Keep this
+  // separate from orangePressed, which is also used as a dark-theme foreground.
+  static const orangeActionFill = Color(0xFFC84D00);
   static const orangeSoft = Color(0xFFFFF1E8);
+  static const orangeSoftDark = Color(0xFF3A2417);
 
   static const ink = Color(0xFF0D1117);
   static const charcoal = Color(0xFF151A20);
@@ -43,21 +51,25 @@ abstract final class PipeBuyerTheme {
   static ThemeData _build(Brightness brightness) {
     final dark = brightness == Brightness.dark;
     final canvas = dark ? PipeBuyerColors.darkCanvas : PipeBuyerColors.canvas;
-    final surface = dark ? PipeBuyerColors.darkSurface : PipeBuyerColors.surface;
-    final surfaceMuted = dark
-        ? PipeBuyerColors.darkSurfaceMuted
-        : PipeBuyerColors.surfaceMuted;
+    final surface =
+        dark ? PipeBuyerColors.darkSurface : PipeBuyerColors.surface;
+    final surfaceMuted =
+        dark ? PipeBuyerColors.darkSurfaceMuted : PipeBuyerColors.surfaceMuted;
     final field = dark ? PipeBuyerColors.darkField : PipeBuyerColors.field;
     final line = dark ? PipeBuyerColors.darkLine : PipeBuyerColors.line;
     final text = dark ? PipeBuyerColors.darkText : PipeBuyerColors.ink;
     final muted = dark ? PipeBuyerColors.darkMuted : PipeBuyerColors.muted;
+    final actionOrange =
+        dark ? PipeBuyerColors.orange : PipeBuyerColors.orangeForegroundLight;
+    final selectionSurface =
+        dark ? PipeBuyerColors.orangeSoftDark : PipeBuyerColors.orangeSoft;
 
     final scheme = ColorScheme.fromSeed(
-      seedColor: PipeBuyerColors.orange,
+      seedColor: actionOrange,
       brightness: brightness,
     ).copyWith(
-      primary: PipeBuyerColors.orange,
-      onPrimary: Colors.white,
+      primary: actionOrange,
+      onPrimary: dark ? PipeBuyerColors.ink : Colors.white,
       secondary: PipeBuyerColors.industrialBlue,
       onSecondary: Colors.white,
       error: PipeBuyerColors.danger,
@@ -71,7 +83,7 @@ abstract final class PipeBuyerTheme {
       brightness: brightness,
       useMaterial3: false,
       colorScheme: scheme,
-      primaryColor: PipeBuyerColors.orange,
+      primaryColor: actionOrange,
       scaffoldBackgroundColor: canvas,
       canvasColor: canvas,
       cardColor: surface,
@@ -170,8 +182,7 @@ abstract final class PipeBuyerTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: controlRadius,
-          borderSide:
-              const BorderSide(color: PipeBuyerColors.orange, width: 2),
+          borderSide: const BorderSide(color: PipeBuyerColors.orange, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: controlRadius,
@@ -184,7 +195,7 @@ abstract final class PipeBuyerTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: PipeBuyerColors.orange,
+          backgroundColor: PipeBuyerColors.orangeActionFill,
           foregroundColor: Colors.white,
           minimumSize: const Size(64, 50),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -195,7 +206,7 @@ abstract final class PipeBuyerTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: PipeBuyerColors.orange,
+          backgroundColor: PipeBuyerColors.orangeActionFill,
           foregroundColor: Colors.white,
           minimumSize: const Size(64, 50),
           elevation: 0,
@@ -214,19 +225,19 @@ abstract final class PipeBuyerTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: PipeBuyerColors.orange,
+          foregroundColor: actionOrange,
           minimumSize: const Size(64, 48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceMuted,
-        selectedColor: PipeBuyerColors.orangeSoft,
+        selectedColor: selectionSurface,
         disabledColor: surfaceMuted,
         labelStyle: TextStyle(color: text, fontWeight: FontWeight.w700),
-        secondaryLabelStyle:
-            const TextStyle(color: PipeBuyerColors.orangePressed),
+        secondaryLabelStyle: TextStyle(color: actionOrange),
         side: BorderSide(color: line),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
@@ -239,7 +250,7 @@ abstract final class PipeBuyerTheme {
           ),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return PipeBuyerColors.orange;
+              return PipeBuyerColors.orangeActionFill;
             }
             return surface;
           }),
@@ -261,7 +272,7 @@ abstract final class PipeBuyerTheme {
         ),
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: PipeBuyerColors.orange,
+        labelColor: actionOrange,
         unselectedLabelColor: muted,
         indicatorColor: PipeBuyerColors.orange,
         indicatorSize: TabBarIndicatorSize.tab,
@@ -272,16 +283,14 @@ abstract final class PipeBuyerTheme {
         height: 70,
         elevation: 0,
         backgroundColor: surface,
-        indicatorColor: PipeBuyerColors.orangeSoft,
+        indicatorColor: selectionSurface,
         iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
-              color: states.contains(WidgetState.selected)
-                  ? PipeBuyerColors.orange
-                  : muted,
+              color:
+                  states.contains(WidgetState.selected) ? actionOrange : muted,
             )),
         labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
-              color: states.contains(WidgetState.selected)
-                  ? PipeBuyerColors.orangePressed
-                  : muted,
+              color:
+                  states.contains(WidgetState.selected) ? actionOrange : muted,
               fontWeight: states.contains(WidgetState.selected)
                   ? FontWeight.w800
                   : FontWeight.w700,
@@ -291,12 +300,11 @@ abstract final class PipeBuyerTheme {
       navigationRailTheme: NavigationRailThemeData(
         elevation: 0,
         backgroundColor: surface,
-        indicatorColor: PipeBuyerColors.orangeSoft,
-        selectedIconTheme:
-            const IconThemeData(color: PipeBuyerColors.orange, size: 24),
+        indicatorColor: selectionSurface,
+        selectedIconTheme: IconThemeData(color: actionOrange, size: 24),
         unselectedIconTheme: IconThemeData(color: muted, size: 23),
-        selectedLabelTextStyle: const TextStyle(
-          color: PipeBuyerColors.orangePressed,
+        selectedLabelTextStyle: TextStyle(
+          color: actionOrange,
           fontWeight: FontWeight.w800,
         ),
         unselectedLabelTextStyle:
@@ -344,7 +352,7 @@ abstract final class PipeBuyerTheme {
         textStyle: TextStyle(color: text, fontWeight: FontWeight.w700),
       ),
       badgeTheme: const BadgeThemeData(
-        backgroundColor: PipeBuyerColors.orange,
+        backgroundColor: PipeBuyerColors.orangeActionFill,
         textColor: Colors.white,
         textStyle: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
         padding: EdgeInsets.symmetric(horizontal: 6),
@@ -354,7 +362,7 @@ abstract final class PipeBuyerTheme {
         side: BorderSide(color: muted.withValues(alpha: .65), width: 1.4),
         fillColor: WidgetStateProperty.resolveWith((states) =>
             states.contains(WidgetState.selected)
-                ? PipeBuyerColors.orange
+                ? PipeBuyerColors.orangeActionFill
                 : Colors.transparent),
         checkColor: const WidgetStatePropertyAll(Colors.white),
       ),
@@ -365,11 +373,11 @@ abstract final class PipeBuyerTheme {
                 : muted.withValues(alpha: .85)),
         trackColor: WidgetStateProperty.resolveWith((states) =>
             states.contains(WidgetState.selected)
-                ? PipeBuyerColors.orange
+                ? PipeBuyerColors.orangeActionFill
                 : line),
         trackOutlineColor: WidgetStateProperty.resolveWith((states) =>
             states.contains(WidgetState.selected)
-                ? PipeBuyerColors.orangePressed
+                ? PipeBuyerColors.orangeActionFill
                 : muted.withValues(alpha: .32)),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
@@ -392,7 +400,8 @@ abstract final class PipeBuyerTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: dark ? PipeBuyerColors.darkSurface : PipeBuyerColors.ink,
+        backgroundColor:
+            dark ? PipeBuyerColors.darkSurface : PipeBuyerColors.ink,
         contentTextStyle:
             const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         actionTextColor: PipeBuyerColors.orange,

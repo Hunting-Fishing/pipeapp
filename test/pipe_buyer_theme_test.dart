@@ -13,7 +13,7 @@ void main() {
       final theme = PipeAccessibilityTheme.apply(PipeBuyerTheme.light());
 
       expect(theme.brightness, Brightness.light);
-      expect(theme.colorScheme.primary, PipeBuyerColors.orange);
+      expect(theme.colorScheme.primary, PipeBuyerColors.orangeForegroundLight);
       expect(theme.colorScheme.secondary, PipeBuyerColors.industrialBlue);
       expect(theme.scaffoldBackgroundColor, PipeBuyerColors.canvas);
       expect(theme.appBarTheme.backgroundColor, PipeBuyerColors.ink);
@@ -37,7 +37,7 @@ void main() {
 
       expect(
         style.backgroundColor?.resolve(normalStates),
-        PipeBuyerColors.orange,
+        PipeBuyerColors.orangeActionFill,
       );
       final minimum = style.minimumSize?.resolve(normalStates);
       expect(minimum, isNotNull);
@@ -162,26 +162,29 @@ void main() {
   });
 
   group('PipeBuyer transaction presentation contracts', () {
-    test('invoice buyer total excludes the seller commission', () {
-      final invoice = MarketplaceInvoice(
-        invoiceId: 'INV-TEST',
-        listingTitle: 'Test Pipe',
-        sellerName: 'Seller',
-        buyerName: 'Buyer',
-        unitPrice: 100,
-        quantity: 10,
-        unitLabel: 'sticks',
-        freightCharge: 125,
-        sellerFeeRate: .025,
-        escrowFeeRate: .01,
-        issueDate: DateTime(2026, 8, 14),
-        dueDate: DateTime(2026, 8, 21),
+    test('sale record preserves the server-authoritative fee snapshot', () {
+      final invoice = MarketplaceInvoice.fromMarketplaceTransaction(
+        transactionId: 'auction-test',
+        transaction: const <String, dynamic>{
+          'listingTitle': 'Test Pipe',
+          'paymentProviderStatus': 'paid',
+          'sellerPayoutStatus': 'pending_release',
+          'marketplaceFeeSnapshot': <String, dynamic>{
+            'source': 'server_fee_policy',
+            'scheduleRevision': 'test-v1',
+            'feePayer': 'seller',
+            'currency': 'USD',
+            'agreedTotalMinor': 100000,
+            'marketplaceFeeMinor': 2500,
+            'sellerProceedsBeforeTaxMinor': 97500,
+          },
+        },
       );
 
-      expect(invoice.subtotal, 1000);
-      expect(invoice.sellerCommissionFee, 25);
-      expect(invoice.escrowProtectionFee, 10);
-      expect(invoice.totalDue, 1135);
+      expect(invoice.grossSaleMinor, 100000);
+      expect(invoice.marketplaceFeeMinor, 2500);
+      expect(invoice.sellerProceedsBeforeTaxMinor, 97500);
+      expect(invoice.paymentProviderStatusLabel, 'Paid');
     });
 
     test('offer milestones remain chronological and preserve their keys', () {
@@ -258,25 +261,41 @@ void main() {
       expect(find.text('Open calendar'), findsOneWidget);
     });
 
-    testWidgets('invoice renders configured escrow rate', (tester) async {
-      final invoice = MarketplaceInvoice(
-        invoiceId: 'INV-RATE',
-        listingTitle: 'Casing Lot',
+    testWidgets('sale record renders server fee, proceeds, and provider state',
+        (tester) async {
+      final invoice = MarketplaceInvoice.fromMarketplaceTransaction(
+        transactionId: 'auction-rate',
         sellerName: 'Seller',
         buyerName: 'Buyer',
-        unitPrice: 100,
-        quantity: 2,
-        unitLabel: 'lots',
-        escrowFeeRate: .02,
-        issueDate: DateTime(2026, 8, 14),
-        dueDate: DateTime(2026, 8, 21),
+        transaction: const <String, dynamic>{
+          'listingTitle': 'Casing Lot',
+          'paymentProviderStatus': 'paid',
+          'sellerPayoutStatus': 'released',
+          'marketplaceFeeSnapshot': <String, dynamic>{
+            'source': 'server_fee_policy',
+            'scheduleRevision': 'test-v2',
+            'feePayer': 'seller',
+            'currency': 'USD',
+            'agreedTotalMinor': 20000,
+            'marketplaceFeeMinor': 1000,
+            'sellerProceedsBeforeTaxMinor': 19000,
+          },
+        },
       );
 
       await tester.pumpWidget(app(MarketplaceInvoiceDialog(invoice: invoice)));
 
-      expect(find.text('Escrow Protection Fee (2.0%)'), findsOneWidget);
-      expect(find.text(r'$204.00'), findsOneWidget);
-      expect(find.text('UNPAID'), findsOneWidget);
+      expect(find.text('PIPE BUYER SALE RECORD'), findsOneWidget);
+      expect(find.text('Gross sale'), findsOneWidget);
+      expect(find.text('Pipe Buyer seller fee'), findsOneWidget);
+      expect(find.text('SELLER PROCEEDS BEFORE TAX'), findsOneWidget);
+      expect(find.text('USD 200.00'), findsOneWidget);
+      expect(find.text('-USD 10.00'), findsOneWidget);
+      expect(find.text('USD 190.00'), findsOneWidget);
+      expect(find.text('Paid'), findsOneWidget);
+      expect(find.text('Released'), findsOneWidget);
+      expect(find.textContaining('Escrow Protection Fee'), findsNothing);
+      expect(find.text('Pay Now'), findsNothing);
     });
   });
 }

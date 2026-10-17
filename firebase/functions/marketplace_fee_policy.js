@@ -9,24 +9,44 @@ class MarketplaceFeePolicyError extends Error {
 }
 
 const BASIS_POINTS = 10000;
+const MARKETPLACE_FEE_CLASSIFICATION_REVISION =
+  "2026-10-16-admin-approved-v2";
+const MARKETPLACE_FEE_CLASS_SOURCE = "administrator_approved_catalog";
+const PIPE_FEE_PRODUCT_TYPES = new Set([
+  "Drill Pipe",
+  "Drill Stem",
+  "Casing",
+  "Tubing",
+  "Sucker Rod",
+  "Line Pipe",
+  "OCTG",
+  "Culverts",
+  "Fittings",
+  "Flanges",
+  "Steel Plate",
+]);
 
 // Launch fee schedule. Every transaction stores the revision and computed
 // snapshot so later pricing changes never rewrite an already-agreed fee.
 const launchMarketplaceFeeSchedule = Object.freeze({
-  revision: "2026-08-10-launch-v2",
+  revision: "2026-10-16-sale-only-v4",
   payer: "seller",
+  listingFeeMinorByCurrency: Object.freeze({CAD: 0, USD: 0}),
+  collectionTiming: "sale_payment",
   affiliateShareBps: 2000,
   pipe: Object.freeze({
     unitFeeMinorByCurrency: Object.freeze({CAD: 100, USD: 100}),
-    minimumFeeMinorByCurrency: Object.freeze({CAD: 2500, USD: 2500}),
-    maximumFeeMinorByCurrency: Object.freeze({CAD: 500000, USD: 500000}),
+    percentageCapBps: 300,
+    maximumFeeMinorByCurrency: Object.freeze({CAD: 250000, USD: 250000}),
   }),
   equipment: Object.freeze({
-    minimumFeeMinorByCurrency: Object.freeze({CAD: 2500, USD: 2500}),
-    tiers: Object.freeze([
-      Object.freeze({upToExclusiveMinor: 1000000, feeBps: 500}),
-      Object.freeze({upToExclusiveMinor: 5000000, feeBps: 300}),
-      Object.freeze({upToExclusiveMinor: 25000000, feeBps: 200}),
+    minimumFeeMinorByCurrency: Object.freeze({CAD: 100, USD: 100}),
+    maximumFeeMinorByCurrency: Object.freeze({CAD: 250000, USD: 250000}),
+    brackets: Object.freeze([
+      Object.freeze({upToExclusiveMinor: 500000, feeBps: 300}),
+      Object.freeze({upToExclusiveMinor: 2500000, feeBps: 250}),
+      Object.freeze({upToExclusiveMinor: 10000000, feeBps: 200}),
+      Object.freeze({upToExclusiveMinor: 25000000, feeBps: 150}),
       Object.freeze({upToExclusiveMinor: null, feeBps: 100}),
     ]),
   }),
@@ -49,7 +69,7 @@ function fromMinorUnits(amountMinor) {
 }
 
 function normalizeCurrency(value) {
-  const currency = String(value || "CAD").trim().toUpperCase();
+  const currency = String(value || "").trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(currency)) invalid("The transaction currency is invalid.");
   return currency;
 }
@@ -65,18 +85,56 @@ function currencyValue(map, currency, field) {
   return value;
 }
 
-function inferMarketplaceFeeClass(listing) {
-  const text = [
-    listing && listing.category,
-    listing && listing.productType,
-    listing && listing.title,
-  ].map((value) => String(value || "").toLowerCase()).join(" ");
+function listingRevision(listing) {
+  const rawRevision = listing && listing.revision;
+  const revision = rawRevision == null ? 1 : Number(rawRevision);
+  return Number.isSafeInteger(revision) && revision >= 1 ? revision : null;
+}
 
-  if (/\b(pipe|tubing|casing|drill pipe|line pipe|octg|joint|pup joint)\b/u
-      .test(text)) {
-    return "pipe";
-  }
-  return "equipment_asset";
+function isCanonicalPipeCatalogListing(listing) {
+  return String(listing && listing.category || "") ===
+      "Pipe, Tubing & Materials" &&
+    PIPE_FEE_PRODUCT_TYPES.has(String(listing && listing.productType || ""));
+}
+
+// A public listing is seller-authored. Never trust fee fields embedded in it.
+// The only discounted pipe path is a separate, server-only administrator
+// approval bound to the exact listing identity, catalog values, and revision.
+function resolveMarketplaceFeeClassification(listing, feeClassification) {
+  const listingId = String(listing && listing.id || "").trim();
+  const sellerUid = String(listing && listing.sellerUid || "").trim();
+  const revision = listingRevision(listing);
+  const approval = feeClassification || {};
+  const decisionRevision = Number(approval.decisionRevision);
+  const approvedPipe = listingId && sellerUid && revision != null &&
+    isCanonicalPipeCatalogListing(listing) &&
+    approval.status === "approved" &&
+    approval.marketplaceFeeClass === "pipe" &&
+    approval.marketplaceFeeUnit === "item" &&
+    approval.marketplaceFeeClassSource === MARKETPLACE_FEE_CLASS_SOURCE &&
+    approval.marketplaceFeeClassificationRevision ===
+      MARKETPLACE_FEE_CLASSIFICATION_REVISION &&
+    String(approval.listingId || "").trim() === listingId &&
+    String(approval.sellerUid || "").trim() === sellerUid &&
+    Number(approval.listingRevision) === revision &&
+    Number.isSafeInteger(decisionRevision) && decisionRevision >= 1 &&
+    String(approval.decidedByUid || "").trim().length > 0 &&
+    String(approval.decisionReason || "").trim().length >= 10 &&
+    Boolean(approval.decidedAt) &&
+    String(approval.category || "") === String(listing.category || "") &&
+    String(approval.productType || "") === String(listing.productType || "");
+  return Object.freeze({
+    feeClass: approvedPipe ? "pipe" : "equipment_asset",
+    feeUnit: approvedPipe ? "item" : "sale_value",
+    source: approvedPipe ? MARKETPLACE_FEE_CLASS_SOURCE :
+      "server_fail_closed_default",
+    classificationRevision: MARKETPLACE_FEE_CLASSIFICATION_REVISION,
+  });
+}
+
+function inferMarketplaceFeeClass(listing, feeClassification) {
+  return resolveMarketplaceFeeClassification(listing, feeClassification)
+      .feeClass;
 }
 
 function calculatePipeFee({
@@ -95,43 +153,84 @@ function calculatePipeFee({
       currency,
       "The per-stick marketplace fee",
   );
-  const minimumFeeMinor = currencyValue(
-      schedule.minimumFeeMinorByCurrency,
-      currency,
-      "The minimum pipe marketplace fee",
-  );
   const maximumFeeMinor = currencyValue(
       schedule.maximumFeeMinorByCurrency,
       currency,
       "The maximum pipe marketplace fee",
   );
-  const baseFeeMinor = roundedQuantity * unitFeeMinor;
-  const marketplaceFeeMinor = Math.max(
-      minimumFeeMinor,
-      Math.min(baseFeeMinor, maximumFeeMinor),
-  );
-  if (marketplaceFeeMinor > agreedTotalMinor) {
-    invalid(
-        "The agreed transaction total must be at least the minimum Pipe Buyer marketplace fee.",
-    );
+  const percentageCapBps = Number(schedule.percentageCapBps);
+  if (!Number.isSafeInteger(percentageCapBps) || percentageCapBps <= 0 ||
+      percentageCapBps > BASIS_POINTS) {
+    invalid("The pipe marketplace percentage cap is invalid.");
   }
+  const baseFeeMinor = roundedQuantity * unitFeeMinor;
+  const percentageCapMinor = Math.floor(
+      agreedTotalMinor * percentageCapBps / BASIS_POINTS,
+  );
+  const marketplaceFeeMinor = Math.min(
+      baseFeeMinor,
+      maximumFeeMinor,
+      percentageCapMinor,
+  );
   return {
     marketplaceFeeMinor,
     feeClass: "pipe",
     quantityCharged: roundedQuantity,
     unitFeeMinor,
-    minimumFeeMinor,
+    percentageCapBps,
+    percentageCapMinor,
     maximumFeeMinor,
   };
 }
 
-function equipmentTier(totalMinor, tiers) {
-  for (const tier of tiers || []) {
-    if (tier.upToExclusiveMinor == null || totalMinor < tier.upToExclusiveMinor) {
-      return tier;
-    }
+function calculateProgressiveFee(totalMinor, brackets) {
+  if (!Array.isArray(brackets) || brackets.length === 0) {
+    invalid("The equipment marketplace fee schedule is invalid.");
   }
-  invalid("The equipment marketplace fee schedule is invalid.");
+  let lowerBoundMinor = 0;
+  let feeNumerator = 0;
+  const appliedBrackets = [];
+  for (const bracket of brackets) {
+    const feeBps = Number(bracket && bracket.feeBps);
+    const upperBoundMinor = bracket && bracket.upToExclusiveMinor;
+    if (!Number.isSafeInteger(feeBps) || feeBps < 0 ||
+        feeBps > BASIS_POINTS ||
+        (upperBoundMinor != null &&
+         (!Number.isSafeInteger(upperBoundMinor) ||
+          upperBoundMinor <= lowerBoundMinor))) {
+      invalid("The equipment marketplace fee schedule is invalid.");
+    }
+    const bracketEndMinor = upperBoundMinor == null ?
+      totalMinor : Math.min(totalMinor, upperBoundMinor);
+    const amountInBracketMinor = Math.max(
+        0,
+        bracketEndMinor - lowerBoundMinor,
+    );
+    if (amountInBracketMinor > 0) {
+      const bracketFeeMinor = Math.floor(
+          amountInBracketMinor * feeBps / BASIS_POINTS,
+      );
+      feeNumerator += amountInBracketMinor * feeBps;
+      appliedBrackets.push({
+        fromMinor: lowerBoundMinor,
+        upToExclusiveMinor: upperBoundMinor,
+        amountMinor: amountInBracketMinor,
+        feeBps,
+        feeMinor: bracketFeeMinor,
+      });
+    }
+    if (upperBoundMinor == null || totalMinor <= upperBoundMinor) break;
+    lowerBoundMinor = upperBoundMinor;
+  }
+  if (appliedBrackets.length === 0 ||
+      appliedBrackets.reduce((sum, item) => sum + item.amountMinor, 0) !==
+        totalMinor) {
+    invalid("The equipment marketplace fee schedule is invalid.");
+  }
+  return {
+    appliedBrackets,
+    progressiveFeeMinor: Math.floor(feeNumerator / BASIS_POINTS),
+  };
 }
 
 function calculateEquipmentFee({agreedTotalMinor, currency, schedule}) {
@@ -140,25 +239,32 @@ function calculateEquipmentFee({agreedTotalMinor, currency, schedule}) {
       currency,
       "The minimum equipment marketplace fee",
   );
-  const tier = equipmentTier(agreedTotalMinor, schedule.tiers);
-  const feeBps = Number(tier.feeBps);
-  if (!Number.isSafeInteger(feeBps) || feeBps < 0 || feeBps > BASIS_POINTS) {
-    invalid("The equipment marketplace percentage is invalid.");
-  }
-  const percentageFeeMinor = Math.floor(
-      agreedTotalMinor * feeBps / BASIS_POINTS,
+  const maximumFeeMinor = currencyValue(
+      schedule.maximumFeeMinorByCurrency,
+      currency,
+      "The maximum equipment marketplace fee",
+  );
+  const progressive = calculateProgressiveFee(
+      agreedTotalMinor,
+      schedule.brackets,
   );
   return {
-    marketplaceFeeMinor: Math.max(minimumFeeMinor, percentageFeeMinor),
+    marketplaceFeeMinor: Math.min(
+        agreedTotalMinor,
+        maximumFeeMinor,
+        Math.max(minimumFeeMinor, progressive.progressiveFeeMinor),
+    ),
     feeClass: "equipment_asset",
-    feeBps,
     minimumFeeMinor,
-    tierUpToExclusiveMinor: tier.upToExclusiveMinor,
+    maximumFeeMinor,
+    progressiveFeeMinor: progressive.progressiveFeeMinor,
+    appliedBrackets: progressive.appliedBrackets,
   };
 }
 
 function calculateMarketplaceFeeSnapshot({
   listing,
+  feeClassification,
   agreedQuantity,
   agreedTotal,
   currency,
@@ -167,7 +273,11 @@ function calculateMarketplaceFeeSnapshot({
   const normalizedCurrency = normalizeCurrency(currency);
   const agreedTotalMinor = toMinorUnits(agreedTotal);
   if (agreedTotalMinor <= 0) invalid("The agreed total must be greater than zero.");
-  const feeClass = inferMarketplaceFeeClass(listing);
+  const classification = resolveMarketplaceFeeClassification(
+      listing,
+      feeClassification,
+  );
+  const feeClass = classification.feeClass;
   const calculation = feeClass === "pipe" ?
     calculatePipeFee({
       agreedQuantity,
@@ -181,6 +291,9 @@ function calculateMarketplaceFeeSnapshot({
       schedule: schedule.equipment,
     });
   const marketplaceFeeMinor = calculation.marketplaceFeeMinor;
+  if (!Number.isSafeInteger(marketplaceFeeMinor) || marketplaceFeeMinor <= 0) {
+    invalid("The marketplace fee could not be calculated for this sale.");
+  }
   if (marketplaceFeeMinor > agreedTotalMinor) {
     invalid("The marketplace fee cannot exceed the agreed transaction total.");
   }
@@ -191,6 +304,14 @@ function calculateMarketplaceFeeSnapshot({
   return Object.freeze({
     scheduleRevision: String(schedule.revision),
     feePayer: String(schedule.payer || "seller"),
+    collectionTiming: String(schedule.collectionTiming || "sale_payment"),
+    listingFeeMinor: currencyValue(
+        schedule.listingFeeMinorByCurrency,
+        normalizedCurrency,
+        "The marketplace listing fee",
+    ),
+    feeClassificationSource: classification.source,
+    feeClassificationRevision: classification.classificationRevision,
     feeClass: calculation.feeClass,
     currency: normalizedCurrency,
     agreedTotalMinor,
@@ -206,11 +327,18 @@ function calculateMarketplaceFeeSnapshot({
 
 module.exports = {
   BASIS_POINTS,
+  MARKETPLACE_FEE_CLASS_SOURCE,
+  MARKETPLACE_FEE_CLASSIFICATION_REVISION,
   MarketplaceFeePolicyError,
+  PIPE_FEE_PRODUCT_TYPES,
   calculateMarketplaceFeeSnapshot,
+  calculateProgressiveFee,
   fromMinorUnits,
   inferMarketplaceFeeClass,
+  isCanonicalPipeCatalogListing,
   launchMarketplaceFeeSchedule,
+  listingRevision,
   normalizeCurrency,
+  resolveMarketplaceFeeClassification,
   toMinorUnits,
 };

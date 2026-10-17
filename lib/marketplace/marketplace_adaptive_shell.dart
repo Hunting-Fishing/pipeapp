@@ -117,8 +117,8 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
                                   data: NavigationRailThemeData(
                                     backgroundColor: Colors.transparent,
                                     indicatorColor: effectiveIndicator,
-                                    selectedIconTheme: const IconThemeData(
-                                      color: PipeBuyerColors.orangePressed,
+                                    selectedIconTheme: IconThemeData(
+                                      color: theme.colorScheme.primary,
                                       size: 24,
                                     ),
                                     unselectedIconTheme: IconThemeData(
@@ -241,24 +241,24 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
                   indicatorColor: effectiveIndicator,
                   iconTheme: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
-                      return const IconThemeData(
-                        color: PipeBuyerColors.orangePressed,
+                      return IconThemeData(
+                        color: theme.colorScheme.primary,
                         size: 24,
                       );
                     }
                     return IconThemeData(
-                      color: theme.colorScheme.onSurface.withValues(alpha: .58),
+                      color: theme.colorScheme.onSurface.withValues(alpha: .72),
                       size: 22,
                     );
                   }),
                   labelTextStyle: WidgetStateProperty.resolveWith((states) {
                     final selected = states.contains(WidgetState.selected);
                     return TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                       color: selected
                           ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withValues(alpha: .58),
+                          : theme.colorScheme.onSurface.withValues(alpha: .72),
                     );
                   }),
                 ),
@@ -269,7 +269,7 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
                   selectedIndex: _selectedDestinationIndex(
                         compactDestinations,
                       ) ??
-                      0,
+                      _compactFallbackDestinationIndex(compactDestinations),
                   onDestinationSelected: (index) => onDestinationSelected(
                     compactDestinations[index].pageIndex,
                   ),
@@ -355,6 +355,21 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
       (destination) => destination.pageIndex == selectedPageIndex,
     );
     return index < 0 ? null : index;
+  }
+
+  int _compactFallbackDestinationIndex(
+    List<MarketplaceShellDestination> destinations,
+  ) {
+    // Saved, Timed Buying, and Dispatch are secondary commerce destinations
+    // that live under Browse on compact navigation. Highlighting Home for
+    // them made the current location look wrong.
+    if (const {3, 6, 7}.contains(selectedPageIndex)) {
+      final browseIndex = destinations.indexWhere(
+        (destination) => destination.pageIndex == 1,
+      );
+      if (browseIndex >= 0) return browseIndex;
+    }
+    return 0;
   }
 
   double _contentWidthAfterRail(double availableWidth, bool extended) {
@@ -552,7 +567,7 @@ class _MarketplaceListNowButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          backgroundColor: PipeBuyerColors.orange,
+          backgroundColor: PipeBuyerColors.orangeActionFill,
           foregroundColor: Colors.white,
           textStyle: const TextStyle(
             fontSize: 14,

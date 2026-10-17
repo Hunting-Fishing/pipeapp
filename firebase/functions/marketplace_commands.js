@@ -7,12 +7,24 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
-const {isAdministrator} = require("./administrator_authorization");
 const {
+  AdministratorAuthorizationError,
+  isAdministrator,
+  requireAdministrator,
+} = require("./administrator_authorization");
+const {
+  auctionListingLifecycleStatus,
   CommandPolicyError,
+  isTotalPriceBasis,
+  marketplaceOfferInventoryCompletion,
+  marketplaceOfferInventoryReservation,
+  marketplaceTransactionCurrency,
+  requireMoney,
   TERMINAL_AUCTION_STATUSES,
   validateAuctionConversion,
   validateAuctionFinalization,
+  validateAuctionSaleTerms,
+  validateTimedAuctionAdministration,
   validateAuctionTransactionAction,
   validateAcceptBelowReserve,
   validateBuyNow,
@@ -40,12 +52,14 @@ const {
 const {
   approvedAccountVerification,
 } = require("./account_verification_policy");
+const {contactSharingSignals} = require("./marketplace_contact_policy");
 const {
   FeatureFlagError,
   loadPhase1FeatureFlags,
   requirePhase1Feature,
 } = require("./phase1_feature_flags");
 const {buildDispatchRouteState} = require("./dispatch_routing_policy");
+const {launchMarketplaceFeeSchedule} = require("./marketplace_fee_policy");
 const {
   DAY_MS,
   MARKETPLACE_LISTING_ACTIVE_DAYS,
@@ -66,6 +80,61 @@ function requiredId(data, fieldName) {
   return value;
 }
 
+function moneyMinor(value) {
+  if (typeof value !== "number" ||
+      !Number.isFinite(value) ||
+      value <= 0 ||
+      value > 1_000_000_000_000 ||
+      Math.abs(value * 100 - Math.round(value * 100)) > 0.000001) {
+    return null;
+  }
+  const minor = Math.round((value + Number.EPSILON) * 100);
+  return Number.isSafeInteger(minor) ? minor : null;
+}
+
+function assertAuctionSettlementMatches(existing, expected) {
+  const totalBasis = isTotalPriceBasis(expected.priceBasis);
+  const identityMatches = existing &&
+    existing.listingId === expected.listingId &&
+    existing.buyerUid === expected.buyerUid &&
+    existing.sellerUid === expected.sellerUid &&
+    existing.currency === expected.currency &&
+    existing.priceBasis === expected.priceBasis &&
+    existing.source === expected.source &&
+    existing.agreedQuantity === expected.agreedQuantity &&
+    moneyMinor(existing.agreedTotal) === moneyMinor(expected.agreedTotal) &&
+    (totalBasis ||
+      moneyMinor(existing.agreedUnitPrice) ===
+        moneyMinor(expected.agreedUnitPrice));
+  if (!identityMatches) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "An existing auction settlement does not match the authoritative " +
+        "winner and sale terms. Administrator review is required.",
+    );
+  }
+}
+
+function auctionListingWithPrivateTerms(publicListing, privateAuction) {
+  if (!publicListing) return null;
+  if (privateAuction == null) return {...publicListing};
+  const privateTerms = typeof privateAuction === "object" &&
+      !Array.isArray(privateAuction) ? privateAuction : {};
+  return {
+    ...publicListing,
+    // Copy only the private fields used by auction policy. A malformed or
+    // legacy private record must never be able to replace public sale terms.
+    ownerUid: typeof privateTerms.ownerUid === "string" ?
+      privateTerms.ownerUid : "",
+    ...(Object.prototype.hasOwnProperty.call(privateTerms, "reservePrice") ? {
+      reservePrice: privateTerms.reservePrice,
+    } : {}),
+    ...(Object.prototype.hasOwnProperty.call(privateTerms, "reserveTotal") ? {
+      reserveTotal: privateTerms.reserveTotal,
+    } : {}),
+  };
+}
+
 function requireAuth(request, options) {
   return requireAuthenticatedIdentity(request, options).uid;
 }
@@ -81,6 +150,7 @@ function policyError(error) {
   if (error instanceof HttpsError) return error;
   if (
     error instanceof AccountSecurityError ||
+    error instanceof AdministratorAuthorizationError ||
     error instanceof CommandPolicyError ||
     error instanceof ListingPolicyError ||
     error instanceof WantedMatchingPolicyError ||
@@ -112,6 +182,57 @@ function receiptData(uid, commandName, result, FieldValue) {
     result,
     createdAt: FieldValue.serverTimestamp(),
   };
+}
+
+function firstSafeMarketplaceIdentity(candidates, fallback) {
+  for (const candidate of candidates) {
+    const name = String(candidate || "").trim();
+    if (!name || contactSharingSignals(name).length > 0) continue;
+    return name.slice(0, 160);
+  }
+  return fallback;
+}
+
+function marketplacePublicSellerName({
+  user = {},
+  business = {},
+  authToken = {},
+} = {}) {
+  const candidates = user.accountType === "business" ? [
+    business.publicName,
+    user.businessName,
+    user.display_name,
+    user.displayName,
+    user.fullName,
+    authToken.name,
+  ] : [
+    user.display_name,
+    user.displayName,
+    user.fullName,
+    authToken.name,
+  ];
+  return firstSafeMarketplaceIdentity(candidates, "Marketplace seller");
+}
+
+function marketplacePublicBuyerName({
+  user = {},
+  business = {},
+  authToken = {},
+} = {}) {
+  const candidates = user.accountType === "business" ? [
+    business.publicName,
+    user.businessName,
+    user.display_name,
+    user.displayName,
+    user.fullName,
+    authToken.name,
+  ] : [
+    user.display_name,
+    user.displayName,
+    user.fullName,
+    authToken.name,
+  ];
+  return firstSafeMarketplaceIdentity(candidates, "Marketplace buyer");
 }
 
 function createMarketplaceCommands(
@@ -150,14 +271,11 @@ function createMarketplaceCommands(
           "profile, and verified account status.",
       );
     }
-    const sellerName = String(
-        user.accountType === "business" ?
-          business.publicName || user.businessName || "" :
-          user.display_name || user.displayName || user.fullName || "",
-    ).trim() || String(
-        request.auth.token.name || request.auth.token.email ||
-        "Marketplace seller",
-    ).trim();
+    const sellerName = marketplacePublicSellerName({
+      user,
+      business,
+      authToken: request.auth.token || {},
+    });
     const sellerPhotoUrl = String(
         business.photoUrl || user.photoUrl || user.photo_url ||
         request.auth.token.picture || "",
@@ -219,6 +337,7 @@ function createMarketplaceCommands(
         listingDurationDays: MARKETPLACE_LISTING_ACTIVE_DAYS,
         renewalCount: 0,
         lifecycleVersion: 1,
+        revision: 1,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         source: "marketplace_callable",
@@ -288,10 +407,13 @@ function createMarketplaceCommands(
   }
 
   function auctionSettlementValues(listingId, listing, buyerUid, amount, source) {
-    const quantity = Number(listing.auctionQuantity || listing.quantity || 1);
-    const totalBasis = String(
-        listing.auctionPricingBasis || listing.priceBasis || "",
-    ).toLowerCase().includes("total");
+    const saleTerms = validateAuctionSaleTerms(listing);
+    const winningAmount = requireMoney(amount, "Winning bid");
+    const agreedTotal = requireMoney(
+        saleTerms.priceBasisKind === "total" ?
+          winningAmount : winningAmount * saleTerms.quantity,
+        "Auction sale total",
+    );
     return {
       listingId,
       buyerUid,
@@ -299,11 +421,12 @@ function createMarketplaceCommands(
       status: "pending_completion",
       buyerConfirmed: false,
       sellerConfirmed: false,
-      agreedUnitPrice: amount,
-      agreedQuantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
-      agreedTotal: totalBasis ? amount : amount * quantity,
-      currency: listing.currency || "CAD",
-      priceBasis: listing.auctionPricingBasis || listing.priceBasis || "",
+      agreedUnitPrice: saleTerms.priceBasisKind === "total" ?
+        agreedTotal / saleTerms.quantity : winningAmount,
+      agreedQuantity: saleTerms.quantity,
+      agreedTotal,
+      currency: marketplaceTransactionCurrency(listing.currency),
+      priceBasis: saleTerms.priceBasis,
       source,
       revision: 1,
       createdAt: FieldValue.serverTimestamp(),
@@ -315,6 +438,7 @@ function createMarketplaceCommands(
       listingId,
       actorUid = "auction_scheduler",
       receiptRef = null,
+      administration = null,
   ) => db.runTransaction(async (transaction) => {
     if (receiptRef) {
       const receipt = await transaction.get(receiptRef);
@@ -323,21 +447,62 @@ function createMarketplaceCommands(
     const listingRef = db.collection("public_listings").doc(listingId);
     const privateRef = db.collection("auction_private").doc(listingId);
     const saleRef = db.collection("auction_transactions").doc(listingId);
+    const paymentRef = administration ?
+      db.collection("marketplace_transactions").doc(`auction_${listingId}`) :
+      null;
     const listingSnapshot = await transaction.get(listingRef);
     const privateSnapshot = await transaction.get(privateRef);
     const saleSnapshot = await transaction.get(saleRef);
+    const paymentSnapshot = paymentRef ?
+      await transaction.get(paymentRef) :
+      null;
     const listingData = listingSnapshot.exists ? listingSnapshot.data() : null;
     const listing = listingData ? {...listingData, id: listingId} : null;
+    const administrationPlan = administration ?
+      validateTimedAuctionAdministration({
+        listing,
+        sale: saleSnapshot.exists ? saleSnapshot.data() : null,
+        payment: paymentSnapshot && paymentSnapshot.exists ?
+          paymentSnapshot.data() : null,
+        action: administration.action,
+        now: administration.now,
+      }) :
+      null;
     if (listing && TERMINAL_AUCTION_STATUSES.has(listing.auctionStatus) &&
         listing.finalizedAt) {
       const result = {
         listingId,
         auctionStatus: listing.auctionStatus,
-        winnerUid: String(
-            listing.acceptedBidderUid || listing.highBidderUid || "",
-        ),
-        amount: Number(listing.acceptedBidAmount || listing.currentBid || 0),
+        reserveMet: listing.reserveMet === true,
+        // Only the accepted server-owned outcome identifies a winner. A below-
+        // reserve auction can retain a historical high bidder without a sale.
+        winnerUid: String(listing.acceptedBidderUid || ""),
+        amount: Number(listing.acceptedBidAmount || 0),
       };
+      if (result.winnerUid) {
+        if (!saleSnapshot.exists) {
+          throw new CommandPolicyError(
+              "failed-precondition",
+              "The finalized auction is missing its settlement record and " +
+              "requires administrator review.",
+          );
+        }
+        const expectedSale = auctionSettlementValues(
+            listingId,
+            listing,
+            result.winnerUid,
+            result.amount,
+            listing.forceEndedAt ?
+              "auction_admin_force_end" : "auction_expiry",
+        );
+        assertAuctionSettlementMatches(saleSnapshot.data(), expectedSale);
+      } else if (saleSnapshot.exists) {
+        throw new CommandPolicyError(
+            "failed-precondition",
+            "This auction ended without a winner but has a settlement record. " +
+            "Administrator review is required.",
+        );
+      }
       if (receiptRef) {
         transaction.create(
             receiptRef,
@@ -346,10 +511,14 @@ function createMarketplaceCommands(
       }
       return result;
     }
+    const effectiveListing = administrationPlan ? {
+      ...listing,
+      auctionEndAt: Timestamp.fromMillis(administrationPlan.auctionEndAt),
+    } : listing;
     const outcome = validateAuctionFinalization({
-      listing,
-      privateAuction: privateSnapshot.data() || {},
-      now: Timestamp.now(),
+      listing: effectiveListing,
+      privateAuction: privateSnapshot.exists ? privateSnapshot.data() : null,
+      now: administration && administration.now || Timestamp.now(),
     });
     let leadingBidRef = null;
     let leadingBidSnapshot = null;
@@ -359,14 +528,43 @@ function createMarketplaceCommands(
       leadingBidSnapshot = await transaction.get(leadingBidRef);
       validateLeadingBidRecord(
           listingId,
-          listing,
+          effectiveListing,
           leadingBidSnapshot.exists ? leadingBidSnapshot.data() : null,
       );
     }
-    const result = {listingId, ...outcome};
+    let settlementValues = null;
+    if (outcome.winnerUid) {
+      settlementValues = auctionSettlementValues(
+          listingId,
+          effectiveListing,
+          outcome.winnerUid,
+          outcome.amount,
+          administrationPlan ? "auction_admin_force_end" : "auction_expiry",
+      );
+      if (saleSnapshot.exists) {
+        assertAuctionSettlementMatches(saleSnapshot.data(), settlementValues);
+      }
+    } else if (saleSnapshot.exists) {
+      throw new CommandPolicyError(
+          "failed-precondition",
+          "This auction has no winning outcome but already has a settlement " +
+          "record. Administrator review is required.",
+      );
+    }
+    const result = {
+      listingId,
+      ...(administrationPlan ? {action: administrationPlan.action} : {}),
+      ...outcome,
+    };
     transaction.update(listingRef, {
+      status: auctionListingLifecycleStatus(outcome.auctionStatus),
       auctionStatus: outcome.auctionStatus,
       reserveMet: outcome.reserveMet,
+      ...(administrationPlan ? {
+        auctionEndAt: Timestamp.fromMillis(administrationPlan.auctionEndAt),
+        forceEndedAt: administration.now,
+        forceEndedByUid: actorUid,
+      } : {}),
       ...(outcome.winnerUid ? {
         acceptedBidAmount: outcome.amount,
         acceptedBidderUid: outcome.winnerUid,
@@ -381,17 +579,10 @@ function createMarketplaceCommands(
         wonAt: FieldValue.serverTimestamp(),
       });
     }
-    if (outcome.winnerUid && !saleSnapshot.exists) {
-      const values = auctionSettlementValues(
-          listingId,
-          listing,
-          outcome.winnerUid,
-          outcome.amount,
-          "auction_expiry",
-      );
-      transaction.create(saleRef, values);
+    if (settlementValues && !saleSnapshot.exists) {
+      transaction.create(saleRef, settlementValues);
       transaction.create(saleRef.collection("revisions").doc("1"), {
-        ...values,
+        ...settlementValues,
         event: "auction_won",
         actorUid,
       });
@@ -430,8 +621,23 @@ function createMarketplaceCommands(
     if (receiptRef) {
       transaction.create(
           receiptRef,
-          receiptData(actorUid, "finalizeAuction", result, FieldValue),
+          receiptData(
+              actorUid,
+              administrationPlan ?
+                "administerTimedAuction" : "finalizeAuction",
+              result,
+              FieldValue,
+          ),
       );
+    }
+    if (administrationPlan && administration.auditRef) {
+      transaction.create(administration.auditRef, {
+        actorUid,
+        listingId,
+        action: administrationPlan.action,
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
     }
     return result;
   });
@@ -483,7 +689,7 @@ function createMarketplaceCommands(
         "queued" : "none",
     });
     const location = validateLocation(request.data && request.data.location);
-    const reserve = validateReserve(rawListing, listing.transactionType);
+    const reserve = validateReserve(rawListing, listing.transactionType, listing);
     const draftRef = db.collection("marketplace_listing_drafts").doc(listingId);
     const listingRef = db.collection("public_listings").doc(listingId);
     const receiptRef = receiptReference(
@@ -788,6 +994,7 @@ function createMarketplaceCommands(
     const reserve = validateReserve(
         request.data && request.data.listing,
         listing.transactionType,
+        listing,
     );
     const listingRef = db.collection("public_listings").doc(listingId);
     const privateLocationRef = db.collection("listing_private_locations")
@@ -1078,9 +1285,6 @@ function createMarketplaceCommands(
         statusChangedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         ...(wantedStatus ? {wantedStatus} : {}),
-        ...(action === "mark_sold" ? {
-          soldAt: FieldValue.serverTimestamp(),
-        } : {}),
         ...(action === "archive" ? {
           archivedAt: FieldValue.serverTimestamp(),
         } : {}),
@@ -1248,6 +1452,9 @@ function createMarketplaceCommands(
         "lastMatchedAt", "publishedAt", "expiresAt", "renewedAt",
         "expiredAt", "listingDurationDays", "renewalCount",
         "lifecycleVersion", "expiryWarningSentAt", "expiryWarningFor",
+        "marketplaceFeeClass", "marketplaceFeeUnit",
+        "marketplaceFeeClassSource",
+        "marketplaceFeeClassificationRevision",
       ]) delete clone[field];
       Object.assign(clone, {
         status: "active",
@@ -1340,14 +1547,12 @@ function createMarketplaceCommands(
       });
       const reserveTotal = conversion.reservePrice == null ?
         null :
-        (conversion.priceBasis.toLowerCase().includes("total") ||
-          conversion.quantity == null ?
+        (isTotalPriceBasis(conversion.priceBasis) ?
           conversion.reservePrice :
           conversion.reservePrice * conversion.quantity);
       const buyItNowTotal = conversion.buyItNowPrice == null ?
         null :
-        (conversion.priceBasis.toLowerCase().includes("total") ||
-          conversion.quantity == null ?
+        (isTotalPriceBasis(conversion.priceBasis) ?
           conversion.buyItNowPrice :
           conversion.buyItNowPrice * conversion.quantity);
       const result = {
@@ -1378,9 +1583,12 @@ function createMarketplaceCommands(
         auctionDurationDays: conversion.durationDays,
         customAuction: conversion.customAuction,
         bidWithdrawalAfterDays: conversion.customAuction ? 32 : null,
-        customAuctionUpfrontFee: conversion.customAuction ? 29.99 : 0,
-        customAuctionSaleFeePercent: conversion.customAuction ? 5 : 0,
-        additionalAuctionFeesDisclosure: conversion.customAuction,
+        customAuctionUpfrontFee: FieldValue.delete(),
+        customAuctionSaleFeePercent: FieldValue.delete(),
+        additionalAuctionFeesDisclosure: FieldValue.delete(),
+        marketplaceListingFee: 0,
+        marketplaceFeeTiming: launchMarketplaceFeeSchedule.collectionTiming,
+        marketplaceFeeScheduleRevision: launchMarketplaceFeeSchedule.revision,
         auctionStartAt: Timestamp.fromMillis(conversion.auctionStartAt),
         auctionEndAt: Timestamp.fromMillis(conversion.auctionEndAt),
         auctionStatus: "live",
@@ -1435,24 +1643,15 @@ function createMarketplaceCommands(
         db.collection("users").doc(buyerUid),
     );
     const user = userSnapshot.data() || {};
-    if (user.accountType === "business") {
-      const businessSnapshot = await transaction.get(
+    const businessSnapshot = user.accountType === "business" ?
+      await transaction.get(
           db.collection("public_business_profiles").doc(buyerUid),
-      );
-      const businessName =
-        String(businessSnapshot.data() && businessSnapshot.data().publicName ||
-          "").trim();
-      if (businessName) return businessName.slice(0, 160);
-    }
-    const personalName = String(
-        user.display_name ||
-        user.displayName ||
-        (buyerUid === request.auth.uid &&
-          request.auth.token &&
-          request.auth.token.name) ||
-        "",
-    ).trim();
-    return personalName ? personalName.slice(0, 160) : "Marketplace buyer";
+      ) : null;
+    return marketplacePublicBuyerName({
+      user,
+      business: businessSnapshot && businessSnapshot.data() || {},
+      authToken: buyerUid === request.auth.uid ? request.auth.token || {} : {},
+    });
   }
 
   function maskedTimedOfferPersonalName(rawName) {
@@ -1467,25 +1666,26 @@ function createMarketplaceCommands(
     const userSnapshot = await transaction.get(db.collection("users").doc(buyerUid));
     const user = userSnapshot.data() || {};
     const accountType = String(user.accountType || "personal").trim() || "personal";
-    let publicName = "";
+    let publicName;
     if (accountType === "business") {
       const businessSnapshot = await transaction.get(
           db.collection("public_business_profiles").doc(buyerUid),
       );
-      publicName = String(
-          businessSnapshot.data() && businessSnapshot.data().publicName ||
-          user.businessName || user.displayName || user.display_name || "",
-      ).trim();
+      publicName = marketplacePublicBuyerName({
+        user,
+        business: businessSnapshot.data() || {},
+        authToken: buyerUid === request.auth.uid ? request.auth.token || {} : {},
+      });
     } else {
-      const personalName = String(
-          user.display_name || user.displayName ||
-          (buyerUid === request.auth.uid && request.auth.token && request.auth.token.name) ||
-          "",
-      ).trim();
-      publicName = maskedTimedOfferPersonalName(personalName);
+      const personalName = marketplacePublicBuyerName({
+        user,
+        authToken: buyerUid === request.auth.uid ? request.auth.token || {} : {},
+      });
+      publicName = personalName === "Marketplace buyer" ?
+        "Authenticated buyer" : maskedTimedOfferPersonalName(personalName);
     }
     return {
-      bidderPublicName: (publicName || "Authenticated buyer").slice(0, 160),
+      bidderPublicName: publicName.slice(0, 160),
       bidderVerified: approvedAccountVerification(user),
       bidderAccountType: accountType.slice(0, 40),
       bidderIdentityVersion: 1,
@@ -1514,10 +1714,10 @@ function createMarketplaceCommands(
         await transaction.get(privateAuctionRef);
       const publicListing =
         listingSnapshot.exists ? listingSnapshot.data() : null;
-      const listing = publicListing ? {
-        ...publicListing,
-        ...(privateAuctionSnapshot.data() || {}),
-      } : null;
+      const listing = auctionListingWithPrivateTerms(
+          publicListing,
+          privateAuctionSnapshot.exists ? privateAuctionSnapshot.data() : null,
+      );
       const now = Timestamp.now();
       const validated = validatePlaceBid(listing, uid, amount, now);
       await requireEligibleBidder(transaction, uid, isAdministrator(request));
@@ -1557,7 +1757,7 @@ function createMarketplaceCommands(
         ...bidderIdentity,
         sequenceNumber,
         amount: validated.amount,
-        currency: listing.currency || "CAD",
+        currency: marketplaceTransactionCurrency(listing.currency),
         status: "leading",
         createdAt: FieldValue.serverTimestamp(),
       });
@@ -1608,6 +1808,130 @@ function createMarketplaceCommands(
     );
   });
 
+  const administerTimedAuction = command(async (request) => {
+    const uid = requireAdministrator(request);
+    await enforceUserRateLimit({
+      db,
+      admin,
+      request,
+      scope: "auction_administration",
+    });
+    const listingId = requiredId(request.data, "listingId");
+    const requestId = requiredId(request.data, "requestId");
+    const action = requiredId(request.data, "action");
+    const reason = String(request.data && request.data.reason || "").trim();
+    if (reason.length > 1000) {
+      throw new HttpsError(
+          "invalid-argument",
+          "The administrator reason cannot exceed 1,000 characters.",
+      );
+    }
+    const receiptRef = receiptReference(
+        db,
+        uid,
+        "administerTimedAuction",
+        {requestId},
+    );
+    const auditRef = db.collection("auction_administration_audits")
+        .doc(receiptRef.id);
+    const now = Timestamp.now();
+
+    if (action === "force_end") {
+      return finalizeAuctionRecord(
+          listingId,
+          uid,
+          receiptRef,
+          {action, auditRef, now},
+      );
+    }
+
+    const listingRef = db.collection("public_listings").doc(listingId);
+    const saleRef = db.collection("auction_transactions").doc(listingId);
+    const paymentRef = db.collection("marketplace_transactions")
+        .doc(`auction_${listingId}`);
+    return db.runTransaction(async (transaction) => {
+      const receipt = await transaction.get(receiptRef);
+      if (receipt.exists) return receipt.data().result;
+      const listingSnapshot = await transaction.get(listingRef);
+      const saleSnapshot = await transaction.get(saleRef);
+      const paymentSnapshot = await transaction.get(paymentRef);
+      const listing = listingSnapshot.exists ?
+        {...listingSnapshot.data(), id: listingId} : null;
+      const plan = validateTimedAuctionAdministration({
+        listing,
+        sale: saleSnapshot.exists ? saleSnapshot.data() : null,
+        payment: paymentSnapshot.exists ? paymentSnapshot.data() : null,
+        action,
+        now,
+      });
+      const result = {
+        listingId,
+        action: plan.action,
+        status: plan.status,
+        auctionStatus: plan.auctionStatus,
+        auctionEndAt: plan.auctionEndAt,
+      };
+
+      if (plan.action === "extend_24h") {
+        transaction.update(listingRef, {
+          auctionEndAt: Timestamp.fromMillis(plan.auctionEndAt),
+          auctionExtendedCount: FieldValue.increment(1),
+          endingNotificationSentAt: FieldValue.delete(),
+          lastAuctionAdminAction: plan.action,
+          lastAuctionAdminActionByUid: uid,
+          lastAuctionAdminActionAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else {
+        transaction.update(listingRef, {
+          status: plan.status,
+          auctionStatus: plan.auctionStatus,
+          saleStatus: "cancelled",
+          cancelledAt: FieldValue.serverTimestamp(),
+          cancelledByUid: uid,
+          cancellationReason: reason ||
+            "Administrator cancelled the timed auction before settlement.",
+          finalizedAt: FieldValue.serverTimestamp(),
+          lastAuctionAdminAction: plan.action,
+          lastAuctionAdminActionByUid: uid,
+          lastAuctionAdminActionAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      transaction.create(auditRef, {
+        actorUid: uid,
+        listingId,
+        action: plan.action,
+        previousAuctionEndAt: listing.auctionEndAt,
+        auctionEndAt: Timestamp.fromMillis(plan.auctionEndAt),
+        ...(reason ? {reason} : {}),
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(
+          db.collection("users").doc(listing.sellerUid)
+              .collection("notifications").doc(receiptRef.id),
+          {
+            recipientUid: listing.sellerUid,
+            actorUid: uid,
+            type: "auction",
+            listingId,
+            title: plan.action === "extend_24h" ?
+              "Your auction was extended by 24 hours" :
+              "Your auction was cancelled by an administrator",
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+      );
+      transaction.create(
+          receiptRef,
+          receiptData(uid, "administerTimedAuction", result, FieldValue),
+      );
+      return result;
+    });
+  });
+
   const buyAuctionNow = featureCommand("auctions", async (request) => {
     const uid = requireAuth(request);
     const listingId = requiredId(request.data, "listingId");
@@ -1630,12 +1954,22 @@ function createMarketplaceCommands(
       const saleSnapshot = await transaction.get(saleRef);
       const publicListing =
         listingSnapshot.exists ? listingSnapshot.data() : null;
-      const listing = publicListing ? {
-        ...publicListing,
-        ...(privateAuctionSnapshot.data() || {}),
-      } : null;
+      const listing = auctionListingWithPrivateTerms(
+          publicListing,
+          privateAuctionSnapshot.exists ? privateAuctionSnapshot.data() : null,
+      );
       const now = Timestamp.now();
       const price = validateBuyNow(listing, uid, now);
+      const settlementValues = auctionSettlementValues(
+          listingId,
+          listing,
+          uid,
+          price,
+          "buy_now",
+      );
+      if (saleSnapshot.exists) {
+        assertAuctionSettlementMatches(saleSnapshot.data(), settlementValues);
+      }
       await requireEligibleBidder(transaction, uid, isAdministrator(request));
       let previousBidRef = null;
       let previousBidSnapshot = null;
@@ -1662,16 +1996,18 @@ function createMarketplaceCommands(
         sellerUid: listing.sellerUid,
         bidderUid: uid,
         amount: price,
-        currency: listing.currency || "CAD",
+        currency: marketplaceTransactionCurrency(listing.currency),
         status: "buy_now",
         createdAt: FieldValue.serverTimestamp(),
       });
       transaction.update(listingRef, {
+        status: auctionListingLifecycleStatus("bought_now"),
         currentBid: price,
         currentBidId: bidRef.id,
         highBidderUid: uid,
         buyNowBuyerUid: uid,
         acceptedBidAmount: price,
+        saleStatus: "pending_completion",
         auctionStatus: "bought_now",
         auctionEndAt: now,
         bidCount: FieldValue.increment(1),
@@ -1679,16 +2015,9 @@ function createMarketplaceCommands(
         updatedAt: FieldValue.serverTimestamp(),
       });
       if (!saleSnapshot.exists) {
-        const values = auctionSettlementValues(
-            listingId,
-            listing,
-            uid,
-            price,
-            "buy_now",
-        );
-        transaction.create(saleRef, values);
+        transaction.create(saleRef, settlementValues);
         transaction.create(saleRef.collection("revisions").doc("1"), {
-          ...values,
+          ...settlementValues,
           event: "auction_bought_now",
           actorUid: uid,
         });
@@ -1739,12 +2068,22 @@ function createMarketplaceCommands(
       const saleSnapshot = await transaction.get(saleRef);
       const publicListing =
         listingSnapshot.exists ? listingSnapshot.data() : null;
-      const listing = publicListing ? {
-        ...publicListing,
-        ...(privateAuctionSnapshot.data() || {}),
-      } : null;
+      const listing = auctionListingWithPrivateTerms(
+          publicListing,
+          privateAuctionSnapshot.exists ? privateAuctionSnapshot.data() : null,
+      );
       const now = Timestamp.now();
       const accepted = validateAcceptBelowReserve(listing, uid, now);
+      const settlementValues = auctionSettlementValues(
+          listingId,
+          listing,
+          accepted.bidderUid,
+          accepted.amount,
+          "accepted_below_reserve",
+      );
+      if (saleSnapshot.exists) {
+        assertAuctionSettlementMatches(saleSnapshot.data(), settlementValues);
+      }
       let bidSnapshot = null;
       if (listing.currentBidId) {
         const bidRef = db.collection("auction_bids")
@@ -1778,23 +2117,18 @@ function createMarketplaceCommands(
         acceptedAt: FieldValue.serverTimestamp(),
       });
       transaction.update(listingRef, {
+        status: auctionListingLifecycleStatus("accepted_below_reserve"),
         auctionStatus: "accepted_below_reserve",
         acceptedBidAmount: accepted.amount,
         acceptedBidderUid: accepted.bidderUid,
+        saleStatus: "pending_completion",
         auctionEndAt: now,
         updatedAt: FieldValue.serverTimestamp(),
       });
       if (!saleSnapshot.exists) {
-        const values = auctionSettlementValues(
-            listingId,
-            listing,
-            accepted.bidderUid,
-            accepted.amount,
-            "accepted_below_reserve",
-        );
-        transaction.create(saleRef, values);
+        transaction.create(saleRef, settlementValues);
         transaction.create(saleRef.collection("revisions").doc("1"), {
-          ...values,
+          ...settlementValues,
           event: "bid_accepted_below_reserve",
           actorUid: uid,
         });
@@ -1854,14 +2188,18 @@ function createMarketplaceCommands(
       const listing = listingSnapshot.exists ?
         {...listingSnapshot.data(), id: listingId} : null;
       const sale = saleSnapshot.exists ? saleSnapshot.data() : null;
+      const paymentState = paymentSnapshot.exists ? paymentSnapshot.data() : null;
       const transition = validateAuctionTransactionAction({
         sale,
         listing,
         actorUid: uid,
         action,
         reason,
-        paymentProviderStatus: paymentSnapshot.exists ?
-          paymentSnapshot.data().paymentProviderStatus : "",
+        paymentProviderStatus: paymentState &&
+          paymentState.paymentProviderStatus || "",
+        marketplaceFeeStatus: paymentState &&
+          paymentState.marketplaceFeeStatus || "",
+        paymentState,
         administrator: isAdministrator(request),
       });
       const currentRevision = Number(sale.revision || 1);
@@ -1920,7 +2258,7 @@ function createMarketplaceCommands(
         });
       } else if (transition.status === "cancelled") {
         transaction.update(listingRef, {
-          status: "archived",
+          status: auctionListingLifecycleStatus("cancelled"),
           auctionStatus: "cancelled",
           saleStatus: "cancelled",
           updatedAt: FieldValue.serverTimestamp(),
@@ -2142,15 +2480,22 @@ function createMarketplaceCommands(
           proposal.buyerUid,
           now,
       );
-      const askingUnitPriceValue = Number(listing.price);
+      const listingPriceValue = Number(listing.price);
+      const listingQuantityValue = Number(listing.quantity);
+      const totalPriceBasis = isTotalPriceBasis(listing.priceBasis);
       const askingUnitPrice =
-        Number.isFinite(askingUnitPriceValue) && askingUnitPriceValue > 0 ?
-          askingUnitPriceValue :
+        Number.isFinite(listingPriceValue) && listingPriceValue > 0 ?
+          totalPriceBasis && Number.isFinite(listingQuantityValue) &&
+            listingQuantityValue > 0 ?
+            listingPriceValue / listingQuantityValue :
+            listingPriceValue :
           null;
       const askingTotal =
         askingUnitPrice == null ?
           0 :
-          askingUnitPrice * proposal.requestedQuantity;
+          Math.round(
+              askingUnitPrice * proposal.requestedQuantity * 100,
+          ) / 100;
       const differenceAmount = proposal.offeredTotal - askingTotal;
       const differencePercent =
         askingTotal === 0 ? null : differenceAmount / askingTotal * 100;
@@ -2171,6 +2516,8 @@ function createMarketplaceCommands(
         proposedByUid: uid,
         askingUnitPrice,
         offeredUnitPrice: proposal.offeredUnitPrice,
+        offeredInputAmount: proposal.enteredOfferAmount,
+        offerAmountType: proposal.totalPriceBasis ? "total" : "unit",
         requestedQuantity: proposal.requestedQuantity,
         availableQuantityAtOffer:
           Number.isFinite(Number(listing.quantity)) ?
@@ -2180,8 +2527,8 @@ function createMarketplaceCommands(
         offeredTotal: proposal.offeredTotal,
         differenceAmount,
         differencePercent,
-        currency: listing.currency || "CAD",
-        priceBasis: listing.priceBasis || "",
+        currency: marketplaceTransactionCurrency(listing.currency),
+        priceBasis: proposal.priceBasis,
         note: proposal.note,
         purchaseDate: proposal.purchaseDate == null ?
           null :
@@ -2223,8 +2570,11 @@ function createMarketplaceCommands(
         transaction.set(conversationRef, {
           latestNegotiation: {
             unitPrice: proposal.offeredUnitPrice,
+            inputAmount: proposal.enteredOfferAmount,
+            amountType: proposal.totalPriceBasis ? "total" : "unit",
             quantity: proposal.requestedQuantity,
             total: proposal.offeredTotal,
+            priceBasis: proposal.priceBasis,
             proposedByUid: uid,
             status: "proposed",
             updatedAt: FieldValue.serverTimestamp(),
@@ -2372,6 +2722,10 @@ function createMarketplaceCommands(
       const listingSnapshot = await transaction.get(listingRef);
       const listing = listingSnapshot.exists ? listingSnapshot.data() : null;
       validateOfferAcceptance(offer, uid, listing);
+      const inventoryReservation = marketplaceOfferInventoryReservation(
+          offer,
+          listing,
+      );
       const competingQuery = db.collection("offers")
           .where("listingId", "==", offer.listingId)
           .limit(300);
@@ -2413,6 +2767,9 @@ function createMarketplaceCommands(
         status: "pending_sale",
         acceptedOfferId: offerId,
         acceptedBuyerUid: offer.buyerUid,
+        reservedQuantity: inventoryReservation.reservedQuantity,
+        remainingQuantityAfterReservation:
+          inventoryReservation.remainingQuantityAfterAcceptance,
         offerAcceptedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
@@ -2429,13 +2786,14 @@ function createMarketplaceCommands(
           agreedUnitPrice: Number(offer.offeredUnitPrice || 0),
           agreedQuantity: Number(offer.requestedQuantity || 0),
           agreedTotal: Number(offer.offeredTotal || 0),
-          currency: offer.currency || "CAD",
+          currency: marketplaceTransactionCurrency(offer.currency),
           priceBasis: offer.priceBasis || "",
           purchaseDate: offer.purchaseDate || null,
           moneyTransferDate: offer.moneyTransferDate || null,
           truckingDate: offer.truckingDate || null,
           truckingPlan: offer.truckingPlan || "not_specified",
           dispatchRequested: offer.dispatchRequested === true,
+          ...inventoryReservation,
           revision: 1,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
@@ -2616,7 +2974,7 @@ function createMarketplaceCommands(
         agreedUnitPrice: Number(offer.offeredUnitPrice || 0),
         agreedQuantity: Number(offer.requestedQuantity || 0),
         agreedTotal: Number(offer.offeredTotal || 0),
-        currency: offer.currency || "CAD",
+        currency: marketplaceTransactionCurrency(offer.currency),
         priceBasis: offer.priceBasis || "",
         purchaseDate: offer.purchaseDate || null,
         moneyTransferDate: offer.moneyTransferDate || null,
@@ -2625,6 +2983,12 @@ function createMarketplaceCommands(
         dispatchRequested: offer.dispatchRequested === true,
         createdAt: FieldValue.serverTimestamp(),
       };
+      const inventoryCompletion = transition.status === "completed" ?
+        marketplaceOfferInventoryCompletion(
+            baseValues,
+            listingSnapshot.data(),
+        ) :
+        null;
       const updateValues = {
         ...baseValues,
         status: transition.status,
@@ -2679,12 +3043,46 @@ function createMarketplaceCommands(
         updatedAt: FieldValue.serverTimestamp(),
       });
       if (transition.status === "completed") {
-        transaction.update(listingRef, {
-          status: "sold",
-          saleStatus: "completed",
-          soldAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
+        if (inventoryCompletion.partialQuantitySale) {
+          transaction.update(listingRef, {
+            status: "active",
+            saleStatus: "available",
+            quantity: inventoryCompletion.remainingQuantity,
+            ...(inventoryCompletion.remainingTotalPrice == null ? {} : {
+              price: inventoryCompletion.remainingTotalPrice,
+            }),
+            acceptedOfferId: FieldValue.delete(),
+            acceptedBuyerUid: FieldValue.delete(),
+            offerAcceptedAt: FieldValue.delete(),
+            reservedQuantity: FieldValue.delete(),
+            remainingQuantityAfterReservation: FieldValue.delete(),
+            lastCompletedOfferId: offerId,
+            lastCompletedBuyerUid: offer.buyerUid,
+            lastPartialSaleAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        } else {
+          transaction.update(listingRef, {
+            status: "sold",
+            saleStatus: "completed",
+            reservedQuantity: FieldValue.delete(),
+            remainingQuantityAfterReservation: FieldValue.delete(),
+            soldAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+        transaction.set(
+            listingRef.collection("completed_buyers").doc(offer.buyerUid),
+            {
+              listingId: offer.listingId,
+              sellerUid: offer.sellerUid,
+              buyerUid: offer.buyerUid,
+              latestCompletedOfferId: offerId,
+              completedTransactionCount: FieldValue.increment(1),
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            {merge: true},
+        );
       } else if (transition.status === "cancelled") {
         transaction.update(listingRef, {
           status: "active",
@@ -2692,6 +3090,8 @@ function createMarketplaceCommands(
           acceptedOfferId: FieldValue.delete(),
           acceptedBuyerUid: FieldValue.delete(),
           offerAcceptedAt: FieldValue.delete(),
+          reservedQuantity: FieldValue.delete(),
+          remainingQuantityAfterReservation: FieldValue.delete(),
           updatedAt: FieldValue.serverTimestamp(),
         });
         for (const dispatchJob of dispatchJobs.docs) {
@@ -2780,6 +3180,7 @@ function createMarketplaceCommands(
 
   return {
     acceptAuctionBidBelowReserve,
+    administerTimedAuction,
     acceptMarketplaceOffer,
     buyAuctionNow,
     cleanupExpiredMarketplaceListingDrafts,
@@ -2804,4 +3205,9 @@ function createMarketplaceCommands(
   };
 }
 
-module.exports = {createMarketplaceCommands};
+module.exports = {
+  assertAuctionSettlementMatches,
+  createMarketplaceCommands,
+  marketplacePublicBuyerName,
+  marketplacePublicSellerName,
+};

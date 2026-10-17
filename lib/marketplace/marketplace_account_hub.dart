@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_account_components.dart';
 
 import 'marketplace_messages_page.dart';
 import 'marketplace_auth_page.dart';
@@ -35,17 +36,37 @@ import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_dashboard.dart';
 import 'marketplace_about_page.dart';
+import 'marketplace_fee_guide.dart';
+
+String marketplaceAccountDisplayName(
+  Map<String, dynamic> profile, {
+  String? authDisplayName,
+  String? email,
+}) {
+  for (final candidate in [
+    profile['display_name'],
+    profile['displayName'],
+    authDisplayName,
+    email,
+  ]) {
+    final value = '${candidate ?? ''}'.trim();
+    if (value.isNotEmpty) return value;
+  }
+  return 'seller';
+}
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
       {super.key,
       required this.onAddListing,
       required this.onBrowse,
+      required this.onMessages,
       required this.auctionsEnabled,
       required this.paidFeaturesEnabled});
 
   final VoidCallback onAddListing;
   final VoidCallback onBrowse;
+  final VoidCallback onMessages;
   final bool auctionsEnabled;
   final bool paidFeaturesEnabled;
 
@@ -67,7 +88,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 6, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
     _adminTokenSubscription =
         FirebaseAuth.instance.idTokenChanges().listen((_) => _checkAdmin());
     _checkAdmin(forceRefresh: true);
@@ -91,7 +112,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       return;
     }
 
-    final nextLength = isAuthorized ? 7 : 6;
+    final nextLength = isAuthorized ? 6 : 5;
     final nextIndex = _tabs.index.clamp(0, nextLength - 1);
     final oldTabs = _tabs;
     setState(() {
@@ -114,54 +135,157 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
 
   @override
   Widget build(BuildContext context) {
+    final sections = <({Widget icon, String label})>[
+      (icon: const Icon(Icons.dashboard_outlined, size: 21), label: 'Overview'),
+      (
+        icon: const Icon(Icons.badge_outlined, size: 21),
+        label: 'Public Profile'
+      ),
+      (
+        icon: const _AccountTabBadge(
+          types: {'offer'},
+          icon: Icons.inventory_2_outlined,
+        ),
+        label: 'My Listings',
+      ),
+      (
+        icon: const _AccountTabBadge(
+          types: {},
+          icon: Icons.notifications_outlined,
+        ),
+        label: 'Activity',
+      ),
+      (icon: const Icon(Icons.settings_outlined, size: 21), label: 'Settings'),
+      if (_isAdminUser)
+        (
+          icon: Icon(
+            Icons.admin_panel_settings,
+            color: Colors.purple.shade700,
+            size: 21,
+          ),
+          label: 'Admin Portal',
+        ),
+    ];
     return Column(children: [
-      Material(
-        color: Colors.white,
-        child: TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-          tabs: [
-            const Tab(
-                icon: Icon(Icons.dashboard_outlined, size: 20),
-                text: 'Overview'),
-            const Tab(
-                icon: Icon(Icons.badge_outlined, size: 20), text: 'Profile'),
-            const Tab(
-                icon: _AccountTabBadge(
-                    types: {'offer'}, icon: Icons.inventory_2_outlined),
-                text: 'Listings'),
-            const Tab(
-                icon: _AccountTabBadge(
-                    types: {'message'}, icon: Icons.forum_outlined),
-                text: 'Messages'),
-            const Tab(
-                icon: _AccountTabBadge(
-                    types: {}, icon: Icons.notifications_outlined),
-                text: 'Notifications'),
-            const Tab(
-                icon: Icon(Icons.settings_outlined, size: 20),
-                text: 'Settings'),
-            if (_isAdminUser)
-              Tab(
-                  icon: Icon(Icons.admin_panel_settings,
-                      color: Colors.purple.shade700, size: 20),
-                  text: 'ðŸ‘‘ ADMIN PORTAL'),
-          ],
+      LayoutBuilder(
+        builder: (context, constraints) => AnimatedBuilder(
+          animation: _tabs,
+          builder: (context, _) {
+            if (constraints.maxWidth < 720) {
+              return Material(
+                color: Theme.of(context).colorScheme.surface,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Account section',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: _tabs.index,
+                          isExpanded: true,
+                          borderRadius: BorderRadius.circular(14),
+                          icon: const Icon(Icons.expand_more_rounded),
+                          items: [
+                            for (var index = 0;
+                                index < sections.length;
+                                index++)
+                              DropdownMenuItem<int>(
+                                value: index,
+                                child: Row(
+                                  children: [
+                                    sections[index].icon,
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      sections[index].label,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                          onChanged: (index) {
+                            if (index != null) _tabs.animateTo(index);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: TabBar(
+                controller: _tabs,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+                tabs: [
+                  const Tab(
+                    icon: Icon(Icons.dashboard_outlined, size: 20),
+                    text: 'Overview',
+                  ),
+                  const Tab(
+                    icon: Icon(Icons.badge_outlined, size: 20),
+                    text: 'Public Profile',
+                  ),
+                  const Tab(
+                    icon: _AccountTabBadge(
+                      types: {'offer'},
+                      icon: Icons.inventory_2_outlined,
+                    ),
+                    text: 'My Listings',
+                  ),
+                  const Tab(
+                    icon: _AccountTabBadge(
+                      types: {},
+                      icon: Icons.notifications_outlined,
+                    ),
+                    text: 'Activity',
+                  ),
+                  const Tab(
+                    icon: Icon(Icons.settings_outlined, size: 20),
+                    text: 'Settings',
+                  ),
+                  if (_isAdminUser)
+                    Tab(
+                      icon: Icon(
+                        Icons.admin_panel_settings,
+                        color: Colors.purple.shade700,
+                        size: 20,
+                      ),
+                      text: 'Admin Portal',
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
       Expanded(
           child: TabBarView(controller: _tabs, children: [
-        _Overview(onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
+        _Overview(
+          onOpen: _tabs.animateTo,
+          onMessages: widget.onMessages,
+          showAdminPortal: _isAdminUser,
+        ),
         const MarketplaceProfilePage(),
         _MyListings(
             onAddListing: widget.onAddListing,
             auctionsEnabled: widget.auctionsEnabled,
             paidFeaturesEnabled: widget.paidFeaturesEnabled),
-        const MarketplaceMessagesPage(),
         _AccountNotifications(
-            onOpenTab: _tabs.animateTo, onBrowse: widget.onBrowse),
+          onOpenTab: _tabs.animateTo,
+          onBrowse: widget.onBrowse,
+          onMessages: widget.onMessages,
+        ),
         _AccountSettings(
           adminState: _adminState,
           onRefreshAdmin: () => _checkAdmin(forceRefresh: true),
@@ -173,8 +297,13 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
 }
 
 class _Overview extends StatelessWidget {
-  const _Overview({required this.onOpen, required this.showAdminPortal});
+  const _Overview({
+    required this.onOpen,
+    required this.onMessages,
+    required this.showAdminPortal,
+  });
   final ValueChanged<int> onOpen;
+  final VoidCallback onMessages;
   final bool showAdminPortal;
 
   @override
@@ -197,6 +326,11 @@ class _Overview extends StatelessWidget {
           final completion = calculateProfileCompletion(user, data);
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
+          final displayName = marketplaceAccountDisplayName(
+            data,
+            authDisplayName: user.displayName,
+            email: user.email,
+          );
           return ListView(padding: const EdgeInsets.all(18), children: [
             if (showAdminPortal) ...[
               Card(
@@ -233,8 +367,7 @@ class _Overview extends StatelessWidget {
                       FilledButton.icon(
                         style: FilledButton.styleFrom(
                             backgroundColor: Colors.amber.shade700),
-                        onPressed: () =>
-                            onOpen(6), // Switch to 7th Admin Portal Tab
+                        onPressed: () => onOpen(5),
                         icon: const Icon(Icons.launch,
                             color: Colors.black, size: 16),
                         label: const Text(
@@ -249,10 +382,18 @@ class _Overview extends StatelessWidget {
               ),
               const SizedBox(height: 14),
             ],
-            Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-            Text('${data['accountType'] ?? 'personal'} account'),
+            PipeBuyerCenterHeader(
+              eyebrow: 'Account center',
+              title: 'Welcome, $displayName',
+              subtitle:
+                  'Manage your public profile, listings, marketplace activity, and account protection in one place.',
+              badges: [
+                Chip(
+                  avatar: const Icon(Icons.verified_user_outlined, size: 17),
+                  label: Text('${data['accountType'] ?? 'personal'} account'),
+                ),
+              ],
+            ),
             const SizedBox(height: 18),
             Card(
                 child: Padding(
@@ -285,26 +426,41 @@ class _Overview extends StatelessWidget {
                   : const Chip(label: Text('Not verified')),
             )),
             const SizedBox(height: 12),
-            _AccountShortcut(
-                icon: Icons.badge_outlined,
-                title: 'Edit profile, tags and service areas',
-                onTap: () => onOpen(1)),
-            _AccountShortcut(
-                icon: Icons.inventory_2_outlined,
-                title: 'Manage my listings',
-                onTap: () => onOpen(2)),
-            _AccountShortcut(
-                icon: Icons.forum_outlined,
-                title: 'Marketplace messages',
-                onTap: () => onOpen(3)),
-            _AccountShortcut(
-                icon: Icons.notifications_outlined,
-                title: 'Notifications and activity',
-                onTap: () => onOpen(4)),
-            _AccountShortcut(
-                icon: Icons.settings_outlined,
-                title: 'Account settings',
-                onTap: () => onOpen(5)),
+            PipeBuyerCenterActions(
+              items: [
+                PipeBuyerCenterActionData(
+                  icon: Icons.badge_outlined,
+                  title: 'Public Profile',
+                  subtitle: 'Identity, specialties, and service area',
+                  onTap: () => onOpen(1),
+                ),
+                PipeBuyerCenterActionData(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'My Listings',
+                  subtitle: 'Create, review, and manage inventory',
+                  onTap: () => onOpen(2),
+                ),
+                PipeBuyerCenterActionData(
+                  icon: Icons.forum_outlined,
+                  title: 'Messages',
+                  subtitle: 'Open protected buyer and seller conversations',
+                  onTap: onMessages,
+                ),
+                PipeBuyerCenterActionData(
+                  icon: Icons.notifications_outlined,
+                  title: 'Activity',
+                  subtitle: 'Offers, alerts, and account updates',
+                  onTap: () => onOpen(3),
+                ),
+                PipeBuyerCenterActionData(
+                  icon: Icons.settings_outlined,
+                  title: 'Settings',
+                  subtitle: 'Security, payouts, policies, and support',
+                  onTap: () => onOpen(4),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             _AccountShortcut(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy Policy',
@@ -429,10 +585,10 @@ Future<void> _showUserScore(
         'Add your public business name and description.'
       ),
       (
-        'Business contact',
-        '${business['publicPhone'] ?? ''}'.trim().isNotEmpty &&
-            '${business['publicEmail'] ?? ''}'.trim().isNotEmpty,
-        'Add a public business phone and email.'
+        'Protected business contact',
+        data['emailOwnershipVerified'] == true &&
+            data['phoneOwnershipVerified'] == true,
+        'Verify the business email and mobile number kept in your private account.'
       ),
       (
         'Service area',
@@ -745,7 +901,7 @@ class _MyListingsState extends State<_MyListings> {
     if (_loading && _listings.isEmpty) {
       return const MarketplaceDataStateView.loading(
         title: 'Loading your listings',
-        message: 'Retrieving listing status, activity, and offersâ€¦',
+        message: 'Retrieving listing status, activity, and offers…',
       );
     }
     return Column(children: [
@@ -854,7 +1010,7 @@ class _MyListingsState extends State<_MyListings> {
                         ])),
                     title: Text('${data['title'] ?? 'Untitled listing'}'),
                     subtitle: Text(
-                        '${isAuction ? 'TIMED BUYING' : 'MARKETPLACE'} â€¢ ${data['category'] ?? ''} â€¢ ${data['status'] ?? 'active'}\n'
+                        '${isAuction ? 'TIMED BUYING' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
                         '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
                     isThreeLine: createdAt != null,
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -869,10 +1025,10 @@ class _MyListingsState extends State<_MyListings> {
 }
 
 String _analyticsLine(Map<String, dynamic> data) =>
-    '${(data['viewCount'] as num?)?.toInt() ?? 0} views â€¢ '
-    '${(data['saveCount'] as num?)?.toInt() ?? 0} saves â€¢ '
-    '${(data['shareCount'] as num?)?.toInt() ?? 0} shares â€¢ '
-    '${(data['likeCount'] as num?)?.toInt() ?? 0} likes â€¢ '
+    '${(data['viewCount'] as num?)?.toInt() ?? 0} views • '
+    '${(data['saveCount'] as num?)?.toInt() ?? 0} saves • '
+    '${(data['shareCount'] as num?)?.toInt() ?? 0} shares • '
+    '${(data['likeCount'] as num?)?.toInt() ?? 0} likes • '
     '${(data['offerCount'] as num?)?.toInt() ?? 0} offers';
 
 String _ownerListingTime(Map<String, dynamic> data, DateTime? createdAt) {
@@ -966,7 +1122,7 @@ class _OwnerPropertyDetails extends StatelessWidget {
     final hectares = data['landAreaHectares'] as num?;
     if (acres != null && hectares != null) {
       add('Land',
-          '${propertyMeasure(acres)} ac â€¢ ${propertyMeasure(hectares)} ha');
+          '${propertyMeasure(acres)} ac • ${propertyMeasure(hectares)} ha');
     }
     final building = data['buildingAreaValue'] as num?;
     if (building != null) {
@@ -988,7 +1144,7 @@ class _OwnerPropertyDetails extends StatelessWidget {
     final features = (data['propertyFeatures'] as Iterable?)
         ?.map((value) => '$value'.trim())
         .where((value) => value.isNotEmpty)
-        .join(' â€¢ ');
+        .join(' • ');
     add('Features', features);
 
     if (facts.isEmpty) return const SizedBox.shrink();
@@ -1082,6 +1238,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
     final isAuction = data['transactionType'] == 'Auction';
     final isWanted = data['transactionType'] == 'Wanted / Seeking';
+    final isMarketplaceSale = data['transactionType'] == 'For Sale' ||
+        data['transactionType'] == 'Marketplace';
     final currentBid = data['currentBid'] as num? ?? 0;
     final reserve = data['reservePrice'] as num?;
     final reserveProgress = reserve == null || reserve <= 0
@@ -1126,7 +1284,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                   avatar: Icon(Icons.rocket_launch_outlined, size: 17),
                   label: Text('Boost')),
           ]),
-          Text('${data['category'] ?? ''} â€¢ ${data['productType'] ?? ''}'),
+          Text('${data['category'] ?? ''} • ${data['productType'] ?? ''}'),
           if (createdAt != null)
             Text(_ownerListingTime(data, createdAt),
                 style: const TextStyle(color: Colors.black54)),
@@ -1148,7 +1306,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             const SizedBox(height: 12),
             _listingLifecycleCard(data),
           ],
-          if (!isAuction && !isWanted && widget.auctionsEnabled) ...[
+          if (isMarketplaceSale && widget.auctionsEnabled) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
                 onPressed:
@@ -1159,7 +1317,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.gavel_outlined),
                 label: Text(_convertingToAuction
-                    ? 'Publishing Timed Buyingâ€¦'
+                    ? 'Publishing Timed Buying…'
                     : 'Move listing to Timed Buying'),
                 style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(50)))
@@ -1192,7 +1350,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                             const SizedBox(height: 5),
                             Text(currentBid >= reserve
                                 ? 'Seller minimum met'
-                                : '${marketplaceMoney(reserve - currentBid)} below seller minimum â€¢ ${(reserveProgress! * 100).toStringAsFixed(0)}% reached')
+                                : '${marketplaceMoney(reserve - currentBid)} below seller minimum • ${(reserveProgress! * 100).toStringAsFixed(0)}% reached')
                           ] else
                             const Text('No seller minimum'),
                           if (data['buyItNowPrice'] is num)
@@ -1292,6 +1450,9 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
   Widget _listingLifecycleCard(Map<String, dynamic> data) {
     final status = '${data['status'] ?? 'active'}';
     final isWanted = data['transactionType'] == 'Wanted / Seeking';
+    final isAuction = data['transactionType'] == 'Auction';
+    final isMarketplaceSale = data['transactionType'] == 'For Sale' ||
+        data['transactionType'] == 'Marketplace';
     final wantedJourneyStatus =
         isWanted ? marketplaceWantedJourneyStatus(data) : null;
     final busy = _listingActionBusy != null;
@@ -1316,11 +1477,6 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
             onPressed: busy ? null : () => _transitionListing('mark_fulfilled'),
             icon: const Icon(Icons.task_alt),
             label: const Text('Mark request fulfilled')),
-      if (!isWanted && (status == 'active' || status == 'pending_sale'))
-        FilledButton.tonalIcon(
-            onPressed: busy ? null : () => _transitionListing('mark_sold'),
-            icon: const Icon(Icons.task_alt),
-            label: const Text('Mark sold')),
       if (status == 'active' ||
           status == 'paused' ||
           status == 'sold' ||
@@ -1383,6 +1539,21 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
               if (wantedJourneyStatus != null) ...[
                 const SizedBox(height: 10),
                 MarketplaceJourneyStatusCard(status: wantedJourneyStatus),
+              ],
+              if (!isWanted) ...[
+                const SizedBox(height: 10),
+                Text(
+                  status == 'pending_sale'
+                      ? isAuction
+                          ? 'Timed Buying selected the buyer. Complete payment, the marketplace fee, and settlement confirmations from the transaction record.'
+                          : 'An accepted offer reserved this listing. Complete payment, the marketplace fee, and settlement confirmations from the transaction record.'
+                      : isAuction
+                          ? 'Timed Buying closes only through Buy It Now, an accepted below-reserve bid, or the authoritative auction finalizer.'
+                          : isMarketplaceSale
+                              ? 'For Sale listings become sold only after an accepted offer completes the authoritative payment or external-settlement flow.'
+                              : 'This legacy listing type cannot enter a sale or Timed Buying workflow. Archive it and create a supported For Sale listing.',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                ),
               ],
               const SizedBox(height: 6),
               if (busy)
@@ -1465,7 +1636,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     }
     await _runListingCommand(
         key: 'edit-${data['revision'] ?? 1}',
-        label: 'Saving listingâ€¦',
+        label: 'Saving listing…',
         command: 'updateMarketplaceListingDetails',
         data: {
           'listingId': widget.listingId,
@@ -1484,7 +1655,6 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     const labels = {
       'pause': 'Pause this listing?',
       'activate': 'Reactivate this listing?',
-      'mark_sold': 'Mark this listing as sold?',
       'mark_fulfilled': 'Mark this wanted request as fulfilled?',
       'archive': 'Archive this listing?',
     };
@@ -1506,7 +1676,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     if (!confirmed || !mounted) return;
     await _runListingCommand(
         key: action,
-        label: 'Updating listingâ€¦',
+        label: 'Updating listing…',
         command: 'transitionMarketplaceListing',
         data: {'listingId': widget.listingId, 'action': action},
         success: 'Listing status updated.');
@@ -1536,7 +1706,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     if (!confirmed || !mounted) return;
     await _runListingCommand(
       key: 'renew',
-      label: 'Renewing listingâ€¦',
+      label: 'Renewing listing…',
       command: 'renewMarketplaceListing',
       data: {'listingId': widget.listingId},
       success: 'Listing renewed for another 30 days.',
@@ -1565,7 +1735,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         FirebaseFirestore.instance.collection('public_listings').doc().id;
     await _runListingCommand(
         key: key,
-        label: 'Creating new listingâ€¦',
+        label: 'Creating new listing…',
         command: 'relistMarketplaceListing',
         data: {
           'listingId': widget.listingId,
@@ -1713,14 +1883,14 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                                     fontSize: 12,
                                                     color: Color(0xFF66758A))),
                                             Text(
-                                                '\$${askingPrice.toStringAsFixed(2)} â€¢ $priceBasis',
+                                                '\$${askingPrice.toStringAsFixed(2)} • $priceBasis',
                                                 style: const TextStyle(
                                                     fontSize: 18,
                                                     fontWeight:
                                                         FontWeight.w900)),
                                             if (quantity != null)
                                               Text(
-                                                  '$quantity units â€¢ Asking total \$${askingTotal.toStringAsFixed(2)}'),
+                                                  '$quantity units • Asking total \$${askingTotal.toStringAsFixed(2)}'),
                                             const SizedBox(height: 4),
                                             const Text(
                                                 'Bids, reserve, and Buy It Now use the same pricing basis.',
@@ -1729,7 +1899,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                                     color: Color(0xFF315A7D)))
                                           ])),
                                   _auctionMoneyField(starting,
-                                      label: 'Starting bid â€¢ $priceBasis',
+                                      label: 'Starting bid • $priceBasis',
                                       helper: 'The first acceptable bid amount',
                                       icon: Icons.play_circle_outline,
                                       onChanged: (_) => update(() {})),
@@ -1776,7 +1946,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                       initialValue: incrementSelection,
                                       decoration: InputDecoration(
                                           labelText:
-                                              'Minimum bid increase â€¢ $priceBasis',
+                                              'Minimum bid increase • $priceBasis',
                                           helperText: isTotalBasis
                                               ? 'Increase applied to the total auction price'
                                               : 'Increase applied to each unit',
@@ -1820,7 +1990,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                     _auctionMoneyField(increment,
                                         label: 'Manual bid increase',
                                         helper:
-                                            'Enter an amount from \$0.50 to \$1,000.00 â€¢ $priceBasis',
+                                            'Enter an amount from \$0.50 to \$1,000.00 • $priceBasis',
                                         icon: Icons.edit_outlined,
                                         onChanged: (_) => update(() {}))
                                   ],
@@ -1883,7 +2053,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                             labelText:
                                                 'Custom duration in days',
                                             helperText:
-                                                'Enter 1â€“360 days. Eligible timed offers may be withdrawn after day 32.',
+                                                'Enter 1–360 days. Eligible timed offers may be withdrawn after day 32.',
                                             prefixIcon: const Icon(
                                                 Icons.calendar_month_outlined),
                                             suffixText: 'days',
@@ -1903,23 +2073,27 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                             border: Border.all(
                                                 color:
                                                     const Color(0xFFFFC46B))),
-                                        child: const Column(
+                                        child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text('Custom auction fees',
+                                              const Text(
+                                                  'Sale-only auction fees',
                                                   style: TextStyle(
                                                       fontWeight:
                                                           FontWeight.w900)),
-                                              SizedBox(height: 5),
-                                              Text(
-                                                  'â€¢ \$29.99 upfront listing fee\nâ€¢ 5% of the completed sale\nâ€¢ Additional auction-service fees may apply later'),
-                                              SizedBox(height: 5),
-                                              Text(
-                                                  'The upfront fee and final sale fee are separate. Charges must be reviewed before payment.',
+                                              const SizedBox(height: 5),
+                                              const Text(
+                                                  'No listing fee. The seller fee is calculated from the final agreed sale and collected when the buyer pays.'),
+                                              const SizedBox(height: 5),
+                                              const Text(
+                                                  'The exact server-verified fee is shown before payment.',
                                                   style: TextStyle(
                                                       fontSize: 12,
-                                                      color: Color(0xFF7A4A00)))
+                                                      color:
+                                                          Color(0xFF7A4A00))),
+                                              const SizedBox(height: 8),
+                                              const MarketplaceFeeInfoButton(),
                                             ]))
                                   ],
                                   if (formError != null) ...[
@@ -2017,7 +2191,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                     title: const Text('Publish timed auction?'),
                     content: Column(mainAxisSize: MainAxisSize.min, children: [
                       _auctionReviewRow('Starting bid',
-                          '\$${startAmount.toStringAsFixed(2)} â€¢ $priceBasis'),
+                          '\$${startAmount.toStringAsFixed(2)} • $priceBasis'),
                       _auctionReviewRow(
                           'Reserve',
                           num.tryParse(reserve.text) == null
@@ -2034,8 +2208,9 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                       _auctionReviewRow('Auction type',
                           customDuration ? 'Custom' : 'Standard timed'),
                       if (customDuration) ...[
-                        _auctionReviewRow('Upfront fee', '\$29.99'),
-                        _auctionReviewRow('Sale fee', '5% of completed sale'),
+                        _auctionReviewRow('Listing fee', 'Free'),
+                        _auctionReviewRow(
+                            'Seller fee', 'Collected when the buyer pays'),
                         const Padding(
                             padding: EdgeInsets.only(top: 8),
                             child: Text(
@@ -2044,6 +2219,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                 style: TextStyle(
                                     fontSize: 12, color: Color(0xFF7A4A00))))
                       ],
+                      const SizedBox(height: 10),
+                      const MarketplaceFeeInfoButton(),
                       const Divider(height: 24),
                       const Text(
                           'Bidding starts immediately. Auction notifications will be enabled.',
@@ -2162,8 +2339,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
           const SizedBox(height: 7),
           _auctionReviewRow(
               valueLabel,
-              '\$${value.toStringAsFixed(2)} â€¢ $priceBasis'
-              '${isTotalBasis || quantity == null ? '' : ' Ã— $quantity'}'),
+              '\$${value.toStringAsFixed(2)} • $priceBasis'
+              '${isTotalBasis || quantity == null ? '' : ' × $quantity'}'),
           _auctionReviewRow(
               '$valueLabel total', '\$${calculatedTotal.toStringAsFixed(2)}'),
           _auctionReviewRow(
@@ -2276,7 +2453,7 @@ class _WantedMatchesPanel extends StatelessWidget {
           if (!snapshot.hasData) {
             return const MarketplaceDataStateView.loading(
               title: 'Checking Marketplace listings',
-              message: 'Comparing product details, quantity, and locationâ€¦',
+              message: 'Comparing product details, quantity, and location…',
               compact: true,
             );
           }
@@ -2438,7 +2615,7 @@ class _WantedMatchCardState extends State<_WantedMatchCard> {
             if (reasons.isNotEmpty) ...[
               const SizedBox(height: 7),
               Text(
-                reasons.take(3).join(' â€¢ '),
+                reasons.take(3).join(' • '),
                 style: const TextStyle(fontSize: 12, color: Color(0xFF52657A)),
               ),
             ],
@@ -2607,7 +2784,7 @@ class _WantedMatchCardState extends State<_WantedMatchCard> {
                     title: Text('${data['action'] ?? 'Match updated'}'
                         .replaceAll('_', ' ')),
                     subtitle: Text(
-                      '${data['actorRole'] ?? 'participant'} â€¢ ${data['state'] ?? ''}',
+                      '${data['actorRole'] ?? 'participant'} • ${data['state'] ?? ''}',
                     ),
                     trailing: Text('#${data['revision'] ?? ''}'),
                   );
@@ -2657,7 +2834,7 @@ class _OwnerBidHistory extends StatelessWidget {
             if (!snapshot.hasData) {
               return const MarketplaceDataStateView.loading(
                 title: 'Loading bid history',
-                message: 'Retrieving the latest auction timed offersâ€¦',
+                message: 'Retrieving the latest auction timed offers…',
                 compact: true,
               );
             }
@@ -2690,7 +2867,7 @@ class _OwnerBidHistory extends StatelessWidget {
                           .toDate()
                           .toLocal()
                           .toString()
-                      : 'Submittingâ€¦'),
+                      : 'Submitting…'),
                   trailing: bid.data()['status'] == 'buy_now'
                       ? const Chip(label: Text('BUY NOW'))
                       : null))
@@ -2710,10 +2887,14 @@ class _Metric extends StatelessWidget {
 }
 
 class _AccountNotifications extends StatefulWidget {
-  const _AccountNotifications(
-      {required this.onOpenTab, required this.onBrowse});
+  const _AccountNotifications({
+    required this.onOpenTab,
+    required this.onBrowse,
+    required this.onMessages,
+  });
   final ValueChanged<int> onOpenTab;
   final VoidCallback onBrowse;
+  final VoidCallback onMessages;
 
   @override
   State<_AccountNotifications> createState() => _AccountNotificationsState();
@@ -2843,7 +3024,7 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                 if (!snapshot.hasData) {
                   return const MarketplaceDataStateView.loading(
                     title: 'Loading notifications',
-                    message: 'Retrieving your latest account activityâ€¦',
+                    message: 'Retrieving your latest account activity…',
                   );
                 }
                 final items = snapshot.data!.docs.toList()
@@ -2907,7 +3088,18 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                               });
                               final type = '${data['type'] ?? ''}';
                               if (type == 'message') {
-                                widget.onOpenTab(3);
+                                final conversationId =
+                                    '${data['conversationId'] ?? ''}'.trim();
+                                if (conversationId.isNotEmpty &&
+                                    context.mounted) {
+                                  context.push(
+                                    MarketplaceDeepLinks.conversation(
+                                      conversationId,
+                                    ),
+                                  );
+                                } else {
+                                  widget.onMessages();
+                                }
                               } else if (type == 'offer') {
                                 widget.onOpenTab(2);
                               } else if (type == 'new_listing_match' ||
@@ -3146,10 +3338,12 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),
-      _AdministratorAccessCard(
-        state: widget.adminState,
-        onRefresh: widget.onRefreshAdmin,
-      ),
+      if (widget.adminState != MarketplaceAdministratorState.roleMissing &&
+          widget.adminState != MarketplaceAdministratorState.signedOut)
+        _AdministratorAccessCard(
+          state: widget.adminState,
+          onRefresh: widget.onRefreshAdmin,
+        ),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
           title: const Text('Send password reset email'),
@@ -3173,6 +3367,13 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePolicyCenterPage()))),
+      ListTile(
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: const Text('Marketplace fee guide'),
+          subtitle: const Text(
+              'See sale-only seller fees, progressive bands, examples, and the maximum fee.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showMarketplaceFeeGuide(context)),
       ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('About Pipe Buyer'),
@@ -3464,7 +3665,7 @@ class _ModerationNoticesCard extends StatelessWidget {
                       title: Text('${data['reasonLabel'] ?? 'Safety decision'}',
                           style: const TextStyle(fontWeight: FontWeight.w700)),
                       subtitle: Text(
-                        '${status.replaceAll('_', ' ')} â€¢ ${data['enforcementAction'] ?? 'none'}\n'
+                        '${status.replaceAll('_', ' ')} • ${data['enforcementAction'] ?? 'none'}\n'
                         '${data['reviewReason'] ?? ''}',
                       ),
                       isThreeLine: true,

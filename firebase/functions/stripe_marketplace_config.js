@@ -3,13 +3,37 @@
 // Non-secret Stripe object identifiers created for Pipe Buyer. Secret keys and
 // webhook signing secrets belong in Google Cloud Secret Manager only.
 const stripeMarketplaceConfig = Object.freeze({
-  apiVersion: "2026-06-24.preview",
-  // Seller payout accounts use stable Connect v1. Accounts v2 preview is not
-  // compatible with Pipe Buyer's separate-charges-and-transfers architecture;
-  // Stripe documents that Express/controller accounts on v1 support that flow.
-  connectAccountsApiVersion: "2026-06-24.dahlia",
+  apiVersion: "2026-08-26.dahlia",
+  // New seller payout accounts use Accounts v2 recipient configuration. The
+  // separate-charges-and-transfers money flow continues to use stable v1
+  // Checkout, Transfer, Account Link, Refund, and Dispute endpoints with the
+  // v2 Account identifier, as Stripe documents for cross-version resources.
+  connectAccountsApiVersion: "2026-08-26.dahlia",
+  connectAccountObject: "v2.core.account",
   accountCountry: "CA",
+  integrationIdentifiers: Object.freeze({
+    marketplaceCheckout: "pipebuyer_marketplace_qxndvjat",
+    marketplaceFeeCheckout: "pipebuyer_marketplace_fee_rxpkdmwu",
+  }),
   products: Object.freeze({
+    dispatchMonthlyUsd: Object.freeze({
+      productId: "prod_V2WkE5D16GhGaD",
+      priceId: "price_1UReXRDkO07WMXyRFyrSKpR4",
+      taxCode: "txcd_10103001",
+      currency: "USD",
+      unitAmountMinor: 2500,
+      billingInterval: "month",
+    }),
+    dispatchYearlyUsd: Object.freeze({
+      productId: "prod_V2WkE5D16GhGaD",
+      priceId: "price_1UReYXDkO07WMXyRwonGROt3",
+      taxCode: "txcd_10103001",
+      currency: "USD",
+      unitAmountMinor: 25000,
+      billingInterval: "year",
+    }),
+    // Legacy CAD prices stay recognizable for delayed invoices and webhook
+    // replays. New checkout sessions must use the USD prices above.
     dispatchMonthlyCad: Object.freeze({
       productId: "prod_V2WkE5D16GhGaD",
       priceId: "price_1U2SYGDkO07WMXyRm6xbprUn",

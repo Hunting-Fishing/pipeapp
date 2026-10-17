@@ -876,6 +876,9 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
   final _bid = TextEditingController();
   bool _submitting = false;
 
+  String get _listingCurrency =>
+      '${widget.document.data()['currency'] ?? 'CAD'}'.toUpperCase();
+
   @override
   void dispose() {
     _bid.dispose();
@@ -1165,7 +1168,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
           builder: (dialogContext) => AlertDialog(
             title: const Text('Submit this timed offer?'),
             content: Text(
-              'Submit a binding timed offer of ${marketplaceMoney(amount)} CAD?',
+              'Submit a binding timed offer of ${marketplaceMoney(amount)} $_listingCurrency?',
             ),
             actions: [
               TextButton(
@@ -1215,7 +1218,7 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
           builder: (dialogContext) => AlertDialog(
             title: const Text('Buy this item now?'),
             content: Text(
-              'Confirm purchase at ${marketplaceMoney(price)} CAD. This immediately closes the Timed Buying listing.',
+              'Confirm purchase at ${marketplaceMoney(price)} $_listingCurrency. This immediately closes the Timed Buying listing.',
             ),
             actions: [
               TextButton(
@@ -1938,7 +1941,7 @@ class _BidPricingAnalytics extends StatelessWidget {
             if (difference != null && percent != null)
               _row(
                 'Compared with asking',
-                '${difference >= 0 ? 'â†‘' : 'â†“'} ${marketplaceMoney(difference.abs())} • ${percent.abs().toStringAsFixed(1)}%',
+                '${difference >= 0 ? '↑' : '↓'} ${marketplaceMoney(difference.abs())} • ${percent.abs().toStringAsFixed(1)}%',
                 color: comparisonColor,
               ),
             if (reserve != null && reserve! > 0)

@@ -187,6 +187,10 @@ jobs:
             --dart-define=PIPE_REMOTE_DIAGNOSTICS_ENABLED=true
           restore_worker
           trap - EXIT
+          node tool/release_marker.mjs \
+            --environment "$PIPE_ENV" \
+            --release-sha "$PIPE_RELEASE_SHA" \
+            --output build/web/pipe-release.json
 
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.25.0

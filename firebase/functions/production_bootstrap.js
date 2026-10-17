@@ -6,7 +6,7 @@ const coreExports = require("./bootstrap");
 Object.assign(exports, coreExports);
 
 const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
-const {HttpsError, onCall} = require("firebase-functions/v2/https");
+const {HttpsError, onCall, onRequest} = require("firebase-functions/v2/https");
 const {createAdminRuntime} = require("./admin_runtime");
 const {protectedCallableOptions} = require("./app_check_config");
 const {
@@ -61,11 +61,19 @@ const {
 const {
   createNativeMembershipBilling,
 } = require("./native_membership_billing");
+const {
+  APPLE_IAP_SECRET_NAMES,
+  createAppleSandboxServerNotificationComposition,
+} = require("./apple_native_billing_composition");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {stripeSecretNames} = require("./stripe_runtime_environment");
+const {
+  createStripeProviderMigration,
+} = require("./stripe_provider_migration");
 
 const admin = createAdminRuntime();
 const readinessAdmin = createPaymentReadinessAdmin(admin);
-const marketplaceFeeAdmin = createMarketplaceFeeAdmin();
+const marketplaceFeeAdmin = createMarketplaceFeeAdmin(admin);
 const marketplaceTaxCompliance = createMarketplaceTaxCompliance(admin);
 const marketplaceTaxClaimLink = createMarketplaceTaxClaimLink(admin);
 const marketplaceTaxRegistrationAdmin =
@@ -82,11 +90,38 @@ const dispatchRequestLifecycleCommands =
   createDispatchRequestLifecycleCommands(admin);
 const vipSubscriptionCommands = createVipSubscriptionCommands(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
-const nativeMembershipBilling = createNativeMembershipBilling(admin);
+const nativeMembershipBilling = createNativeMembershipBilling(admin, {
+  appleSandboxCohortOnly: true,
+});
+const stripeProviderMigration = createStripeProviderMigration(admin);
 const membershipStripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
   secrets: [stripeSecretKey.name],
 });
+const stripeMigrationCallableOptions = Object.freeze({
+  ...protectedCallableOptions,
+  secrets: stripeSecretNames,
+});
+const appleMembershipVerificationCallableOptions = Object.freeze({
+  ...protectedCallableOptions,
+  secrets: APPLE_IAP_SECRET_NAMES,
+});
+const appleSandboxNotificationOptions = Object.freeze({
+  cors: false,
+  invoker: "public",
+  secrets: APPLE_IAP_SECRET_NAMES,
+});
+let appleSandboxNotificationHandler = null;
+
+function handleAppStoreServerNotificationsSandbox(request, response) {
+  if (!appleSandboxNotificationHandler) {
+    const composition = createAppleSandboxServerNotificationComposition({
+      admin,
+    });
+    appleSandboxNotificationHandler = composition.httpHandler;
+  }
+  return appleSandboxNotificationHandler(request, response);
+}
 
 async function createVipSubscriptionCheckoutWithProviderGuard(request) {
   await membershipProviderAccess.requireNoBlockingProviderSubscription(request);
@@ -240,9 +275,34 @@ exports.setPaymentProviderReadiness = onCall(
     readinessAdmin.setPaymentProviderReadiness,
 );
 
+exports.prepareLegacyStripeSellerMigration = onCall(
+    stripeMigrationCallableOptions,
+    stripeProviderMigration.prepareLegacyStripeSellerMigration,
+);
+
+exports.createLegacyStripeSellerMigrationOnboardingLink = onCall(
+    stripeMigrationCallableOptions,
+    stripeProviderMigration.createLegacyStripeSellerMigrationOnboardingLink,
+);
+
+exports.activateLegacyStripeSellerMigration = onCall(
+    stripeMigrationCallableOptions,
+    stripeProviderMigration.activateLegacyStripeSellerMigration,
+);
+
 exports.getMarketplaceFeeCatalog = onCall(
     protectedCallableOptions,
     marketplaceFeeAdmin.getMarketplaceFeeCatalog,
+);
+
+exports.getPublicMarketplaceFeeCatalog = onCall(
+    protectedCallableOptions,
+    marketplaceFeeAdmin.getPublicMarketplaceFeeCatalog,
+);
+
+exports.setMarketplaceListingFeeClassification = onCall(
+    protectedCallableOptions,
+    marketplaceFeeAdmin.setMarketplaceListingFeeClassification,
 );
 
 exports.getMarketplaceTaxProfile = onCall(
@@ -367,13 +427,54 @@ exports.createVipSubscriptionCheckout = onCall(
     ),
 );
 
-// This readiness/bootstrap endpoint has no store credentials and is safe to
-// deploy before App Store Connect / Play Console enrollment. The mutation and
-// reconciliation handlers remain unexported until their Secret Manager values
-// are provisioned and an explicit native-billing activation is approved.
+// This status endpoint itself has no store credentials. Deploy the cohort
+// callables below with App Check enforcement enabled; current tester claims,
+// exact server intents, readiness entry gates, and Apple-only verification
+// secrets provide independent authorization and provider boundaries.
 exports.getNativeMembershipBillingStatus = onCall(
     protectedCallableOptions,
     nativeMembershipBilling.getNativeMembershipBillingStatus,
+);
+
+// This internal-cohort stage is iOS-only. Entry and verification recheck the
+// current Apple Sandbox tester claim, while every purchase remains bound to an
+// opaque server intent. Android, scheduled reconciliation, and Production App
+// Store notifications remain absent from the exported function surface.
+exports.preflightNativeMembershipPurchase = onCall(
+    protectedCallableOptions,
+    nativeMembershipBilling.preflightNativeMembershipPurchase,
+);
+
+exports.preflightNativeMembershipRestore = onCall(
+    protectedCallableOptions,
+    nativeMembershipBilling.preflightNativeMembershipRestore,
+);
+
+exports.resumeNativeMembershipPurchaseIntent = onCall(
+    protectedCallableOptions,
+    nativeMembershipBilling.resumeNativeMembershipPurchaseIntent,
+);
+
+exports.markNativeMembershipPurchasePending = onCall(
+    protectedCallableOptions,
+    nativeMembershipBilling.markNativeMembershipPurchasePending,
+);
+
+exports.releaseNativeMembershipPurchaseIntent = onCall(
+    protectedCallableOptions,
+    nativeMembershipBilling.releaseNativeMembershipPurchaseIntent,
+);
+
+exports.verifyNativeMembershipPurchase = onCall(
+    appleMembershipVerificationCallableOptions,
+    nativeMembershipBilling.verifyNativeMembershipPurchase,
+);
+
+// Sandbox notification mutations use the environment-specific Firestore gate.
+// Production notifications remain intentionally unexported.
+exports.appStoreServerNotificationsSandbox = onRequest(
+    appleSandboxNotificationOptions,
+    handleAppStoreServerNotificationsSandbox,
 );
 
 exports.onDispatchMembershipProviderTerminalSync = onDocumentUpdated(

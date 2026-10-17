@@ -158,6 +158,25 @@ class MarketplaceActionsRepository {
     return '${result['conversationId']}';
   }
 
+  Future<String> ensureTimedBuyingConversation({
+    required String listingId,
+    required String winnerUid,
+  }) async {
+    final normalizedListingId = listingId.trim();
+    final normalizedWinnerUid = winnerUid.trim();
+    if (normalizedListingId.isEmpty || normalizedWinnerUid.isEmpty) {
+      throw ArgumentError(
+        'A Timed Buying listing and authoritative winner are required.',
+      );
+    }
+    final result = await _commands.execute('openMarketplaceConversation', {
+      'listingId': normalizedListingId,
+      'participantUid': normalizedWinnerUid,
+      'marketplaceTransactionId': 'auction_$normalizedListingId',
+    });
+    return '${result['conversationId']}';
+  }
+
   Future<String> openBusinessConversation({
     required String providerUid,
   }) async {
@@ -311,13 +330,14 @@ class MarketplaceActionsRepository {
   Future<void> requestLocation({
     required String listingId,
     required String sellerUid,
-    String note = '',
   }) =>
       _firestore.collection('location_requests').add({
         'listingId': listingId,
         'requesterUid': uid,
         'sellerUid': sellerUid,
-        'note': note,
+        // Free-form contact details belong in the protected message flow, not
+        // in this client-created request document.
+        'note': '',
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });

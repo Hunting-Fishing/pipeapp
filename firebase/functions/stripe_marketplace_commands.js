@@ -1,5 +1,6 @@
 "use strict";
 
+const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AccountSecurityError,
@@ -11,23 +12,20 @@ const {
   requirePhase1Feature,
 } = require("./phase1_feature_flags");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
+const {
+  STRIPE_SECRET_PRODUCTION_NAME,
+  normalizeActiveStripeMode,
+  requireStripeProviderMode,
+  stripeProductionSecret,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 
-const STRIPE_SECRET_PRODUCTION_NAME = "STRIPE_SECRET_PRODUCTION";
 const STRIPE_CONNECT_ACCOUNTS_API_VERSION =
   stripeMarketplaceConfig.connectAccountsApiVersion;
-const stripeSecretKey = Object.freeze({
-  name: STRIPE_SECRET_PRODUCTION_NAME,
-  value() {
-    const value = String(process.env[STRIPE_SECRET_PRODUCTION_NAME] || "").trim();
-    if (!value) {
-      throw new HttpsError(
-          "failed-precondition",
-          "Stripe production payment credentials are unavailable.",
-      );
-    }
-    return value;
-  },
-});
+const STRIPE_CONNECT_ACCOUNT_OBJECT =
+  stripeMarketplaceConfig.connectAccountObject;
+const STRIPE_CONNECT_ACCOUNT_API_FAMILY = "v2";
+const stripeSecretKey = stripeProductionSecret;
 
 const initialSellerCountries = new Set(["CA", "US"]);
 const sellerSetupErrorMessages = Object.freeze({
@@ -47,6 +45,12 @@ const sellerSetupErrorMessages = Object.freeze({
     "Pipe Buyer must activate Stripe Connect before seller payouts can be set up.",
   cross_border_connected_account_creation_not_allowed:
     "Stripe does not currently allow this seller country for Pipe Buyer payouts.",
+  accounts_v2_access_blocked:
+    "Pipe Buyer must enable Stripe Accounts v2 before seller payouts can be set up.",
+  non_connect_platform_accounts_v2_access_blocked:
+    "Pipe Buyer must finish Stripe Connect activation for Accounts v2 before seller payouts can be set up.",
+  v1_account_instead_of_v2_account:
+    "This seller payout account uses Stripe's legacy account model and must be migrated before marketplace payments can continue.",
 });
 
 function requireAuth(request) {
@@ -158,19 +162,39 @@ async function stripeConnectRequest({
   path,
   method = "POST",
   fields,
+  query,
+  idempotencyKey,
+  stripeContext,
 }) {
+  const requestUrl = new URL(`https://api.stripe.com${path}`);
+  for (const [key, value] of Object.entries(query || {})) {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        requestUrl.searchParams.append(`${key}[${index}]`, String(item));
+      });
+    } else if (value != null) {
+      requestUrl.searchParams.append(key, String(value));
+    }
+  }
+  const accountsV2Request = requestUrl.pathname.startsWith("/v2/");
   const headers = {
     Authorization: `Bearer ${secretKey}`,
     "Stripe-Version": STRIPE_CONNECT_ACCOUNTS_API_VERSION,
+    ...(idempotencyKey ? {"Idempotency-Key": idempotencyKey} : {}),
+    ...(stripeContext ? {"Stripe-Context": stripeContext} : {}),
   };
   const hasBody = fields != null && method !== "GET";
   if (hasBody) {
-    headers["Content-Type"] = "application/x-www-form-urlencoded";
+    headers["Content-Type"] = accountsV2Request ?
+      "application/json" : "application/x-www-form-urlencoded";
   }
-  const response = await fetch(`https://api.stripe.com${path}`, {
+  const response = await fetch(requestUrl, {
     method,
     headers,
-    ...(hasBody ? {body: stripeFormBody(fields)} : {}),
+    ...(hasBody ? {
+      body: accountsV2Request ?
+        JSON.stringify(fields) : stripeFormBody(fields),
+    } : {}),
   });
   let payload = null;
   try {
@@ -191,7 +215,7 @@ async function stripeConnectRequest({
         120,
     );
     console.error("Stripe marketplace request failed", {
-      path,
+      path: requestUrl.pathname,
       status: response.status,
       stripeCode,
       stripeMessage,
@@ -218,6 +242,55 @@ async function stripeConnectRequest({
   return payload || {};
 }
 
+function stripeSellerAccountIdempotencyKey(uid) {
+  const identity = String(uid || "").trim();
+  if (!identity || identity.length > 180 || identity.includes("/")) {
+    throw new HttpsError(
+        "invalid-argument",
+        "The seller payout identity is invalid.",
+    );
+  }
+  const digest = crypto.createHash("sha256")
+      .update(`pipebuyer-stripe-recipient-v2:${identity}`)
+      .digest("hex");
+  return `pipebuyer-recipient-v2-${digest}`;
+}
+
+function stripeV2RecipientAccountPayload({contactEmail, country, uid}) {
+  return {
+    contact_email: String(contactEmail || "").trim().slice(0, 320),
+    dashboard: "express",
+    identity: {
+      country: safeCountry(country).toLowerCase(),
+    },
+    configuration: {
+      recipient: {
+        capabilities: {
+          stripe_balance: {
+            stripe_transfers: {requested: true},
+          },
+        },
+      },
+    },
+    defaults: {
+      responsibilities: {
+        fees_collector: "application",
+        losses_collector: "application",
+      },
+    },
+    metadata: {
+      pipeBuyerUid: String(uid || "").trim().slice(0, 180),
+      pipeBuyerPurpose: "marketplace_recipient",
+    },
+    include: [
+      "configuration.recipient",
+      "defaults",
+      "identity",
+      "requirements",
+    ],
+  };
+}
+
 async function loadProviderReadiness(db) {
   const snapshot = await db.collection("platform_configuration")
       .doc("payment_provider_readiness").get();
@@ -231,31 +304,188 @@ async function loadProviderReadiness(db) {
     marketplaceTaxCollectionDeferredApproved:
       data.marketplaceTaxCollectionDeferredApproved === true,
     stripeReconciliationReady: data.stripeReconciliationReady === true,
+    stripeFullGmvEconomicsApproved:
+      data.stripeFullGmvEconomicsApproved === true,
+    stripeFullGmvEconomicsPolicyRevision: String(
+        data.stripeFullGmvEconomicsPolicyRevision || "",
+    ),
+    stripeFullGmvPaymentMethodConfigurationId: String(
+        data.stripeFullGmvPaymentMethodConfigurationId || "",
+    ),
+    stripeFullGmvMaximumChargeMinorUsd: Number(
+        data.stripeFullGmvMaximumChargeMinorUsd || 0,
+    ),
+    stripeFullGmvMaximumProviderFeeBps: Number(
+        data.stripeFullGmvMaximumProviderFeeBps || 0,
+    ),
+    stripeFullGmvMaximumProviderFeeFixedMinorUsd: Number(
+        data.stripeFullGmvMaximumProviderFeeFixedMinorUsd || 0,
+    ),
+    stripeFullGmvMaximumTaxUpliftBps: Number(
+        data.stripeFullGmvMaximumTaxUpliftBps || 0,
+    ),
+    stripeFullGmvMinimumNetRevenueMinorUsd: Number(
+        data.stripeFullGmvMinimumNetRevenueMinorUsd || 0,
+    ),
     connectReturnUrl: String(data.connectReturnUrl || ""),
     connectRefreshUrl: String(data.connectRefreshUrl || ""),
   };
 }
 
 function requireConnectOnboardingReady(readiness) {
-  if (!readiness.stripeConnectOnboardingEnabled ||
-      readiness.stripeMode !== "production") {
+  if (!readiness.stripeConnectOnboardingEnabled) {
     throw new HttpsError(
         "failed-precondition",
-        "Live Stripe seller payout onboarding is not enabled yet.",
+        "Stripe seller payout onboarding is not enabled yet.",
     );
   }
+  normalizeActiveStripeMode(readiness.stripeMode);
 }
 
 function recipientTransferStatus(account) {
-  return String(
-      account && account.capabilities && account.capabilities.transfers ||
-      "pending",
-  );
+  return String(account && account.configuration &&
+    account.configuration.recipient &&
+    account.configuration.recipient.capabilities &&
+    account.configuration.recipient.capabilities.stripe_balance &&
+    account.configuration.recipient.capabilities.stripe_balance
+        .stripe_transfers &&
+    account.configuration.recipient.capabilities.stripe_balance
+        .stripe_transfers.status || "pending");
+}
+
+function recipientPayoutStatus(account) {
+  return String(account && account.configuration &&
+    account.configuration.recipient &&
+    account.configuration.recipient.capabilities &&
+    account.configuration.recipient.capabilities.stripe_balance &&
+    account.configuration.recipient.capabilities.stripe_balance.payouts &&
+    account.configuration.recipient.capabilities.stripe_balance
+        .payouts.status || "pending");
+}
+
+function stripeAccountMode(account) {
+  if (account && account.livemode === true) return "production";
+  if (account && account.livemode === false) return "sandbox";
+  return "unknown";
+}
+
+function recipientAccountReadiness(account) {
+  const safeAccount = account && typeof account === "object" ? account : {};
+  const responsibilities = safeAccount.defaults &&
+    safeAccount.defaults.responsibilities || {};
+  const appliedConfigurations = Array.isArray(
+      safeAccount.applied_configurations,
+  ) ? safeAccount.applied_configurations : [];
+  const transferStatus = recipientTransferStatus(safeAccount);
+  const payoutStatus = recipientPayoutStatus(safeAccount);
+  const accountMode = stripeAccountMode(safeAccount);
+  const recipientConfigurationReady =
+    safeAccount.object === STRIPE_CONNECT_ACCOUNT_OBJECT &&
+    appliedConfigurations.includes("recipient") &&
+    safeAccount.dashboard === "express" &&
+    responsibilities.fees_collector === "application" &&
+    responsibilities.losses_collector === "application";
+  return {
+    accountObject: String(safeAccount.object || ""),
+    dashboard: String(safeAccount.dashboard || ""),
+    feesCollector: String(responsibilities.fees_collector || ""),
+    lossesCollector: String(responsibilities.losses_collector || ""),
+    appliedConfigurations,
+    accountMode,
+    transferStatus,
+    payoutStatus,
+    recipientConfigurationReady,
+    payoutReady: recipientConfigurationReady &&
+      transferStatus === "active" &&
+      payoutStatus === "active",
+  };
 }
 
 function sellerPayoutReady(account) {
-  return recipientTransferStatus(account) === "active" &&
-    account && account.payouts_enabled === true;
+  return recipientAccountReadiness(account).payoutReady;
+}
+
+function providerUsesAccountsV2(provider) {
+  const safeProvider = provider && typeof provider === "object" ? provider : {};
+  return safeProvider.connectAccountApiVersion ===
+      STRIPE_CONNECT_ACCOUNT_API_FAMILY &&
+    safeProvider.connectAccountObject === STRIPE_CONNECT_ACCOUNT_OBJECT;
+}
+
+async function refreshStripeRecipientAccountStatus({
+  providerRef,
+  providerData,
+  FieldValue,
+  secretKey,
+  expectedMode,
+  stripeContext,
+  requestFn = stripeConnectRequest,
+}) {
+  const provider = providerData && typeof providerData === "object" ?
+    providerData : {};
+  const accountId = String(provider.stripeAccountId || "").trim();
+  if (!accountId.startsWith("acct_")) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Set up seller payouts before checking payout status.",
+    );
+  }
+  if (!providerUsesAccountsV2(provider)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "This seller payout account uses Stripe's legacy account model and must be migrated before marketplace payments can continue.",
+    );
+  }
+  const account = await requestFn({
+    secretKey,
+    path: `/v2/core/accounts/${encodeURIComponent(accountId)}`,
+    method: "GET",
+    query: {
+      include: [
+        "configuration.recipient",
+        "defaults",
+        "requirements",
+      ],
+    },
+    ...(stripeContext ? {stripeContext} : {}),
+  });
+  if (String(account.id || "") !== accountId) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Stripe returned a different seller payout account.",
+    );
+  }
+  const accountMode = stripeAccountMode(account);
+  if (expectedMode && accountMode !== String(expectedMode)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Stripe returned a seller payout account from a different environment.",
+    );
+  }
+  const readiness = recipientAccountReadiness(account);
+  const statusCheckId = crypto.randomUUID();
+  await providerRef.set({
+    connectAccountApiVersion: STRIPE_CONNECT_ACCOUNT_API_FAMILY,
+    connectAccountObject: readiness.accountObject,
+    dashboard: readiness.dashboard,
+    feesCollector: readiness.feesCollector,
+    lossesCollector: readiness.lossesCollector,
+    appliedConfigurations: readiness.appliedConfigurations,
+    transferStatus: readiness.transferStatus,
+    payoutStatus: readiness.payoutStatus,
+    recipientConfigurationReady: readiness.recipientConfigurationReady,
+    payoutReady: readiness.payoutReady,
+    onboardingStatus: readiness.payoutReady ? "payout_ready" : "pending",
+    migrationRequired: false,
+    lastStripeStatusCheckId: statusCheckId,
+    lastStripeStatusCheckAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, {merge: true});
+  return {
+    accountId,
+    statusCheckId,
+    ...readiness,
+  };
 }
 
 function createStripeMarketplaceCommands(admin) {
@@ -266,9 +496,26 @@ function createStripeMarketplaceCommands(admin) {
     const providerRef = db.collection("payment_provider_accounts").doc(uid);
     const existing = await providerRef.get();
     if (existing.exists && existing.data().stripeAccountId) {
+      const existingData = existing.data();
+      if (!providerUsesAccountsV2(existingData)) {
+        await providerRef.set({
+          migrationRequired: true,
+          recipientConfigurationReady: false,
+          payoutReady: false,
+          transferStatus: "legacy_migration_required",
+          payoutStatus: "legacy_migration_required",
+          onboardingStatus: "migration_required",
+          updatedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+        throw new HttpsError(
+            "failed-precondition",
+            "This seller payout account uses Stripe's legacy account model and must be migrated before marketplace payments can continue.",
+        );
+      }
+      requireStripeProviderMode(existingData, readiness.stripeMode);
       return {
-        accountId: String(existing.data().stripeAccountId),
-        country: String(existing.data().country || "CA"),
+        accountId: String(existingData.stripeAccountId),
+        country: String(existingData.country || "CA"),
         created: false,
       };
     }
@@ -287,19 +534,29 @@ function createStripeMarketplaceCommands(admin) {
     }
 
     const account = await stripeConnectRequest({
-      secretKey: stripeSecretKey.value(),
-      path: "/v1/accounts",
-      fields: {
-        email: contactEmail,
-        country,
-        type: "express",
-      },
+      secretKey: stripeSecretValueForMode(readiness.stripeMode),
+      path: "/v2/core/accounts",
+      fields: stripeV2RecipientAccountPayload({contactEmail, country, uid}),
+      idempotencyKey: stripeSellerAccountIdempotencyKey(uid),
     });
     const accountId = String(account.id || "").trim();
     if (!accountId.startsWith("acct_")) {
       throw new HttpsError(
           "internal",
           "Stripe returned an invalid seller account identifier.",
+      );
+    }
+    const accountReadiness = recipientAccountReadiness(account);
+    if (accountReadiness.accountMode !== readiness.stripeMode) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Stripe returned a seller payout account from a different environment.",
+      );
+    }
+    if (!accountReadiness.recipientConfigurationReady) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Stripe did not apply the required recipient, Express dashboard, fee collection, and negative balance liability configuration.",
       );
     }
     await providerRef.create({
@@ -309,10 +566,21 @@ function createStripeMarketplaceCommands(admin) {
       accountPurpose: "marketplace_recipient",
       country,
       mode: readiness.stripeMode,
-      dashboard: "express",
-      capabilityConfigurationSource: "stripe_connect_configuration",
-      transferStatus: recipientTransferStatus(account),
-      onboardingStatus: "created",
+      connectAccountApiVersion: STRIPE_CONNECT_ACCOUNT_API_FAMILY,
+      connectAccountObject: accountReadiness.accountObject,
+      dashboard: accountReadiness.dashboard,
+      feesCollector: accountReadiness.feesCollector,
+      lossesCollector: accountReadiness.lossesCollector,
+      appliedConfigurations: accountReadiness.appliedConfigurations,
+      capabilityConfigurationSource: "accounts_v2_recipient",
+      transferStatus: accountReadiness.transferStatus,
+      payoutStatus: accountReadiness.payoutStatus,
+      recipientConfigurationReady:
+        accountReadiness.recipientConfigurationReady,
+      payoutReady: accountReadiness.payoutReady,
+      migrationRequired: false,
+      onboardingStatus: accountReadiness.payoutReady ?
+        "payout_ready" : "created",
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -359,7 +627,7 @@ function createStripeMarketplaceCommands(admin) {
           "Stripe Connect refresh URL",
       );
       const accountLink = await stripeConnectRequest({
-        secretKey: stripeSecretKey.value(),
+        secretKey: stripeSecretValueForMode(readiness.stripeMode),
         path: "/v1/account_links",
         fields: {
           account: seller.accountId,
@@ -414,26 +682,20 @@ function createStripeMarketplaceCommands(admin) {
         );
       }
       const accountId = String(providerSnapshot.data().stripeAccountId);
-      const account = await stripeConnectRequest({
-        secretKey: stripeSecretKey.value(),
-        path: `/v1/accounts/${encodeURIComponent(accountId)}`,
-        method: "GET",
+      requireStripeProviderMode(providerSnapshot.data(), readiness.stripeMode);
+      const status = await refreshStripeRecipientAccountStatus({
+        providerRef,
+        providerData: providerSnapshot.data(),
+        FieldValue,
+        secretKey: stripeSecretValueForMode(readiness.stripeMode),
+        expectedMode: readiness.stripeMode,
       });
-      const transferStatus = recipientTransferStatus(account);
-      const payoutReady = sellerPayoutReady(account);
-      const onboardingStatus = payoutReady ? "payout_ready" : "pending";
-      await providerRef.set({
-        transferStatus,
-        onboardingStatus,
-        payoutsEnabled: account.payouts_enabled === true,
-        detailsSubmitted: account.details_submitted === true,
-        lastStripeStatusCheckAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, {merge: true});
       return {
         accountId,
-        transferStatus,
-        payoutReady,
+        transferStatus: status.transferStatus,
+        payoutStatus: status.payoutStatus,
+        payoutReady: status.payoutReady,
+        recipientConfigurationReady: status.recipientConfigurationReady,
       };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
@@ -456,15 +718,25 @@ function createStripeMarketplaceCommands(admin) {
 }
 
 module.exports = {
+  STRIPE_CONNECT_ACCOUNT_API_FAMILY,
+  STRIPE_CONNECT_ACCOUNT_OBJECT,
   STRIPE_CONNECT_ACCOUNTS_API_VERSION,
   STRIPE_SECRET_PRODUCTION_NAME,
   createStripeMarketplaceCommands,
   loadProviderReadiness,
+  providerUsesAccountsV2,
+  recipientAccountReadiness,
+  recipientPayoutStatus,
   recipientTransferStatus,
+  refreshStripeRecipientAccountStatus,
   safePipeBuyerCallbackUrl,
   sanitizeStripeSupportText,
   sellerPayoutReady,
+  stripeAccountMode,
+  stripeConnectRequest,
   stripeFormBody,
+  stripeSellerAccountIdempotencyKey,
   stripeSellerSetupErrorMessage,
   stripeSecretKey,
+  stripeV2RecipientAccountPayload,
 };

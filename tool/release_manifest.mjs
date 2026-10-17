@@ -12,6 +12,8 @@ import {
 import path from "node:path";
 import {pathToFileURL} from "node:url";
 
+import {validateReleaseMarkerFile} from "./release_marker.mjs";
+
 const manifestSchemaVersion = 2;
 const controlledEnvironments = new Set(["staging", "production"]);
 const appCheckModes = new Set(["disabled", "observe", "enforce"]);
@@ -323,6 +325,13 @@ export function createReleaseManifest({
     null;
   if (requireWeb && webArtifact == null) {
     throw new Error("The verified build/web artifact is required.");
+  }
+  if (requireWeb) {
+    validateReleaseMarkerFile({
+      root,
+      environment,
+      releaseSha: actualSha,
+    });
   }
 
   const rulesFiles = [

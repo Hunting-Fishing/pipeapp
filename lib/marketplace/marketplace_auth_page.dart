@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../auth/firebase_auth/apple_auth.dart';
 import '../auth/firebase_auth/google_auth.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_components.dart';
@@ -33,6 +35,9 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
   String _accountType = 'personal';
   String? _statusMessage;
   bool _statusIsError = false;
+
+  bool get _offersNativeAppleSignIn =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void dispose() {
@@ -441,7 +446,18 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                       ],
                     ),
                     const SizedBox(height: 18),
+                    if (_offersNativeAppleSignIn) ...[
+                      SignInWithAppleButton(
+                        key: const Key('marketplace-apple-sign-in'),
+                        onPressed: _busy ? null : _signInWithApple,
+                        text: 'Continue with Apple',
+                        height: 52,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     OutlinedButton.icon(
+                      key: const Key('marketplace-google-sign-in'),
                       onPressed: _busy ? null : _signInWithGoogle,
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(52),
@@ -553,7 +569,20 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
     );
   }
 
-  Future<void> _signInWithGoogle() async {
+  Future<void> _signInWithGoogle() => _signInWithFederatedProvider(
+        provider: 'Google',
+        authenticate: () => googleSignInFunc(),
+      );
+
+  Future<void> _signInWithApple() => _signInWithFederatedProvider(
+        provider: 'Apple',
+        authenticate: () async => appleSignIn(),
+      );
+
+  Future<void> _signInWithFederatedProvider({
+    required String provider,
+    required Future<UserCredential?> Function() authenticate,
+  }) async {
     setState(() {
       _busy = true;
       _statusMessage = null;
@@ -565,7 +594,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       }
       UserCredential? credential;
       try {
-        credential = await googleSignInFunc();
+        credential = await authenticate();
       } on FirebaseAuthMultiFactorException catch (error) {
         if (!mounted) return;
         credential = await resolveFirebaseMultiFactorSignIn(
@@ -598,9 +627,9 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       }
 
       if (!mounted) return;
-      final googlePhoneVerified =
+      final federatedPhoneVerified =
           normalizePhoneNumber(user.phoneNumber ?? '').isNotEmpty;
-      if (!user.emailVerified && !googlePhoneVerified) {
+      if (!user.emailVerified && !federatedPhoneVerified) {
         await Navigator.of(context).pushReplacement(MaterialPageRoute(
             builder: (_) => const MarketplaceAccountSecurityPage(
                   onboarding: true,
@@ -610,11 +639,16 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       }
       await _syncVerificationBestEffort();
       if (mounted) Navigator.pop(context, true);
+    } on SignInWithAppleAuthorizationException catch (error) {
+      if (error.code != AuthorizationErrorCode.canceled) {
+        _notice('Apple sign-in could not finish. Please try again.',
+            error: true, icon: Icons.login_outlined);
+      }
     } on FirebaseAuthException catch (error) {
-      _notice(_friendlyGoogleAuthError(error),
+      _notice(_friendlyFederatedAuthError(error, provider),
           error: true, icon: _authErrorIcon(error.code));
     } catch (_) {
-      _notice('Google sign-in could not finish. Please try again.',
+      _notice('$provider sign-in could not finish. Please try again.',
           error: true, icon: Icons.login_outlined);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -951,6 +985,32 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       'network-request-failed' =>
         'Could not reach Google or Firebase. Check your internet connection.',
       _ => error.message ?? 'Google authentication failed (${error.code}).',
+    };
+  }
+
+  String _friendlyFederatedAuthError(
+      FirebaseAuthException error, String provider) {
+    if (provider == 'Google') return _friendlyGoogleAuthError(error);
+    return switch (error.code) {
+      'operation-not-allowed' =>
+        'Apple sign-in is not enabled for this Firebase project yet.',
+      'account-exists-with-different-credential' =>
+        'An account already uses this email with another sign-in method. Sign in that way first, then connect Apple.',
+      'invalid-credential' =>
+        'Apple could not verify this sign-in. Please start again.',
+      'mfa-cancelled' => 'Second-factor verification was cancelled.',
+      'mfa-timeout' =>
+        'The security-code session timed out. Start Apple sign-in again.',
+      'invalid-verification-code' =>
+        'That security code is incorrect or expired. Start Apple sign-in again.',
+      'unsupported-second-factor' =>
+        'This account has no supported SMS second factor. Contact support to recover access.',
+      'quota-exceeded' ||
+      'too-many-requests' =>
+        'Authentication is temporarily limited. Wait a few minutes before trying again.',
+      'network-request-failed' =>
+        'Could not reach Apple or Firebase. Check your internet connection.',
+      _ => error.message ?? 'Apple authentication failed (${error.code}).',
     };
   }
 }

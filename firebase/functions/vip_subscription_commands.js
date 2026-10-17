@@ -16,6 +16,7 @@ const {
 } = require("./stripe_marketplace_commands");
 const {
   safeConfiguredUrl,
+  stripeCheckoutRequestSnapshot,
   stripeFormRequest,
 } = require("./stripe_checkout_commands");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
@@ -27,6 +28,20 @@ const {
   taxBillingPrepared,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
+const {
+  nativeProviderStateBlocksNewCheckout,
+  providerStateBlocksNewCheckout,
+} = require("./dispatch_subscription_provider_access");
+const {
+  MEMBERSHIP_BILLING_INTENT_COLLECTION,
+  STRIPE_CHECKOUT_INTENT_TTL_MS,
+  billingIntentActive,
+  claimBillingIntentInTransaction,
+  failStripeCheckoutReservation,
+  makeStripeCheckoutReservationRetryable,
+  nativeBillingIntentCoordinationEnabled,
+  stripeCheckoutStateOpen,
+} = require("./membership_billing_intent");
 
 const VIP_CHECKOUT_CREATION_LEASE_MS = 2 * 60 * 1000;
 const VIP_CHECKOUT_FALLBACK_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -90,6 +105,11 @@ function reusableVipCheckoutState(
   if (timestampMillis(state.expiresAt) <= nowMillis) return false;
   return String(state.checkoutSessionId || "").startsWith("cs_") &&
     String(state.checkoutUrl || "").startsWith("https://");
+}
+
+function createdVipCheckoutBlocksNewAttempt(state, nowMillis = Date.now()) {
+  return Boolean(state && state.status === "created" &&
+    timestampMillis(state.expiresAt) > nowMillis);
 }
 
 function vipCheckoutAttemptKey(uid, attemptNumber) {
@@ -165,21 +185,77 @@ function createVipSubscriptionCommands(admin) {
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
+      const checkoutRequestBaseFields = stripeCheckoutRequestSnapshot({
+        mode: "subscription",
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        client_reference_id: uid,
+        billing_address_collection: "required",
+        allow_promotion_codes: allowPromotionCodes ? "true" : "false",
+        "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
+        "line_items[0][price]": priceId,
+        "line_items[0][quantity]": 1,
+        ...(promotionCodeId ? {
+          "discounts[0][promotion_code]": promotionCodeId,
+        } : {}),
+        "metadata[billingType]": "vip_subscription",
+        "metadata[pipeBuyerUid]": uid,
+        "metadata[vipPlan]": plan,
+        "metadata[taxCollectionStatus]": collectionStatus,
+        ...(promotionCodeId ? {
+          "metadata[promotionCodeId]": promotionCodeId,
+        } : {}),
+        "subscription_data[metadata][billingType]": "vip_subscription",
+        "subscription_data[metadata][pipeBuyerUid]": uid,
+        "subscription_data[metadata][vipPlan]": plan,
+        "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
+        ...(promotionCodeId ? {
+          "subscription_data[metadata][promotionCodeId]": promotionCodeId,
+        } : {}),
+      });
 
       const stateRef = db.collection("vip_subscription_checkout_state").doc(uid);
       const membershipRef = db.collection("vip_memberships").doc(uid);
       const providerStateRef = db.collection("vip_subscription_provider_state").doc(uid);
+      const dispatchProviderStateRef = db
+          .collection("dispatch_subscription_provider_state").doc(uid);
+      const nativeProviderStateRef = db
+          .collection("native_membership_provider_state").doc(uid);
+      const billingConfigRef = db.collection("platform_configuration")
+          .doc("native_membership_billing");
+      const billingIntentRef = db.collection(MEMBERSHIP_BILLING_INTENT_COLLECTION)
+          .doc(uid);
+      const dispatchCheckoutRef = db.collection("dispatch_subscription_checkout_state")
+          .doc(uid);
       const nowMillis = Date.now();
       const reservation = await db.runTransaction(async (transaction) => {
-        const [stateSnapshot, membershipSnapshot, providerSnapshot] =
+        const [
+          stateSnapshot,
+          membershipSnapshot,
+          providerSnapshot,
+          dispatchProviderSnapshot,
+          nativeProviderSnapshot,
+          billingConfigSnapshot,
+          billingIntentSnapshot,
+          dispatchCheckoutSnapshot,
+        ] =
           await Promise.all([
             transaction.get(stateRef),
             transaction.get(membershipRef),
             transaction.get(providerStateRef),
+            transaction.get(dispatchProviderStateRef),
+            transaction.get(nativeProviderStateRef),
+            transaction.get(billingConfigRef),
+            transaction.get(billingIntentRef),
+            transaction.get(dispatchCheckoutRef),
           ]);
         const state = stateSnapshot.exists ? stateSnapshot.data() : {};
         const membership = membershipSnapshot.exists ? membershipSnapshot.data() : null;
         const providerState = providerSnapshot.exists ? providerSnapshot.data() : null;
+        const dispatchProviderState = dispatchProviderSnapshot.exists ?
+          dispatchProviderSnapshot.data() : null;
+        const nativeProviderState = nativeProviderSnapshot.exists ?
+          nativeProviderSnapshot.data() : null;
 
         if (vipMembershipIsCurrent(membership, nowMillis)) {
           throw new HttpsError(
@@ -193,12 +269,56 @@ function createVipSubscriptionCommands(admin) {
               "A Pipe Buyer VIP subscription already exists for this account.",
           );
         }
+        if (providerStateBlocksNewCheckout(dispatchProviderState) ||
+            nativeProviderStateBlocksNewCheckout(
+                nativeProviderState,
+                uid,
+                nowMillis,
+            )) {
+          throw new HttpsError(
+              "failed-precondition",
+              "An existing paid membership subscription already exists. Use Change plan instead of starting a second subscription.",
+          );
+        }
+        const existingBillingIntent = billingIntentSnapshot.exists ?
+          billingIntentSnapshot.data() : null;
+        const coordinateBillingIntent = nativeBillingIntentCoordinationEnabled(
+            billingConfigSnapshot.exists ? billingConfigSnapshot.data() : null,
+        ) || billingIntentActive(existingBillingIntent, uid, nowMillis);
+        if (coordinateBillingIntent && stripeCheckoutStateOpen(
+            dispatchCheckoutSnapshot.exists ? dispatchCheckoutSnapshot.data() : null,
+            uid,
+            nowMillis,
+        )) {
+          throw new HttpsError(
+              "failed-precondition",
+              "Another membership checkout is already open.",
+          );
+        }
+        let billingIntentClaim = null;
+        if (coordinateBillingIntent) {
+          billingIntentClaim = claimBillingIntentInTransaction({
+            transaction,
+            intentRef: billingIntentRef,
+            intentSnapshot: billingIntentSnapshot,
+            admin,
+            uid,
+            channel: "stripe",
+            platform: "web",
+            productId,
+            planId: "vip_monthly",
+            nowMillis,
+            ttlMillis: STRIPE_CHECKOUT_INTENT_TTL_MS,
+          });
+        }
         if (reusableVipCheckoutState(state, nowMillis, promotionCodeId)) {
           return {
             reuse: true,
             checkoutSessionId: String(state.checkoutSessionId),
             checkoutUrl: String(state.checkoutUrl),
             attemptNumber: Number(state.attemptNumber || 1),
+            billingIntentToken: billingIntentClaim &&
+              billingIntentClaim.intentToken || "",
           };
         }
 
@@ -212,19 +332,45 @@ function createVipSubscriptionCommands(admin) {
             );
           }
           const attemptNumber = Math.max(1, Number(state.attemptNumber || 1));
-          if (leaseExpiry > nowMillis) return {busy: true, attemptNumber};
+          if (leaseExpiry > nowMillis) {
+            return {
+              busy: true,
+              attemptNumber,
+              billingIntentToken: billingIntentClaim &&
+                billingIntentClaim.intentToken || "",
+            };
+          }
           transaction.set(stateRef, {
             leaseExpiresAt: Timestamp.fromMillis(
                 nowMillis + VIP_CHECKOUT_CREATION_LEASE_MS,
             ),
             updatedAt: FieldValue.serverTimestamp(),
           }, {merge: true});
-          return {attemptNumber};
+          const checkoutRequestFields = stripeCheckoutRequestSnapshot(
+              state.checkoutRequestFields,
+          );
+          return {
+            attemptNumber,
+            checkoutRequestFields,
+            billingIntentToken: billingIntentClaim &&
+              billingIntentClaim.intentToken || "",
+          };
+        }
+
+        if (createdVipCheckoutBlocksNewAttempt(state, nowMillis)) {
+          throw new HttpsError(
+              "failed-precondition",
+              "A VIP membership checkout is already open. Finish or let that checkout expire before changing its promo code.",
+          );
         }
 
         const previousAttempt = Number(state.attemptNumber || 0);
         const attemptNumber = Number.isSafeInteger(previousAttempt) &&
           previousAttempt >= 0 ? previousAttempt + 1 : 1;
+        const checkoutRequestFields = stripeCheckoutRequestSnapshot({
+          ...checkoutRequestBaseFields,
+          "metadata[checkoutAttempt]": String(attemptNumber),
+        });
         transaction.set(stateRef, {
           ownerUid: uid,
           plan,
@@ -234,6 +380,7 @@ function createVipSubscriptionCommands(admin) {
           promotionCodeId: promotionCodeId || null,
           promotionCodeEntryAllowed: allowPromotionCodes,
           attemptNumber,
+          checkoutRequestFields,
           checkoutSessionId: FieldValue.delete(),
           checkoutUrl: FieldValue.delete(),
           leaseExpiresAt: Timestamp.fromMillis(
@@ -245,7 +392,12 @@ function createVipSubscriptionCommands(admin) {
           updatedAt: FieldValue.serverTimestamp(),
           ...(stateSnapshot.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
         }, {merge: true});
-        return {attemptNumber};
+        return {
+          attemptNumber,
+          checkoutRequestFields,
+          billingIntentToken: billingIntentClaim &&
+            billingIntentClaim.intentToken || "",
+        };
       });
 
       if (reservation.reuse) {
@@ -274,37 +426,31 @@ function createVipSubscriptionCommands(admin) {
           secretKey,
           path: "/v1/checkout/sessions",
           idempotencyKey: vipCheckoutAttemptKey(uid, reservation.attemptNumber),
-          fields: {
-            mode: "subscription",
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-            client_reference_id: uid,
-            billing_address_collection: "required",
-            allow_promotion_codes: allowPromotionCodes ? "true" : "false",
-            "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
-            "line_items[0][price]": priceId,
-            "line_items[0][quantity]": 1,
-            ...(promotionCodeId ? {
-              "discounts[0][promotion_code]": promotionCodeId,
-            } : {}),
-            "metadata[billingType]": "vip_subscription",
-            "metadata[pipeBuyerUid]": uid,
-            "metadata[vipPlan]": plan,
-            "metadata[taxCollectionStatus]": collectionStatus,
-            "metadata[checkoutAttempt]": String(reservation.attemptNumber),
-            ...(promotionCodeId ? {
-              "metadata[promotionCodeId]": promotionCodeId,
-            } : {}),
-            "subscription_data[metadata][billingType]": "vip_subscription",
-            "subscription_data[metadata][pipeBuyerUid]": uid,
-            "subscription_data[metadata][vipPlan]": plan,
-            "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
-            ...(promotionCodeId ? {
-              "subscription_data[metadata][promotionCodeId]": promotionCodeId,
-            } : {}),
-          },
+          fields: reservation.checkoutRequestFields,
         });
       } catch (error) {
+        if (error instanceof HttpsError && error.details &&
+            error.details.stripeRequestDefinitiveFailure === true) {
+          await failStripeCheckoutReservation({
+            db,
+            admin,
+            uid,
+            stateRef,
+            attemptNumber: reservation.attemptNumber,
+            intentToken: reservation.billingIntentToken,
+            failureCode: `stripe_${error.code || "rejected"}`,
+          });
+        } else {
+          await makeStripeCheckoutReservationRetryable({
+            db,
+            admin,
+            uid,
+            stateRef,
+            attemptNumber: reservation.attemptNumber,
+            intentToken: reservation.billingIntentToken,
+            failureCode: "stripe_ambiguous_failure",
+          });
+        }
         if (promotionCodeId && error instanceof HttpsError) {
           throw new HttpsError(
               error.code,
@@ -316,6 +462,15 @@ function createVipSubscriptionCommands(admin) {
       const sessionId = String(checkout.id || "");
       const checkoutUrl = String(checkout.url || "");
       if (!sessionId.startsWith("cs_") || !checkoutUrl.startsWith("https://")) {
+        await makeStripeCheckoutReservationRetryable({
+          db,
+          admin,
+          uid,
+          stateRef,
+          attemptNumber: reservation.attemptNumber,
+          intentToken: reservation.billingIntentToken,
+          failureCode: "stripe_ambiguous_response",
+        });
         throw new HttpsError(
             "internal",
             "Stripe did not return a valid Pipe Buyer VIP checkout.",
@@ -389,6 +544,7 @@ module.exports = {
   VIP_CHECKOUT_CREATION_LEASE_MS,
   VIP_CHECKOUT_FALLBACK_EXPIRY_MS,
   createVipSubscriptionCommands,
+  createdVipCheckoutBlocksNewAttempt,
   providerStateBlocksCheckout,
   requireVipSubscriptionReady,
   reusableVipCheckoutState,

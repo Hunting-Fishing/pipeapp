@@ -20,14 +20,14 @@ class MarketplaceOfferCommerceSummary extends StatelessWidget {
   final String unitLabel;
 
   num get impliedFullLotOfferValue =>
-      analysis.offeredUnitPrice * analysis.listedQuantity;
+      analysis.normalizedOfferedUnitPrice * analysis.listedQuantity;
 
   num get impliedFullLotDifference =>
       impliedFullLotOfferValue - analysis.fullListingAskValue;
 
-  double get offerToAskPercent => analysis.askingUnitPrice <= 0
+  double get offerToAskPercent => analysis.requestedAskValue <= 0
       ? 0
-      : analysis.offeredUnitPrice / analysis.askingUnitPrice * 100;
+      : analysis.offeredTotal / analysis.requestedAskValue * 100;
 
   @override
   Widget build(BuildContext context) {
@@ -136,8 +136,12 @@ class MarketplaceOfferCommerceSummary extends StatelessWidget {
           strong: true,
         ),
         _CommerceRow(
-          'Original asking price',
-          '${marketplaceMoney(analysis.askingUnitPrice)} / $unitLabel',
+          analysis.usesTotalPriceBasis
+              ? 'Original full-lot total'
+              : 'Original asking price',
+          analysis.usesTotalPriceBasis
+              ? marketplaceMoney(analysis.fullListingAskValue)
+              : '${marketplaceMoney(analysis.normalizedAskingUnitPrice)} / $unitLabel',
           strong: true,
         ),
         _CommerceRow(
@@ -160,8 +164,10 @@ class MarketplaceOfferCommerceSummary extends StatelessWidget {
           strong: true,
         ),
         _CommerceRow(
-          'Seller ask stays',
-          '${marketplaceMoney(analysis.askingUnitPrice)} / $unitLabel',
+          analysis.usesTotalPriceBasis
+              ? 'Implied unit ask'
+              : 'Seller ask stays',
+          '${marketplaceMoney(analysis.normalizedAskingUnitPrice)} / $unitLabel',
         ),
         _CommerceRow(
           'Requested value at ask',
@@ -183,8 +189,12 @@ class MarketplaceOfferCommerceSummary extends StatelessWidget {
           strong: true,
         ),
         _CommerceRow(
-          'Your unit price',
-          '${marketplaceMoney(analysis.offeredUnitPrice)} / $unitLabel',
+          analysis.usesTotalPriceBasis
+              ? 'Your entered total'
+              : 'Your unit price',
+          analysis.usesTotalPriceBasis
+              ? marketplaceMoney(analysis.offeredTotal)
+              : '${marketplaceMoney(analysis.normalizedOfferedUnitPrice)} / $unitLabel',
           strong: true,
         ),
         _CommerceRow(
@@ -357,16 +367,20 @@ class _AnalyticsPanel extends StatelessWidget {
                   _AnalyticsTile(
                     label: 'Original full listing',
                     value: marketplaceMoney(analysis.fullListingAskValue),
-                    detail:
-                        '${analysis.listedQuantity} $unitLabel × ${marketplaceMoney(analysis.askingUnitPrice)}',
+                    detail: analysis.usesTotalPriceBasis
+                        ? 'Seller-entered total for the full lot'
+                        : '${analysis.listedQuantity} $unitLabel × ${marketplaceMoney(analysis.normalizedAskingUnitPrice)}',
                     icon: Icons.lock_outline_rounded,
                     color: PipeBuyerColors.industrialBlue,
                   ),
                   _AnalyticsTile(
-                    label: 'Full lot at your unit price',
+                    label: analysis.usesTotalPriceBasis
+                        ? 'Full lot at implied unit price'
+                        : 'Full lot at your unit price',
                     value: marketplaceMoney(impliedFullLotOfferValue),
-                    detail:
-                        'Projection only — your entered price across the full lot',
+                    detail: analysis.usesTotalPriceBasis
+                        ? 'Projection only — your offer total normalized across the full lot'
+                        : 'Projection only — your entered price across the full lot',
                     icon: Icons.functions_rounded,
                     color: PipeBuyerColors.orangePressed,
                   ),
