@@ -13,13 +13,21 @@ const {
 } = require("./phase1_feature_flags");
 const {
   loadProviderReadiness,
-  stripeSecretKey,
+  refreshStripeRecipientAccountStatus,
 } = require("./stripe_marketplace_commands");
+const {
+  requireStripeProviderMode,
+  requireStripeTransactionMode,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   createMarketplaceTaxCompliance,
 } = require("./marketplace_tax_compliance");
 const {taxBillingPrepared} = require("./pending_tax_policy");
+const {
+  requireFullGmvCheckoutEconomics,
+} = require("./marketplace_checkout_economics");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -45,7 +53,7 @@ function safeConfiguredUrl(value, field) {
 
 function requireCheckoutReady(readiness) {
   const ready =
-    readiness.stripeMode === "production" &&
+    ["sandbox", "production"].includes(readiness.stripeMode) &&
     readiness.stripeCheckoutEnabled &&
     readiness.stripeWebhookVerified &&
     (readiness.stripeTaxReady ||
@@ -61,7 +69,7 @@ function requireCheckoutReady(readiness) {
 
 function requirePlatformFeeBillingReady(readiness) {
   const ready =
-    readiness.stripeMode === "production" &&
+    ["sandbox", "production"].includes(readiness.stripeMode) &&
     readiness.stripeFeeBillingEnabled &&
     readiness.stripeWebhookVerified &&
     taxBillingPrepared(readiness) &&
@@ -204,6 +212,10 @@ function assertMarketplaceCheckoutSessionIdentity({
   const metadataAttemptId = String(
       metadata.pipeBuyerCheckoutAttemptId || "",
   ).trim();
+  const storedStripeMode = String(safeSale.stripeMode || "").trim();
+  const metadataStripeMode = String(
+      metadata.pipeBuyerStripeMode || "",
+  ).trim();
   const storedSessionId = String(
       safeSale.stripeCheckoutSessionId || "",
   ).trim();
@@ -226,6 +238,8 @@ function assertMarketplaceCheckoutSessionIdentity({
   }
   if (storedAttemptId) {
     if (storedSettlementMode !== "stripe_checkout" ||
+        !["sandbox", "production"].includes(storedStripeMode) ||
+        metadataStripeMode !== storedStripeMode ||
         !Number.isSafeInteger(storedSettlementGeneration) ||
         storedSettlementGeneration < 1 ||
         metadataSettlementGeneration !== storedSettlementGeneration ||
@@ -263,6 +277,10 @@ function assertMarketplaceFeeCheckoutSessionIdentity({
   const metadataAttemptId = String(
       metadata.pipeBuyerFeeCheckoutAttemptId || "",
   ).trim();
+  const storedStripeMode = String(safeSale.stripeMode || "").trim();
+  const metadataStripeMode = String(
+      metadata.pipeBuyerStripeMode || "",
+  ).trim();
   const feeStatus = String(safeSale.marketplaceFeeStatus || "").trim();
   const settlementGeneration = Number(safeSale.settlementGeneration || 0);
   const attemptGeneration = Number(
@@ -273,6 +291,8 @@ function assertMarketplaceFeeCheckoutSessionIdentity({
   );
   const modernAttemptMatches = storedAttemptId &&
     metadataAttemptId === storedAttemptId &&
+    ["sandbox", "production"].includes(storedStripeMode) &&
+    metadataStripeMode === storedStripeMode &&
     settlementGeneration > 0 &&
     attemptGeneration === settlementGeneration &&
     metadataGeneration === settlementGeneration;
@@ -320,6 +340,20 @@ function hasExternalSettlementState(sale) {
     safeSale.externalSettlementBuyerConfirmed === true ||
     safeSale.externalSettlementSellerConfirmed === true ||
     Boolean(String(safeSale.externalSettlementAgreedAt || "").trim());
+}
+
+function hasStripeCheckoutState(sale) {
+  const safeSale = sale && typeof sale === "object" ? sale : {};
+  const providerStatus = String(
+      safeSale.paymentProviderStatus || "",
+  ).trim();
+  return String(safeSale.settlementMode || "") === "stripe_checkout" ||
+    String(safeSale.paymentMethod || "") === "stripe_checkout" ||
+    String(safeSale.paymentProvider || "") === "stripe" ||
+    !["", "not_started"].includes(providerStatus) ||
+    Boolean(String(safeSale.stripeCheckoutSessionId || "").trim()) ||
+    Boolean(String(safeSale.stripeCheckoutAttemptId || "").trim()) ||
+    Boolean(String(safeSale.stripeCheckoutIdempotencyKey || "").trim());
 }
 
 function marketplaceCheckoutSaleIdentity(sale) {
@@ -457,6 +491,8 @@ function createStripeCheckoutCommands(admin) {
         ),
       };
       requireCheckoutReady(readiness);
+      const stripeMode = String(readiness.stripeMode || "").trim();
+      const stripeSecret = stripeSecretValueForMode(stripeMode);
 
       const transactionId = String(
           request.data && request.data.transactionId || "",
@@ -489,6 +525,9 @@ function createStripeCheckoutCommands(admin) {
             "This transaction is already using external settlement.",
         );
       }
+      if (hasStripeCheckoutState(sale)) {
+        requireStripeTransactionMode(sale, stripeMode);
+      }
       const fee = sale.marketplaceFeeSnapshot;
       if (!fee || !Number.isSafeInteger(Number(fee.marketplaceFeeMinor))) {
         throw new HttpsError(
@@ -496,6 +535,10 @@ function createStripeCheckoutCommands(admin) {
             "The server marketplace fee snapshot is not ready yet.",
         );
       }
+      const checkoutEconomics = requireFullGmvCheckoutEconomics({
+        readiness,
+        feeSnapshot: fee,
+      });
       const buyerUid = String(sale.buyerUid || "");
       const sellerUid = String(sale.sellerUid || "");
       const [buyerTaxProfile, sellerTaxProfile] = await Promise.all([
@@ -509,9 +552,10 @@ function createStripeCheckoutCommands(admin) {
             "A buyer or seller tax-compliance recovery hold must be resolved before online checkout.",
         );
       }
-      const sellerProvider = await db.collection("payment_provider_accounts")
-          .doc(sellerUid).get();
-      if (!sellerProvider.exists || sellerProvider.data().transferStatus !== "active") {
+      const sellerProviderRef = db.collection("payment_provider_accounts")
+          .doc(sellerUid);
+      const sellerProvider = await sellerProviderRef.get();
+      if (!sellerProvider.exists) {
         throw new HttpsError(
             "failed-precondition",
             "The seller must finish payout verification before online checkout.",
@@ -521,6 +565,20 @@ function createStripeCheckoutCommands(admin) {
         throw new HttpsError(
             "failed-precondition",
             "The seller has an unresolved financial recovery hold.",
+        );
+      }
+      requireStripeProviderMode(sellerProvider.data(), stripeMode);
+      const sellerRecipientStatus = await refreshStripeRecipientAccountStatus({
+        providerRef: sellerProviderRef,
+        providerData: sellerProvider.data(),
+        FieldValue,
+        secretKey: stripeSecret,
+        expectedMode: stripeMode,
+      });
+      if (!sellerRecipientStatus.payoutReady) {
+        throw new HttpsError(
+            "failed-precondition",
+            "The seller must finish payout verification before online checkout.",
         );
       }
       const listingSnapshot = await db.collection("public_listings")
@@ -574,6 +632,11 @@ function createStripeCheckoutCommands(admin) {
       function checkoutFields(attemptId, settlementGeneration) {
         return stripeCheckoutRequestSnapshot({
           mode: "payment",
+          integration_identifier:
+            stripeMarketplaceConfig.integrationIdentifiers
+                .marketplaceCheckout,
+          payment_method_configuration:
+            checkoutEconomics.paymentMethodConfigurationId,
           success_url: successUrl,
           cancel_url: cancelUrl,
           client_reference_id: transactionId,
@@ -600,6 +663,7 @@ function createStripeCheckoutCommands(admin) {
           "metadata[pipeBuyerTransactionId]": transactionId,
           "metadata[pipeBuyerCheckoutAttemptId]": attemptId,
           "metadata[pipeBuyerSettlementGeneration]": settlementGeneration,
+          "metadata[pipeBuyerStripeMode]": stripeMode,
           "metadata[listingId]": String(sale.listingId || ""),
           "metadata[sellerUid]": sellerUid,
           "metadata[buyerUid]": buyerUid,
@@ -655,6 +719,9 @@ function createStripeCheckoutCommands(admin) {
             const providerStatus = String(
                 currentSale.paymentProviderStatus || "",
             ).trim();
+            if (hasStripeCheckoutState(currentSale)) {
+              requireStripeTransactionMode(currentSale, stripeMode);
+            }
             const existingSessionId = String(
                 currentSale.stripeCheckoutSessionId || "",
             ).trim();
@@ -731,11 +798,15 @@ function createStripeCheckoutCommands(admin) {
               paymentMethod: "stripe_checkout",
               paymentProvider: "stripe",
               paymentProviderStatus: "checkout_creating",
+              stripeMode,
+              stripeSellerDestinationAccountId:
+                sellerRecipientStatus.accountId,
               stripeCheckoutSessionId: FieldValue.delete(),
               stripeCheckoutAttemptId: attemptId,
               stripeCheckoutAttemptNumber: attemptNumber,
               stripeCheckoutIdempotencyKey: idempotencyKey,
               stripeCheckoutRequestSnapshot: fields,
+              stripeCheckoutEconomicsDecision: checkoutEconomics,
               stripeTransferGroup: transferGroup,
               taxCollectionStatus,
               stripeAutomaticTaxEnabled: automaticTax,
@@ -750,6 +821,9 @@ function createStripeCheckoutCommands(admin) {
                 settlementMode: "stripe_checkout",
                 settlementGeneration,
                 stripeCheckoutAttemptId: attemptId,
+                stripeMode,
+                stripeSellerDestinationAccountId:
+                  sellerRecipientStatus.accountId,
               },
               attemptId,
               attemptNumber,
@@ -771,7 +845,7 @@ function createStripeCheckoutCommands(admin) {
       }
       if (reservation.kind === "existing") {
         const existingSession = await stripeFormRequest({
-          secretKey: stripeSecretKey.value(),
+          secretKey: stripeSecret,
           path: `/v1/checkout/sessions/${encodeURIComponent(
               reservation.sessionId,
           )}`,
@@ -824,7 +898,7 @@ function createStripeCheckoutCommands(admin) {
       let session;
       try {
         session = await stripeFormRequest({
-          secretKey: stripeSecretKey.value(),
+          secretKey: stripeSecret,
           path: "/v1/checkout/sessions",
           idempotencyKey: reservation.idempotencyKey,
           fields: reservation.fields,

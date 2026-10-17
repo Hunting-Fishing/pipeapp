@@ -1,14 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auction_repository.dart';
+import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_escrow_repository.dart';
 import 'marketplace_data_state.dart';
+import 'marketplace_deep_links.dart';
 import 'marketplace_money.dart';
 import 'marketplace_invoice_generator.dart';
 import 'marketplace_journey_status.dart';
@@ -93,6 +96,7 @@ class _MarketplaceAuctionSettlementState
   Widget _settlementCard(Map<String, dynamic> sale) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final buyer = uid == sale['buyerUid'];
+    final seller = uid != null && uid == sale['sellerUid'];
     final status = '${sale['status'] ?? 'pending_completion'}';
     final buyerConfirmed = sale['buyerConfirmed'] == true;
     final sellerConfirmed = sale['sellerConfirmed'] == true;
@@ -244,6 +248,18 @@ class _MarketplaceAuctionSettlementState
                   buyerName:
                       '${sale['winningBidderName'] ?? 'Successful buyer'}',
                 ),
+                if (seller &&
+                    '${sale['buyerUid'] ?? ''}'.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : () => _messageWinner(sale),
+                      icon: const Icon(Icons.forum_outlined),
+                      label: const Text('Message winner'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -400,6 +416,39 @@ class _MarketplaceAuctionSettlementState
       ),
       'Your completion confirmation was recorded.',
     );
+  }
+
+  Future<void> _messageWinner(Map<String, dynamic> sale) async {
+    if (_busy) return;
+    final winnerUid = '${sale['buyerUid'] ?? ''}'.trim();
+    if (winnerUid.isEmpty) {
+      PipeFeedback.show(
+        context,
+        message: 'The authoritative auction winner is unavailable.',
+        tone: PipeStatusTone.error,
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final conversationId =
+          await MarketplaceActionsRepository().ensureTimedBuyingConversation(
+        listingId: widget.listingId,
+        winnerUid: winnerUid,
+      );
+      if (!mounted) return;
+      await context.push(MarketplaceDeepLinks.conversation(conversationId));
+    } catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: marketplaceCommandErrorMessage(error),
+          tone: PipeStatusTone.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _reasonAction(String action) async {

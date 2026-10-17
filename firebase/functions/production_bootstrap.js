@@ -66,6 +66,10 @@ const {
   createAppleSandboxServerNotificationComposition,
 } = require("./apple_native_billing_composition");
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {stripeSecretNames} = require("./stripe_runtime_environment");
+const {
+  createStripeProviderMigration,
+} = require("./stripe_provider_migration");
 
 const admin = createAdminRuntime();
 const readinessAdmin = createPaymentReadinessAdmin(admin);
@@ -89,9 +93,14 @@ const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const nativeMembershipBilling = createNativeMembershipBilling(admin, {
   appleSandboxCohortOnly: true,
 });
+const stripeProviderMigration = createStripeProviderMigration(admin);
 const membershipStripeCallableOptions = Object.freeze({
   ...protectedCallableOptions,
   secrets: [stripeSecretKey.name],
+});
+const stripeMigrationCallableOptions = Object.freeze({
+  ...protectedCallableOptions,
+  secrets: stripeSecretNames,
 });
 const appleMembershipVerificationCallableOptions = Object.freeze({
   ...protectedCallableOptions,
@@ -264,6 +273,21 @@ exports.getPaymentProviderReadiness = onCall(
 exports.setPaymentProviderReadiness = onCall(
     protectedCallableOptions,
     readinessAdmin.setPaymentProviderReadiness,
+);
+
+exports.prepareLegacyStripeSellerMigration = onCall(
+    stripeMigrationCallableOptions,
+    stripeProviderMigration.prepareLegacyStripeSellerMigration,
+);
+
+exports.createLegacyStripeSellerMigrationOnboardingLink = onCall(
+    stripeMigrationCallableOptions,
+    stripeProviderMigration.createLegacyStripeSellerMigrationOnboardingLink,
+);
+
+exports.activateLegacyStripeSellerMigration = onCall(
+    stripeMigrationCallableOptions,
+    stripeProviderMigration.activateLegacyStripeSellerMigration,
 );
 
 exports.getMarketplaceFeeCatalog = onCall(

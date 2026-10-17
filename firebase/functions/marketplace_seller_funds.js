@@ -1,7 +1,12 @@
 "use strict";
 
 const crypto = require("node:crypto");
-const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {
+  requireStripeProviderMode,
+  requireStoredStripeMode,
+  requireStripeTransactionMode,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 const {
   isStripeTransferId,
   stripeFinancialRequest,
@@ -97,6 +102,7 @@ function storedRestorationRequest(sale, transactionId) {
   const snapshot = sale && sale.sellerRestorationRequestSnapshot;
   const amount = Number(snapshot && snapshot.amountMinor || 0);
   const destination = String(snapshot && snapshot.destination || "").trim();
+  const stripeMode = String(snapshot && snapshot.stripeMode || "").trim();
   let currency;
   try {
     currency = marketplaceTransactionCurrency(
@@ -108,7 +114,8 @@ function storedRestorationRequest(sale, transactionId) {
   if (!attemptId ||
       idempotencyKey !== restorationIdempotencyKey(transactionId, attemptId) ||
       !Number.isSafeInteger(amount) || amount <= 0 ||
-      !destination.startsWith("acct_")) return null;
+      !destination.startsWith("acct_") ||
+      !["sandbox", "production"].includes(stripeMode)) return null;
   return {
     attemptId,
     idempotencyKey,
@@ -116,6 +123,7 @@ function storedRestorationRequest(sale, transactionId) {
     amount,
     currency,
     destination,
+    stripeMode,
     transferGroup: String(snapshot.transferGroup || "").slice(0, 200),
     caseId: String(snapshot.caseId || ""),
     operationId: String(snapshot.operationId || ""),
@@ -128,17 +136,17 @@ function createMarketplaceSellerFunds(admin, options = {}) {
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
   const requestStripe = options.stripeRequest || stripeFinancialRequest;
-  const readStripeSecret = options.stripeSecret || (() => stripeSecretKey.value());
+  const readStripeSecret = options.stripeSecret || stripeSecretValueForMode;
   const now = typeof options.now === "function" ? options.now : () => Date.now();
   const leaseMillis = Number.isFinite(options.leaseMillis) ?
     Number(options.leaseMillis) : DEFAULT_REBALANCE_LEASE_MILLIS;
 
-  async function retrieveTransfers(sale) {
+  async function retrieveTransfers(sale, secretKey) {
     const ids = uniqueSellerTransferIds(sale);
     const transfers = [];
     for (const id of ids) {
       const transfer = await requestStripe({
-        secretKey: readStripeSecret(),
+        secretKey,
         path: `/v1/transfers/${encodeURIComponent(id)}`,
         method: "GET",
       });
@@ -157,14 +165,19 @@ function createMarketplaceSellerFunds(admin, options = {}) {
       total + Math.max(0, transfer.amountMinor - transfer.reversedMinor), 0);
   }
 
-  async function sellerDestination(sale) {
+  async function sellerDestination(sale, stripeMode) {
     const sellerUid = String(sale && sale.sellerUid || "").trim();
     if (!sellerUid) return null;
     const snapshot = await db.collection("payment_provider_accounts")
         .doc(sellerUid).get();
     if (!snapshot.exists) return null;
     const data = snapshot.data();
+    requireStripeProviderMode(data, stripeMode);
     const accountId = String(data.stripeAccountId || "");
+    const storedDestination = String(
+        sale && sale.stripeSellerDestinationAccountId || "",
+    ).trim();
+    if (storedDestination && storedDestination !== accountId) return null;
     if (data.transferStatus !== "active" || !accountId.startsWith("acct_")) {
       return null;
     }
@@ -239,6 +252,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
       const currency = marketplaceTransactionCurrency(
           current.data().currency,
       ).toLowerCase();
+      requireStripeTransactionMode(current.data(), sale.stripeMode);
       if (marketplaceTransactionCurrency(sale.currency).toLowerCase() !==
           currency) return null;
       const attemptId = crypto.randomUUID();
@@ -249,6 +263,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
         amount,
         currency,
         destination,
+        stripeMode: String(current.data().stripeMode || ""),
         transferGroup,
         caseId,
         operationId: String(claim.operationId || ""),
@@ -263,6 +278,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
           amountMinor: amount,
           currency,
           destination,
+          stripeMode: request.stripeMode,
           transferGroup,
           caseId,
           operationId: request.operationId,
@@ -288,6 +304,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
       const current = await transaction.get(transactionRef);
       if (!current.exists) return false;
       const sale = current.data();
+      requireStripeTransactionMode(sale, request.stripeMode);
       const stored = storedRestorationRequest(sale, transactionId);
       const activeCaseId = String(sale.activeFinancialCaseId || "");
       if (!stored || stored.state !== "reserved" ||
@@ -308,6 +325,9 @@ function createMarketplaceSellerFunds(admin, options = {}) {
           .doc(String(sale.sellerUid || ""));
       const providerSnapshot = await transaction.get(providerRef);
       const provider = providerSnapshot.exists ? providerSnapshot.data() : {};
+      if (providerSnapshot.exists) {
+        requireStripeProviderMode(provider, request.stripeMode);
+      }
       if (!providerSnapshot.exists || provider.transferStatus !== "active" ||
           String(provider.stripeAccountId || "") !== request.destination) {
         return false;
@@ -341,9 +361,9 @@ function createMarketplaceSellerFunds(admin, options = {}) {
     });
   }
 
-  async function dispatchRestorationRequest(transactionId, request) {
+  async function dispatchRestorationRequest(transactionId, request, secretKey) {
     return requestStripe({
-      secretKey: readStripeSecret(),
+      secretKey,
       path: "/v1/transfers",
       idempotencyKey: request.idempotencyKey,
       fields: {
@@ -391,19 +411,34 @@ function createMarketplaceSellerFunds(admin, options = {}) {
     });
   }
 
-  async function resolvePendingRestoration({transactionId, claim, caseId}) {
+  async function resolvePendingRestoration({
+    transactionId,
+    claim,
+    caseId,
+    stripeMode,
+    secretKey,
+  }) {
     const transactionRef = claim.transactionRef ||
       db.collection("marketplace_transactions").doc(transactionId);
     const snapshot = await transactionRef.get();
     if (!snapshot.exists) return null;
     const request = storedRestorationRequest(snapshot.data(), transactionId);
     if (!request) return null;
+    requireStoredStripeMode({
+      expectedMode: stripeMode,
+      storedMode: request.stripeMode,
+      subject: "Stripe seller restoration",
+    });
     if (request.state === "reserved") {
       await abandonReservedRestoration(transactionId, request);
       return {abandoned: true, request};
     }
     try {
-      const transfer = await dispatchRestorationRequest(transactionId, request);
+      const transfer = await dispatchRestorationRequest(
+          transactionId,
+          request,
+          secretKey,
+      );
       const transferId = String(transfer && transfer.id || "");
       if (!isStripeTransferId(transferId)) {
         const error = new Error(
@@ -434,6 +469,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
         },
         transferId,
         amount: request.amount,
+        secretKey,
       });
       await recordRestorationResult({
         transactionId,
@@ -472,11 +508,12 @@ function createMarketplaceSellerFunds(admin, options = {}) {
     claim,
     transferId,
     amount,
+    secretKey,
   }) {
     if (!transferId || amount <= 0) return {compensated: true};
     try {
       const reversal = await requestStripe({
-        secretKey: readStripeSecret(),
+        secretKey,
         path: `/v1/transfers/${encodeURIComponent(transferId)}/reversals`,
         idempotencyKey:
           `pipebuyer-stale-restoration-${caseId}-${claim.operationId}`,
@@ -673,10 +710,15 @@ function createMarketplaceSellerFunds(admin, options = {}) {
     const latestSnapshot = await transactionRef.get();
     let workingSale = latestSnapshot.exists ?
       {...sale, ...latestSnapshot.data()} : sale;
+    const stripeMode = String(workingSale.stripeMode || "").trim();
+    requireStripeTransactionMode(workingSale, stripeMode);
+    const stripeSecret = readStripeSecret(stripeMode);
     const pendingResolution = await resolvePendingRestoration({
       transactionId,
       claim,
       caseId,
+      stripeMode,
+      secretKey: stripeSecret,
     });
     let pendingRestorationBlocked = false;
     const failures = [];
@@ -698,7 +740,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
       sale: workingSale,
       customerExposureMinor,
     });
-    const transfers = await retrieveTransfers(workingSale);
+    const transfers = await retrieveTransfers(workingSale, stripeSecret);
     let actualNet = netSellerTransferredMinor(transfers);
     const reversalIds = [];
 
@@ -716,7 +758,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
         const amount = Math.min(remaining, reversible);
         try {
           const reversal = await requestStripe({
-            secretKey: readStripeSecret(),
+            secretKey: stripeSecret,
             path: `/v1/transfers/${encodeURIComponent(transfer.id)}/reversals`,
             idempotencyKey:
               `pipebuyer-seller-recovery-${caseId}-${transfer.id}-${desiredNet}`,
@@ -744,7 +786,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
     let restorationMinor = 0;
     if (!pendingRestorationBlocked && allowRestoration && actualNet < desiredNet &&
         await rebalanceOperationCurrent(claim)) {
-      const destination = await sellerDestination(workingSale);
+      const destination = await sellerDestination(workingSale, stripeMode);
       const amount = desiredNet - actualNet;
       if (destination && amount > 0) {
         const restorationRequest = await reserveRestorationRequest({
@@ -789,6 +831,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
           const transfer = await dispatchRestorationRequest(
               transactionId,
               restorationRequest,
+              stripeSecret,
           );
           restorationTransferId = String(transfer.id || "");
           if (!isStripeTransferId(restorationTransferId)) {
@@ -853,6 +896,7 @@ function createMarketplaceSellerFunds(admin, options = {}) {
           claim,
           transferId: restorationTransferId,
           amount: restorationMinor,
+          secretKey: stripeSecret,
         });
         const request = storedRestorationRequest(
             (await transactionRef.get()).data() || {},

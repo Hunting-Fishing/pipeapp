@@ -24,6 +24,12 @@ jobs:
       TARGET_SHA: 883b1f5ffe2a252148c1b8ca0d325bc16c6a8513
       TARGET_REF: ops/release-subscription-ui-883b1f5f
     steps:
+      - name: Intentional production safety hold
+        shell: bash
+        run: |
+          echo "::error::Historical production mutation workflow is intentionally disabled. Keep all production, readiness, and paid-feature flags false; use the current sandbox-first activation runbook."
+          exit 1
+
       - name: Launch existing verified production payment release for exact app commit
         shell: bash
         run: |

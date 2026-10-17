@@ -49,8 +49,14 @@ void main() {
     expect(workflow, isNot(contains('service_account_key')));
     expect(workflow, contains('flutter-flow-pipe'));
     expect(workflow, contains('Staging cannot deploy to the production'));
-    expect(workflow,
-        contains('App Check is disabled for this production release'));
+    expect(
+      workflow,
+      contains('Production releases require app_check_mode=enforce'),
+    );
+    expect(
+      workflow,
+      contains(r'firebase/functions/.env.${PIPE_FIREBASE_PROJECT_ID}'),
+    );
   });
 
   test('web worker keeps release source clean and Flutter cache hashes exact',

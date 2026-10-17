@@ -17,6 +17,17 @@ const base = normalizeReadiness({
   dispatchPortalReturnUrl: "https://pipebuyer.com/payments/dispatch",
 });
 
+const economicsReady = Object.freeze({
+  stripeFullGmvEconomicsApproved: true,
+  stripeFullGmvEconomicsPolicyRevision: "finance-approved-2026-10-17",
+  stripeFullGmvPaymentMethodConfigurationId: "pmc_approvedRail1",
+  stripeFullGmvMaximumChargeMinorUsd: 1000000,
+  stripeFullGmvMaximumProviderFeeBps: 200,
+  stripeFullGmvMaximumProviderFeeFixedMinorUsd: 30,
+  stripeFullGmvMaximumTaxUpliftBps: 2500,
+  stripeFullGmvMinimumNetRevenueMinorUsd: 100,
+});
+
 test("production mode requires explicit confirmation", () => {
   assert.throws(
       () => applyPatch(base, {stripeMode: "production"}),
@@ -41,6 +52,7 @@ test("full marketplace checkout requires tax registration or audited collection 
         stripeTaxRegistrationPending: true,
         stripeTaxPendingBillingApproved: true,
         stripeReconciliationReady: true,
+        ...economicsReady,
       }, {confirmProduction: true}),
       /registered automatic tax or an audited deferred tax-collection decision/i,
   );
@@ -52,6 +64,7 @@ test("full marketplace checkout requires tax registration or audited collection 
     stripeWebhookVerified: true,
     stripeTaxReady: true,
     stripeReconciliationReady: true,
+    ...economicsReady,
   }, {confirmProduction: true});
   assert.equal(ready.stripeCheckoutEnabled, true);
   const deferred = validateReadiness({
@@ -62,9 +75,65 @@ test("full marketplace checkout requires tax registration or audited collection 
     stripeWebhookVerified: true,
     marketplaceTaxCollectionDeferredApproved: true,
     stripeReconciliationReady: true,
+    ...economicsReady,
   }, {confirmProduction: true});
   assert.equal(deferred.stripeCheckoutEnabled, true);
   assert.equal(deferred.stripeTaxReady, false);
+});
+
+test("full marketplace checkout requires separately approved rail economics", () => {
+  const providerReady = {
+    ...base,
+    stripeMode: "production",
+    stripeConnectOnboardingEnabled: true,
+    stripeWebhookVerified: true,
+    stripeTaxReady: true,
+    stripeReconciliationReady: true,
+  };
+  assert.throws(
+      () => validateReadiness({
+        ...providerReady,
+        stripeCheckoutEnabled: true,
+      }, {confirmProduction: true}),
+      /approved full-GMV economics and payment rails/i,
+  );
+  const ready = validateReadiness({
+    ...providerReady,
+    ...economicsReady,
+    stripeCheckoutEnabled: true,
+  }, {confirmProduction: true});
+  assert.equal(ready.stripeCheckoutEnabled, true);
+});
+
+test("full-GMV economics approval fails closed on incomplete or malformed inputs", () => {
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        stripeFullGmvEconomicsApproved: true,
+      }),
+      /economics approval requires/i,
+  );
+  assert.throws(
+      () => applyPatch(base, {
+        stripeFullGmvPaymentMethodConfigurationId: "not-a-pmc",
+      }),
+      /payment-method configuration ID/i,
+  );
+  assert.throws(
+      () => applyPatch(base, {
+        stripeFullGmvMaximumProviderFeeBps: 12.5,
+      }),
+      /non-negative integer/i,
+  );
+  assert.throws(
+      () => validateReadiness({
+        ...base,
+        ...economicsReady,
+        stripeTaxReady: true,
+        stripeFullGmvMaximumTaxUpliftBps: 0,
+      }),
+      /tax-uplift ceilings/i,
+  );
 });
 
 test("registered tax and collection deferral cannot be enabled together", () => {
@@ -209,8 +278,35 @@ test("financial resolution requires verified webhook and reconciliation", () => 
         stripeMode: "production",
         marketplaceFinancialResolutionEnabled: true,
       }, {confirmProduction: true}),
-      /verified webhooks, and reconciliation readiness/i,
+      /verified mode-bound webhooks, and reconciliation readiness/i,
   );
+});
+
+test("sandbox marketplace rails can be enabled without enabling subscriptions", () => {
+  const ready = validateReadiness({
+    ...base,
+    stripeMode: "sandbox",
+    stripeConnectOnboardingEnabled: true,
+    stripeCheckoutEnabled: true,
+    stripeFeeBillingEnabled: true,
+    stripeWebhookVerified: true,
+    stripeTaxReady: true,
+    stripeReconciliationReady: true,
+    stripeFullGmvEconomicsApproved: true,
+    stripeFullGmvEconomicsPolicyRevision: "sandbox-marketplace-v1",
+    stripeFullGmvPaymentMethodConfigurationId: "pmc_Sandbox1",
+    stripeFullGmvMaximumChargeMinorUsd: 100000,
+    stripeFullGmvMaximumProviderFeeBps: 300,
+    stripeFullGmvMaximumProviderFeeFixedMinorUsd: 30,
+    stripeFullGmvMaximumTaxUpliftBps: 1500,
+    stripeFullGmvMinimumNetRevenueMinorUsd: 100,
+    marketplaceFinancialResolutionEnabled: true,
+  });
+  assert.equal(ready.stripeCheckoutEnabled, true);
+  assert.equal(ready.stripeFeeBillingEnabled, true);
+  assert.equal(ready.marketplaceFinancialResolutionEnabled, true);
+  assert.equal(ready.stripeSubscriptionsEnabled, false);
+  assert.equal(ready.stripeVipSubscriptionsEnabled, false);
 });
 
 test("dispute evidence cannot outrun dispute automation", () => {

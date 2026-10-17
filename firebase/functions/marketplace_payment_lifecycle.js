@@ -1,7 +1,15 @@
 "use strict";
 
 const crypto = require("node:crypto");
-const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {
+  loadProviderReadiness,
+  refreshStripeRecipientAccountStatus,
+} = require("./stripe_marketplace_commands");
+const {
+  requireStripeProviderMode,
+  requireStripeTransactionMode,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 const {stripeFormRequest} = require("./stripe_checkout_commands");
 const {
   marketplaceTransactionCurrency,
@@ -95,7 +103,11 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
   const releaseLeaseMillis = Number.isFinite(options.releaseLeaseMillis) ?
     Number(options.releaseLeaseMillis) : DEFAULT_SELLER_RELEASE_LEASE_MILLIS;
   const requestStripe = options.stripeRequest || stripeFormRequest;
-  const readStripeSecret = options.stripeSecret || (() => stripeSecretKey.value());
+  const readStripeSecret = options.stripeSecret || stripeSecretValueForMode;
+  const readProviderReadiness = options.loadProviderReadiness ||
+    loadProviderReadiness;
+  const refreshSellerStatus = options.refreshSellerStatus ||
+    refreshStripeRecipientAccountStatus;
 
   async function applyAuctionMirror({listingId, transactionData}) {
     const sale = transactionData || {};
@@ -355,6 +367,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
       };
       transaction.set(transactionRef, {
         sellerPayoutStatus: "release_reserved",
+        stripeSellerDestinationAccountId: destination,
         sellerReleaseRequestAttemptId: claim.attemptId,
         sellerReleaseRequestAmountMinor: amount,
         sellerReleaseRequestCurrency: currency,
@@ -372,12 +385,14 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
     transactionRef,
     claim,
     request,
+    stripeMode,
   }) {
     return db.runTransaction(async (transaction) => {
       const current = await transaction.get(transactionRef);
       if (!current.exists || !releaseClaimMatches(current.data(), claim) ||
           !releaseFinanciallyEligible(current.data())) return false;
       const sale = current.data();
+      requireStripeTransactionMode(sale, stripeMode);
       const expectedStatus = claim.resumeDispatchUnknown ?
         new Set(["release_dispatching", "release_outcome_unknown"]) :
         new Set(["release_reserved"]);
@@ -398,6 +413,9 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
           .doc(String(sale.sellerUid || ""));
       const providerSnapshot = await transaction.get(providerRef);
       const provider = providerSnapshot.exists ? providerSnapshot.data() : {};
+      if (providerSnapshot.exists) {
+        requireStripeProviderMode(provider, stripeMode);
+      }
       if (!providerSnapshot.exists || provider.transferStatus !== "active" ||
           provider.sellerPayoutHold === true ||
           String(provider.stripeAccountId || "") !== request.destination) {
@@ -413,9 +431,14 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
     });
   }
 
-  async function dispatchSellerTransfer({transactionId, attemptId, request}) {
+  async function dispatchSellerTransfer({
+    transactionId,
+    attemptId,
+    request,
+    secretKey,
+  }) {
     return requestStripe({
-      secretKey: readStripeSecret(),
+      secretKey,
       path: "/v1/transfers",
       idempotencyKey:
         `pipebuyer-seller-release-${transactionId}-${attemptId}`,
@@ -438,6 +461,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
     transactionId,
     transactionRef,
     claim,
+    secretKey,
   }) {
     const request = storedReleaseRequest(claim.sale, claim.attemptId);
     if (!request) {
@@ -459,6 +483,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
           financialEpoch: Number(claim.sale.sellerReleaseFinancialEpoch || 0),
           listingId: String(claim.sale.listingId || ""),
         },
+        secretKey,
       });
       const transferId = String(transfer.id || "");
       if (!transferId.startsWith("tr_")) {
@@ -490,6 +515,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
         recoveryLeaseId: claim.recoveryLeaseId,
         transferId,
         amount: request.amount,
+        secretKey,
       });
     } catch (error) {
       await markRecoveryFailed({
@@ -539,10 +565,11 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
     recoveryLeaseId,
     transferId,
     amount,
+    secretKey,
   }) {
     async function remainingTransferAmount() {
       const transfer = await requestStripe({
-        secretKey: readStripeSecret(),
+        secretKey,
         path: `/v1/transfers/${encodeURIComponent(transferId)}`,
         method: "GET",
       });
@@ -587,7 +614,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
         return {recovered: true, reversalId: null, alreadyReversed: true};
       }
       const reversal = await requestStripe({
-        secretKey: readStripeSecret(),
+        secretKey,
         path: `/v1/transfers/${encodeURIComponent(transferId)}/reversals`,
         idempotencyKey:
           `pipebuyer-seller-release-invalidation-${transactionId}-${attemptId}`,
@@ -640,11 +667,16 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
     if (claim.state === "not_ready") {
       return {released: false, reason: "not_ready"};
     }
+    const readiness = await readProviderReadiness(db);
+    const stripeMode = readiness.stripeMode;
+    requireStripeTransactionMode(claim.sale, stripeMode);
+    const secretKey = readStripeSecret(stripeMode);
     if (claim.state === "ambiguous_invalidated") {
       const recovery = await recoverAmbiguousInvalidatedRelease({
         transactionId,
         transactionRef,
         claim,
+        secretKey,
       });
       return {
         released: false,
@@ -660,6 +692,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
         recoveryLeaseId: claim.recoveryLeaseId,
         transferId: claim.transferId,
         amount: claim.amount,
+        secretKey,
       });
       return {
         released: false,
@@ -668,9 +701,10 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
       };
     }
     const sale = claim.sale;
-    const sellerProvider = await db.collection("payment_provider_accounts")
-        .doc(String(sale.sellerUid || "")).get();
-    if (!sellerProvider.exists || sellerProvider.data().transferStatus !== "active") {
+    const sellerProviderRef = db.collection("payment_provider_accounts")
+        .doc(String(sale.sellerUid || ""));
+    const sellerProvider = await sellerProviderRef.get();
+    if (!sellerProvider.exists) {
       await markReleaseBlocked(
           transactionRef,
           claim,
@@ -678,6 +712,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
       );
       return {released: false, reason: "seller_not_ready"};
     }
+    requireStripeProviderMode(sellerProvider.data(), stripeMode);
     if (sellerProvider.data().sellerPayoutHold === true) {
       await markReleaseBlocked(
           transactionRef,
@@ -686,7 +721,29 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
       );
       return {released: false, reason: "financial_hold"};
     }
-    const destination = String(sellerProvider.data().stripeAccountId || "");
+    const sellerRecipientStatus = await refreshSellerStatus({
+      providerRef: sellerProviderRef,
+      providerData: sellerProvider.data(),
+      FieldValue,
+      secretKey,
+    });
+    if (!sellerRecipientStatus.payoutReady) {
+      await markReleaseBlocked(
+          transactionRef,
+          claim,
+          "blocked_seller_not_ready",
+      );
+      return {released: false, reason: "seller_not_ready"};
+    }
+    const destination = String(sellerRecipientStatus.accountId || "");
+    const storedDestination = String(
+        sale.stripeSellerDestinationAccountId || "",
+    ).trim();
+    if (storedDestination && storedDestination !== destination) {
+      throw new Error(
+          "Marketplace transaction belongs to a different seller payout account.",
+      );
+    }
     const chargeId = String(sale.stripeChargeId || "");
     const amount = Number(sale.sellerProceedsMinor || 0);
     if (!destination.startsWith("acct_") || !chargeId.startsWith("ch_") ||
@@ -738,6 +795,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
       transactionRef,
       claim,
       request: releaseRequest,
+      stripeMode,
     });
     if (!dispatchConfirmed) {
       return {released: false, reason: "financial_epoch_invalidated"};
@@ -750,6 +808,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
         financialEpoch: claim.financialEpoch,
         listingId: String(sale.listingId || ""),
       },
+      secretKey,
     });
     const transferId = String(transfer.id || "");
     if (!transferId.startsWith("tr_")) {
@@ -805,6 +864,7 @@ function createMarketplacePaymentLifecycle(admin, options = {}) {
       recoveryLeaseId: invalidationRecoveryLeaseId,
       transferId,
       amount,
+      secretKey,
     });
     return {
       released: false,

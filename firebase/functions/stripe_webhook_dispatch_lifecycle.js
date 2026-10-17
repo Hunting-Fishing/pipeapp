@@ -1,6 +1,5 @@
 "use strict";
 
-const {verifyStripeSignature} = require("./stripe_webhook");
 const {
   subscriptionMembershipPlan,
 } = require("./membership_plan_policy");
@@ -11,6 +10,10 @@ const DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS = new Set([
   "customer.subscription.deleted",
   "customer.subscription.paused",
   "customer.subscription.resumed",
+]);
+const SUBSCRIPTION_BILLING_EVENTS = new Set([
+  "invoice.paid",
+  "invoice.payment_failed",
 ]);
 
 function stripeEventFromRawBody(rawBody) {
@@ -63,30 +66,37 @@ function createStripeWebhookDispatchLifecycleWrapper({
   baseHandler,
   dispatchSubscriptionLifecycle,
   vipSubscriptionLifecycle,
-  stripeWebhookSecret,
 }) {
   const webhookEventStore = baseHandler.webhookEventStore;
   if (!webhookEventStore) {
     throw new TypeError("The Stripe webhook event store is unavailable.");
   }
+  if (typeof baseHandler.verifyRequest !== "function") {
+    throw new TypeError("The Stripe webhook verifier is unavailable.");
+  }
 
   return async (request, response) => {
-    const rawBody = request.rawBody;
-    const signature = request.get("stripe-signature");
-    if (!verifyStripeSignature(
-        rawBody,
-        signature,
-        stripeWebhookSecret.value(),
-    )) {
-      // Delegate so the established handler remains authoritative for the
-      // exact HTTP error contract and audit behavior.
-      return baseHandler(request, response);
+    const verification = await baseHandler.verifyRequest(request);
+    if (!verification.ok) {
+      response.status(verification.statusCode).send(verification.message);
+      return;
     }
-
-    const event = stripeEventFromRawBody(rawBody);
-    if (!isDispatchProviderStateEvent(event) &&
-        !isVipCheckoutCompletedEvent(event)) {
-      return baseHandler(request, response);
+    const event = verification.event;
+    const subscriptionProviderEvent = isDispatchProviderStateEvent(event) ||
+      isVipCheckoutCompletedEvent(event) ||
+      SUBSCRIPTION_BILLING_EVENTS.has(String(event && event.type || ""));
+    if (!subscriptionProviderEvent) {
+      return baseHandler(request, response, {
+        event,
+        stripeMode: verification.stripeMode,
+        signatureVerified: true,
+      });
+    }
+    if (verification.stripeMode !== "production") {
+      response.status(409).send(
+          "Stripe subscription events require the production environment",
+      );
+      return;
     }
 
     const eventId = String(event.id || "");
@@ -173,6 +183,8 @@ function createStripeWebhookDispatchLifecycleWrapper({
     return baseHandler(request, response, {
       claim,
       event,
+      stripeMode: verification.stripeMode,
+      signatureVerified: true,
       webhookEventStore,
     });
   };
@@ -180,6 +192,7 @@ function createStripeWebhookDispatchLifecycleWrapper({
 
 module.exports = {
   DISPATCH_SUBSCRIPTION_LIFECYCLE_EVENTS,
+  SUBSCRIPTION_BILLING_EVENTS,
   createStripeWebhookDispatchLifecycleWrapper,
   isDispatchCheckoutCompletedEvent,
   isDispatchProviderStateEvent,

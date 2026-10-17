@@ -10,7 +10,10 @@ const {
   AdministratorAuthorizationError,
   requireAdministrator,
 } = require("./administrator_authorization");
-const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {
+  requireStripeTransactionMode,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 const {
   isStripeChargeId,
   isStripeDisputeId,
@@ -222,7 +225,7 @@ function createMarketplaceFinancialResolution(admin, options = {}) {
       options.sellerFundsOptions,
   );
   const requestStripe = options.stripeRequest || stripeFinancialRequest;
-  const readStripeSecret = options.stripeSecret || (() => stripeSecretKey.value());
+  const readStripeSecret = options.stripeSecret || stripeSecretValueForMode;
   const now = typeof options.now === "function" ? options.now : () => Date.now();
   const refundDispatchLeaseMillis =
     Number.isFinite(options.refundDispatchLeaseMillis) ?
@@ -1009,9 +1012,11 @@ function createMarketplaceFinancialResolution(admin, options = {}) {
         throw new HttpsError("not-found", "Transaction not found.");
       }
       const protectedSale = protectedSaleSnapshot.data();
+      requireStripeTransactionMode(protectedSale, readiness.stripeMode);
+      const stripeSecret = readStripeSecret(readiness.stripeMode);
       const chargeId = String(protectedSale.stripeChargeId || "");
       const charge = await requestStripe({
-        secretKey: readStripeSecret(),
+        secretKey: stripeSecret,
         path: `/v1/charges/${encodeURIComponent(chargeId)}`,
         method: "GET",
       });
@@ -1117,7 +1122,7 @@ function createMarketplaceFinancialResolution(admin, options = {}) {
         }
         providerDispatched = true;
         refund = await requestStripe({
-          secretKey: readStripeSecret(),
+          secretKey: stripeSecret,
           path: "/v1/refunds",
           idempotencyKey: providerRequest.idempotencyKey,
           fields: {

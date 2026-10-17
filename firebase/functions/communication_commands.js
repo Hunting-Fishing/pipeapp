@@ -9,6 +9,7 @@ const {
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
 const {paidMembershipCurrentForUser} = require("./dispatch_membership_access");
 const {contactSharingSignals} = require("./marketplace_contact_policy");
+const {paymentStatusAllowsCompletion} = require("./marketplace_command_policy");
 const {
   CommunicationPolicyError,
   downloadUrlMatchesStoragePath,
@@ -138,12 +139,57 @@ function exactContactSharingParticipants(actorUid, recipientUid, firstUid, secon
     [first, second].every((uid) => uid === actor || uid === recipient);
 }
 
+function timedBuyingConversationAuthorization({
+  listingId,
+  sellerUid,
+  buyerUid,
+  auctionTransaction,
+}) {
+  const sale = auctionTransaction && typeof auctionTransaction === "object" ?
+    auctionTransaction : {};
+  const agreedTotal = Number(sale.agreedTotal || 0);
+  return String(sale.listingId || "").trim() === String(listingId || "").trim() &&
+    Number.isFinite(agreedTotal) && agreedTotal > 0 &&
+    exactContactSharingParticipants(
+        sellerUid,
+        buyerUid,
+        sale.sellerUid,
+        sale.buyerUid,
+    );
+}
+
+function marketplaceFinancialMilestoneReached({
+  actorUid,
+  recipientUid,
+  listingId,
+  paymentState,
+}) {
+  const state = paymentState && typeof paymentState === "object" ?
+    paymentState : {};
+  if (String(state.listingId || "").trim() !== String(listingId || "").trim() ||
+      !exactContactSharingParticipants(
+          actorUid,
+          recipientUid,
+          state.sellerUid,
+          state.buyerUid,
+      )) {
+    return false;
+  }
+  return paymentStatusAllowsCompletion(
+      state.paymentProviderStatus,
+      state.marketplaceFeeStatus,
+      state,
+  );
+}
+
 function contactSharingAuthorization({
   hasActiveMembership,
   actorUid,
   recipientUid,
   relationshipType,
   relationship,
+  listingId,
+  paymentState,
 }) {
   if (hasActiveMembership !== true) {
     return Object.freeze({allowed: false, reason: "membership_required"});
@@ -152,6 +198,7 @@ function contactSharingAuthorization({
     relationship : {};
 
   if (relationshipType === "marketplace_listing") {
+    let relationshipReason = "";
     const sellerUid = String(data.sellerUid || "").trim();
     const listingStatus = String(data.status || "").trim();
     const acceptedOfferId = String(data.acceptedOfferId || "").trim();
@@ -164,19 +211,19 @@ function contactSharingAuthorization({
             sellerUid,
             acceptedBuyerUid,
         )) {
-      return Object.freeze({allowed: true, reason: "accepted_offer"});
+      relationshipReason = "accepted_offer";
     }
     const completedBuyerUid = String(
         data.completedBuyerUid || "",
     ).trim();
-    if (completedBuyerUid &&
+    if (!relationshipReason && completedBuyerUid &&
         exactContactSharingParticipants(
             actorUid,
             recipientUid,
             sellerUid,
             completedBuyerUid,
         )) {
-      return Object.freeze({allowed: true, reason: "completed_offer"});
+      relationshipReason = "completed_offer";
     }
 
     const auctionStatus = String(data.auctionStatus || "").trim();
@@ -184,7 +231,7 @@ function contactSharingAuthorization({
     const winningBuyerUid = auctionStatus === "bought_now" ?
       String(data.buyNowBuyerUid || data.acceptedBidderUid || "").trim() :
       String(data.acceptedBidderUid || "").trim();
-    if (WON_AUCTION_STATUSES.has(auctionStatus) &&
+    if (!relationshipReason && WON_AUCTION_STATUSES.has(auctionStatus) &&
         Number.isFinite(acceptedBidAmount) && acceptedBidAmount > 0 &&
         exactContactSharingParticipants(
             actorUid,
@@ -192,7 +239,21 @@ function contactSharingAuthorization({
             sellerUid,
             winningBuyerUid,
         )) {
-      return Object.freeze({allowed: true, reason: "won_auction"});
+      relationshipReason = "won_auction";
+    }
+    if (relationshipReason) {
+      if (!marketplaceFinancialMilestoneReached({
+        actorUid,
+        recipientUid,
+        listingId,
+        paymentState,
+      })) {
+        return Object.freeze({
+          allowed: false,
+          reason: "financial_milestone_required",
+        });
+      }
+      return Object.freeze({allowed: true, reason: relationshipReason});
     }
   } else if (relationshipType === "dispatch_job") {
     const status = String(data.status || "").trim();
@@ -262,15 +323,38 @@ function createCommunicationCommands(
 
     let relationshipType = "";
     let relationship = null;
+    let paymentState = null;
     const listingId = String(conversation.listingId || "").trim();
     if (listingId) {
       const listingRef = db.collection("public_listings").doc(listingId);
       const listingSnapshot = await transaction.get(listingRef);
       relationshipType = "marketplace_listing";
       relationship = listingSnapshot.exists ? listingSnapshot.data() : null;
+      let marketplaceTransactionId = String(
+          conversation.marketplaceTransactionId || "",
+      ).trim();
       if (relationship) {
         const sellerUid = String(relationship.sellerUid || "").trim();
         const buyerUid = uid === sellerUid ? recipientUid : uid;
+        const acceptedBuyerUid = String(
+            relationship.acceptedBuyerUid || "",
+        ).trim();
+        if (!marketplaceTransactionId && buyerUid === acceptedBuyerUid) {
+          marketplaceTransactionId = String(
+              relationship.acceptedOfferId || "",
+          ).trim();
+        }
+        const auctionStatus = String(relationship.auctionStatus || "").trim();
+        const winningBuyerUid = auctionStatus === "bought_now" ?
+          String(
+              relationship.buyNowBuyerUid ||
+              relationship.acceptedBidderUid || "",
+          ).trim() :
+          String(relationship.acceptedBidderUid || "").trim();
+        if (!marketplaceTransactionId && buyerUid === winningBuyerUid &&
+            WON_AUCTION_STATUSES.has(auctionStatus)) {
+          marketplaceTransactionId = `auction_${listingId}`;
+        }
         if (buyerUid && buyerUid !== sellerUid) {
           const completedBuyerSnapshot = await transaction.get(
               listingRef.collection("completed_buyers").doc(buyerUid),
@@ -278,9 +362,24 @@ function createCommunicationCommands(
           if (completedBuyerSnapshot.exists &&
               completedBuyerSnapshot.data().sellerUid === sellerUid &&
               completedBuyerSnapshot.data().buyerUid === buyerUid) {
+            const completedBuyer = completedBuyerSnapshot.data();
             relationship = {...relationship, completedBuyerUid: buyerUid};
+            if (!marketplaceTransactionId) {
+              marketplaceTransactionId = String(
+                  completedBuyer.latestCompletedOfferId || "",
+              ).trim();
+            }
           }
         }
+      }
+      if (marketplaceTransactionId &&
+          marketplaceTransactionId.length <= 180 &&
+          !marketplaceTransactionId.includes("/")) {
+        const paymentSnapshot = await transaction.get(
+            db.collection("marketplace_transactions")
+                .doc(marketplaceTransactionId),
+        );
+        paymentState = paymentSnapshot.exists ? paymentSnapshot.data() : null;
       }
     } else if (conversation.contextType === "dispatch_job") {
       const jobId = String(
@@ -300,12 +399,18 @@ function createCommunicationCommands(
       recipientUid,
       relationshipType,
       relationship,
+      listingId,
+      paymentState,
     });
     if (!authorization.allowed) {
       throw new HttpsError(
           "failed-precondition",
-          "Contact sharing unlocks only after an offer is accepted, an auction " +
-          "is won, or a Dispatch quote is awarded.",
+          authorization.reason === "financial_milestone_required" ?
+            "Contact details and attachments unlock after payment and the " +
+              "Pipe Buyer fee are secured. Ordinary in-app messages remain " +
+              "available." :
+            "Contact sharing unlocks only after an offer is accepted, an " +
+              "auction is won, or a Dispatch quote is awarded.",
       );
     }
   }
@@ -324,6 +429,23 @@ function createCommunicationCommands(
         ).trim();
         const offerId = String(request.data && request.data.offerId || "")
             .trim();
+        const requestedMarketplaceTransactionId = String(
+            request.data && request.data.marketplaceTransactionId || "",
+        ).trim();
+        if (offerId && requestedMarketplaceTransactionId) {
+          throw new HttpsError(
+              "invalid-argument",
+              "Choose either an offer or a Timed Buying settlement.",
+          );
+        }
+        if (requestedMarketplaceTransactionId &&
+            (requestedMarketplaceTransactionId.length > 180 ||
+              requestedMarketplaceTransactionId.includes("/"))) {
+          throw new HttpsError(
+              "invalid-argument",
+              "marketplaceTransactionId is invalid.",
+          );
+        }
         const listingRef = db.collection("public_listings").doc(listingId);
         const listingSnapshot = await listingRef.get();
         if (!listingSnapshot.exists) {
@@ -371,16 +493,47 @@ function createCommunicationCommands(
         const result = await db.runTransaction(async (transaction) => {
           const conversationSnapshot = await transaction.get(conversationRef);
           let offerSnapshot = null;
-          if (uid === sellerUid && !conversationSnapshot.exists) {
-            if (!offerId) {
+          let auctionTransactionSnapshot = null;
+          let timedBuyingAuthorized = false;
+          if (requestedMarketplaceTransactionId) {
+            if (requestedMarketplaceTransactionId !== `auction_${listingId}`) {
               throw new HttpsError(
-                  "failed-precondition",
-                  "A valid offer is required to open a new buyer conversation.",
+                  "permission-denied",
+                  "This Timed Buying settlement does not belong to the listing.",
               );
             }
-            offerSnapshot = await transaction.get(
-                db.collection("offers").doc(requiredId({offerId}, "offerId")),
+            auctionTransactionSnapshot = await transaction.get(
+                db.collection("auction_transactions").doc(listingId),
             );
+            timedBuyingAuthorized = auctionTransactionSnapshot.exists &&
+              timedBuyingConversationAuthorization({
+                listingId,
+                sellerUid,
+                buyerUid,
+                auctionTransaction: auctionTransactionSnapshot.data(),
+              });
+            if (!timedBuyingAuthorized) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "Only the authoritative Timed Buying winner and seller can " +
+                    "open this conversation.",
+              );
+            }
+          }
+          if (uid === sellerUid && !conversationSnapshot.exists) {
+            if (!offerId && !timedBuyingAuthorized) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "A valid offer or Timed Buying settlement is required to " +
+                    "open a new buyer conversation.",
+              );
+            }
+            if (offerId) {
+              offerSnapshot = await transaction.get(
+                  db.collection("offers")
+                      .doc(requiredId({offerId}, "offerId")),
+              );
+            }
           }
           if (offerSnapshot && (!offerSnapshot.exists ||
               offerSnapshot.data().listingId !== listingId ||
@@ -401,11 +554,46 @@ function createCommunicationCommands(
                   listing.sellerName || "Marketplace seller",
               ),
               buyerDisplayName,
+              ...(timedBuyingAuthorized ? {
+                contextType: "timed_buying",
+                contextId: listingId,
+                auctionTransactionId: listingId,
+                marketplaceTransactionId: requestedMarketplaceTransactionId,
+              } : {}),
               openedByUid: uid,
               openedAt: FieldValue.serverTimestamp(),
               messageCount: 0,
               unreadCounts: {[buyerUid]: 0, [sellerUid]: 0},
             });
+          } else {
+            const existing = conversationSnapshot.data() || {};
+            const members = Array.isArray(existing.memberUids) ?
+              existing.memberUids.map(String) : [];
+            if (String(existing.listingId || "") !== listingId ||
+                !members.includes(buyerUid) || !members.includes(sellerUid)) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "This marketplace conversation is unavailable.",
+              );
+            }
+            if (timedBuyingAuthorized &&
+                existing.marketplaceTransactionId &&
+                existing.marketplaceTransactionId !==
+                  requestedMarketplaceTransactionId) {
+              throw new HttpsError(
+                  "permission-denied",
+                  "This conversation belongs to another transaction.",
+              );
+            }
+            if (timedBuyingAuthorized &&
+                !existing.marketplaceTransactionId) {
+              transaction.update(conversationRef, {
+                contextType: "timed_buying",
+                contextId: listingId,
+                auctionTransactionId: listingId,
+                marketplaceTransactionId: requestedMarketplaceTransactionId,
+              });
+            }
           }
           return {conversationId};
         });
@@ -1157,4 +1345,6 @@ module.exports = {
   conversationIdFor,
   createCommunicationCommands,
   exactContactSharingParticipants,
+  marketplaceFinancialMilestoneReached,
+  timedBuyingConversationAuthorization,
 };

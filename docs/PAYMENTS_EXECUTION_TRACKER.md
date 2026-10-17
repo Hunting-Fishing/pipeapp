@@ -54,8 +54,13 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [x] Already-processed events return safely without running money movement again.
 - [x] Failed webhook processing is recorded and returns non-2xx so Stripe can retry.
 - [x] Seller Transfers use a stable transaction idempotency key.
-- [ ] Verify production `STRIPE_WEBHOOK_SECRET` deployment without exposing secret value.
-- [ ] Verify production `STRIPE_SECRET_KEY` deployment without exposing secret value.
+- [ ] Verify production `STRIPE_WEBHOOK_SECRET` and sandbox
+  `STRIPE_WEBHOOK_SECRET_SANDBOX` bindings without exposing either value.
+- [ ] Verify `STRIPE_SECRET_PRODUCTION` and `STRIPE_SECRET_SANDBOX` bindings
+  without exposing either value.
+- [ ] Verify the thin Accounts v2 destination secrets are isolated as
+  `STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_PRODUCTION` and
+  `STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_SANDBOX`.
 - [ ] Run controlled duplicate-event acceptance test.
 - [ ] Run out-of-order event acceptance test.
 - [ ] Verify failed-event operational alert/review path.
@@ -137,6 +142,12 @@ Do not activate this merely because code exists.
 - [x] Seller transfer uses `source_transaction`.
 - [x] Seller transfer is idempotent by Pipe Buyer transaction ID.
 - [x] Checkout subtotal is checked against immutable sale snapshot.
+- [x] Full-sale checkout fails closed unless a separately approved Stripe
+  payment-method configuration and conservative provider-cost ceiling leave
+  positive minimum net platform revenue for the exact sale after affiliate
+  commission and any configured automatic-tax uplift.
+- [x] Unsupported currency, amount, payment rail, or insufficient fee margin is
+  declined before Stripe Checkout rather than using a guessed processing rate.
 - [ ] Confirm Connect platform profile and accepted loss-liability responsibilities.
 - [ ] Confirm Radar for Platforms/risk strategy.
 - [ ] Confirm current connected-account onboarding model matches current Stripe guidance.
@@ -149,6 +160,11 @@ Do not activate this merely because code exists.
 - [ ] Prove no seller Transfer occurs before final provider success.
 - [ ] Prove seller Transfer occurs exactly once.
 - [ ] Prove every cent reconciles.
+- [ ] Approve and record the full-GMV economics evidence revision, Stripe
+  payment-method configuration, USD transaction cap, provider-cost ceiling,
+  automatic-tax uplift ceiling, and minimum net platform revenue; otherwise
+  keep full-sale checkout disabled and use only the separately approved
+  fee-only external-settlement path.
 
 ---
 
@@ -244,3 +260,39 @@ Observed: production Stripe webhook is already live and enabled.
 Verification: live Stripe endpoint event list matches Firebase webhook handler coverage for Checkout, subscription invoice paid, refunds, and disputes.
 
 Status: architecture verified; secret deployment and controlled retry/duplicate acceptance still pending.
+
+## 2026-10-17 — Accounts v2 and live capability hardening
+
+Implemented locally: new seller accounts use Accounts v2 recipient
+configuration with Express dashboard access, Pipe Buyer fee collection and
+negative balance liability, and requested `stripe_transfers`. Checkout and
+seller release now fail closed unless a fresh Stripe read reports that exact
+configuration, an active transfer capability, and an active Stripe-balance
+payout capability. The v1 payment snapshot catalog remains separate from the
+Accounts v2 thin-event catalog.
+
+Still required before activation:
+
+- [ ] Confirm Accounts v2 access on the production Stripe account.
+- [ ] Re-onboard or otherwise migrate the existing v1 connected seller account;
+  the server intentionally refuses to infer v2 readiness from v1 booleans.
+  Use the MFA-admin prepare command, seller-owned onboarding-link command, and
+  explicit MFA-admin activation command. Activation must preserve the legacy
+  account/audit record and is blocked by unsettled, held, refund/dispute, or
+  seller-recovery obligations and by an unreviewed transaction set over the
+  400-document atomic bound.
+- [ ] Deploy the dedicated `stripeAccountsV2Webhook` endpoint and bind its
+  separate production and sandbox Accounts v2 signing secrets.
+- [ ] Create a thin-format connected-account event destination for
+  `v2.core.account.updated`, recipient capability/configuration updates,
+  defaults, identity, requirements, and future-requirements updates. Do not
+  substitute the v1 snapshot `account.updated` event.
+- [ ] Bind `STRIPE_WEBHOOK_SECRET_SANDBOX` to the existing snapshot payment
+  endpoint and prove the endpoint rejects a mismatched event `livemode`.
+- [ ] Prove pending/restricted/active capability transitions in an isolated
+  Stripe sandbox.
+- [ ] Prove Checkout and Transfer both fail before a capability becomes active
+  and remain blocked after it becomes restricted.
+
+Status: code verified locally; Stripe account access, webhook subscription,
+legacy seller migration, and sandbox acceptance remain provisional.

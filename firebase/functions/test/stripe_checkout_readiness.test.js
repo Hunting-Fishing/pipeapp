@@ -60,3 +60,22 @@ test("full marketplace checkout requires registered tax or audited deferral", ()
       }),
   );
 });
+
+test("marketplace checkout and fee billing support explicitly gated sandbox rails", () => {
+  const sandboxReady = {...providerReady, stripeMode: "sandbox"};
+  assert.doesNotThrow(() => requireCheckoutReady({
+    ...sandboxReady,
+    stripeCheckoutEnabled: true,
+    marketplaceTaxCollectionDeferredApproved: true,
+  }));
+  assert.doesNotThrow(() => requirePlatformFeeBillingReady({
+    ...sandboxReady,
+    stripeFeeBillingEnabled: true,
+    stripeTaxReady: true,
+  }));
+  assert.throws(() => requireCheckoutReady({
+    ...sandboxReady,
+    stripeCheckoutEnabled: false,
+    marketplaceTaxCollectionDeferredApproved: true,
+  }));
+});

@@ -94,6 +94,7 @@ function feeOnlyFixture(ledgerStatus = "pending_refund_window") {
     },
     "payment_provider_accounts/affiliate-1": {
       affiliatePayoutHold: false,
+      mode: "production",
     },
   });
 }
@@ -513,6 +514,7 @@ test("full-sale refund exposure cannot regress from full to stale partial", asyn
       originalSellerProceedsMinor: 900,
       sellerPayoutTransferIds: [],
       paymentProviderStatus: "paid",
+      stripeMode: "sandbox",
       marketplaceFeeStatus: "collected",
       financialEpoch: 1,
       financialHold: false,
@@ -525,7 +527,9 @@ test("full-sale refund exposure cannot regress from full to stale partial", asyn
       status: "pending_refund_window",
     },
   });
-  const financial = createMarketplaceFinancialResolution(memory.admin);
+  const financial = createMarketplaceFinancialResolution(memory.admin, {
+    sellerFundsOptions: {stripeSecret: () => "test-secret"},
+  });
   await financial.reconcileChargeRefund({
     id: "ch_RefundMonotonic1",
     amount: 1000,
@@ -659,6 +663,7 @@ test("equal-second failed refund status triggers seller restoration", async () =
       buyerChargedMinor: 10000,
       sellerProceedsMinor: 9500,
       paymentProviderStatus: "paid",
+      stripeMode: "sandbox",
       financialEpoch: 4,
       financialHold: true,
     },
@@ -826,10 +831,12 @@ test("stale seller restoration is compensated after financial epoch changes", as
       sellerPayoutTransferIds: ["tr_Original1"],
       stripeTransferGroup: "PB_sale-1",
       paymentProviderStatus: "paid",
+      stripeMode: "sandbox",
       financialEpoch: 2,
       financialHold: false,
     },
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -910,10 +917,12 @@ test("ambiguous seller restoration retries the exact reserved request", async ()
       sellerPayoutTransferIds: ["tr_OriginalRetry1"],
       stripeTransferGroup: "PB_sale_restoration_retry",
       paymentProviderStatus: "paid",
+      stripeMode: "sandbox",
       financialEpoch: 6,
       financialHold: false,
     },
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -1010,11 +1019,13 @@ test("financial mutation after restoration reservation prevents transfer", async
       sellerPayoutTransferIds: ["tr_OriginalRace1"],
       stripeTransferGroup: "PB_sale_restoration_race",
       paymentProviderStatus: "paid",
+      stripeMode: "sandbox",
       financialEpoch: 6,
       financialHold: false,
       activeFinancialCaseId: "dispute-restoration-race",
     },
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -1087,6 +1098,7 @@ function executableRefundFixture(caseId = "refund-race") {
       originalSellerProceedsMinor: 9500,
       paymentProvider: "stripe",
       paymentProviderStatus: "paid",
+      stripeMode: "sandbox",
       financialStatus: "refund_requested",
       financialEpoch: 2,
       financialHold: true,
@@ -1272,10 +1284,12 @@ test("seller restoration rejects missing currency before transfer dispatch", asy
       originalSellerProceedsMinor: 9500,
       sellerPayoutTransferIds: [],
       paymentProviderStatus: "paid",
+      stripeMode: "sandbox",
       financialEpoch: 3,
       financialHold: false,
     },
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,

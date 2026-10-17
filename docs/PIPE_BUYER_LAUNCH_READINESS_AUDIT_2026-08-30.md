@@ -1,5 +1,9 @@
 # Pipe Buyer launch readiness audit — 2026-08-30
 
+> **SUPERSEDED FOR PAYMENT ACTIVATION — 2026-10-17**
+>
+> The Stripe, payment, Connect, and subscription readiness statements in this dated audit are historical and must not be used to enable production billing. Keep every production, readiness, mutation, and paid-feature flag false until the sandbox-first acceptance gates in `docs/STRIPE_MARKETPLACE_MONETIZATION_RUNBOOK.md` and `docs/PAYMENTS_EXECUTION_TRACKER.md` are complete and explicitly approved.
+
 ## 2026-09-01 Release 1 simple-flow production release
 
 The current verified production application is `main` at `996bd3f782a89639aaf12527193cb1ecf4d92f84`, deployed by `Deploy verified Firebase release` run `33493435243` (#56) with App Check `enforce`. Release 1 simplifies Home and compact navigation while preserving existing Firebase schemas, Stripe settlement, moderation evidence, Trust & Safety controls, and protected release architecture.

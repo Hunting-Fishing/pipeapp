@@ -2,7 +2,13 @@
 
 const crypto = require("node:crypto");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
-const {stripeSecretKey} = require("./stripe_marketplace_commands");
+const {
+  loadProviderReadiness,
+} = require("./stripe_marketplace_commands");
+const {
+  requireStripeTransactionMode,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 const {
   assertMarketplaceFeeCheckoutSessionIdentity,
   assertMarketplaceCheckoutSessionIdentity,
@@ -19,6 +25,8 @@ const {
 } = require("./stripe_webhook_event_store");
 
 const STRIPE_WEBHOOK_SECRET_NAME = "STRIPE_WEBHOOK_SECRET";
+const STRIPE_WEBHOOK_SECRET_SANDBOX_NAME =
+  "STRIPE_WEBHOOK_SECRET_SANDBOX";
 const stripeWebhookSecret = Object.freeze({
   name: STRIPE_WEBHOOK_SECRET_NAME,
   value() {
@@ -27,6 +35,22 @@ const stripeWebhookSecret = Object.freeze({
     return value;
   },
 });
+const stripeWebhookSandboxSecret = Object.freeze({
+  name: STRIPE_WEBHOOK_SECRET_SANDBOX_NAME,
+  value() {
+    const value = String(
+        process.env[STRIPE_WEBHOOK_SECRET_SANDBOX_NAME] || "",
+    ).trim();
+    if (!value) {
+      throw new Error("Stripe sandbox webhook credentials are unavailable.");
+    }
+    return value;
+  },
+});
+const stripeWebhookSecretNames = Object.freeze([
+  STRIPE_WEBHOOK_SECRET_NAME,
+  STRIPE_WEBHOOK_SECRET_SANDBOX_NAME,
+]);
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 const AFFILIATE_REFUND_WINDOW_DAYS = 30;
 
@@ -61,6 +85,76 @@ function verifyStripeSignature(rawBody, signatureHeader, secret, nowSeconds) {
       .update(`${timestamp}.${rawBody.toString("utf8")}`)
       .digest("hex");
   return signatures.some((candidate) => safeEqualHex(candidate, expected));
+}
+
+function stripeWebhookSecretForMode(mode) {
+  const normalized = String(mode || "").trim().toLowerCase();
+  if (normalized === "production") return stripeWebhookSecret;
+  if (normalized === "sandbox") return stripeWebhookSandboxSecret;
+  throw new Error("Stripe webhook processing is disabled.");
+}
+
+function stripeModeFromLivemode(value) {
+  if (value === true) return "production";
+  if (value === false) return "sandbox";
+  return "unknown";
+}
+
+async function verifyStripeWebhookRequest(request, {
+  readStripeMode,
+  readWebhookSecret,
+}) {
+  let stripeMode;
+  try {
+    stripeMode = String(await readStripeMode()).trim().toLowerCase();
+  } catch (_) {
+    return {
+      ok: false,
+      statusCode: 500,
+      message: "Stripe webhook readiness is unavailable",
+    };
+  }
+  if (!["sandbox", "production"].includes(stripeMode)) {
+    return {
+      ok: false,
+      statusCode: 409,
+      message: "Stripe webhook processing is disabled",
+    };
+  }
+  let secret;
+  try {
+    secret = String(await readWebhookSecret(stripeMode) || "").trim();
+  } catch (_) {
+    return {
+      ok: false,
+      statusCode: 500,
+      message: "Stripe webhook credentials are unavailable",
+    };
+  }
+  const rawBody = request && request.rawBody;
+  const signature = request && request.get &&
+    request.get("stripe-signature");
+  if (!verifyStripeSignature(rawBody, signature, secret)) {
+    return {
+      ok: false,
+      statusCode: 400,
+      message: "Invalid Stripe signature",
+    };
+  }
+  let event;
+  try {
+    event = JSON.parse(rawBody.toString("utf8"));
+  } catch (_) {
+    return {ok: false, statusCode: 400, message: "Invalid JSON"};
+  }
+  if (stripeModeFromLivemode(event && event.livemode) !== stripeMode) {
+    return {
+      ok: false,
+      statusCode: 409,
+      message: "Stripe event environment mismatch",
+    };
+  }
+  return {ok: true, event, stripeMode};
 }
 
 async function retrievePaymentIntent(secretKey, paymentIntentId) {
@@ -157,8 +251,18 @@ function createStripeWebhookHandler(admin, options = {}) {
     createStripeWebhookEventStore({db, admin});
   const readPaymentIntent = options.retrievePaymentIntent ||
     retrievePaymentIntent;
-  const readStripeSecret = options.stripeSecret ||
-    (() => stripeSecretKey.value());
+  const readStripeSecret = options.stripeSecretForMode ||
+    options.stripeSecret || ((mode) => stripeSecretValueForMode(mode));
+  const readStripeMode = options.stripeMode || (async () => {
+    const readiness = await loadProviderReadiness(db);
+    return readiness.stripeMode;
+  });
+  const readWebhookSecret = options.webhookSecretForMode ||
+    ((mode) => stripeWebhookSecretForMode(mode).value());
+  const verifyRequest = (request) => verifyStripeWebhookRequest(request, {
+    readStripeMode,
+    readWebhookSecret,
+  });
   const subscriptionMonetization = createSubscriptionMonetization(
       admin,
       stripeMarketplaceConfig,
@@ -256,7 +360,7 @@ function createStripeWebhookHandler(admin, options = {}) {
     });
   }
 
-  async function markCheckoutFailure(session) {
+  async function markCheckoutFailure(session, stripeMode) {
     if (billingType(session) === "dispatch_subscription") {
       await db.collection("subscription_checkout_sessions")
           .doc(String(session.id || "")).set({
@@ -289,6 +393,7 @@ function createStripeWebhookHandler(admin, options = {}) {
         throw new Error("Pipe Buyer transaction for Stripe Checkout was not found.");
       }
       const sale = snapshot.data();
+      requireStripeTransactionMode(sale, stripeMode);
       if (feeOnly) {
         assertMarketplaceFeeCheckoutSessionIdentity({
           sale,
@@ -319,7 +424,7 @@ function createStripeWebhookHandler(admin, options = {}) {
     });
   }
 
-  async function markCheckoutExpired(session) {
+  async function markCheckoutExpired(session, stripeMode) {
     if (billingType(session) === "dispatch_subscription") {
       await db.collection("subscription_checkout_sessions")
           .doc(String(session.id || "")).set({
@@ -352,6 +457,7 @@ function createStripeWebhookHandler(admin, options = {}) {
         throw new Error("Pipe Buyer transaction for Stripe Checkout was not found.");
       }
       const sale = snapshot.data();
+      requireStripeTransactionMode(sale, stripeMode);
       if (!marketplaceCheckoutSessionIsActive({
         sale,
         session,
@@ -384,7 +490,7 @@ function createStripeWebhookHandler(admin, options = {}) {
     });
   }
 
-  async function settleMarketplaceFeeOnly(session) {
+  async function settleMarketplaceFeeOnly(session, stripeMode) {
     const transactionId = String(
         session && session.metadata &&
         session.metadata.pipeBuyerTransactionId || "",
@@ -397,6 +503,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       throw new Error("Pipe Buyer transaction for fee checkout was not found.");
     }
     const sale = transactionSnapshot.data();
+    requireStripeTransactionMode(sale, stripeMode);
     assertMarketplaceFeeCheckoutSessionIdentity({
       sale,
       session,
@@ -431,7 +538,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       throw new Error("The fee checkout has no Stripe payment intent.");
     }
     const paymentIntent = await readPaymentIntent(
-        readStripeSecret(),
+        readStripeSecret(stripeMode),
         paymentIntentId,
     );
     assertStripeCurrencyMatches(
@@ -475,6 +582,7 @@ function createStripeWebhookHandler(admin, options = {}) {
         throw new Error("Pipe Buyer transaction for fee checkout was not found.");
       }
       const currentSale = current.data();
+      requireStripeTransactionMode(currentSale, stripeMode);
       assertMarketplaceFeeCheckoutSessionIdentity({
         sale: currentSale,
         session,
@@ -528,7 +636,7 @@ function createStripeWebhookHandler(admin, options = {}) {
     if (!bound) return;
     await resolveUnmatchedFinancialEvents(chargeId, transactionId);
     const refreshedPaymentIntent = await readPaymentIntent(
-        readStripeSecret(),
+        readStripeSecret(stripeMode),
         paymentIntentId,
     );
     assertStripeCurrencyMatches(
@@ -557,6 +665,7 @@ function createStripeWebhookHandler(admin, options = {}) {
         throw new Error("Pipe Buyer transaction for fee checkout was not found.");
       }
       const currentSale = current.data();
+      requireStripeTransactionMode(currentSale, stripeMode);
       if (currentSale.stripeSettlementReconciliationId !== reconciliationId ||
           currentSale.stripeMarketplaceFeeChargeId !== chargeId) {
         if (["collected", "refunded", "partially_refunded", "disputed",
@@ -652,9 +761,9 @@ function createStripeWebhookHandler(admin, options = {}) {
     await updateAffiliateAfterFeeCollection(transactionId, chargeId);
   }
 
-  async function settleSuccessfulCheckout(session) {
+  async function settleSuccessfulCheckout(session, stripeMode) {
     if (billingType(session) === "marketplace_fee_only") {
-      await settleMarketplaceFeeOnly(session);
+      await settleMarketplaceFeeOnly(session, stripeMode);
       return;
     }
     if (billingType(session) === "dispatch_subscription") {
@@ -697,6 +806,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       throw new Error("Pipe Buyer transaction for Stripe Checkout was not found.");
     }
     const sale = transactionSnapshot.data();
+    requireStripeTransactionMode(sale, stripeMode);
     assertMarketplaceCheckoutSessionIdentity({sale, session, transactionId});
     if (["paid", "refunded", "partially_refunded"].includes(
         String(sale.paymentProviderStatus || ""),
@@ -727,7 +837,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       throw new Error("The Stripe Checkout session has no payment intent.");
     }
     const paymentIntent = await readPaymentIntent(
-        readStripeSecret(),
+        readStripeSecret(stripeMode),
         paymentIntentId,
     );
     assertStripeCurrencyMatches(
@@ -778,6 +888,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       const affiliateLedger = await firestoreTransaction.get(affiliateLedgerRef);
       if (!current.exists) return;
       const currentData = current.data();
+      requireStripeTransactionMode(currentData, stripeMode);
       assertMarketplaceCheckoutSessionIdentity({
         sale: currentData,
         session,
@@ -840,7 +951,7 @@ function createStripeWebhookHandler(admin, options = {}) {
     if (!bound) return;
     await resolveUnmatchedFinancialEvents(chargeId, transactionId);
     const refreshedPaymentIntent = await readPaymentIntent(
-        readStripeSecret(),
+        readStripeSecret(stripeMode),
         paymentIntentId,
     );
     assertStripeCurrencyMatches(
@@ -869,6 +980,7 @@ function createStripeWebhookHandler(admin, options = {}) {
         throw new Error("Pipe Buyer transaction for Stripe Checkout was not found.");
       }
       const currentData = current.data();
+      requireStripeTransactionMode(currentData, stripeMode);
       if (currentData.stripeSettlementReconciliationId !== reconciliationId ||
           currentData.stripeChargeId !== chargeId) {
         if (["paid", "refunded", "partially_refunded"].includes(
@@ -966,7 +1078,7 @@ function createStripeWebhookHandler(admin, options = {}) {
     await resolveUnmatchedFinancialEvents(chargeId, transactionId);
   }
 
-  async function markCheckoutProcessing(session) {
+  async function markCheckoutProcessing(session, stripeMode) {
     if (billingType(session) === "dispatch_subscription") {
       await db.collection("subscription_checkout_sessions")
           .doc(String(session.id || "")).set({
@@ -997,6 +1109,7 @@ function createStripeWebhookHandler(admin, options = {}) {
         throw new Error("Pipe Buyer transaction for Stripe Checkout was not found.");
       }
       const sale = snapshot.data();
+      requireStripeTransactionMode(sale, stripeMode);
       if (feeOnly) {
         assertMarketplaceFeeCheckoutSessionIdentity({
           sale,
@@ -1024,49 +1137,49 @@ function createStripeWebhookHandler(admin, options = {}) {
     });
   }
 
-  async function handleEvent(event) {
+  async function handleEvent(event, stripeMode) {
     const type = String(event && event.type || "");
     const object = event && event.data && event.data.object || null;
     if (!object) return;
     if (type === "checkout.session.completed") {
       if (object.payment_status === "paid") {
-        await settleSuccessfulCheckout(object);
+        await settleSuccessfulCheckout(object, stripeMode);
       } else {
-        await markCheckoutProcessing(object);
+        await markCheckoutProcessing(object, stripeMode);
       }
       return;
     }
     if (type === "checkout.session.async_payment_succeeded") {
-      await settleSuccessfulCheckout(object);
+      await settleSuccessfulCheckout(object, stripeMode);
       return;
     }
     if (type === "checkout.session.async_payment_failed") {
-      await markCheckoutFailure(object);
+      await markCheckoutFailure(object, stripeMode);
       return;
     }
     if (type === "checkout.session.expired") {
-      await markCheckoutExpired(object);
+      await markCheckoutExpired(object, stripeMode);
       return;
     }
     if (type === "invoice.paid") {
       await subscriptionMonetization.handleDispatchInvoicePaid(
           object,
-          stripeSecretKey.value(),
+          readStripeSecret(stripeMode),
       );
       await vipSubscriptionMonetization.handleVipInvoicePaid(
           object,
-          stripeSecretKey.value(),
+          readStripeSecret(stripeMode),
       );
       return;
     }
     if (type === "invoice.payment_failed") {
       await subscriptionMonetization.handleDispatchInvoicePaymentFailed(
           object,
-          stripeSecretKey.value(),
+          readStripeSecret(stripeMode),
       );
       await vipSubscriptionMonetization.handleVipInvoicePaymentFailed(
           object,
-          stripeSecretKey.value(),
+          readStripeSecret(stripeMode),
       );
       return;
     }
@@ -1146,24 +1259,16 @@ function createStripeWebhookHandler(admin, options = {}) {
   }
 
   const handler = async (request, response, processingContext = {}) => {
-    const rawBody = request.rawBody;
-    const signature = request.get("stripe-signature");
-    if (!verifyStripeSignature(
-        rawBody,
-        signature,
-        stripeWebhookSecret.value(),
-    )) {
-      response.status(400).send("Invalid Stripe signature");
-      return;
-    }
     let event = processingContext.event || null;
-    if (!event) {
-      try {
-        event = JSON.parse(rawBody.toString("utf8"));
-      } catch (_) {
-        response.status(400).send("Invalid JSON");
+    let stripeMode = processingContext.stripeMode || null;
+    if (!processingContext.signatureVerified) {
+      const verification = await verifyRequest(request);
+      if (!verification.ok) {
+        response.status(verification.statusCode).send(verification.message);
         return;
       }
+      event = verification.event;
+      stripeMode = verification.stripeMode;
     }
     const eventId = String(event.id || "");
     if (!eventId.startsWith("evt_")) {
@@ -1194,7 +1299,7 @@ function createStripeWebhookHandler(admin, options = {}) {
       return;
     }
     try {
-      await handleEvent(event);
+      await handleEvent(event, stripeMode);
       await activeEventStore.complete(eventId, claim);
       response.status(200).send("OK");
     } catch (error) {
@@ -1208,6 +1313,7 @@ function createStripeWebhookHandler(admin, options = {}) {
     }
   };
   handler.webhookEventStore = webhookEventStore;
+  handler.verifyRequest = verifyRequest;
   return handler;
 }
 
@@ -1215,11 +1321,17 @@ module.exports = {
   AFFILIATE_REFUND_WINDOW_DAYS,
   SIGNATURE_TOLERANCE_SECONDS,
   STRIPE_WEBHOOK_SECRET_NAME,
+  STRIPE_WEBHOOK_SECRET_SANDBOX_NAME,
   assertStripeCurrencyMatches,
   assertMarketplaceFeeCheckoutSessionIdentity,
   billingType,
   createStripeWebhookHandler,
   marketplaceCheckoutSessionIsActive,
   stripeWebhookSecret,
+  stripeWebhookSandboxSecret,
+  stripeWebhookSecretForMode,
+  stripeWebhookSecretNames,
+  stripeModeFromLivemode,
+  verifyStripeWebhookRequest,
   verifyStripeSignature,
 };

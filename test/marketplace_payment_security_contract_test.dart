@@ -69,6 +69,8 @@ void main() {
     expect(source, contains("getMarketplaceFeeCatalog"));
     expect(source, contains("stripeCheckoutEnabled"));
     expect(source, contains("stripeTaxReady"));
+    expect(source, contains("'SANDBOX VERIFIED'"));
+    expect(source, contains("activeEnvironmentLabel"));
     expect(source, isNot(contains('paymentsEnabled = true')));
     expect(source, isNot(contains('stripeSecretKey')));
     expect(source, isNot(contains('stripeWebhookSecret')));

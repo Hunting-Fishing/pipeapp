@@ -9,16 +9,19 @@ Verified in App Store Connect on 2026-10-16:
 - Subscription group: `Pipe Buyer Memberships` (`22481870`)
 - `pipebuyer_dispatch_monthly`: one month, USD 24.99 tier, 175 storefronts
 - `pipebuyer_dispatch_yearly`: one year, current verified USD 299.99 tier,
-  175 storefronts. The approved launch target is USD 249.99, pending an
-  external App Store Connect price-schedule change and subsequent verification.
+  175 storefronts
 - Both subscriptions: level 1, `Prepare for Submission`
 - iOS version `1.0.0`: `Prepare for Submission`
 - The app itself is free (`USD 0.00`) and available in all 175 storefronts.
 - The Production App Store Server Notifications URL is unset; the verified
   Sandbox URL is configured separately.
 
-Worldwide storefront availability does not mean every marketplace, Dispatch,
-payment, carrier, or regulated feature is available in every jurisdiction.
+Worldwide storefront availability supports global discovery and advertising;
+it does not mean transactions or seller payouts are available worldwide. New
+Marketplace and Timed Buying listings are currently USD-denominated, while
+Stripe seller payout onboarding initially supports eligible sellers in Canada
+and the United States. Marketplace payment, Dispatch, carrier, and regulated
+feature availability remains subject to location and account eligibility.
 
 ## Launch-blocker audit
 
@@ -86,6 +89,13 @@ Do not copy bank, tax, identity, or private contact values into this repository.
 
 ### Subscriptions and TestFlight
 
+- An owner pricing decision is still required. The verified USD 24.99 monthly
+  and USD 299.99 yearly tiers do not provide two months free: twelve monthly
+  payments total USD 299.88. A genuine two-month-free annual offer requires a
+  lower annual tier, but no replacement tier should be guessed or scheduled.
+  Keep production subscription activation and all savings claims blocked until
+  the owner selects the exact annual tier and it is saved and re-verified in
+  App Store Connect.
 - Billing Grace Period is not configured. Use Sandbox-only configuration for
   the acceptance matrix before considering Production.
 - Both subscription products still need a review screenshot.
@@ -105,8 +115,9 @@ Oil & Gas Equipment Market
 
 ### Promotional text
 
-Buy and sell oil and gas equipment worldwide. Browse listings, post wanted ads,
-message securely, manage auctions, and coordinate eligible Dispatch services.
+Discover oil and gas equipment advertised worldwide. Browse USD listings, post
+wanted ads, message securely, and access eligible Marketplace and Dispatch
+features.
 
 ### Keywords
 
@@ -114,13 +125,16 @@ oil,gas,pipe,industrial,equipment,machinery,materials,auction,trucking,dispatch,
 
 ### Description
 
-Pipe Buyer is an industrial marketplace for oil and gas equipment, materials,
-and services.
+Pipe Buyer is an industrial marketplace where oil and gas equipment, materials,
+and services can be discovered and advertised to a worldwide audience. New
+Marketplace and Timed Buying listings are currently denominated in USD. Seller
+payout onboarding initially supports eligible sellers in Canada and the United
+States; transaction availability varies by buyer, seller, and location.
 
 Use Pipe Buyer to:
 
 - Browse industrial equipment and material listings.
-- Create listings and wanted ads.
+- Create USD-denominated listings and wanted ads.
 - Make offers and participate in timed buying and auctions.
 - Message buyers and sellers inside the app.
 - Request and manage eligible Dispatch services.
@@ -133,15 +147,16 @@ confirmation. The subscription renews automatically unless canceled at least
 24 hours before the end of the current period. Manage or cancel it in your App
 Store subscription settings.
 
-The approved United States launch target is USD 24.99 per month or USD 249.99
-per year. At those targets, yearly billing saves about two monthly payments,
-or approximately 17%, compared with paying monthly for twelve months. Apple
-shows the applicable localized storefront price before purchase. Do not publish
-the USD 249.99 claim in App Store metadata or screenshots until that external
-price schedule has been saved and verified in App Store Connect.
+Apple shows the applicable localized storefront price before purchase. Do not
+publish a fixed annual price or savings claim until the owner resolves the
+conflict between the current USD 24.99 monthly / USD 299.99 yearly schedule and
+the requested two-month-free annual offer, then saves and verifies the selected
+annual tier in App Store Connect.
 
-Availability of marketplace, Dispatch, payment, carrier, and regulated
-features varies by location and account eligibility.
+Worldwide discovery and advertising do not imply worldwide transactions. New
+listings use USD, seller payout onboarding initially supports eligible sellers
+in Canada and the United States, and Marketplace payment, Dispatch, carrier,
+and regulated features vary by location and account eligibility.
 
 Terms of Service: https://www.pipebuyer.com/terms
 

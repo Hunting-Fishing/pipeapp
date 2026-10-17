@@ -130,9 +130,20 @@ function paidSale() {
     currency: "USD",
     stripeChargeId: "ch_paid_1",
     stripeTransferGroup: "PB_sale_1",
+    stripeMode: "sandbox",
     refundedMinor: 0,
     financialEpoch: 2,
     financialHold: false,
+  };
+}
+
+async function readySellerStatus({providerData}) {
+  return {
+    accountId: String(providerData && providerData.stripeAccountId || ""),
+    mode: "sandbox",
+    transferStatus: "active",
+    recipientConfigurationReady: true,
+    payoutReady: true,
   };
 }
 
@@ -143,6 +154,7 @@ test("seller release rejects a legacy sale without explicit currency", async () 
       currency: undefined,
     },
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -150,6 +162,8 @@ test("seller release rejects a legacy sale without explicit currency", async () 
   });
   let transferCalls = 0;
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
+    refreshSellerStatus: readySellerStatus,
     stripeSecret: () => "test-secret",
     stripeRequest: async () => {
       transferCalls += 1;
@@ -167,6 +181,7 @@ test("seller release lease prevents concurrent transfer attempts", async () => {
   const memory = createMemoryAdmin({
     "marketplace_transactions/sale-1": paidSale(),
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -182,6 +197,8 @@ test("seller release lease prevents concurrent transfer attempts", async () => {
   });
   let transferCalls = 0;
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
+    refreshSellerStatus: readySellerStatus,
     stripeSecret: () => "test-secret",
     stripeRequest: async ({path}) => {
       assert.equal(path, "/v1/transfers");
@@ -210,6 +227,7 @@ test("financial epoch invalidates and reverses an in-flight seller release", asy
   const memory = createMemoryAdmin({
     "marketplace_transactions/sale-1": paidSale(),
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -217,6 +235,8 @@ test("financial epoch invalidates and reverses an in-flight seller release", asy
   });
   const calls = [];
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
+    refreshSellerStatus: readySellerStatus,
     stripeSecret: () => "test-secret",
     stripeRequest: async (request) => {
       calls.push(request);
@@ -269,6 +289,7 @@ test("refund after seller release reservation prevents provider dispatch", async
   const memory = createMemoryAdmin({
     "marketplace_transactions/sale-1": paidSale(),
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -276,6 +297,8 @@ test("refund after seller release reservation prevents provider dispatch", async
   });
   let providerCalls = 0;
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
+    refreshSellerStatus: readySellerStatus,
     stripeSecret: () => "test-secret",
     stripeRequest: async () => {
       providerCalls += 1;
@@ -308,6 +331,7 @@ test("crashed seller release reservation stays non-escaped after mutation", asyn
   const memory = createMemoryAdmin({
     "marketplace_transactions/sale-1": paidSale(),
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -316,6 +340,8 @@ test("crashed seller release reservation stays non-escaped after mutation", asyn
   let providerCalls = 0;
   let crashAfterReserve = true;
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
+    refreshSellerStatus: readySellerStatus,
     stripeSecret: () => "test-secret",
     stripeRequest: async () => {
       providerCalls += 1;
@@ -358,6 +384,7 @@ test("failed seller transfer retries the same request after lease expiry", async
   const memory = createMemoryAdmin({
     "marketplace_transactions/sale-1": paidSale(),
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -366,6 +393,8 @@ test("failed seller transfer retries the same request after lease expiry", async
   let clock = 1000;
   const transferRequests = [];
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
+    refreshSellerStatus: readySellerStatus,
     now: () => clock,
     releaseLeaseMillis: 1000,
     stripeSecret: () => "test-secret",
@@ -402,6 +431,7 @@ test("ambiguous seller transfer reuses its request before invalidation reversal"
   const memory = createMemoryAdmin({
     "marketplace_transactions/sale-1": paidSale(),
     "payment_provider_accounts/seller-1": {
+      mode: "sandbox",
       transferStatus: "active",
       stripeAccountId: "acct_seller_1",
       sellerPayoutHold: false,
@@ -410,6 +440,8 @@ test("ambiguous seller transfer reuses its request before invalidation reversal"
   const transferRequests = [];
   let firstDispatch = true;
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
+    refreshSellerStatus: readySellerStatus,
     stripeSecret: () => "test-secret",
     stripeRequest: async (request) => {
       if (request.path === "/v1/transfers") {
@@ -496,6 +528,7 @@ test("expired recovery worker cannot overwrite a newer successful recovery", asy
   });
   let reads = 0;
   const lifecycle = createMarketplacePaymentLifecycle(memory.admin, {
+    loadProviderReadiness: async () => ({stripeMode: "sandbox"}),
     now: () => clock,
     releaseLeaseMillis: 1000,
     stripeSecret: () => "test-secret",

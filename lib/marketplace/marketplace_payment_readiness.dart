@@ -106,15 +106,29 @@ class _MarketplacePaymentReadinessPanelState
     final yearly = _map(dispatch['yearly']);
     final affiliate = _map(catalog['affiliate']);
     final taxCodes = _map(catalog['taxCodes']);
-    final tiers = _mapList(equipment['tiers']);
+    final brackets = _mapList(equipment['brackets']);
 
     final taxReady = readiness['stripeTaxReady'] == true;
     final taxPending = readiness['stripeTaxRegistrationPending'] == true;
-    final fullCheckout = readiness['stripeCheckoutEnabled'] == true;
+    final fullCheckoutSwitch = readiness['stripeCheckoutEnabled'] == true;
+    final fullGmvEconomics =
+        readiness['stripeFullGmvEconomicsApproved'] == true;
+    final fullCheckout = fullCheckoutSwitch && fullGmvEconomics;
     final feeBilling = readiness['stripeFeeBillingEnabled'] == true;
     final subscriptions = readiness['stripeSubscriptionsEnabled'] == true;
     final connect = readiness['stripeConnectOnboardingEnabled'] == true;
     final webhook = readiness['stripeWebhookVerified'] == true;
+    final stripeMode = '${readiness['stripeMode'] ?? ''}'.toLowerCase();
+    final activeEnvironmentLabel = stripeMode == 'sandbox'
+        ? 'SANDBOX'
+        : stripeMode == 'production'
+            ? 'LIVE'
+            : 'ENABLED';
+    final verifiedEnvironmentLabel = stripeMode == 'sandbox'
+        ? 'SANDBOX VERIFIED'
+        : stripeMode == 'production'
+            ? 'LIVE VERIFIED'
+            : 'VERIFIED';
 
     final taxStatus = taxReady
         ? 'Registered / tax-ready'
@@ -151,33 +165,38 @@ class _MarketplacePaymentReadinessPanelState
                 items: [
                   _ReadinessItem(
                     label: 'Fee billing',
-                    value: feeBilling ? 'LIVE' : 'OFF',
+                    value: feeBilling ? activeEnvironmentLabel : 'OFF',
                     icon: Icons.receipt_long_outlined,
                     enabled: feeBilling,
                   ),
                   _ReadinessItem(
                     label: 'Dispatch billing',
-                    value: subscriptions ? 'LIVE' : 'OFF',
+                    value: subscriptions ? activeEnvironmentLabel : 'OFF',
                     icon: Icons.local_shipping_outlined,
                     enabled: subscriptions,
                   ),
                   _ReadinessItem(
                     label: 'Seller Connect',
-                    value: connect ? 'LIVE' : 'OFF',
+                    value: connect ? activeEnvironmentLabel : 'OFF',
                     icon: Icons.account_balance_outlined,
                     enabled: connect,
                   ),
                   _ReadinessItem(
                     label: 'Signed webhook',
-                    value: webhook ? 'VERIFIED' : 'NOT VERIFIED',
+                    value: webhook ? verifiedEnvironmentLabel : 'NOT VERIFIED',
                     icon: Icons.verified_user_outlined,
                     enabled: webhook,
                   ),
                   _ReadinessItem(
                     label: 'Marketplace checkout',
-                    value: fullCheckout ? 'LIVE' : 'HELD',
+                    value: fullCheckout
+                        ? activeEnvironmentLabel
+                        : fullCheckoutSwitch
+                            ? 'ECONOMICS HOLD'
+                            : 'HELD',
                     icon: Icons.shopping_cart_checkout_outlined,
                     enabled: fullCheckout,
+                    pending: fullCheckoutSwitch && !fullGmvEconomics,
                   ),
                   _ReadinessItem(
                     label: 'Tax registration',
@@ -222,8 +241,8 @@ class _MarketplacePaymentReadinessPanelState
                 title: 'Asset marketplace schedule',
                 headline: 'No listing fee • paid sales only',
                 lines: [
-                  for (var index = 0; index < tiers.length; index++)
-                    _tierLabel(tiers, index),
+                  for (var index = 0; index < brackets.length; index++)
+                    _bracketLabel(brackets, index),
                   'Minimum seller fee: USD \$${_moneyAmount(equipment['minimumFeeByCurrency'], 'USD').toStringAsFixed(2)}',
                   'Maximum seller fee: USD \$${_moneyAmount(equipment['maximumFeeByCurrency'], 'USD').toStringAsFixed(2)}',
                 ],
@@ -305,13 +324,13 @@ class _MarketplacePaymentReadinessPanelState
     );
   }
 
-  String _tierLabel(List<Map<String, dynamic>> tiers, int index) {
-    final tier = tiers[index];
-    final percent = (tier['feePercent'] as num?)?.toDouble() ?? 0;
-    final upper = (tier['upToExclusive'] as num?)?.toDouble();
+  String _bracketLabel(List<Map<String, dynamic>> brackets, int index) {
+    final bracket = brackets[index];
+    final percent = (bracket['feePercent'] as num?)?.toDouble() ?? 0;
+    final upper = (bracket['upToExclusive'] as num?)?.toDouble();
     final lower = index == 0
         ? 0.0
-        : ((tiers[index - 1]['upToExclusive'] as num?)?.toDouble() ?? 0);
+        : ((brackets[index - 1]['upToExclusive'] as num?)?.toDouble() ?? 0);
     if (upper == null) {
       return '${_feePercent(percent)}% on the portion above USD \$${lower.toStringAsFixed(0)}';
     }

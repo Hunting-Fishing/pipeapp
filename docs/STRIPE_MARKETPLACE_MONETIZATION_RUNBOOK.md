@@ -10,7 +10,7 @@ Buyers remain normal Pipe Buyer users. They do **not** create or log into a sepa
 
 ### Sellers and affiliates receiving payouts
 
-A user only needs Stripe Connect payout onboarding when Pipe Buyer will send money to that user. The current implementation creates a minimal Connect v1 Express account and stores only the connected-account ID and readiness status. Stripe-hosted onboarding collects the required identity, business, and bank payout data. Revalidate this deliberately pinned API choice against the current Stripe account configuration and supported cross-border flow before production activation; do not silently switch account models during launch.
+A user only needs Stripe Connect payout onboarding when Pipe Buyer will send money to that user. The current implementation creates an Accounts v2 recipient with Express Dashboard access, Pipe Buyer fee collection and negative-balance responsibility, and stores its environment and capability status. Stripe-hosted onboarding collects the required identity, business, and bank payout data. Existing v1 accounts must use the audited re-onboarding procedure below; they are never silently replaced.
 
 The same verified recipient account can be used for seller proceeds and eligible affiliate commission payouts.
 
@@ -123,9 +123,28 @@ No buyer-to-seller funds move through Pipe Buyer in this path.
 
 The implementation uses Separate Charges and Transfers.
 
+Full-sale checkout is fail-closed behind a separate economics approval. Pipe
+Buyer does not hard-code or infer a Stripe processing rate from public pricing.
+The administrator readiness record must identify an approved Stripe
+payment-method configuration, an evidence revision, the maximum supported USD
+charge, conservative percentage and fixed provider-cost ceilings for the
+methods in that configuration, the maximum tax uplift when automatic tax adds
+tax to Checkout, and positive minimum net platform revenue. The retained fee
+used by this gate excludes the transaction's snapshotted affiliate commission.
+For each transaction, the server requires:
+
+`marketplace fee - affiliate commission >= configured provider-cost ceiling + minimum net revenue`
+
+and rejects checkout when the sale exceeds the approved charge limit. A
+rejected or unsupported full-sale transaction may use the separately gated
+external-settlement fee flow when offered. The Stripe payment-method
+configuration must be attached to the Checkout Session so an unreviewed rail
+cannot silently appear through dynamic payment methods.
+
 1. Buyer and seller accept the final transaction.
 2. Firebase snapshots final quantity, price, currency and marketplace fee.
-3. Seller must have an active Stripe recipient `stripe_transfers` capability.
+3. Seller must have active Stripe recipient `stripe_transfers` and
+   Stripe-balance `payouts` capabilities.
 4. Buyer starts Stripe Checkout from the authenticated Pipe Buyer transaction.
 5. The server transactionally reserves one settlement mode and a stable
    checkout attempt/idempotency key; retries reuse that attempt and cannot race
@@ -155,8 +174,14 @@ Client code can never provide authoritative price, tax, commission, seller-proce
 
 Create these with Firebase / Google Cloud Secret Manager. Never commit their values.
 
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_SECRET_PRODUCTION`
+- `STRIPE_SECRET_SANDBOX`
+- `STRIPE_WEBHOOK_SECRET` (production snapshot destination)
+- `STRIPE_WEBHOOK_SECRET_SANDBOX` (sandbox snapshot destination)
+- `STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_PRODUCTION` (production Accounts v2 thin
+  destination)
+- `STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_SANDBOX` (sandbox Accounts v2 thin
+  destination)
 
 The functions bind the secrets only to Stripe-dependent functions.
 
@@ -175,6 +200,14 @@ Recommended initial values:
   "stripeMode": "disabled",
   "stripeConnectOnboardingEnabled": false,
   "stripeCheckoutEnabled": false,
+  "stripeFullGmvEconomicsApproved": false,
+  "stripeFullGmvEconomicsPolicyRevision": "",
+  "stripeFullGmvPaymentMethodConfigurationId": "",
+  "stripeFullGmvMaximumChargeMinorUsd": 0,
+  "stripeFullGmvMaximumProviderFeeBps": 0,
+  "stripeFullGmvMaximumProviderFeeFixedMinorUsd": 0,
+  "stripeFullGmvMaximumTaxUpliftBps": 0,
+  "stripeFullGmvMinimumNetRevenueMinorUsd": 0,
   "stripeSubscriptionsEnabled": false,
   "stripeWebhookVerified": false,
   "stripeTaxReady": false,
@@ -189,6 +222,13 @@ Recommended initial values:
 
 URLs can be changed to the final deployed Pipe Buyer routes, but the server validates that they use HTTPS on `pipebuyer.com` or a subdomain.
 
+Do not set the full-GMV economics values by copying a generic advertised card
+rate. Finance must approve an all-in conservative ceiling for every payment
+method enabled by the referenced Stripe configuration, including applicable
+cross-border or currency costs. Keep `stripeFullGmvEconomicsApproved=false`
+and `stripeCheckoutEnabled=false` until that evidence exists; fee-only external
+settlement remains a distinct readiness gate.
+
 The existing `phase1_feature_flags` paid-features flag also remains false until launch approval.
 
 ## 9. Stripe Connect platform setup
@@ -199,9 +239,8 @@ Before creating live connected accounts:
 2. Complete the platform profile.
 3. Review and acknowledge that Pipe Buyer owns platform pricing and negative-balance/loss responsibility for the marketplace charge model.
 4. Enable Radar / marketplace fraud controls appropriate to the risk profile.
-5. Confirm the current Connect v1 Express configuration still supports the
-   chosen separate-charges-and-transfers and cross-border payout model. Any
-   future Accounts v2 migration requires a separately tested design change.
+5. Confirm Accounts v2 recipient configuration supports the chosen
+   separate-charges-and-transfers and cross-border payout model.
 6. Use Express Dashboard / Stripe-hosted onboarding unless the embedded onboarding implementation is deliberately chosen later.
 
 ## 10. Webhook endpoint
@@ -210,7 +249,8 @@ Deploy function:
 
 `stripeMarketplaceWebhook`
 
-Register its final HTTPS URL in Stripe Workbench as a webhook/event destination.
+Register its final HTTPS URL in Stripe Workbench as a **snapshot-format** event
+destination. Keep the existing v1 payment lifecycle on this destination.
 
 Minimum events currently handled:
 
@@ -219,6 +259,12 @@ Minimum events currently handled:
 - `checkout.session.async_payment_failed`
 - `checkout.session.expired`
 - `invoice.paid`
+- `invoice.payment_failed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `customer.subscription.paused`
+- `customer.subscription.resumed`
 - `charge.refunded`
 - `refund.created`
 - `refund.updated`
@@ -230,6 +276,32 @@ Minimum events currently handled:
 - `charge.dispute.funds_reinstated`
 
 The webhook verifies Stripe’s signature against the raw request body and records processed event IDs in `stripe_webhook_events` for idempotency.
+
+Deploy `stripeAccountsV2Webhook` separately and register its HTTPS URL as a
+**thin-format** event destination with exactly these connected-account events:
+
+- `v2.core.account.updated`
+- `v2.core.account[configuration.recipient].capability_status_updated`
+- `v2.core.account[configuration.recipient].updated`
+- `v2.core.account[defaults].updated`
+- `v2.core.account[future_requirements].updated`
+- `v2.core.account[identity].updated`
+- `v2.core.account[requirements].updated`
+
+Thin notifications do not contain `data.object`. The handler verifies the
+destination signature, validates `related_object` as a `v2.core.account`, and
+then retrieves the authoritative account from `/v2/core/accounts/{id}`. When
+Stripe supplies an event `context`, the handler forwards it as the
+`Stripe-Context` authentication context for that read. A
+fresh read must show both active `stripe_balance.stripe_transfers` (funds can
+enter the connected account) and active `stripe_balance.payouts` (funds can
+leave its Stripe balance) before Pipe Buyer records payout readiness.
+
+Snapshot webhook signing secrets are selected from the server-controlled
+`stripeMode`, and every event's `livemode` must match. The thin destination is
+also mode-bound and uses a distinct signing secret per environment. Keep the
+inactive destination disabled; verify the target endpoint and its environment-
+specific secret before changing the approved readiness mode.
 
 After an end-to-end sandbox test proves the webhook signature and event processing are correct, set `stripeWebhookVerified: true`.
 
@@ -326,25 +398,93 @@ Do not switch to production until all tests pass.
 2. Complete B.C. business registration being used for the MVP.
 3. Confirm Connect platform responsibilities in Stripe.
 4. Deploy the branch to a Firebase sandbox/staging environment.
-5. Install sandbox-only `STRIPE_SECRET_KEY` and webhook secret through Secret
-   Manager. Use an isolated project, webhook destination, environment stamp,
-   and tester cohort; sandbox events must fail closed against production data.
+5. Install the sandbox API key as `STRIPE_SECRET_SANDBOX`, the snapshot
+   destination signing secret as `STRIPE_WEBHOOK_SECRET_SANDBOX`, and the
+   Accounts v2 thin-destination signing secret as
+   `STRIPE_ACCOUNTS_V2_WEBHOOK_SECRET_SANDBOX` through Secret Manager. Do not
+   populate these names with production credentials. Use an isolated project,
+   webhook destinations, environment stamp, and tester cohort; sandbox events
+   must fail closed against production data.
 6. Set callback/checkout URLs.
 7. Enable `stripeConnectOnboardingEnabled` in sandbox and test seller onboarding.
-8. Register and verify the Stripe webhook endpoint.
+8. Register and verify both Stripe webhook endpoints: the v1 snapshot payment
+   destination and the Accounts v2 thin-event destination.
 9. Run the full sandbox test matrix.
 10. Finalize tax registration/liability decision and set `stripeTaxReady` only when valid.
 11. Set `stripeReconciliationReady` after accounting/ledger tests reconcile to Stripe.
-12. Enable Dispatch subscription checkout if desired.
-13. Enable marketplace checkout.
-14. Enable affiliate payouts only after accounting/tax-reporting treatment and refund policy are approved.
-15. Change `stripeMode` to production only after explicit go-live approval.
+12. Keep Dispatch/VIP subscription and affiliate-payout flags false in sandbox;
+    their current catalog and payout automation are production-only.
+13. Enable marketplace checkout in sandbox and complete acceptance evidence.
+14. Enable affiliate payouts only after production mode, accounting/tax-reporting treatment, and refund policy are approved.
+15. Change `stripeMode` to production only after explicit go-live approval;
+    only then consider enabling the production Dispatch/VIP catalog.
 
 Before steps 13-15, approve a high-value payment-method and margin policy.
 Full-GMV card processing on a six-figure sale can cost more than the capped
 seller fee. Do not enable that path until its processor cost, dispute exposure,
 and cross-border settlement economics are proven; the fee-only external-
 settlement path remains the safer default for large B2B transactions.
+
+### Accounts v2 recipient gate
+
+New seller payout accounts must be created through `POST /v2/core/accounts`
+with all of these values present in the Stripe response:
+
+- Dashboard: Express (`dashboard=express`);
+- fee collection: Pipe Buyer (`fees_collector=application`);
+- negative balance liability: Pipe Buyer
+  (`losses_collector=application`);
+- recipient configuration applied; and
+- `configuration.recipient.capabilities.stripe_balance.stripe_transfers`
+  active before Checkout or Transfer; and
+- `configuration.recipient.capabilities.stripe_balance.payouts` active before
+  the account is considered payout-ready.
+
+The server re-reads this capability from Stripe immediately before full-sale
+Checkout and again immediately before releasing seller proceeds. Cached v1
+`charges_enabled`, `payouts_enabled`, and `capabilities.transfers` values are
+not launch evidence. Existing v1 seller accounts are migration-blocked; do not
+silently treat one as an Accounts v2 recipient or replace it without a reviewed
+seller re-onboarding plan.
+
+The production Stripe account must first confirm Accounts v2 access. The
+dedicated thin connected-account event destination must subscribe to the exact
+`v2.core.account...` catalog in section 10 and must be verified with a
+controlled capability-state transition. A v1 snapshot `account.updated`
+subscription is not Accounts v2 readiness evidence. Until both are proven,
+keep seller onboarding and full marketplace Checkout disabled.
+
+### Audited legacy v1 seller migration
+
+Legacy provider documents intentionally remain payout-blocked until this
+three-step flow completes:
+
+1. An MFA-authenticated administrator calls
+   `prepareLegacyStripeSellerMigration` with the seller UID, exact current
+   account ID, confirmed environment when the legacy document lacks one, and
+   a review reason. The command verifies the old account in the selected
+   environment, creates but does not activate a v2 replacement, places a
+   migration payout hold, and writes an immutable audit record containing both
+   account IDs and modes.
+2. The authenticated seller calls
+   `createLegacyStripeSellerMigrationOnboardingLink` and completes Stripe-hosted
+   onboarding for only the prepared replacement account.
+3. An MFA-authenticated administrator calls
+   `activateLegacyStripeSellerMigration` with both exact account IDs, an audit
+   reason, and `confirmCutover=true`. Activation re-reads replacement
+   capability status, then atomically verifies a bounded set of the seller's
+   transactions. Any unsettled payment, financial hold, refund/dispute history,
+   seller-release/recovery work, environment mismatch, destination mismatch,
+   unrelated payout hold, or more than 400 transactions blocks cutover. A
+   high-volume seller requires a reviewed bounded backfill procedure before a
+   later activation attempt.
+
+Successful activation archives the legacy account under the provider document,
+keeps both account IDs and modes in the provider/audit history, annotates safe
+historical seller-settlement transactions with their legacy destination, and
+only then changes the active account. Do not delete the legacy Stripe account:
+historical charge, refund, dispute, reversal, and accounting obligations still
+refer to it.
 
 ## 15. Files added by this implementation
 
@@ -354,11 +494,14 @@ settlement path remains the safer default for large B2B transactions.
 - `affiliate_payouts.js`
 - `stripe_marketplace_config.js`
 - `stripe_marketplace_commands.js`
+- `stripe_runtime_environment.js`
+- `stripe_provider_migration.js`
 - `stripe_checkout_commands.js`
 - `external_settlement_commands.js`
 - `dispatch_subscription_commands.js`
 - `subscription_monetization.js`
 - `stripe_webhook.js`
+- `stripe_accounts_v2_webhook.js`
 - `bootstrap.js`
 - related unit tests
 

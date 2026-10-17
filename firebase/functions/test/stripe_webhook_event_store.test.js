@@ -70,6 +70,7 @@ test("subscription wrapper claims before provider-state side effects", async () 
   const secret = "whsec_test";
   const event = {
     id: "evt_subscription_concurrent",
+    livemode: false,
     type: "checkout.session.completed",
     data: {object: {
       id: "cs_subscription",
@@ -96,6 +97,11 @@ test("subscription wrapper claims before provider-state side effects", async () 
     response.status(200).send("OK");
   };
   baseHandler.webhookEventStore = store;
+  baseHandler.verifyRequest = async () => ({
+    ok: true,
+    event,
+    stripeMode: "production",
+  });
   const wrapper = createStripeWebhookDispatchLifecycleWrapper({
     baseHandler,
     dispatchSubscriptionLifecycle: {
@@ -106,7 +112,6 @@ test("subscription wrapper claims before provider-state side effects", async () 
       },
     },
     vipSubscriptionLifecycle: {},
-    stripeWebhookSecret: {value: () => secret},
   });
   const request = {
     rawBody,
@@ -136,4 +141,80 @@ test("subscription wrapper claims before provider-state side effects", async () 
   finishLifecycle();
   await first;
   assert.equal(firstResponse.result.statusCode, 200);
+});
+
+test("subscription wrapper rejects sandbox membership mutations", async () => {
+  let lifecycleCalls = 0;
+  const baseHandler = async () => {
+    throw new Error("Sandbox subscription events must not reach the base handler.");
+  };
+  baseHandler.webhookEventStore = {begin: async () => ({state: "acquired"})};
+  baseHandler.verifyRequest = async () => ({
+    ok: true,
+    stripeMode: "sandbox",
+    event: {
+      id: "evt_sandbox_subscription",
+      type: "checkout.session.completed",
+      data: {object: {
+        metadata: {billingType: "dispatch_subscription"},
+      }},
+    },
+  });
+  const wrapper = createStripeWebhookDispatchLifecycleWrapper({
+    baseHandler,
+    dispatchSubscriptionLifecycle: {
+      async handleDispatchCheckoutCompleted() {
+        lifecycleCalls += 1;
+      },
+    },
+    vipSubscriptionLifecycle: {},
+  });
+  const result = {statusCode: null, body: null};
+  await wrapper({}, {
+    status(code) {
+      result.statusCode = code;
+      return this;
+    },
+    send(body) {
+      result.body = body;
+      return this;
+    },
+  });
+  assert.equal(result.statusCode, 409);
+  assert.match(result.body, /production environment/u);
+  assert.equal(lifecycleCalls, 0);
+});
+
+test("subscription wrapper rejects sandbox invoice monetization", async () => {
+  let baseCalls = 0;
+  const baseHandler = async () => {
+    baseCalls += 1;
+  };
+  baseHandler.webhookEventStore = {begin: async () => ({state: "acquired"})};
+  baseHandler.verifyRequest = async () => ({
+    ok: true,
+    stripeMode: "sandbox",
+    event: {
+      id: "evt_sandbox_invoice",
+      type: "invoice.paid",
+      data: {object: {id: "in_sandbox"}},
+    },
+  });
+  const wrapper = createStripeWebhookDispatchLifecycleWrapper({
+    baseHandler,
+    dispatchSubscriptionLifecycle: {},
+    vipSubscriptionLifecycle: {},
+  });
+  const result = {statusCode: null};
+  await wrapper({}, {
+    status(code) {
+      result.statusCode = code;
+      return this;
+    },
+    send() {
+      return this;
+    },
+  });
+  assert.equal(result.statusCode, 409);
+  assert.equal(baseCalls, 0);
 });

@@ -148,6 +148,38 @@ Firestore uses collections and documents rather than SQL tables.
   `appleSandboxNotificationMutationsEnabled` or
   `appleProductionNotificationMutationsEnabled` switch; neither is implied by a
   purchase-readiness field.
+- `platform_configuration/payment_provider_readiness`: server-owned Stripe
+  activation and callback policy. Full buyer-sale checkout additionally
+  requires `stripeFullGmvEconomicsApproved`, an auditable
+  `stripeFullGmvEconomicsPolicyRevision`, an approved
+  `stripeFullGmvPaymentMethodConfigurationId`, and positive integer values for
+  `stripeFullGmvMaximumChargeMinorUsd`,
+  `stripeFullGmvMaximumProviderFeeBps`,
+  `stripeFullGmvMaximumProviderFeeFixedMinorUsd`, and
+  `stripeFullGmvMaximumTaxUpliftBps`, and
+  `stripeFullGmvMinimumNetRevenueMinorUsd`. Missing or zero economics values
+  fail closed. These fields are conservative approved bounds, not provider
+  fees guessed by the client or server. Runtime checkout rejects non-USD sales,
+  sales over the approved charge limit, and sales whose snapshotted Pipe Buyer
+  fee, after its affiliate commission, cannot cover the configured provider-cost
+  ceiling plus minimum net revenue. When automatic tax is active, the provider
+  cost base also includes the approved maximum tax uplift. Fee-only external
+  settlement uses a separate readiness gate.
+- `payment_provider_accounts/{uid}`: server-owned Stripe recipient state. New
+  records store `mode`, `connectAccountApiVersion=v2`, account object/config,
+  transfer and payout capability status, and payout holds. A legacy migration
+  stores the exact old/new account IDs and modes in `legacyMigration` while the
+  old account remains active; successful activation appends the old ID to
+  `legacyStripeAccountIds` and archives its immutable identity under
+  `legacy_accounts/{legacyAccountId}`. Clients cannot choose or swap accounts.
+- `stripe_provider_migration_audit/{auditId}`: immutable MFA-administrator
+  prepare/activation evidence, including operator, reason, seller, both Stripe
+  account IDs, both modes, and whether the active account was replaced.
+- Stripe-backed `marketplace_transactions/{transactionId}` records bind all
+  later Checkout, webhook, refund/dispute, seller-release and recovery work to
+  `stripeMode`. Full-GMV transactions also retain
+  `stripeSellerDestinationAccountId`; legacy migration annotates resolved
+  history with the old destination before activating a replacement account.
 
 ## Listing query budgets
 

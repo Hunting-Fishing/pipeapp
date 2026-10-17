@@ -197,7 +197,8 @@ function createAffiliatePayouts(admin, options = {}) {
       }
       const providerData = provider.exists ? provider.data() : {};
       const destination = String(providerData.stripeAccountId || "");
-      if (providerData.transferStatus !== "active" ||
+      if (providerData.mode !== "production" ||
+          providerData.transferStatus !== "active" ||
           !destination.startsWith("acct_")) {
         transaction.update(document.ref, {
           status: "eligible_payout_setup_required",
@@ -767,7 +768,7 @@ function createAffiliatePayouts(admin, options = {}) {
     const readiness = await payoutReadiness();
     if (!readiness.enabled ||
         !readiness.economicsReady ||
-        !["sandbox", "production"].includes(readiness.stripeMode)) {
+        readiness.stripeMode !== "production") {
       return {
         enabled: false,
         economicsReady: readiness.economicsReady,

@@ -174,6 +174,7 @@ test("marketplace checkout session must match active attempt and generation", ()
     settlementMode: "stripe_checkout",
     settlementGeneration: 3,
     stripeCheckoutAttemptId: attemptId,
+    stripeMode: "sandbox",
   };
   const session = {
     id: "cs_current",
@@ -181,6 +182,7 @@ test("marketplace checkout session must match active attempt and generation", ()
       pipeBuyerTransactionId: "transaction_1",
       pipeBuyerCheckoutAttemptId: attemptId,
       pipeBuyerSettlementGeneration: "3",
+      pipeBuyerStripeMode: "sandbox",
     },
   };
   assert.deepEqual(assertMarketplaceCheckoutSessionIdentity({

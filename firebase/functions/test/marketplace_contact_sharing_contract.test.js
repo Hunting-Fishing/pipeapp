@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 const {
   contactSharingAuthorization,
+  timedBuyingConversationAuthorization,
 } = require("../communication_commands");
 
 const source = fs.readFileSync(
@@ -19,17 +20,25 @@ function authorize(overrides = {}) {
     actorUid: "seller-1",
     recipientUid: "buyer-1",
     relationshipType: "marketplace_listing",
+    listingId: "listing-1",
     relationship: {
       sellerUid: "seller-1",
       acceptedOfferId: "offer-1",
       acceptedBuyerUid: "buyer-1",
       status: "pending_sale",
     },
+    paymentState: {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "collected",
+    },
     ...overrides,
   });
 }
 
-test("active membership and an exact accepted-offer relationship are required", () => {
+test("membership, an exact sale, and its financial milestone are required", () => {
   assert.deepEqual(authorize(), {allowed: true, reason: "accepted_offer"});
   assert.deepEqual(authorize({
     actorUid: "buyer-1",
@@ -47,6 +56,73 @@ test("active membership and an exact accepted-offer relationship are required", 
     allowed: false,
     reason: "relationship_required",
   });
+  assert.deepEqual(authorize({paymentState: null}), {
+    allowed: false,
+    reason: "financial_milestone_required",
+  });
+});
+
+test("contact sharing waits for payment and Pipe Buyer fee collection", () => {
+  for (const paymentState of [
+    {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      paymentProviderStatus: "checkout_created",
+      marketplaceFeeStatus: "pending_collection",
+    },
+    {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "pending_collection",
+    },
+    {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "collected",
+      financialHold: true,
+    },
+    {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "collected",
+      disputeStatus: "open",
+    },
+    {
+      listingId: "different-listing",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "collected",
+    },
+    {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "different-buyer",
+      paymentProviderStatus: "paid",
+      marketplaceFeeStatus: "collected",
+    },
+  ]) {
+    assert.deepEqual(authorize({paymentState}), {
+      allowed: false,
+      reason: "financial_milestone_required",
+    });
+  }
+  assert.deepEqual(authorize({
+    paymentState: {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      paymentProviderStatus: "external_agreed",
+      marketplaceFeeStatus: "collected",
+    },
+  }), {allowed: true, reason: "accepted_offer"});
 });
 
 test("cancelled, stale, and incomplete marketplace relationships fail closed", () => {
@@ -131,6 +207,34 @@ test("won-auction authorization binds the exact seller and winning buyer", () =>
   }), {allowed: false, reason: "relationship_required"});
 });
 
+test("Timed Buying conversation binding trusts only the settlement parties", () => {
+  const base = {
+    listingId: "listing-1",
+    sellerUid: "seller-1",
+    buyerUid: "buyer-1",
+    auctionTransaction: {
+      listingId: "listing-1",
+      sellerUid: "seller-1",
+      buyerUid: "buyer-1",
+      agreedTotal: 10000,
+      status: "pending_completion",
+    },
+  };
+  assert.equal(timedBuyingConversationAuthorization(base), true);
+  assert.equal(timedBuyingConversationAuthorization({
+    ...base,
+    buyerUid: "different-buyer",
+  }), false);
+  assert.equal(timedBuyingConversationAuthorization({
+    ...base,
+    listingId: "different-listing",
+  }), false);
+  assert.equal(timedBuyingConversationAuthorization({
+    ...base,
+    auctionTransaction: {...base.auctionTransaction, agreedTotal: 0},
+  }), false);
+});
+
 test("completed partial-sale buyers retain the membership contact unlock", () => {
   assert.deepEqual(authorize({
     relationship: {
@@ -201,9 +305,23 @@ test("contact and attachment sharing execute the membership and relationship gua
   assert.match(source, /collection\("vip_memberships"\)/u);
   assert.match(source, /paidMembershipCurrentForUser/u);
   assert.match(source, /contactSharingAuthorization\(\{/u);
+  assert.match(source, /paymentStatusAllowsCompletion/u);
+  assert.match(source, /collection\("marketplace_transactions"\)/u);
   assert.match(source, /collection\("dispatch_transactions"\)/u);
-  assert.match(source, /offer is accepted, an auction/u);
-  assert.match(source, /is won, or a Dispatch quote is awarded/u);
+  assert.match(source, /payment and the/u);
+  assert.match(source, /Pipe Buyer fee are secured/u);
+  assert.match(source, /Ordinary in-app messages remain/u);
+});
+
+test("seller Timed Buying chat is bound to the canonical auction settlement", () => {
+  assert.match(
+      source,
+      /requestedMarketplaceTransactionId !== `auction_\$\{listingId\}`/u,
+  );
+  assert.match(source, /collection\("auction_transactions"\)\.doc\(listingId\)/u);
+  assert.match(source, /timedBuyingConversationAuthorization\(\{/u);
+  assert.match(source, /contextType: "timed_buying"/u);
+  assert.match(source, /marketplaceTransactionId: requestedMarketplaceTransactionId/u);
 });
 
 test("message send and attachment authorization both enforce contact policy", () => {

@@ -5,10 +5,13 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   SIGNATURE_TOLERANCE_SECONDS,
+  STRIPE_WEBHOOK_SECRET_SANDBOX_NAME,
   assertMarketplaceFeeCheckoutSessionIdentity,
   assertStripeCurrencyMatches,
   createStripeWebhookHandler,
   marketplaceCheckoutSessionIsActive,
+  stripeWebhookSecretForMode,
+  verifyStripeWebhookRequest,
   verifyStripeSignature,
 } = require("../stripe_webhook");
 const {
@@ -141,6 +144,7 @@ test("fee webhook may bind the active reserved attempt before session storage", 
     stripeMarketplaceFeeAttemptId: "fee_attempt_9",
     stripeMarketplaceFeeSettlementGeneration: 9,
     stripeMarketplaceFeeSessionId: null,
+    stripeMode: "production",
   };
   const session = {
     id: "cs_fee_race",
@@ -149,6 +153,7 @@ test("fee webhook may bind the active reserved attempt before session storage", 
       pipeBuyerTransactionId: "transaction_9",
       pipeBuyerFeeCheckoutAttemptId: "fee_attempt_9",
       pipeBuyerSettlementGeneration: "9",
+      pipeBuyerStripeMode: "production",
     },
   };
   assert.deepEqual(assertMarketplaceFeeCheckoutSessionIdentity({
@@ -182,6 +187,7 @@ test("Checkout expiration identity rejects stale full and fee attempts", () => {
     stripeMarketplaceFeeAttemptId: "fee_attempt_current",
     stripeMarketplaceFeeSettlementGeneration: 4,
     stripeMarketplaceFeeSessionId: "cs_fee_current",
+    stripeMode: "production",
   };
   const staleFeeSession = {
     id: "cs_fee_stale",
@@ -190,6 +196,7 @@ test("Checkout expiration identity rejects stale full and fee attempts", () => {
       pipeBuyerTransactionId: "fee_transaction",
       pipeBuyerFeeCheckoutAttemptId: "fee_attempt_stale",
       pipeBuyerSettlementGeneration: "4",
+      pipeBuyerStripeMode: "production",
     },
   };
   assert.equal(marketplaceCheckoutSessionIsActive({
@@ -205,6 +212,7 @@ test("Checkout expiration identity rejects stale full and fee attempts", () => {
     paymentProviderStatus: "checkout_created",
     stripeCheckoutAttemptId: "full_attempt_current",
     stripeCheckoutSessionId: "cs_full_current",
+    stripeMode: "production",
   };
   assert.equal(marketplaceCheckoutSessionIsActive({
     sale: fullSale,
@@ -214,6 +222,7 @@ test("Checkout expiration identity rejects stale full and fee attempts", () => {
         pipeBuyerTransactionId: "full_transaction",
         pipeBuyerCheckoutAttemptId: "full_attempt_stale",
         pipeBuyerSettlementGeneration: "7",
+        pipeBuyerStripeMode: "production",
       },
     },
     transactionId: "full_transaction",
@@ -222,7 +231,8 @@ test("Checkout expiration identity rejects stale full and fee attempts", () => {
 });
 
 async function deliverWebhook(handler, event, secret) {
-  const rawBody = Buffer.from(JSON.stringify(event));
+  const deliveredEvent = {livemode: true, ...event};
+  const rawBody = Buffer.from(JSON.stringify(deliveredEvent));
   const timestamp = Math.floor(Date.now() / 1000);
   const header = `t=${timestamp},v1=${signature(rawBody, secret, timestamp)}`;
   const result = {statusCode: null, body: null};
@@ -242,6 +252,46 @@ async function deliverWebhook(handler, event, secret) {
   return result;
 }
 
+test("snapshot webhook selects a mode-bound secret and rejects livemode drift", async () => {
+  const secret = "whsec_snapshot_sandbox";
+  const sandboxEvent = {
+    id: "evt_test_snapshot_sandbox",
+    object: "event",
+    type: "checkout.session.expired",
+    livemode: false,
+    data: {object: {id: "cs_test"}},
+  };
+  const rawBody = Buffer.from(JSON.stringify(sandboxEvent));
+  const timestamp = Math.floor(Date.now() / 1000);
+  const request = {
+    rawBody,
+    get: () => `t=${timestamp},v1=${signature(rawBody, secret, timestamp)}`,
+  };
+  const verified = await verifyStripeWebhookRequest(request, {
+    readStripeMode: async () => "sandbox",
+    readWebhookSecret: (mode) => {
+      assert.equal(mode, "sandbox");
+      return secret;
+    },
+  });
+  assert.equal(verified.ok, true);
+  assert.equal(verified.stripeMode, "sandbox");
+
+  const mismatch = await verifyStripeWebhookRequest(request, {
+    readStripeMode: async () => "production",
+    readWebhookSecret: () => secret,
+  });
+  assert.deepEqual(mismatch, {
+    ok: false,
+    statusCode: 409,
+    message: "Stripe event environment mismatch",
+  });
+  assert.equal(
+      stripeWebhookSecretForMode("sandbox").name,
+      STRIPE_WEBHOOK_SECRET_SANDBOX_NAME,
+  );
+});
+
 test("expiration webhook fails only the active marketplace attempt", async () => {
   const secret = "whsec_expiration_test";
   const previousSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -256,6 +306,7 @@ test("expiration webhook fails only the active marketplace attempt", async () =>
         stripeMarketplaceFeeAttemptId: "fee_attempt_current",
         stripeMarketplaceFeeSettlementGeneration: 4,
         stripeMarketplaceFeeSessionId: "cs_fee_current",
+        stripeMode: "production",
       },
       "marketplace_transactions/full_transaction": {
         settlementMode: "stripe_checkout",
@@ -263,9 +314,12 @@ test("expiration webhook fails only the active marketplace attempt", async () =>
         paymentProviderStatus: "checkout_created",
         stripeCheckoutAttemptId: "full_attempt_current",
         stripeCheckoutSessionId: "cs_full_current",
+        stripeMode: "production",
       },
     });
-    const handler = createStripeWebhookHandler(memory.admin);
+    const handler = createStripeWebhookHandler(memory.admin, {
+      stripeMode: async () => "production",
+    });
     const staleFeeResult = await deliverWebhook(handler, {
       id: "evt_fee_expired_stale",
       type: "checkout.session.expired",
@@ -276,6 +330,7 @@ test("expiration webhook fails only the active marketplace attempt", async () =>
           pipeBuyerTransactionId: "fee_transaction",
           pipeBuyerFeeCheckoutAttemptId: "fee_attempt_stale",
           pipeBuyerSettlementGeneration: "3",
+          pipeBuyerStripeMode: "production",
         },
       }},
     }, secret);
@@ -296,6 +351,7 @@ test("expiration webhook fails only the active marketplace attempt", async () =>
           pipeBuyerTransactionId: "fee_transaction",
           pipeBuyerFeeCheckoutAttemptId: "fee_attempt_current",
           pipeBuyerSettlementGeneration: "4",
+          pipeBuyerStripeMode: "production",
         },
       }},
     }, secret);
@@ -315,6 +371,7 @@ test("expiration webhook fails only the active marketplace attempt", async () =>
           pipeBuyerTransactionId: "full_transaction",
           pipeBuyerCheckoutAttemptId: "full_attempt_stale",
           pipeBuyerSettlementGeneration: "7",
+          pipeBuyerStripeMode: "production",
         },
       }},
     }, secret);
@@ -334,6 +391,7 @@ test("expiration webhook fails only the active marketplace attempt", async () =>
           pipeBuyerTransactionId: "full_transaction",
           pipeBuyerCheckoutAttemptId: "full_attempt_current",
           pipeBuyerSettlementGeneration: "8",
+          pipeBuyerStripeMode: "production",
         },
       }},
     }, secret);
@@ -383,6 +441,7 @@ test("marketplace settlement rejects Checkout and PaymentIntent currency drift",
       stripeMarketplaceFeeAttemptId: attemptId,
       stripeMarketplaceFeeSettlementGeneration: 3,
       stripeMarketplaceFeeSessionId: sessionId,
+      stripeMode: "production",
       marketplaceFeeSnapshot: {
         currency: "USD",
         marketplaceFeeMinor: 100,
@@ -395,6 +454,7 @@ test("marketplace settlement rejects Checkout and PaymentIntent currency drift",
       paymentProviderStatus: "checkout_created",
       stripeCheckoutAttemptId: attemptId,
       stripeCheckoutSessionId: sessionId,
+      stripeMode: "production",
       marketplaceFeeSnapshot: {
         currency: "USD",
         agreedTotalMinor: 1000,
@@ -412,7 +472,10 @@ test("marketplace settlement rejects Checkout and PaymentIntent currency drift",
       "marketplace_transactions/full_intent_bad":
         fullSale("cs_full_intent_bad", "full_attempt_intent_bad"),
     });
-    const handler = createStripeWebhookHandler(memory.admin);
+    const handler = createStripeWebhookHandler(memory.admin, {
+      stripeMode: async () => "production",
+      stripeSecret: () => "sk_test_currency",
+    });
     const feeSession = ({transactionId, sessionId, attemptId, currency,
       paymentIntentId}) => ({
       id: sessionId,
@@ -427,6 +490,7 @@ test("marketplace settlement rejects Checkout and PaymentIntent currency drift",
         pipeBuyerTransactionId: transactionId,
         pipeBuyerFeeCheckoutAttemptId: attemptId,
         pipeBuyerSettlementGeneration: "3",
+        pipeBuyerStripeMode: "production",
       },
     });
     const fullSession = ({transactionId, sessionId, attemptId, currency,
@@ -442,6 +506,7 @@ test("marketplace settlement rejects Checkout and PaymentIntent currency drift",
         pipeBuyerTransactionId: transactionId,
         pipeBuyerCheckoutAttemptId: attemptId,
         pipeBuyerSettlementGeneration: "4",
+        pipeBuyerStripeMode: "production",
       },
     });
     const cases = [
@@ -546,6 +611,7 @@ function marketplaceCheckoutFixture({feeOnly}) {
     stripeMarketplaceFeeAttemptId: attemptId,
     stripeMarketplaceFeeSettlementGeneration: 1,
     stripeMarketplaceFeeSessionId: sessionId,
+    stripeMode: "production",
     marketplaceFeeSnapshot: {
       currency: "USD",
       marketplaceFeeMinor: 1000,
@@ -562,6 +628,7 @@ function marketplaceCheckoutFixture({feeOnly}) {
     paymentProviderStatus: "checkout_created",
     stripeCheckoutAttemptId: attemptId,
     stripeCheckoutSessionId: sessionId,
+    stripeMode: "production",
     marketplaceFeeSnapshot: {
       currency: "USD",
       agreedTotalMinor: 10000,
@@ -588,6 +655,7 @@ function marketplaceCheckoutFixture({feeOnly}) {
         pipeBuyerCheckoutAttemptId: attemptId,
       }),
       pipeBuyerSettlementGeneration: "1",
+      pipeBuyerStripeMode: "production",
     },
   };
   return {transactionId, sessionId, paymentIntentId, chargeId, sale, session};
@@ -615,6 +683,7 @@ test("fee refund arriving between Charge lookup and binding is replayed before c
     let injected = false;
     handler = createStripeWebhookHandler(memory.admin, {
       marketplaceFinancialResolution: gate,
+      stripeMode: async () => "production",
       stripeSecret: () => "sk_test_binding_race",
       retrievePaymentIntent: async () => ({
         id: fixture.paymentIntentId,
@@ -703,6 +772,7 @@ test("sale dispute arriving between Charge lookup and binding blocks seller payo
     let injected = false;
     handler = createStripeWebhookHandler(memory.admin, {
       marketplaceFinancialResolution: gate,
+      stripeMode: async () => "production",
       stripeSecret: () => "sk_test_binding_race",
       retrievePaymentIntent: async () => ({
         id: fixture.paymentIntentId,

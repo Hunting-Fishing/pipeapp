@@ -42,7 +42,10 @@ jobs:
 
           async function stripe(path) {
             const response = await fetch(`https://api.stripe.com${path}`, {
-              headers: {Authorization: `Bearer ${key}`},
+              headers: {
+                Authorization: `Bearer ${key}`,
+                'Stripe-Version': '2026-08-26.dahlia',
+              },
             });
             const payload = await response.json();
             if (!response.ok) {
@@ -51,17 +54,26 @@ jobs:
             return payload;
           }
 
-          async function listConnectedAccounts() {
+          async function listRecipientAccounts() {
             const accounts = [];
-            let startingAfter = null;
-            do {
-              const qs = new URLSearchParams({limit: '100'});
-              if (startingAfter) qs.set('starting_after', startingAfter);
-              const page = await stripe(`/v1/accounts?${qs.toString()}`);
+            let nextPath = '/v2/core/accounts?' + new URLSearchParams({
+              limit: '100',
+              'applied_configurations[0]': 'recipient',
+            }).toString();
+            while (nextPath) {
+              const page = await stripe(nextPath);
               const data = Array.isArray(page.data) ? page.data : [];
-              accounts.push(...data);
-              startingAfter = page.has_more && data.length ? data[data.length - 1].id : null;
-            } while (startingAfter);
+              const expanded = await Promise.all(data.map((account) => {
+                const qs = new URLSearchParams({
+                  'include[0]': 'configuration.recipient',
+                  'include[1]': 'defaults',
+                  'include[2]': 'requirements',
+                });
+                return stripe(`/v2/core/accounts/${encodeURIComponent(account.id)}?${qs}`);
+              }));
+              accounts.push(...expanded);
+              nextPath = String(page.next_page_url || '');
+            }
             return accounts;
           }
 
@@ -69,7 +81,7 @@ jobs:
             const [platform, balance, accounts] = await Promise.all([
               stripe('/v1/account'),
               stripe('/v1/balance'),
-              listConnectedAccounts(),
+              listRecipientAccounts(),
             ]);
 
             if (String(platform.id || '') !== expected) {
@@ -81,21 +93,26 @@ jobs:
 
             const summaries = accounts.map((account) => {
               const requirements = account.requirements || {};
-              const capabilities = account.capabilities || {};
+              const recipient = account.configuration && account.configuration.recipient || {};
+              const stripeBalance = recipient.capabilities && recipient.capabilities.stripe_balance || {};
+              const transfer = stripeBalance.stripe_transfers || {};
+              const responsibilities = account.defaults && account.defaults.responsibilities || {};
               const currentlyDue = Array.isArray(requirements.currently_due) ? requirements.currently_due.length : 0;
               const pastDue = Array.isArray(requirements.past_due) ? requirements.past_due.length : 0;
               const pendingVerification = Array.isArray(requirements.pending_verification) ? requirements.pending_verification.length : 0;
-              const transfersActive = capabilities.transfers === 'active';
-              const ready = account.details_submitted === true &&
-                account.payouts_enabled === true &&
-                transfersActive &&
+              const recipientConfigured = account.object === 'v2.core.account' &&
+                Array.isArray(account.applied_configurations) &&
+                account.applied_configurations.includes('recipient') &&
+                account.dashboard === 'express' &&
+                responsibilities.fees_collector === 'application' &&
+                responsibilities.losses_collector === 'application';
+              const transfersActive = transfer.status === 'active';
+              const ready = recipientConfigured && transfersActive &&
                 currentlyDue === 0 &&
                 pastDue === 0;
               return {
                 ready,
-                detailsSubmitted: account.details_submitted === true,
-                chargesEnabled: account.charges_enabled === true,
-                payoutsEnabled: account.payouts_enabled === true,
+                recipientConfigured,
                 transfersActive,
                 currentlyDue,
                 pastDue,
@@ -104,12 +121,12 @@ jobs:
             });
 
             const readyCount = summaries.filter((row) => row.ready).length;
-            const payoutEnabledCount = summaries.filter((row) => row.payoutsEnabled).length;
+            const transferActiveCount = summaries.filter((row) => row.transfersActive).length;
             const pendingRequirementsCount = summaries.filter((row) => row.currentlyDue > 0 || row.pastDue > 0 || row.pendingVerification > 0).length;
             const report = {
               platformLive: true,
               connectedSellerCount: summaries.length,
-              payoutEnabledSellerCount: payoutEnabledCount,
+              transferActiveSellerCount: transferActiveCount,
               readySellerCount: readyCount,
               sellersWithPendingRequirements: pendingRequirementsCount,
             };
@@ -123,7 +140,7 @@ jobs:
               `- Platform account verified: \`${expected}\`\n` +
               `- Live mode: \`true\`\n` +
               `- Connected sellers: \`${report.connectedSellerCount}\`\n` +
-              `- Payout-enabled sellers: \`${report.payoutEnabledSellerCount}\`\n` +
+              `- Transfer-active sellers: \`${report.transferActiveSellerCount}\`\n` +
               `- Fully ready sellers: \`${report.readySellerCount}\`\n` +
               `- Sellers with pending requirements: \`${report.sellersWithPendingRequirements}\`\n` +
               `- Financial mutations: \`none\`\n`);

@@ -30,6 +30,7 @@ const {
   createStripeMarketplaceCommands,
   stripeSecretKey,
 } = require("./stripe_marketplace_commands");
+const {stripeSecretNames} = require("./stripe_runtime_environment");
 const {createStripeCheckoutCommands} = require("./stripe_checkout_commands");
 const {
   createMarketplacePaymentLifecycle,
@@ -83,7 +84,12 @@ const {createStripeDisputeResponse} = require("./stripe_dispute_response");
 const {
   createStripeWebhookHandler,
   stripeWebhookSecret,
+  stripeWebhookSecretNames,
 } = require("./stripe_webhook");
+const {
+  createStripeAccountsV2WebhookHandler,
+  stripeAccountsV2WebhookSecretNames,
+} = require("./stripe_accounts_v2_webhook");
 const {
   createStripeWebhookDispatchLifecycleWrapper,
 } = require("./stripe_webhook_dispatch_lifecycle");
@@ -130,6 +136,8 @@ const stripeWebhookHandler = createStripeWebhookDispatchLifecycleWrapper({
   vipSubscriptionLifecycle,
   stripeWebhookSecret,
 });
+const stripeAccountsV2WebhookHandler =
+  createStripeAccountsV2WebhookHandler(admin);
 
 async function updateMarketplaceTransactionWithFinancialGuard(request) {
   const action = String(request.data && request.data.action || "").trim();
@@ -246,82 +254,94 @@ exports.getVipSubscriptionStatus = onCall(
     vipSubscriptionStatus.getVipSubscriptionStatus,
 );
 
-const stripeCallableOptions = Object.freeze({
+const stripeMarketplaceCallableOptions = Object.freeze({
+  ...protectedCallableOptions,
+  secrets: stripeSecretNames,
+});
+const stripeProductionCallableOptions = Object.freeze({
   ...protectedCallableOptions,
   secrets: [stripeSecretKey.name],
 });
 
 exports.ensureStripeSellerAccount = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     stripeMarketplaceCommands.ensureStripeSellerAccount,
 );
 exports.createStripeSellerOnboardingLink = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     stripeMarketplaceCommands.createStripeSellerOnboardingLink,
 );
 exports.refreshStripeSellerStatus = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     stripeMarketplaceCommands.refreshStripeSellerStatus,
 );
 exports.createMarketplaceCheckout = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     stripeCheckoutCommands.createMarketplaceCheckout,
 );
 exports.createExternalSettlementFeeCheckout = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     externalSettlementCommands.createExternalSettlementFeeCheckout,
 );
 exports.createDispatchSubscriptionCheckout = onCall(
-    stripeCallableOptions,
+    stripeProductionCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
         createDispatchSubscriptionCheckoutWithProviderGuard,
     ),
 );
 exports.createDispatchSubscriptionPortalSession = onCall(
-    stripeCallableOptions,
+    stripeProductionCallableOptions,
     dispatchSubscriptionPortal.createDispatchSubscriptionPortalSession,
 );
 exports.applyDispatchSubscriptionPromotionCode = onCall(
-    stripeCallableOptions,
+    stripeProductionCallableOptions,
     dispatchSubscriptionPromotions.applyDispatchSubscriptionPromotionCode,
 );
 exports.createVipSubscriptionCheckout = onCall(
-    stripeCallableOptions,
+    stripeProductionCallableOptions,
     policyAcceptanceCommands.requireCurrentPolicies(
         vipSubscriptionCommands.createVipSubscriptionCheckout,
     ),
 );
 exports.updateVipSubscriptionRenewal = onCall(
-    stripeCallableOptions,
+    stripeProductionCallableOptions,
     vipSubscriptionManagement.updateVipSubscriptionRenewal,
 );
 exports.executeMarketplaceRefund = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     marketplaceFinancialResolution.executeMarketplaceRefund,
 );
 exports.retryMarketplaceSellerRecovery = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     retryMarketplaceSellerRecoveryWithRefundGuard,
 );
 exports.stageMarketplaceDisputeEvidence = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     stripeDisputeResponse.stageMarketplaceDisputeEvidence,
 );
 exports.submitMarketplaceDisputeEvidence = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     stripeDisputeResponse.submitMarketplaceDisputeEvidence,
 );
 exports.acceptMarketplaceDispute = onCall(
-    stripeCallableOptions,
+    stripeMarketplaceCallableOptions,
     stripeDisputeResponse.acceptMarketplaceDispute,
 );
 
 exports.stripeMarketplaceWebhook = onRequest(
     {
-      secrets: [stripeSecretKey.name, stripeWebhookSecret.name],
+      secrets: [...stripeSecretNames, ...stripeWebhookSecretNames],
       cors: false,
     },
     stripeWebhookHandler,
+);
+
+exports.stripeAccountsV2Webhook = onRequest(
+    {
+      secrets: [...stripeSecretNames, ...stripeAccountsV2WebhookSecretNames],
+      cors: false,
+    },
+    stripeAccountsV2WebhookHandler,
 );
 
 exports.processEligibleAffiliatePayouts = onSchedule(
@@ -376,7 +396,7 @@ exports.onMarketplaceTransactionUpdatedSellerRelease = onDocumentUpdated(
     {
       document: "marketplace_transactions/{transactionId}",
       retry: true,
-      secrets: [stripeSecretKey.name],
+      secrets: stripeSecretNames,
     },
     async (event) => marketplacePaymentLifecycle.releaseSellerFunds({
       transactionId: event.params.transactionId,

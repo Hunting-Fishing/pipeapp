@@ -3,12 +3,18 @@
 // Non-secret Stripe object identifiers created for Pipe Buyer. Secret keys and
 // webhook signing secrets belong in Google Cloud Secret Manager only.
 const stripeMarketplaceConfig = Object.freeze({
-  apiVersion: "2026-06-24.preview",
-  // Seller payout accounts use stable Connect v1. Accounts v2 preview is not
-  // compatible with Pipe Buyer's separate-charges-and-transfers architecture;
-  // Stripe documents that Express/controller accounts on v1 support that flow.
-  connectAccountsApiVersion: "2026-06-24.dahlia",
+  apiVersion: "2026-08-26.dahlia",
+  // New seller payout accounts use Accounts v2 recipient configuration. The
+  // separate-charges-and-transfers money flow continues to use stable v1
+  // Checkout, Transfer, Account Link, Refund, and Dispute endpoints with the
+  // v2 Account identifier, as Stripe documents for cross-version resources.
+  connectAccountsApiVersion: "2026-08-26.dahlia",
+  connectAccountObject: "v2.core.account",
   accountCountry: "CA",
+  integrationIdentifiers: Object.freeze({
+    marketplaceCheckout: "pipebuyer_marketplace_qxndvjat",
+    marketplaceFeeCheckout: "pipebuyer_marketplace_fee_rxpkdmwu",
+  }),
   products: Object.freeze({
     dispatchMonthlyCad: Object.freeze({
       productId: "prod_V2WkE5D16GhGaD",

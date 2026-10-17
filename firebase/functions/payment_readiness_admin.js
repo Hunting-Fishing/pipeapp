@@ -22,6 +22,7 @@ const BOOLEAN_FIELDS = Object.freeze([
   "stripeTaxPendingBillingApproved",
   "marketplaceTaxCollectionDeferredApproved",
   "stripeReconciliationReady",
+  "stripeFullGmvEconomicsApproved",
   "affiliatePayoutEconomicsReady",
   "affiliatePayoutsEnabled",
   "marketplaceFinancialResolutionEnabled",
@@ -38,6 +39,15 @@ const URL_FIELDS = Object.freeze([
 ]);
 const STRING_FIELDS = Object.freeze([
   "stripeDispatchPortalConfigurationId",
+  "stripeFullGmvEconomicsPolicyRevision",
+  "stripeFullGmvPaymentMethodConfigurationId",
+]);
+const INTEGER_FIELDS = Object.freeze([
+  "stripeFullGmvMaximumChargeMinorUsd",
+  "stripeFullGmvMaximumProviderFeeBps",
+  "stripeFullGmvMaximumProviderFeeFixedMinorUsd",
+  "stripeFullGmvMaximumTaxUpliftBps",
+  "stripeFullGmvMinimumNetRevenueMinorUsd",
 ]);
 
 function safeHttpsPipeBuyerUrl(value, field) {
@@ -69,6 +79,28 @@ function safePortalConfigurationId(value) {
   return configurationId;
 }
 
+function safePaymentMethodConfigurationId(value) {
+  const configurationId = String(value || "").trim();
+  if (configurationId && !/^pmc_[A-Za-z0-9]+$/.test(configurationId)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "stripeFullGmvPaymentMethodConfigurationId must be a Stripe payment-method configuration ID.",
+    );
+  }
+  return configurationId;
+}
+
+function safeEconomicsPolicyRevision(value) {
+  const revision = String(value || "").trim();
+  if (revision && !/^[A-Za-z0-9][A-Za-z0-9._:-]{2,119}$/.test(revision)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "stripeFullGmvEconomicsPolicyRevision is invalid.",
+    );
+  }
+  return revision;
+}
+
 function normalizeReadiness(data = {}) {
   const normalized = {
     stripeMode: MODES.has(String(data.stripeMode || "")) ?
@@ -77,7 +109,48 @@ function normalizeReadiness(data = {}) {
   for (const field of BOOLEAN_FIELDS) normalized[field] = data[field] === true;
   for (const field of URL_FIELDS) normalized[field] = String(data[field] || "");
   for (const field of STRING_FIELDS) normalized[field] = String(data[field] || "");
+  for (const field of INTEGER_FIELDS) {
+    const value = Number(data[field]);
+    normalized[field] = Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  }
   return normalized;
+}
+
+function fullGmvEconomicsConfigured(next) {
+  const maximumCharge = Number(next.stripeFullGmvMaximumChargeMinorUsd);
+  const maximumProviderFeeBps = Number(
+      next.stripeFullGmvMaximumProviderFeeBps,
+  );
+  const maximumProviderFeeFixed = Number(
+      next.stripeFullGmvMaximumProviderFeeFixedMinorUsd,
+  );
+  const minimumNetRevenue = Number(
+      next.stripeFullGmvMinimumNetRevenueMinorUsd,
+  );
+  const maximumTaxUpliftBps = Number(
+      next.stripeFullGmvMaximumTaxUpliftBps,
+  );
+  return next.stripeFullGmvEconomicsApproved === true &&
+    /^[A-Za-z0-9][A-Za-z0-9._:-]{2,119}$/.test(String(
+        next.stripeFullGmvEconomicsPolicyRevision || "",
+    )) &&
+    /^pmc_[A-Za-z0-9]+$/.test(String(
+        next.stripeFullGmvPaymentMethodConfigurationId || "",
+    )) &&
+    Number.isSafeInteger(maximumCharge) && maximumCharge > 0 &&
+    Number.isSafeInteger(maximumProviderFeeBps) &&
+      maximumProviderFeeBps > 0 && maximumProviderFeeBps <= 10000 &&
+    Number.isSafeInteger(maximumProviderFeeFixed) &&
+      maximumProviderFeeFixed >= 0 &&
+    Number.isSafeInteger(maximumTaxUpliftBps) &&
+      maximumTaxUpliftBps >= 0 && maximumTaxUpliftBps <= 10000 &&
+      (next.stripeTaxReady !== true || maximumTaxUpliftBps > 0) &&
+    Number.isSafeInteger(minimumNetRevenue) && minimumNetRevenue > 0 &&
+    Math.ceil(
+        Math.ceil(maximumCharge * (10000 + maximumTaxUpliftBps) / 10000) *
+        maximumProviderFeeBps / 10000,
+    ) +
+      maximumProviderFeeFixed + minimumNetRevenue <= maximumCharge;
 }
 
 function taxBillingPrepared(next) {
@@ -91,6 +164,10 @@ function affiliateProviderReady(next) {
     next.stripeConnectOnboardingEnabled &&
     next.stripeWebhookVerified &&
     next.stripeReconciliationReady;
+}
+
+function marketplaceStripeModeReady(next) {
+  return next.stripeMode === "sandbox" || next.stripeMode === "production";
 }
 
 function validateReadiness(next, options = {}) {
@@ -128,27 +205,38 @@ function validateReadiness(next, options = {}) {
         "Pending-tax billing approval may only be enabled while tax registration is explicitly pending.",
     );
   }
+  if (next.stripeFullGmvEconomicsApproved &&
+      !fullGmvEconomicsConfigured(next)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Full marketplace checkout economics approval requires an approved " +
+        "policy revision, a Stripe payment-method configuration, a positive " +
+        "USD charge limit, bounded provider-cost and tax-uplift ceilings, " +
+        "and positive minimum net platform revenue.",
+    );
+  }
   if (next.stripeCheckoutEnabled && !(
-    next.stripeMode === "production" &&
+    marketplaceStripeModeReady(next) &&
     next.stripeConnectOnboardingEnabled &&
     next.stripeWebhookVerified &&
     (next.stripeTaxReady || next.marketplaceTaxCollectionDeferredApproved) &&
-    next.stripeReconciliationReady
+    next.stripeReconciliationReady &&
+    fullGmvEconomicsConfigured(next)
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Full marketplace checkout requires production mode, Connect onboarding, verified webhooks, reconciliation readiness, and either registered automatic tax or an audited deferred tax-collection decision.",
+        "Full marketplace checkout requires an explicit Stripe sandbox or production mode, Connect onboarding, verified mode-bound webhooks, reconciliation readiness, approved full-GMV economics and payment rails, and either registered automatic tax or an audited deferred tax-collection decision.",
     );
   }
   if (next.stripeFeeBillingEnabled && !(
-    next.stripeMode === "production" &&
+    marketplaceStripeModeReady(next) &&
     next.stripeWebhookVerified &&
     taxBillingPrepared(next) &&
     next.stripeReconciliationReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace fee billing requires production mode, verified webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
+        "Marketplace fee billing requires an explicit Stripe sandbox or production mode, verified mode-bound webhooks, reconciliation readiness, and either active tax readiness or a separately approved pending-registration billing decision.",
     );
   }
   if (next.stripeSubscriptionsEnabled && !(
@@ -186,13 +274,13 @@ function validateReadiness(next, options = {}) {
     );
   }
   if (next.marketplaceFinancialResolutionEnabled && !(
-    next.stripeMode === "production" &&
+    marketplaceStripeModeReady(next) &&
     next.stripeWebhookVerified &&
     next.stripeReconciliationReady
   )) {
     throw new HttpsError(
         "failed-precondition",
-        "Marketplace financial resolution requires production mode, verified webhooks, and reconciliation readiness.",
+        "Marketplace financial resolution requires an explicit Stripe sandbox or production mode, verified mode-bound webhooks, and reconciliation readiness.",
     );
   }
   if (next.marketplaceDisputeAutomationEnabled &&
@@ -244,6 +332,7 @@ function applyPatch(current, patch, options = {}) {
     ...BOOLEAN_FIELDS,
     ...URL_FIELDS,
     ...STRING_FIELDS,
+    ...INTEGER_FIELDS,
   ]);
   for (const key of Object.keys(patch)) {
     if (!allowed.has(key)) {
@@ -269,7 +358,24 @@ function applyPatch(current, patch, options = {}) {
   for (const field of STRING_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(patch, field)) {
       next[field] = field === "stripeDispatchPortalConfigurationId" ?
-        safePortalConfigurationId(patch[field]) : String(patch[field] || "").trim();
+        safePortalConfigurationId(patch[field]) :
+        field === "stripeFullGmvPaymentMethodConfigurationId" ?
+          safePaymentMethodConfigurationId(patch[field]) :
+          field === "stripeFullGmvEconomicsPolicyRevision" ?
+            safeEconomicsPolicyRevision(patch[field]) :
+            String(patch[field] || "").trim();
+    }
+  }
+  for (const field of INTEGER_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(patch, field)) {
+      const value = Number(patch[field]);
+      if (!Number.isSafeInteger(value) || value < 0) {
+        throw new HttpsError(
+            "invalid-argument",
+            `${field} must be a non-negative integer.`,
+        );
+      }
+      next[field] = value;
     }
   }
   return validateReadiness(next, options);
@@ -349,13 +455,17 @@ function createPaymentReadinessAdmin(admin) {
 
 module.exports = {
   BOOLEAN_FIELDS,
+  INTEGER_FIELDS,
   STRING_FIELDS,
   URL_FIELDS,
   affiliateProviderReady,
   applyPatch,
   createPaymentReadinessAdmin,
+  fullGmvEconomicsConfigured,
+  marketplaceStripeModeReady,
   normalizeReadiness,
   safeHttpsPipeBuyerUrl,
+  safePaymentMethodConfigurationId,
   safePortalConfigurationId,
   taxBillingPrepared,
   validateReadiness,

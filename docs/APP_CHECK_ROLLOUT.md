@@ -106,6 +106,13 @@ Create the ignored project-specific environment file
 PIPE_ENFORCE_APP_CHECK=true
 ```
 
+Setting only a parent PowerShell or GitHub Actions environment variable is not
+sufficient: Firebase CLI deployment discovery loads runtime values from the
+Functions project-specific dotenv file. The canonical deployment workflow now
+materializes `.env.<projectId>` on its ephemeral runner and verifies the exact
+persisted value before deploying. Production workflow runs fail closed unless
+`app_check_mode=enforce`.
+
 From `firebase/`, deploy the Functions codebase:
 
 ```powershell

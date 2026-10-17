@@ -13,8 +13,11 @@ const {
 } = require("./phase1_feature_flags");
 const {
   loadProviderReadiness,
-  stripeSecretKey,
 } = require("./stripe_marketplace_commands");
+const {
+  requireStripeTransactionMode,
+  stripeSecretValueForMode,
+} = require("./stripe_runtime_environment");
 const {
   assertMarketplaceFeeCheckoutSessionIdentity,
   marketplaceExecutionCurrency,
@@ -29,6 +32,7 @@ const {
   provisionalTaxReserveMinor,
   taxCollectionStatus,
 } = require("./pending_tax_policy");
+const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 
 function requireAuth(request) {
   return requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
@@ -283,6 +287,8 @@ function createExternalSettlementCommands(admin) {
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
       requirePlatformFeeBillingReady(readiness);
+      const stripeMode = readiness.stripeMode;
+      const stripeSecret = stripeSecretValueForMode(stripeMode);
       const collectionStatus = taxCollectionStatus(readiness);
       const transactionId = transactionIdFromRequest(request);
       const transactionRef = db.collection("marketplace_transactions")
@@ -302,6 +308,9 @@ function createExternalSettlementCommands(admin) {
         settlementGeneration,
       }) => stripeCheckoutRequestSnapshot({
         mode: "payment",
+        integration_identifier:
+          stripeMarketplaceConfig.integrationIdentifiers
+              .marketplaceFeeCheckout,
         success_url: successUrl,
         cancel_url: cancelUrl,
         client_reference_id: transactionId,
@@ -325,10 +334,12 @@ function createExternalSettlementCommands(admin) {
           attemptId,
         "payment_intent_data[metadata][pipeBuyerSettlementGeneration]":
           settlementGeneration,
+        "payment_intent_data[metadata][pipeBuyerStripeMode]": stripeMode,
         "metadata[pipeBuyerTransactionId]": transactionId,
         "metadata[billingType]": "marketplace_fee_only",
         "metadata[pipeBuyerFeeCheckoutAttemptId]": attemptId,
         "metadata[pipeBuyerSettlementGeneration]": settlementGeneration,
+        "metadata[pipeBuyerStripeMode]": stripeMode,
         "metadata[feeScheduleRevision]": String(fee.scheduleRevision || ""),
         "metadata[listingId]": String(sale.listingId || ""),
         "metadata[buyerUid]": String(sale.buyerUid || ""),
@@ -384,6 +395,14 @@ function createExternalSettlementCommands(admin) {
           }
           const currency = marketplaceExecutionCurrency(fee, sale);
           const currentFeeStatus = String(sale.marketplaceFeeStatus || "");
+          if (sale.stripeMarketplaceFeeAttemptId ||
+              sale.stripeMarketplaceFeeSessionId ||
+              ["checkout_creating", "checkout_created", "processing",
+                "collected"].includes(currentFeeStatus)) {
+            requireStripeTransactionMode(sale, stripeMode);
+          } else if (String(sale.stripeMode || "").trim()) {
+            requireStripeTransactionMode(sale, stripeMode);
+          }
           const resumableStatuses = new Set([
             "checkout_creating",
             "checkout_created",
@@ -446,7 +465,11 @@ function createExternalSettlementCommands(admin) {
                 Number(fields[
                     "payment_intent_data[metadata]" +
                     "[pipeBuyerSettlementGeneration]"
-                ]) !== settlementGeneration) {
+                ]) !== settlementGeneration ||
+                fields[
+                    "payment_intent_data[metadata][pipeBuyerStripeMode]"
+                ] !== stripeMode ||
+                fields["metadata[pipeBuyerStripeMode]"] !== stripeMode) {
               throw new HttpsError(
                   "failed-precondition",
                   "The existing marketplace fee checkout cannot be resumed safely.",
@@ -504,6 +527,7 @@ function createExternalSettlementCommands(admin) {
             settlementGeneration,
           });
           firestoreTransaction.set(transactionRef, {
+            stripeMode,
             marketplaceFeeStatus: "checkout_creating",
             stripeMarketplaceFeeAttemptId: attemptId,
             stripeMarketplaceFeeAttemptNumber: attemptNumber,
@@ -518,6 +542,7 @@ function createExternalSettlementCommands(admin) {
             kind: "reserved",
             sale: {
               ...sale,
+              stripeMode,
               marketplaceFeeStatus: "checkout_creating",
               stripeMarketplaceFeeAttemptId: attemptId,
               stripeMarketplaceFeeSettlementGeneration: settlementGeneration,
@@ -539,7 +564,7 @@ function createExternalSettlementCommands(admin) {
       let reservation = await reserveFeeCheckout(crypto.randomUUID());
       for (let probe = 0; reservation.kind === "existing" && probe < 3; probe++) {
         const existingSession = await stripeFormRequest({
-          secretKey: stripeSecretKey.value(),
+          secretKey: stripeSecret,
           path: `/v1/checkout/sessions/${encodeURIComponent(
               reservation.sessionId,
           )}`,
@@ -579,6 +604,7 @@ function createExternalSettlementCommands(admin) {
             );
           }
           const currentSale = current.data();
+          requireStripeTransactionMode(currentSale, stripeMode);
           if (currentSale.marketplaceFeeStatus === "collected") {
             return {
               kind: "paid",
@@ -628,6 +654,7 @@ function createExternalSettlementCommands(admin) {
             settlementGeneration,
           });
           firestoreTransaction.set(transactionRef, {
+            stripeMode,
             marketplaceFeeStatus: "checkout_creating",
             stripeMarketplaceFeeAttemptId: replacementAttemptId,
             stripeMarketplaceFeeAttemptNumber: attemptNumber,
@@ -649,6 +676,7 @@ function createExternalSettlementCommands(admin) {
             kind: "reserved",
             sale: {
               ...currentSale,
+              stripeMode,
               marketplaceFeeStatus: "checkout_creating",
               stripeMarketplaceFeeAttemptId: replacementAttemptId,
               stripeMarketplaceFeeSettlementGeneration: settlementGeneration,
@@ -686,7 +714,7 @@ function createExternalSettlementCommands(admin) {
       let session;
       try {
         session = await stripeFormRequest({
-          secretKey: stripeSecretKey.value(),
+          secretKey: stripeSecret,
           path: "/v1/checkout/sessions",
           idempotencyKey: reservation.idempotencyKey,
           fields: reservation.fields,

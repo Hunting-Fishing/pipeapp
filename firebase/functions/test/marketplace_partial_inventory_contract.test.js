@@ -36,6 +36,8 @@ test("partial completion reopens only the remaining inventory", () => {
 test("completed partial buyers retain protected contact authorization", () => {
   assert.match(commandSource, /collection\("completed_buyers"\)/);
   assert.match(communicationSource, /completedBuyerUid/);
-  assert.match(communicationSource, /reason: "completed_offer"/);
+  assert.match(communicationSource, /relationshipReason = "completed_offer"/);
+  assert.match(communicationSource, /latestCompletedOfferId/);
+  assert.match(communicationSource, /paymentStatusAllowsCompletion/);
 });
 

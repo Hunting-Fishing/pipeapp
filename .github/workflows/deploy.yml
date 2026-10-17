@@ -108,8 +108,9 @@ jobs:
             echo "::error::Staging cannot deploy to the production Firebase project."
             exit 1
           fi
-          if [[ "$PIPE_ENV" == "production" && "$PIPE_APP_CHECK_MODE" == "disabled" ]]; then
-            echo "::warning::App Check is disabled for this production release. Set app_check_mode to enforce before public launch."
+          if [[ "$PIPE_ENV" == "production" && "$PIPE_APP_CHECK_MODE" != "enforce" ]]; then
+            echo "::error::Production releases require app_check_mode=enforce."
+            exit 1
           fi
 
       - name: Check out exact release commit
@@ -152,6 +153,22 @@ jobs:
         uses: actions/setup-node@v6.4.0
         with:
           node-version: 22
+
+      - name: Persist Functions App Check deployment option
+        shell: bash
+        run: |
+          set -euo pipefail
+          functions_env="firebase/functions/.env.${PIPE_FIREBASE_PROJECT_ID}"
+          umask 077
+          printf 'PIPE_ENFORCE_APP_CHECK=%s\n' \
+            "$PIPE_ENFORCE_APP_CHECK" > "$functions_env"
+          persisted_value="$(sed -n \
+            's/^PIPE_ENFORCE_APP_CHECK=//p' "$functions_env")"
+          if [[ "$persisted_value" != "$PIPE_ENFORCE_APP_CHECK" ]]; then
+            echo "::error::Functions App Check deployment option was not persisted."
+            exit 1
+          fi
+          echo "Functions App Check deployment option persisted for Firebase discovery."
 
       - name: Restore Flutter dependencies
         run: flutter pub get
