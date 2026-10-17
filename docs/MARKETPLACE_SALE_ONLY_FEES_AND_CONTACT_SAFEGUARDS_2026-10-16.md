@@ -106,10 +106,10 @@ described below.
 
 The approved Apple United States targets are USD 24.99 monthly and USD 249.99
 yearly. The yearly target is about two monthly payments, or approximately 17%,
-less than twelve monthly payments. The yearly product was last verified in App
-Store Connect at USD 299.99. USD 249.99 remains pending an external App Store
-Connect price-schedule change, saved-state verification, localized storefront
-review, Sandbox testing, and normal submission approval.
+less than twelve monthly payments. On 2026-10-18, App Store Connect saved and
+re-displayed the USD 249.99 United States base price and Apple-calculated prices
+for all 175 storefronts. Localized disclosure review, Sandbox testing, and
+normal submission approval remain pending.
 
 ## Contact-sharing safeguards
 
@@ -232,9 +232,9 @@ direct contact exchange a controlled capability:
    simultaneous payout/refund attempts, and exact-once compensation checks.
    Completion must stay blocked while any settlement-reconciliation token,
    refund exposure, dispute, chargeback, or financial hold is present.
-9. Separately change the Apple yearly price schedule to USD 249.99 only with
-   action-time approval. Re-read the saved App Store Connect state, then update
-   screenshots, localized disclosures, and Sandbox/TestFlight evidence.
+9. The Apple yearly price schedule is now USD 249.99 and was re-read after the
+   2026-10-18 save. Update review screenshots and localized disclosures, then
+   complete Sandbox/TestFlight evidence before submission.
 10. Production activation is a later, separately approved decision after
     migration verification, privacy/security review, tax and settlement gates,
     reconciliation, monitoring, App Store prerequisites, and acceptance

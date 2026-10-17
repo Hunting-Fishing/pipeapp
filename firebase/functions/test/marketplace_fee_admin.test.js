@@ -82,9 +82,9 @@ test("admin fee catalog exposes sale-only pipe fee rules", () => {
 test("admin fee catalog exposes dispatch and affiliate pricing", () => {
   const catalog = feeCatalog();
   assert.equal(catalog.dispatch.monthly.amount, 25);
-  assert.equal(catalog.dispatch.monthly.currency, "CAD");
-  assert.equal(catalog.dispatch.yearly.amount, 300);
-  assert.equal(catalog.dispatch.yearly.currency, "CAD");
+  assert.equal(catalog.dispatch.monthly.currency, "USD");
+  assert.equal(catalog.dispatch.yearly.amount, 250);
+  assert.equal(catalog.dispatch.yearly.currency, "USD");
   assert.equal(catalog.affiliate.sharePercent, 20);
 });
 

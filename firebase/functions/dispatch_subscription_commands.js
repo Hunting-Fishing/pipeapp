@@ -163,8 +163,8 @@ function createDispatchSubscriptionCommands(admin) {
       const collectionStatus = taxCollectionStatus(readiness);
       const plan = selectedPlan(request.data && request.data.plan);
       const product = plan === "monthly" ?
-        stripeMarketplaceConfig.products.dispatchMonthlyCad :
-        stripeMarketplaceConfig.products.dispatchYearlyCad;
+        stripeMarketplaceConfig.products.dispatchMonthlyUsd :
+        stripeMarketplaceConfig.products.dispatchYearlyUsd;
       const priceId = product.priceId;
       const productId = product.productId;
       const successUrl = safeConfiguredUrl(

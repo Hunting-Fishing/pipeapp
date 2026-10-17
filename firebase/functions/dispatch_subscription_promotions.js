@@ -77,7 +77,7 @@ function promotionCodeTargetsDispatchProduct(promotionCode) {
   const coupon = couponFromPromotionCode(promotionCode);
   const products = coupon && coupon.applies_to && coupon.applies_to.products;
   if (!Array.isArray(products) || products.length === 0) return true;
-  return products.includes(stripeMarketplaceConfig.products.dispatchMonthlyCad.productId);
+  return products.includes(stripeMarketplaceConfig.products.dispatchMonthlyUsd.productId);
 }
 
 function selectPromotionCode(data, requestedCode, stripeCustomerId = "") {

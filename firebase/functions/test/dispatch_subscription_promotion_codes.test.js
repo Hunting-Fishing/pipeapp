@@ -102,7 +102,7 @@ test("promotion summaries come only from Stripe coupon data", () => {
 
 test("Dispatch product restriction is enforced when Stripe supplies applies_to", () => {
   const dispatchProductId =
-    stripeMarketplaceConfig.products.dispatchMonthlyCad.productId;
+    stripeMarketplaceConfig.products.dispatchMonthlyUsd.productId;
   assert.equal(
       promotionCodeTargetsDispatchProduct({
         promotion: {coupon: {applies_to: {products: [dispatchProductId]}}},

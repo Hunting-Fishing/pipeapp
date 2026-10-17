@@ -1,6 +1,7 @@
 "use strict";
 
 const {
+  subscriptionItem,
   subscriptionMembershipPlan,
 } = require("./membership_plan_policy");
 
@@ -80,6 +81,7 @@ function subscriptionPeriodEndMillis(subscription) {
 function providerSubscriptionState(subscription, {deleted = false} = {}) {
   const providerStatus = deleted ?
     "canceled" : String(subscription && subscription.status || "unknown").trim();
+  const current = subscriptionItem(subscription);
   return {
     providerStatus,
     blocksNewCheckout: !TERMINAL_PROVIDER_STATUSES.has(providerStatus),
@@ -87,6 +89,7 @@ function providerSubscriptionState(subscription, {deleted = false} = {}) {
       subscription && subscription.cancel_at_period_end === true,
     providerPeriodEndMillis: subscriptionPeriodEndMillis(subscription) || null,
     stripeCustomerId: subscriptionCustomerId(subscription) || null,
+    currentPriceId: current ? current.priceId : null,
   };
 }
 
@@ -182,7 +185,7 @@ function createDispatchSubscriptionLifecycle(admin) {
         providerPeriodEnd: provider.providerPeriodEndMillis ?
           Timestamp.fromMillis(provider.providerPeriodEndMillis) : null,
         currentPlanId: identity.plan.id,
-        currentPriceId: identity.plan.priceId,
+        currentPriceId: provider.currentPriceId,
         ...(deleted ? {deletedAt: FieldValue.serverTimestamp()} : {}),
         updatedAt: FieldValue.serverTimestamp(),
         ...(providerStateSnapshot.exists ? {} : {

@@ -35,7 +35,10 @@ function membershipPlanCatalog() {
       rank: 1,
       billingType: "dispatch_subscription",
       dispatchPlan: "monthly",
-      priceId: String(products.dispatchMonthlyCad.priceId || ""),
+      priceId: String(products.dispatchMonthlyUsd.priceId || ""),
+      legacyPriceIds: Object.freeze([
+        String(products.dispatchMonthlyCad.priceId || ""),
+      ].filter(Boolean)),
       interval: "month",
       label: "Monthly",
     }),
@@ -45,7 +48,10 @@ function membershipPlanCatalog() {
       rank: 1,
       billingType: "dispatch_subscription",
       dispatchPlan: "yearly",
-      priceId: String(products.dispatchYearlyCad.priceId || ""),
+      priceId: String(products.dispatchYearlyUsd.priceId || ""),
+      legacyPriceIds: Object.freeze([
+        String(products.dispatchYearlyCad.priceId || ""),
+      ].filter(Boolean)),
       interval: "year",
       label: "Yearly",
     }),
@@ -74,7 +80,11 @@ function membershipPlanForPriceId(value) {
   const priceId = String(value || "").trim();
   if (!priceId.startsWith("price_")) return null;
   for (const plan of Object.values(membershipPlanCatalog())) {
-    if (plan.priceId && plan.priceId === priceId) return plan;
+    const recognizedPriceIds = [
+      String(plan.priceId || ""),
+      ...(Array.isArray(plan.legacyPriceIds) ? plan.legacyPriceIds : []),
+    ].filter(Boolean);
+    if (recognizedPriceIds.includes(priceId)) return plan;
   }
   return null;
 }
@@ -150,6 +160,13 @@ function subscriptionMembershipPlan(subscription) {
   return current ? membershipPlanForPriceId(current.priceId) : null;
 }
 
+function subscriptionItemForPlan(subscription, expectedPlan) {
+  const current = subscriptionItem(subscription);
+  if (!current || !expectedPlan) return null;
+  const recognizedPlan = membershipPlanForPriceId(current.priceId);
+  return recognizedPlan && recognizedPlan.id === expectedPlan.id ? current : null;
+}
+
 function membershipPlanMetadata(plan, uid) {
   if (!plan || plan.id === "free") return {};
   return {
@@ -210,5 +227,6 @@ module.exports = {
   requestedMembershipPlan,
   stripePriceId,
   subscriptionItem,
+  subscriptionItemForPlan,
   subscriptionMembershipPlan,
 };

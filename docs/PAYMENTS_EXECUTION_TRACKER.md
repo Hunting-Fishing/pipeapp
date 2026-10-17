@@ -30,6 +30,11 @@ When repairing a payment defect, record the root cause, exact repair, verificati
 ## Live Stripe products/prices
 
 - [x] Live Pipe Buyer Stripe account identified.
+- [x] Dispatch Monthly USD recurring price exists: US$25/month.
+- [x] Dispatch Yearly USD recurring price exists: US$250/year.
+- [x] US$250/year saves exactly US$50 against twelve monthly payments,
+  equal to two monthly payments (16.667%).
+- [x] The USD monthly price is the unified Dispatch product's default price.
 - [x] Dispatch Monthly CAD recurring price exists: CA$25/month.
 - [x] Dispatch Yearly CAD recurring price exists: CA$300/year.
 - [x] Pipe Marketplace Fee product exists with launch-v2 metadata.
@@ -75,8 +80,10 @@ Important: do not delete/deactivate legacy Stripe objects until Firebase, old re
 - [x] Paid-feature and Dispatch feature gates are enforced.
 - [x] Checkout uses server-configured Stripe Price IDs.
 - [x] Client cannot supply authoritative subscription amount.
-- [x] Monthly maps to intended recurring CAD price.
-- [x] Yearly maps to intended recurring CAD price.
+- [x] Monthly maps to the intended recurring USD price.
+- [x] Yearly maps to the intended discounted recurring USD price.
+- [x] Legacy CAD monthly/yearly Price IDs remain recognizable for delayed
+  invoices and webhook replays but are not selected for new checkout sessions.
 - [x] Checkout uses Stripe `mode=subscription`.
 - [x] Billing address collection is required.
 - [x] Promotion coupons are chosen from server-owned entitlement records.
@@ -241,13 +248,40 @@ P7 definition of done: every Pipe Buyer dollar can be traced from business trans
 
 # Findings / repair log
 
+## 2026-10-18 — Live USD Dispatch pricing created and selected
+
+Observed: the unified live Dispatch product had only the intended CAD recurring
+prices and a legacy one-time CAD price. The approved web price schedule is
+US$25/month and US$250/year.
+
+Repair/action: created immutable recurring USD monthly and yearly prices on the
+existing unified Dispatch product, made the USD monthly price the product
+default, and changed product catalog metadata from CAD/Canada to USD/global.
+The annual price itself carries the discount; no coupon was added. Existing CAD
+prices were retained because provider event replay and older clients can still
+refer to immutable Price IDs.
+
+Verification: the live product page showed five prices, US$25/month marked
+Default, US$250/year, and zero active subscriptions on both new prices. The
+checked-out server configuration uses the new USD Price IDs for new checkout
+and recognizes the two legacy CAD recurring IDs for lifecycle events.
+
+Status: catalog and branch wiring complete; production checkout remains
+fail-closed until the production webhook, restricted-key, tax, reconciliation,
+Connect account migration, and release gates are verified.
+
 ## 2026-08-21 — Live Stripe object audit
 
-Observed: multiple active Dispatch prices/products exist, including intended recurring CAD monthly/yearly objects plus older one-time CAD prices and an active US$25/month legacy/international product.
+Observed: multiple active Dispatch prices/products existed, including recurring
+CAD monthly/yearly objects, older one-time CAD prices, and an active US$25/month
+legacy/international product.
 
 Root cause: not yet classified; likely prior setup iterations. Do not assume these are safe to delete.
 
-Repair/action: dependency audit first. Current Firebase `stripe_marketplace_config.js` explicitly uses the intended recurring CAD monthly/yearly Price IDs, so new Dispatch checkout is not selecting the one-time prices.
+Repair/action: dependency audit first. This historical entry predates the
+2026-10-18 USD catalog cutover; current branch configuration now selects the
+unified product's new USD recurring Price IDs and preserves the CAD recurring
+IDs only for lifecycle-event recognition.
 
 Verification: live Stripe products/prices compared against current `main` Firebase configuration.
 

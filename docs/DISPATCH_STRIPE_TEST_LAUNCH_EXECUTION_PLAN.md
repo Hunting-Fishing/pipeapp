@@ -1,10 +1,16 @@
 # Pipe Buyer Dispatch + Stripe Test Launch Execution Plan
 
-**Status:** ACTIVE  
+**Status:** SUPERSEDED historical execution plan; do not execute
 **Branch:** `feature/dispatch-stripe-green`  
 **GREEN base:** `7a42f8d01e43a5c0ec3e6994098e7af1b88ce2eb`  
 **Stripe feature checkpoint before this plan:** `dcd6b4ca845ccef9dbdb3e7bcb87ee9ac398b0f7`  
 **Target:** complete the testing-launch path in the current work session, ideally within a few hours. This is a time-boxed goal, not permission to bypass safety gates.
+
+Superseded on 2026-10-18 by `PAYMENTS_EXECUTION_TRACKER.md` and the current
+`codex/apple-launch-readiness` work. The CA$25/CA$300 statements below describe
+the historical branch baseline, not the live price schedule selected for new
+Checkout. New web Checkout uses US$25/month and US$250/year; production remains
+fail-closed.
 
 ## 1. Objective
 
@@ -83,8 +89,8 @@ Do not repeatedly rerun full Flutter/Functions suites for shell-wrapper failures
 
 The GREEN-based Stripe branch already contains:
 
-- Dispatch Monthly `CA$25/month` server-owned price configuration;
-- Dispatch Yearly `CA$300/year` server-owned price configuration;
+- historical Dispatch Monthly `CA$25/month` server-owned price configuration;
+- historical Dispatch Yearly `CA$300/year` server-owned price configuration;
 - Checkout reservation/lease and stable server attempt idempotency keys;
 - duplicate/open Checkout protection;
 - active-membership and provider-subscription duplicate protection;
@@ -134,7 +140,8 @@ Verify at the local formal acceptance URL:
 - Directory -> Get Quote supports provider-allowed multi-service selection;
 - Request Service taxonomy + existing trucking controls remain intact;
 - Dispatch membership page loads server catalog;
-- Monthly and Yearly display `CA$25/month` and `CA$300/year`;
+- for the current superseding plan, Monthly and Yearly display US$25/month and
+  US$250/year; do not use this historical plan as acceptance authority;
 - when readiness is held, Checkout button/message remains fail-closed;
 - success/cancel routes never grant membership;
 - native app build continues to hold hosted Stripe purchasing.

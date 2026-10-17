@@ -18,8 +18,9 @@ The same verified recipient account can be used for seller proceeds and eligible
 
 | Resource | Stripe identifier / behavior |
 |---|---|
-| Dispatch Monthly CAD | `prod_V2WkE5D16GhGaD` / `price_1U2SYGDkO07WMXyRm6xbprUn` — CA$25 monthly |
-| Dispatch Yearly CAD | `prod_V2WkE5D16GhGaD` / `price_1U7bTCDkO07WMXyRvLkWVHHu` — CA$300 yearly recurring |
+| Dispatch Monthly USD | `prod_V2WkE5D16GhGaD` / `price_1UReXRDkO07WMXyRFyrSKpR4` — US$25 monthly; default for new web Checkout |
+| Dispatch Yearly USD | `prod_V2WkE5D16GhGaD` / `price_1UReYXDkO07WMXyRwonGROt3` — US$250 yearly recurring; saves exactly US$50 / two monthly payments |
+| Legacy Dispatch CAD aliases | `price_1U2SYGDkO07WMXyRm6xbprUn` monthly and `price_1U7bTCDkO07WMXyRvLkWVHHu` yearly — retained for lifecycle-event compatibility, not new Checkout |
 | Pipe marketplace fee | `prod_V2cTDvqWIPAZEm` / `price_1U2XEPDkO07WMXyRJciY3faj` — CA$1/stick base reporting product |
 | Equipment/assets marketplace fee | `prod_V2cTrDBcQDhMKq` — dynamic amount calculated by Firebase |
 | 1 year free Dispatch | coupon `PIPEBUYER_FREE_1Y` — 100% for 12 months |

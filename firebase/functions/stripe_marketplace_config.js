@@ -16,6 +16,24 @@ const stripeMarketplaceConfig = Object.freeze({
     marketplaceFeeCheckout: "pipebuyer_marketplace_fee_rxpkdmwu",
   }),
   products: Object.freeze({
+    dispatchMonthlyUsd: Object.freeze({
+      productId: "prod_V2WkE5D16GhGaD",
+      priceId: "price_1UReXRDkO07WMXyRFyrSKpR4",
+      taxCode: "txcd_10103001",
+      currency: "USD",
+      unitAmountMinor: 2500,
+      billingInterval: "month",
+    }),
+    dispatchYearlyUsd: Object.freeze({
+      productId: "prod_V2WkE5D16GhGaD",
+      priceId: "price_1UReYXDkO07WMXyRwonGROt3",
+      taxCode: "txcd_10103001",
+      currency: "USD",
+      unitAmountMinor: 25000,
+      billingInterval: "year",
+    }),
+    // Legacy CAD prices stay recognizable for delayed invoices and webhook
+    // replays. New checkout sessions must use the USD prices above.
     dispatchMonthlyCad: Object.freeze({
       productId: "prod_V2WkE5D16GhGaD",
       priceId: "price_1U2SYGDkO07WMXyRm6xbprUn",

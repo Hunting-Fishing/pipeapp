@@ -11,6 +11,7 @@ const {
 const {
   membershipPlanCatalog,
 } = require("../membership_plan_policy");
+const {stripeMarketplaceConfig} = require("../stripe_marketplace_config");
 const {
   isDispatchCheckoutCompletedEvent,
   isDispatchSubscriptionLifecycleEvent,
@@ -46,6 +47,35 @@ test("Dispatch subscription identity requires owned UID and approved Dispatch pr
   }), null);
 });
 
+test("legacy CAD lifecycle keeps the actual Stripe Price ID", () => {
+  const legacyPriceId =
+    stripeMarketplaceConfig.products.dispatchMonthlyCad.priceId;
+  const subscription = {
+    id: "sub_legacy_cad",
+    status: "active",
+    customer: "cus_legacy_cad",
+    current_period_end: 1200,
+    metadata: {
+      billingType: "dispatch_subscription",
+      pipeBuyerUid: "carrier_legacy",
+    },
+    items: {data: [{id: "si_legacy", price: {id: legacyPriceId}}]},
+  };
+
+  assert.equal(
+      dispatchSubscriptionIdentity(subscription).plan.id,
+      "dispatch_monthly",
+  );
+  assert.equal(
+      providerSubscriptionState(subscription).currentPriceId,
+      legacyPriceId,
+  );
+  assert.equal(isDispatchSubscriptionLifecycleEvent({
+    type: "customer.subscription.updated",
+    data: {object: subscription},
+  }), true);
+});
+
 test("completed Dispatch Checkout identifies provider state without granting access", () => {
   const session = {
     subscription: "sub_123",
@@ -78,6 +108,7 @@ test("provider state blocks duplicate checkout before entitlement exists", () =>
     cancelAtPeriodEnd: false,
     providerPeriodEndMillis: 1_200_000,
     stripeCustomerId: "cus_123",
+    currentPriceId: null,
   });
   assert.equal(providerSubscriptionState({status: "canceled"}).blocksNewCheckout, false);
 });

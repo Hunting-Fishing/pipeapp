@@ -2,13 +2,14 @@
 
 Status: local review draft only. Nothing in this file has been submitted to App Review.
 
-Verified in App Store Connect on 2026-10-16:
+Verified in App Store Connect on 2026-10-16, with the yearly price schedule
+changed and re-verified on 2026-10-18:
 
 - App Store app ID: `6795847447`
 - Bundle ID: `Pipe.Buyerapp`
 - Subscription group: `Pipe Buyer Memberships` (`22481870`)
 - `pipebuyer_dispatch_monthly`: one month, USD 24.99 tier, 175 storefronts
-- `pipebuyer_dispatch_yearly`: one year, current verified USD 299.99 tier,
+- `pipebuyer_dispatch_yearly`: one year, current verified USD 249.99 tier,
   175 storefronts
 - Both subscriptions: level 1, `Prepare for Submission`
 - iOS version `1.0.0`: `Prepare for Submission`
@@ -89,13 +90,11 @@ Do not copy bank, tax, identity, or private contact values into this repository.
 
 ### Subscriptions and TestFlight
 
-- An owner pricing decision is still required. The verified USD 24.99 monthly
-  and USD 299.99 yearly tiers do not provide two months free: twelve monthly
-  payments total USD 299.88. A genuine two-month-free annual offer requires a
-  lower annual tier, but no replacement tier should be guessed or scheduled.
-  Keep production subscription activation and all savings claims blocked until
-  the owner selects the exact annual tier and it is saved and re-verified in
-  App Store Connect.
+- The owner-approved prices are saved: USD 24.99 monthly and USD 249.99 yearly.
+  Twelve monthly payments total USD 299.88, so yearly billing saves USD 49.89,
+  or approximately 16.6%. Describe that as "about two months" or "about 17%";
+  do not claim an exact two free months. The 2026-10-18 price verification does
+  not activate production billing or replace Sandbox/TestFlight acceptance.
 - Billing Grace Period is not configured. Use Sandbox-only configuration for
   the acceptance matrix before considering Production.
 - Both subscription products still need a review screenshot.
@@ -147,11 +146,10 @@ confirmation. The subscription renews automatically unless canceled at least
 24 hours before the end of the current period. Manage or cancel it in your App
 Store subscription settings.
 
-Apple shows the applicable localized storefront price before purchase. Do not
-publish a fixed annual price or savings claim until the owner resolves the
-conflict between the current USD 24.99 monthly / USD 299.99 yearly schedule and
-the requested two-month-free annual offer, then saves and verifies the selected
-annual tier in App Store Connect.
+Apple shows the applicable localized storefront price before purchase. The
+United States base prices are USD 24.99 monthly and USD 249.99 yearly. At those
+prices, yearly billing saves about 17%, or about two monthly payments. Apple's
+localized price and final purchase sheet control in each storefront.
 
 Worldwide discovery and advertising do not imply worldwide transactions. New
 listings use USD, seller payout onboarding initially supports eligible sellers
