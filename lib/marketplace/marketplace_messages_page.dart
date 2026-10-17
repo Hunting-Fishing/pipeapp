@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/config/phase1_feature_flags.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_deal_room_components.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_reporting.dart';
 
@@ -26,7 +27,41 @@ import 'marketplace_data_state.dart';
 import 'marketplace_journey_status.dart';
 import 'marketplace_secure_payment.dart';
 
-class MarketplaceMessagesPage extends StatelessWidget {
+String marketplaceConversationParticipantName(
+  Map<String, dynamic> conversation,
+  String viewerUid,
+) {
+  final viewerIsSeller = viewerUid == '${conversation['sellerUid'] ?? ''}';
+  final candidates = viewerIsSeller
+      ? [conversation['buyerDisplayName'], conversation['requesterDisplayName']]
+      : [conversation['sellerName']];
+  for (final candidate in candidates) {
+    final name = '${candidate ?? ''}'.trim();
+    if (name.isNotEmpty) return name;
+  }
+  return viewerIsSeller ? 'Marketplace buyer' : 'Marketplace seller';
+}
+
+String marketplaceMessageTimestamp(
+  BuildContext context,
+  DateTime? value, {
+  DateTime? now,
+  bool includeTimeOnOlderDays = true,
+}) {
+  if (value == null) return '';
+  final local = value.toLocal();
+  final current = (now ?? DateTime.now()).toLocal();
+  final localizations = MaterialLocalizations.of(context);
+  final time = localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local));
+  final sameDay = local.year == current.year &&
+      local.month == current.month &&
+      local.day == current.day;
+  if (sameDay) return time;
+  final date = localizations.formatShortDate(local);
+  return includeTimeOnOlderDays ? '$date • $time' : date;
+}
+
+class MarketplaceMessagesPage extends StatefulWidget {
   const MarketplaceMessagesPage({super.key});
 
   static Stream<int> unreadCountStream() {
@@ -60,36 +95,163 @@ class MarketplaceMessagesPage extends StatelessWidget {
   }
 
   @override
+  State<MarketplaceMessagesPage> createState() =>
+      _MarketplaceMessagesPageState();
+}
+
+class _MarketplaceMessagesPageState extends State<MarketplaceMessagesPage> {
+  bool _showUnreadOnly = false;
+
+  Widget _header() => PipeBuyerConversationHeader(
+        title: 'Messages',
+        subtitle: 'Protected marketplace conversations and deal activity',
+        avatar: const Icon(Icons.forum_outlined),
+        actions: [
+          FilterChip(
+            selected: _showUnreadOnly,
+            label: const Text('Unread'),
+            avatar: const Icon(Icons.mark_chat_unread_outlined, size: 18),
+            onSelected: (selected) =>
+                setState(() => _showUnreadOnly = selected),
+          ),
+        ],
+      );
+
+  @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return _SignedOutMessages();
+    return _MarketplaceConversationFeed(
+      key: ValueKey(uid),
+      uid: uid,
+      showUnreadOnly: _showUnreadOnly,
+      header: _header(),
+    );
+  }
+}
+
+class _MarketplaceConversationFeed extends StatefulWidget {
+  const _MarketplaceConversationFeed({
+    super.key,
+    required this.uid,
+    required this.showUnreadOnly,
+    required this.header,
+  });
+
+  final String uid;
+  final bool showUnreadOnly;
+  final Widget header;
+
+  @override
+  State<_MarketplaceConversationFeed> createState() =>
+      _MarketplaceConversationFeedState();
+}
+
+class _MarketplaceConversationFeedState
+    extends State<_MarketplaceConversationFeed> {
+  late final Query<Map<String, dynamic>> _conversationQuery;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _conversationsStream;
+  int _conversationLimit = defaultActivityFeedLimit;
+
+  @override
+  void initState() {
+    super.initState();
+    _conversationQuery = FirebaseFirestore.instance
+        .collection('conversations')
+        .where('memberUids', arrayContains: widget.uid)
+        .orderBy('lastMessageAt', descending: true);
+    _conversationsStream =
+        _conversationQuery.limit(_conversationLimit).snapshots();
+  }
+
+  void _loadEarlier() {
+    if (_conversationLimit >= maximumActivityHistoryLimit) return;
+    final nextLimit = (_conversationLimit + defaultActivityFeedLimit)
+        .clamp(defaultActivityFeedLimit, maximumActivityHistoryLimit)
+        .toInt();
+    setState(() {
+      _conversationLimit = nextLimit;
+      _conversationsStream =
+          _conversationQuery.limit(_conversationLimit).snapshots();
+    });
+  }
+
+  Widget _historyNotice(
+    int loadedCount, {
+    bool unreadWindowEmpty = false,
+    required bool canLoadEarlier,
+  }) {
+    final capped = _conversationLimit >= maximumActivityHistoryLimit;
+    return _ActivityLimitNotice(
+      message: unreadWindowEmpty
+          ? capped
+              ? 'No unread messages in the latest $loadedCount conversations. Older records remain stored.'
+              : 'No unread messages in the $loadedCount conversations checked so far.'
+          : capped
+              ? 'Showing the latest $loadedCount conversations. Older records remain stored.'
+              : 'Showing $loadedCount recent conversations.',
+      actionLabel: canLoadEarlier ? 'Load earlier' : null,
+      onAction: canLoadEarlier ? _loadEarlier : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('conversations')
-          .where('memberUids', arrayContains: uid)
-          .orderBy('lastMessageAt', descending: true)
-          .limit(defaultActivityFeedLimit)
-          .snapshots(),
+      stream: _conversationsStream,
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _LoadFailure(error: snapshot.error);
-        }
+        if (snapshot.hasError) return _LoadFailure(error: snapshot.error);
         if (!snapshot.hasData) {
           return const MarketplaceDataStateView.loading(
             title: 'Loading conversations',
             message: 'Retrieving your latest marketplace messages…',
           );
         }
-        final conversations = snapshot.data!.docs.toList()
-          ..sort((a, b) {
-            final aTime = a.data()['lastMessageAt'] as Timestamp?;
-            final bTime = b.data()['lastMessageAt'] as Timestamp?;
-            return (bTime?.millisecondsSinceEpoch ?? 0).compareTo(
-              aTime?.millisecondsSinceEpoch ?? 0,
-            );
-          });
-        if (conversations.isEmpty) return const _EmptyMessages();
-        final atLimit = conversations.length == defaultActivityFeedLimit;
+        final loadedConversations = snapshot.data!.docs;
+        final conversations = widget.showUnreadOnly
+            ? loadedConversations.where((document) {
+                final counts = document.data()['unreadCounts'] as Map? ?? {};
+                return ((counts[widget.uid] as num?)?.toInt() ?? 0) > 0;
+              }).toList()
+            : loadedConversations;
+        final reachedWindow = loadedConversations.length == _conversationLimit;
+        final canLoadEarlier =
+            reachedWindow && _conversationLimit < maximumActivityHistoryLimit;
+        if (loadedConversations.isEmpty) {
+          return Column(
+            children: [
+              widget.header,
+              const Expanded(child: _EmptyMessages()),
+            ],
+          );
+        }
+        if (conversations.isEmpty) {
+          return Column(
+            children: [
+              widget.header,
+              if (reachedWindow)
+                _historyNotice(
+                  loadedConversations.length,
+                  unreadWindowEmpty: true,
+                  canLoadEarlier: canLoadEarlier,
+                ),
+              Expanded(
+                child: MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  icon: Icons.mark_chat_read_outlined,
+                  title: reachedWindow
+                      ? 'No unread messages in the conversations checked'
+                      : 'No unread messages',
+                  message: reachedWindow
+                      ? canLoadEarlier
+                          ? 'Load earlier conversations before considering the inbox clear.'
+                          : 'The latest history window is clear; older records remain stored.'
+                      : 'You are all caught up.',
+                ),
+              ),
+            ],
+          );
+        }
         final list = ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: conversations.length,
@@ -97,51 +259,55 @@ class MarketplaceMessagesPage extends StatelessWidget {
           itemBuilder: (context, index) {
             final doc = conversations[index];
             final data = doc.data();
-            final unread =
-                ((data['unreadCounts'] as Map?)?[uid] as num?)?.toInt() ?? 0;
-            final sellerName = '${data['sellerName'] ?? 'Marketplace seller'}';
-            final title = '${data['listingTitle'] ?? 'Marketplace listing'}';
+            final unread = ((data['unreadCounts'] as Map?)?[widget.uid] as num?)
+                    ?.toInt() ??
+                0;
+            final participantName =
+                marketplaceConversationParticipantName(data, widget.uid);
+            final lastMessageAt = data['lastMessageAt'] is Timestamp
+                ? (data['lastMessageAt'] as Timestamp).toDate()
+                : null;
             final memberUids = List<String>.from(
               data['memberUids'] ?? const <String>[],
             );
-            final otherUid =
-                memberUids.where((member) => member != uid).firstOrNull ?? '';
-            return Card(
-              child: ListTile(
-                leading: MarketplaceUserAvatar(
-                  userUid: otherUid,
-                  size: 40,
-                  fallback: Center(
-                    child: Text(sellerName.isEmpty ? '?' : sellerName[0]),
-                  ),
-                ),
-                title: Text(
-                  title,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontWeight: unread > 0 ? FontWeight.w900 : FontWeight.w700,
-                  ),
-                ),
-                subtitle: Text(
-                  '${data['lastMessage'] ?? ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: unread > 0
-                    ? Badge(label: Text('$unread'))
-                    : const Icon(Icons.chevron_right),
-                onTap: () =>
-                    context.push(MarketplaceDeepLinks.conversation(doc.id)),
+            final otherUid = memberUids
+                    .where((member) => member != widget.uid)
+                    .firstOrNull ??
+                '';
+            return MarketplaceConversationTile(
+              participantName: participantName,
+              listingTitle: '${data['listingTitle'] ?? 'Marketplace listing'}',
+              lastMessage: '${data['lastMessage'] ?? ''}'.trim(),
+              timestamp: marketplaceMessageTimestamp(
+                context,
+                lastMessageAt,
+                includeTimeOnOlderDays: false,
               ),
+              unread: unread,
+              avatar: MarketplaceUserAvatar(
+                userUid: otherUid,
+                size: 44,
+                fallback: Center(
+                  child: Text(
+                    participantName.isEmpty
+                        ? '?'
+                        : participantName[0].toUpperCase(),
+                  ),
+                ),
+              ),
+              onTap: () =>
+                  context.push(MarketplaceDeepLinks.conversation(doc.id)),
             );
           },
         );
-        if (!atLimit) return list;
         return Column(
           children: [
-            const _ActivityLimitNotice(
-              message: 'Showing the 100 most recent conversations.',
-            ),
+            widget.header,
+            if (reachedWindow)
+              _historyNotice(
+                loadedConversations.length,
+                canLoadEarlier: canLoadEarlier,
+              ),
             Expanded(child: list),
           ],
         );
@@ -150,10 +316,95 @@ class MarketplaceMessagesPage extends StatelessWidget {
   }
 }
 
+class MarketplaceConversationTile extends StatelessWidget {
+  const MarketplaceConversationTile({
+    super.key,
+    required this.participantName,
+    required this.listingTitle,
+    required this.lastMessage,
+    required this.timestamp,
+    required this.unread,
+    required this.avatar,
+    required this.onTap,
+  });
+
+  final String participantName;
+  final String listingTitle;
+  final String lastMessage;
+  final String timestamp;
+  final int unread;
+  final Widget avatar;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          minVerticalPadding: 12,
+          leading: avatar,
+          title: Text(
+            participantName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: unread > 0 ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 3),
+              Text(
+                listingTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              if (lastMessage.isNotEmpty)
+                Text(
+                  lastMessage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+          isThreeLine: lastMessage.isNotEmpty,
+          trailing: SizedBox(
+            width: 76,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (timestamp.isNotEmpty)
+                  Text(
+                    timestamp,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                const SizedBox(height: 7),
+                if (unread > 0)
+                  Badge(label: Text('$unread'))
+                else
+                  const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+          onTap: onTap,
+        ),
+      );
+}
+
 class _ActivityLimitNotice extends StatelessWidget {
-  const _ActivityLimitNotice({required this.message});
+  const _ActivityLimitNotice({
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -182,6 +433,13 @@ class _ActivityLimitNotice extends StatelessWidget {
                   ),
                 ),
               ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: onAction,
+                  child: Text(actionLabel!),
+                ),
+              ],
             ],
           ),
         ),
@@ -1843,6 +2101,9 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
           builder: (_) => MarketplaceChatPage(
             conversationId: id,
             title: listingTitle,
+            participantName:
+                '${offer['buyerDisplayName'] ?? 'Marketplace buyer'}',
+            participantUid: buyerUid,
             openOfferComposer: openOfferComposer,
             initialOffer: openOfferComposer ? offer : null,
           ),
@@ -2581,9 +2842,17 @@ class MarketplaceConversationRoutePage extends StatelessWidget {
           );
         }
         final title = '${data?['listingTitle'] ?? 'Marketplace conversation'}';
+        final otherUid =
+            members.where((member) => member != user.uid).firstOrNull ?? '';
+        final participantName = marketplaceConversationParticipantName(
+          data ?? const <String, dynamic>{},
+          user.uid,
+        );
         return MarketplaceChatPage(
           conversationId: conversationId,
           title: title,
+          participantName: participantName,
+          participantUid: otherUid,
         );
       },
     );
@@ -2609,17 +2878,298 @@ class _ConversationRouteFailure extends StatelessWidget {
       );
 }
 
+class MarketplaceChatBubble extends StatelessWidget {
+  const MarketplaceChatBubble({
+    super.key,
+    required this.text,
+    required this.isMine,
+    required this.hiddenByModeration,
+    required this.timestamp,
+    this.attachment,
+  });
+
+  final String text;
+  final bool isMine;
+  final bool hiddenByModeration;
+  final String timestamp;
+  final Map<String, dynamic>? attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final background = isMine
+        ? theme.colorScheme.secondary
+        : theme.colorScheme.surfaceContainerHighest;
+    final foreground =
+        isMine ? theme.colorScheme.onSecondary : theme.colorScheme.onSurface;
+    final attachmentType = '${attachment?['type'] ?? ''}'.trim();
+    final attachmentName = '${attachment?['name'] ?? 'Message attachment'}';
+    final availableWidth = MediaQuery.sizeOf(context).width;
+    final bubbleWidth = availableWidth >= 720 ? 520.0 : availableWidth * .78;
+    final semanticsText = hiddenByModeration
+        ? 'Removed by Trust and Safety'
+        : [
+            if (text.trim().isNotEmpty) text.trim(),
+            if (timestamp.isNotEmpty) timestamp
+          ].join(', ');
+
+    return Semantics(
+      container: true,
+      label: '${isMine ? 'Sent' : 'Received'} message, $semanticsText',
+      child: Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: bubbleWidth),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isMine ? 16 : 4),
+              bottomRight: Radius.circular(isMine ? 4 : 16),
+            ),
+            border:
+                isMine ? null : Border.all(color: theme.colorScheme.outline),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!hiddenByModeration && attachmentType == 'image')
+                Semantics(
+                  image: true,
+                  label: 'Photo attachment: $attachmentName',
+                  child: ExcludeSemantics(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        '${attachment?['url'] ?? ''}',
+                        width: 260,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox(
+                          width: 220,
+                          height: 90,
+                          child: Center(
+                            child: Icon(Icons.broken_image_outlined),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else if (!hiddenByModeration && attachmentType.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: foreground.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.insert_drive_file_outlined,
+                        color: foreground,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          attachmentName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: foreground,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (hiddenByModeration)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.gpp_maybe_outlined,
+                      size: 18,
+                      color: foreground.withValues(alpha: .78),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Removed by Trust & Safety',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: foreground.withValues(alpha: .78),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else if (text.trim().isNotEmpty) ...[
+                if (attachmentType.isNotEmpty) const SizedBox(height: 8),
+                Text(text, style: TextStyle(color: foreground, height: 1.35)),
+              ],
+              if (timestamp.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    timestamp,
+                    style: TextStyle(
+                      color: foreground.withValues(alpha: .72),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketplaceMessageTimeline extends StatefulWidget {
+  const _MarketplaceMessageTimeline({
+    required this.conversationId,
+    required this.viewerUid,
+  });
+
+  final String conversationId;
+  final String viewerUid;
+
+  @override
+  State<_MarketplaceMessageTimeline> createState() =>
+      _MarketplaceMessageTimelineState();
+}
+
+class _MarketplaceMessageTimelineState
+    extends State<_MarketplaceMessageTimeline> {
+  late final Query<Map<String, dynamic>> _messageQuery;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _messagesStream;
+  int _messageLimit = defaultActivityFeedLimit;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageQuery = FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true);
+    _messagesStream = _messageQuery.limit(_messageLimit).snapshots();
+  }
+
+  void _loadEarlier() {
+    if (_messageLimit >= maximumActivityHistoryLimit) return;
+    final nextLimit = (_messageLimit + defaultActivityFeedLimit)
+        .clamp(defaultActivityFeedLimit, maximumActivityHistoryLimit)
+        .toInt();
+    setState(() {
+      _messageLimit = nextLimit;
+      _messagesStream = _messageQuery.limit(_messageLimit).snapshots();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _messagesStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return MarketplaceDataStateView.failure(
+            error: snapshot.error,
+            resource: 'Conversation messages',
+            onRetry: () => setState(() {}),
+            compact: true,
+          );
+        }
+        if (!snapshot.hasData) {
+          return const MarketplaceDataStateView.loading(
+            title: 'Loading messages',
+            message: 'Retrieving the conversation history…',
+            compact: true,
+          );
+        }
+        final messages = snapshot.data!.docs;
+        if (messages.isEmpty) {
+          return const MarketplaceDataStateView(
+            kind: MarketplaceDataStateKind.empty,
+            icon: Icons.waving_hand_outlined,
+            title: 'Start the conversation',
+            message: 'Write a message below to contact the seller.',
+            compact: true,
+          );
+        }
+        final reachedWindow = messages.length == _messageLimit;
+        final canLoadEarlier =
+            reachedWindow && _messageLimit < maximumActivityHistoryLimit;
+        return ListView.builder(
+          reverse: true,
+          padding: const EdgeInsets.all(12),
+          itemCount: messages.length + (reachedWindow ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (reachedWindow && index == messages.length) {
+              return ListTile(
+                dense: true,
+                leading: const Icon(Icons.history_outlined),
+                title: Text('Showing ${messages.length} recent messages'),
+                subtitle: Text(
+                  canLoadEarlier
+                      ? 'Load the next 100 messages in the live conversation window.'
+                      : 'Older messages remain stored in the conversation record.',
+                ),
+                trailing: canLoadEarlier
+                    ? TextButton(
+                        onPressed: _loadEarlier,
+                        child: const Text('Load earlier'),
+                      )
+                    : null,
+              );
+            }
+            final message = messages[index].data();
+            return MarketplaceChatBubble(
+              text: '${message['text'] ?? ''}',
+              isMine: message['senderUid'] == widget.viewerUid,
+              hiddenByModeration: message['moderationVisibility'] == 'hidden',
+              timestamp: marketplaceMessageTimestamp(
+                context,
+                message['createdAt'] is Timestamp
+                    ? (message['createdAt'] as Timestamp).toDate()
+                    : null,
+              ),
+              attachment: message['attachment'] is Map
+                  ? Map<String, dynamic>.from(message['attachment'] as Map)
+                  : null,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 class MarketplaceChatPage extends StatefulWidget {
   const MarketplaceChatPage({
     super.key,
     required this.conversationId,
     required this.title,
+    this.participantName,
+    this.participantUid,
     this.openedFromListing = false,
     this.openOfferComposer = false,
     this.initialOffer,
   });
   final String conversationId;
   final String title;
+  final String? participantName;
+  final String? participantUid;
   final bool openedFromListing;
   final bool openOfferComposer;
   final Map<String, dynamic>? initialOffer;
@@ -2653,9 +3203,14 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
+    final suppliedParticipant = widget.participantName?.trim() ?? '';
+    final participantName = suppliedParticipant.isEmpty
+        ? 'Marketplace member'
+        : suppliedParticipant;
+    final blocked = _blockedByMe || _blockedMe;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title, maxLines: 1),
+        title: const Text('Messages'),
         actions: [
           if (widget.openedFromListing)
             IconButton(
@@ -2711,6 +3266,28 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
       ),
       body: Column(
         children: [
+          PipeBuyerConversationHeader(
+            title: participantName,
+            subtitle: 'Protected marketplace conversation',
+            avatar: Text(
+              participantName[0].toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            listingContext: Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          ),
           _ConversationNegotiationPanel(
             conversationId: widget.conversationId,
             openComposerOnLoad: widget.openOfferComposer,
@@ -2737,197 +3314,129 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               ),
             ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('conversations')
-                  .doc(widget.conversationId)
-                  .collection('messages')
-                  .orderBy('createdAt', descending: true)
-                  .limit(defaultActivityFeedLimit)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return MarketplaceDataStateView.failure(
-                    error: snapshot.error,
-                    resource: 'Conversation messages',
-                    onRetry: () => setState(() {}),
-                    compact: true,
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const MarketplaceDataStateView.loading(
-                    title: 'Loading messages',
-                    message: 'Retrieving the conversation history…',
-                    compact: true,
-                  );
-                }
-                if (snapshot.data!.docs.isEmpty) {
-                  return const MarketplaceDataStateView(
-                    kind: MarketplaceDataStateKind.empty,
-                    icon: Icons.waving_hand_outlined,
-                    title: 'Start the conversation',
-                    message: 'Write a message below to contact the seller.',
-                    compact: true,
-                  );
-                }
-                final reachedWindow =
-                    snapshot.data!.docs.length == defaultActivityFeedLimit;
-                return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.all(12),
-                  itemCount:
-                      snapshot.data!.docs.length + (reachedWindow ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (reachedWindow && index == snapshot.data!.docs.length) {
-                      return const ListTile(
-                        dense: true,
-                        leading: Icon(Icons.info_outline),
-                        title: Text('Showing the latest 100 messages'),
-                        subtitle: Text(
-                          'Older messages remain stored in the conversation record.',
-                        ),
-                      );
-                    }
-                    final message = snapshot.data!.docs[index].data();
-                    final mine = message['senderUid'] == uid;
-                    final hiddenByModeration =
-                        message['moderationVisibility'] == 'hidden';
-                    return Align(
-                      alignment:
-                          mine ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 310),
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 13,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: mine
-                              ? const Color(0xFF0878E8)
-                              : const Color(0xFFEAF0F6),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (!hiddenByModeration &&
-                                message['attachment'] is Map &&
-                                (message['attachment'] as Map)['type'] ==
-                                    'image')
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  '${(message['attachment'] as Map)['url']}',
-                                  width: 220,
-                                  height: 160,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            if (hiddenByModeration)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.gpp_maybe_outlined,
-                                      size: 17,
-                                      color: mine
-                                          ? Colors.white70
-                                          : Colors.black54,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        'Removed by Trust & Safety',
-                                        style: TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          color: mine
-                                              ? Colors.white70
-                                              : Colors.black54,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else if ('${message['text'] ?? ''}'.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  '${message['text'] ?? ''}',
-                                  style: TextStyle(
-                                    color: mine ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+            child: _MarketplaceMessageTimeline(
+              conversationId: widget.conversationId,
+              viewerUid: uid,
             ),
           ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Add emoji',
-                    onPressed: _showEmojiPicker,
-                    icon: const Icon(Icons.emoji_emotions_outlined),
-                  ),
-                  IconButton(
-                    tooltip: 'Attach photo',
-                    onPressed: _uploading || _blockedByMe || _blockedMe
-                        ? null
-                        : _pickAttachment,
-                    icon: _uploading
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.attach_file),
-                  ),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_attachment != null)
-                          InputChip(
-                            avatar: const Icon(Icons.image_outlined),
-                            label: Text('${_attachment!['name']}'),
-                            onDeleted: () => setState(() => _attachment = null),
-                          ),
-                        TextField(
-                          controller: _controller,
-                          minLines: 1,
-                          maxLines: 4,
-                          textCapitalization: TextCapitalization.sentences,
-                          decoration: const InputDecoration(
-                            hintText: 'Write a message…',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton.filled(
-                    tooltip: 'Send message',
-                    onPressed:
-                        _sending || _blockedByMe || _blockedMe ? null : _send,
-                    icon: const Icon(Icons.send_rounded),
-                  ),
-                ],
-              ),
-            ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, _, __) => _buildComposer(context, blocked),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildComposer(BuildContext context, bool blocked) {
+    final canSend = !_sending &&
+        !_uploading &&
+        !blocked &&
+        (_controller.text.trim().isNotEmpty || _attachment != null);
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: 'Add emoji',
+                  onPressed: blocked ? null : _showEmojiPicker,
+                  icon: const Icon(Icons.emoji_emotions_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Attach photo',
+                  onPressed: _uploading || blocked ? null : _pickAttachment,
+                  icon: _uploading
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_photo_alternate_outlined),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_attachment != null)
+                        InputChip(
+                          avatar: const Icon(Icons.image_outlined),
+                          label: Text('${_attachment!['name']}'),
+                          onDeleted: _sending
+                              ? null
+                              : () => setState(() => _attachment = null),
+                        ),
+                      TextField(
+                        controller: _controller,
+                        enabled: !blocked && !_sending,
+                        minLines: 1,
+                        maxLines: 4,
+                        maxLength: 4000,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(
+                          hintText: blocked
+                              ? 'Messaging is unavailable'
+                              : 'Write a message…',
+                          counterText: '',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (MediaQuery.sizeOf(context).width >= 720)
+                  FilledButton.icon(
+                    onPressed: canSend ? _send : null,
+                    icon: _sending
+                        ? const SizedBox.square(
+                            dimension: 17,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                    label: const Text('Send'),
+                  )
+                else
+                  IconButton.filled(
+                    tooltip: 'Send message',
+                    onPressed: canSend ? _send : null,
+                    icon: _sending
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'For safety, keep deal and payment details inside Pipe Buyer.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3036,7 +3545,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   }
 
   Future<void> _send() async {
-    if (_blockedByMe || _blockedMe) return;
+    if (_sending || _uploading || _blockedByMe || _blockedMe) return;
     final text = _controller.text.trim();
     if (text.isEmpty && _attachment == null) return;
     setState(() => _sending = true);
@@ -3120,7 +3629,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Attach Image or Spec Document',
+                'Attach a photo',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
@@ -3129,7 +3638,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 Icons.photo_library,
                 color: Color(0xFF0878E8),
               ),
-              title: const Text('Choose Photo from Gallery'),
+              title: const Text('Choose photo from gallery'),
               subtitle: const Text(
                 'Select photos of pipe, valves, or equipment',
               ),
@@ -3137,7 +3646,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF10B981)),
-              title: const Text('Take Photo with Camera'),
+              title: const Text('Take photo with camera'),
               subtitle: const Text('Capture live photos at yard or jobsite'),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),

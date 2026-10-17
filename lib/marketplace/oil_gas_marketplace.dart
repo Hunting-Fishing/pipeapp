@@ -10,9 +10,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/config/phase1_feature_flags.dart';
 import '../core/accessibility/pipe_accessibility_theme.dart';
-
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_theme.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
@@ -54,7 +54,6 @@ import 'marketplace_offer_commerce_summary.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_trucking_plan.dart';
 
-const _navy = Color(0xFFF8FAFC);
 const _panel = Colors.white;
 const _orange = Color(0xFF0F52BA);
 const _muted = Color(0xFF64748B);
@@ -1106,7 +1105,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   @override
   void initState() {
     super.initState();
-    _tab = widget.initialTab.clamp(0, 6);
+    _tab = widget.initialTab.clamp(0, 7);
     MarketplaceNavigation.homeRequests.addListener(_handleHomeRequest);
     MarketplaceNavigation.destinationRequests
         .addListener(_handleDestinationRequest);
@@ -1207,6 +1206,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       const MarketplaceMessagesPage(),
       MarketplaceAccountHub(
           onAddListing: () => _openCreate(),
+          onMessages: () => _selectTab(4),
           auctionsEnabled: _features.auctions,
           paidFeaturesEnabled: _features.paidFeatures,
           onBrowse: () =>
@@ -1220,23 +1220,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           : const _FeatureUnavailablePage(feature: 'Dispatch'),
     ];
 
+    // Marketplace screens still contain legacy light-surface status colors.
+    // Keep this shell explicitly light until every transaction, account, and
+    // message state has passed a dedicated dark-theme contrast audit.
+    final theme = PipeAccessibilityTheme.apply(PipeBuyerTheme.light());
     return Theme(
-      data: PipeAccessibilityTheme.apply(
-        ThemeData.light(useMaterial3: true).copyWith(
-          scaffoldBackgroundColor: _navy,
-          colorScheme: const ColorScheme.light(
-            primary: _orange,
-            surface: _panel,
-            onSurface: Color(0xFF17202A),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-              filled: true,
-              fillColor: const Color(0xFFF0F5FA),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none)),
-        ),
-      ),
+      data: theme,
       child: MarketplaceAdaptiveShell(
         scaffoldKey: _scaffoldKey,
         selectedPageIndex: _tab,
@@ -1246,13 +1235,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           'Create Listing',
           'Saved',
           'Messages',
-          'Profile',
-          'Auctions',
+          'Account',
+          'Timed Buying',
           'Dispatch'
         ][_tab],
-        backgroundColor: _navy,
-        navigationBackgroundColor: Colors.white,
-        indicatorColor: _orange.withValues(alpha: .18),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        navigationBackgroundColor: theme.colorScheme.surface,
+        indicatorColor: theme.colorScheme.primary.withValues(alpha: .14),
         onDestinationSelected: (target) {
           if (target == 2) {
             _openCreate();
@@ -1267,7 +1256,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             return;
           }
           if (target == 6) {
-            _selectControlledTab(target, _features.auctions, 'Auctions');
+            _selectControlledTab(target, _features.auctions, 'Timed Buying');
             return;
           }
           if (target == 7) {
@@ -1351,7 +1340,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           if (_features.auctions)
             const MarketplaceShellDestination(
               pageIndex: 6,
-              label: 'Auctions',
+              label: 'Timed Buying',
               icon: Icon(Icons.gavel_outlined),
               selectedIcon: Icon(Icons.gavel),
             ),
@@ -1372,7 +1361,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             if (target == 2) {
               _openCreate();
             } else if (target == 6) {
-              _selectControlledTab(target, _features.auctions, 'Auctions');
+              _selectControlledTab(
+                target,
+                _features.auctions,
+                'Timed Buying',
+              );
             } else if (target == 7) {
               _selectControlledTab(target, _features.dispatch, 'Dispatch');
             } else {
@@ -1442,7 +1435,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             ),
         ],
         drawer: Drawer(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.colorScheme.surface,
           child: SafeArea(
             child: Column(children: [
               ListTile(
@@ -1460,70 +1453,76 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                 subtitle: const Text('Oilfield marketplace'),
               ),
               const Divider(height: 1),
-              _DrawerDestination(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: _tab == 0,
-                onTap: () => _selectTab(0),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  children: [
+                    _DrawerDestination(
+                      icon: Icons.home_outlined,
+                      label: 'Home',
+                      selected: _tab == 0,
+                      onTap: () => _selectTab(0),
+                    ),
+                    if (_features.marketplace) ...[
+                      _DrawerDestination(
+                        icon: Icons.storefront_outlined,
+                        label: 'Browse Marketplace',
+                        selected: _tab == 1,
+                        onTap: () => _selectTab(1),
+                      ),
+                      _DrawerDestination(
+                        icon: Icons.add_box_outlined,
+                        label: 'Create Listing',
+                        selected: _tab == 2,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _openCreate();
+                        },
+                      ),
+                      _DrawerDestination(
+                        icon: Icons.request_quote_outlined,
+                        label: 'Wanted ads',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _openCreate(wanted: true);
+                        },
+                      ),
+                      _DrawerDestination(
+                        icon: Icons.bookmark_border,
+                        label: 'Saved Listings',
+                        selected: _tab == 3,
+                        onTap: () => _selectTab(3),
+                      ),
+                    ],
+                    if (_features.auctions)
+                      _DrawerDestination(
+                        icon: Icons.gavel_outlined,
+                        label: 'Timed Buying',
+                        selected: _tab == 6,
+                        onTap: () => _selectTab(6),
+                      ),
+                    if (_features.dispatch)
+                      _DrawerDestination(
+                        icon: Icons.local_shipping_outlined,
+                        label: 'Dispatch',
+                        selected: _tab == 7,
+                        onTap: () => _selectTab(7),
+                      ),
+                    _DrawerDestination(
+                      icon: Icons.forum_outlined,
+                      label: 'Messages',
+                      selected: _tab == 4,
+                      trailing: _unreadBadge(),
+                      onTap: () => _selectTab(4),
+                    ),
+                  ],
+                ),
               ),
-              if (_features.marketplace) ...[
-                _DrawerDestination(
-                  icon: Icons.storefront_outlined,
-                  label: 'Browse Marketplace',
-                  selected: _tab == 1,
-                  onTap: () => _selectTab(1),
-                ),
-                _DrawerDestination(
-                  icon: Icons.add_box_outlined,
-                  label: 'Create Listing',
-                  selected: _tab == 2,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _openCreate();
-                  },
-                ),
-                _DrawerDestination(
-                  icon: Icons.request_quote_outlined,
-                  label: 'Wanted ads',
-                  selected: false,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _openCreate(wanted: true);
-                  },
-                ),
-                _DrawerDestination(
-                  icon: Icons.bookmark_border,
-                  label: 'Saved Listings',
-                  selected: _tab == 3,
-                  onTap: () => _selectTab(3),
-                ),
-              ],
-              if (_features.auctions)
-                _DrawerDestination(
-                  icon: Icons.gavel_outlined,
-                  label: 'Auctions',
-                  selected: _tab == 6,
-                  onTap: () => _selectTab(6),
-                ),
-              if (_features.dispatch)
-                _DrawerDestination(
-                  icon: Icons.local_shipping_outlined,
-                  label: 'Dispatch',
-                  selected: _tab == 7,
-                  onTap: () => _selectTab(7),
-                ),
-              _DrawerDestination(
-                icon: Icons.forum_outlined,
-                label: 'Messages',
-                selected: _tab == 4,
-                trailing: _unreadBadge(),
-                onTap: () => _selectTab(4),
-              ),
-              const Spacer(),
               const Divider(height: 1),
               _DrawerDestination(
                 icon: Icons.person_outline,
-                label: 'Account & Seller Profile',
+                label: 'Account & Profile',
                 selected: _tab == 5,
                 trailing: const _ProfileCompletionBadge(),
                 onTap: () => _selectTab(5),
@@ -3483,7 +3482,7 @@ class _ListingCard extends StatelessWidget {
                       ),
                       child: IconButton(
                         constraints:
-                            const BoxConstraints(minWidth: 36, minHeight: 36),
+                            const BoxConstraints(minWidth: 48, minHeight: 48),
                         padding: EdgeInsets.zero,
                         tooltip: saved
                             ? 'Remove from saved listings'

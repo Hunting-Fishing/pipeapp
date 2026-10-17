@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
@@ -18,6 +19,7 @@ import 'industrial_icon_assets.dart';
 import 'marketplace_service_area.dart';
 import 'marketplace_location.dart';
 import 'marketplace_location_picker.dart';
+import 'marketplace_deep_links.dart';
 import 'marketplace_auth_page.dart';
 import 'open_address_autocomplete.dart';
 import 'profile_photo_picker.dart';
@@ -563,7 +565,6 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             _legalBusinessName.text,
             _businessPhone.text,
             _businessEmail.text,
-            _website.text,
             _serviceAreaSelection == null ? '' : 'selected',
             _businessAddress.text,
             _businessBio.text,
@@ -1209,7 +1210,6 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
           ('Legal name', _legalNameKey),
         if (_businessPhone.text.trim().isEmpty) ('Phone', _businessPhoneKey),
         if (_businessEmail.text.trim().isEmpty) ('Email', _businessEmailKey),
-        if (_website.text.trim().isEmpty) ('Website', _websiteKey),
         if (_serviceAreaSelection == null) ('Service area', _serviceAreaKey),
         if (_businessAddress.text.trim().isEmpty)
           ('Address', _businessAddressKey),
@@ -1349,19 +1349,30 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                 required: true,
                 completionRequired: true,
                 fieldKey: _displayNameKey),
+            _primaryCommunityField(),
+            _field(_personalBio, 'About the seller',
+                maxLines: 4,
+                completionRequired: true,
+                fieldKey: _personalBioKey),
+            const SizedBox(height: 4),
+            _sectionLabel(Icons.sell_outlined, 'Marketplace specialties',
+                'Help buyers find you by the products and services you work with.'),
+            MarketplaceProfileTags(accountType: _accountType),
+            const SizedBox(height: 10),
+            _sectionLabel(Icons.lock_outline, 'Private contact preferences',
+                'Protected contact information used for account security and eligible marketplace activity.'),
             Padding(
                 key: _phoneKey,
                 padding: const EdgeInsets.only(bottom: 11),
                 child: _missingBorder(
                     _phone.text.trim().isEmpty,
                     RegionalPhoneField(
-                        label: 'Phone number',
+                        label: 'Phone number (private)',
                         initialValue: _phone.text,
                         onChanged: (value) {
                           _phone.text = value;
                           _profileFieldChanged();
                         }))),
-            _primaryCommunityField(),
             DropdownButtonFormField<String>(
               initialValue: _preferredContact,
               isExpanded: true,
@@ -1375,15 +1386,6 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
               onChanged: (value) => _preferredContact = value!,
             ),
             const SizedBox(height: 11),
-            _field(_personalBio, 'About the seller',
-                maxLines: 4,
-                completionRequired: true,
-                fieldKey: _personalBioKey),
-            const SizedBox(height: 4),
-            _sectionLabel(Icons.sell_outlined, 'Marketplace specialties',
-                'Help buyers find you by the products and services you work with.'),
-            MarketplaceProfileTags(accountType: _accountType),
-            const SizedBox(height: 10),
             _sectionLabel(Icons.location_on_outlined, 'Saved locations',
                 'Private yards, sites and pickup areas used to make future listings faster.'),
             _savedLocationsSection(),
@@ -1443,31 +1445,13 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                       'Add your public business details and private legal address. You control what buyers can see.'),
             const _PrivacyNotice(
                 text:
-                    'Legal name, billing information and the private address are never shown on the public profile.'),
+                    'Business contact details, legal name, billing information, and exact addresses stay protected and are not published on your storefront.'),
             _sectionLabel(Icons.storefront_outlined, 'Public company profile',
                 'Business information buyers can see on your marketplace storefront.'),
             _field(_businessName, 'Public business name',
                 required: true,
                 completionRequired: true,
                 fieldKey: _businessNameKey),
-            Padding(
-                key: _businessPhoneKey,
-                padding: const EdgeInsets.only(bottom: 11),
-                child: _missingBorder(
-                    _businessPhone.text.trim().isEmpty,
-                    RegionalPhoneField(
-                        label: 'Public business phone',
-                        initialValue: _businessPhone.text,
-                        onChanged: (value) {
-                          _businessPhone.text = value;
-                          _profileFieldChanged();
-                        }))),
-            _field(_businessEmail, 'Public business email',
-                keyboard: TextInputType.emailAddress,
-                completionRequired: true,
-                fieldKey: _businessEmailKey),
-            _field(_website, 'Website',
-                completionRequired: true, fieldKey: _websiteKey),
             _field(_businessBio,
                 'Business description — what you sell, buy or service',
                 hint:
@@ -1503,7 +1487,25 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
             ),
             const SizedBox(height: 11),
             _sectionLabel(Icons.lock_outline, 'Private business information',
-                'Protected legal and yard information used to operate your account.'),
+                'Protected contact, legal, and yard information used to operate your account.'),
+            Padding(
+                key: _businessPhoneKey,
+                padding: const EdgeInsets.only(bottom: 11),
+                child: _missingBorder(
+                    _businessPhone.text.trim().isEmpty,
+                    RegionalPhoneField(
+                        label: 'Business contact phone (private)',
+                        initialValue: _businessPhone.text,
+                        onChanged: (value) {
+                          _businessPhone.text = value;
+                          _profileFieldChanged();
+                        }))),
+            _field(_businessEmail, 'Business contact email (private)',
+                keyboard: TextInputType.emailAddress,
+                completionRequired: true,
+                fieldKey: _businessEmailKey),
+            _field(_website, 'Company website (optional, private)',
+                fieldKey: _websiteKey),
             _field(_legalBusinessName, 'Legal business name (private)',
                 completionRequired: true, fieldKey: _legalNameKey),
             OutlinedButton.icon(
@@ -1643,15 +1645,39 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
 
   Widget _saveButton(String label, Future<void> Function() action) => Padding(
         padding: const EdgeInsets.only(top: 12, bottom: 8),
-        child: FilledButton.icon(
-            onPressed: _saving ? null : action,
-            icon: _saving
-                ? const SizedBox.square(
-                    dimension: 17,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.save_outlined),
-            label: Text(_saving ? 'Saving…' : label)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              onPressed: _saving ? null : action,
+              icon: _saving
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: Text(_saving ? 'Saving…' : label),
+            ),
+            if (!widget.onboarding) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _saving
+                    ? null
+                    : () {
+                        final uid = FirebaseAuth.instance.currentUser?.uid;
+                        if (uid != null) {
+                          context.push(MarketplaceDeepLinks.profile(uid));
+                        }
+                      },
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('View my public profile'),
+              ),
+            ],
+          ],
+        ),
       );
 
   Widget _savedLocationsSection() => Padding(

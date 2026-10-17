@@ -84,9 +84,8 @@ class MarketplaceGridDensityBar extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     final maxColumns = maxColumnsForWidth(MediaQuery.sizeOf(context).width);
-    final effectiveSelection = selectedColumns <= 0
-        ? 0
-        : selectedColumns.clamp(1, maxColumns).toInt();
+    final effectiveSelection =
+        selectedColumns <= 0 ? 0 : selectedColumns.clamp(1, maxColumns).toInt();
     final isSelected = effectiveSelection == columns;
     final semanticLabel = columns == 0
         ? 'Automatic responsive grid density'
@@ -104,13 +103,15 @@ class MarketplaceGridDensityBar extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 34),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             padding: EdgeInsets.symmetric(
               horizontal: iconOnly ? 8 : 9,
               vertical: 7,
             ),
             decoration: BoxDecoration(
-              color: isSelected ? PipeBuyerColors.orange : Colors.transparent,
+              color: isSelected
+                  ? PipeBuyerColors.orangeActionFill
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
               boxShadow: isSelected
                   ? const [
@@ -128,7 +129,7 @@ class MarketplaceGridDensityBar extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  size: 15,
+                  size: 18,
                   color: isSelected
                       ? Colors.white
                       : theme.colorScheme.onSurface.withValues(alpha: .62),
@@ -138,7 +139,7 @@ class MarketplaceGridDensityBar extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: isSelected
                           ? Colors.white

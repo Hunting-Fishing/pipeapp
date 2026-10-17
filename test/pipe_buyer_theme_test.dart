@@ -13,7 +13,7 @@ void main() {
       final theme = PipeAccessibilityTheme.apply(PipeBuyerTheme.light());
 
       expect(theme.brightness, Brightness.light);
-      expect(theme.colorScheme.primary, PipeBuyerColors.orange);
+      expect(theme.colorScheme.primary, PipeBuyerColors.orangeForegroundLight);
       expect(theme.colorScheme.secondary, PipeBuyerColors.industrialBlue);
       expect(theme.scaffoldBackgroundColor, PipeBuyerColors.canvas);
       expect(theme.appBarTheme.backgroundColor, PipeBuyerColors.ink);
@@ -37,7 +37,7 @@ void main() {
 
       expect(
         style.backgroundColor?.resolve(normalStates),
-        PipeBuyerColors.orange,
+        PipeBuyerColors.orangeActionFill,
       );
       final minimum = style.minimumSize?.resolve(normalStates);
       expect(minimum, isNotNull);

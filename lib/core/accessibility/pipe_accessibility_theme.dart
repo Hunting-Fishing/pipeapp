@@ -77,14 +77,19 @@ abstract final class PipeAccessibilityTheme {
   }
 
   static ThemeData _normalizeLegacyBrandTheme(ThemeData base) {
-    if (!_legacyBrandPrimaryValues.contains(base.colorScheme.primary.toARGB32())) {
+    if (!_legacyBrandPrimaryValues
+        .contains(base.colorScheme.primary.toARGB32())) {
       return base;
     }
+    final dark = base.brightness == Brightness.dark;
+    final actionOrange =
+        dark ? PipeBuyerColors.orange : PipeBuyerColors.orangeForegroundLight;
     final scheme = base.colorScheme.copyWith(
-      primary: PipeBuyerColors.orange,
-      onPrimary: Colors.white,
-      primaryContainer: PipeBuyerColors.orangeSoft,
-      onPrimaryContainer: PipeBuyerColors.orangePressed,
+      primary: actionOrange,
+      onPrimary: dark ? PipeBuyerColors.ink : Colors.white,
+      primaryContainer:
+          dark ? PipeBuyerColors.orangeSoftDark : PipeBuyerColors.orangeSoft,
+      onPrimaryContainer: actionOrange,
       secondary: PipeBuyerColors.industrialBlue,
     );
     return base.copyWith(
@@ -93,7 +98,7 @@ abstract final class PipeAccessibilityTheme {
         color: PipeBuyerColors.orange,
       ),
       floatingActionButtonTheme: base.floatingActionButtonTheme.copyWith(
-        backgroundColor: PipeBuyerColors.orange,
+        backgroundColor: PipeBuyerColors.orangeActionFill,
         foregroundColor: Colors.white,
       ),
     );

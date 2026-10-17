@@ -1941,7 +1941,7 @@ class _BidPricingAnalytics extends StatelessWidget {
             if (difference != null && percent != null)
               _row(
                 'Compared with asking',
-                '${difference >= 0 ? 'â†‘' : 'â†“'} ${marketplaceMoney(difference.abs())} • ${percent.abs().toStringAsFixed(1)}%',
+                '${difference >= 0 ? '↑' : '↓'} ${marketplaceMoney(difference.abs())} • ${percent.abs().toStringAsFixed(1)}%',
                 color: comparisonColor,
               ),
             if (reserve != null && reserve! > 0)

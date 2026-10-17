@@ -17,10 +17,19 @@ test("conversation and notification activity feeds are bounded", () => {
   const account = source("lib/marketplace/marketplace_account_hub.dart");
 
   assert.match(query, /defaultActivityFeedLimit = 100/);
+  assert.match(query, /maximumActivityHistoryLimit = 500/);
   assert.match(query, /defaultBatchMutationLimit = 450/);
   assert.match(
       messages,
-      /where\('memberUids', arrayContains: uid\)[\s\S]{0,160}orderBy\('lastMessageAt', descending: true\)[\s\S]{0,100}limit\(defaultActivityFeedLimit\)/,
+      /_conversationQuery = FirebaseFirestore\.instance[\s\S]{0,180}where\('memberUids', arrayContains: widget\.uid\)[\s\S]{0,100}orderBy\('lastMessageAt', descending: true\)/,
+  );
+  assert.match(
+      messages,
+      /_conversationsStream\s*=\s*_conversationQuery\.limit\(_conversationLimit\)\.snapshots\(\)/,
+  );
+  assert.match(
+      messages,
+      /_conversationLimit \+ defaultActivityFeedLimit\)[\s\S]{0,100}maximumActivityHistoryLimit\)/,
   );
   assert.ok(
       messages.match(/\.limit\(defaultActivityFeedLimit\)/g).length >= 3,
@@ -53,7 +62,20 @@ test("high-volume history and operational streams stay bounded", () => {
   );
   assert.match(
       messages,
-      /collection\('messages'\)[\s\S]{0,140}orderBy\('createdAt', descending: true\)[\s\S]{0,100}limit\(defaultActivityFeedLimit\)/,
+      /collection\('messages'\)[\s\S]{0,140}orderBy\('createdAt', descending: true\)/,
+  );
+  assert.match(
+      messages,
+      /_messagesStream\s*=\s*_messageQuery\.limit\(_messageLimit\)\.snapshots\(\)/,
+  );
+  assert.match(
+      messages,
+      /_messageLimit \+ defaultActivityFeedLimit\)[\s\S]{0,100}maximumActivityHistoryLimit\)/,
+  );
+  assert.doesNotMatch(
+      messages,
+      /_(?:conversation|message)Limit\s*\+=/,
+      "history listeners must never grow without the hard maximum",
   );
   assert.match(
       auctions,
