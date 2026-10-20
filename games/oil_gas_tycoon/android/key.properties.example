@@ -1,0 +1,6 @@
+# Copy to key.properties and provide your private release keystore.
+# Neither the private file nor the keystore belongs in Git.
+storePassword=REPLACE_LOCALLY
+keyPassword=REPLACE_LOCALLY
+keyAlias=upload
+storeFile=../upload-keystore.jks

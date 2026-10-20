@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#152D38">
+  <meta name="description" content="Build your energy empire. Produce oil and gas, trade equipment and vehicles, acquire leases and businesses, and lead your crew in this offline single-player tycoon game.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Oil Tycoon">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>Oil &amp; Gas Tycoon — Buyer &amp; Trader</title>
+  <style>
+    html,body{height:100%;margin:0;background:#f4f1e9;color:#152d38;font-family:system-ui,sans-serif}
+    #loading{min-height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;box-sizing:border-box}
+    #loading img{width:88px;height:88px;border-radius:24px;box-shadow:0 16px 40px #152d3820}
+    h1{font-size:30px;letter-spacing:-1px;margin:24px 0 10px}
+    p{max-width:340px;line-height:1.6;color:#718087;font-size:14px}
+    .progress{height:4px;width:180px;margin:24px auto;background:#dce7df;border-radius:4px;overflow:hidden}
+    .progress:after{content:"";display:block;width:40%;height:100%;background:#16796f;animation:load 1.3s infinite ease-in-out}
+    button{padding:12px 20px;color:white;background:#16796f;border:0;border-radius:10px;font:inherit;cursor:pointer}
+    @keyframes load{from{transform:translateX(-100%)}to{transform:translateX(350%)}}
+    @media(prefers-reduced-motion:reduce){.progress:after{animation:none;width:100%}}
+  </style>
+</head>
+<body>
+  <main id="loading" aria-live="polite" aria-busy="true">
+    <div><img src="icons/Icon-192.png" alt="Oil &amp; Gas Tycoon">
+      <h1>Oil &amp; Gas Tycoon</h1><p id="loading-message">Preparing your next great energy empire.</p>
+      <div class="progress" aria-hidden="true"></div>
+      <p>Your company saves on this device. An internet connection is needed for your first web visit.</p>
+    </div>
+  </main>
+  <noscript><p>Enable JavaScript to play Oil &amp; Gas Tycoon.</p></noscript>
+  <script>
+    // This handler is installed before the asynchronous Flutter bootstrap so
+    // failures to fetch either startup script can still show a retry action.
+    window.tycoonStartupFailure = () => {
+      const loading = document.getElementById('loading');
+      if (!loading) return;
+      loading.setAttribute('aria-busy', 'false');
+      document.getElementById('loading-message').textContent =
+        'The game could not open. Check your connection and refresh. Your saved company has not been changed.';
+      loading.querySelector('.progress')?.remove();
+      if (!document.getElementById('startup-retry')) {
+        const retry = document.createElement('button');
+        retry.id = 'startup-retry';
+        retry.textContent = 'Try again';
+        retry.addEventListener('click', () => location.reload());
+        loading.firstElementChild.appendChild(retry);
+      }
+    };
+    window.addEventListener('error', event => {
+      if (event.target instanceof HTMLScriptElement) {
+        window.tycoonStartupFailure();
+      }
+    }, true);
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

@@ -1022,6 +1022,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
+  oil_gas_tycoon:
+    dependency: "direct main"
+    description:
+      path: "games/oil_gas_tycoon"
+      relative: true
+    source: path
+    version: "1.0.0+1"
   page_transition:
     dependency: "direct main"
     description:

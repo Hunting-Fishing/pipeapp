@@ -3,6 +3,16 @@
 Pipe Buyer is a Flutter marketplace for industrial listings, timed auctions,
 wanted ads, offers, messaging, reporting, and professional dispatch services.
 
+## Oil & Gas Tycoon
+
+The repository also includes [Oil & Gas Tycoon — Buyer & Trader](games/oil_gas_tycoon/README.md),
+a standalone Flutter single-player game with lease production, equipment and
+vehicle trading, businesses, employees, commodity contracts, and local saves.
+Open it from Pipe Buyer's home card or drawer, or run the independent game
+package. See its README for play/build instructions and the
+[feature audit and verification record](docs/OIL_GAS_TYCOON_AUDIT_2026-10-20.md)
+for the original gaps, implemented scope, and remaining release gates.
+
 ## Production baseline
 
 The production web release uses Firebase App Check enforcement, exact-release
