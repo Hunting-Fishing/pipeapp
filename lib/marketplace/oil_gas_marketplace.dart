@@ -31,6 +31,7 @@ import 'marketplace_account_menu.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_grouped_navigation.dart';
 import 'marketplace_home_welcome.dart';
+import 'marketplace_tycoon_entry.dart';
 import 'marketplace_support.dart';
 import 'marketplace_vip_access.dart';
 import 'marketplace_grid_density.dart';
@@ -1397,7 +1398,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
         drawer: Drawer(
           backgroundColor: Colors.white,
           child: SafeArea(
-            child: Column(children: [
+            child: ListView(padding: EdgeInsets.zero, children: [
               ListTile(
                 contentPadding: const EdgeInsets.fromLTRB(20, 10, 16, 14),
                 leading: Image.asset(
@@ -1472,7 +1473,16 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                 trailing: _unreadBadge(),
                 onTap: () => _selectTab(4),
               ),
-              const Spacer(),
+              _DrawerDestination(
+                icon: Icons.sports_esports_outlined,
+                label: 'Oil & Gas Tycoon',
+                selected: false,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  context.push('/tycoon');
+                },
+              ),
+              const SizedBox(height: 24),
               const Divider(height: 1),
               _DrawerDestination(
                 icon: Icons.person_outline,
@@ -1939,6 +1949,7 @@ class _HomePage extends StatelessWidget {
                 onAuctions: onAuctions,
                 onDispatch: onDispatch,
               ),
+              const MarketplaceTycoonEntry(),
               if (features.marketplace) ...[
                 const _CompactHeading('Categories'),
                 _HomeCategoryStrip(

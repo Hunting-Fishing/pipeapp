@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:oil_gas_tycoon/oil_gas_tycoon.dart';
 import 'package:provider/provider.dart';
 import '/backend/backend.dart';
 import '/backend/schema/structs/index.dart';
@@ -101,6 +102,19 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         return null;
       },
       routes: [
+        FFRoute(
+          name: 'oilGasTycoon',
+          path: '/tycoon',
+          builder: (context, _) => OilGasTycoonScreen(
+            onExit: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
+          ),
+        ),
         FFRoute(
           name: '_initialize',
           path: '/',

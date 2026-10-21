@@ -1,0 +1,246 @@
+{
+  "format": "oil-gas-tycoon",
+  "version": 1,
+  "game": {
+    "schemaVersion": 1,
+    "companyName": "Legacy North Star",
+    "day": 3,
+    "cash": 31915,
+    "debt": 0,
+    "oilPrice": 81,
+    "gasPrice": 7,
+    "oilInventory": 242,
+    "gasInventory": 0,
+    "seed": 238288524,
+    "nextId": 12,
+    "assets": [
+      {
+        "id": "asset_1",
+        "catalogId": "pumpjack",
+        "condition": 96
+      },
+      {
+        "id": "asset_2",
+        "catalogId": "tanker",
+        "condition": 96
+      },
+      {
+        "id": "asset_9",
+        "catalogId": "storage_tank",
+        "condition": 100
+      }
+    ],
+    "leases": [
+      {
+        "id": "cedar",
+        "reserves": 23678,
+        "developed": true,
+        "running": true,
+        "assetId": "asset_1",
+        "employeeId": "employee_3"
+      },
+      {
+        "id": "dry_creek",
+        "reserves": 220000,
+        "developed": true,
+        "running": false,
+        "assetId": null,
+        "employeeId": null
+      }
+    ],
+    "employees": [
+      {
+        "id": "employee_3",
+        "name": "Alex Morgan",
+        "role": "operator",
+        "level": 1
+      },
+      {
+        "id": "employee_4",
+        "name": "Casey Brooks",
+        "role": "driver",
+        "level": 1
+      },
+      {
+        "id": "employee_8",
+        "name": "Skyler Hayes",
+        "role": "engineer",
+        "level": 1
+      },
+      {
+        "id": "employee_10",
+        "name": "Jordan Ellis",
+        "role": "operator",
+        "level": 1
+      }
+    ],
+    "businesses": [],
+    "contracts": [
+      {
+        "id": "contract_5",
+        "title": "Refinery supply 1.1",
+        "commodity": "oil",
+        "quantity": 340,
+        "unitPrice": 100,
+        "deadlineDay": 4,
+        "deposit": 2720,
+        "status": "active"
+      },
+      {
+        "id": "contract_6",
+        "title": "Refinery supply 1.2",
+        "commodity": "oil",
+        "quantity": 340,
+        "unitPrice": 99,
+        "deadlineDay": 4,
+        "deposit": 2693,
+        "status": "available"
+      },
+      {
+        "id": "contract_7",
+        "title": "Utility supply 1.3",
+        "commodity": "gas",
+        "quantity": 1200,
+        "unitPrice": 7,
+        "deadlineDay": 4,
+        "deposit": 672,
+        "status": "available"
+      },
+      {
+        "id": "contract_11",
+        "title": "Utility supply 3.3",
+        "commodity": "gas",
+        "quantity": 1400,
+        "unitPrice": 8,
+        "deadlineDay": 6,
+        "deposit": 896,
+        "status": "available"
+      }
+    ],
+    "ledger": [
+      {
+        "day": 2,
+        "title": "Assets, leases & business operating costs",
+        "amount": -590
+      },
+      {
+        "day": 2,
+        "title": "Crew payroll",
+        "amount": -800
+      },
+      {
+        "day": 2,
+        "title": "Contract deposit: Refinery supply 1.1",
+        "amount": -2720
+      },
+      {
+        "day": 2,
+        "title": "Milestone: Build your crew",
+        "amount": 7500
+      },
+      {
+        "day": 2,
+        "title": "Recruited Jordan Ellis (operator)",
+        "amount": -2160
+      },
+      {
+        "day": 2,
+        "title": "Developed Dry Creek Gas",
+        "amount": -36000
+      },
+      {
+        "day": 2,
+        "title": "Milestone: Expand your footprint",
+        "amount": 10000
+      },
+      {
+        "day": 2,
+        "title": "Acquired Dry Creek Gas",
+        "amount": -60000
+      },
+      {
+        "day": 2,
+        "title": "Milestone: Make a trade",
+        "amount": 5000
+      },
+      {
+        "day": 2,
+        "title": "Sold 80 oil",
+        "amount": 6160
+      },
+      {
+        "day": 2,
+        "title": "Milestone: First oil",
+        "amount": 5000
+      },
+      {
+        "day": 1,
+        "title": "Assets, leases & business operating costs",
+        "amount": -495
+      },
+      {
+        "day": 1,
+        "title": "Crew payroll",
+        "amount": -620
+      },
+      {
+        "day": 1,
+        "title": "Bought Storage terminal",
+        "amount": -45000
+      },
+      {
+        "day": 1,
+        "title": "Recruited Skyler Hayes (engineer)",
+        "amount": -3360
+      },
+      {
+        "day": 1,
+        "title": "Starting capital",
+        "amount": 150000
+      }
+    ],
+    "completedObjectives": [
+      "first_shift",
+      "first_trade",
+      "second_lease",
+      "team"
+    ],
+    "priceHistory": [
+      {
+        "day": 1,
+        "oil": 84,
+        "gas": 6
+      },
+      {
+        "day": 2,
+        "oil": 80,
+        "gas": 7
+      },
+      {
+        "day": 3,
+        "oil": 81,
+        "gas": 7
+      }
+    ],
+    "leaseReserves": {
+      "cedar": 23678,
+      "dry_creek": 220000
+    },
+    "lastReport": {
+      "day": 2,
+      "oilProduced": 159,
+      "gasProduced": 0,
+      "revenue": 0,
+      "expenses": 1390,
+      "event": "Steady operations across the field.",
+      "notes": []
+    },
+    "careerComplete": false,
+    "totalRevenue": 6160,
+    "totalProducedOil": 322,
+    "totalProducedGas": 0,
+    "totalTrades": 1,
+    "contractsCompleted": 0,
+    "restructures": 0
+  }
+}

@@ -14,7 +14,8 @@ void main() {
     expect(dispatchHostedStripeSurfaceAllowed(isWeb: false), isFalse);
   });
 
-  test('promo guidance is visible for monthly and yearly Dispatch checkout', () {
+  test('promo guidance is visible for monthly and yearly Dispatch checkout',
+      () {
     expect(
       dispatchMembershipPromotionHint('monthly'),
       contains('Apply it here before payment'),

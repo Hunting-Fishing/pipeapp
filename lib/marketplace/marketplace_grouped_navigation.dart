@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 
@@ -88,6 +89,14 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               onTap: () => onDestinationSelected(7),
             ),
           ],
+          const _SectionLabel('PLAY'),
+          _NavItem(
+            icon: Icons.sports_esports_outlined,
+            selectedIcon: Icons.sports_esports_rounded,
+            label: 'Oil & Gas Tycoon',
+            selected: false,
+            onTap: () => context.push('/tycoon'),
+          ),
         ],
       );
 }

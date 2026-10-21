@@ -21,6 +21,8 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
+  oil_gas_tycoon:
+    path: games/oil_gas_tycoon
   crypto: ^3.0.6
   uuid: 4.6.0
   flutter:
@@ -175,6 +177,23 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  fonts:
+    - family: TycoonSans
+      fonts:
+        - asset: games/oil_gas_tycoon/assets/fonts/Roboto-Regular.ttf
+        - asset: games/oil_gas_tycoon/assets/fonts/Roboto-Bold.ttf
+          weight: 700
+        - asset: games/oil_gas_tycoon/assets/fonts/Roboto-Black.ttf
+          weight: 900
+    # Keep the game's CanvasKit fallback available without a remote font fetch.
+    - family: Roboto
+      fonts:
+        - asset: games/oil_gas_tycoon/assets/fonts/Roboto-Regular.ttf
+        - asset: games/oil_gas_tycoon/assets/fonts/Roboto-Bold.ttf
+          weight: 700
+        - asset: games/oil_gas_tycoon/assets/fonts/Roboto-Black.ttf
+          weight: 900
+
 
   # To add assets to your application, add an assets section, like this:
   assets:

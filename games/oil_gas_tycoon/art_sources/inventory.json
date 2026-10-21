@@ -1,0 +1,1667 @@
+{
+  "schema_version": 1,
+  "discovery_directory": "https://github.com/HotpotDesign/Game-Assets-And-Resources",
+  "source_packages": [
+    {
+      "id": "city-kit-industrial",
+      "source_url": "https://kenney.nl/assets/city-kit-industrial",
+      "download_url": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip",
+      "bytes": 5045077,
+      "sha256": "5b381164e5760f3830a2dbee43b972deee38b2a695d091b56e238ab2910c96d2",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_file": "extracted/city-kit-industrial/License.txt",
+      "license_sha256": "60a8c5c31191256ec9779dc18745dea6d69c46f4b29703459ce064c1765a59ea",
+      "archive": "downloads/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "id": "car-kit",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "download_url": "https://kenney.nl/media/pages/assets/car-kit/1a312ec241-1775131960/kenney_car-kit.zip",
+      "bytes": 4814237,
+      "sha256": "fac7dacac5c7874348cf19729af3ef205f3d366493edaf0a827d93f4fdf3d0c4",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_file": "extracted/car-kit/License.txt",
+      "license_sha256": "c33b7f6453d134deae7b1b8493717d9ccfa754c25ab97f6de89b88f8fda19b00",
+      "archive": "downloads/kenney_car-kit.zip"
+    },
+    {
+      "id": "interface-sounds",
+      "source_url": "https://kenney.nl/assets/interface-sounds",
+      "download_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "bytes": 834536,
+      "sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_file": "extracted/interface-sounds/License.txt",
+      "license_sha256": "f7966c773bbed0eca6a9c75081c44a178b38eae112724dbb5fdfbd4192d118a9",
+      "archive": "downloads/kenney_interface-sounds.zip"
+    }
+  ],
+  "render_toolchain": {
+    "version": "4.5.0",
+    "source_url": "https://download.blender.org/release/Blender4.5/",
+    "download_url": "https://download.blender.org/release/Blender4.5/blender-4.5.0-linux-x64.tar.xz",
+    "checksum_url": "https://download.blender.org/release/Blender4.5/blender-4.5.0.sha256",
+    "bytes": 376170648,
+    "sha256": "1188b95cc12321c770b631939f7c25a096910b6f884a990bf9c0f62d52b38aec",
+    "checksum_verified": true,
+    "executable": "/workspace/scratch/cd63d71c711e/asset-sourcing/toolchain/blender-4.5.0-linux-x64/blender"
+  },
+  "source_files": [
+    {
+      "path": "sources/blender-toolchain.json",
+      "bytes": 522,
+      "sha256": "3c636631ac8816661bbc1fab70f4ef10ed12d450b3b42fb3b9ac8b2b0febecda"
+    },
+    {
+      "path": "sources/downloads/blender-4.5.0.sha256",
+      "bytes": 871,
+      "sha256": "62ecd8c439c2570b518a08eb5e35f5db2d3110b07a50d04cd887d26b9c5a859a"
+    },
+    {
+      "path": "sources/extracted/car-kit/License.txt",
+      "bytes": 696,
+      "sha256": "c33b7f6453d134deae7b1b8493717d9ccfa754c25ab97f6de89b88f8fda19b00"
+    },
+    {
+      "path": "sources/extracted/car-kit/Models/GLB format/Textures/colormap.png",
+      "bytes": 12371,
+      "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5"
+    },
+    {
+      "path": "sources/extracted/car-kit/Models/GLB format/delivery.glb",
+      "bytes": 240264,
+      "sha256": "426a3e3a2c242c05c889b1445ba02ef95b2c8b7cd6f597e1275ef736a826014b"
+    },
+    {
+      "path": "sources/extracted/car-kit/Models/GLB format/tractor-shovel.glb",
+      "bytes": 222584,
+      "sha256": "1bc67bcc36dc563baf7b5060e2a790f67a5a0b42fbdf17c18ab933fcc8a4aa53"
+    },
+    {
+      "path": "sources/extracted/car-kit/Models/GLB format/truck-flat.glb",
+      "bytes": 207424,
+      "sha256": "4279862f2442e96c6603c514edf50bfb932707545695d8c4747611cd3796cf3b"
+    },
+    {
+      "path": "sources/extracted/car-kit/Models/GLB format/truck.glb",
+      "bytes": 176360,
+      "sha256": "5e1bc66c343501dd7d5734b57e672dd949bf95d7abdce680c6508cef99d374f8"
+    },
+    {
+      "path": "sources/extracted/car-kit/Models/GLB format/van.glb",
+      "bytes": 175664,
+      "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/License.txt",
+      "bytes": 708,
+      "sha256": "60a8c5c31191256ec9779dc18745dea6d69c46f4b29703459ce064c1765a59ea"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/Textures/colormap.png",
+      "bytes": 11986,
+      "sha256": "950f4f891ebd05a2affac810e6eeb0fea1511bc39039b65a3cbf2e17d17bc6a2"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/building-a.glb",
+      "bytes": 177316,
+      "sha256": "0e6ef8eb1e1bdbb9d06b5496b5daf3066e00eaf74b3fcd61b74072116a1c86cf"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/building-g.glb",
+      "bytes": 106940,
+      "sha256": "d09d0d53e85989870f39087435f3c8fc788fe68e87589439fa6bf227c2e4a611"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/building-k.glb",
+      "bytes": 65472,
+      "sha256": "ae0692f7a9fa20bb4ae6cc4deb56d5e1919b1ba2188a1f282295ab2be5e9645d"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/building-m.glb",
+      "bytes": 138920,
+      "sha256": "526881cb1851120a60195f76bd4d8c1963653cdda66e4d1d53f085b3395fb8a9"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/building-o.glb",
+      "bytes": 76552,
+      "sha256": "eec5728a268e122da91fa2cc4ed571a0b12e2cdd5c200828ab0d4f31ab1c8765"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/building-p.glb",
+      "bytes": 103760,
+      "sha256": "d3e701ba7bf548519731d9c68d5a47d09654bccef6f93be759eaafb55cdb2f78"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/chimney-large.glb",
+      "bytes": 20932,
+      "sha256": "fd88d6c971ffb27f5ee5b0df9f7c23ac82f9b6d32e85d3e2066f90a62f92f59f"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/detail-tank-large.glb",
+      "bytes": 47452,
+      "sha256": "2fbf65dfbae114235dec65cc8730a870cf7d29dd76f9473218e96ee83e9f5f43"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/detail-tank.glb",
+      "bytes": 31436,
+      "sha256": "9e955732e4ef9ccff4a4d6967d29d8a7d2f9ed16c903923f2568216d9f0b50d2"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/shipping-container-a.glb",
+      "bytes": 36624,
+      "sha256": "7b2d5ca874c8e659ee6cfd1614f0470b70410b2ddc7620ac83b8954dedeb861d"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/GLB format/water-tower.glb",
+      "bytes": 93836,
+      "sha256": "11ac7ae19f32ce889bfe7a9c8e78c8ce8c77b7a76b52fd4ffa439a022ea2ef40"
+    },
+    {
+      "path": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "bytes": 12222,
+      "sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1"
+    },
+    {
+      "path": "sources/extracted/interface-sounds/Audio/click_001.ogg",
+      "bytes": 4876,
+      "sha256": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9"
+    },
+    {
+      "path": "sources/extracted/interface-sounds/Audio/confirmation_001.ogg",
+      "bytes": 8968,
+      "sha256": "063564703b6094d70718a3e787a55cc9141611e4ecd6b6637f8828f79b4a8c3a"
+    },
+    {
+      "path": "sources/extracted/interface-sounds/Audio/error_001.ogg",
+      "bytes": 7373,
+      "sha256": "46e67425d16339772e8d328fb36a49426c9467418686e11beeb71ff84b0f6433"
+    },
+    {
+      "path": "sources/extracted/interface-sounds/Audio/open_001.ogg",
+      "bytes": 9834,
+      "sha256": "a27c6bb0df7da1e6af5dd5937593c98bc58b6e513f42fe6a3254cd6a6949c648"
+    },
+    {
+      "path": "sources/extracted/interface-sounds/License.txt",
+      "bytes": 574,
+      "sha256": "f7966c773bbed0eca6a9c75081c44a178b38eae112724dbb5fdfbd4192d118a9"
+    },
+    {
+      "path": "sources/original_equipment.py",
+      "bytes": 10289,
+      "sha256": "7154260fbc6f2a0e7bd8151f87e1d324b6da3ebfad635d85a02519aaa583c810"
+    },
+    {
+      "path": "sources/prepare_audio.py",
+      "bytes": 3298,
+      "sha256": "1d479715764e4fa1d9f094569ea9535b28d81cafb4821bd6240911adfa4ea503"
+    },
+    {
+      "path": "sources/prepare_manifest.py",
+      "bytes": 6214,
+      "sha256": "8ec2dadce47cdf1eb4299b5f4f10aa2b6da3891a5419b90959d4861028562cbf"
+    },
+    {
+      "path": "sources/render_sprites.py",
+      "bytes": 10959,
+      "sha256": "9564625d60b462e3ea35211b5217794a8de38adf6571b638e8c5dd14611726b7"
+    }
+  ],
+  "entries": [
+    {
+      "id": "compressor",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/compressor.png",
+      "bundle_path": "runtime/assets/art/compressor.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/detail-tank.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "9e955732e4ef9ccff4a4d6967d29d8a7d2f9ed16c903923f2568216d9f0b50d2",
+      "runtime_sha256": "47320f25f825b9a8bee5d7666f1480f5b976bd045311b211dfd70b524107205c",
+      "runtime_bytes": 100867,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Horizontal pressure vessel",
+      "ground_anchor_normalized": [
+        0.5,
+        0.633666
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        92,
+        128,
+        388,
+        395
+      ],
+      "opaque_bounds_above_200": [
+        93,
+        130,
+        387,
+        394
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.9915449619293213,
+        "geometry_uniform_scale": 2.358489267690568,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "cooling_tower",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/cooling_tower.png",
+      "bundle_path": "runtime/assets/art/cooling_tower.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/chimney-large.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "fd88d6c971ffb27f5ee5b0df9f7c23ac82f9b6d32e85d3e2066f90a62f92f59f",
+      "runtime_sha256": "79564150f08efd9c5dcb3bfb6a93da81d477323c360b321b4bdfb988dfaabf71",
+      "runtime_bytes": 94955,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Cooling tower",
+      "ground_anchor_normalized": [
+        0.5,
+        0.732374
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        166,
+        100,
+        346,
+        424
+      ],
+      "opaque_bounds_above_200": [
+        167,
+        101,
+        345,
+        422
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 5.530849456787109,
+        "geometry_uniform_scale": 1.8518517782658737,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "crew_pickup",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/crew_pickup.png",
+      "bundle_path": "runtime/assets/art/crew_pickup.png",
+      "source_path": "sources/extracted/car-kit/Models/GLB format/truck.glb",
+      "source_pack": "car-kit",
+      "publisher_url": "https://kenney.nl/assets/car-kit",
+      "source_sha256": "5e1bc66c343501dd7d5734b57e672dd949bf95d7abdce680c6508cef99d374f8",
+      "runtime_sha256": "0e5df25867d7d2a987bab1f4c24cb272a2da002874b436470a4c68745e8e4ea4",
+      "runtime_bytes": 113050,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/car-kit/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Utility crew pickup truck",
+      "ground_anchor_normalized": [
+        0.5,
+        0.642975
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        79,
+        150,
+        433,
+        411
+      ],
+      "opaque_bounds_above_200": [
+        80,
+        152,
+        432,
+        410
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/car-kit/Models/GLB format/Textures/colormap.png",
+      "source_texture_sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.8069803714752197,
+        "geometry_uniform_scale": 0.6779662003225521,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "crew_van",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/crew_van.png",
+      "bundle_path": "runtime/assets/art/crew_van.png",
+      "source_path": "sources/extracted/car-kit/Models/GLB format/van.glb",
+      "source_pack": "car-kit",
+      "publisher_url": "https://kenney.nl/assets/car-kit",
+      "source_sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1",
+      "runtime_sha256": "aca3323d32f6c4d2471ce8a0b59856f6b0498ca251a943d2421b9cc2e61ac113",
+      "runtime_bytes": 121388,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/car-kit/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Crew van",
+      "ground_anchor_normalized": [
+        0.5,
+        0.654866
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        80,
+        114,
+        432,
+        416
+      ],
+      "opaque_bounds_above_200": [
+        81,
+        115,
+        431,
+        415
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/car-kit/Models/GLB format/Textures/colormap.png",
+      "source_texture_sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.875792980194092,
+        "geometry_uniform_scale": 0.7272726642198853,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "delivery_truck",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/delivery_truck.png",
+      "bundle_path": "runtime/assets/art/delivery_truck.png",
+      "source_path": "sources/extracted/car-kit/Models/GLB format/delivery.glb",
+      "source_pack": "car-kit",
+      "publisher_url": "https://kenney.nl/assets/car-kit",
+      "source_sha256": "426a3e3a2c242c05c889b1445ba02ef95b2c8b7cd6f597e1275ef736a826014b",
+      "runtime_sha256": "13aab945f1d4609b2f21c5bd2dca0fdcb3d8ff9d9ed71a8a06bc8f47a5bda2d8",
+      "runtime_bytes": 125766,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/car-kit/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Delivery truck",
+      "ground_anchor_normalized": [
+        0.5,
+        0.666277
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        78,
+        86,
+        439,
+        425
+      ],
+      "opaque_bounds_above_200": [
+        79,
+        88,
+        438,
+        424
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/car-kit/Models/GLB format/Textures/colormap.png",
+      "source_texture_sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.7196414470672607,
+        "geometry_uniform_scale": 0.615384660528965,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "drilling_rig",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/drilling_rig.png",
+      "bundle_path": "runtime/assets/art/drilling_rig.png",
+      "source_path": "sources/original_equipment.py",
+      "source_pack": "project-original",
+      "publisher_url": "https://github.com/Hunting-Fishing/pipeapp",
+      "source_sha256": "7154260fbc6f2a0e7bd8151f87e1d324b6da3ebfad635d85a02519aaa583c810",
+      "runtime_sha256": "8f06e97fc19e6b492eb86790b431afdba3c035aff78a419d4349900e431ef301",
+      "runtime_bytes": 161656,
+      "license": "project-authored",
+      "license_files": [],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Original drilling derrick and service deck",
+      "ground_anchor_normalized": [
+        0.512992,
+        0.689174
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        81,
+        62,
+        431,
+        449
+      ],
+      "opaque_bounds_above_200": [
+        82,
+        63,
+        430,
+        447
+      ],
+      "max_border_alpha": 0,
+      "source_texture": null,
+      "source_texture_sha256": null,
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.151319980621338,
+        "geometry_uniform_scale": 0.39254170535216715,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      },
+      "source_model_selector": "build('drilling_rig')",
+      "ownership_note": "Original geometry authored for this project; no downloaded geometry or texture. This entry does not assign a third-party CC0 license to project-authored work."
+    },
+    {
+      "id": "field_tanker",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/field_tanker.png",
+      "bundle_path": "runtime/assets/art/field_tanker.png",
+      "source_path": "sources/original_equipment.py",
+      "source_pack": "project-original",
+      "publisher_url": "https://github.com/Hunting-Fishing/pipeapp",
+      "source_sha256": "7154260fbc6f2a0e7bd8151f87e1d324b6da3ebfad635d85a02519aaa583c810",
+      "runtime_sha256": "85f12fbc033cb4cfe435ba40623e18243e427eb2dd23d4bb8c695977a3fd8c54",
+      "runtime_bytes": 135615,
+      "license": "project-authored",
+      "license_files": [],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Original field oil tanker truck",
+      "ground_anchor_normalized": [
+        0.493716,
+        0.623901
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        61,
+        92,
+        451,
+        415
+      ],
+      "opaque_bounds_above_200": [
+        62,
+        93,
+        450,
+        414
+      ],
+      "max_border_alpha": 0,
+      "source_texture": null,
+      "source_texture_sha256": null,
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.424008846282959,
+        "geometry_uniform_scale": 0.29207740701971163,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      },
+      "source_model_selector": "build('field_tanker')",
+      "ownership_note": "Original geometry authored for this project; no downloaded geometry or texture. This entry does not assign a third-party CC0 license to project-authored work."
+    },
+    {
+      "id": "flatbed_truck",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/flatbed_truck.png",
+      "bundle_path": "runtime/assets/art/flatbed_truck.png",
+      "source_path": "sources/extracted/car-kit/Models/GLB format/truck-flat.glb",
+      "source_pack": "car-kit",
+      "publisher_url": "https://kenney.nl/assets/car-kit",
+      "source_sha256": "4279862f2442e96c6603c514edf50bfb932707545695d8c4747611cd3796cf3b",
+      "runtime_sha256": "287f250ffb4b2b2a37b9e5c0e68bff6bb0b401c2ebb1295f6ba36b3a47943b13",
+      "runtime_bytes": 114869,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/car-kit/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Flatbed truck",
+      "ground_anchor_normalized": [
+        0.5,
+        0.649876
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        80,
+        146,
+        433,
+        414
+      ],
+      "opaque_bounds_above_200": [
+        81,
+        147,
+        432,
+        412
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/car-kit/Models/GLB format/Textures/colormap.png",
+      "source_texture_sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.8775994777679443,
+        "geometry_uniform_scale": 0.7285671374636975,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "gas_skid",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/gas_skid.png",
+      "bundle_path": "runtime/assets/art/gas_skid.png",
+      "source_path": "sources/original_equipment.py",
+      "source_pack": "project-original",
+      "publisher_url": "https://github.com/Hunting-Fishing/pipeapp",
+      "source_sha256": "7154260fbc6f2a0e7bd8151f87e1d324b6da3ebfad635d85a02519aaa583c810",
+      "runtime_sha256": "6378c1df24654506ea36716afd1bd65f2e82ac7aafb30298ef2cf0f4540c9a9e",
+      "runtime_bytes": 119427,
+      "license": "project-authored",
+      "license_files": [],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Original gas separator and compressor skid",
+      "ground_anchor_normalized": [
+        0.5,
+        0.559756
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        62,
+        116,
+        449,
+        397
+      ],
+      "opaque_bounds_above_200": [
+        64,
+        117,
+        448,
+        396
+      ],
+      "max_border_alpha": 0,
+      "source_texture": null,
+      "source_texture_sha256": null,
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.0743772983551025,
+        "geometry_uniform_scale": 0.4347826177095873,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      },
+      "source_model_selector": "build('gas_skid')",
+      "ownership_note": "Original geometry authored for this project; no downloaded geometry or texture. This entry does not assign a third-party CC0 license to project-authored work."
+    },
+    {
+      "id": "headquarters",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/headquarters.png",
+      "bundle_path": "runtime/assets/art/headquarters.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/building-a.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "0e6ef8eb1e1bdbb9d06b5496b5daf3066e00eaf74b3fcd61b74072116a1c86cf",
+      "runtime_sha256": "2b404a81508d1624686b24a7281efa8b4174937e1b74e33d4fa6d0e71eb324b2",
+      "runtime_bytes": 160068,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Three-storey industrial headquarters",
+      "ground_anchor_normalized": [
+        0.5,
+        0.678307
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        79,
+        86,
+        429,
+        447
+      ],
+      "opaque_bounds_above_200": [
+        80,
+        87,
+        428,
+        446
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.230656385421753,
+        "geometry_uniform_scale": 0.9598825522122871,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "heavy_pumpjack",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/heavy_pumpjack.png",
+      "bundle_path": "runtime/assets/art/heavy_pumpjack.png",
+      "source_path": "sources/original_equipment.py",
+      "source_pack": "project-original",
+      "publisher_url": "https://github.com/Hunting-Fishing/pipeapp",
+      "source_sha256": "7154260fbc6f2a0e7bd8151f87e1d324b6da3ebfad635d85a02519aaa583c810",
+      "runtime_sha256": "54dcfc1a150041cf6cb2672343d2daa5acc8af805b9599fc6e5e5fbfde456b02",
+      "runtime_bytes": 137910,
+      "license": "project-authored",
+      "license_files": [],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Original heavy-duty oil pumpjack",
+      "ground_anchor_normalized": [
+        0.5,
+        0.629444
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        63,
+        77,
+        450,
+        432
+      ],
+      "opaque_bounds_above_200": [
+        64,
+        79,
+        448,
+        431
+      ],
+      "max_border_alpha": 0,
+      "source_texture": null,
+      "source_texture_sha256": null,
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.8481743335723877,
+        "geometry_uniform_scale": 0.34013604780178885,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      },
+      "source_model_selector": "build('heavy_pumpjack')",
+      "ownership_note": "Original geometry authored for this project; no downloaded geometry or texture. This entry does not assign a third-party CC0 license to project-authored work."
+    },
+    {
+      "id": "heavy_tanker",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/heavy_tanker.png",
+      "bundle_path": "runtime/assets/art/heavy_tanker.png",
+      "source_path": "sources/original_equipment.py",
+      "source_pack": "project-original",
+      "publisher_url": "https://github.com/Hunting-Fishing/pipeapp",
+      "source_sha256": "7154260fbc6f2a0e7bd8151f87e1d324b6da3ebfad635d85a02519aaa583c810",
+      "runtime_sha256": "49c3eb761b25a4062c92fe2eb358f13fbbd040883679c4e63bc0899b9f83780a",
+      "runtime_bytes": 125124,
+      "license": "project-authored",
+      "license_files": [],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Original heavy oil tanker truck",
+      "ground_anchor_normalized": [
+        0.494867,
+        0.601208
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        61,
+        101,
+        451,
+        407
+      ],
+      "opaque_bounds_above_200": [
+        62,
+        102,
+        450,
+        405
+      ],
+      "max_border_alpha": 0,
+      "source_texture": null,
+      "source_texture_sha256": null,
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.2966957092285156,
+        "geometry_uniform_scale": 0.2260525489350242,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      },
+      "source_model_selector": "build('heavy_tanker')",
+      "ownership_note": "Original geometry authored for this project; no downloaded geometry or texture. This entry does not assign a third-party CC0 license to project-authored work."
+    },
+    {
+      "id": "office",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/office.png",
+      "bundle_path": "runtime/assets/art/office.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/building-p.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "d3e701ba7bf548519731d9c68d5a47d09654bccef6f93be759eaafb55cdb2f78",
+      "runtime_sha256": "6dbdf0c082706b3553f72ab09575cbb0800294f3ce353722e8000ebe53707fcf",
+      "runtime_bytes": 145795,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Low industrial office with rooftop skylights",
+      "ground_anchor_normalized": [
+        0.5,
+        0.617184
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        70,
+        107,
+        442,
+        411
+      ],
+      "opaque_bounds_above_200": [
+        71,
+        108,
+        441,
+        410
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.957227945327759,
+        "geometry_uniform_scale": 1.1879390722624719,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "processing_plant",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/processing_plant.png",
+      "bundle_path": "runtime/assets/art/processing_plant.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/building-o.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "eec5728a268e122da91fa2cc4ed571a0b12e2cdd5c200828ab0d4f31ab1c8765",
+      "runtime_sha256": "ceb73a46c620bb3cafed1bfda70822c8d94a830eba5cdb91fcfb92c857312dce",
+      "runtime_bytes": 152867,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Two-storey industrial processing building",
+      "ground_anchor_normalized": [
+        0.5,
+        0.6762
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        78,
+        70,
+        427,
+        445
+      ],
+      "opaque_bounds_above_200": [
+        79,
+        71,
+        426,
+        444
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.4305918216705322,
+        "geometry_uniform_scale": 1.612903034114893,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "pumpjack",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/pumpjack.png",
+      "bundle_path": "runtime/assets/art/pumpjack.png",
+      "source_path": "sources/original_equipment.py",
+      "source_pack": "project-original",
+      "publisher_url": "https://github.com/Hunting-Fishing/pipeapp",
+      "source_sha256": "7154260fbc6f2a0e7bd8151f87e1d324b6da3ebfad635d85a02519aaa583c810",
+      "runtime_sha256": "e2d905086ad9fadb17d376eecc0e5627eccbd26575832db783cd71516a74f63e",
+      "runtime_bytes": 138639,
+      "license": "project-authored",
+      "license_files": [],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Original walking-beam oil pumpjack",
+      "ground_anchor_normalized": [
+        0.5,
+        0.629444
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        63,
+        77,
+        450,
+        432
+      ],
+      "opaque_bounds_above_200": [
+        64,
+        79,
+        448,
+        431
+      ],
+      "max_border_alpha": 0,
+      "source_texture": null,
+      "source_texture_sha256": null,
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.8481743335723877,
+        "geometry_uniform_scale": 0.40816325736214665,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      },
+      "source_model_selector": "build('pumpjack')",
+      "ownership_note": "Original geometry authored for this project; no downloaded geometry or texture. This entry does not assign a third-party CC0 license to project-authored work."
+    },
+    {
+      "id": "refinery",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/refinery.png",
+      "bundle_path": "runtime/assets/art/refinery.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/building-g.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "d09d0d53e85989870f39087435f3c8fc788fe68e87589439fa6bf227c2e4a611",
+      "runtime_sha256": "8deaaa3ccb3716119baf0561ca0d2147d80c5d70d1000606a460d55a3493bc37",
+      "runtime_bytes": 141658,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Industrial processing building with pipework and stack",
+      "ground_anchor_normalized": [
+        0.5,
+        0.676177
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        80,
+        121,
+        435,
+        426
+      ],
+      "opaque_bounds_above_200": [
+        81,
+        122,
+        434,
+        425
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.5349879264831543,
+        "geometry_uniform_scale": 1.1917968747363874,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "shipping_container",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/shipping_container.png",
+      "bundle_path": "runtime/assets/art/shipping_container.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/shipping-container-a.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "7b2d5ca874c8e659ee6cfd1614f0470b70410b2ddc7620ac83b8954dedeb861d",
+      "runtime_sha256": "dbe5dfb6effa527f59d0a59f6e7125ed478546af96fa447524d9539e76899390",
+      "runtime_bytes": 136462,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Corrugated shipping container",
+      "ground_anchor_normalized": [
+        0.5,
+        0.627788
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        80,
+        89,
+        432,
+        423
+      ],
+      "opaque_bounds_above_200": [
+        81,
+        90,
+        431,
+        422
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.703667402267456,
+        "geometry_uniform_scale": 2.431314968400703,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "site_loader",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/site_loader.png",
+      "bundle_path": "runtime/assets/art/site_loader.png",
+      "source_path": "sources/extracted/car-kit/Models/GLB format/tractor-shovel.glb",
+      "source_pack": "car-kit",
+      "publisher_url": "https://kenney.nl/assets/car-kit",
+      "source_sha256": "1bc67bcc36dc563baf7b5060e2a790f67a5a0b42fbdf17c18ab933fcc8a4aa53",
+      "runtime_sha256": "a9ea477be70c11ee7577ceef74bf515d83423551773f109a4a9711bcfa04ac0e",
+      "runtime_bytes": 136157,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/car-kit/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Wheeled front loader",
+      "ground_anchor_normalized": [
+        0.492888,
+        0.671171
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        67,
+        92,
+        445,
+        447
+      ],
+      "opaque_bounds_above_200": [
+        68,
+        93,
+        444,
+        446
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/car-kit/Models/GLB format/Textures/colormap.png",
+      "source_texture_sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 2.991711378097534,
+        "geometry_uniform_scale": 0.8096963863450567,
+        "model_rotation_z_degrees": 0,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "storage_tank",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/storage_tank.png",
+      "bundle_path": "runtime/assets/art/storage_tank.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/detail-tank-large.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "2fbf65dfbae114235dec65cc8730a870cf7d29dd76f9473218e96ee83e9f5f43",
+      "runtime_sha256": "e38eb89022b842872d4d69a83aa6934a61cd65616eb9abe8068f7506147f5621",
+      "runtime_bytes": 120480,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Large cylindrical storage tank",
+      "ground_anchor_normalized": [
+        0.5,
+        0.633659
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        132,
+        136,
+        397,
+        396
+      ],
+      "opaque_bounds_above_200": [
+        133,
+        137,
+        396,
+        395
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.5635759830474854,
+        "geometry_uniform_scale": 1.213285935494546,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "warehouse",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/warehouse.png",
+      "bundle_path": "runtime/assets/art/warehouse.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/building-k.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "ae0692f7a9fa20bb4ae6cc4deb56d5e1919b1ba2188a1f282295ab2be5e9645d",
+      "runtime_sha256": "e567ce16579877a128224a5235c4a5e5627c666d2109e130fc9e8f9d25cad369",
+      "runtime_bytes": 132927,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Sawtooth-roof industrial warehouse",
+      "ground_anchor_normalized": [
+        0.5,
+        0.652978
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        68,
+        105,
+        448,
+        438
+      ],
+      "opaque_bounds_above_200": [
+        69,
+        106,
+        447,
+        437
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.1656382083892822,
+        "geometry_uniform_scale": 1.5350851701903236,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "water_tower",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/water_tower.png",
+      "bundle_path": "runtime/assets/art/water_tower.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/water-tower.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "11ac7ae19f32ce889bfe7a9c8e78c8ce8c77b7a76b52fd4ffa439a022ea2ef40",
+      "runtime_sha256": "9f2ec5c210cff2b0242ed0325ae656eb4f41441e243445ad004b9b7f980a9ceb",
+      "runtime_bytes": 98837,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Elevated water tank",
+      "ground_anchor_normalized": [
+        0.5,
+        0.772762
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        167,
+        112,
+        345,
+        448
+      ],
+      "opaque_bounds_above_200": [
+        168,
+        114,
+        344,
+        446
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 7.522677421569824,
+        "geometry_uniform_scale": 2.346823266878748,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "workshop",
+      "kind": "sprite",
+      "runtime_relative_path": "assets/art/workshop.png",
+      "bundle_path": "runtime/assets/art/workshop.png",
+      "source_path": "sources/extracted/city-kit-industrial/Models/GLB format/building-m.glb",
+      "source_pack": "city-kit-industrial",
+      "publisher_url": "https://kenney.nl/assets/city-kit-industrial",
+      "source_sha256": "526881cb1851120a60195f76bd4d8c1963653cdda66e4d1d53f085b3395fb8a9",
+      "runtime_sha256": "e3cc128bc12d02ec90f3a6dae26049aed2f854fe72a0a397dc09a03d9e639376",
+      "runtime_bytes": 127475,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/city-kit-industrial/License.txt"
+      ],
+      "dimensions": {
+        "width": 512,
+        "height": 512,
+        "format": "PNG",
+        "mode": "RGBA"
+      },
+      "description": "Industrial workshop with three exhaust stacks",
+      "ground_anchor_normalized": [
+        0.5,
+        0.690682
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bounds_above_8": [
+        91,
+        104,
+        421,
+        446
+      ],
+      "opaque_bounds_above_200": [
+        92,
+        105,
+        420,
+        445
+      ],
+      "max_border_alpha": 0,
+      "source_texture": "sources/extracted/city-kit-industrial/Models/Textures/variation-a.png",
+      "source_texture_sha256": "eb8c1f4d904d3337ee14deb0b66f19b7da17d77d8217d896199caee43e3eadd1",
+      "renderer": "Blender 4.5.0 / Cycles CPU",
+      "render_parameters": {
+        "camera_azimuth_degrees": -45,
+        "camera_elevation_degrees": 35.26439,
+        "ortho_scale": 3.8260881900787354,
+        "geometry_uniform_scale": 1.1764704727384159,
+        "model_rotation_z_degrees": 180,
+        "samples": 64,
+        "lighting": "Three soft area lights and cool ambient world; self-shadows only",
+        "ground_shadow": "Drawn by the game rather than baked into the transparent sprite"
+      }
+    },
+    {
+      "id": "tap",
+      "kind": "audio",
+      "runtime_relative_path": "assets/audio/tap.wav",
+      "bundle_path": "runtime/assets/audio/tap.wav",
+      "source_path": "sources/extracted/interface-sounds/Audio/click_001.ogg",
+      "source_pack": "interface-sounds",
+      "publisher_url": "https://kenney.nl/assets/interface-sounds",
+      "source_sha256": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9",
+      "runtime_sha256": "bb518366184cdc8a33bfcfaac732a4372484525011a8a1981dd1152d0d8eea4f",
+      "runtime_bytes": 8644,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/interface-sounds/License.txt"
+      ],
+      "pcm_metadata": {
+        "codec_name": "pcm_s16le",
+        "sample_rate": "44100",
+        "channels": 1,
+        "duration_seconds": 0.09712,
+        "source_container_duration_seconds": 0.100023
+      },
+      "derivation": {
+        "tool": "ffmpeg",
+        "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+        "command": [
+          "ffmpeg",
+          "-y",
+          "-v",
+          "error",
+          "-i",
+          "extracted/interface-sounds/Audio/click_001.ogg",
+          "-map",
+          "0:a:0",
+          "-c:a",
+          "pcm_s16le",
+          "derived/audio/tap.wav"
+        ],
+        "audio_processing": "Vorbis decode to signed 16-bit PCM; source sample rate and channels preserved; no gain, resampling, mixing or explicit trimming",
+        "decoded_pcm_sha256": "07f34d869eac92a9838ce3fbf65e3df6251e41bb9f8a0c2e8d58dc8757bc4dc7",
+        "decoded_pcm_equal": true
+      }
+    },
+    {
+      "id": "success",
+      "kind": "audio",
+      "runtime_relative_path": "assets/audio/success.wav",
+      "bundle_path": "runtime/assets/audio/success.wav",
+      "source_path": "sources/extracted/interface-sounds/Audio/confirmation_001.ogg",
+      "source_pack": "interface-sounds",
+      "publisher_url": "https://kenney.nl/assets/interface-sounds",
+      "source_sha256": "063564703b6094d70718a3e787a55cc9141611e4ecd6b6637f8828f79b4a8c3a",
+      "runtime_sha256": "11cc86bc69debe92910d283d957d2f5478a5b314eb518e298b25814715624b23",
+      "runtime_bytes": 25642,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/interface-sounds/License.txt"
+      ],
+      "pcm_metadata": {
+        "codec_name": "pcm_s16le",
+        "sample_rate": "44100",
+        "channels": 1,
+        "duration_seconds": 0.289841,
+        "source_container_duration_seconds": 0.289841
+      },
+      "derivation": {
+        "tool": "ffmpeg",
+        "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+        "command": [
+          "ffmpeg",
+          "-y",
+          "-v",
+          "error",
+          "-i",
+          "extracted/interface-sounds/Audio/confirmation_001.ogg",
+          "-map",
+          "0:a:0",
+          "-c:a",
+          "pcm_s16le",
+          "derived/audio/success.wav"
+        ],
+        "audio_processing": "Vorbis decode to signed 16-bit PCM; source sample rate and channels preserved; no gain, resampling, mixing or explicit trimming",
+        "decoded_pcm_sha256": "eea54ae4fc6023e8b4c1a37ba5ab7cb246c66ecd689a28d01af73aa29ca07829",
+        "decoded_pcm_equal": true
+      }
+    },
+    {
+      "id": "shift",
+      "kind": "audio",
+      "runtime_relative_path": "assets/audio/shift.wav",
+      "bundle_path": "runtime/assets/audio/shift.wav",
+      "source_path": "sources/extracted/interface-sounds/Audio/open_001.ogg",
+      "source_pack": "interface-sounds",
+      "publisher_url": "https://kenney.nl/assets/interface-sounds",
+      "source_sha256": "a27c6bb0df7da1e6af5dd5937593c98bc58b6e513f42fe6a3254cd6a6949c648",
+      "runtime_sha256": "e1feed927ccf595ba8ed3362de08517e38cdbd505a1ab47e35c060b454279839",
+      "runtime_bytes": 13112,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/interface-sounds/License.txt"
+      ],
+      "pcm_metadata": {
+        "codec_name": "pcm_s16le",
+        "sample_rate": "44100",
+        "channels": 1,
+        "duration_seconds": 0.147778,
+        "source_container_duration_seconds": 0.147778
+      },
+      "derivation": {
+        "tool": "ffmpeg",
+        "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+        "command": [
+          "ffmpeg",
+          "-y",
+          "-v",
+          "error",
+          "-i",
+          "extracted/interface-sounds/Audio/open_001.ogg",
+          "-map",
+          "0:a:0",
+          "-c:a",
+          "pcm_s16le",
+          "derived/audio/shift.wav"
+        ],
+        "audio_processing": "Vorbis decode to signed 16-bit PCM; source sample rate and channels preserved; no gain, resampling, mixing or explicit trimming",
+        "decoded_pcm_sha256": "bfc183931ca108e69fb2dfc581af1cf5245d5d20133a04346b49c240cf3d02b8",
+        "decoded_pcm_equal": true
+      }
+    },
+    {
+      "id": "error",
+      "kind": "audio",
+      "runtime_relative_path": "assets/audio/error.wav",
+      "bundle_path": "runtime/assets/audio/error.wav",
+      "source_path": "sources/extracted/interface-sounds/Audio/error_001.ogg",
+      "source_pack": "interface-sounds",
+      "publisher_url": "https://kenney.nl/assets/interface-sounds",
+      "source_sha256": "46e67425d16339772e8d328fb36a49426c9467418686e11beeb71ff84b0f6433",
+      "runtime_sha256": "56d2bfaa8eed54a5f0edaaefa617289ac3b1522982a27931c63db2eb8976ef5c",
+      "runtime_bytes": 28594,
+      "license": "CC0-1.0",
+      "license_files": [
+        "sources/extracted/interface-sounds/License.txt"
+      ],
+      "pcm_metadata": {
+        "codec_name": "pcm_s16le",
+        "sample_rate": "44100",
+        "channels": 2,
+        "duration_seconds": 0.161655,
+        "source_container_duration_seconds": 0.164558
+      },
+      "derivation": {
+        "tool": "ffmpeg",
+        "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+        "command": [
+          "ffmpeg",
+          "-y",
+          "-v",
+          "error",
+          "-i",
+          "extracted/interface-sounds/Audio/error_001.ogg",
+          "-map",
+          "0:a:0",
+          "-c:a",
+          "pcm_s16le",
+          "derived/audio/error.wav"
+        ],
+        "audio_processing": "Vorbis decode to signed 16-bit PCM; source sample rate and channels preserved; no gain, resampling, mixing or explicit trimming",
+        "decoded_pcm_sha256": "78bec823c31e0e1ec58a97fb1e09f2e72962b94ce9dcdacf90cb506310f19b1d",
+        "decoded_pcm_equal": true
+      }
+    }
+  ],
+  "summary": {
+    "sprites": 22,
+    "kenney_sprites": 16,
+    "original_sprites": 6,
+    "sprite_bytes": 2841992,
+    "audio_bytes": 75992,
+    "source_bundle_bytes": 2023297
+  },
+  "validation": {
+    "archive_sha256_verified": true,
+    "published_blender_sha256_verified": true,
+    "local_cc0_license_read": true,
+    "sprites_rgba_512_square": true,
+    "solid_geometry_and_transparency_present": true,
+    "maximum_allowed_border_alpha": 8,
+    "canonical_game_dev_admission_ran": false,
+    "canonical_game_dev_admission_note": "The game-dev CLI is unavailable. This bundle uses source license inspection, explicit hashes, ordinary Blender rendering, and visual review; no canonical admission output is claimed."
+  },
+  "bundle_notes": [
+    "Only runtime/assets is intended for Flutter's runtime asset bundle.",
+    "sources contains selected GLBs, required palette textures, source audio, unmodified pack licenses, authored geometry and reproduction scripts.",
+    "No downloaded ZIP archive or Blender executable is included in this handoff directory.",
+    "The sprites use soft self-shadows. Ground contact shadows must be drawn by the game.",
+    "The ordinary source/hash/render checks are not the unavailable game-dev CLI's canonical admission workflow."
+  ]
+}

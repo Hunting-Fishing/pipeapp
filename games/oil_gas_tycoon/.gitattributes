@@ -1,0 +1,2 @@
+# Preserve reviewed upstream bytes, including original CRLF license notices.
+art_sources/sources/extracted/** -text
