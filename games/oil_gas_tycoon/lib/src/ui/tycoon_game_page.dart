@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../assets.dart';
+import '../audio_feedback.dart';
 import '../tycoon_engine.dart';
-import 'oil_field_scene.dart';
+import 'polish/asset_illustration.dart';
+import 'polish/district_map.dart';
 import 'tycoon_theme.dart';
 
 class TycoonGamePage extends StatefulWidget {
@@ -29,8 +33,48 @@ class TycoonGamePage extends StatefulWidget {
 class _TycoonGamePageState extends State<TycoonGamePage> {
   int _tab = 0;
   String _fleetFilter = 'all';
+  TycoonAssets _assets = TycoonAssets.current;
+  final ValueNotifier<int> _revision = ValueNotifier(0);
+  bool _siteSheetOpen = false;
+  ActionResult? _siteFeedback;
+  late final TycoonAudioFeedback _audio = TycoonAudioFeedback(
+    assets: {
+      TycoonSound.tap: TycoonAssets.sounds['tap']!,
+      TycoonSound.success: TycoonAssets.sounds['success']!,
+      TycoonSound.shift: TycoonAssets.sounds['shift']!,
+      TycoonSound.error: TycoonAssets.sounds['error']!,
+    },
+    resolveAssetPath: (path) => _assets.resolve(path),
+  );
   GameEngine get game => widget.engine;
   GameState get state => game.state;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadPresentation());
+  }
+
+  Future<void> _loadPresentation() async {
+    final assets = await TycoonAssets.load();
+    if (!mounted) return;
+    setState(() => _assets = assets);
+    await _audio.load();
+  }
+
+  @override
+  void dispose() {
+    _audio.dispose();
+    _revision.dispose();
+    super.dispose();
+  }
+
+  void _navigate(int tab) {
+    if (_tab == tab) return;
+    _audio.play(TycoonSound.tap);
+    setState(() => _tab = tab);
+  }
+
   static const _destinations = [
     NavigationDestination(
         icon: Icon(Icons.grid_view_outlined),
@@ -48,13 +92,17 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
         label: 'Company'),
   ];
 
-  void _act(ActionResult result, {bool toast = true}) {
+  void _act(ActionResult result,
+      {bool toast = true, TycoonSound sound = TycoonSound.success}) {
     if (result.success) {
       widget.onChanged();
       setState(() {});
       HapticFeedback.selectionClick();
     }
-    if (toast && mounted) {
+    if (_siteSheetOpen) _siteFeedback = result;
+    _revision.value++;
+    _audio.play(result.success ? sound : TycoonSound.error);
+    if (toast && mounted && !_siteSheetOpen) {
       final viewport = MediaQuery.sizeOf(context);
       final compactFeedback = viewport.height < 600 ||
           MediaQuery.textScalerOf(context).scale(1) > 1.35;
@@ -194,7 +242,7 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
 
   Future<void> _advance() async {
     final result = game.advanceDay();
-    _act(result, toast: !result.success);
+    _act(result, toast: !result.success, sound: TycoonSound.shift);
     if (result.success && result.report != null && mounted) {
       _showReport(result.report!);
     }
@@ -245,8 +293,8 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
     ]);
   }
 
-  void _sheet(String title, List<Widget> children) {
-    showModalBottomSheet<void>(
+  Future<void> _sheet(String title, List<Widget> children) async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -271,6 +319,23 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
   }
 
   void _settings() => _sheet('Company settings', [
+        ListenableBuilder(
+          listenable: _audio,
+          builder: (context, _) => SwitchListTile(
+            key: const Key('sound-effects-toggle'),
+            contentPadding: const EdgeInsets.symmetric(vertical: 5),
+            secondary: Icon(
+                _audio.enabled
+                    ? Icons.volume_up_rounded
+                    : Icons.volume_off_rounded,
+                color: TycoonPalette.teal),
+            title: const Text('Sound effects',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Subtle cues for trades and shifts.'),
+            value: _audio.enabled,
+            onChanged: (enabled) => unawaited(_audio.setEnabled(enabled)),
+          ),
+        ),
         _menuAction(Icons.flag_outlined, 'Career guide',
             'Objectives, rewards, and your path to tycoon.', () {
           Navigator.pop(context);
@@ -292,12 +357,12 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
           await widget.onReset();
         }),
         _menuAction(Icons.description_outlined, 'Licenses',
-            'Open-source software and font credits.', () {
+            'Art, sound, software, and font credits.', () {
           Navigator.pop(context);
           showLicensePage(
               context: context,
               applicationName: 'Oil & Gas Tycoon',
-              applicationVersion: '1.1.0');
+              applicationVersion: '1.2.0');
         }),
         if (widget.onExit != null)
           _menuAction(Icons.arrow_back_rounded, 'Return to Pipe Buyer',
@@ -309,7 +374,7 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
         const Text('OIL & GAS TYCOON',
             style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.5)),
         const SizedBox(height: 4),
-        const Text('Version 1.1.0 · Auctions & technology',
+        const Text('Version 1.2.0 · The industrial district',
             style: TextStyle(color: TycoonPalette.muted, fontSize: 12)),
         const SizedBox(height: 8),
         const Text(
@@ -453,9 +518,7 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
             extended: true,
             backgroundColor: TycoonPalette.canvas,
             selectedIndex: _tab,
-            onDestinationSelected: (value) => setState(() {
-              _tab = value;
-            }),
+            onDestinationSelected: _navigate,
             destinations: const [
               NavigationRailDestination(
                   icon: Icon(Icons.grid_view_outlined),
@@ -534,9 +597,7 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
               _shiftBar(),
               NavigationBar(
                   selectedIndex: _tab,
-                  onDestinationSelected: (value) => setState(() {
-                        _tab = value;
-                      }),
+                  onDestinationSelected: _navigate,
                   destinations: _destinations),
             ]),
     );
@@ -640,18 +701,23 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
       );
 
   List<Widget> _operations() {
-    final developed = state.leases.where((v) => v.developed).length;
     final goals = game.objectives.where((v) => !v.complete).toList();
     return [
       TycoonSectionTitle('The next great energy empire.',
           subtitle: 'Make the right moves. Build it one shift at a time.',
           trailing: TycoonTag(
               '${state.leases.length} ${state.leases.length == 1 ? 'LEASE' : 'LEASES'}')),
-      OilFieldScene(
-          activeWells: developed,
-          operating: state.leases.any((v) => _wellIssue(v) == null),
-          day: state.day,
-          compact: MediaQuery.sizeOf(context).width < 450),
+      TycoonDistrictMap(
+        engine: game,
+        onLeaseSelected: _openSiteFromMap,
+        art: DistrictArt(
+          oilSite: _assets.art('pumpjack'),
+          gasSite: _assets.art('gas_skid'),
+          storage: _assets.art('storage_tank'),
+          warehouse: _assets.art('warehouse'),
+          truck: _assets.art('field_tanker'),
+        ),
+      ),
       const SizedBox(height: 16),
       InkWell(
           onTap: _guide,
@@ -791,6 +857,67 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
     }
     return null;
   }
+
+  Future<void> _openSiteFromMap(LeaseSpec spec) async {
+    if (_siteSheetOpen) return;
+    _siteSheetOpen = true;
+    _siteFeedback = null;
+    _audio.play(TycoonSound.tap);
+    try {
+      await _sheet(spec.name, [
+        TycoonAssetIllustration(
+          path: _assets
+              .art(spec.commodity == Commodity.oil ? 'pumpjack' : 'gas_skid'),
+          height: 180,
+          fallbackIcon: _commodityIcon(spec.commodity),
+        ),
+        const SizedBox(height: 18),
+        ValueListenableBuilder<int>(
+          valueListenable: _revision,
+          builder: (context, _, child) {
+            final owned =
+                state.leases.where((v) => v.id == spec.id).firstOrNull;
+            final feedback = _siteFeedback;
+            // A merged progress-bar role hides descendant buttons on the web.
+            // Keep the reserve meter, live feedback, and actions independent.
+            return Semantics(
+              container: true,
+              explicitChildNodes: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (feedback != null) ...[
+                    Semantics(
+                      liveRegion: true,
+                      child: _notice(
+                          feedback.message,
+                          feedback.success
+                              ? Icons.check_circle_outline
+                              : Icons.info_outline,
+                          feedback.success
+                              ? TycoonPalette.teal
+                              : TycoonPalette.red),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  owned == null ? _leaseOpportunity(spec) : _leaseCard(owned),
+                ],
+              ),
+            );
+          },
+        ),
+      ]);
+    } finally {
+      _siteSheetOpen = false;
+    }
+  }
+
+  Widget _equipmentArt(AssetSpec spec, {double height = 150}) =>
+      TycoonAssetIllustration(
+        path: _assets.equipment(spec.id),
+        height: height,
+        fallbackIcon: _assetIcon(spec),
+      );
 
   Widget _leaseCard(OwnedLease lease) {
     final spec = TycoonCatalog.lease(lease.id);
@@ -1186,6 +1313,8 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
         borderColor: auction.playerLeading ? const Color(0xFFBDDAC9) : null,
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _equipmentArt(spec, height: 140),
+          const SizedBox(height: 14),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _iconTile(_assetIcon(spec), TycoonPalette.orange, small: true),
             const SizedBox(width: 10),
@@ -1477,6 +1606,8 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
     return TycoonPanel(
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _equipmentArt(spec, height: 132),
+      const SizedBox(height: 14),
       Row(children: [
         _iconTile(_assetIcon(spec), TycoonPalette.teal),
         const SizedBox(width: 12),
@@ -1534,38 +1665,15 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
   Widget _assetOpportunity(AssetSpec spec) => TycoonPanel(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(
-            height: 96,
-            decoration: BoxDecoration(
-                color: spec.category == 'vehicle'
-                    ? TycoonPalette.paleOrange
-                    : TycoonPalette.paleTeal,
-                borderRadius: BorderRadius.circular(12)),
-            child: Stack(alignment: Alignment.center, children: [
-              Positioned(
-                  right: 12,
-                  bottom: 6,
-                  child: Icon(_assetIcon(spec),
-                      size: 78,
-                      color: (spec.category == 'vehicle'
-                              ? TycoonPalette.orange
-                              : TycoonPalette.teal)
-                          .withValues(alpha: .12))),
-              Icon(_assetIcon(spec),
-                  size: 48,
-                  color: spec.category == 'vehicle'
-                      ? TycoonPalette.orange
-                      : TycoonPalette.teal),
-              Positioned(
-                  top: 9,
-                  left: 10,
-                  child: Text(spec.category.toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .8,
-                          color: TycoonPalette.muted))),
-            ])),
+        Stack(children: [
+          _equipmentArt(spec, height: 162),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: TycoonTag(spec.category.toUpperCase(),
+                color: TycoonPalette.muted),
+          ),
+        ]),
         const SizedBox(height: 16),
         Text(spec.name, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 7),
@@ -1989,6 +2097,9 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
     return TycoonPanel(
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      TycoonAssetIllustration(
+          path: _assets.business(spec.id), height: 160, fallbackIcon: icon),
+      const SizedBox(height: 14),
       Row(children: [
         _iconTile(icon, TycoonPalette.orange),
         const SizedBox(width: 10),

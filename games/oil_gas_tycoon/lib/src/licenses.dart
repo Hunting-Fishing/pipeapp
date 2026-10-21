@@ -1,21 +1,28 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'assets.dart';
+
 bool _registered = false;
 
-/// Makes the bundled font attribution available in both app entrypoints.
+/// Makes bundled font, art, and audio attributions available in both entrypoints.
 void registerTycoonLicenses() {
   if (_registered) return;
   _registered = true;
   LicenseRegistry.addLicense(() async* {
-    const localKey = 'assets/fonts/LICENSE.txt';
-    const packageKey = 'packages/oil_gas_tycoon/$localKey';
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final key =
-        manifest.listAssets().contains(packageKey) ? packageKey : localKey;
+    final assets = await TycoonAssets.load();
     yield LicenseEntryWithLineBreaks(
       const ['Roboto font family'],
-      await rootBundle.loadString(key),
+      await rootBundle.loadString(assets.resolve('assets/fonts/LICENSE.txt')),
+    );
+    yield LicenseEntryWithLineBreaks(
+      const ['Kenney industrial art, vehicles, and interface sounds'],
+      await rootBundle.loadString(assets.resolve('assets/licenses/kenney.txt')),
+    );
+    yield LicenseEntryWithLineBreaks(
+      const ['Oil & Gas Tycoon original oilfield art'],
+      await rootBundle
+          .loadString(assets.resolve('assets/licenses/original-art.txt')),
     );
   });
 }

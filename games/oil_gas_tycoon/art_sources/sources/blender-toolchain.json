@@ -1,0 +1,10 @@
+{
+  "version": "4.5.0",
+  "source_url": "https://download.blender.org/release/Blender4.5/",
+  "download_url": "https://download.blender.org/release/Blender4.5/blender-4.5.0-linux-x64.tar.xz",
+  "checksum_url": "https://download.blender.org/release/Blender4.5/blender-4.5.0.sha256",
+  "bytes": 376170648,
+  "sha256": "1188b95cc12321c770b631939f7c25a096910b6f884a990bf9c0f62d52b38aec",
+  "checksum_verified": true,
+  "executable": "/workspace/scratch/cd63d71c711e/asset-sourcing/toolchain/blender-4.5.0-linux-x64/blender"
+}

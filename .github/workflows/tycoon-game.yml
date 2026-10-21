@@ -56,6 +56,9 @@ jobs:
       - name: Restore game dependencies
         run: flutter pub get
 
+      - name: Verify reviewed art and sound provenance
+        run: python3 tool/verify_art.py
+
       - name: Analyze game
         run: flutter analyze --no-pub
 

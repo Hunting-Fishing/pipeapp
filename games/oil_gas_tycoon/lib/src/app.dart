@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'assets.dart';
 import 'licenses.dart';
 import 'save_store.dart';
 import 'tycoon_engine.dart';
-import 'ui/oil_field_scene.dart';
+import 'ui/polish/welcome_district_art.dart';
 import 'ui/tycoon_game_page.dart';
 import 'ui/tycoon_theme.dart';
 
@@ -86,6 +87,7 @@ class _OilGasTycoonScreenState extends State<OilGasTycoonScreen>
       _loadError = null;
     });
     try {
+      await TycoonAssets.load();
       final store = widget.saveStore ??
           TycoonSaveStore(await PreferencesSaveStorage.open());
       final saved = await store.load();
@@ -107,7 +109,7 @@ class _OilGasTycoonScreenState extends State<OilGasTycoonScreen>
     }
   }
 
-  Future<bool> _save() async {
+  Future<bool> _save({bool explicitReplace = false}) async {
     if (_restoring) return false;
     final engine = _engine;
     final store = _store;
@@ -115,15 +117,21 @@ class _OilGasTycoonScreenState extends State<OilGasTycoonScreen>
     if (store == null) return false;
     final request = ++_saveRequest;
     try {
-      await store.save(engine.state);
-      if (mounted && request == _saveRequest && _warning != null) {
+      final didWrite =
+          await store.save(engine.state, explicitReplace: explicitReplace);
+      if (didWrite &&
+          mounted &&
+          request == _saveRequest &&
+          _warning != null) {
         setState(() => _warning = null);
       }
       return true;
-    } on Object {
+    } on Object catch (error) {
       if (mounted && request == _saveRequest) {
-        setState(() => _warning = 'This change could not be saved to your '
-            'device. Use Export backup in Settings before closing the game.');
+        setState(() => _warning = error is TycoonSaveConflict
+            ? TycoonSaveConflict.message
+            : 'This change could not be saved to your '
+                'device. Use Export backup in Settings before closing the game.');
       }
       return false;
     }
@@ -139,7 +147,7 @@ class _OilGasTycoonScreenState extends State<OilGasTycoonScreen>
       _engine = engine;
       _session++;
     });
-    await _save();
+    await _save(explicitReplace: true);
   }
 
   Future<void> _leave() async {
@@ -153,8 +161,9 @@ class _OilGasTycoonScreenState extends State<OilGasTycoonScreen>
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Your latest changes are not saved'),
-            content: const Text('Device storage could not save this company. '
-                'Export a backup before leaving to keep your progress.'),
+            content: Text(_warning ??
+                'Device storage could not save this company. '
+                    'Export a backup before leaving to keep your progress.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, 'stay'),
@@ -238,7 +247,7 @@ class _OilGasTycoonScreenState extends State<OilGasTycoonScreen>
     });
     try {
       final store = _store;
-      if (store != null) await store.save(state);
+      if (store != null) await store.save(state, explicitReplace: true);
       if (!mounted) return;
       setState(() {
         _engine = GameEngine(state);
@@ -247,6 +256,12 @@ class _OilGasTycoonScreenState extends State<OilGasTycoonScreen>
             ? 'Temporary session: export a backup before closing the game.'
             : null;
       });
+    } on TycoonSaveConflict {
+      if (!mounted) return;
+      setState(() => _warning = TycoonSaveConflict.message);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(TycoonSaveConflict.message),
+      ));
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -435,7 +450,12 @@ class _CompanyWelcomeState extends State<_CompanyWelcome> {
                           'and put your crew to work. Every shift is a new '
                           'chance to grow.'),
                       const SizedBox(height: 24),
-                      const OilFieldScene(compact: true),
+                      TycoonWelcomeDistrictArt(
+                        pumpjack: TycoonAssets.current.art('pumpjack'),
+                        refinery: TycoonAssets.current.art('refinery'),
+                        storage: TycoonAssets.current.art('storage_tank'),
+                        truck: TycoonAssets.current.art('field_tanker'),
+                      ),
                     ],
                   );
                   final form = Form(

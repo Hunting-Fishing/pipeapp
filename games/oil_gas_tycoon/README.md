@@ -18,7 +18,31 @@ in a modern desktop or mobile browser. Use the owning ChatGPT account if sign-in
 is requested. The game itself still runs locally and stores its company in that
 browser. The first complete load needs a connection.
 
-### Version 1.1 — Auctions & Research
+### Version 1.2 — The Industrial District
+
+- **Explore a working district:** Operations now presents all eight leases in
+  a selectable isometric scene. Owned sites report their actual operating
+  state: ready, paused, undeveloped, depleted, missing crew/equipment/transport,
+  repair needed, or storage full. Select a site to acquire, develop, assign,
+  pause, resume, or sell it through the same validated game actions.
+- **Inspect illustrated assets:** Fleet, used-equipment auctions, and business
+  acquisitions now use consistent rendered industrial artwork. Oilfield
+  equipment and tanker models are original project work; buildings and support
+  vehicles come from Kenney's CC0 packs, discovered through the supplied
+  [Hotpot game resources directory](https://github.com/HotpotDesign/Game-Assets-And-Resources).
+- **Enable optional feedback:** Settings → Sound effects turns on brief local
+  cues for actions and shifts. Sound starts off, the choice is remembered on
+  this device, and audio failures do not interrupt company actions.
+- **Keep your company:** this presentation update retains schema 2 saves,
+  auction/research progress, and portable backups. All artwork and sound are
+  bundled for offline play after the first complete web load.
+
+The scene is a stylized view of the company's lease network, not a geographical
+map of the fictional sites' regions. On a phone, swipe the district sideways or
+use its arrow controls to inspect the remaining sites. Navigation and management
+also support keyboard access, enlarged text, and reduced motion.
+
+### Auctions & Research, introduced in version 1.1
 
 - **Exchange → Used equipment auctions:** inspect three rotating lots, compare
   their condition and retail price, and bid against simulated rival companies.
@@ -53,10 +77,16 @@ and reopen the link. **Settings → Export backup** provides an independent copy
 of your company before changing devices or installations. Version 1.1 saves
 cannot be opened in the original version 1.0 game.
 
+Keep **one active game tab per browser profile**. Each tab holds its own company
+in memory; there is no live synchronization between tabs. Export the company
+you want to keep before closing older tabs during an update, especially tabs
+still running versions 1.0 or 1.1. Their older save code can overwrite a newer
+session when they close.
+
 ## Run the game
 
-Use **Flutter 3.44.6 stable**. The game package depends on Flutter and
-`shared_preferences`; it does not need Firebase configuration, an account, API
+Use **Flutter 3.44.6 stable**. The game package depends on Flutter,
+`shared_preferences`, and `audioplayers`; it does not need Firebase configuration, an account, API
 keys, or payment credentials.
 
 From the repository root:
@@ -125,7 +155,7 @@ leases**. You can continue playing after reaching it.
 | Research and technology | Six technologies with three levels each; upfront funding, engineer staffing, shift-based progress, pause/resume, and permanent operating benefits. |
 | Company finance | Cash, asset valuation, net worth, operating costs, ledger, credit, repayment, and interest at 0.2% of outstanding debt per shift. |
 | Production | Equipment/crew compatibility, condition, staffing, transport and storage constraints, depletion, daily events, and production reports. |
-| Career and interface | Milestone rewards, contextual operating hints, four mobile tabs, wider-screen navigation rail, an animated oilfield, and reduced-motion support. |
+| Career and interface | Milestone rewards, contextual operating hints, four mobile tabs, wider-screen navigation rail, selectable industrial district, illustrated asset catalog, optional sound effects, and reduced-motion support. |
 | Persistence and recovery | Local autosave, previous-good-save recovery, portable JSON backup, validated restore, confirmed new company, and insolvency restructuring. |
 
 ## Save, resume, and recovery
@@ -156,8 +186,12 @@ the current company lets you retain progress even if a local write fails.
 
 There is no automatic cloud synchronization. Clearing browser/app data or
 uninstalling can remove local saves; an exported backup is the portable copy.
+Unchanged background tabs do not rewrite a save. If another tab has already
+saved a different company state, this version rejects a changed stale save and
+asks you to export the current session before reloading. This is a sequential
+conflict check, not a cross-tab lock; use one active game tab at a time.
 Imports use the version 1 backup envelope and have a 512 KiB size limit. The
-game data inside that envelope is schema 2 in version 1.1; original schema 1
+game data inside that envelope is schema 2 in versions 1.1 and 1.2; original schema 1
 companies are migrated automatically. The device storage keys stay unchanged.
 
 ## Build and test
@@ -168,6 +202,7 @@ Run these commands from `games/oil_gas_tycoon/` after `flutter pub get`:
 flutter analyze --no-pub
 flutter test --no-pub --reporter expanded
 dart run tool/verify_expansion.dart
+python3 tool/verify_art.py
 ```
 
 The tests cover economic actions, production constraints, contract settlement,
@@ -177,15 +212,27 @@ The deterministic expansion script replays 11,200 mixed actions across 16
 seeds and checks rejected-action atomicity, exact save/reload replay, cash and
 fleet reservation limits, storage bounds, and commodity quote bounds. It uses
 a larger test treasury to exercise purchases; the real starting cash is unchanged.
-See the [version 1.1 release record](../../docs/OIL_GAS_TYCOON_1_1_RELEASE.md)
-for the expansion's executed checks and the
+See the [version 1.2 release record](../../docs/OIL_GAS_TYCOON_1_2_RELEASE.md)
+for the district, art, sound, and browser verification, the
+[version 1.1 release record](../../docs/OIL_GAS_TYCOON_1_1_RELEASE.md)
+for the expansion's executed checks, and the
 [original audit](../../docs/OIL_GAS_TYCOON_AUDIT_2026-10-20.md) for the application
 inventory and initial release evidence. The existing Pipe Buyer regression
 suite is run separately from the repository root.
 
+The [art provenance and reproduction guide](art_sources/README.md) records
+publisher licenses, selected sources, exact hashes, and render/audio commands.
+
 ### Web release and offline bundle
 
-Node 22 or newer runs the dependency-free post-build script:
+Node 22 or newer runs the dependency-free post-build script.
+
+After changing Flutter plugin dependencies, run `flutter clean` followed by
+`flutter pub get` before rebuilding. Flutter 3.44.6 can retain an older generated
+web plugin registrant during an incremental build even when application code
+recompiles. Regenerating it prevents a `MissingPluginException` when a newly
+added plugin, such as sound playback, is first used. Check sound after enabling
+it in the compiled browser build as well as running the widget tests.
 
 ```sh
 flutter build web --release --no-pub --no-web-resources-cdn --pwa-strategy=none
@@ -235,6 +282,10 @@ debug uses `.dev`, while a signed release uses `com.pipebuyer.oil_gas_tycoon`.
 They can be installed separately. Export and restore a company to move progress
 between build types.
 
+Clean CI runners generate different debug signing keys for preview builds.
+If Android refuses to update an older preview, export its company first, then
+uninstall that preview, install the new APK, and restore the exported backup.
+
 The Android project requires a private release keystore for release tasks.
 `android/key.properties.example` describes the local signing configuration;
 private signing files are ignored by Git. Store packaging, upload signing,
@@ -280,7 +331,11 @@ actual run result before treating a platform build as verified.
 - `lib/src/save_store.dart`: local persistence, versioned backup format, and
   serialized writes.
 - `lib/src/app.dart`: startup, resume, restore/reset, and save-aware navigation.
-- `lib/src/ui/`: responsive game interface, theme, and original oilfield drawing.
+- `lib/src/ui/`: responsive game interface, interactive district, illustrated
+  catalog, welcome diorama, and theme.
+- `lib/src/assets.dart`: standalone/embedded asset namespace resolution.
+- `lib/src/audio_feedback.dart`: optional, persisted interface sounds.
+- `art_sources/`: selected source art, licenses, production scripts, and hashes.
 - `test/`: engine, storage, and widget regression coverage.
 - `tool/prepare_offline_web.mjs`: self-contained web cache preparation.
 

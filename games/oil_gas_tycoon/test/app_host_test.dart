@@ -235,6 +235,118 @@ void main() {
   });
 
   testWidgets(
+      'a changed older tab warns and exports its session without overwriting newer progress',
+      (tester) async {
+    final memory = MemorySaveStorage();
+    final olderStore = TycoonSaveStore(memory);
+    await olderStore
+        .save(GameEngine.newGame(companyName: 'Shared Company').state);
+    var exits = 0;
+    await mountHost(tester, olderStore, onExit: () => exits++);
+
+    final activeStore = TycoonSaveStore(memory);
+    final active = GameEngine((await activeStore.load()).state!);
+    expect(active.advanceDay().success, isTrue);
+    expect(active.advanceDay().success, isTrue);
+    await activeStore.save(active.state);
+    final saved = Map<String, String>.from(memory.values);
+    memory.writeAttempts.clear();
+
+    await tester.tap(find.byKey(const Key('advance-shift')));
+    await tester.pumpAndSettle();
+    expect(displayedGame(tester).state.day, 2);
+    expect(find.text(TycoonSaveConflict.message), findsOneWidget);
+    expect(memory.writeAttempts, isEmpty);
+    expect(memory.values, saved);
+
+    await tester.ensureVisible(find.text('Open the Exchange'));
+    await tester.tap(find.text('Open the Exchange'));
+    await tester.pumpAndSettle();
+    await setting(tester, 'Return to Pipe Buyer');
+    expect(find.text('Your latest changes are not saved'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.text(TycoonSaveConflict.message)),
+        findsOneWidget);
+    expect(exits, 0);
+    await tester.tap(find.text('Export backup'));
+    await tester.pumpAndSettle();
+    final backupText = tester
+        .widget<SelectableText>(find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(SelectableText)))
+        .data!;
+    expect(TycoonSaveStore.decode(backupText).day, 2);
+    expect(memory.writeAttempts, isEmpty);
+    expect(memory.values, saved);
+    expect(exits, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'restoring the current local snapshot reports a newer-tab conflict',
+      (tester) async {
+    final memory = MemorySaveStorage();
+    final olderStore = TycoonSaveStore(memory);
+    await olderStore
+        .save(GameEngine.newGame(companyName: 'Restore Guard').state);
+    await mountHost(tester, olderStore);
+    final original = displayedGame(tester).state.toJson();
+    await reviewBackup(tester, displayedGame(tester).state);
+
+    final activeStore = TycoonSaveStore(memory);
+    final active = GameEngine((await activeStore.load()).state!);
+    expect(active.advanceDay().success, isTrue);
+    await activeStore.save(active.state);
+    final saved = Map<String, String>.from(memory.values);
+    memory.writeAttempts.clear();
+
+    await tester.tap(find.text('Restore company'));
+    await tester.pumpAndSettle();
+
+    expect(displayedGame(tester).state.toJson(), original);
+    expect(
+        tester.widget<TycoonGamePage>(find.byType(TycoonGamePage)).saveWarning,
+        TycoonSaveConflict.message);
+    expect(find.text(TycoonSaveConflict.message), findsWidgets);
+    expect(memory.writeAttempts, isEmpty);
+    expect(memory.values, saved);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('recovery warning stays until recovered progress is written',
+      (tester) async {
+    final memory = MemorySaveStorage()
+      ..values[TycoonSaveStore.primaryKey] = 'broken'
+      ..values[TycoonSaveStore.backupKey] =
+          TycoonSaveStore.encode(GameEngine.newGame().state);
+    final store = TycoonSaveStore(memory);
+    await mountHost(tester, store);
+    expect(
+        tester.widget<TycoonGamePage>(find.byType(TycoonGamePage)).saveWarning,
+        contains('Recovered your previous save'));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(memory.writeAttempts, isEmpty);
+    expect(memory.values[TycoonSaveStore.primaryKey], 'broken');
+    expect(
+        tester.widget<TycoonGamePage>(find.byType(TycoonGamePage)).saveWarning,
+        contains('Recovered your previous save'));
+
+    await tester.tap(find.byKey(const Key('advance-shift')));
+    await tester.pumpAndSettle();
+    expect(
+        tester.widget<TycoonGamePage>(find.byType(TycoonGamePage)).saveWarning,
+        isNull);
+    expect((await TycoonSaveStore(memory).load()).state!.day, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
       'embedded system Back uses the same failed-save decision before popping the game route',
       (tester) async {
     final memory = MemorySaveStorage();
@@ -265,6 +377,12 @@ void main() {
     await tester.tap(find.text('Open tycoon'));
     await tester.pumpAndSettle();
     memory.failKey = TycoonSaveStore.primaryKey;
+    await tester.tap(find.byKey(const Key('advance-shift')));
+    await tester.pumpAndSettle();
+    expect(displayedGame(tester).state.day, 2);
+    await tester.ensureVisible(find.text('Open the Exchange'));
+    await tester.tap(find.text('Open the Exchange'));
+    await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('Your latest changes are not saved'), findsOneWidget);

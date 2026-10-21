@@ -1,0 +1,10 @@
+Oil & Gas Tycoon original oilfield art
+
+The pumpjack, heavy pumpjack, drilling rig, gas gathering skid, field tanker,
+and heavy tanker models were authored for this Pipeapp game project. Their
+geometry uses no downloaded meshes or textures. Source is retained in
+art_sources/sources/original_equipment.py.
+
+The district terrain, pipelines, map controls, and illustration surfaces are
+also original project code. These original works are separate from the
+Kenney CC0 assets; this notice makes no additional license grant.
