@@ -11,6 +11,48 @@ The simulation runs locally. A shift advances one game day only when you choose
 contracts while the game is closed. Prices, money, companies, and leases are
 fictional. Trading uses the game's simulated market and supply contracts.
 
+## Play the hosted game
+
+Open the [private playable preview](https://pipeapp-oil-gas-tycoon.jordilwbailey.chatgpt.site)
+in a modern desktop or mobile browser. Use the owning ChatGPT account if sign-in
+is requested. The game itself still runs locally and stores its company in that
+browser. The first complete load needs a connection.
+
+### Version 1.1 — Auctions & Research
+
+- **Exchange → Used equipment auctions:** inspect three rotating lots, compare
+  their condition and retail price, and bid against simulated rival companies.
+  Your leading bid is held separately from spendable cash. An outbid returns
+  that money; a winning bid delivers the used asset to Fleet at the displayed
+  condition. Bids and closing dates advance only when you run a shift.
+- **Company → Research & technology:** hire an engineer and fund one research
+  project at a time. Each technology has three levels. Projects need two,
+  three, then four staffed shifts; dismissing the last engineer pauses progress.
+  Cancelling does not refund the research investment. Completed technology
+  remains learned after a company restructuring.
+- **Existing companies continue:** the new game reads saves and portable
+  backups from the original release and preserves their company, funds,
+  inventory, assets, leases, employees, contracts, and career progress.
+
+| Technology | Improvement per completed level |
+| --- | --- |
+| Production | 5% more potential field output, subject to reserves, transport, and storage |
+| Logistics | 10% more staffed haul capacity |
+| Storage | 15% more oil and gas storage |
+| Maintenance | Eight percentage points added to the repair discount, alongside crew, workshop, and business discounts |
+| Drilling | 5% reduction to development costs after drilling-rig savings |
+| Trading | One percentage point added to commodity sale quotes, capped at the buy quote |
+
+Research is a company investment with no resale value. Its full cost is charged
+up front. Bid cash remains part of company net worth while held, and a leading
+auction bid reserves a fleet slot so its delivered asset fits the fleet limit.
+
+Web updates wait for existing game tabs to close so a running session keeps a
+consistent set of game files. After an update downloads, close all game tabs
+and reopen the link. **Settings → Export backup** provides an independent copy
+of your company before changing devices or installations. Version 1.1 saves
+cannot be opened in the original version 1.0 game.
+
 ## Run the game
 
 Use **Flutter 3.44.6 stable**. The game package depends on Flutter and
@@ -79,6 +121,8 @@ leases**. You can continue playing after reaching it.
 | Businesses | Refinery, logistics company, and parts/repair yard; each can be bought, upgraded through three levels, and sold. Income, upkeep, and operating benefits change with ownership and upgrades. |
 | Employees | Operators, drivers, engineers, and mechanics; hiring, training, role effects, payroll, assignment where relevant, and dismissal. |
 | Market and contracts | Oil/gas inventory trading, changing prices and recent price history, quantity/cash/storage validation, supply offers, deposits, deadlines, delivery, and expiry. |
+| Used asset auctions | Three rotating equipment and vehicle lots, simulated rival bids, cash held/refunded, condition-aware delivery, fleet capacity reservations, and recent outcomes. |
+| Research and technology | Six technologies with three levels each; upfront funding, engineer staffing, shift-based progress, pause/resume, and permanent operating benefits. |
 | Company finance | Cash, asset valuation, net worth, operating costs, ledger, credit, repayment, and interest at 0.2% of outstanding debt per shift. |
 | Production | Equipment/crew compatibility, condition, staffing, transport and storage constraints, depletion, daily events, and production reports. |
 | Career and interface | Milestone rewards, contextual operating hints, four mobile tabs, wider-screen navigation rail, an animated oilfield, and reduced-motion support. |
@@ -112,7 +156,9 @@ the current company lets you retain progress even if a local write fails.
 
 There is no automatic cloud synchronization. Clearing browser/app data or
 uninstalling can remove local saves; an exported backup is the portable copy.
-Imports use the version 1 backup format and have a 512 KiB size limit.
+Imports use the version 1 backup envelope and have a 512 KiB size limit. The
+game data inside that envelope is schema 2 in version 1.1; original schema 1
+companies are migrated automatically. The device storage keys stay unchanged.
 
 ## Build and test
 
@@ -121,14 +167,21 @@ Run these commands from `games/oil_gas_tycoon/` after `flutter pub get`:
 ```sh
 flutter analyze --no-pub
 flutter test --no-pub --reporter expanded
+dart run tool/verify_expansion.dart
 ```
 
 The tests cover economic actions, production constraints, contract settlement,
 solvency, malformed saves, save failures/recovery, interface actions, and
 responsive layouts. The engine suite retains seeded 800-shift career tests.
-See the [audit and verification record](../../docs/OIL_GAS_TYCOON_AUDIT_2026-10-20.md)
-for executed results and their scope. The existing Pipe Buyer regression suite
-is run separately from the repository root.
+The deterministic expansion script replays 11,200 mixed actions across 16
+seeds and checks rejected-action atomicity, exact save/reload replay, cash and
+fleet reservation limits, storage bounds, and commodity quote bounds. It uses
+a larger test treasury to exercise purchases; the real starting cash is unchanged.
+See the [version 1.1 release record](../../docs/OIL_GAS_TYCOON_1_1_RELEASE.md)
+for the expansion's executed checks and the
+[original audit](../../docs/OIL_GAS_TYCOON_AUDIT_2026-10-20.md) for the application
+inventory and initial release evidence. The existing Pipe Buyer regression
+suite is run separately from the repository root.
 
 ### Web release and offline bundle
 
@@ -201,22 +254,25 @@ artifact**, not an installable signed IPA or an App Store submission. A valid
 Apple development team, provisioning, signing, device checks, and store
 validation are required before distributing the game on iOS.
 
-## Manual GitHub validation
+## GitHub validation
 
 The repository workflow
-[Oil & Gas Tycoon — Manual Validation](../../.github/workflows/tycoon-game.yml)
-runs only through **Actions → Run workflow**. Select the branch containing the
-game, then choose the optional platform builds:
+[Oil & Gas Tycoon — Validation](../../.github/workflows/tycoon-game.yml)
+runs on pull requests that change the game or its workflow. These checks run
+analysis, tests, web packaging, and an ARM64 Android profile build. It can also
+be started through **Actions → Run workflow**; select the game branch and choose
+the optional platform builds:
 
 | Output | Default | Workflow behavior |
 | --- | --- | --- |
 | Web bundle | Always | Flutter 3.44.6 analysis/tests, web release build, offline preparation, and downloadable web artifact. |
-| Android profile APK | Enabled | Linux build with Temurin Java 17, SDK platforms 35/36, and build-tools 36.0.0; uploads the local test APK. |
+| Android ARM64 profile APK | Enabled | Linux build with Temurin Java 17, SDK platforms 35/36, and build-tools 36.0.0; uploads the local test APK. |
 | Unsigned iOS app | Disabled | Optional macOS compilation with `--no-codesign`; uploads a ZIP of the unsigned `.app`. |
 
 The workflow has read-only repository permissions, needs no production secrets,
-and uploads review artifacts without deployment or store submission. Adding the
-workflow does not imply that its remote jobs have already passed.
+and uploads review artifacts without deployment or store submission. The web
+artifact includes the hidden build ID required by its offline cache. Check the
+actual run result before treating a platform build as verified.
 
 ## Implementation map and limits
 

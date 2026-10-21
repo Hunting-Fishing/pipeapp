@@ -436,7 +436,7 @@ void main() {
         () {
       final game = GameEngine.newGame();
       for (final entry in [
-        MapEntry('schemaVersion', 2),
+        MapEntry('schemaVersion', GameState.schemaVersion + 1),
         MapEntry('cash', double.nan),
         MapEntry('debt', double.infinity),
         MapEntry('day', 1.5),
@@ -561,6 +561,7 @@ void main() {
       final game = funded();
       game.state.day = 100000;
       game.state.contracts.clear();
+      game.state.auctions.clear();
       game.state.priceHistory
         ..clear()
         ..add(PricePoint(100000, game.state.oilPrice, game.state.gasPrice));

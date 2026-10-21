@@ -7,6 +7,77 @@ enum EmployeeRole { operator, driver, engineer, mechanic }
 
 enum ContractStatus { available, active, completed, failed }
 
+enum AuctionStatus { open, won, lost, unsold }
+
+class ResearchSpec {
+  const ResearchSpec(
+      this.id, this.name, this.description, this.baseCost, this.effectText,
+      {this.maxLevel = 3});
+  final String id, name, description, effectText;
+  final int baseCost, maxLevel;
+
+  String benefitAtLevel(int level) {
+    final value = level.clamp(0, maxLevel);
+    return switch (id) {
+      'production' => '+${value * 5}% production potential',
+      'logistics' => '+${value * 10}% staffed transport capacity',
+      'storage' => '+${value * 15}% oil and gas storage',
+      'maintenance' => '${value * 8}% additional repair discount',
+      'drilling' => '${value * 5}% lower development cost',
+      'trading' => '+$value percentage points on commodity sale prices',
+      _ => effectText,
+    };
+  }
+}
+
+class ResearchProject {
+  ResearchProject(
+      {required this.researchId,
+      required this.targetLevel,
+      required this.remainingShifts,
+      required this.totalShifts});
+  final String researchId;
+  final int targetLevel, totalShifts;
+  int remainingShifts;
+  Map<String, dynamic> toJson() => {
+        'researchId': researchId,
+        'targetLevel': targetLevel,
+        'remainingShifts': remainingShifts,
+        'totalShifts': totalShifts,
+      };
+}
+
+class AssetAuction {
+  AssetAuction(
+      {required this.id,
+      required this.catalogId,
+      required this.condition,
+      required this.closingDay,
+      required this.openingBid,
+      this.currentBid = 0,
+      this.playerLeading = false,
+      this.leaderName = 'No bids',
+      this.status = AuctionStatus.open});
+  final String id, catalogId;
+  final int condition, closingDay, openingBid;
+  int currentBid;
+  bool playerLeading;
+  String leaderName;
+  AuctionStatus status;
+  AssetSpec get spec => TycoonCatalog.asset(catalogId);
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'catalogId': catalogId,
+        'condition': condition,
+        'closingDay': closingDay,
+        'openingBid': openingBid,
+        'currentBid': currentBid,
+        'playerLeading': playerLeading,
+        'leaderName': leaderName,
+        'status': status.name,
+      };
+}
+
 class AssetSpec {
   const AssetSpec(this.id, this.name, this.description, this.price, this.upkeep,
       this.category,
@@ -36,6 +107,44 @@ class BusinessSpec {
 }
 
 abstract final class TycoonCatalog {
+  static const research = <ResearchSpec>[
+    ResearchSpec(
+        'production',
+        'Production tuning',
+        'Tune pumps and compressors to extract more each shift.',
+        18000,
+        'Adds 5% production potential per level; reserves, haul and storage still limit output.'),
+    ResearchSpec(
+        'logistics',
+        'Fleet dispatch',
+        'Plan better routes for staffed fleets and your logistics business.',
+        14000,
+        'Adds 10% staffed transport capacity per level.'),
+    ResearchSpec(
+        'storage',
+        'Storage engineering',
+        'Improve usable space across your oil and gas terminals.',
+        12000,
+        'Adds 15% oil and gas storage capacity per level.'),
+    ResearchSpec(
+        'maintenance',
+        'Preventive maintenance',
+        'Standardize repairs and reduce parts waste.',
+        10000,
+        'Adds an 8% repair discount per level, alongside crew and business discounts.'),
+    ResearchSpec(
+        'drilling',
+        'Drilling efficiency',
+        'Improve site preparation and drilling plans.',
+        15000,
+        'Cuts development costs by 5% per level after any drilling rig discount.'),
+    ResearchSpec(
+        'trading',
+        'Market intelligence',
+        'Find better buyers for your oil and natural gas.',
+        16000,
+        'Adds 1 percentage point to commodity sale prices per level, never above the buy quote.'),
+  ];
   static const assets = <AssetSpec>[
     AssetSpec('pumpjack', 'Prairie pumpjack',
         'Produces up to 180 bbl each shift.', 45000, 180, 'equipment',
@@ -293,6 +402,9 @@ class GameState {
       required this.completedObjectives,
       required this.priceHistory,
       required this.leaseReserves,
+      required this.researchLevels,
+      required this.auctions,
+      this.researchProject,
       this.lastReport,
       this.careerComplete = false,
       this.totalRevenue = 0,
@@ -301,7 +413,7 @@ class GameState {
       this.totalTrades = 0,
       this.contractsCompleted = 0,
       this.restructures = 0});
-  static const schemaVersion = 1;
+  static const schemaVersion = 2;
   String companyName;
   int day,
       cash,
@@ -326,6 +438,9 @@ class GameState {
   final List<LedgerEntry> ledger;
   final Set<String> completedObjectives;
   final List<PricePoint> priceHistory;
+  final Map<String, int> researchLevels;
+  final List<AssetAuction> auctions;
+  ResearchProject? researchProject;
 
   /// Remaining underground resources survive sale and reacquisition.
   final Map<String, int> leaseReserves;
@@ -353,6 +468,9 @@ class GameState {
         'completedObjectives': completedObjectives.toList(),
         'priceHistory': priceHistory.map((v) => v.toJson()).toList(),
         'leaseReserves': Map<String, int>.from(leaseReserves),
+        'researchLevels': Map<String, int>.from(researchLevels),
+        'researchProject': researchProject?.toJson(),
+        'auctions': auctions.map((v) => v.toJson()).toList(),
         'lastReport': lastReport?.toJson(),
         'careerComplete': careerComplete,
         'totalRevenue': totalRevenue,
@@ -422,7 +540,7 @@ class GameState {
       }
     }
 
-    number(json, 'schemaVersion', schemaVersion, schemaVersion);
+    final version = number(json, 'schemaVersion', 1, schemaVersion);
     final day = number(json, 'day', 1, 100000);
     final assets = list('assets', 200).map((v) {
       final m = object(v);
@@ -494,11 +612,91 @@ class GameState {
       }
       return contract;
     }).toList();
+    final researchLevels = <String, int>{};
+    ResearchProject? researchProject;
+    final auctions = <AssetAuction>[];
+    if (version >= 2) {
+      final levels = object(json['researchLevels']);
+      if (levels.length > TycoonCatalog.research.length ||
+          !json.containsKey('researchProject')) {
+        throw const FormatException('Invalid research progress.');
+      }
+      for (final id in levels.keys) {
+        final spec =
+            TycoonCatalog.research.where((r) => r.id == id).firstOrNull;
+        if (spec == null) throw const FormatException('Unknown technology.');
+        researchLevels[id] = number(levels, id, 0, spec.maxLevel);
+      }
+      if (json['researchProject'] != null) {
+        final m = object(json['researchProject']);
+        final id = string(m, 'researchId', max: 64);
+        final spec =
+            TycoonCatalog.research.where((r) => r.id == id).firstOrNull;
+        if (spec == null) {
+          throw const FormatException('Unknown research project.');
+        }
+        final target = number(m, 'targetLevel', 1, spec.maxLevel);
+        final duration = number(m, 'totalShifts', 2, 4);
+        if (target != (researchLevels[id] ?? 0) + 1 || duration != target + 1) {
+          throw const FormatException('Invalid research project progression.');
+        }
+        researchProject = ResearchProject(
+            researchId: id,
+            targetLevel: target,
+            remainingShifts: number(m, 'remainingShifts', 1, duration),
+            totalShifts: duration);
+      }
+      for (final value in list('auctions', 12)) {
+        final m = object(value);
+        final catalogId = string(m, 'catalogId', max: 64);
+        final spec = TycoonCatalog.asset(catalogId);
+        final auction = AssetAuction(
+            id: string(m, 'id', max: 64),
+            catalogId: catalogId,
+            condition: number(m, 'condition', 35, 95),
+            closingDay: number(m, 'closingDay', 1, 100000),
+            openingBid: number(m, 'openingBid', 1, spec.price),
+            currentBid: number(m, 'currentBid', 0, spec.price),
+            playerLeading: boolean(m, 'playerLeading'),
+            leaderName: string(m, 'leaderName', max: 60),
+            status: parseEnum(AuctionStatus.values, m, 'status'));
+        final open = auction.status == AuctionStatus.open;
+        if ((open &&
+                (auction.closingDay <= day || auction.closingDay > day + 4)) ||
+            (!open && auction.closingDay > day) ||
+            (auction.currentBid > 0 &&
+                auction.currentBid < auction.openingBid) ||
+            (auction.currentBid == 0 &&
+                (auction.playerLeading || auction.leaderName != 'No bids')) ||
+            (auction.currentBid > 0 && auction.leaderName == 'No bids') ||
+            (auction.playerLeading && auction.leaderName != 'Your company') ||
+            (!auction.playerLeading && auction.leaderName == 'Your company') ||
+            (auction.status == AuctionStatus.won && !auction.playerLeading) ||
+            (auction.status == AuctionStatus.lost &&
+                (auction.playerLeading || auction.currentBid == 0)) ||
+            (auction.status == AuctionStatus.unsold &&
+                auction.currentBid != 0)) {
+          throw const FormatException('Inconsistent auction state.');
+        }
+        auctions.add(auction);
+      }
+      if (auctions.where((a) => a.status == AuctionStatus.open).length > 3 ||
+          auctions.where((a) => a.status != AuctionStatus.open).length > 9 ||
+          assets.length +
+                  auctions
+                      .where((a) =>
+                          a.status == AuctionStatus.open && a.playerLeading)
+                      .length >
+              200) {
+        throw const FormatException('Invalid auction capacity.');
+      }
+    }
     unique(assets.map((v) => v.id));
     unique(employees.map((v) => v.id));
     unique(leases.map((v) => v.id));
     unique(businesses.map((v) => v.id));
     unique(contracts.map((v) => v.id));
+    unique(auctions.map((v) => v.id));
     final assignedAssets = <String>{};
     final assignedPeople = <String>{};
     for (final lease in leases) {
@@ -601,6 +799,9 @@ class GameState {
         completedObjectives: Set<String>.from(rawObjectives),
         priceHistory: history,
         leaseReserves: leaseReserves,
+        researchLevels: researchLevels,
+        researchProject: researchProject,
+        auctions: auctions,
         lastReport: report,
         careerComplete: boolean(json, 'careerComplete'),
         totalRevenue: number(json, 'totalRevenue', 0, 1000000000000),
@@ -612,11 +813,15 @@ class GameState {
     final engine = GameEngine(state);
     if (state.oilInventory > engine.oilStorageCapacity ||
         state.gasInventory > engine.gasStorageCapacity ||
+        state.cash + engine.auctionEscrow > GameEngine.maximumCash ||
         (state.careerComplete !=
             state.completedObjectives.contains('tycoon'))) {
       throw const FormatException(
           'Save exceeds capacity or has inconsistent progress.');
     }
+    // Legacy saves gain the new exchange without consuming their market RNG,
+    // changing their ID counter, or resetting any existing company progress.
+    if (version == 1) engine._refreshAuctions();
     return state;
   }
 }
@@ -680,6 +885,8 @@ class GameEngine {
         ],
         businesses: [],
         contracts: [],
+        researchLevels: {},
+        auctions: [],
         ledger: [
           LedgerEntry(1, 'Starting capital', 150000)
         ],
@@ -692,13 +899,24 @@ class GameEngine {
         });
     final engine = GameEngine(state);
     engine._refreshContracts();
+    engine._refreshAuctions();
     return engine;
   }
 
-  int get oilStorageCapacity =>
-      1500 + state.assets.fold<int>(0, (sum, a) => sum + a.spec.oilStorage);
-  int get gasStorageCapacity =>
-      6000 + state.assets.fold<int>(0, (sum, a) => sum + a.spec.gasStorage);
+  int _storageCapacity(Commodity commodity, {String? withoutAsset}) {
+    final base = commodity == Commodity.oil ? 1500 : 6000;
+    final added = state.assets.where((a) => a.id != withoutAsset).fold<int>(
+        0,
+        (sum, a) =>
+            sum +
+            (commodity == Commodity.oil
+                ? a.spec.oilStorage
+                : a.spec.gasStorage));
+    return (base + added) * (100 + researchLevel('storage') * 15) ~/ 100;
+  }
+
+  int get oilStorageCapacity => _storageCapacity(Commodity.oil);
+  int get gasStorageCapacity => _storageCapacity(Commodity.gas);
   int get dailyPayroll =>
       state.employees.fold<int>(0, (sum, e) => sum + e.salary);
   int get dailyUpkeep =>
@@ -725,7 +943,7 @@ class GameEngine {
               (1 + (drivers[i].level - 1) * .05))
           .floor();
     }
-    return capacity;
+    return capacity * (100 + researchLevel('logistics') * 10) ~/ 100;
   }
 
   int get netWorth =>
@@ -738,17 +956,19 @@ class GameEngine {
       state.businesses.fold<int>(0, (sum, b) => sum + businessSaleValue(b.id)) +
       state.contracts
           .where((c) => c.status == ContractStatus.active)
-          .fold<int>(0, (sum, c) => sum + c.deposit);
+          .fold<int>(0, (sum, c) => sum + c.deposit) +
+      auctionEscrow;
   int get availableLoan =>
       math.max(0, math.min(250000, math.max(0, netWorth ~/ 2)) - state.debt);
   int commodityBuyPrice(Commodity commodity) =>
       ((_marketPrice(commodity)) * 1.03).ceil();
-  int commoditySellPrice(Commodity commodity) => (_marketPrice(commodity) *
-          (.97 +
-              (commodity == Commodity.oil
-                  ? _businessLevel('refinery') * .01
-                  : 0)))
-      .floor();
+  int commoditySellPrice(Commodity commodity) => math.min(
+      commodityBuyPrice(commodity),
+      _marketPrice(commodity) *
+          (97 +
+              researchLevel('trading') +
+              (commodity == Commodity.oil ? _businessLevel('refinery') : 0)) ~/
+          100);
   int employeeBaseSalary(EmployeeRole role) =>
       Employee(id: '_', name: '_', role: role).salary;
   int employeeHiringCost(EmployeeRole role) => employeeBaseSalary(role) * 12;
@@ -766,7 +986,8 @@ class GameEngine {
     final mechanicSkill = state.employees
         .where((e) => e.role == EmployeeRole.mechanic)
         .fold<int>(0, (sum, e) => sum + e.level);
-    final discount = _businessLevel('parts_yard') * .1 +
+    final discount = researchLevel('maintenance') * .08 +
+        _businessLevel('parts_yard') * .1 +
         math.min(.2, mechanicSkill * .02) +
         (state.assets
                 .any((a) => a.catalogId == 'service_truck' && a.condition > 20)
@@ -781,7 +1002,10 @@ class GameEngine {
     if (lease == null) return 0;
     final ownsRig =
         state.assets.any((a) => a.catalogId == 'drill_rig' && a.condition > 20);
-    return (lease.developmentCost * (ownsRig ? .65 : 1)).ceil();
+    return (lease.developmentCost *
+            (ownsRig ? .65 : 1) *
+            (1 - researchLevel('drilling') * .05))
+        .ceil();
   }
 
   int leaseAvailableReserves(String id) =>
@@ -875,16 +1099,140 @@ class GameEngine {
         c.status == ContractStatus.active && c.deadlineDay <= state.day + 1)) {
       return 'A supply contract is due soon. Deliver before its deadline to recover your deposit.';
     }
+    if (state.researchProject != null && !researchCanProgress) {
+      return 'Research is paused. Hire an engineer to continue your project.';
+    }
+    if (state.auctions.any((a) =>
+        a.status == AuctionStatus.open &&
+        a.playerLeading &&
+        a.closingDay == state.day + 1)) {
+      return 'Your leading auction bid closes next shift. Review the Exchange before advancing.';
+    }
     return objectives.where((g) => !g.complete).firstOrNull?.description ??
         'Your tycoon career is complete. Keep expanding your company in endless play.';
+  }
+
+  int researchLevel(String id) => state.researchLevels[id] ?? 0;
+
+  int researchCost(String id) {
+    final spec = TycoonCatalog.research.where((r) => r.id == id).firstOrNull;
+    final target = researchLevel(id) + 1;
+    return spec == null || target > spec.maxLevel
+        ? 0
+        : spec.baseCost * target * target;
+  }
+
+  int researchDuration(String id) {
+    final spec = TycoonCatalog.research.where((r) => r.id == id).firstOrNull;
+    final target = researchLevel(id) + 1;
+    return spec == null || target > spec.maxLevel ? 0 : target + 1;
+  }
+
+  bool get researchCanProgress =>
+      state.employees.any((e) => e.role == EmployeeRole.engineer);
+
+  ActionResult startResearch(String id) {
+    final spec = TycoonCatalog.research.where((r) => r.id == id).firstOrNull;
+    if (spec == null) return _fail('Choose a valid technology.');
+    if (state.researchProject != null) {
+      return _fail('Complete or cancel your current research project first.');
+    }
+    if (researchLevel(id) >= spec.maxLevel) {
+      return _fail('This technology is fully researched.');
+    }
+    if (!researchCanProgress) {
+      return _fail('Hire an engineer before starting research.');
+    }
+    final duration = researchDuration(id);
+    if (state.day + duration > 100000) {
+      return _fail(
+          'There are not enough shifts left in this career for that project.');
+    }
+    final cost = researchCost(id);
+    if (!_canSpend(cost)) return _fail('This research requires $cost.');
+    _spend(cost, 'Research: ${spec.name} level ${researchLevel(id) + 1}');
+    state.researchProject = ResearchProject(
+        researchId: id,
+        targetLevel: researchLevel(id) + 1,
+        remainingShifts: duration,
+        totalShifts: duration);
+    return _finish(
+        '${spec.name} started. Complete $duration shifts with an engineer employed. Funding is not refundable.');
+  }
+
+  ActionResult cancelResearch() {
+    final project = state.researchProject;
+    if (project == null) {
+      return _fail('There is no research project to cancel.');
+    }
+    final spec =
+        TycoonCatalog.research.firstWhere((r) => r.id == project.researchId);
+    state.researchProject = null;
+    _record('Cancelled research: ${spec.name}; funding not refunded', 0);
+    return _finish(
+        'Research cancelled. Spent funding is not refunded; completed technologies are retained.');
+  }
+
+  int get _reservedAuctionSlots => state.auctions
+      .where((a) => a.status == AuctionStatus.open && a.playerLeading)
+      .length;
+
+  int get auctionEscrow => state.auctions
+      .where((a) => a.status == AuctionStatus.open && a.playerLeading)
+      .fold<int>(0, (sum, a) => sum + a.currentBid);
+
+  int auctionBidIncrement(String id) {
+    final auction = _auction(id);
+    return auction == null
+        ? 0
+        : math.max(500, (auction.spec.price * .025).ceil());
+  }
+
+  int minimumAuctionBid(String id) {
+    final auction = _auction(id);
+    if (auction == null || auction.status != AuctionStatus.open) return 0;
+    return auction.currentBid == 0
+        ? auction.openingBid
+        : auction.currentBid + auctionBidIncrement(id);
+  }
+
+  ActionResult bidAtAuction(String id, int amount) {
+    final auction = _auction(id);
+    if (auction == null ||
+        auction.status != AuctionStatus.open ||
+        auction.closingDay <= state.day) {
+      return _fail('That auction is no longer open.');
+    }
+    if (amount < minimumAuctionBid(id) || amount > auction.spec.price) {
+      return _fail(
+          'Bid at least ${minimumAuctionBid(id)} and no more than the new price of ${auction.spec.price}.');
+    }
+    if (!auction.playerLeading &&
+        state.assets.length + _reservedAuctionSlots >= 200) {
+      return _fail(
+          'Your 200-asset fleet limit includes space reserved for leading auction bids.');
+    }
+    final additional =
+        amount - (auction.playerLeading ? auction.currentBid : 0);
+    if (!_canSpend(additional)) {
+      return _fail(
+          'This bid needs $additional additional cash held until you are outbid or the auction closes.');
+    }
+    _spend(additional, 'Auction bid held: ${auction.spec.name}');
+    auction.currentBid = amount;
+    auction.playerLeading = true;
+    auction.leaderName = 'Your company';
+    return _finish(
+        'You lead at $amount. Rivals may bid after each shift. If outbid, held cash is returned in full.');
   }
 
   ActionResult buyAsset(String catalogId) {
     final spec =
         TycoonCatalog.assets.where((v) => v.id == catalogId).firstOrNull;
     if (spec == null) return _fail('Choose a valid asset.');
-    if (state.assets.length >= 200) {
-      return _fail('Your fleet has reached its 200-asset limit.');
+    if (state.assets.length + _reservedAuctionSlots >= 200) {
+      return _fail(
+          'Your fleet has reached its 200-asset limit, including leading auction bids.');
     }
     if (!_canSpend(spec.price)) {
       return _fail('You need ${spec.price} to buy ${spec.name}.');
@@ -897,8 +1245,10 @@ class GameEngine {
   ActionResult sellAsset(String id) {
     final asset = _asset(id);
     if (asset == null) return _fail('That asset is no longer owned.');
-    if (state.oilInventory > oilStorageCapacity - asset.spec.oilStorage ||
-        state.gasInventory > gasStorageCapacity - asset.spec.gasStorage) {
+    if (state.oilInventory >
+            _storageCapacity(Commodity.oil, withoutAsset: id) ||
+        state.gasInventory >
+            _storageCapacity(Commodity.gas, withoutAsset: id)) {
       return _fail(
           'Sell enough stored commodities before removing this storage terminal.');
     }
@@ -1292,7 +1642,8 @@ class GameEngine {
                           math.min(engineering, 10) * .02)) *
               asset.condition /
               100 *
-              productionFactor)
+              productionFactor *
+              (1 + researchLevel('production') * .05))
           .floor();
       final output = [potential, lease.reserves, freeStorage, haul ~/ unitHaul]
           .reduce(math.min);
@@ -1382,6 +1733,8 @@ class GameEngine {
         .add(PricePoint(state.day, state.oilPrice, state.gasPrice));
     if (state.priceHistory.length > 30) state.priceHistory.removeAt(0);
     _refreshContracts();
+    _advanceResearch(notes);
+    _advanceAuctions(notes);
     if (state.cash < 0) {
       notes.add(
           'Your company has negative cash. Sell stock or assets, draw credit, or restructure before another shift.');
@@ -1393,7 +1746,12 @@ class GameEngine {
         revenue: revenue,
         expenses: expenses,
         event: event,
-        notes: notes);
+        notes: notes.length <= 30
+            ? notes
+            : [
+                ...notes.take(29),
+                '${notes.length - 29} further updates. Review Operations and the Exchange for the current status.'
+              ]);
     state.lastReport = report;
     return _finish(
         'Shift $closingDay complete. Production is in storage, ready to sell or deliver.',
@@ -1422,6 +1780,8 @@ class GameEngine {
       ..addAll(recovery.employees);
     state.businesses.clear();
     state.contracts.clear();
+    state.researchProject = null;
+    state.auctions.clear();
     state.oilInventory = 0;
     state.gasInventory = 0;
     state.debt = 0;
@@ -1433,8 +1793,9 @@ class GameEngine {
         'Company restructured: assets and stock returned to creditors; starter operation retained',
         25000);
     _refreshContracts();
+    _refreshAuctions();
     return _finish(
-        'Fresh financing approved: starter lease, pumpjack, haul fleet, two staff and 25,000 cash. Previous holdings and stock went to creditors.');
+        'Fresh financing approved: starter lease, pumpjack, haul fleet, two staff and 25,000 cash. Previous holdings, stock and auction deposits went to creditors. Research projects were cancelled; completed technologies are retained.');
   }
 
   OwnedAsset? _asset(String id) =>
@@ -1447,6 +1808,8 @@ class GameEngine {
       state.businesses.where((a) => a.id == id).firstOrNull;
   GameContract? _contract(String id) =>
       state.contracts.where((a) => a.id == id).firstOrNull;
+  AssetAuction? _auction(String id) =>
+      state.auctions.where((a) => a.id == id).firstOrNull;
   int _businessLevel(String id) => _business(id)?.level ?? 0;
   int _marketPrice(Commodity commodity) =>
       commodity == Commodity.oil ? state.oilPrice : state.gasPrice;
@@ -1461,14 +1824,17 @@ class GameEngine {
   }
 
   bool _canSpend(int value) => value >= 0 && state.cash >= value;
-  bool _canCredit(int value) => value >= 0 && value <= maximumCash - state.cash;
+  bool _canCredit(int value) =>
+      value >= 0 && value <= maximumCash - state.cash - auctionEscrow;
   void _spend(int value, String title) {
     state.cash -= value;
     _record(title, -value);
   }
 
   int _receive(int value, String title) {
-    final credited = math.min(value, maximumCash - state.cash);
+    // Keep room for every refundable auction deposit, even at the cash cap.
+    final credited =
+        math.min(value, math.max(0, maximumCash - state.cash - auctionEscrow));
     state.cash += credited;
     _record(title, credited);
     if (credited < value) {
@@ -1490,13 +1856,120 @@ class GameEngine {
       state.nextId = state.nextId >= 100000000 ? 1 : state.nextId + 1;
     } while (state.assets.any((a) => a.id == id) ||
         state.employees.any((a) => a.id == id) ||
-        state.contracts.any((a) => a.id == id));
+        state.contracts.any((a) => a.id == id) ||
+        state.auctions.any((a) => a.id == id));
     return id;
   }
 
   int _nextRandom(int max) {
     state.seed = (state.seed * 48271) % 2147483647;
     return state.seed % max;
+  }
+
+  void _advanceResearch(List<String> notes) {
+    final project = state.researchProject;
+    if (project == null) return;
+    final spec =
+        TycoonCatalog.research.firstWhere((r) => r.id == project.researchId);
+    if (!researchCanProgress) {
+      notes.add('${spec.name}: research paused until an engineer is employed.');
+      return;
+    }
+    project.remainingShifts--;
+    if (project.remainingShifts > 0) {
+      notes.add(
+          '${spec.name}: ${project.remainingShifts} staffed shifts remaining.');
+      return;
+    }
+    state.researchLevels[project.researchId] = project.targetLevel;
+    state.researchProject = null;
+    _record('Research completed: ${spec.name} level ${project.targetLevel}', 0);
+    notes.add(
+        '${spec.name} level ${project.targetLevel} completed. ${spec.benefitAtLevel(project.targetLevel)}; available for your next actions and shift.');
+  }
+
+  // Separate deterministic auction decisions leave the existing commodity and
+  // weather random stream unchanged. Arithmetic remains exact on Dart web.
+  static int _auctionRoll(String value, int salt) {
+    var result = salt + 1;
+    for (final code in value.codeUnits) {
+      result = (result * 31 + code) % 2147483647;
+    }
+    return result;
+  }
+
+  void _refreshAuctions() {
+    final settled =
+        state.auctions.where((a) => a.status != AuctionStatus.open).toList();
+    while (settled.length > 9) {
+      state.auctions.remove(settled.removeAt(0));
+    }
+    if (state.day + 2 > 100000) return;
+    var open =
+        state.auctions.where((a) => a.status == AuctionStatus.open).length;
+    var slot = 0;
+    while (open < 3) {
+      final id = 'auction_${state.day}_${slot++}';
+      if (state.auctions.any((a) => a.id == id)) continue;
+      final roll = _auctionRoll('$id:${state.seed}', 73);
+      final spec = TycoonCatalog.assets[roll % TycoonCatalog.assets.length];
+      final condition = 55 + (roll ~/ 11) % 41;
+      final opening = (spec.price * (200 + condition * 3) / 1000).ceil();
+      state.auctions.add(AssetAuction(
+          id: id,
+          catalogId: spec.id,
+          condition: condition,
+          closingDay: math.min(100000, state.day + 2 + open),
+          openingBid: opening));
+      open++;
+    }
+  }
+
+  void _advanceAuctions(List<String> notes) {
+    const rivals = ['Ironwood Energy', 'Basin Works', 'Northstar Supply'];
+    for (final auction
+        in state.auctions.where((a) => a.status == AuctionStatus.open)) {
+      final roll =
+          _auctionRoll('${auction.id}:${auction.catalogId}', state.day * 17);
+      final rivalIndex = roll % rivals.length;
+      final interest = (roll ~/ 7) % 100;
+      final rivalBudget = (auction.spec.price *
+              (50 + _auctionRoll(auction.id, rivalIndex + 101) % 30) *
+              (450 + auction.condition * 6) /
+              100000)
+          .floor();
+      final minimum = minimumAuctionBid(auction.id);
+      if (interest < 70 && minimum <= rivalBudget) {
+        final newBid = math.min(rivalBudget,
+            minimum + ((roll ~/ 13) % 3) * auctionBidIncrement(auction.id));
+        final refund = auction.playerLeading ? auction.currentBid : 0;
+        auction.currentBid = newBid;
+        auction.playerLeading = false;
+        auction.leaderName = rivals[rivalIndex];
+        if (refund > 0) {
+          _receive(refund, 'Auction bid returned: ${auction.spec.name}');
+          notes.add(
+              '${auction.spec.name}: ${auction.leaderName} outbid you. Your $refund deposit was returned.');
+        }
+      }
+      if (auction.closingDay > state.day) continue;
+      if (auction.playerLeading) {
+        auction.status = AuctionStatus.won;
+        state.assets.add(OwnedAsset(
+            id: _newId('asset'),
+            catalogId: auction.catalogId,
+            condition: auction.condition));
+        _record(
+            'Auction won: ${auction.spec.name}; ${auction.currentBid} paid from held bid',
+            0);
+        notes.add(
+            'Auction won: ${auction.spec.name} added to your fleet at ${auction.condition}% condition. Your held bid paid the ${auction.currentBid} price.');
+      } else {
+        auction.status =
+            auction.currentBid == 0 ? AuctionStatus.unsold : AuctionStatus.lost;
+      }
+    }
+    _refreshAuctions();
   }
 
   void _refreshContracts() {

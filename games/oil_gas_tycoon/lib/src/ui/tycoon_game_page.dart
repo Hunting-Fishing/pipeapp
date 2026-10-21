@@ -55,14 +55,30 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
       HapticFeedback.selectionClick();
     }
     if (toast && mounted) {
+      final viewport = MediaQuery.sizeOf(context);
+      final compactFeedback = viewport.height < 600 ||
+          MediaQuery.textScalerOf(context).scale(1) > 1.35;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          Icon(result.success ? Icons.check_circle_outline : Icons.info_outline,
-              color: Colors.white, size: 20),
-          const SizedBox(width: 10),
-          Expanded(child: Text(result.message)),
-        ]),
+        behavior: compactFeedback
+            ? SnackBarBehavior.fixed
+            : SnackBarBehavior.floating,
+        showCloseIcon: compactFeedback,
+        content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: viewport.height * .25),
+            child: SingleChildScrollView(
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Icon(
+                      result.success
+                          ? Icons.check_circle_outline
+                          : Icons.info_outline,
+                      color: Colors.white,
+                      size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(result.message)),
+                ]))),
         duration: const Duration(seconds: 4),
       ));
     }
@@ -198,7 +214,7 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
       const SizedBox(height: 14),
       _detailRow('Business revenue', tycoonMoney(report.revenue)),
       _detailRow('Operating expenses', tycoonMoney(report.expenses)),
-      _detailRow('Shift cash flow', tycoonMoney(report.netIncome),
+      _detailRow('Operating cash flow', tycoonMoney(report.netIncome),
           color:
               report.netIncome >= 0 ? TycoonPalette.teal : TycoonPalette.red),
       const SizedBox(height: 8),
@@ -281,7 +297,7 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
           showLicensePage(
               context: context,
               applicationName: 'Oil & Gas Tycoon',
-              applicationVersion: '1.0.0');
+              applicationVersion: '1.1.0');
         }),
         if (widget.onExit != null)
           _menuAction(Icons.arrow_back_rounded, 'Return to Pipe Buyer',
@@ -292,6 +308,9 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
         const Divider(),
         const Text('OIL & GAS TYCOON',
             style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+        const SizedBox(height: 4),
+        const Text('Version 1.1.0 · Auctions & technology',
+            style: TextStyle(color: TycoonPalette.muted, fontSize: 12)),
         const SizedBox(height: 8),
         const Text(
             'Buyer & Trader · Single-player career\nAll prices, companies, leases, and money are fictional game systems. Each shift advances one game day. Your company waits for you when you leave.',
@@ -365,6 +384,21 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
                         style: const TextStyle(color: TycoonPalette.muted))
                   ])),
             ]))),
+        const Divider(),
+        const Text('Build your competitive edge',
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        const Text(
+            'Used equipment auctions are in the Exchange. Inspect condition and compare the bid with the new-equipment price. Your leading bid is held from available cash. If a simulated rival outbids you, that money returns in full; a winning lot joins your fleet automatically. Rivals and deadlines advance only when you run a shift.',
+            style: TextStyle(height: 1.5)),
+        const SizedBox(height: 14),
+        const Text(
+            'Research & technology is in Company. Hire an engineer, fund one project at a time, then run shifts to finish it. Research pauses if no engineer remains on your team. Completed levels improve your company permanently and survive restructuring. Cancelling unfinished research does not refund its funding.',
+            style: TextStyle(height: 1.5)),
+        const SizedBox(height: 14),
+        const Text(
+            'Keep a copy of your company with Settings → Export backup, especially before an update or moving to another browser or device. Existing version 1 companies carry forward into this update.',
+            style: TextStyle(color: TycoonPalette.muted, height: 1.5)),
       ]);
 
   @override
@@ -1030,6 +1064,8 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
         const TycoonSectionTitle('Buy smart. Sell stronger.',
             subtitle:
                 'Prices move every shift. Watch your margins and storage.'),
+        _auctionBoard(),
+        const SizedBox(height: 20),
         _adaptiveGrid(Commodity.values.map(_commodityCard).toList(),
             minWidth: 275),
         const SizedBox(height: 24),
@@ -1082,6 +1118,137 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
                       .toList())),
         ],
       ];
+
+  Widget _auctionBoard() {
+    final open = state.auctions
+        .where((auction) => auction.status == AuctionStatus.open)
+        .toList();
+    final history = state.auctions
+        .where((auction) => auction.status != AuctionStatus.open)
+        .toList()
+      ..sort((a, b) => b.closingDay.compareTo(a.closingDay));
+    return TycoonPanel(
+        padding: EdgeInsets.zero,
+        borderColor: const Color(0xFFE6C8A4),
+        child: ExpansionTile(
+            key: const PageStorageKey<String>('auction-board'),
+            leading:
+                const Icon(Icons.gavel_rounded, color: TycoonPalette.orange),
+            title: const Text('Used equipment auctions',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(
+                '${open.length} open lots · ${tycoonMoney(game.auctionEscrow)} held'),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            children: [
+              _notice(
+                  'Bid against simulated rivals for used machinery. Rivals bid and lots close when you run shifts. Leading bids are held from your cash; being outbid refunds the full amount. Winning equipment goes straight to your fleet.',
+                  Icons.info_outline_rounded,
+                  TycoonPalette.orange),
+              const SizedBox(height: 14),
+              _adaptiveGrid(open.map(_auctionCard).toList(), minWidth: 285),
+              if (open.isEmpty)
+                const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text('New lots arrive as you run shifts.')),
+              if (history.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Recent auction results',
+                        style: TextStyle(fontWeight: FontWeight.w800))),
+                const SizedBox(height: 8),
+                ...history.take(6).map((auction) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: _detailRow(
+                        '${auction.spec.name} · day ${auction.closingDay}',
+                        switch (auction.status) {
+                          AuctionStatus.won =>
+                            'Won · ${tycoonMoney(auction.currentBid)}',
+                          AuctionStatus.lost =>
+                            '${auction.leaderName} · ${tycoonMoney(auction.currentBid)}',
+                          AuctionStatus.unsold => 'No sale',
+                          AuctionStatus.open => 'Open',
+                        },
+                        color: auction.status == AuctionStatus.won
+                            ? TycoonPalette.teal
+                            : TycoonPalette.muted))),
+              ],
+            ]));
+  }
+
+  Widget _auctionCard(AssetAuction auction) {
+    final spec = auction.spec;
+    final shiftsLeft = math.max(0, auction.closingDay - state.day);
+    final minimum = game.minimumAuctionBid(auction.id);
+    final canRaise = minimum <= spec.price;
+    return TycoonPanel(
+        key: Key('auction-${auction.id}'),
+        borderColor: auction.playerLeading ? const Color(0xFFBDDAC9) : null,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _iconTile(_assetIcon(spec), TycoonPalette.orange, small: true),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Text(spec.name,
+                    style: Theme.of(context).textTheme.titleMedium)),
+          ]),
+          const SizedBox(height: 12),
+          Wrap(spacing: 7, runSpacing: 7, children: [
+            TycoonTag('${auction.condition}% CONDITION',
+                color: auction.condition < 50
+                    ? TycoonPalette.orange
+                    : TycoonPalette.teal),
+            TycoonTag(auction.playerLeading ? 'YOU LEAD' : 'OPEN LOT',
+                color: auction.playerLeading
+                    ? TycoonPalette.teal
+                    : TycoonPalette.muted),
+          ]),
+          const SizedBox(height: 12),
+          Text(spec.description, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 10),
+          _detailRow('New-equipment price', tycoonMoney(spec.price)),
+          _detailRow(
+              auction.currentBid == 0 ? 'Opening bid' : 'Leading bid',
+              tycoonMoney(auction.currentBid == 0
+                  ? auction.openingBid
+                  : auction.currentBid)),
+          _detailRow('Leading bidder',
+              auction.playerLeading ? 'Your company' : auction.leaderName),
+          _detailRow('Closes day ${auction.closingDay}',
+              '$shiftsLeft ${shiftsLeft == 1 ? 'shift' : 'shifts'} to go',
+              color:
+                  shiftsLeft <= 1 ? TycoonPalette.orange : TycoonPalette.muted),
+          if (auction.playerLeading)
+            _detailRow('Your cash held', tycoonMoney(auction.currentBid),
+                color: TycoonPalette.teal),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+              key: Key('bid-${auction.id}'),
+              onPressed: canRaise ? () => _bidAtAuction(auction) : null,
+              icon: const Icon(Icons.gavel_rounded, size: 18),
+              label: Text(
+                  canRaise
+                      ? '${auction.playerLeading ? 'Raise bid' : 'Place bid'} · ${tycoonMoney(minimum)}+'
+                      : 'Maximum bid reached',
+                  textAlign: TextAlign.center)),
+        ]));
+  }
+
+  Future<void> _bidAtAuction(AssetAuction auction) => _quantity(
+      title: 'Bid on ${auction.spec.name}',
+      label: 'Your bid (game dollars)',
+      initial: game.minimumAuctionBid(auction.id),
+      summary: (amount) {
+        final alreadyHeld = auction.playerLeading ? auction.currentBid : 0;
+        final extra = math.max(0, amount - alreadyHeld);
+        return '${auction.condition}% condition · closes on day ${auction.closingDay}\n'
+            'Minimum ${tycoonMoney(game.minimumAuctionBid(auction.id))}; maximum ${tycoonMoney(auction.spec.price)}.\n'
+            '${tycoonMoney(extra)} more cash will be held. '
+            'Bids cannot be withdrawn. If a rival outbids you, your full bid is returned.';
+      },
+      action: (amount) => game.bidAtAuction(auction.id, amount),
+      button: 'Confirm bid');
 
   Widget _commodityCard(Commodity commodity) {
     final oil = commodity == Commodity.oil;
@@ -1435,6 +1602,8 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
               detail:
                   '${tycoonNumber(state.contractsCompleted)} contracts delivered'),
         ], minWidth: 170),
+        const SizedBox(height: 20),
+        _researchBoard(),
         const SizedBox(height: 24),
         const TycoonSectionTitle('Your team',
             subtitle:
@@ -1514,6 +1683,198 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
                           ]))),
                 ])),
       ];
+
+  Widget _researchBoard() {
+    final project = state.researchProject;
+    final completed = TycoonCatalog.research
+        .fold<int>(0, (sum, spec) => sum + game.researchLevel(spec.id));
+    final total =
+        TycoonCatalog.research.fold<int>(0, (sum, spec) => sum + spec.maxLevel);
+    final projectSpec = project == null
+        ? null
+        : TycoonCatalog.research
+            .firstWhere((spec) => spec.id == project.researchId);
+    final summary = project == null
+        ? '$completed / $total levels completed · One project at a time'
+        : '${game.researchCanProgress ? 'In progress' : 'Paused'}: ${projectSpec!.name} · ${project.remainingShifts} shifts left';
+    return TycoonPanel(
+        padding: EdgeInsets.zero,
+        borderColor: const Color(0xFFCFC3E2),
+        child: ExpansionTile(
+            key: const PageStorageKey<String>('research-board'),
+            leading:
+                const Icon(Icons.science_outlined, color: Color(0xFF7764A9)),
+            title: const Text('Research & technology',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(summary),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            children: [
+              const Text(
+                  'Fund permanent improvements to your company. One employed engineer is needed to start a project and advance it each shift. Learned technologies survive restructuring.',
+                  style: TextStyle(color: TycoonPalette.muted, height: 1.5)),
+              const SizedBox(height: 14),
+              if (project != null) ...[
+                _activeResearch(project, projectSpec!),
+                const SizedBox(height: 14),
+              ],
+              if (!game.researchCanProgress) ...[
+                _notice(
+                    project == null
+                        ? 'Hire an engineer to unlock research. Engineers also improve your field production.'
+                        : 'Research is paused because no engineer is employed. Hire one to resume; your funding and completed shifts are kept.',
+                    Icons.engineering_outlined,
+                    TycoonPalette.orange),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                    key: const Key('research-hire-engineer'),
+                    onPressed: () async {
+                      final role = EmployeeRole.engineer;
+                      if (await _confirm(
+                          'Hire an engineer?',
+                          'Hiring costs ${tycoonMoney(game.employeeHiringCost(role))}. '
+                              'An engineer earns ${tycoonMoney(game.employeeBaseSalary(role))} each shift, improves production, and advances research.',
+                          'Hire engineer')) {
+                        if (!mounted) return;
+                        _act(game.hireEmployee(role));
+                      }
+                    },
+                    icon: const Icon(Icons.person_add_alt_1_outlined),
+                    label: Text(
+                        'Hire an engineer · ${tycoonMoney(game.employeeHiringCost(EmployeeRole.engineer))}',
+                        textAlign: TextAlign.center)),
+                const SizedBox(height: 14),
+              ],
+              ...TycoonCatalog.research.map((spec) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _researchCard(spec))),
+            ]));
+  }
+
+  Widget _activeResearch(ResearchProject project, ResearchSpec spec) {
+    final finished = project.totalShifts - project.remainingShifts;
+    return TycoonPanel(
+        key: const Key('active-research'),
+        color: const Color(0xFFF2EEF8),
+        borderColor: const Color(0xFFD9CDE8),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            TycoonTag(game.researchCanProgress ? 'RESEARCHING' : 'PAUSED',
+                icon: game.researchCanProgress
+                    ? Icons.science_outlined
+                    : Icons.pause_rounded,
+                color: game.researchCanProgress
+                    ? const Color(0xFF7764A9)
+                    : TycoonPalette.orange),
+            TycoonTag('LEVEL ${project.targetLevel}',
+                color: const Color(0xFF7764A9)),
+          ]),
+          const SizedBox(height: 12),
+          Text(spec.name, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(spec.benefitAtLevel(project.targetLevel),
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 14),
+          LinearProgressIndicator(
+              value: finished / project.totalShifts,
+              semanticsLabel:
+                  '${spec.name}: $finished of ${project.totalShifts} shifts completed',
+              minHeight: 7,
+              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xFF7764A9)),
+          const SizedBox(height: 10),
+          Text(
+              '$finished / ${project.totalShifts} shifts completed · ${project.remainingShifts} remaining',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 8),
+          TextButton(
+              key: const Key('cancel-research'),
+              onPressed: () async {
+                if (await _confirm(
+                    'Cancel ${spec.name}?',
+                    'The research funding will not be refunded and progress on this level will be lost. Previously completed technology levels remain yours.',
+                    'Cancel research')) {
+                  if (!mounted) return;
+                  _act(game.cancelResearch());
+                }
+              },
+              child: const Text('Cancel project')),
+        ]));
+  }
+
+  Widget _researchCard(ResearchSpec spec) {
+    final level = game.researchLevel(spec.id);
+    final complete = level >= spec.maxLevel;
+    final active = state.researchProject?.researchId == spec.id;
+    return TycoonPanel(
+        padding: EdgeInsets.zero,
+        child: ExpansionTile(
+            key: PageStorageKey<String>('technology-${spec.id}'),
+            leading: Icon(
+                complete ? Icons.check_circle_outline : _researchIcon(spec.id),
+                color: complete ? TycoonPalette.teal : const Color(0xFF7764A9)),
+            title: Text(spec.name,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(
+                'Level $level / ${spec.maxLevel}${active ? ' · Researching next level' : complete ? ' · Complete' : ''}'),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(spec.description,
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 10),
+              _detailRow('Current benefit', spec.benefitAtLevel(level)),
+              if (!complete) ...[
+                _detailRow(
+                    'At level ${level + 1}', spec.benefitAtLevel(level + 1),
+                    color: TycoonPalette.teal),
+                _detailRow('Research funding',
+                    tycoonMoney(game.researchCost(spec.id))),
+                _detailRow('Research time',
+                    '${game.researchDuration(spec.id)} staffed shifts'),
+                const SizedBox(height: 12),
+                FilledButton.tonal(
+                    key: Key('research-${spec.id}'),
+                    onPressed: state.researchProject == null &&
+                            game.researchCanProgress
+                        ? () => _startResearch(spec)
+                        : null,
+                    child: Text(
+                        active
+                            ? 'Project in progress'
+                            : state.researchProject != null
+                                ? 'Finish your current project first'
+                                : !game.researchCanProgress
+                                    ? 'Engineer required'
+                                    : 'Research level ${level + 1}',
+                        textAlign: TextAlign.center)),
+              ],
+            ]));
+  }
+
+  Future<void> _startResearch(ResearchSpec spec) async {
+    final next = game.researchLevel(spec.id) + 1;
+    if (await _confirm(
+        'Research ${spec.name} level $next?',
+        'Fund this project for ${tycoonMoney(game.researchCost(spec.id))}. '
+            'It takes ${game.researchDuration(spec.id)} shifts with an engineer employed. '
+            '${spec.benefitAtLevel(next)}. '
+            'Funding is spent immediately and is not refunded if you cancel.',
+        'Fund research')) {
+      if (!mounted) return;
+      _act(game.startResearch(spec.id));
+    }
+  }
+
+  IconData _researchIcon(String id) => switch (id) {
+        'production' => Icons.precision_manufacturing_outlined,
+        'logistics' => Icons.route_outlined,
+        'storage' => Icons.storage_outlined,
+        'maintenance' => Icons.build_outlined,
+        'drilling' => Icons.cell_tower_outlined,
+        'trading' => Icons.insights_outlined,
+        _ => Icons.science_outlined,
+      };
 
   Widget _employeeCard(Employee employee) {
     final assignment =
@@ -1810,7 +2171,9 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
             onPressed: () async {
               if (await _confirm(
                   'Restructure the company?',
-                  'Your current leases, assets, contracts, and employees are replaced by a starter operation. Debt is cleared. Career achievements and the current day are preserved.',
+                  'Your current leases, assets, businesses, contracts, and employees are replaced by a starter operation. '
+                      'Auction cash held (${tycoonMoney(game.auctionEscrow)}) is forfeited. Any active research is cancelled without a refund. '
+                      'Debt is cleared. Learned technologies, career achievements, and the current day are preserved.',
                   'Restructure')) {
                 _act(game.restructureCompany());
               }
@@ -1915,7 +2278,7 @@ class _TycoonGamePageState extends State<TycoonGamePage> {
         EmployeeRole.driver =>
           'Staff haul fleets to move oil and gas from your fields.',
         EmployeeRole.engineer =>
-          'Increase output from your company’s developed wells.',
+          'Improve field output and advance your research projects.',
         EmployeeRole.mechanic =>
           'Reduce equipment wear and improve maintenance efficiency.'
       };
