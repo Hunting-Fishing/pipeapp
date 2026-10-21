@@ -116,10 +116,19 @@ offline network-disconnection test.
 
 ## Release checks tracked separately
 
-- **GitHub CI:** remote validation is pending. Local passing results do not
-  establish a passing GitHub run.
-- **Android:** the workflow is configured to build an ARM64 profile APK, but
-  this record does not claim that the version 1.1 Android build has succeeded.
+- **GitHub CI:** the first remote run passed analysis, all 90 game tests,
+  the 11,200-action economics check, web compilation, offline preparation,
+  and artifact upload. The existing marketplace validation also passed.
+- **Android:** the first run stopped before compilation because `sdkmanager`
+  was absent from `PATH`. The workflow now resolves the installed executable
+  through `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or `PATH`. Shell fixtures cover
+  latest/versioned tool paths, the alternate SDK variable, PATH fallback,
+  and a clear failure when no executable exists. This record does not infer
+  an Android build result from those fixtures; see PR #213's current checks
+  and attached artifacts for the subsequent compilation outcome.
+- **Hosted game:** version 1.1.0+2 was successfully published to the existing
+  [private play link](https://pipeapp-oil-gas-tycoon.jordilwbailey.chatgpt.site),
+  preserving its audience.
 - **Devices and stores:** no physical Android or iPhone acceptance testing,
   iOS signing, production Android signing, or app-store publication is claimed.
 

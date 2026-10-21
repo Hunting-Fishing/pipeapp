@@ -101,7 +101,27 @@ jobs:
           cache: gradle
 
       - name: Install Android platforms required by app and plugins
-        run: sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          sdkmanager_bin=""
+          for android_sdk_dir in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}"; do
+            if [[ -z "$android_sdk_dir" ]]; then
+              continue
+            fi
+            for candidate in "$android_sdk_dir/cmdline-tools/latest/bin/sdkmanager" "$android_sdk_dir"/cmdline-tools/*/bin/sdkmanager; do
+              if [[ -x "$candidate" ]]; then
+                sdkmanager_bin="$candidate"
+                break 2
+              fi
+            done
+          done
+          if [[ -z "$sdkmanager_bin" ]]; then
+            sdkmanager_bin="$(command -v sdkmanager || true)"
+          fi
+          if [[ -z "$sdkmanager_bin" ]]; then
+            echo "::error::Android sdkmanager was not found in the runner SDK or PATH."
+            exit 1
+          fi
+          "$sdkmanager_bin" "platforms;android-35" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Install pinned Flutter SDK
         uses: subosito/flutter-action@v2.23.0
