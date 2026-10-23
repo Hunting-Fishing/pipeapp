@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check out source
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7
       - name: Use Node.js
         uses: actions/setup-node@v6.4.0
         with:

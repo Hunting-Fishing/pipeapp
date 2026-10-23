@@ -55,7 +55,7 @@ jobs:
           fi
 
       - name: Check out exact repair commit
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.commit_sha }}
           fetch-depth: 0
