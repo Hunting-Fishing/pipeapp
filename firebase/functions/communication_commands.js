@@ -407,6 +407,12 @@ function createCommunicationCommands(
                 db.collection("public_business_profiles").doc(carrierUid),
             ),
           ]);
+          if (!conversationSnapshot.exists) {
+            await assertNotBlocked(
+                uid,
+                uid === customerUid ? carrierUid : customerUid,
+            );
+          }
           const customerName = profileName(
               customerBusiness.exists ? customerBusiness.data() :
                 customerPersonal.exists ? customerPersonal.data() : {},

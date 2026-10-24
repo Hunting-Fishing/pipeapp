@@ -963,6 +963,18 @@ function createDispatchCommands(
       const job = jobData ? {...jobData, id: jobId} : null;
       const bid = bidSnapshot.exists ? bidSnapshot.data() : null;
       const awarded = validateDispatchAward(job, bid, uid);
+      const blockStatus = await pairBlockStatus(
+          uid,
+          String(awarded.carrierUid),
+      );
+      if (blockStatus.blocked) {
+        throw new CommandPolicyError(
+            "permission-denied",
+            blockStatus.blockedByViewer ?
+              "Unblock this carrier before awarding this Dispatch job." :
+              "This carrier is not accepting new Dispatch awards right now.",
+        );
+      }
       if (dispatchSnapshot.exists) {
         throw new CommandPolicyError(
             "failed-precondition",

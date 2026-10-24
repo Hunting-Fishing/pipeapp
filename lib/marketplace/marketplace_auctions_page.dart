@@ -67,20 +67,26 @@ DateTime? parseAuctionEnd(Map<String, dynamic> data) => parseAuctionDate(
 
 bool isAuctionEnded(Map<String, dynamic> data, DateTime now) {
   final end = parseAuctionEnd(data);
-  final status =
-      '${data['status'] ?? data['auctionStatus'] ?? data['saleStatus'] ?? ''}'
-          .toLowerCase();
-  final statusEnded = const {
+  const endedStatuses = {
     'ended',
     'closed',
     'settled',
     'sold',
+    'pending_sale',
     'bought_now',
+    'accepted_below_reserve',
     'won',
+    'reserve_not_met',
     'completed',
     'cancelled',
     'expired',
-  }.contains(status);
+  };
+  final statuses = [
+    '${data['status'] ?? ''}'.toLowerCase(),
+    '${data['auctionStatus'] ?? ''}'.toLowerCase(),
+    '${data['saleStatus'] ?? ''}'.toLowerCase(),
+  ];
+  final statusEnded = statuses.any(endedStatuses.contains);
   return statusEnded || (end != null && !now.isBefore(end));
 }
 
@@ -211,6 +217,7 @@ class _MarketplaceAuctionsPageState extends State<MarketplaceAuctionsPage> {
 
   Query<Map<String, dynamic>> _query() => FirebaseFirestore.instance
       .collection('public_listings')
+      .where('transactionType', isEqualTo: 'Auction')
       .orderBy('createdAt', descending: true);
 
   Future<void> _loadPage({bool reset = false}) async {
@@ -1081,9 +1088,13 @@ class _AuctionDetailsState extends State<_AuctionDetails> {
                                           nextBid: next,
                                           currency:
                                               '${data['currency'] ?? 'CAD'}',
-                                          buyNow: buyNow,
+                                          buyNow:
+                                              buyNow != null && current < buyNow
+                                                  ? buyNow
+                                                  : null,
                                           onPlaceBid: _placeBid,
-                                          onBuyNow: buyNow == null
+                                          onBuyNow: buyNow == null ||
+                                                  current >= buyNow
                                               ? null
                                               : () => _buyNow(buyNow),
                                         ),
@@ -2117,13 +2128,15 @@ class _BidHistory extends StatelessWidget {
                 final uid = FirebaseAuth.instance.currentUser?.uid;
                 final start =
                     (listing['auctionStartAt'] as Timestamp?)?.toDate();
+                final now = DateTime.now();
+                final bidStatus = '${data['status'] ?? ''}'.toLowerCase();
                 final canWithdraw = listing['customAuction'] == true &&
                     start != null &&
-                    !DateTime.now()
-                        .isBefore(start.add(const Duration(days: 32))) &&
+                    !isAuctionEnded(listing, now) &&
+                    !now.isBefore(start.add(const Duration(days: 32))) &&
                     data['bidderUid'] == uid &&
-                    data['status'] != 'withdrawn' &&
-                    data['status'] != 'buy_now';
+                    !const {'withdrawn', 'buy_now', 'won', 'accepted'}
+                        .contains(bidStatus);
                 final viewerOwnsOffer = uid != null && data['bidderUid'] == uid;
                 final leadingOffer =
                     data['status'] == 'leading' || data['status'] == 'won';

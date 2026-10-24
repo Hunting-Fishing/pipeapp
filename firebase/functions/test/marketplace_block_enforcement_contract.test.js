@@ -62,12 +62,18 @@ test("block status is created before, and shared with, every command module that
   assert.equal(index.split("createMarketplaceUserBlockCommands(admin)").length - 1, 1);
 });
 
-test("new offers, new conversations, and new Dispatch quotes consult the pair block", () => {
+test("new offers, auction bids/Buy It Now, new conversations, and Dispatch quotes/awards consult the pair block", () => {
   const communication = read("communication_commands.js");
-  assert.equal(communication.split("await assertNotBlocked(").length - 1, 2);
+  assert.equal(communication.split("await assertNotBlocked(").length - 1, 3);
   assert.match(communication, /if \(!\(await conversationRef\.get\(\)\)\.exists\)/);
-  assert.match(read("marketplace_commands.js"), /pairBlockStatus\(\s*uid,\s*String\(listing\.sellerUid\)/);
-  assert.match(read("dispatch_commands.js"), /pairBlockStatus\(\s*uid,\s*String\(job\.createdByUid\)/);
+  const marketplace = read("marketplace_commands.js");
+  assert.equal(
+    marketplace.split("pairBlockStatus(\n            uid,\n            String(listing.sellerUid)").length - 1,
+    3,
+  );
+  const dispatch = read("dispatch_commands.js");
+  assert.match(dispatch, /pairBlockStatus\(\s*uid,\s*String\(job\.createdByUid\)/);
+  assert.match(dispatch, /pairBlockStatus\(\s*uid,\s*String\(awarded\.carrierUid\)/);
 });
 
 test("each module keeps an inert default so it still works without block wiring", () => {

@@ -31,7 +31,21 @@ function verificationReadiness({
     "business" : "personal";
   const displayName = text(
       businessProfile.publicName || sellerProfile.publicName ||
-      sellerProfile.displayName || user.displayName,
+      sellerProfile.displayName || user.displayName || user.display_name ||
+      user.fullName,
+  );
+  const profilePhotoUrl = text(
+      sellerProfile.photoUrl || businessProfile.photoUrl ||
+      businessProfile.logoUrl,
+  );
+  const specialtyTags = stringList(
+      Array.isArray(sellerProfile.approvedTagIds) &&
+      sellerProfile.approvedTagIds.length > 0 ?
+        sellerProfile.approvedTagIds :
+        Array.isArray(businessProfile.approvedTagIds) &&
+        businessProfile.approvedTagIds.length > 0 ?
+          businessProfile.approvedTagIds :
+          businessProfile.services,
   );
   const checks = [
     {
@@ -57,12 +71,12 @@ function verificationReadiness({
     {
       code: "profile_photo",
       label: "Profile photo",
-      complete: /^https:\/\//u.test(text(sellerProfile.photoUrl)),
+      complete: /^https:\/\//u.test(profilePhotoUrl),
     },
     {
       code: "marketplace_specialties",
       label: "Marketplace specialties",
-      complete: stringList(sellerProfile.approvedTagIds).length > 0,
+      complete: specialtyTags.length > 0,
     },
   ];
   if (accountType === "business") {

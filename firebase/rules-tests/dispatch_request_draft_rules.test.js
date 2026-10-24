@@ -45,6 +45,9 @@ function phase1Features() {
 }
 
 before(async () => {
+  const [firestoreHost, firestorePort] = String(
+      process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080",
+  ).split(":");
   const rules = fs.readFileSync(
       path.join(__dirname, "..", "firestore.rules"),
       "utf8",
@@ -53,8 +56,8 @@ before(async () => {
     projectId,
     firestore: {
       rules,
-      host: "127.0.0.1",
-      port: 8080,
+      host: firestoreHost,
+      port: Number(firestorePort),
     },
   });
 });

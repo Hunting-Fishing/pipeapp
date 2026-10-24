@@ -140,13 +140,13 @@ function createMarketplaceCommands(
     if (listing.transactionType === "Auction" &&
         !isAdministrator(request) &&
         (
-          Number(user.userScore || 70) <= 80 ||
+          Number(user.userScore || 70) < 80 ||
           Number(user.profileCompletion || 0) !== 100 ||
           !approvedAccountVerification(user)
         )) {
       throw new HttpsError(
           "failed-precondition",
-          "Auction listings require a User Score above 80, a complete " +
+          "Auction listings require a User Score of at least 80, a complete " +
           "profile, and verified account status.",
       );
     }
@@ -269,7 +269,7 @@ function createMarketplaceCommands(
           const [metadata] = await bucket.file(path).getMetadata();
           if (!String(metadata.contentType || "").startsWith("video/") ||
               Number(metadata.size || 0) <= 0 ||
-              Number(metadata.size || 0) > 25 * 1024 * 1024) {
+              Number(metadata.size || 0) > 100 * 1024 * 1024) {
             throw new Error("invalid-video");
           }
       }));
@@ -1417,7 +1417,11 @@ function createMarketplaceCommands(
   async function requireEligibleBidder(transaction, uid, administrator) {
     if (administrator) return;
     const userSnapshot = await transaction.get(db.collection("users").doc(uid));
-    const score = Number(userSnapshot.data() && userSnapshot.data().userScore);
+    const userData = userSnapshot.data();
+    const rawScore = userData && userData.userScore;
+    const score = rawScore === undefined || rawScore === null ?
+      70 :
+      Number(rawScore);
     if (!userSnapshot.exists || !Number.isFinite(score) || score <= 50) {
       throw new CommandPolicyError(
           "permission-denied",
@@ -1520,6 +1524,20 @@ function createMarketplaceCommands(
       } : null;
       const now = Timestamp.now();
       const validated = validatePlaceBid(listing, uid, amount, now);
+      if (listing && listing.sellerUid) {
+        const blockStatus = await pairBlockStatus(
+            uid,
+            String(listing.sellerUid),
+        );
+        if (blockStatus.blocked) {
+          throw new CommandPolicyError(
+              "permission-denied",
+              blockStatus.blockedByViewer ?
+                "Unblock this member before bidding on their listing." :
+                "This seller is not accepting new bids right now.",
+          );
+        }
+      }
       await requireEligibleBidder(transaction, uid, isAdministrator(request));
       const bidderIdentity = await timedOfferPublicIdentity(
           transaction, uid, request,
@@ -1636,6 +1654,20 @@ function createMarketplaceCommands(
       } : null;
       const now = Timestamp.now();
       const price = validateBuyNow(listing, uid, now);
+      if (listing && listing.sellerUid) {
+        const blockStatus = await pairBlockStatus(
+            uid,
+            String(listing.sellerUid),
+        );
+        if (blockStatus.blocked) {
+          throw new CommandPolicyError(
+              "permission-denied",
+              blockStatus.blockedByViewer ?
+                "Unblock this member before buying their listing." :
+                "This seller is not accepting new purchases right now.",
+          );
+        }
+      }
       await requireEligibleBidder(transaction, uid, isAdministrator(request));
       let previousBidRef = null;
       let previousBidSnapshot = null;

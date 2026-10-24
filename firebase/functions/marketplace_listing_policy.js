@@ -22,6 +22,10 @@ const publicListingFields = new Set([
   "engineDetails",
   "attachments",
   "pipeSize",
+  "pipeSchedule",
+  "pipeGrade",
+  "pipeConnection",
+  "pipeLengthRange",
   "quantity",
   "quantityAndLength",
   "condition",
@@ -160,6 +164,11 @@ function buildMarketplaceSearchTokens(listing) {
     "productType",
     "brand",
     "model",
+    "pipeSize",
+    "pipeSchedule",
+    "pipeGrade",
+    "pipeConnection",
+    "pipeLengthRange",
     "condition",
     "publicLocationName",
     "nearestTown",
@@ -287,7 +296,13 @@ function validateMarketplaceListingInput(
   listing.title = requiredText(listing, "title");
   listing.category = requiredText(listing, "category");
   const transactionType = String(listing.transactionType || "For Sale");
-  if (!["For Sale", "Auction", "Wanted / Seeking"].includes(transactionType)) {
+  if (![
+    "For Sale",
+    "For Rent",
+    "Request for Quote",
+    "Auction",
+    "Wanted / Seeking",
+  ].includes(transactionType)) {
     invalid("Listing destination is invalid.");
   }
   listing.transactionType = transactionType;

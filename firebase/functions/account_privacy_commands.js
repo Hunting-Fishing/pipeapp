@@ -315,7 +315,15 @@ async function deletionBlockers(db, uid) {
     ).length,
     offers: countActive(
       offers,
-      new Set(["archived", "withdrawn", "cancelled", "completed"]),
+      new Set([
+        "archived",
+        "withdrawn",
+        "cancelled",
+        "completed",
+        "declined",
+        "rejected",
+        "expired",
+      ]),
     ),
     marketplaceTransactions: countActive(
       marketplaceTransactions,

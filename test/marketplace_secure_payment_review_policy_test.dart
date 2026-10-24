@@ -77,7 +77,8 @@ void main() {
     });
 
     test('request id remains server-safe even with a long transaction id', () {
-      final longTransactionId = '${List<String>.filled(30, 'transaction').join()}/unsafe';
+      final longTransactionId =
+          '${List<String>.filled(30, 'transaction').join()}/unsafe';
       final requestId = marketplaceRefundReviewRequestId(
         longTransactionId,
         123456789,
@@ -86,6 +87,51 @@ void main() {
       expect(requestId.length, lessThanOrEqualTo(180));
       expect(requestId, isNot(contains('/')));
       expect(requestId, startsWith('refund-'));
+    });
+
+    test('only the requesting participant can cancel an active review', () {
+      final buyerRequested = <String, dynamic>{
+        'paymentProviderStatus': 'paid',
+        'financialStatus': 'refund_requested',
+        'activeFinancialCaseId': 'refund-case-2',
+        'activeFinancialCaseRequestedByUid': 'buyer-1',
+        'buyerUid': 'buyer-1',
+        'sellerUid': 'seller-1',
+      };
+      expect(
+        marketplacePaymentCancelReviewAvailable(buyerRequested, isBuyer: true),
+        isTrue,
+      );
+      expect(
+        marketplacePaymentCancelReviewAvailable(buyerRequested, isBuyer: false),
+        isFalse,
+      );
+    });
+
+    test('external wire/PO settlement policy handles partial and agreed states',
+        () {
+      final openSale = <String, dynamic>{
+        'status': 'accepted',
+        'paymentProviderStatus': 'not_started',
+      };
+      expect(marketplaceExternalSettlementAvailable(openSale), isTrue);
+      expect(marketplaceExternalSettlementAgreed(openSale), isFalse);
+
+      final agreedSale = <String, dynamic>{
+        'status': 'accepted',
+        'paymentProviderStatus': 'external_agreed',
+        'externalSettlementBuyerConfirmed': true,
+        'externalSettlementSellerConfirmed': true,
+      };
+      expect(marketplaceExternalSettlementAgreed(agreedSale), isTrue);
+      expect(marketplaceExternalSettlementAvailable(agreedSale), isFalse);
+
+      final stripeStarted = <String, dynamic>{
+        'status': 'accepted',
+        'paymentProviderStatus': 'checkout_created',
+        'stripePaymentIntentId': 'pi_12345',
+      };
+      expect(marketplaceExternalSettlementAvailable(stripeStarted), isFalse);
     });
   });
 }

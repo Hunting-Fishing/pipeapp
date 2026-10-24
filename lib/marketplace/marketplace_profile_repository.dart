@@ -158,8 +158,7 @@ class MarketplaceProfileRepository {
       ..remove('phone_number')
       ..remove('phoneE164');
     final userRef = _firestore.collection('users').doc(uid);
-    final publicRef =
-        _firestore.collection('public_seller_profiles').doc(uid);
+    final publicRef = _firestore.collection('public_seller_profiles').doc(uid);
     await _firestore.runTransaction((transaction) async {
       final userSnapshot = await transaction.get(userRef);
       final userValues = <String, dynamic>{
@@ -252,6 +251,9 @@ class MarketplaceProfileRepository {
       final userValues = <String, dynamic>{
         'uid': uid,
         'accountType': 'business',
+        'businessName': values['publicName'],
+        'displayName': values['publicName'],
+        'display_name': values['publicName'],
         'businessProfileComplete': true,
         'profileComplete': true,
         'profileCompletion': values['profileCompletion'],

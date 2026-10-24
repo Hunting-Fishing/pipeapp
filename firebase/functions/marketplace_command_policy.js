@@ -95,13 +95,13 @@ function validateAuctionConversion({
     );
   }
   if (!administrator && (
-    Number(user && user.userScore || 70) <= 80 ||
+    Number(user && user.userScore || 70) < 80 ||
     Number(user && user.profileCompletion || 0) !== 100 ||
     !approvedAccountVerification(user)
   )) {
     throw new CommandPolicyError(
         "failed-precondition",
-        "Auction listings require a User Score above 80, a complete " +
+        "Auction listings require a User Score of at least 80, a complete " +
         "profile, and verified account status.",
     );
   }
@@ -436,7 +436,16 @@ function validatePlaceBid(listing, actorUid, requestedAmount, now) {
 
 function validateBuyNow(listing, actorUid, now) {
   requireLiveAuction(listing, actorUid, now);
-  return requireMoney(listing.buyItNowPrice, "Buy It Now price");
+  const buyNow = requireMoney(listing.buyItNowPrice, "Buy It Now price");
+  const current = Number(listing.currentBid || 0);
+  if (Number.isFinite(current) && current >= buyNow) {
+    throw new CommandPolicyError(
+        "failed-precondition",
+        "Buy It Now is no longer available because bidding has reached " +
+        "or exceeded the Buy It Now price.",
+    );
+  }
+  return buyNow;
 }
 
 function validateAcceptBelowReserve(listing, actorUid, now) {
