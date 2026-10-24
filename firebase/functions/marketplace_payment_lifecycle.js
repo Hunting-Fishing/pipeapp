@@ -16,6 +16,8 @@ function releaseEligible(sale = {}) {
     sale.sellerPayoutStatus !== "released" &&
     !sale.stripeSellerTransferId &&
     sale.financialHold !== true &&
+    !sale.activeFinancialCaseId &&
+    String(sale.financialStatus || "") !== "refund_requested" &&
     String(sale.financialStatus || "") !== "disputed" &&
     String(sale.disputeStatus || "") !== "open" &&
     Number(sale.refundedMinor || 0) === 0;
@@ -79,7 +81,11 @@ function createMarketplacePaymentLifecycle(admin) {
     ]);
     let marketplaceStatus = String(mirror.status || "pending_payment");
     if (terminalWithoutPayment.has(auctionStatus)) marketplaceStatus = auctionStatus;
-    else if (mirror.paymentProviderStatus === "paid") marketplaceStatus = auctionStatus;
+    else if (
+      mirror.paymentProviderStatus === "paid" ||
+      mirror.paymentProviderStatus === "external_agreed" ||
+      mirror.settlementMode === "external"
+    ) marketplaceStatus = auctionStatus;
     else marketplaceStatus = "pending_payment";
     await mirrorRef.set({
       status: marketplaceStatus,

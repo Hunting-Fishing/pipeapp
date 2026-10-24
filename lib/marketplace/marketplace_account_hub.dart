@@ -147,7 +147,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
               Tab(
                   icon: Icon(Icons.admin_panel_settings,
                       color: Colors.purple.shade700, size: 20),
-                  text: 'ðŸ‘‘ ADMIN PORTAL'),
+                  text: '👑 ADMIN PORTAL'),
           ],
         ),
       ),
@@ -273,7 +273,7 @@ class _Overview extends StatelessWidget {
               leading: CircleAvatar(child: Text('$userScore')),
               title: const Text('User Score',
                   style: TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: Text(userScore > 80
+              subtitle: Text(userScore >= 80
                   ? 'Strong marketplace standing'
                   : userScore > 50
                       ? 'Standard marketplace standing'
@@ -745,7 +745,7 @@ class _MyListingsState extends State<_MyListings> {
     if (_loading && _listings.isEmpty) {
       return const MarketplaceDataStateView.loading(
         title: 'Loading your listings',
-        message: 'Retrieving listing status, activity, and offersâ€¦',
+        message: 'Retrieving listing status, activity, and offers…',
       );
     }
     return Column(children: [
@@ -854,7 +854,7 @@ class _MyListingsState extends State<_MyListings> {
                         ])),
                     title: Text('${data['title'] ?? 'Untitled listing'}'),
                     subtitle: Text(
-                        '${isAuction ? 'TIMED BUYING' : 'MARKETPLACE'} â€¢ ${data['category'] ?? ''} â€¢ ${data['status'] ?? 'active'}\n'
+                        '${isAuction ? 'TIMED BUYING' : 'MARKETPLACE'} • ${data['category'] ?? ''} • ${data['status'] ?? 'active'}\n'
                         '${_ownerListingTime(data, createdAt)}\n${_analyticsLine(data)}'),
                     isThreeLine: createdAt != null,
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -869,10 +869,10 @@ class _MyListingsState extends State<_MyListings> {
 }
 
 String _analyticsLine(Map<String, dynamic> data) =>
-    '${(data['viewCount'] as num?)?.toInt() ?? 0} views â€¢ '
-    '${(data['saveCount'] as num?)?.toInt() ?? 0} saves â€¢ '
-    '${(data['shareCount'] as num?)?.toInt() ?? 0} shares â€¢ '
-    '${(data['likeCount'] as num?)?.toInt() ?? 0} likes â€¢ '
+    '${(data['viewCount'] as num?)?.toInt() ?? 0} views • '
+    '${(data['saveCount'] as num?)?.toInt() ?? 0} saves • '
+    '${(data['shareCount'] as num?)?.toInt() ?? 0} shares • '
+    '${(data['likeCount'] as num?)?.toInt() ?? 0} likes • '
     '${(data['offerCount'] as num?)?.toInt() ?? 0} offers';
 
 String _ownerListingTime(Map<String, dynamic> data, DateTime? createdAt) {
@@ -966,7 +966,7 @@ class _OwnerPropertyDetails extends StatelessWidget {
     final hectares = data['landAreaHectares'] as num?;
     if (acres != null && hectares != null) {
       add('Land',
-          '${propertyMeasure(acres)} ac â€¢ ${propertyMeasure(hectares)} ha');
+          '${propertyMeasure(acres)} ac • ${propertyMeasure(hectares)} ha');
     }
     final building = data['buildingAreaValue'] as num?;
     if (building != null) {
@@ -988,7 +988,7 @@ class _OwnerPropertyDetails extends StatelessWidget {
     final features = (data['propertyFeatures'] as Iterable?)
         ?.map((value) => '$value'.trim())
         .where((value) => value.isNotEmpty)
-        .join(' â€¢ ');
+        .join(' • ');
     add('Features', features);
 
     if (facts.isEmpty) return const SizedBox.shrink();
@@ -1126,7 +1126,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                   avatar: Icon(Icons.rocket_launch_outlined, size: 17),
                   label: Text('Boost')),
           ]),
-          Text('${data['category'] ?? ''} â€¢ ${data['productType'] ?? ''}'),
+          Text('${data['category'] ?? ''} • ${data['productType'] ?? ''}'),
           if (createdAt != null)
             Text(_ownerListingTime(data, createdAt),
                 style: const TextStyle(color: Colors.black54)),
@@ -1159,7 +1159,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.gavel_outlined),
                 label: Text(_convertingToAuction
-                    ? 'Publishing Timed Buyingâ€¦'
+                    ? 'Publishing Timed Buying…'
                     : 'Move listing to Timed Buying'),
                 style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(50)))
@@ -1192,7 +1192,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                             const SizedBox(height: 5),
                             Text(currentBid >= reserve
                                 ? 'Seller minimum met'
-                                : '${marketplaceMoney(reserve - currentBid)} below seller minimum â€¢ ${(reserveProgress! * 100).toStringAsFixed(0)}% reached')
+                                : '${marketplaceMoney(reserve - currentBid)} below seller minimum • ${(reserveProgress! * 100).toStringAsFixed(0)}% reached')
                           ] else
                             const Text('No seller minimum'),
                           if (data['buyItNowPrice'] is num)
@@ -1465,7 +1465,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     }
     await _runListingCommand(
         key: 'edit-${data['revision'] ?? 1}',
-        label: 'Saving listingâ€¦',
+        label: 'Saving listing…',
         command: 'updateMarketplaceListingDetails',
         data: {
           'listingId': widget.listingId,
@@ -1506,7 +1506,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     if (!confirmed || !mounted) return;
     await _runListingCommand(
         key: action,
-        label: 'Updating listingâ€¦',
+        label: 'Updating listing…',
         command: 'transitionMarketplaceListing',
         data: {'listingId': widget.listingId, 'action': action},
         success: 'Listing status updated.');
@@ -1536,7 +1536,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
     if (!confirmed || !mounted) return;
     await _runListingCommand(
       key: 'renew',
-      label: 'Renewing listingâ€¦',
+      label: 'Renewing listing…',
       command: 'renewMarketplaceListing',
       data: {'listingId': widget.listingId},
       success: 'Listing renewed for another 30 days.',
@@ -1565,7 +1565,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
         FirebaseFirestore.instance.collection('public_listings').doc().id;
     await _runListingCommand(
         key: key,
-        label: 'Creating new listingâ€¦',
+        label: 'Creating new listing…',
         command: 'relistMarketplaceListing',
         data: {
           'listingId': widget.listingId,
@@ -1713,14 +1713,14 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                                     fontSize: 12,
                                                     color: Color(0xFF66758A))),
                                             Text(
-                                                '\$${askingPrice.toStringAsFixed(2)} â€¢ $priceBasis',
+                                                '\$${askingPrice.toStringAsFixed(2)} • $priceBasis',
                                                 style: const TextStyle(
                                                     fontSize: 18,
                                                     fontWeight:
                                                         FontWeight.w900)),
                                             if (quantity != null)
                                               Text(
-                                                  '$quantity units â€¢ Asking total \$${askingTotal.toStringAsFixed(2)}'),
+                                                  '$quantity units • Asking total \$${askingTotal.toStringAsFixed(2)}'),
                                             const SizedBox(height: 4),
                                             const Text(
                                                 'Bids, reserve, and Buy It Now use the same pricing basis.',
@@ -1729,7 +1729,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                                     color: Color(0xFF315A7D)))
                                           ])),
                                   _auctionMoneyField(starting,
-                                      label: 'Starting bid â€¢ $priceBasis',
+                                      label: 'Starting bid • $priceBasis',
                                       helper: 'The first acceptable bid amount',
                                       icon: Icons.play_circle_outline,
                                       onChanged: (_) => update(() {})),
@@ -1776,7 +1776,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                       initialValue: incrementSelection,
                                       decoration: InputDecoration(
                                           labelText:
-                                              'Minimum bid increase â€¢ $priceBasis',
+                                              'Minimum bid increase • $priceBasis',
                                           helperText: isTotalBasis
                                               ? 'Increase applied to the total auction price'
                                               : 'Increase applied to each unit',
@@ -1820,7 +1820,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                     _auctionMoneyField(increment,
                                         label: 'Manual bid increase',
                                         helper:
-                                            'Enter an amount from \$0.50 to \$1,000.00 â€¢ $priceBasis',
+                                            'Enter an amount from \$0.50 to \$1,000.00 • $priceBasis',
                                         icon: Icons.edit_outlined,
                                         onChanged: (_) => update(() {}))
                                   ],
@@ -1883,7 +1883,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                             labelText:
                                                 'Custom duration in days',
                                             helperText:
-                                                'Enter 1â€“360 days. Eligible timed offers may be withdrawn after day 32.',
+                                                'Enter 1–360 days. Eligible timed offers may be withdrawn after day 32.',
                                             prefixIcon: const Icon(
                                                 Icons.calendar_month_outlined),
                                             suffixText: 'days',
@@ -1913,7 +1913,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                                                           FontWeight.w900)),
                                               SizedBox(height: 5),
                                               Text(
-                                                  'â€¢ \$29.99 upfront listing fee\nâ€¢ 5% of the completed sale\nâ€¢ Additional auction-service fees may apply later'),
+                                                  '• \$29.99 upfront listing fee\n• 5% of the completed sale\n• Additional auction-service fees may apply later'),
                                               SizedBox(height: 5),
                                               Text(
                                                   'The upfront fee and final sale fee are separate. Charges must be reviewed before payment.',
@@ -2017,7 +2017,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                     title: const Text('Publish timed auction?'),
                     content: Column(mainAxisSize: MainAxisSize.min, children: [
                       _auctionReviewRow('Starting bid',
-                          '\$${startAmount.toStringAsFixed(2)} â€¢ $priceBasis'),
+                          '\$${startAmount.toStringAsFixed(2)} • $priceBasis'),
                       _auctionReviewRow(
                           'Reserve',
                           num.tryParse(reserve.text) == null
@@ -2162,7 +2162,7 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
           const SizedBox(height: 7),
           _auctionReviewRow(
               valueLabel,
-              '\$${value.toStringAsFixed(2)} â€¢ $priceBasis'
+              '\$${value.toStringAsFixed(2)} • $priceBasis'
               '${isTotalBasis || quantity == null ? '' : ' Ã— $quantity'}'),
           _auctionReviewRow(
               '$valueLabel total', '\$${calculatedTotal.toStringAsFixed(2)}'),
@@ -2276,7 +2276,7 @@ class _WantedMatchesPanel extends StatelessWidget {
           if (!snapshot.hasData) {
             return const MarketplaceDataStateView.loading(
               title: 'Checking Marketplace listings',
-              message: 'Comparing product details, quantity, and locationâ€¦',
+              message: 'Comparing product details, quantity, and location…',
               compact: true,
             );
           }
@@ -2438,7 +2438,7 @@ class _WantedMatchCardState extends State<_WantedMatchCard> {
             if (reasons.isNotEmpty) ...[
               const SizedBox(height: 7),
               Text(
-                reasons.take(3).join(' â€¢ '),
+                reasons.take(3).join(' • '),
                 style: const TextStyle(fontSize: 12, color: Color(0xFF52657A)),
               ),
             ],
@@ -2607,7 +2607,7 @@ class _WantedMatchCardState extends State<_WantedMatchCard> {
                     title: Text('${data['action'] ?? 'Match updated'}'
                         .replaceAll('_', ' ')),
                     subtitle: Text(
-                      '${data['actorRole'] ?? 'participant'} â€¢ ${data['state'] ?? ''}',
+                      '${data['actorRole'] ?? 'participant'} • ${data['state'] ?? ''}',
                     ),
                     trailing: Text('#${data['revision'] ?? ''}'),
                   );
@@ -2657,7 +2657,7 @@ class _OwnerBidHistory extends StatelessWidget {
             if (!snapshot.hasData) {
               return const MarketplaceDataStateView.loading(
                 title: 'Loading bid history',
-                message: 'Retrieving the latest auction timed offersâ€¦',
+                message: 'Retrieving the latest auction timed offers…',
                 compact: true,
               );
             }
@@ -2690,7 +2690,7 @@ class _OwnerBidHistory extends StatelessWidget {
                           .toDate()
                           .toLocal()
                           .toString()
-                      : 'Submittingâ€¦'),
+                      : 'Submitting…'),
                   trailing: bid.data()['status'] == 'buy_now'
                       ? const Chip(label: Text('BUY NOW'))
                       : null))
@@ -2843,7 +2843,7 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                 if (!snapshot.hasData) {
                   return const MarketplaceDataStateView.loading(
                     title: 'Loading notifications',
-                    message: 'Retrieving your latest account activityâ€¦',
+                    message: 'Retrieving your latest account activity…',
                   );
                 }
                 final items = snapshot.data!.docs.toList()
@@ -3464,7 +3464,7 @@ class _ModerationNoticesCard extends StatelessWidget {
                       title: Text('${data['reasonLabel'] ?? 'Safety decision'}',
                           style: const TextStyle(fontWeight: FontWeight.w700)),
                       subtitle: Text(
-                        '${status.replaceAll('_', ' ')} â€¢ ${data['enforcementAction'] ?? 'none'}\n'
+                        '${status.replaceAll('_', ' ')} • ${data['enforcementAction'] ?? 'none'}\n'
                         '${data['reviewReason'] ?? ''}',
                       ),
                       isThreeLine: true,

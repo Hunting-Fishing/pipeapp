@@ -61,13 +61,14 @@ function renewalUpdate({listing, Timestamp, FieldValue, now}) {
         "Timed auctions use their auction schedule and cannot be renewed here.",
     );
   }
-  if (String(current.status || "").toLowerCase() !== "expired") {
+  const nowTimestamp = now || Timestamp.now();
+  const state = listingLifecycleState(current, nowTimestamp.toMillis());
+  if (!state.expired) {
     throw new HttpsError(
         "failed-precondition",
         "Only an expired Marketplace listing can be renewed.",
     );
   }
-  const nowTimestamp = now || Timestamp.now();
   const nextExpiry = Timestamp.fromMillis(
       nowTimestamp.toMillis() + MARKETPLACE_LISTING_ACTIVE_DAYS * DAY_MS,
   );

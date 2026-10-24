@@ -15,6 +15,12 @@ const projectId = "demo-pipe-buyer-rules";
 let testEnvironment;
 
 before(async () => {
+  const [firestoreHost, firestorePort] = String(
+      process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080",
+  ).split(":");
+  const [storageHost, storagePort] = String(
+      process.env.FIREBASE_STORAGE_EMULATOR_HOST || "127.0.0.1:9199",
+  ).split(":");
   testEnvironment = await initializeTestEnvironment({
     projectId,
     firestore: {
@@ -22,16 +28,16 @@ before(async () => {
           path.join(__dirname, "..", "firestore.rules"),
           "utf8",
       ),
-      host: "127.0.0.1",
-      port: 8080,
+      host: firestoreHost,
+      port: Number(firestorePort),
     },
     storage: {
       rules: fs.readFileSync(
           path.join(__dirname, "..", "storage.rules"),
           "utf8",
       ),
-      host: "127.0.0.1",
-      port: 9199,
+      host: storageHost,
+      port: Number(storagePort),
     },
   });
 });

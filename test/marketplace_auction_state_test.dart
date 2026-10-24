@@ -62,5 +62,19 @@ void main() {
       expect(parseAuctionStart(listing), start);
       expect(parseAuctionEnd(listing), end);
     });
+
+    test(
+        'early Buy It Now pending_sale/bought_now marks auction ended immediately',
+        () {
+      final listing = <String, dynamic>{
+        'auctionStartAt': now.subtract(const Duration(hours: 1)),
+        'auctionEndAt': now.add(const Duration(days: 2)),
+        'status': 'pending_sale',
+        'auctionStatus': 'bought_now',
+      };
+
+      expect(isAuctionEnded(listing, now), isTrue);
+      expect(isAuctionLive(listing, now), isFalse);
+    });
   });
 }

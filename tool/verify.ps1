@@ -124,18 +124,24 @@ if (-not $SkipRulesEmulator) {
   }
   npm audit --omit=dev --audit-level=high --prefix firebase/rules-tests
   Assert-NativeSuccess 'Firestore rules-test dependency audit'
+  $port8080Busy = [bool](Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue)
+  $emulatorConfig = if ($port8080Busy -and (Test-Path (Join-Path $workspace 'firebase.sandbox.json'))) {
+    'firebase.sandbox.json'
+  } else {
+    'firebase.json'
+  }
   $firebaseCli = Get-Command firebase -ErrorAction SilentlyContinue
   if ($firebaseCli) {
     firebase emulators:exec `
       --project demo-pipe-buyer-rules `
-      --config firebase.json `
+      --config $emulatorConfig `
       --only firestore,storage `
       'npm test --prefix firebase/rules-tests'
     Assert-NativeSuccess 'Firestore security rules tests'
   } else {
     npx --yes firebase-tools@15.25.0 emulators:exec `
       --project demo-pipe-buyer-rules `
-      --config firebase.json `
+      --config $emulatorConfig `
       --only firestore,storage `
       'npm test --prefix firebase/rules-tests'
     Assert-NativeSuccess 'Firestore security rules tests'

@@ -394,6 +394,7 @@ function createMarketplaceFinancialResolution(admin) {
       await transactionRef.set({
         financialStatus: "refund_requested",
         activeFinancialCaseId: requestId,
+        activeFinancialCaseRequestedByUid: uid,
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       await createFinancialEvent({
@@ -450,6 +451,8 @@ function createMarketplaceFinancialResolution(admin) {
       if (transactionId) {
         await db.collection("marketplace_transactions").doc(transactionId).set({
           activeFinancialCaseId: null,
+          activeFinancialCaseRequestedByUid: null,
+          financialStatus: "none",
           updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
       }

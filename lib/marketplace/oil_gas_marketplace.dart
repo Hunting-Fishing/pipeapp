@@ -46,6 +46,7 @@ import 'marketplace_data_state.dart';
 import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_catalog_photo_assets.dart';
+import 'marketplace_listing_form_presentation.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_offer_analysis.dart';
@@ -436,6 +437,90 @@ const pipeSchedules = <String>[
   'XXS'
 ];
 
+const pipeWallAndScheduleOptions = <String>[
+  'Not sure — buyer can verify',
+  'Standard wall (STD / SCH 40)',
+  'Heavy wall (XS / SCH 80)',
+  'Double extra heavy (XXS / SCH 160)',
+  'Thin wall / light wall (SCH 10 / 20)',
+  'Drill pipe — 14.00 lb/ft',
+  'Drill pipe — 16.60 lb/ft',
+  'Drill pipe — 19.50 lb/ft',
+  'Tubing — 4.70 lb/ft (2-3/8 in)',
+  'Tubing — 6.50 lb/ft (2-7/8 in)',
+  'Tubing — 9.30 lb/ft (3-1/2 in)',
+  'Casing — 11.60 lb/ft (4-1/2 in)',
+  'Casing — 13.50 lb/ft (4-1/2 in)',
+  'Casing — 15.50 lb/ft (5-1/2 in)',
+  'Casing — 17.00 lb/ft (5-1/2 in)',
+  'Casing — 20.00 lb/ft (5-1/2 in)',
+  'Casing — 23.00 lb/ft (7 in)',
+  'Casing — 26.00 lb/ft (7 in)',
+  'Casing — 29.00 lb/ft (7 in)',
+  'Casing — 36.00 lb/ft (9-5/8 in)',
+  'Casing — 40.00 lb/ft (9-5/8 in)',
+  'Casing — 54.50 lb/ft (13-3/8 in)',
+];
+
+const pipeGradeOptions = <String>[
+  'Not sure — buyer can verify',
+  'J-55 (API 5CT)',
+  'K-55 (API 5CT)',
+  'H-40 (API 5CT)',
+  'L-80 (API 5CT Sour Service)',
+  'N-80 (API 5CT)',
+  'C-90 / T-95 (API 5CT)',
+  'P-110 (API 5CT High Collapse)',
+  'Q-125 (API 5CT)',
+  'E-75 (API 5DP Drill Pipe)',
+  'X-95 (API 5DP Drill Pipe)',
+  'G-105 (API 5DP Drill Pipe)',
+  'S-135 (API 5DP Drill Pipe)',
+  'API 5L Grade B (Line Pipe)',
+  'API 5L X42 / X46 (Line Pipe)',
+  'API 5L X52 / X56 (Line Pipe)',
+  'API 5L X60 / X65 (Line Pipe)',
+  'API 5L X70 / X80 (Line Pipe)',
+  'ASTM A53 / A106 Seamless',
+  'Grade C / D / K (Sucker Rod)',
+  'Structural / Corral / Fence Grade',
+];
+
+const pipeConnectionOptions = <String>[
+  'Not sure — buyer can verify',
+  'Plain End / Beveled (PEB)',
+  '8rd STC (Short Round Thread)',
+  '8rd LTC (Long Round Thread)',
+  'Buttress Thread (BTC)',
+  'EUE 8rd (External Upset)',
+  'NUE 10rd (Non-Upset)',
+  'NC26 (2-3/8 IF)',
+  'NC31 (2-7/8 IF)',
+  'NC38 (3-1/2 IF)',
+  'NC40 (4 FH)',
+  'NC46 (4 IF / 4-1/2 XH)',
+  'NC50 (4-1/2 IF)',
+  '5-1/2 FH / 6-5/8 Reg',
+  'XT39 / DS38 / High-Torque',
+  'Premium Gas-Tight Connection',
+  'Flush Joint / Line Pipe T&C',
+  'Victaulic / Grooved / Flanged',
+];
+
+const pipeLengthRangeOptions = <String>[
+  'Not sure / mixed lengths',
+  'Range 1 (18–22 ft / ~6 m)',
+  'Range 2 (27–31 ft / ~9.5 m)',
+  'Range 3 (38–45 ft / ~12.5 m)',
+  '20 ft joints',
+  '24 ft joints',
+  '30–32 ft joints',
+  '40 ft joints',
+  '25 ft (Sucker Rod)',
+  '30 ft (Sucker Rod)',
+  'Cut to length / custom',
+];
+
 const equipmentBrandModels = <String, List<String>>{
   'Caterpillar': ['301.8', '305 CR', '320', '336', '950 GC', '966', 'D6', 'D8'],
   'Komatsu': ['PC55MR-5', 'PC210LC-11', 'PC360LC-11', 'WA270-8', 'D65EX-18'],
@@ -445,12 +530,36 @@ const equipmentBrandModels = <String, List<String>>{
   'JCB': ['3CX', '4CX', '220X', '540-170', '270T'],
   'Bobcat': ['E35', 'E60', 'S650', 'T76', 'TL619'],
   'Case': ['580SV', 'CX210D', '621G', 'TV450B'],
+  'Kubota': ['KX040-4', 'KX080-4', 'SVL75-3', 'SVL97-2', 'RTV-X1100C'],
+  'Kenworth': ['T800', 'T880', 'W900', 'W990', 'C500'],
+  'Peterbilt': ['367', '379', '389', '567', '589'],
+  'Western Star': ['4700', '4800', '4900', '49X', '6900XD'],
+  'Mack': ['Granite', 'Pinnacle', 'Anthem', 'Titan'],
+  'Freightliner': ['Coronado', 'Cascadia', '114SD', '122SD'],
+  'Trail King': ['TK70', 'TK110 HDG', 'TK120', 'Tri-Axle Lowboy'],
+  'Fontaine': [
+    'Magnitude 55',
+    'Magnitude 60',
+    'Revolution Flatbed',
+    'Workhorse Step Deck'
+  ],
   'Sullair': ['185 Series', '375 Series', '900H'],
   'Atlas Copco': ['XAS 188', 'XAS 400', 'QAS 45', 'QAS 150'],
   'Lincoln Electric': ['Ranger 250', 'Vantage 322', 'Air Vantage 600'],
   'Miller': ['Bobcat 265', 'Trailblazer 330', 'Big Blue 600'],
   'National Oilwell Varco': ['TDS-11SA', '14-P-220', 'FD-1600'],
   'Weatherford': ['MPD Package', 'Wellhead System', 'Rod Pump'],
+  'Gardner Denver': ['PZ-9', 'PZ-11', 'PAH 275', 'TEE Triplex'],
+  'SPM / Weir': ['TWS 600S', 'TWS 2250', 'QWS 2500'],
+  'Ariel': ['JGK/4', 'JGT/4', 'JGA/2', 'KBZ/6'],
+  'Cameron / SLB': [
+    'Type U BOP',
+    '10K Wellhead',
+    'FC Gate Valve',
+    'Choke Manifold'
+  ],
+  'Grove / Manitowoc': ['RT540E', 'RT765E-2', 'RT890E', 'GMK5250L'],
+  'Genie / JLG': ['S-65', 'S-85', 'Z-45/25', '600S', 'G10-55A'],
 };
 
 IconData marketplaceIconFor(String? value) {
@@ -2679,7 +2788,8 @@ class _BrowsePageState extends State<_BrowsePage> {
                 (item.numericPrice != null &&
                     item.numericPrice! <= _filters.maximumPrice!)))
         .toList();
-    if (normalizeMarketplaceSearchQuery(widget.search).isNotEmpty) {
+    if (normalizeMarketplaceSearchQuery(widget.search).isNotEmpty ||
+        _filters.sort != MarketplaceBrowseSort.newest) {
       results.sort((a, b) => switch (_filters.effectiveSort) {
             MarketplaceBrowseSort.newest => (b.createdAt ?? DateTime(2000))
                 .compareTo(a.createdAt ?? DateTime(2000)),
@@ -2993,6 +3103,11 @@ class _BrowsePageState extends State<_BrowsePage> {
                                 child: Text('All Marketplace listings')),
                             DropdownMenuItem(
                                 value: 'For Sale', child: Text('For sale')),
+                            DropdownMenuItem(
+                                value: 'For Rent', child: Text('For rent')),
+                            DropdownMenuItem(
+                                value: 'Request for Quote',
+                                child: Text('Request for quote')),
                             DropdownMenuItem(
                                 value: 'Wanted / Seeking',
                                 child: Text('Wanted / seeking')),
@@ -3625,9 +3740,18 @@ class _ListingDetailsState extends State<_ListingDetails> {
   Phase1FeatureFlags _features = Phase1FeatureFlags.safeDefaults;
   bool _following = false;
   bool _notifications = false;
+  int _selectedPhotoIndex = 0;
   String? _statusMessage;
   MarketplaceListing get listing => widget.listing;
   bool get _isWanted => listing.transactionType == 'Wanted / Seeking';
+  List<String> get _galleryPhotos {
+    final urls = marketplaceListingImageUrls(listing.details);
+    if (urls.isNotEmpty) return urls;
+    if (listing.imageUrl != null && listing.imageUrl!.trim().isNotEmpty) {
+      return [listing.imageUrl!.trim()];
+    }
+    return const <String>[];
+  }
 
   @override
   void initState() {
@@ -3727,12 +3851,12 @@ class _ListingDetailsState extends State<_ListingDetails> {
                   ])),
             const SizedBox(height: 16),
             Container(
-                height: 150,
+                height: _galleryPhotos.isEmpty ? 150 : 210,
                 width: double.infinity,
                 decoration: BoxDecoration(
                     color: const Color(0xFFEAF4FD),
                     borderRadius: BorderRadius.circular(18)),
-                child: listing.imageUrl == null
+                child: _galleryPhotos.isEmpty
                     ? Center(
                         child: IndustrialAssetIcon(
                             label: listing.title,
@@ -3755,11 +3879,53 @@ class _ListingDetailsState extends State<_ListingDetails> {
                                 Icon(listing.icon, size: 90, color: _orange)))
                     : ClipRRect(
                         borderRadius: BorderRadius.circular(18),
-                        child: Image.network(listing.imageUrl!,
+                        child: Image.network(
+                            _galleryPhotos[_selectedPhotoIndex.clamp(0, _galleryPhotos.length - 1)],
                             width: double.infinity,
-                            height: 150,
+                            height: 210,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Center(child: Icon(listing.icon, size: 90, color: _orange))))),
+            if (_galleryPhotos.length > 1) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 64,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _galleryPhotos.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final selected = index ==
+                        _selectedPhotoIndex.clamp(0, _galleryPhotos.length - 1);
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedPhotoIndex = index),
+                      child: Container(
+                        width: 78,
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: selected ? _orange : const Color(0xFFD8E0E9),
+                            width: selected ? 2.5 : 1,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(7),
+                          child: Image.network(
+                            _galleryPhotos[index],
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => ColoredBox(
+                              color: const Color(0xFFEAF4FD),
+                              child:
+                                  Icon(listing.icon, size: 22, color: _orange),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             Text(listing.category.toUpperCase(),
                 style: const TextStyle(
@@ -3951,6 +4117,12 @@ class _ListingDetailsState extends State<_ListingDetails> {
   bool get _hasStructuredDetails {
     const fields = [
       'productType',
+      'pipeSize',
+      'pipeSchedule',
+      'pipeGrade',
+      'pipeConnection',
+      'pipeLengthRange',
+      'pipeBand',
       'brand',
       'model',
       'modelYear',
@@ -3986,6 +4158,14 @@ class _ListingDetailsState extends State<_ListingDetails> {
     }
 
     addRow('Product type', details['productType'], Icons.inventory_2_outlined);
+    addRow('Pipe size', details['pipeSize'], Icons.straighten);
+    addRow('Wall / weight', details['pipeSchedule'], Icons.layers_outlined);
+    addRow('Steel grade', details['pipeGrade'], Icons.shield_outlined);
+    addRow(
+        'Thread / connection', details['pipeConnection'], Icons.link_outlined);
+    addRow('Length / range', details['pipeLengthRange'],
+        Icons.linear_scale_outlined);
+    addRow('Pipe band', details['pipeBand'], Icons.color_lens_outlined);
     final brand = '${details['brand'] ?? ''}'.trim();
     final model = '${details['model'] ?? ''}'.trim();
     if (brand.isNotEmpty || model.isNotEmpty) {
@@ -4660,6 +4840,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   final _attachments = TextEditingController();
   final _customProductType = TextEditingController();
   final _customPipeSize = TextEditingController();
+  final _customPipeSchedule = TextEditingController();
+  final _customPipeGrade = TextEditingController();
+  final _customPipeConnection = TextEditingController();
   final _customPipeBand = TextEditingController();
   final _reservePrice = TextEditingController();
   final _buyItNowPrice = TextEditingController();
@@ -4677,6 +4860,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   String? _category;
   String? _productType;
   String? _pipeSize;
+  String? _pipeSchedule;
+  String? _pipeGrade;
+  String? _pipeConnection;
+  String? _pipeLengthRange;
   String? _condition;
   String? _equipmentBrand;
   String? _equipmentModel;
@@ -4748,16 +4935,17 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   }
 
   void _setPlacement(String placement) {
-    if (placement == 'Auction' && !widget.auctionsEnabled) {
+    final normalized = placement == 'Timed Buying' ? 'Auction' : placement;
+    if (normalized == 'Auction' && !widget.auctionsEnabled) {
       _showDisabledFeature('Timed auctions');
       return;
     }
-    if (placement == 'Wanted' && !widget.wantedAdsEnabled) {
+    if (normalized == 'Wanted' && !widget.wantedAdsEnabled) {
       _showDisabledFeature('Wanted ads');
       return;
     }
     setState(() {
-      switch (placement) {
+      switch (normalized) {
         case 'Auction':
           _listingType = 'Auction';
           _auctionStartAt ??= DateTime.now().add(const Duration(minutes: 10));
@@ -4812,60 +5000,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           Text('Listing as ${user.email ?? 'your marketplace account'}',
               style: const TextStyle(color: _muted)),
         ])),
-        const SizedBox(width: 10),
-        PopupMenuButton<String>(
-          tooltip: 'Choose where this listing appears',
-          onSelected: _setPlacement,
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-                value: 'Marketplace',
-                child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.storefront_outlined),
-                    title: Text('Marketplace'),
-                    subtitle: Text('Sell, rent, or request a quote'))),
-            if (widget.auctionsEnabled)
-              const PopupMenuItem(
-                  value: 'Auction',
-                  child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.gavel_outlined),
-                      title: Text('Timed auction'),
-                      subtitle: Text('Accept bids for a set time'))),
-            if (widget.wantedAdsEnabled)
-              const PopupMenuItem(
-                  value: 'Wanted',
-                  child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.campaign_outlined),
-                      title: Text('Wanted ad'),
-                      subtitle: Text('Ask suppliers for an item'))),
-          ],
-          child: Container(
-              constraints: const BoxConstraints(minHeight: 54, minWidth: 132),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .09),
-                  border: Border.all(color: accent, width: 1.4),
-                  borderRadius: BorderRadius.circular(14)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(icon, color: accent),
-                const SizedBox(width: 8),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('LISTING TYPE',
-                      style: TextStyle(
-                          color: _muted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800)),
-                  Text(_placement,
-                      style: TextStyle(
-                          color: accent, fontWeight: FontWeight.w900)),
-                ]),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down, color: accent)
-              ])),
-        )
       ]),
+      const SizedBox(height: 12),
+      MarketplaceListingPlacementSelector(
+        selected: _isAuction ? 'Timed Buying' : _placement,
+        onChanged: _setPlacement,
+        timedBuyingEnabled: widget.auctionsEnabled,
+        wantedEnabled: widget.wantedAdsEnabled,
+      ),
       const SizedBox(height: 12),
       Container(
           width: double.infinity,
@@ -4920,6 +5062,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     _attachments.dispose();
     _customProductType.dispose();
     _customPipeSize.dispose();
+    _customPipeSchedule.dispose();
+    _customPipeGrade.dispose();
+    _customPipeConnection.dispose();
     _customPipeBand.dispose();
     _reservePrice.dispose();
     _buyItNowPrice.dispose();
@@ -4956,7 +5101,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         }.contains(_productType);
     final isMachine = _category == 'Heavy Equipment';
     final isProperty = _isProperty;
-    final priceBasisOptions = isMachine
+    final isRental = _listingType == 'For Rent';
+    final basePriceBasisOptions = isMachine
         ? const ['Total asking price', 'Price per machine', 'Call for price']
         : isProperty
             ? const [
@@ -4978,6 +5124,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                     'Call for price'
                   ]
                 : const ['Total asking price', 'Per item', 'Call for price'];
+    final priceBasisOptions = isRental
+        ? <String>{
+            'Per day',
+            'Per week',
+            'Per month',
+            ...basePriceBasisOptions,
+          }.toList(growable: false)
+        : basePriceBasisOptions;
     final displayedPriceBasis = priceBasisOptions.contains(_priceBasis)
         ? _priceBasis
         : priceBasisOptions.first;
@@ -4992,8 +5146,16 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           key: _formKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           child: Column(children: [
+            const MarketplaceListingFormSectionHeader(
+              step: 1,
+              title: 'Category & core identity',
+              description:
+                  'Choose the item category, product type, and headline title buyers search for first.',
+              icon: Icons.category_outlined,
+            ),
             TextFormField(
               controller: _title,
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                   labelText:
                       isWanted ? 'Wanted item title *' : 'Listing title *',
@@ -5059,6 +5221,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 _category = value;
                 _productType = null;
                 _pipeSize = null;
+                _pipeSchedule = null;
+                _pipeGrade = null;
+                _pipeConnection = null;
+                _pipeLengthRange = null;
                 _condition = null;
                 _inspectionStatus = 'Not inspected / unknown';
                 _pipeBand = 'No band / unknown';
@@ -5142,6 +5308,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   : (value) => setState(() {
                         _productType = value;
                         _pipeSize = null;
+                        _pipeSchedule = null;
+                        _pipeGrade = null;
+                        _pipeConnection = null;
+                        _pipeLengthRange = null;
                         _condition = null;
                         _equipmentBrand = null;
                         _equipmentModel = null;
@@ -5187,6 +5357,18 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               ),
             ],
             const SizedBox(height: 12),
+            MarketplaceListingCategoryGuide(
+              category: _category,
+              productType: _productType,
+            ),
+            const SizedBox(height: 14),
+            const MarketplaceListingFormSectionHeader(
+              step: 2,
+              title: 'Specifications, quantity & condition',
+              description:
+                  'Select field-ready dropdown options for size, grade, make/model, inspection, and quantity.',
+              icon: Icons.tune_outlined,
+            ),
             if (isProperty) ...[
               _propertyDetailsCard(),
               const SizedBox(height: 12),
@@ -5215,9 +5397,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             else if (!isProperty)
               TextFormField(
                 controller: _brand,
-                decoration: const InputDecoration(
-                    labelText: 'Brand or manufacturer',
-                    prefixIcon: Icon(Icons.factory_outlined)),
+                decoration: InputDecoration(
+                    labelText: isPipe
+                        ? 'Mill or manufacturer (optional)'
+                        : 'Brand or manufacturer',
+                    hintText: isPipe
+                        ? 'Example: Tenaris, Evraz, Algoma, Vallourec'
+                        : null,
+                    prefixIcon: const Icon(Icons.factory_outlined)),
               ),
             if (isMachine && _equipmentBrand == _otherCatalogValue) ...[
               const SizedBox(height: 12),
@@ -5238,7 +5425,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 initialValue: _pipeSize,
                 isExpanded: true,
                 decoration: const InputDecoration(
-                    labelText: 'Pipe size *',
+                    labelText: 'Pipe size (OD / nominal) *',
                     prefixIcon: Icon(Icons.straighten)),
                 items: ((_productType == 'Sucker Rod'
                             ? suckerRodSizes
@@ -5306,6 +5493,107 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                         (value == null || value.trim().isEmpty)
                     ? 'Enter the pipe size'
                     : null,
+              ),
+            ],
+            if (isPipe) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _pipeSchedule,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                    labelText: 'Pipe type, wall or weight',
+                    helperText:
+                        'Wall thickness, Schedule, or OCTG weight (lb/ft)',
+                    prefixIcon: Icon(Icons.layers_outlined)),
+                items: pipeWallAndScheduleOptions
+                    .followedBy(const [_otherCatalogValue])
+                    .map((option) =>
+                        DropdownMenuItem(value: option, child: Text(option)))
+                    .toList(),
+                onChanged: (value) => setState(() => _pipeSchedule = value),
+              ),
+              if (_pipeSchedule == _otherCatalogValue) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _customPipeSchedule,
+                  decoration: const InputDecoration(
+                      labelText: 'Enter wall thickness, weight or schedule *',
+                      hintText: 'Example: 0.375 in wall, 17.0 lb/ft, Sch 120',
+                      prefixIcon: Icon(Icons.edit_outlined)),
+                  validator: (value) => _pipeSchedule == _otherCatalogValue &&
+                          (value == null || value.trim().isEmpty)
+                      ? 'Enter the wall, weight or schedule'
+                      : null,
+                ),
+              ],
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _pipeGrade,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                    labelText: 'Steel grade / API spec',
+                    prefixIcon: Icon(Icons.shield_outlined)),
+                items: pipeGradeOptions
+                    .followedBy(const [_otherCatalogValue])
+                    .map((option) =>
+                        DropdownMenuItem(value: option, child: Text(option)))
+                    .toList(),
+                onChanged: (value) => setState(() => _pipeGrade = value),
+              ),
+              if (_pipeGrade == _otherCatalogValue) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _customPipeGrade,
+                  decoration: const InputDecoration(
+                      labelText: 'Enter steel grade *',
+                      hintText: 'Example: P110EC, Q125, CSA Z245.1 Gr 483',
+                      prefixIcon: Icon(Icons.edit_outlined)),
+                  validator: (value) => _pipeGrade == _otherCatalogValue &&
+                          (value == null || value.trim().isEmpty)
+                      ? 'Enter the steel grade'
+                      : null,
+                ),
+              ],
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _pipeConnection,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                    labelText: 'Thread / end connection',
+                    prefixIcon: Icon(Icons.link_outlined)),
+                items: pipeConnectionOptions
+                    .followedBy(const [_otherCatalogValue])
+                    .map((option) =>
+                        DropdownMenuItem(value: option, child: Text(option)))
+                    .toList(),
+                onChanged: (value) => setState(() => _pipeConnection = value),
+              ),
+              if (_pipeConnection == _otherCatalogValue) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _customPipeConnection,
+                  decoration: const InputDecoration(
+                      labelText: 'Enter thread or connection *',
+                      hintText: 'Example: VAM Top, Tenaris Blue, Hydril CS',
+                      prefixIcon: Icon(Icons.edit_outlined)),
+                  validator: (value) => _pipeConnection == _otherCatalogValue &&
+                          (value == null || value.trim().isEmpty)
+                      ? 'Enter the thread or connection'
+                      : null,
+                ),
+              ],
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _pipeLengthRange,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                    labelText: 'Joint length / API Range',
+                    prefixIcon: Icon(Icons.linear_scale_outlined)),
+                items: pipeLengthRangeOptions
+                    .map((option) =>
+                        DropdownMenuItem(value: option, child: Text(option)))
+                    .toList(),
+                onChanged: (value) => setState(() => _pipeLengthRange = value),
               ),
             ],
             const SizedBox(height: 12),
@@ -5586,7 +5874,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   hintText: 'Inspector, date, report number, wall loss or test',
                   prefixIcon: Icon(Icons.description_outlined)),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            const MarketplaceListingFormSectionHeader(
+              step: 3,
+              title: 'Pricing, terms & description',
+              description:
+                  'Set the transaction type, asking price or rental rate, and detailed item notes.',
+              icon: Icons.payments_outlined,
+            ),
             if (!_isAuction && !isWanted)
               DropdownButtonFormField<String>(
                 initialValue: _listingType,
@@ -5611,8 +5906,17 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                         child: MarketplaceFormOption(
                             label: type, icon: _listingTypeIcon(type))))
                     .toList(),
-                onChanged: (value) =>
-                    setState(() => _listingType = value ?? 'For Sale'),
+                onChanged: (value) => setState(() {
+                  _listingType = value ?? 'For Sale';
+                  if (_listingType == 'For Rent' &&
+                      !const {'Per day', 'Per week', 'Per month'}
+                          .contains(_priceBasis)) {
+                    _priceBasis = 'Per day';
+                  } else if (_listingType == 'Request for Quote') {
+                    _priceBasis = 'Call for price';
+                    _price.clear();
+                  }
+                }),
               )
             else if (_isAuction)
               _auctionSetupCard(),
@@ -5620,6 +5924,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _price,
+              onChanged: (_) => setState(() {}),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: const [MarketplaceMoneyInputFormatter()],
@@ -5704,6 +6009,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _description,
+              onChanged: (_) => setState(() {}),
               minLines: 4,
               maxLines: 7,
               decoration: InputDecoration(
@@ -5718,7 +6024,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                       : 'Add a description'
                   : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            const MarketplaceListingFormSectionHeader(
+              step: 4,
+              title: 'Location, media & publish readiness',
+              description:
+                  'Choose location privacy, attach photos or walk-around video, and review readiness.',
+              icon: Icons.add_location_alt_outlined,
+            ),
             OutlinedButton.icon(
               onPressed: _chooseLocation,
               icon: const Icon(Icons.add_location_alt_outlined),
@@ -5935,6 +6248,41 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 ),
               ),
             ],
+            const SizedBox(height: 14),
+            MarketplaceListingPublishChecklist(
+              destinationLabel: _isAuction
+                  ? 'Timed Buying'
+                  : isWanted
+                      ? 'Wanted Ad'
+                      : 'Marketplace',
+              items: [
+                MarketplaceListingChecklistItem(
+                  label: 'Title & category',
+                  complete: _title.text.trim().isNotEmpty &&
+                      _category != null &&
+                      _productType != null,
+                ),
+                MarketplaceListingChecklistItem(
+                  label: 'Specs & condition',
+                  complete: _condition != null &&
+                      (isProperty || _quantity.text.trim().isNotEmpty) &&
+                      (!isPipe || _pipeSize != null) &&
+                      (!isMachine ||
+                          (_equipmentBrand != null &&
+                              _equipmentModel != null &&
+                              _equipmentYear != null)),
+                ),
+                MarketplaceListingChecklistItem(
+                  label: 'Pricing & description',
+                  complete: _description.text.trim().isNotEmpty &&
+                      (!_isAuction || _price.text.trim().isNotEmpty),
+                ),
+                MarketplaceListingChecklistItem(
+                  label: 'Location & privacy',
+                  complete: _location != null,
+                ),
+              ],
+            ),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: _publishing ? null : _publish,
@@ -6558,14 +6906,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       final isAdmin = await marketplaceAdministratorAccess();
       if (!mounted) return;
       if (!isAdmin &&
-          (score <= 80 ||
+          (score < 80 ||
               completion != 100 ||
               data['accountVerified'] != true ||
               (data['accountVerificationReviewVersion'] as num? ?? 0) < 1)) {
         PipeFeedback.show(
           context,
           message:
-              'Auction listings require a User Score above 80, 100% profile completion, and verified account status.',
+              'Auction listings require a User Score of 80+, 100% profile completion, and verified account status.',
           tone: PipeStatusTone.warning,
         );
         return;
@@ -6646,6 +6994,22 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         'pipeSize': _pipeSize == _otherCatalogValue
             ? _customPipeSize.text.trim()
             : _pipeSize,
+        'pipeSchedule': isPipeListing
+            ? (_pipeSchedule == _otherCatalogValue
+                ? _customPipeSchedule.text.trim()
+                : _pipeSchedule)
+            : null,
+        'pipeGrade': isPipeListing
+            ? (_pipeGrade == _otherCatalogValue
+                ? _customPipeGrade.text.trim()
+                : _pipeGrade)
+            : null,
+        'pipeConnection': isPipeListing
+            ? (_pipeConnection == _otherCatalogValue
+                ? _customPipeConnection.text.trim()
+                : _pipeConnection)
+            : null,
+        'pipeLengthRange': isPipeListing ? _pipeLengthRange : null,
         'quantity':
             int.tryParse(_quantity.text.replaceAll(RegExp(r'[^0-9]'), '')),
         'quantityAndLength': _quantity.text.trim(),
@@ -6787,6 +7151,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _attachments.clear();
       _customProductType.clear();
       _customPipeSize.clear();
+      _customPipeSchedule.clear();
+      _customPipeGrade.clear();
+      _customPipeConnection.clear();
       _customPipeBand.clear();
       _reservePrice.clear();
       _buyItNowPrice.clear();
@@ -6806,6 +7173,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         _category = null;
         _productType = null;
         _pipeSize = null;
+        _pipeSchedule = null;
+        _pipeGrade = null;
+        _pipeConnection = null;
+        _pipeLengthRange = null;
         _condition = null;
         _inspectionStatus = 'Not inspected / unknown';
         _pipeBand = 'No band / unknown';

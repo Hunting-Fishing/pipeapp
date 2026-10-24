@@ -25,13 +25,16 @@ const projectId = "demo-pipe-buyer-trust-rules";
 let testEnvironment;
 
 before(async () => {
+  const [firestoreHost, firestorePort] = String(
+      process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080",
+  ).split(":");
   const rules = fs.readFileSync(
       path.join(__dirname, "..", "firestore.rules"),
       "utf8",
   );
   testEnvironment = await initializeTestEnvironment({
     projectId,
-    firestore: {rules, host: "127.0.0.1", port: 8080},
+    firestore: {rules, host: firestoreHost, port: Number(firestorePort)},
   });
 });
 

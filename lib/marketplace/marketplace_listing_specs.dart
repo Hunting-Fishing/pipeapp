@@ -82,6 +82,15 @@ List<MarketplaceListingSpec> marketplaceListingSpecs(
     );
   }
   add('Pipe size', listing['pipeSize'], Icons.straighten_outlined);
+  add('Wall / weight', listing['pipeSchedule'], Icons.line_weight_outlined);
+  add('Steel grade', listing['pipeGrade'], Icons.workspace_premium_outlined);
+  add(
+    'Thread / connection',
+    listing['pipeConnection'],
+    Icons.link_outlined,
+  );
+  add('Length / range', listing['pipeLengthRange'],
+      Icons.linear_scale_outlined);
   add('Pipe band', listing['pipeBand'], Icons.layers_outlined);
   add('Inspection', listing['inspectionStatus'], Icons.fact_check_outlined);
   add(
