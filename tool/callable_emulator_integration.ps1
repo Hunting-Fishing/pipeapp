@@ -32,10 +32,16 @@ $env:PIPE_ENFORCE_APP_CHECK = 'false'
 # discovering a Node 22 Functions entrypoint. The CLI officially supports this
 # override; keep it bounded so a genuinely broken module still fails quickly.
 $env:FUNCTIONS_DISCOVERY_TIMEOUT = '30000'
+$port8080Busy = [bool](Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue)
+$emulatorConfig = if ($port8080Busy -and (Test-Path (Join-Path $workspace 'firebase.sandbox.json'))) {
+  'firebase.sandbox.json'
+} else {
+  'firebase.json'
+}
 $arguments = @(
   'emulators:exec',
   '--project', 'demo-pipe-buyer-integration',
-  '--config', 'firebase.json',
+  '--config', $emulatorConfig,
   '--only', 'auth,firestore,functions,storage',
   'node firebase/functions/integration/callable_integration.mjs'
 )
