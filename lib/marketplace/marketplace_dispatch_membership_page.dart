@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -580,77 +581,127 @@ class MarketplacePaymentReturnPage extends StatelessWidget {
   const MarketplacePaymentReturnPage({
     super.key,
     required this.success,
+    this.flow,
+    this.requestId,
+    this.transactionId,
   });
 
   final bool success;
+  final String? flow;
+  final String? requestId;
+  final String? transactionId;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-            title: Text(success ? 'Payment submitted' : 'Payment cancelled')),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        success
-                            ? Icons.verified_outlined
-                            : Icons.cancel_outlined,
-                        size: 54,
-                        color: success
-                            ? PipeBuyerColors.success
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context) {
+    final normalizedFlow = (flow ?? '').trim().toLowerCase();
+    final isDirectory = normalizedFlow == 'yellow_pages';
+    final isMarketplace =
+        normalizedFlow == 'marketplace' || normalizedFlow == 'external_fee';
+    final isVip = normalizedFlow == 'vip';
+
+    final String bodyText;
+    if (isDirectory) {
+      bodyText = success
+          ? 'Your Oilfield Directory priority subscription has been submitted to Stripe${requestId != null && requestId!.isNotEmpty ? " (Ref #$requestId)" : ""}. Once Stripe confirms your payment via signed server webhook and our directory team verifies your listing, your priority placement activates automatically.'
+          : 'Checkout was cancelled before payment completed. Your Oilfield Directory listing request remains saved, and you can resume payment anytime.';
+    } else if (isMarketplace) {
+      bodyText = success
+          ? 'Stripe received your marketplace payment submission${transactionId != null && transactionId!.isNotEmpty ? " (Tx #$transactionId)" : ""}. Pipe Buyer updates transaction settlement status as soon as the signed Stripe webhook confirms payment.'
+          : 'Checkout was cancelled and your card was not charged. You can return to your marketplace transaction whenever you are ready.';
+    } else if (isVip) {
+      bodyText = success
+          ? 'Stripe received your Pipe Buyer VIP checkout submission. VIP access activates automatically once the signed Stripe webhook confirms your paid invoice.'
+          : 'VIP checkout was cancelled and no subscription charge was made.';
+    } else {
+      bodyText = success
+          ? 'Pipe Buyer does not grant paid access from this browser redirect. Your membership becomes active only after Stripe confirms the paid invoice through the signed server webhook.'
+          : 'Pipe Buyer does not mark a membership paid when checkout is cancelled. You can return to membership options whenever you are ready.';
+    }
+
+    final String ctaLabel = isDirectory
+        ? 'Return to Oilfield Directory'
+        : (isMarketplace || isVip
+            ? 'Return to Pipe Buyer'
+            : 'View Dispatch membership');
+
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(success ? 'Payment submitted' : 'Payment cancelled')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      success ? Icons.verified_outlined : Icons.cancel_outlined,
+                      size: 54,
+                      color: success
+                          ? PipeBuyerColors.success
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      success
+                          ? 'Stripe received your checkout submission'
+                          : 'Checkout was cancelled',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        success
-                            ? 'Stripe received your checkout submission'
-                            : 'Checkout was cancelled',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        success
-                            ? 'Pipe Buyer does not grant paid access from this browser redirect. Your membership becomes active only after Stripe confirms the paid invoice through the signed server webhook.'
-                            : 'Pipe Buyer does not mark a membership paid when checkout is cancelled. You can return to membership options whenever you are ready.',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 18),
-                      FilledButton.icon(
-                        onPressed: () => Navigator.of(context).pushReplacement(
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      bodyText,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton.icon(
+                      onPressed: () {
+                        final router = GoRouter.maybeOf(context);
+                        if (isDirectory && router != null) {
+                          router.go('/services');
+                          return;
+                        }
+                        if ((isMarketplace || isVip) && router != null) {
+                          router.go('/');
+                          return;
+                        }
+                        Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (_) =>
                                 const MarketplaceDispatchMembershipPage(),
                           ),
-                        ),
-                        icon: const Icon(Icons.workspace_premium_outlined),
-                        label: const Text('View Dispatch membership'),
+                        );
+                      },
+                      icon: Icon(
+                        isDirectory
+                            ? Icons.menu_book_rounded
+                            : Icons.workspace_premium_outlined,
                       ),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text('Back'),
-                      ),
-                    ],
-                  ),
+                      label: Text(ctaLabel),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Back'),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _MembershipStatusCard extends StatelessWidget {

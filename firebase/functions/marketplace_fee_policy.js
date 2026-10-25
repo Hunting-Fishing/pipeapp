@@ -9,6 +9,10 @@ class MarketplaceFeePolicyError extends Error {
 }
 
 const BASIS_POINTS = 10000;
+const {
+  fromStripeMinorUnits,
+  toStripeMinorUnits,
+} = require("./global_payment_policy");
 
 // Launch fee schedule. Every transaction stores the revision and computed
 // snapshot so later pricing changes never rewrite an already-agreed fee.
@@ -17,12 +21,120 @@ const launchMarketplaceFeeSchedule = Object.freeze({
   payer: "seller",
   affiliateShareBps: 2000,
   pipe: Object.freeze({
-    unitFeeMinorByCurrency: Object.freeze({CAD: 100, USD: 100}),
-    minimumFeeMinorByCurrency: Object.freeze({CAD: 2500, USD: 2500}),
-    maximumFeeMinorByCurrency: Object.freeze({CAD: 500000, USD: 500000}),
+    unitFeeMinorByCurrency: Object.freeze({
+      CAD: 100,
+      USD: 100,
+      EUR: 100,
+      GBP: 100,
+      AUD: 150,
+      NZD: 150,
+      CHF: 100,
+      NOK: 1000,
+      SEK: 1000,
+      DKK: 700,
+      PLN: 400,
+      RON: 450,
+      AED: 370,
+      SAR: 375,
+      QAR: 365,
+      BRL: 500,
+      MXN: 1800,
+      SGD: 135,
+      HKD: 780,
+      ZAR: 1800,
+      INR: 8500,
+      JPY: 150,
+      KRW: 1350,
+      KWD: 310,
+      BHD: 380,
+      OMR: 390,
+    }),
+    minimumFeeMinorByCurrency: Object.freeze({
+      CAD: 2500,
+      USD: 2500,
+      EUR: 2500,
+      GBP: 2000,
+      AUD: 3500,
+      NZD: 4000,
+      CHF: 2200,
+      NOK: 25000,
+      SEK: 25000,
+      DKK: 17500,
+      PLN: 10000,
+      RON: 11500,
+      AED: 9200,
+      SAR: 9400,
+      QAR: 9100,
+      BRL: 12500,
+      MXN: 45000,
+      SGD: 3400,
+      HKD: 19500,
+      ZAR: 45000,
+      INR: 210000,
+      JPY: 3750,
+      KRW: 34000,
+      KWD: 7750,
+      BHD: 9500,
+      OMR: 9600,
+    }),
+    maximumFeeMinorByCurrency: Object.freeze({
+      CAD: 500000,
+      USD: 500000,
+      EUR: 500000,
+      GBP: 400000,
+      AUD: 700000,
+      NZD: 800000,
+      CHF: 440000,
+      NOK: 5000000,
+      SEK: 5000000,
+      DKK: 3500000,
+      PLN: 2000000,
+      RON: 2300000,
+      AED: 1840000,
+      SAR: 1875000,
+      QAR: 1820000,
+      BRL: 2500000,
+      MXN: 9000000,
+      SGD: 680000,
+      HKD: 3900000,
+      ZAR: 9000000,
+      INR: 42000000,
+      JPY: 750000,
+      KRW: 6800000,
+      KWD: 1550000,
+      BHD: 1900000,
+      OMR: 1925000,
+    }),
   }),
   equipment: Object.freeze({
-    minimumFeeMinorByCurrency: Object.freeze({CAD: 2500, USD: 2500}),
+    minimumFeeMinorByCurrency: Object.freeze({
+      CAD: 2500,
+      USD: 2500,
+      EUR: 2500,
+      GBP: 2000,
+      AUD: 3500,
+      NZD: 4000,
+      CHF: 2200,
+      NOK: 25000,
+      SEK: 25000,
+      DKK: 17500,
+      PLN: 10000,
+      RON: 11500,
+      AED: 9200,
+      SAR: 9400,
+      QAR: 9100,
+      BRL: 12500,
+      MXN: 45000,
+      SGD: 3400,
+      HKD: 19500,
+      ZAR: 45000,
+      INR: 210000,
+      JPY: 3750,
+      KRW: 34000,
+      KWD: 7750,
+      BHD: 9500,
+      OMR: 9600,
+    }),
     tiers: Object.freeze([
       Object.freeze({upToExclusiveMinor: 1000000, feeBps: 500}),
       Object.freeze({upToExclusiveMinor: 5000000, feeBps: 300}),
@@ -36,16 +148,16 @@ function invalid(message) {
   throw new MarketplaceFeePolicyError("invalid-argument", message);
 }
 
-function toMinorUnits(amount) {
+function toMinorUnits(amount, currency = "CAD") {
   const numeric = Number(amount);
   if (!Number.isFinite(numeric) || numeric < 0 || numeric > 1e12) {
     invalid("The transaction amount is invalid.");
   }
-  return Math.round((numeric + Number.EPSILON) * 100);
+  return toStripeMinorUnits(numeric, currency);
 }
 
-function fromMinorUnits(amountMinor) {
-  return Number((Number(amountMinor || 0) / 100).toFixed(2));
+function fromMinorUnits(amountMinor, currency = "CAD") {
+  return fromStripeMinorUnits(amountMinor, currency);
 }
 
 function normalizeCurrency(value) {
@@ -165,7 +277,7 @@ function calculateMarketplaceFeeSnapshot({
   schedule = launchMarketplaceFeeSchedule,
 }) {
   const normalizedCurrency = normalizeCurrency(currency);
-  const agreedTotalMinor = toMinorUnits(agreedTotal);
+  const agreedTotalMinor = toMinorUnits(agreedTotal, normalizedCurrency);
   if (agreedTotalMinor <= 0) invalid("The agreed total must be greater than zero.");
   const feeClass = inferMarketplaceFeeClass(listing);
   const calculation = feeClass === "pipe" ?
@@ -195,10 +307,13 @@ function calculateMarketplaceFeeSnapshot({
     currency: normalizedCurrency,
     agreedTotalMinor,
     marketplaceFeeMinor,
-    marketplaceFee: fromMinorUnits(marketplaceFeeMinor),
+    marketplaceFee: fromMinorUnits(marketplaceFeeMinor, normalizedCurrency),
     affiliateShareBps: Number(schedule.affiliateShareBps || 0),
     affiliateCommissionMinor,
-    affiliateCommission: fromMinorUnits(affiliateCommissionMinor),
+    affiliateCommission: fromMinorUnits(
+        affiliateCommissionMinor,
+        normalizedCurrency,
+    ),
     sellerProceedsBeforeTaxMinor: Math.max(0, agreedTotalMinor - marketplaceFeeMinor),
     ...calculation,
   });

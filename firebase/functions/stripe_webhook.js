@@ -9,6 +9,12 @@ const {
 const {
   createVipSubscriptionMonetization,
 } = require("./vip_subscription_monetization");
+const {
+  extractCheckoutSettlementAmounts,
+} = require("./global_payment_policy");
+const {
+  createYellowPagesBilling,
+} = require("./yellow_pages_billing");
 
 const STRIPE_WEBHOOK_SECRET_NAME = "STRIPE_WEBHOOK_SECRET";
 const stripeWebhookSecret = Object.freeze({
@@ -89,6 +95,8 @@ function createStripeWebhookHandler(admin, options = {}) {
       admin,
       stripeMarketplaceConfig,
   );
+  const yellowPagesBilling = options.yellowPagesBilling ||
+    createYellowPagesBilling(admin, stripeMarketplaceConfig);
 
   function affiliateEligibleAfter() {
     return Timestamp.fromMillis(
@@ -132,6 +140,10 @@ function createStripeWebhookHandler(admin, options = {}) {
           }, {merge: true});
       return;
     }
+    if (billingType(session) === "yellow_pages_subscription") {
+      await yellowPagesBilling.handleYellowPagesCheckoutFailed(session);
+      return;
+    }
     const transactionId = String(
         session && session.metadata &&
         session.metadata.pipeBuyerTransactionId || "",
@@ -170,10 +182,9 @@ function createStripeWebhookHandler(admin, options = {}) {
     if (sale.marketplaceFeeStatus === "collected") return;
     const fee = sale.marketplaceFeeSnapshot || {};
     const expectedFeeMinor = Number(fee.marketplaceFeeMinor);
-    const subtotalMinor = Number(session.amount_subtotal || 0);
-    const taxCollectedMinor = Number(
-        session.total_details && session.total_details.amount_tax || 0,
-    );
+    const amounts = extractCheckoutSettlementAmounts(session);
+    const subtotalMinor = amounts.settlementSubtotalMinor;
+    const taxCollectedMinor = amounts.settlementTaxMinor;
     if (!Number.isSafeInteger(expectedFeeMinor) || expectedFeeMinor <= 0 ||
         subtotalMinor !== expectedFeeMinor) {
       throw new Error(
@@ -204,7 +215,12 @@ function createStripeWebhookHandler(admin, options = {}) {
       stripeMarketplaceFeeChargeId: chargeId,
       platformMarketplaceFeeMinor: expectedFeeMinor,
       marketplaceFeeTaxCollectedMinor: taxCollectedMinor,
-      marketplaceFeeBuyerChargedMinor: Number(session.amount_total || 0),
+      marketplaceFeeBuyerChargedMinor: amounts.settlementTotalMinor,
+      ...(amounts.adaptivePricingApplied ? {
+        marketplaceFeePresentmentCurrency: amounts.presentmentCurrency,
+        marketplaceFeePresentmentTotalMinor: amounts.presentmentTotalMinor,
+        marketplaceFeeAdaptiveFxRate: amounts.fxRate,
+      } : {}),
       marketplaceFeeCollectedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
@@ -244,6 +260,10 @@ function createStripeWebhookHandler(admin, options = {}) {
           }, {merge: true});
       return;
     }
+    if (billingType(session) === "yellow_pages_subscription") {
+      await yellowPagesBilling.handleYellowPagesCheckoutCompleted(session);
+      return;
+    }
     const transactionId = String(
         session && session.metadata &&
         session.metadata.pipeBuyerTransactionId || "",
@@ -264,7 +284,8 @@ function createStripeWebhookHandler(admin, options = {}) {
         !Number.isSafeInteger(sellerProceedsMinor) || sellerProceedsMinor < 0) {
       throw new Error("The immutable Pipe Buyer fee snapshot is unavailable.");
     }
-    const saleSubtotalMinor = Number(session.amount_subtotal || 0);
+    const saleAmounts = extractCheckoutSettlementAmounts(session);
+    const saleSubtotalMinor = saleAmounts.settlementSubtotalMinor;
     if (saleSubtotalMinor !== Number(fee.agreedTotalMinor)) {
       throw new Error(
           "Stripe sale checkout does not match the immutable sale snapshot.",
@@ -292,10 +313,8 @@ function createStripeWebhookHandler(admin, options = {}) {
         `PB_${transactionId}`,
     ).slice(0, 200);
 
-    const amountTotal = Number(session.amount_total || 0);
-    const taxCollectedMinor = Number(
-        session.total_details && session.total_details.amount_tax || 0,
-    );
+    const amountTotal = saleAmounts.settlementTotalMinor;
+    const taxCollectedMinor = saleAmounts.settlementTaxMinor;
     const affiliateLedgerRef = db.collection("affiliate_commission_ledger")
         .doc(`marketplace_${transactionId}`);
     await db.runTransaction(async (firestoreTransaction) => {
@@ -355,6 +374,10 @@ function createStripeWebhookHandler(admin, options = {}) {
           }, {merge: true});
       return;
     }
+    if (billingType(session) === "yellow_pages_subscription") {
+      await yellowPagesBilling.handleYellowPagesCheckoutCompleted(session);
+      return;
+    }
     const transactionId = String(
         session && session.metadata &&
         session.metadata.pipeBuyerTransactionId || "",
@@ -404,6 +427,7 @@ function createStripeWebhookHandler(admin, options = {}) {
           object,
           stripeSecretKey.value(),
       );
+      await yellowPagesBilling.handleYellowPagesInvoicePaid(object);
       return;
     }
     if (type === "invoice.payment_failed") {
@@ -414,6 +438,20 @@ function createStripeWebhookHandler(admin, options = {}) {
       await vipSubscriptionMonetization.handleVipInvoicePaymentFailed(
           object,
           stripeSecretKey.value(),
+      );
+      await yellowPagesBilling.handleYellowPagesInvoicePaymentFailed(object);
+      return;
+    }
+    if ([
+      "customer.subscription.created",
+      "customer.subscription.updated",
+      "customer.subscription.deleted",
+      "customer.subscription.paused",
+      "customer.subscription.resumed",
+    ].includes(type)) {
+      await yellowPagesBilling.handleYellowPagesSubscriptionLifecycle(
+          object,
+          type,
       );
       return;
     }

@@ -83,11 +83,17 @@ function normalizeTaxNumber(value, maxLength = 40) {
 
 function normalizeTaxProfileInput(data = {}) {
   const countryCode = normalizeCode(data.countryCode, 2);
-  const regionCode = normalizeCode(data.regionCode, 12);
-  const sellerNormalGstHstRegistered = cleanText(
+  const rawRegionCode = normalizeCode(data.regionCode, 12);
+  const regionRequired = countryCode === "CA" || countryCode === "US";
+  const regionCode = rawRegionCode || (regionRequired ? "" : "NA");
+  const rawGstStatus = cleanText(
       data.sellerNormalGstHstRegistered,
       12,
   ).toLowerCase();
+  const sellerNormalGstHstRegistered =
+    !rawGstStatus && countryCode && countryCode !== "CA" ?
+      "no" :
+      rawGstStatus;
   if (!countryCode || !regionCode) {
     throw new HttpsError(
         "invalid-argument",

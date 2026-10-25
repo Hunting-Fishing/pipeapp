@@ -1,12 +1,23 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auth_page.dart';
+import 'marketplace_subscription_billing_policy.dart';
 import 'pipebuyer_yellow_pages_client.dart';
 import 'pipebuyer_yellow_pages_taxonomy.dart';
+
+const Set<String> _kSanctionedStripeCountries = <String>{
+  'BY',
+  'CU',
+  'IR',
+  'KP',
+  'RU',
+  'SY',
+};
 
 class PipeBuyerListServicesPage extends StatefulWidget {
   const PipeBuyerListServicesPage({
@@ -59,6 +70,13 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
 
   bool _submitting = false;
   String? _submittedRequestId;
+  String? _checkoutUrl;
+
+  bool get _isSanctionedCountry =>
+      _kSanctionedStripeCountries.contains(_countryCode.trim().toUpperCase());
+
+  String get _currencyPrefix =>
+      _countryCode.trim().toUpperCase() == 'CA' ? 'CA\$' : 'US\$';
 
   @override
   void initState() {
@@ -70,8 +88,13 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
     _selectedTier = widget.initialTier;
     _countryCode =
         widget.initialCountryCode.isNotEmpty ? widget.initialCountryCode : 'CA';
-    _regionCode =
-        widget.initialRegionCode.isNotEmpty ? widget.initialRegionCode : 'AB';
+    final countryRegions =
+        PipeBuyerYellowPagesTaxonomy.regionsForCountry(_countryCode);
+    _regionCode = countryRegions.isNotEmpty
+        ? (widget.initialRegionCode.isNotEmpty
+            ? widget.initialRegionCode
+            : countryRegions.first.regionCode)
+        : (widget.initialCountryCode == 'CA' ? '' : widget.initialRegionCode);
     _customRegionController.text = _regionCode;
 
     final user = FirebaseAuth.instance.currentUser;
@@ -114,6 +137,15 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
       );
       return;
     }
+    if (_isSanctionedCountry && _selectedTier != 'free_verified') {
+      PipeFeedback.show(
+        context,
+        message:
+            'Paid Stripe directory plans are unavailable for this jurisdiction due to international payment sanctions. Select Basic Listing or contact compliance.',
+        tone: PipeStatusTone.error,
+      );
+      return;
+    }
 
     setState(() => _submitting = true);
     try {
@@ -122,6 +154,9 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
           .map((item) => item.trim())
           .where((item) => item.isNotEmpty)
           .toList(growable: false);
+      final billingInterval = _selectedTier == 'free_verified'
+          ? 'none'
+          : (_annualBilling ? 'yearly' : 'monthly');
 
       final result = await _client.submitServiceListingRequest(
         claimedCompanyId: widget.claimedCompanyId,
@@ -141,13 +176,48 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
         emergency24x7: _emergency24x7,
         description: _descriptionController.text.trim(),
         requestedTier: _selectedTier,
+        billingInterval: billingInterval,
       );
+
+      final requestId = result['requestId']?.toString() ?? 'submitted';
+      String? checkoutUrl;
+      if (_selectedTier != 'free_verified' &&
+          marketplaceHostedMembershipBillingAllowed() &&
+          requestId != 'submitted') {
+        try {
+          final checkout = await _client.createListingCheckout(
+            requestId: requestId,
+            requestedTier: _selectedTier,
+            billingInterval: billingInterval,
+          );
+          final url = checkout['checkoutUrl']?.toString() ?? '';
+          if (url.startsWith('https://')) {
+            checkoutUrl = url;
+          }
+        } catch (checkoutError) {
+          if (mounted) {
+            PipeFeedback.show(
+              context,
+              message:
+                  'Listing saved (#$requestId). Checkout note: ${checkoutError.toString().replaceFirst(RegExp(r'^Bad state:\s*'), '')}',
+              tone: PipeStatusTone.warning,
+            );
+          }
+        }
+      }
 
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _submittedRequestId = result['requestId']?.toString() ?? 'submitted';
+        _submittedRequestId = requestId;
+        _checkoutUrl = checkoutUrl;
       });
+      if (checkoutUrl != null) {
+        await launchUrl(
+          Uri.parse(checkoutUrl),
+          webOnlyWindowName: '_self',
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -161,7 +231,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final regions = PipeBuyerYellowPagesTaxonomy.regionsForCountry(_countryCode);
+    final regions =
+        PipeBuyerYellowPagesTaxonomy.regionsForCountry(_countryCode);
     final validRegionCodes = regions.map((r) => r.regionCode).toSet();
     final activeRegion = validRegionCodes.contains(_regionCode)
         ? _regionCode
@@ -171,19 +242,20 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: !Navigator.of(context).canPop() &&
-                GoRouter.maybeOf(context) != null
-            ? IconButton(
-                tooltip: 'Back to Search Services',
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => GoRouter.of(context).go('/services'),
-              )
-            : null,
+        leading:
+            !Navigator.of(context).canPop() && GoRouter.maybeOf(context) != null
+                ? IconButton(
+                    tooltip: 'Back to Search Services',
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    onPressed: () => GoRouter.of(context).go('/services'),
+                  )
+                : null,
         title: Text(
           isCompactScreen
               ? 'LIST SERVICES'
               : 'LIST SERVICES — OILFIELD DIRECTORY',
-          style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5),
+          style:
+              const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5),
         ),
       ),
       body: Center(
@@ -193,7 +265,14 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
               ? _SuccessConfirmation(
                   requestId: _submittedRequestId!,
                   tier: _selectedTier,
-                  onDone: () => Navigator.of(context).pop(true),
+                  checkoutUrl: _checkoutUrl,
+                  onDone: () {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop(true);
+                    } else if (GoRouter.maybeOf(context) != null) {
+                      GoRouter.of(context).go('/services');
+                    }
+                  },
                 )
               : ListView(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 40),
@@ -240,7 +319,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                           const SizedBox(height: 8),
                           const Text(
                             'Paid Priority listings rank above all basic directory records across Search for Services and Dispatch discovery worldwide, with clickable website/email links, safety badges (COR, ISNetworld, API, ISO), and direct RFQ routing.',
-                            style: TextStyle(color: Colors.white70, height: 1.4),
+                            style:
+                                TextStyle(color: Colors.white70, height: 1.4),
                           ),
                         ],
                       ),
@@ -288,10 +368,10 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                             badge: 'MOST POPULAR • BEST VALUE',
                             title: 'Verified Pro',
                             priceLabel: _annualBilling
-                                ? r'$24 / mo ($288/yr)'
-                                : r'$29 / mo',
+                                ? '${_currencyPrefix}24 / mo (${_currencyPrefix}288/yr)'
+                                : '${_currencyPrefix}29 / mo',
                             subtitle:
-                                'Ranked above 100% of free listings with full clickable profile & RFQ leads.',
+                                'Ranked above 100% of free listings with full clickable profile & RFQ leads. Local currency available at Stripe Checkout.',
                             perks: const [
                               'Priority Rank #2 — above all unpaid basic records',
                               'Blue VERIFIED PRO + 24/7 Emergency Callout badges',
@@ -308,14 +388,14 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                             badge: 'TOP SPOTLIGHT • RANK #1',
                             title: 'Featured Partner',
                             priceLabel: _annualBilling
-                                ? r'$65 / mo ($780/yr)'
-                                : r'$79 / mo',
+                                ? '${_currencyPrefix}65 / mo (${_currencyPrefix}780/yr)'
+                                : '${_currencyPrefix}79 / mo',
                             subtitle:
-                                'Pinned #1 at the top of service, town & basin searches across Dispatch & the Oilfield Directory.',
+                                'Pinned #1 at the top of service, town & basin searches across Dispatch & the Oilfield Directory worldwide.',
                             perks: const [
                               'Pinned #1 top spotlight above standard & Pro results',
                               'Gold FEATURED PARTNER card highlight & founding rate lock',
-                              'Unlimited categories & multi-basin Canada + USA reach',
+                              'Unlimited categories & multi-basin global reach (190+ countries)',
                               'Direct Website, Email, Toll-Free & priority RFQ routing',
                               'Full safety badges: COR, ISNetworld, ComplyWorks, ABSA, API',
                             ],
@@ -328,7 +408,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                             selected: _selectedTier == 'free_verified',
                             badge: 'BASIC • PHONE ONLY',
                             title: 'Submit Basic Listing',
-                            priceLabel: r'$0 / mo',
+                            priceLabel: '${_currencyPrefix}0 / mo',
                             subtitle:
                                 'Submit a new business phone & town for directory verification below paid members.',
                             perks: const [
@@ -345,7 +425,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                           return Column(
                             children: cards
                                 .map((c) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 10),
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10),
                                       child: c,
                                     ))
                                 .toList(growable: false),
@@ -386,7 +467,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                               TextFormField(
                                 controller: _companyNameController,
                                 decoration: const InputDecoration(
-                                  labelText: 'Legal or Operating Company Name *',
+                                  labelText:
+                                      'Legal or Operating Company Name *',
                                   border: OutlineInputBorder(),
                                 ),
                                 validator: (v) =>
@@ -441,14 +523,17 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                     controller: _phoneController,
                                     keyboardType: TextInputType.phone,
                                     decoration: const InputDecoration(
-                                      labelText: 'Main Dispatch / Office Phone *',
-                                      hintText: '+1 (780) 555-0199 or +44 / +971',
+                                      labelText:
+                                          'Main Dispatch / Office Phone *',
+                                      hintText:
+                                          '+1 (780) 555-0199 or +44 / +971',
                                       border: OutlineInputBorder(),
                                     ),
                                     validator: (v) {
-                                      final digits =
-                                          (v ?? '').replaceAll(RegExp(r'\D'), '');
-                                      if (digits.length < 7 || digits.length > 15) {
+                                      final digits = (v ?? '')
+                                          .replaceAll(RegExp(r'\D'), '');
+                                      if (digits.length < 7 ||
+                                          digits.length > 15) {
                                         return 'Enter a valid business phone with area or country code';
                                       }
                                       return null;
@@ -513,7 +598,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                 spacing: 6,
                                 runSpacing: 6,
                                 children: PipeBuyerYellowPagesTaxonomy
-                                    .popularCountriesForContinent('')
+                                        .popularCountriesForContinent('')
                                     .take(12)
                                     .map((c) {
                                   final selected = _countryCode == c.code;
@@ -541,7 +626,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                               LayoutBuilder(
                                 builder: (context, rowConstraints) {
                                   final validCountryCode =
-                                      PipeBuyerYellowPagesTaxonomy.countryByCode(
+                                      PipeBuyerYellowPagesTaxonomy
+                                                  .countryByCode(
                                                 _countryCode,
                                               ) !=
                                               null
@@ -553,7 +639,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                     initialValue: validCountryCode,
                                     isExpanded: true,
                                     decoration: const InputDecoration(
-                                      labelText: 'Country (All Countries A–Z) *',
+                                      labelText:
+                                          'Country (All Countries A–Z) *',
                                       border: OutlineInputBorder(),
                                     ),
                                     items: PipeBuyerYellowPagesTaxonomy
@@ -692,7 +779,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
-                                children: PipeBuyerYellowPagesTaxonomy.categories
+                                children: PipeBuyerYellowPagesTaxonomy
+                                    .categories
                                     .map((cat) {
                                   final selected =
                                       _selectedCategories.contains(cat.label);
@@ -787,7 +875,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                             color: Colors.white,
                                           ),
                                         )
-                                      : const Icon(Icons.rocket_launch_outlined),
+                                      : const Icon(
+                                          Icons.rocket_launch_outlined),
                                   label: Text(
                                     _submitting
                                         ? 'Submitting Listing...'
@@ -923,14 +1012,18 @@ class _SuccessConfirmation extends StatelessWidget {
     required this.requestId,
     required this.tier,
     required this.onDone,
+    this.checkoutUrl,
   });
 
   final String requestId;
   final String tier;
   final VoidCallback onDone;
+  final String? checkoutUrl;
 
   @override
   Widget build(BuildContext context) {
+    final hasCheckout =
+        checkoutUrl != null && checkoutUrl!.startsWith('https://');
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Card(
@@ -946,19 +1039,36 @@ class _SuccessConfirmation extends StatelessWidget {
                 color: PipeBuyerColors.success,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Service Listing Submitted for Priority Verification',
+              Text(
+                hasCheckout
+                    ? 'Redirecting to Secure Stripe Checkout…'
+                    : 'Service Listing Submitted for Priority Verification',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
               Text(
-                'Reference ID: $requestId\nOur PipeBuyer Directory team will confirm your active business phone & compliance details and activate your ${tier.replaceAll('_', ' ')} placement.',
+                hasCheckout
+                    ? 'Reference ID: $requestId\nComplete payment in Stripe Checkout to activate your ${tier.replaceAll('_', ' ')} priority subscription as soon as editorial verification completes.'
+                    : 'Reference ID: $requestId\nOur PipeBuyer Directory team will confirm your active business phone & compliance details and activate your ${tier.replaceAll('_', ' ')} placement.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: PipeBuyerColors.muted, height: 1.4),
+                style:
+                    const TextStyle(color: PipeBuyerColors.muted, height: 1.4),
               ),
               const SizedBox(height: 22),
-              FilledButton.icon(
+              if (hasCheckout) ...[
+                FilledButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(checkoutUrl!),
+                    webOnlyWindowName: '_self',
+                  ),
+                  icon: const Icon(Icons.lock_outline),
+                  label: const Text('Continue to Secure Stripe Checkout'),
+                ),
+                const SizedBox(height: 10),
+              ],
+              OutlinedButton.icon(
                 onPressed: onDone,
                 icon: const Icon(Icons.check),
                 label: const Text('Return to Search for Services'),

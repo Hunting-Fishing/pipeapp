@@ -87,6 +87,7 @@ const {
 const {
   createStripeWebhookDispatchLifecycleWrapper,
 } = require("./stripe_webhook_dispatch_lifecycle");
+const {createYellowPagesBilling} = require("./yellow_pages_billing");
 
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
@@ -120,8 +121,10 @@ const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
     marketplaceFinancialResolution,
 );
 const stripeDisputeResponse = createStripeDisputeResponse(admin);
+const yellowPagesBilling = createYellowPagesBilling(admin);
 const baseStripeWebhookHandler = createStripeWebhookHandler(admin, {
   marketplaceFinancialResolution: marketplaceRefundWebhookGate,
+  yellowPagesBilling,
 });
 const stripeWebhookHandler = createStripeWebhookDispatchLifecycleWrapper({
   admin,
@@ -290,6 +293,14 @@ exports.createVipSubscriptionCheckout = onCall(
 exports.updateVipSubscriptionRenewal = onCall(
     stripeCallableOptions,
     vipSubscriptionManagement.updateVipSubscriptionRenewal,
+);
+exports.createYellowPagesListingCheckout = onCall(
+    stripeCallableOptions,
+    yellowPagesBilling.createYellowPagesListingCheckout,
+);
+exports.createYellowPagesBillingPortalSession = onCall(
+    stripeCallableOptions,
+    yellowPagesBilling.createYellowPagesBillingPortalSession,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,

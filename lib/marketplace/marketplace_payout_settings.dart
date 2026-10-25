@@ -6,6 +6,47 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_command_client.dart';
 
+const List<MapEntry<String, String>> _kConnectSellerCountries =
+    <MapEntry<String, String>>[
+  MapEntry('CA', 'Canada'),
+  MapEntry('US', 'United States'),
+  MapEntry('GB', 'United Kingdom'),
+  MapEntry('NO', 'Norway'),
+  MapEntry('CH', 'Switzerland'),
+  MapEntry('AT', 'Austria'),
+  MapEntry('BE', 'Belgium'),
+  MapEntry('BG', 'Bulgaria'),
+  MapEntry('HR', 'Croatia'),
+  MapEntry('CY', 'Cyprus'),
+  MapEntry('CZ', 'Czech Republic'),
+  MapEntry('DK', 'Denmark'),
+  MapEntry('EE', 'Estonia'),
+  MapEntry('FI', 'Finland'),
+  MapEntry('FR', 'France'),
+  MapEntry('DE', 'Germany'),
+  MapEntry('GI', 'Gibraltar'),
+  MapEntry('GR', 'Greece'),
+  MapEntry('HU', 'Hungary'),
+  MapEntry('IS', 'Iceland'),
+  MapEntry('IE', 'Ireland'),
+  MapEntry('IT', 'Italy'),
+  MapEntry('LV', 'Latvia'),
+  MapEntry('LI', 'Liechtenstein'),
+  MapEntry('LT', 'Lithuania'),
+  MapEntry('LU', 'Luxembourg'),
+  MapEntry('MT', 'Malta'),
+  MapEntry('MC', 'Monaco'),
+  MapEntry('NL', 'Netherlands'),
+  MapEntry('PL', 'Poland'),
+  MapEntry('PT', 'Portugal'),
+  MapEntry('RO', 'Romania'),
+  MapEntry('SM', 'San Marino'),
+  MapEntry('SK', 'Slovakia'),
+  MapEntry('SI', 'Slovenia'),
+  MapEntry('ES', 'Spain'),
+  MapEntry('SE', 'Sweden'),
+];
+
 class MarketplacePayoutSettingsPage extends StatefulWidget {
   const MarketplacePayoutSettingsPage({super.key});
 
@@ -222,13 +263,14 @@ class _MarketplacePayoutSettingsPageState
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.public_outlined),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'CA', child: Text('Canada')),
-                        DropdownMenuItem(
-                          value: 'US',
-                          child: Text('United States'),
-                        ),
-                      ],
+                      items: _kConnectSellerCountries
+                          .map(
+                            (entry) => DropdownMenuItem<String>(
+                              value: entry.key,
+                              child: Text('${entry.value} (${entry.key})'),
+                            ),
+                          )
+                          .toList(growable: false),
                       onChanged: _startingOnboarding
                           ? null
                           : (value) {
@@ -335,7 +377,7 @@ class _MarketplacePayoutSettingsPageState
           ),
           const SizedBox(height: 10),
           Text(
-            'For launch, Stripe seller onboarding is available in Canada and the United States. More countries can be enabled after their payout and compliance requirements are configured.',
+            'Direct Stripe Connect Express payouts are enabled across 37 countries (Canada, United States, UK, Norway, Switzerland, and the EEA). Sellers in all other non-sanctioned global markets (Middle East, Latin America, Asia-Pacific, and Africa) can complete sales worldwide using Pipe Buyer\'s Direct Wire / PO External Settlement flow.',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(height: 1.45),

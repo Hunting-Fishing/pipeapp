@@ -73,8 +73,16 @@ function requestedMembershipPlan(value) {
 function membershipPlanForPriceId(value) {
   const priceId = String(value || "").trim();
   if (!priceId.startsWith("price_")) return null;
-  for (const plan of Object.values(membershipPlanCatalog())) {
+  const catalog = membershipPlanCatalog();
+  for (const plan of Object.values(catalog)) {
     if (plan.priceId && plan.priceId === priceId) return plan;
+  }
+  const products = stripeMarketplaceConfig.products || {};
+  if (products.dispatchMonthlyUsd && products.dispatchMonthlyUsd.priceId === priceId) {
+    return catalog.dispatch_monthly;
+  }
+  if (products.dispatchYearlyUsd && products.dispatchYearlyUsd.priceId === priceId) {
+    return catalog.dispatch_yearly;
   }
   return null;
 }

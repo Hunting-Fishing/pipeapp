@@ -164,10 +164,12 @@ function Add-BrowserEvent {
     $entry = $Message.params.entry
     $safeUrl = Get-SafeDiagnosticUrl -Value ([string]$entry.url)
     $description = [string]$entry.text
-    if ($safeUrl) {
-      $description = "$description [$safeUrl]"
+    if ($description -notmatch 'violates the following report-only Content Security Policy directive') {
+      if ($safeUrl) {
+        $description = "$description [$safeUrl]"
+      }
+      $script:BrowserErrors.Add($description)
     }
-    $script:BrowserErrors.Add($description)
   }
   if ($Message.method -eq 'Runtime.consoleAPICalled' -and
       $Message.params.type -eq 'error') {

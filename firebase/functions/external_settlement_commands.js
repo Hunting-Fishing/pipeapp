@@ -132,6 +132,8 @@ function createExternalSettlementCommands(admin) {
         stripeFeeBillingEnabled: readinessData.stripeFeeBillingEnabled === true,
         stripeTaxRegistrationPending:
           readinessData.stripeTaxRegistrationPending === true,
+        stripeTaxPendingBillingApproved:
+          readinessData.stripeTaxPendingBillingApproved === true,
         checkoutSuccessUrl: String(readinessData.checkoutSuccessUrl || ""),
         checkoutCancelUrl: String(readinessData.checkoutCancelUrl || ""),
       };
@@ -174,14 +176,22 @@ function createExternalSettlementCommands(admin) {
             "The Pipe Buyer marketplace fee snapshot is not ready.",
         );
       }
-      const successUrl = safeConfiguredUrl(
+      const baseSuccessUrl = safeConfiguredUrl(
           readiness.checkoutSuccessUrl,
           "Stripe Checkout success URL",
       );
-      const cancelUrl = safeConfiguredUrl(
+      const baseCancelUrl = safeConfiguredUrl(
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
+      const successUrlObj = new URL(baseSuccessUrl);
+      successUrlObj.searchParams.set("flow", "external_fee");
+      successUrlObj.searchParams.set("tx", transactionId);
+      const cancelUrlObj = new URL(baseCancelUrl);
+      cancelUrlObj.searchParams.set("flow", "external_fee");
+      cancelUrlObj.searchParams.set("tx", transactionId);
+      const successUrl = successUrlObj.toString();
+      const cancelUrl = cancelUrlObj.toString();
       const productLabel = fee.feeClass === "pipe" ?
         "Pipe Buyer Marketplace Fee - Pipe" :
         "Pipe Buyer Marketplace Fee - Equipment & Assets";
@@ -200,6 +210,8 @@ function createExternalSettlementCommands(admin) {
           client_reference_id: transactionId,
           billing_address_collection: "required",
           "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
+          "tax_id_collection[enabled]": "true",
+          "adaptive_pricing[enabled]": "true",
           "line_items[0][quantity]": 1,
           "line_items[0][price_data][currency]":
             String(fee.currency || sale.currency || "CAD").toLowerCase(),

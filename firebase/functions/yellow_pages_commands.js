@@ -32,6 +32,11 @@ const {
   stringList,
   text,
 } = require("./yellow_pages_policy");
+const {
+  GlobalPaymentPolicyError,
+  assertCountryPayableWithStripe,
+  isElevatedSanctionsCountry,
+} = require("./global_payment_policy");
 
 const PRIVATE_COMPANIES = "yellow_pages_companies";
 const PRIVATE_CONTACT_EVENTS = "yellow_pages_contact_events";
@@ -541,6 +546,24 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         throw new HttpsError("invalid-argument", "Company name and business phone number are required.");
       }
       const geo = inferCountryAndRegion(data.countryCode, data.regionCode);
+      const city = text(data.city, 120);
+      const rawInterval = text(data.billingInterval, 20).toLowerCase();
+      const billingInterval = requestedTier === "free_verified" ?
+        "none" :
+        (rawInterval === "monthly" || rawInterval === "month" ? "monthly" : "yearly");
+      if (requestedTier !== "free_verified") {
+        try {
+          assertCountryPayableWithStripe(
+              geo.countryCode,
+              `${geo.regionCode || ""} ${city}`,
+          );
+        } catch (err) {
+          if (err instanceof GlobalPaymentPolicyError) {
+            throw new HttpsError(err.code, err.message);
+          }
+          throw err;
+        }
+      }
       const phoneParsed = normalizeGlobalPhone(phoneRaw, geo.countryCode);
       if (!phoneParsed.validPhone) {
         throw new HttpsError("invalid-argument", "Enter a valid business phone number (with country or area code).");
@@ -587,7 +610,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         website: text(data.website, 500),
         countryCode: geo.countryCode,
         regionCode: geo.regionCode,
-        city: text(data.city, 120),
+        city,
         serviceAreas: stringList(data.serviceAreas, 20, 120),
         basins: stringList(data.basins, 12, 80),
         categoryCodes,
@@ -597,6 +620,12 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         emergency24x7: data.emergency24x7 === true,
         description: text(data.description, 2500),
         requestedTier,
+        billingInterval,
+        paymentStatus: requestedTier === "free_verified" ?
+          "not_required" :
+          "pending_checkout",
+        paidThrough: null,
+        elevatedSanctionsReviewRequired: isElevatedSanctionsCountry(geo.countryCode),
         status: "pending_review",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -615,6 +644,10 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         requestId: docRef.id,
         status: "pending_review",
         requestedTier,
+        billingInterval,
+        paymentStatus: requestedTier === "free_verified" ?
+          "not_required" :
+          "pending_checkout",
       };
     },
 
@@ -932,6 +965,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
             payload.phoneHistory || existingData.phoneHistory,
             legacyPhones,
             mergedForTokens.mainPhone,
+            geo.countryCode,
         ),
         sourceReferences: payload.sourceReferences ?
           sourceReferences(payload.sourceReferences) :
@@ -1354,8 +1388,12 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
           db().collection(PRIVATE_COMPANIES).doc();
         companyId = companyRef.id;
         const isPaidTier = reqData.requestedTier === "featured_platinum" || reqData.requestedTier === "paid_verified";
+        const stripePaid = reqData.paymentStatus === "paid";
+        const markPaid = isPaidTier && (stripePaid || data.markPaid === true);
+        const fallbackDays = reqData.billingInterval === "monthly" ? 31 : 365;
         const defaultPaidThrough = isPaidTier ?
-          admin.firestore.Timestamp.fromMillis(Date.now() + 365 * 24 * 60 * 60 * 1000) :
+          (reqData.paidThrough ||
+            admin.firestore.Timestamp.fromMillis(Date.now() + fallbackDays * 24 * 60 * 60 * 1000)) :
           null;
 
         const merged = {
@@ -1380,12 +1418,15 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
           emergency24x7: reqData.emergency24x7 === true,
           description: reqData.description || "",
           legacyPhones: [],
-          phoneHistory: normalizePhoneHistory([], [], reqData.phone || ""),
+          phoneHistory: normalizePhoneHistory([], [], reqData.phone || "", reqData.countryCode || "CA"),
           verificationStatus: "verified",
           operationalStatus: "active_in_operation",
-          billingStatus: isPaidTier && data.markPaid === true ? "paid" : "unpaid",
+          billingStatus: markPaid ? "paid" : "unpaid",
           listingTier: reqData.requestedTier || "free_verified",
-          paidThrough: isPaidTier && data.markPaid === true ? defaultPaidThrough : null,
+          billingInterval: reqData.billingInterval || null,
+          paidThrough: markPaid ? defaultPaidThrough : null,
+          ...(reqData.stripeCustomerId ? {stripeCustomerId: reqData.stripeCustomerId} : {}),
+          ...(reqData.stripeSubscriptionId ? {stripeSubscriptionId: reqData.stripeSubscriptionId} : {}),
           nonExpiringPaid: false,
           publicationStatus: "published",
           allowUnpaidPublic: true,

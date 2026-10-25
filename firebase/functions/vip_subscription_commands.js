@@ -157,14 +157,20 @@ function createVipSubscriptionCommands(admin) {
       const promotionCodeId = promotion ? promotion.id : "";
       const allowPromotionCodes = !promotionCodeId;
       const collectionStatus = taxCollectionStatus(readiness);
-      const successUrl = safeConfiguredUrl(
+      const baseSuccessUrl = safeConfiguredUrl(
           readiness.checkoutSuccessUrl,
           "Stripe Checkout success URL",
       );
-      const cancelUrl = safeConfiguredUrl(
+      const baseCancelUrl = safeConfiguredUrl(
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
+      const successUrlObj = new URL(baseSuccessUrl);
+      successUrlObj.searchParams.set("flow", "vip");
+      const cancelUrlObj = new URL(baseCancelUrl);
+      cancelUrlObj.searchParams.set("flow", "vip");
+      const successUrl = successUrlObj.toString();
+      const cancelUrl = cancelUrlObj.toString();
 
       const stateRef = db.collection("vip_subscription_checkout_state").doc(uid);
       const membershipRef = db.collection("vip_memberships").doc(uid);
@@ -282,6 +288,8 @@ function createVipSubscriptionCommands(admin) {
             billing_address_collection: "required",
             allow_promotion_codes: allowPromotionCodes ? "true" : "false",
             "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
+            "tax_id_collection[enabled]": "true",
+            "adaptive_pricing[enabled]": "true",
             "line_items[0][price]": priceId,
             "line_items[0][quantity]": 1,
             ...(promotionCodeId ? {
