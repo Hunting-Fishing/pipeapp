@@ -21,6 +21,7 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
   @override
   Future<PipeBuyerYellowPagesPage<Map<String, dynamic>>> searchPublic({
     String query = '',
+    String continentCode = '',
     String countryCode = '',
     String regionCode = '',
     String city = '',
@@ -64,8 +65,44 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
 }
 
 void main() {
-  test('Oilfield Directory taxonomy covers Canada and USA regions, Town Index, Towing, and clean Pipe & OCTG icon', () {
+  test('Oilfield Directory taxonomy covers Global Continents, 197 Countries, Popular Quick-Search + A-Z, Town Index, Towing, and clean Pipe & OCTG icon', () {
     expect(PipeBuyerYellowPagesTaxonomy.categories.length, 24);
+    expect(PipeBuyerYellowPagesTaxonomy.continents.length, 7);
+    expect(PipeBuyerYellowPagesTaxonomy.countries.length, 197);
+
+    final naCountries =
+        PipeBuyerYellowPagesTaxonomy.countriesForContinent('north_america');
+    expect(naCountries.length, 23);
+    expect(naCountries.first.name, 'Antigua and Barbuda');
+    expect(naCountries.last.name, 'United States');
+    // Popular countries remain in their exact alphabetical spot in the A-Z list:
+    final naNames = naCountries.map((c) => c.name).toList();
+    expect(naNames.indexOf('Canada'), lessThan(naNames.indexOf('Mexico')));
+    expect(
+      naNames.indexOf('Mexico'),
+      lessThan(naNames.indexOf('Trinidad and Tobago')),
+    );
+    expect(
+      naNames.indexOf('Trinidad and Tobago'),
+      lessThan(naNames.indexOf('United States')),
+    );
+
+    // Popular Quick-Search pins Canada & United States first for North America:
+    final naPopular = PipeBuyerYellowPagesTaxonomy.popularCountriesForContinent(
+      'north_america',
+    );
+    expect(naPopular.map((c) => c.code).take(4), ['CA', 'US', 'MX', 'TT']);
+
+    // Middle East countries also appear in Asia A-Z:
+    final meCodes = PipeBuyerYellowPagesTaxonomy.countriesForContinent(
+      'middle_east',
+    ).map((c) => c.code);
+    final asiaCodes =
+        PipeBuyerYellowPagesTaxonomy.countriesForContinent('asia')
+            .map((c) => c.code);
+    expect(meCodes, containsAll(['AE', 'SA', 'QA', 'KW', 'OM']));
+    expect(asiaCodes, containsAll(['AE', 'SA', 'QA', 'KW', 'OM', 'SG', 'MY']));
+
     final caRegions = PipeBuyerYellowPagesTaxonomy.regionsForCountry('CA');
     final usRegions = PipeBuyerYellowPagesTaxonomy.regionsForCountry('US');
     expect(caRegions.any((r) => r.regionCode == 'AB'), isTrue);
@@ -87,7 +124,7 @@ void main() {
     final towCat = PipeBuyerYellowPagesTaxonomy.byCode('trucking_heavy_haul')!;
     expect(towCat.label, 'Trucking, Towing, Winch & Heavy Haul');
     expect(towCat.shortLabel, 'Trucking, Towing & Winch');
-    expect(PipeBuyerYellowPagesTaxonomy.oilfieldHubs.length, greaterThan(120));
+    expect(PipeBuyerYellowPagesTaxonomy.oilfieldHubs.length, greaterThan(150));
     expect(
       PipeBuyerYellowPagesTaxonomy.oilfieldHubs.any(
         (h) => h.city == 'Nisku' && h.regionCode == 'AB',
@@ -97,6 +134,18 @@ void main() {
     expect(
       PipeBuyerYellowPagesTaxonomy.oilfieldHubs.any(
         (h) => h.city == 'Midland' && h.regionCode == 'TX',
+      ),
+      isTrue,
+    );
+    expect(
+      PipeBuyerYellowPagesTaxonomy.oilfieldHubs.any(
+        (h) => h.city == 'Aberdeen' && h.countryCode == 'GB',
+      ),
+      isTrue,
+    );
+    expect(
+      PipeBuyerYellowPagesTaxonomy.oilfieldHubs.any(
+        (h) => h.city == 'Abu Dhabi' && h.countryCode == 'AE',
       ),
       isTrue,
     );
@@ -279,10 +328,37 @@ void main() {
 
     // Unified wrapping filter dropdown boxes
     expect(find.text('FILTER BY SERVICE'), findsOneWidget);
-    expect(find.text('COUNTRY & PROV / STATE'), findsOneWidget);
+    expect(find.text('WORLD REGION & COUNTRY'), findsOneWidget);
+    expect(find.text('All Global (Worldwide)'), findsOneWidget);
     expect(find.text('FILTER BY TOWN / CITY'), findsOneWidget);
     expect(find.text('ALPHABETICAL & SORT'), findsOneWidget);
     expect(find.text('BASIN & OPTIONS'), findsOneWidget);
+
+    // Open World Region & Country modal and verify Continents + Popular Quick-Search + A-Z
+    await tester.tap(find.text('WORLD REGION & COUNTRY'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Filter by World Region, Country & State/Province'),
+      findsOneWidget,
+    );
+    expect(find.text('North America'), findsOneWidget);
+    expect(find.text('Middle East'), findsOneWidget);
+    expect(find.text('Europe'), findsOneWidget);
+    expect(find.text('Asia'), findsOneWidget);
+    expect(
+      find.text('POPULAR OIL & GAS COUNTRIES — QUICK SEARCH'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('North America'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Show All North America (23 Countries)'),
+      findsOneWidget,
+    );
+    expect(find.text('Canada'), findsOneWidget);
+    expect(find.text('United States'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
 
     expect(find.text('Grid View'), findsOneWidget);
     expect(find.text('Lines View'), findsOneWidget);

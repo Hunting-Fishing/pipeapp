@@ -233,7 +233,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         icon: Icons.manage_search_rounded,
                         title: 'Search for services',
                         subtitle:
-                            'Smart search verified Canada & USA Oil & Gas companies.',
+                            'Smart search verified Global & North America Oil & Gas companies.',
                         onTap: onSearchServices,
                       ),
                     ),
