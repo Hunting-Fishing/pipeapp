@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../auth/firebase_auth/google_auth.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -9,6 +10,7 @@ import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_account_security_page.dart';
 import 'marketplace_command_client.dart';
+import 'marketplace_deep_links.dart';
 import 'marketplace_mfa.dart';
 import 'regional_phone_field.dart';
 
@@ -199,6 +201,61 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                   _DarkTrustPill(
                     icon: Icons.gavel_outlined,
                     label: 'Timed Buying',
+                  ),
+                  _DarkTrustPill(
+                    icon: Icons.menu_book_rounded,
+                    label: 'Oil & Gas Yellow Pages (CA & US)',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () {
+                      final router = GoRouter.maybeOf(context);
+                      if (router != null) {
+                        router.go(MarketplaceDeepLinks.servicesDirectoryPath);
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PipeBuyerColors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                    ),
+                    icon: const Icon(Icons.travel_explore_rounded, size: 19),
+                    label: const Text(
+                      'Search Services Directory',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      final router = GoRouter.maybeOf(context);
+                      if (router != null) {
+                        router.go(MarketplaceDeepLinks.listServicesPath);
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: .35),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_business_rounded, size: 19),
+                    label: const Text(
+                      'List Your Services',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ],
               ),
@@ -466,6 +523,17 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                         icon: const Icon(Icons.health_and_safety_outlined),
                         label: const Text('Recover account'),
                       ),
+                    if (compact && GoRouter.maybeOf(context) != null) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => GoRouter.of(context)
+                                .go(MarketplaceDeepLinks.servicesDirectoryPath),
+                        icon: const Icon(Icons.menu_book_rounded),
+                        label: const Text('Search Oil & Gas Services Directory'),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     const Divider(),
                     const SizedBox(height: 12),

@@ -1060,6 +1060,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   bool _authResolved = false;
   bool _authGateScheduled = false;
   bool _authRouteOpen = false;
+  bool _isAdminUser = false;
 
   void _openCreate({bool auction = false, bool wanted = false}) {
     if (!_features.marketplace) {
@@ -1291,6 +1292,14 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
         navigationBackgroundColor: Colors.white,
         indicatorColor: _orange.withValues(alpha: .18),
         onDestinationSelected: (target) {
+          if (target == 8) {
+            MarketplaceNavigation.openSearchServices(context);
+            return;
+          }
+          if (target == 9) {
+            MarketplaceNavigation.openListServices(context);
+            return;
+          }
           if (target == 2) {
             _openCreate();
             return;
@@ -1374,6 +1383,18 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             ),
           ],
           const MarketplaceShellDestination(
+            pageIndex: 8,
+            label: 'Search Services',
+            icon: Icon(Icons.manage_search_rounded),
+            selectedIcon: Icon(Icons.manage_search_rounded),
+          ),
+          const MarketplaceShellDestination(
+            pageIndex: 9,
+            label: 'List Services',
+            icon: Icon(Icons.workspace_premium_outlined),
+            selectedIcon: Icon(Icons.workspace_premium_rounded),
+          ),
+          const MarketplaceShellDestination(
             pageIndex: 4,
             label: 'Messages',
             icon: _NavMessageIcon(selected: false),
@@ -1405,6 +1426,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           marketplaceEnabled: _features.marketplace,
           auctionsEnabled: _features.auctions,
           dispatchEnabled: _features.dispatch,
+          isAdmin: _isAdminUser,
           onDestinationSelected: (target) {
             if (target == 2) {
               _openCreate();
@@ -1417,6 +1439,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             }
           },
           onWanted: () => _openCreate(wanted: true),
+          onSearchServices: () =>
+              MarketplaceNavigation.openSearchServices(context),
+          onListServices: () =>
+              MarketplaceNavigation.openListServices(context),
+          onYellowPagesAdmin: () =>
+              MarketplaceNavigation.openYellowPagesAdmin(context),
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -1470,6 +1498,44 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           },
         ),
         actions: [
+          if (MediaQuery.sizeOf(context).width >= 680)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    MarketplaceNavigation.openSearchServices(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(
+                    color: Color(0xFFF59E0B),
+                  ),
+                  backgroundColor: Colors.white.withValues(alpha: 0.08),
+                  visualDensity: VisualDensity.compact,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.manage_search_rounded,
+                  size: 18,
+                  color: Color(0xFFF59E0B),
+                ),
+                label: const Text(
+                  'Services Directory',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                ),
+              ),
+            )
+          else
+            PipeAccessibleIconButton(
+              label: 'Services Directory',
+              onTapHint: 'Opens PipeBuyer Yellow Pages Services Directory',
+              onPressed: () =>
+                  MarketplaceNavigation.openSearchServices(context),
+              icon: const Icon(Icons.manage_search_rounded),
+            ),
           if (_features.marketplace)
             PipeAccessibleIconButton(
               label: 'Search Marketplace',
@@ -1497,66 +1563,100 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                 subtitle: const Text('Oilfield marketplace'),
               ),
               const Divider(height: 1),
-              _DrawerDestination(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: _tab == 0,
-                onTap: () => _selectTab(0),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _DrawerDestination(
+                      icon: Icons.home_outlined,
+                      label: 'Home',
+                      selected: _tab == 0,
+                      onTap: () => _selectTab(0),
+                    ),
+                    if (_features.marketplace) ...[
+                      _DrawerDestination(
+                        icon: Icons.storefront_outlined,
+                        label: 'Browse Marketplace',
+                        selected: _tab == 1,
+                        onTap: () => _selectTab(1),
+                      ),
+                      _DrawerDestination(
+                        icon: Icons.add_box_outlined,
+                        label: 'Create Listing',
+                        selected: _tab == 2,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _openCreate();
+                        },
+                      ),
+                      _DrawerDestination(
+                        icon: Icons.request_quote_outlined,
+                        label: 'Wanted ads & RFQs',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _openCreate(wanted: true);
+                        },
+                      ),
+                      _DrawerDestination(
+                        icon: Icons.bookmark_border,
+                        label: 'Saved Listings',
+                        selected: _tab == 3,
+                        onTap: () => _selectTab(3),
+                      ),
+                    ],
+                    _DrawerDestination(
+                      icon: Icons.manage_search_rounded,
+                      label: 'Search for Services',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openSearchServices(context);
+                      },
+                    ),
+                    _DrawerDestination(
+                      icon: Icons.workspace_premium_outlined,
+                      label: 'List Services',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openListServices(context);
+                      },
+                    ),
+                    if (_isAdminUser)
+                      _DrawerDestination(
+                        icon: Icons.contact_phone_outlined,
+                        label: 'Yellow Pages Admin',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          MarketplaceNavigation.openYellowPagesAdmin(context);
+                        },
+                      ),
+                    if (_features.auctions)
+                      _DrawerDestination(
+                        icon: Icons.gavel_outlined,
+                        label: 'Auctions',
+                        selected: _tab == 6,
+                        onTap: () => _selectTab(6),
+                      ),
+                    if (_features.dispatch)
+                      _DrawerDestination(
+                        icon: Icons.local_shipping_outlined,
+                        label: 'Dispatch',
+                        selected: _tab == 7,
+                        onTap: () => _selectTab(7),
+                      ),
+                    _DrawerDestination(
+                      icon: Icons.forum_outlined,
+                      label: 'Messages',
+                      selected: _tab == 4,
+                      trailing: _unreadBadge(),
+                      onTap: () => _selectTab(4),
+                    ),
+                  ],
+                ),
               ),
-              if (_features.marketplace) ...[
-                _DrawerDestination(
-                  icon: Icons.storefront_outlined,
-                  label: 'Browse Marketplace',
-                  selected: _tab == 1,
-                  onTap: () => _selectTab(1),
-                ),
-                _DrawerDestination(
-                  icon: Icons.add_box_outlined,
-                  label: 'Create Listing',
-                  selected: _tab == 2,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _openCreate();
-                  },
-                ),
-                _DrawerDestination(
-                  icon: Icons.request_quote_outlined,
-                  label: 'Wanted ads & RFQs',
-                  selected: false,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _openCreate(wanted: true);
-                  },
-                ),
-                _DrawerDestination(
-                  icon: Icons.bookmark_border,
-                  label: 'Saved Listings',
-                  selected: _tab == 3,
-                  onTap: () => _selectTab(3),
-                ),
-              ],
-              if (_features.auctions)
-                _DrawerDestination(
-                  icon: Icons.gavel_outlined,
-                  label: 'Auctions',
-                  selected: _tab == 6,
-                  onTap: () => _selectTab(6),
-                ),
-              if (_features.dispatch)
-                _DrawerDestination(
-                  icon: Icons.local_shipping_outlined,
-                  label: 'Dispatch',
-                  selected: _tab == 7,
-                  onTap: () => _selectTab(7),
-                ),
-              _DrawerDestination(
-                icon: Icons.forum_outlined,
-                label: 'Messages',
-                selected: _tab == 4,
-                trailing: _unreadBadge(),
-                onTap: () => _selectTab(4),
-              ),
-              const Spacer(),
               const Divider(height: 1),
               _DrawerDestination(
                 icon: Icons.person_outline,
@@ -1655,12 +1755,16 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       _saved.clear();
       _savedLoadError = null;
       _savedLoading = user != null;
+      if (user == null) {
+        _isAdminUser = false;
+      }
     });
     if (user == null) {
       _scheduleAuthGate();
       return;
     }
     unawaited(_registerCurrentDevice(user));
+    unawaited(_refreshAdminAccess(user.uid));
     final userUid = user.uid;
     _savedSubscription = _actions.watchSavedListingIds(userUid).listen(
       (listingIds) {
@@ -1692,6 +1796,20 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
         });
       },
     );
+  }
+
+  Future<void> _refreshAdminAccess(String userUid) async {
+    try {
+      final isAdmin = await marketplaceAdministratorAccess();
+      if (!mounted || FirebaseAuth.instance.currentUser?.uid != userUid) {
+        return;
+      }
+      if (_isAdminUser != isAdmin) {
+        setState(() => _isAdminUser = isAdmin);
+      }
+    } catch (_) {
+      // Ignore admin access check failures in non-admin sessions.
+    }
   }
 
   Future<void> _registerCurrentDevice(User user) async {
@@ -2101,6 +2219,18 @@ class _HomeQuickActions extends StatelessWidget {
           color: const Color(0xFF008B78),
           onTap: onDispatch,
         ),
+      _QuickAction(
+        icon: Icons.manage_search_rounded,
+        label: 'Search for services',
+        color: const Color(0xFFD97706),
+        onTap: () => MarketplaceNavigation.openSearchServices(context),
+      ),
+      _QuickAction(
+        icon: Icons.workspace_premium_outlined,
+        label: 'List services',
+        color: const Color(0xFF0F52BA),
+        onTap: () => MarketplaceNavigation.openListServices(context),
+      ),
     ];
 
     if (actions.isEmpty) {
