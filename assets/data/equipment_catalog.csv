@@ -318,32 +318,53 @@ Komatsu,PC490LC-11,Excavator,Heavy Equipment,2015,2026,Komatsu SAA6D125E-7 (359 
 Komatsu,HB215LC-1,Excavator,Heavy Equipment,2011,2014,Komatsu SAA4D107E-1 (139 HP),false
 Komatsu,HB215LC-2,Excavator,Heavy Equipment,2014,2017,Komatsu SAA4D107E-2 (148 HP),false
 Komatsu,HB215LC-3,Excavator,Heavy Equipment,2017,2024,Komatsu SAA4D107E-3 (148 HP),false
-Komatsu,D39EX-24,Bulldozer,Heavy Equipment,2007,2026,Komatsu SAA4D95LE-7 (105 HP),false
-Komatsu,D51EX-24,Bulldozer,Heavy Equipment,2007,2026,Komatsu SAA4D107E-3 (131 HP),false
-Komatsu,D61EX-24,Bulldozer,Heavy Equipment,2003,2026,Komatsu SAA6D107E-3 (168 HP),false
+Komatsu,D39EX-24,Bulldozer,Heavy Equipment,2016,2026,Komatsu SAA4D95LE-7 (105 HP),false
+Komatsu,D51EX-24,Bulldozer,Heavy Equipment,2016,2026,Komatsu SAA4D107E-3 (131 HP),false
+Komatsu,D61EX-24,Bulldozer,Heavy Equipment,2016,2026,Komatsu SAA6D107E-3 (168 HP),false
 Komatsu,D65E-6,Bulldozer,Heavy Equipment,1972,1985,Cummins / Komatsu NH-220-CI (155 HP),false
 Komatsu,D65E-8,Bulldozer,Heavy Equipment,1985,1992,Komatsu 6D125-1 (165 HP),false
 Komatsu,D65EX-12,Bulldozer,Heavy Equipment,1992,2004,Komatsu S6D125E-2 (190 HP),false
 Komatsu,D65EX-15,Bulldozer,Heavy Equipment,2004,2011,Komatsu SAA6D114E-3 (205 HP),false
 Komatsu,D65EX-17,Bulldozer,Heavy Equipment,2011,2015,Komatsu SAA6D114E-5 (205 HP),false
 Komatsu,D65EX-18,Bulldozer,Heavy Equipment,2015,2026,Komatsu SAA6D114E-6 (217 HP),false
-Komatsu,D85EX-15,Bulldozer,Heavy Equipment,1975,2014,Komatsu SAA6D125E-5 (264 HP),false
+Komatsu,D85E-21,Bulldozer,Heavy Equipment,1986,2003,Komatsu S6D125E-2 (225 HP),false
+Komatsu,D85EX-15,Bulldozer,Heavy Equipment,2003,2014,Komatsu SAA6D125E-5 (264 HP),false
 Komatsu,D85EX-18,Bulldozer,Heavy Equipment,2014,2026,Komatsu SAA6D125E-7 (264 HP),false
-Komatsu,D155AX-6,Bulldozer,Heavy Equipment,1971,2014,Komatsu SAA6D140E-5 (354 HP),false
+Komatsu,D155A-2,Bulldozer,Heavy Equipment,1986,2001,Komatsu SA6D140-2 (320 HP),false
+Komatsu,D155AX-6,Bulldozer,Heavy Equipment,2007,2014,Komatsu SAA6D140E-5 (354 HP),false
 Komatsu,D155AX-8,Bulldozer,Heavy Equipment,2014,2026,Komatsu SAA6D140E-7 (354 HP),false
-Komatsu,D275AX-5,Bulldozer,Heavy Equipment,1989,2026,Komatsu SAA6D140E / SDA6D140E (449 HP),false
-Komatsu,D375A-8,Bulldozer,Heavy Equipment,1985,2026,Komatsu SAA6D170E-7 (610 HP),false
-Komatsu,WA200-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA4D107E-3 (126 HP),false
-Komatsu,WA250-6,Loader,Heavy Equipment,1986,2014,Komatsu SAA6D107E-1 (138 HP),false
+Komatsu,D275A-2,Bulldozer,Heavy Equipment,1989,2002,Komatsu S6D170E-2 (405 HP),false
+Komatsu,D275AX-5,Bulldozer,Heavy Equipment,2002,2026,Komatsu SAA6D140E / SDA6D140E (449 HP),false
+Komatsu,D375A-5,Bulldozer,Heavy Equipment,2002,2010,Komatsu SA6D170E-3 (525 HP),false
+Komatsu,D375A-6,Bulldozer,Heavy Equipment,2010,2017,Komatsu SAA6D170E-5 (610 HP),false
+Komatsu,D375A-8,Bulldozer,Heavy Equipment,2017,2026,Komatsu SAA6D170E-7 (610 HP),false
+Komatsu,WA200-5,Loader,Heavy Equipment,2004,2008,Komatsu SAA6D102E-2 (123 HP),false
+Komatsu,WA200-7,Loader,Heavy Equipment,2013,2017,Komatsu SAA4D107E-2 (126 HP),false
+Komatsu,WA200-8,Loader,Heavy Equipment,2017,2026,Komatsu SAA4D107E-3 (126 HP),false
+Komatsu,WA250-5,Loader,Heavy Equipment,2001,2007,Komatsu SAA6D102E-2 (134 HP),false
+Komatsu,WA250-6,Loader,Heavy Equipment,2007,2014,Komatsu SAA6D107E-1 (138 HP),false
 Komatsu,WA270-7,Loader,Heavy Equipment,2013,2017,Komatsu SAA6D107E-2 (149 HP),false
 Komatsu,WA270-8,Loader,Heavy Equipment,2017,2026,Komatsu SAA6D107E-3 (149 HP),false
-Komatsu,WA320-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA6D107E-3 (165 HP),false
-Komatsu,WA380-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA6D107E-3 (191 HP),false
-Komatsu,WA470-8,Loader,Heavy Equipment,1987,2026,Komatsu SAA6D125E-7 (272 HP),false
-Komatsu,WA500-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA6D140E-7 (357 HP),false
-Komatsu,GD655-7,Grader,Heavy Equipment,1984,2026,Komatsu SAA6D107E-3 (218 HP),false
-Komatsu,HM300-5,Roll Off Truck,Transport & Hauling,2003,2026,Komatsu SAA6D125E-7 (324 HP),false
-Komatsu,HM400-5,Roll Off Truck,Transport & Hauling,2002,2026,Komatsu SAA6D140E-7 (469 HP),false
+Komatsu,WA320-5,Loader,Heavy Equipment,2003,2008,Komatsu SAA6D102E-2 (166 HP),false
+Komatsu,WA320-7,Loader,Heavy Equipment,2013,2017,Komatsu SAA6D107E-2 (165 HP),false
+Komatsu,WA320-8,Loader,Heavy Equipment,2017,2026,Komatsu SAA6D107E-3 (165 HP),false
+Komatsu,WA380-5,Loader,Heavy Equipment,2002,2007,Komatsu SAA6D114E-2 (187 HP),false
+Komatsu,WA380-7,Loader,Heavy Equipment,2012,2016,Komatsu SAA6D107E-2 (191 HP),false
+Komatsu,WA380-8,Loader,Heavy Equipment,2016,2026,Komatsu SAA6D107E-3 (191 HP),false
+Komatsu,WA470-7,Loader,Heavy Equipment,2012,2016,Komatsu SAA6D125E-6 (272 HP),false
+Komatsu,WA470-8,Loader,Heavy Equipment,2016,2026,Komatsu SAA6D125E-7 (272 HP),false
+Komatsu,WA500-7,Loader,Heavy Equipment,2012,2016,Komatsu SAA6D140E-6 (353 HP),false
+Komatsu,WA500-8,Loader,Heavy Equipment,2016,2026,Komatsu SAA6D140E-7 (357 HP),false
+Komatsu,GD655-3,Grader,Heavy Equipment,2001,2009,Komatsu SAA6D114E-2 (190 HP),false
+Komatsu,GD655-5,Grader,Heavy Equipment,2009,2015,Komatsu SAA6D107E-1 (218 HP),false
+Komatsu,GD655-6,Grader,Heavy Equipment,2015,2019,Komatsu SAA6D107E-2 (218 HP),false
+Komatsu,GD655-7,Grader,Heavy Equipment,2019,2026,Komatsu SAA6D107E-3 (218 HP),false
+Komatsu,HM300-2,Roll Off Truck,Transport & Hauling,2005,2012,Komatsu SAA6D125E-5 (329 HP),false
+Komatsu,HM300-3,Roll Off Truck,Transport & Hauling,2012,2016,Komatsu SAA6D125E-6 (325 HP),false
+Komatsu,HM300-5,Roll Off Truck,Transport & Hauling,2016,2026,Komatsu SAA6D125E-7 (324 HP),false
+Komatsu,HM400-2,Roll Off Truck,Transport & Hauling,2005,2012,Komatsu SAA6D140E-5 (438 HP),false
+Komatsu,HM400-3,Roll Off Truck,Transport & Hauling,2012,2016,Komatsu SAA6D140E-6 (448 HP),false
+Komatsu,HM400-5,Roll Off Truck,Transport & Hauling,2016,2026,Komatsu SAA6D140E-7 (469 HP),false
 Komatsu,D31E-20,Bulldozer,Heavy Equipment,1992,2006,Komatsu S4D102E-1 (70 HP),false
 Komatsu,D39EX-22,Bulldozer,Heavy Equipment,2007,2014,Komatsu SAA4D95LE-5 (95 HP),false
 Komatsu,D51EX-22,Bulldozer,Heavy Equipment,2007,2014,Komatsu SAA6D107E-1 (130 HP),false
@@ -414,14 +435,23 @@ John Deere,410L,Backhoe,Heavy Equipment,2015,2022,John Deere PowerTech PVS 4.5L 
 John Deere,410 P-Tier,Backhoe,Heavy Equipment,2022,2026,John Deere PowerTech PVS 4.5L (113 HP),false
 John Deere,510B,Backhoe,Heavy Equipment,1983,1996,John Deere 4239T / 4045T (85 HP),false
 John Deere,710D,Backhoe,Heavy Equipment,1992,2005,John Deere 6068T (118 HP),false
-John Deere,710L,Backhoe,Heavy Equipment,2006,2026,John Deere PowerTech PSS 6.8L (148 HP),false
+John Deere,710J,Backhoe,Heavy Equipment,2006,2012,John Deere PowerTech 6068H (126 HP),false
+John Deere,710K,Backhoe,Heavy Equipment,2012,2017,John Deere PowerTech PVX 6.8L (130 HP),false
+John Deere,710L,Backhoe,Heavy Equipment,2017,2022,John Deere PowerTech PSS 6.8L (148 HP),false
+John Deere,710 P-Tier,Backhoe,Heavy Equipment,2022,2026,John Deere PowerTech PSS 6.8L (148 HP),false
 John Deere,450B,Bulldozer,Heavy Equipment,1970,1985,John Deere 4219D / 4219T (65 HP),false
 John Deere,450G,Bulldozer,Heavy Equipment,1987,2003,John Deere 4045D / 4045T (70 HP),false
-John Deere,450J,Bulldozer,Heavy Equipment,2004,2022,John Deere PowerTech 4.5L (77 HP),false
+John Deere,450J,Bulldozer,Heavy Equipment,2004,2015,John Deere PowerTech 4.5L (77 HP),false
+John Deere,450K,Bulldozer,Heavy Equipment,2015,2022,John Deere PowerTech E 4.5L (80 HP),false
+John Deere,450 P-Tier,Bulldozer,Heavy Equipment,2022,2026,John Deere PowerTech E 4.5L (80 HP),false
 John Deere,550G,Bulldozer,Heavy Equipment,1976,2003,John Deere 4276T / 4045T (80 HP),false
-John Deere,550K,Bulldozer,Heavy Equipment,2004,2022,John Deere PowerTech 4.5L (92 HP),false
+John Deere,550J,Bulldozer,Heavy Equipment,2004,2012,John Deere PowerTech 4.5L (85 HP),false
+John Deere,550K,Bulldozer,Heavy Equipment,2012,2022,John Deere PowerTech PVX 4.5L (92 HP),false
+John Deere,550 P-Tier,Bulldozer,Heavy Equipment,2022,2026,John Deere PowerTech EWL 4.5L (92 HP),false
 John Deere,650G,Bulldozer,Heavy Equipment,1987,2003,John Deere 4045T (90 HP),false
-John Deere,650K,Bulldozer,Heavy Equipment,2004,2026,John Deere PowerTech 4.5L (104 HP),false
+John Deere,650J,Bulldozer,Heavy Equipment,2004,2012,John Deere PowerTech 4.5L (99 HP),false
+John Deere,650K,Bulldozer,Heavy Equipment,2012,2022,John Deere PowerTech PVX 4.5L (104 HP),false
+John Deere,650 P-Tier,Bulldozer,Heavy Equipment,2022,2026,John Deere PowerTech PVS 4.5L (104 HP),false
 John Deere,700J,Bulldozer,Heavy Equipment,2001,2012,John Deere 6068T (115 HP),false
 John Deere,700K,Bulldozer,Heavy Equipment,2012,2020,John Deere PowerTech PVX 6.8L (125 HP),false
 John Deere,700L,Bulldozer,Heavy Equipment,2020,2026,John Deere PowerTech PVS 6.8L (135 HP),false
@@ -433,22 +463,50 @@ John Deere,850B,Bulldozer,Heavy Equipment,1977,2004,John Deere 6466A / 6076A (16
 John Deere,850J,Bulldozer,Heavy Equipment,2004,2012,John Deere PowerTech 6090H (185 HP),false
 John Deere,850K,Bulldozer,Heavy Equipment,2012,2020,John Deere PowerTech PSX 9.0L (205 HP),false
 John Deere,850L,Bulldozer,Heavy Equipment,2020,2026,John Deere PowerTech PSS 9.0L (225 HP),false
-John Deere,950K,Bulldozer,Heavy Equipment,2007,2026,John Deere PowerTech PSS 9.0L (265 HP),false
-John Deere,1050K,Bulldozer,Heavy Equipment,2007,2026,John Deere PowerTech PSS 13.5L (350 HP),false
-John Deere,444H,Loader,Heavy Equipment,1975,2019,John Deere 4045T / PowerTech 4.5L (110 HP),false
+John Deere,950J,Bulldozer,Heavy Equipment,2005,2014,John Deere / Liebherr D936L (247 HP),false
+John Deere,950K,Bulldozer,Heavy Equipment,2014,2022,John Deere PowerTech PSS 9.0L (265 HP),false
+John Deere,950 P-Tier,Bulldozer,Heavy Equipment,2022,2026,John Deere PowerTech PSS 9.0L (265 HP),false
+John Deere,1050J,Bulldozer,Heavy Equipment,2005,2014,John Deere / Liebherr D946L (335 HP),false
+John Deere,1050K,Bulldozer,Heavy Equipment,2014,2022,John Deere PowerTech PSS 13.5L (350 HP),false
+John Deere,1050 P-Tier,Bulldozer,Heavy Equipment,2022,2026,John Deere JD14 13.6L (350 HP),false
+John Deere,444E,Loader,Heavy Equipment,1987,1997,John Deere 4276T / 4045T (95 HP),false
+John Deere,444H,Loader,Heavy Equipment,1997,2003,John Deere 4045T (110 HP),false
+John Deere,444J,Loader,Heavy Equipment,2003,2008,John Deere PowerTech 4045H (115 HP),false
+John Deere,444K,Loader,Heavy Equipment,2008,2018,John Deere PowerTech E 4.5L (124 HP),false
+John Deere,444L,Loader,Heavy Equipment,2018,2021,John Deere PowerTech PVS 4.5L (124 HP),false
+John Deere,444 P-Tier,Loader,Heavy Equipment,2021,2026,John Deere PowerTech EWL 4.5L (124 HP),false
 John Deere,544B,Loader,Heavy Equipment,1970,1987,John Deere 6414T (115 HP),false
-John Deere,544G,Loader,Heavy Equipment,1988,2004,John Deere 6068T (130 HP),false
-John Deere,544K,Loader,Heavy Equipment,2004,2021,John Deere PowerTech 6.8L (163 HP),false
+John Deere,544E,Loader,Heavy Equipment,1988,1993,John Deere 6359T (115 HP),false
+John Deere,544G,Loader,Heavy Equipment,1993,1997,John Deere 6059T (130 HP),false
+John Deere,544H,Loader,Heavy Equipment,1997,2003,John Deere 6068T (130 HP),false
+John Deere,544J,Loader,Heavy Equipment,2003,2008,John Deere PowerTech 6068H (149 HP),false
+John Deere,544K,Loader,Heavy Equipment,2008,2018,John Deere PowerTech PVX 6.8L (163 HP),false
+John Deere,544L,Loader,Heavy Equipment,2018,2021,John Deere PowerTech PVS 6.8L (166 HP),false
 John Deere,544 P-Tier,Loader,Heavy Equipment,2021,2026,John Deere PowerTech PVS 6.8L (166 HP),false
-John Deere,624G,Loader,Heavy Equipment,1988,2004,John Deere 6068T (145 HP),false
-John Deere,624K,Loader,Heavy Equipment,2004,2021,John Deere PowerTech 6.8L (186 HP),false
+John Deere,624E,Loader,Heavy Equipment,1988,1993,John Deere 6414T (135 HP),false
+John Deere,624G,Loader,Heavy Equipment,1993,1997,John Deere 6068T (145 HP),false
+John Deere,624H,Loader,Heavy Equipment,1997,2003,John Deere 6068T (160 HP),false
+John Deere,624J,Loader,Heavy Equipment,2003,2008,John Deere PowerTech 6068H (170 HP),false
+John Deere,624K,Loader,Heavy Equipment,2008,2018,John Deere PowerTech PVX 6.8L (186 HP),false
+John Deere,624L,Loader,Heavy Equipment,2018,2021,John Deere PowerTech PVS 6.8L (192 HP),false
 John Deere,624 P-Tier,Loader,Heavy Equipment,2021,2026,John Deere PowerTech PVS 6.8L (192 HP),false
 John Deere,644B,Loader,Heavy Equipment,1970,1987,John Deere 6531A / 6466T (152 HP),false
-John Deere,644G,Loader,Heavy Equipment,1988,2004,John Deere 6076A / 6081A (185 HP),false
-John Deere,644K,Loader,Heavy Equipment,2004,2021,John Deere PowerTech 6.8L / 9.0L (232 HP) | John Deere PowerTech 6.8L Hybrid (231 HP),false
+John Deere,644E,Loader,Heavy Equipment,1988,1993,John Deere 6466A (160 HP),false
+John Deere,644G,Loader,Heavy Equipment,1993,1997,John Deere 6076A (175 HP),false
+John Deere,644H,Loader,Heavy Equipment,1997,2003,John Deere 6081A (185 HP),false
+John Deere,644J,Loader,Heavy Equipment,2003,2008,John Deere PowerTech 6081H (225 HP),false
+John Deere,644K,Loader,Heavy Equipment,2008,2018,John Deere PowerTech PSX 6.8L / 9.0L (232 HP) | John Deere PowerTech 6.8L Hybrid (231 HP),false
+John Deere,644L,Loader,Heavy Equipment,2018,2021,John Deere PowerTech PSS 6.8L (249 HP) | John Deere PowerTech 6.8L Hybrid (231 HP),false
 John Deere,644 P-Tier,Loader,Heavy Equipment,2021,2026,John Deere PowerTech PSS 6.8L (249 HP) | John Deere PowerTech 6.8L X-Tier E-Drive (231 HP),false
-John Deere,744K,Loader,Heavy Equipment,1998,2026,John Deere PowerTech PSS 13.5L (304 HP),false
-John Deere,844L,Loader,Heavy Equipment,2004,2026,John Deere PowerTech PSS 13.5L (417 HP),false
+John Deere,744H,Loader,Heavy Equipment,1998,2004,John Deere 6125A (265 HP),false
+John Deere,744J,Loader,Heavy Equipment,2004,2008,John Deere PowerTech 6125H (295 HP),false
+John Deere,744K,Loader,Heavy Equipment,2008,2018,John Deere PowerTech PSX 13.5L (304 HP),false
+John Deere,744L,Loader,Heavy Equipment,2018,2022,John Deere PowerTech PSS 13.5L (316 HP),false
+John Deere,744 P-Tier,Loader,Heavy Equipment,2022,2026,John Deere PowerTech PSS 13.5L (316 HP),false
+John Deere,844J,Loader,Heavy Equipment,2004,2009,John Deere PowerTech 6125H / 6135H (380 HP),false
+John Deere,844K,Loader,Heavy Equipment,2009,2018,John Deere PowerTech PSX 13.5L (380 HP),false
+John Deere,844L,Loader,Heavy Equipment,2018,2022,John Deere PowerTech PSS 13.5L (417 HP),false
+John Deere,844 P-Tier,Loader,Heavy Equipment,2022,2026,John Deere JD14 13.6L (417 HP),false
 John Deere,250,Skid Steer,Heavy Equipment,1998,2004,John Deere 3029T (61 HP),false
 John Deere,317,Skid Steer,Heavy Equipment,2004,2010,John Deere 4024T (61 HP),false
 John Deere,320,Skid Steer,Heavy Equipment,2004,2010,John Deere 4024T (66 HP),false
@@ -468,12 +526,21 @@ John Deere,335 P-Tier,Skid Steer,Heavy Equipment,2024,2026,Yanmar 4TN101FHT (118
 John Deere,570A,Grader,Heavy Equipment,1970,1986,John Deere 6329D (85 HP),false
 John Deere,670A,Grader,Heavy Equipment,1975,1995,John Deere 6414T (125 HP),false
 John Deere,770A,Grader,Heavy Equipment,1975,1997,John Deere 6531T / 6076A (155 HP),false
-John Deere,670G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (235 HP),false
-John Deere,672G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (255 HP),false
-John Deere,770G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (255 HP),false
-John Deere,772G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (275 HP),false
-John Deere,872G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (300 HP),false
-John Deere,410E II,Roll Off Truck,Transport & Hauling,2005,2026,John Deere PowerTech PSS 13.5L (443 HP),false
+John Deere,670D,Grader,Heavy Equipment,2005,2009,John Deere PowerTech 6068H (185 HP),false
+John Deere,670G,Grader,Heavy Equipment,2008,2022,John Deere PowerTech PSS 9.0L (235 HP),false
+John Deere,670 P-Tier,Grader,Heavy Equipment,2022,2026,John Deere PowerTech PSS 9.0L (235 HP),false
+John Deere,672G,Grader,Heavy Equipment,2008,2022,John Deere PowerTech PSS 9.0L (255 HP),false
+John Deere,672 P-Tier,Grader,Heavy Equipment,2022,2026,John Deere PowerTech PSS 9.0L (255 HP),false
+John Deere,770D,Grader,Heavy Equipment,2005,2009,John Deere PowerTech 6081H (215 HP),false
+John Deere,770G,Grader,Heavy Equipment,2008,2022,John Deere PowerTech PSS 9.0L (255 HP),false
+John Deere,770 P-Tier,Grader,Heavy Equipment,2022,2026,John Deere PowerTech PSS 9.0L (255 HP),false
+John Deere,772G,Grader,Heavy Equipment,2008,2022,John Deere PowerTech PSS 9.0L (275 HP),false
+John Deere,772 P-Tier,Grader,Heavy Equipment,2022,2026,John Deere PowerTech PSS 9.0L (275 HP),false
+John Deere,870G,Grader,Heavy Equipment,2008,2022,John Deere PowerTech PSS 9.0L (280 HP),false
+John Deere,872G,Grader,Heavy Equipment,2008,2022,John Deere PowerTech PSS 9.0L (300 HP),false
+John Deere,872 P-Tier,Grader,Heavy Equipment,2022,2026,John Deere PowerTech PSS 9.0L (300 HP),false
+John Deere,410E II,Roll Off Truck,Transport & Hauling,2018,2026,John Deere PowerTech PSS 13.5L (443 HP),false
+John Deere,300D,Roll Off Truck,Transport & Hauling,2002,2012,John Deere PowerTech 6081A / 6090H (285 HP),false
 Bobcat,M-600,Skid Steer,Heavy Equipment,1970,1975,Wisconsin VF4D (25 HP),false
 Bobcat,M-610,Skid Steer,Heavy Equipment,1972,1982,Wisconsin VH4D (30 HP),false
 Bobcat,720,Skid Steer,Heavy Equipment,1972,1979,Wisconsin VH4D (30 HP),false
@@ -578,14 +645,27 @@ Case,590SN,Backhoe,Heavy Equipment,2010,2026,FPT Industrial F5BFL413A / N45 (110
 Case,9010B,Excavator,Heavy Equipment,1994,2000,Case / CDC 4T-390 (92 HP),false
 Case,9020B,Excavator,Heavy Equipment,1994,2000,Case / CDC 6T-590 (115 HP),false
 Case,9030B,Excavator,Heavy Equipment,1994,2001,Case / CDC 6T-590 (142 HP),false
-Case,CX130D,Excavator,Heavy Equipment,2002,2026,Isuzu 4JJ1X (102 HP),false
-Case,CX160D,Excavator,Heavy Equipment,2002,2024,Isuzu 4JJ1X (120 HP),false
+Case,CX130,Excavator,Heavy Equipment,2002,2006,Isuzu 4BG1T (95 HP),false
+Case,CX130C,Excavator,Heavy Equipment,2011,2015,Isuzu 4JJ1X (95 HP),false
+Case,CX130D,Excavator,Heavy Equipment,2015,2023,Isuzu 4JJ1X (102 HP),false
+Case,CX130E,Excavator,Heavy Equipment,2023,2026,FPT Industrial NEF4 (130 HP),false
+Case,CX160,Excavator,Heavy Equipment,2002,2006,Isuzu 4BG1T (112 HP),false
+Case,CX160B,Excavator,Heavy Equipment,2007,2011,Isuzu 4JJ1X (120 HP),false
+Case,CX160C,Excavator,Heavy Equipment,2011,2015,Isuzu 4JJ1X (120 HP),false
+Case,CX160D,Excavator,Heavy Equipment,2015,2023,Isuzu 4JJ1X (120 HP),false
+Case,CX170E,Excavator,Heavy Equipment,2023,2026,FPT Industrial NEF4 (130 HP),false
 Case,CX210B,Excavator,Heavy Equipment,2007,2011,Isuzu 4HK1X (157 HP),false
 Case,CX210C,Excavator,Heavy Equipment,2011,2015,Isuzu 4HK1X (160 HP),false
 Case,CX210D,Excavator,Heavy Equipment,2015,2023,Isuzu 4HK1X (160 HP),false
 Case,CX220E,Excavator,Heavy Equipment,2022,2026,FPT Industrial NEF6 (173 HP),false
-Case,CX300D,Excavator,Heavy Equipment,2015,2025,Isuzu 6HK1X (207 HP),false
-Case,CX350D,Excavator,Heavy Equipment,2015,2025,Isuzu 6HK1X (268 HP),false
+Case,CX250C,Excavator,Heavy Equipment,2011,2015,Isuzu 4HK1X (177 HP),false
+Case,CX250E,Excavator,Heavy Equipment,2023,2026,FPT Industrial NEF6 (188 HP),false
+Case,CX300C,Excavator,Heavy Equipment,2011,2015,Isuzu 6HK1X (207 HP),false
+Case,CX300D,Excavator,Heavy Equipment,2015,2023,Isuzu 6HK1X (207 HP),false
+Case,CX300E,Excavator,Heavy Equipment,2023,2026,FPT Industrial NEF6 (252 HP),false
+Case,CX350C,Excavator,Heavy Equipment,2011,2015,Isuzu 6HK1X (268 HP),false
+Case,CX350D,Excavator,Heavy Equipment,2015,2023,Isuzu 6HK1X (268 HP),false
+Case,CX370E,Excavator,Heavy Equipment,2023,2026,FPT Industrial Cursor 9 (295 HP),false
 Case,W14,Loader,Heavy Equipment,1974,1988,Case A336BD (83 HP),false
 Case,W20,Loader,Heavy Equipment,1972,1988,Case A401BD (103 HP),false
 Case,621,Loader,Heavy Equipment,1989,1993,Case / CDC 6T-590 (116 HP),false
@@ -594,22 +674,46 @@ Case,621D,Loader,Heavy Equipment,2001,2006,Case 6TAA-5904 (138 HP),false
 Case,621E,Loader,Heavy Equipment,2007,2012,Case / FPT 667TA (149 HP),false
 Case,621F,Loader,Heavy Equipment,2012,2017,FPT Industrial F4HFE613 (162 HP),false
 Case,621G,Loader,Heavy Equipment,2017,2026,FPT Industrial NEF 6.7L (172 HP),false
+Case,721D,Loader,Heavy Equipment,2002,2006,Case 6TAA-5904 (170 HP),false
+Case,721E,Loader,Heavy Equipment,2007,2011,Case / FPT 667TA (183 HP),false
 Case,721G,Loader,Heavy Equipment,2017,2026,FPT Industrial NEF 6.7L (195 HP),false
+Case,821E,Loader,Heavy Equipment,2007,2011,Case / FPT 667TA (213 HP),false
+Case,821F,Loader,Heavy Equipment,2011,2017,FPT Industrial F4HFE613 (213 HP),false
 Case,821G,Loader,Heavy Equipment,2017,2026,FPT Industrial NEF 6.7L (230 HP),false
 Case,1840,Skid Steer,Heavy Equipment,1989,2001,Case / CDC 4-390 (50 HP),false
 Case,1845C,Skid Steer,Heavy Equipment,1985,2001,Case / CDC 4-390 (56 HP),false
 Case,40XT,Skid Steer,Heavy Equipment,2000,2005,Case / CDC 4-390 / 4T-390 (60 HP),false
-Case,SR210,Skid Steer,Heavy Equipment,2011,2020,ISM / FPT N844LT / F5C (74 HP),false
-Case,SR250,Skid Steer,Heavy Equipment,2011,2020,FPT Industrial F5BFL413 (90 HP),false
-Case,SV280,Skid Steer,Heavy Equipment,2015,2026,FPT Industrial F5C (74 HP),false
-Case,SV340B,Skid Steer,Heavy Equipment,2017,2026,FPT Industrial F5BFL413A (90 HP),false
-Case,TR310,Skid Steer,Heavy Equipment,2014,2026,FPT Industrial F5C (74 HP),false
-Case,TR340,Skid Steer,Heavy Equipment,2014,2026,FPT Industrial F5BFL413A (90 HP),false
-Case,TV380,Skid Steer,Heavy Equipment,2011,2020,FPT Industrial F5BFL413A (90 HP),false
-Case,TV450B,Skid Steer,Heavy Equipment,2019,2026,FPT Industrial F5BFL413A (90 HP),false
-Case,850M,Bulldozer,Heavy Equipment,1976,2026,FPT Industrial F4HFE413 / 6T-590 (112 HP),false
-Case,1150M,Bulldozer,Heavy Equipment,1975,2026,FPT Industrial NEF 6.7L (127 HP),false
-Case,1650M,Bulldozer,Heavy Equipment,1998,2026,FPT Industrial NEF 6.7L (150 HP),false
+Case,SR210,Skid Steer,Heavy Equipment,2011,2019,ISM / FPT N844LT / F5C (74 HP),false
+Case,SR210B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+Case,SR240,Skid Steer,Heavy Equipment,2014,2019,FPT Industrial F5C (74 HP),false
+Case,SR240B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+Case,SR250,Skid Steer,Heavy Equipment,2011,2019,FPT Industrial F5BFL413 (90 HP),false
+Case,SR270B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5BFL413A (90 HP),false
+Case,SV280,Skid Steer,Heavy Equipment,2015,2019,FPT Industrial F5C (74 HP),false
+Case,SV280B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+Case,SV300,Skid Steer,Heavy Equipment,2011,2017,FPT Industrial F5BFL413 (90 HP),false
+Case,SV340,Skid Steer,Heavy Equipment,2017,2019,FPT Industrial F5BFL413A (90 HP),false
+Case,SV340B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5BFL413A (90 HP),false
+Case,TR270,Skid Steer,Heavy Equipment,2011,2019,FPT Industrial F5C (74 HP),false
+Case,TR270B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+Case,TR310,Skid Steer,Heavy Equipment,2014,2019,FPT Industrial F5C (74 HP),false
+Case,TR310B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+Case,TR340,Skid Steer,Heavy Equipment,2014,2019,FPT Industrial F5BFL413A (90 HP),false
+Case,TR340B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5BFL413A (90 HP),false
+Case,TV380,Skid Steer,Heavy Equipment,2011,2019,FPT Industrial F5BFL413A (90 HP),false
+Case,TV370B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+Case,TV450,Skid Steer,Heavy Equipment,2019,2019,FPT Industrial F5BFL413A (90 HP),false
+Case,TV450B,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5BFL413A (90 HP),false
+Case,TV620B,Skid Steer,Heavy Equipment,2021,2026,FPT Industrial F5HFL463A (114 HP),false
+Case,850D,Bulldozer,Heavy Equipment,1985,1993,Case / CDC 6-590 (82 HP),false
+Case,850G,Bulldozer,Heavy Equipment,1994,2001,Case / CDC 6T-590 (89 HP),false
+Case,850L,Bulldozer,Heavy Equipment,2008,2013,Case / FPT F4HE0484 (97 HP),false
+Case,850M,Bulldozer,Heavy Equipment,2013,2026,FPT Industrial F4HFE413 / NEF 4.5L (112 HP),false
+Case,1150E,Bulldozer,Heavy Equipment,1986,1994,Case / CDC 6T-590 (113 HP),false
+Case,1150H,Bulldozer,Heavy Equipment,1998,2005,Case / CDC 6T-590 (119 HP),false
+Case,1150M,Bulldozer,Heavy Equipment,2013,2026,FPT Industrial NEF 6.7L (127 HP),false
+Case,1650K,Bulldozer,Heavy Equipment,2002,2008,Case 6TAA-5904 (144 HP),false
+Case,1650M,Bulldozer,Heavy Equipment,2014,2026,FPT Industrial NEF 6.7L (150 HP),false
 Case,2050M,Bulldozer,Heavy Equipment,2013,2026,FPT Industrial NEF 6.7L (214 HP),false
 Case,590 Super L,Backhoe,Heavy Equipment,1995,2000,Case / CDC 4T-390 (95 HP),false
 Case,590 Super M,Backhoe,Heavy Equipment,2001,2010,Case 445T/M3 (98 HP),false
@@ -683,22 +787,33 @@ Volvo CE,L90E,Loader,Heavy Equipment,2002,2007,Volvo D6D (164 HP),false
 Volvo CE,L90F,Loader,Heavy Equipment,2007,2012,Volvo D6E (174 HP),false
 Volvo CE,L90G,Loader,Heavy Equipment,2011,2014,Volvo D6H (174 HP),false
 Volvo CE,L90H,Loader,Heavy Equipment,2014,2026,Volvo D6J (184 HP),false
-Volvo CE,L120C,Loader,Heavy Equipment,1986,2001,Volvo TD73KCE (201 HP),false
-Volvo CE,L120F,Loader,Heavy Equipment,2002,2014,Volvo D7E / D8H (243 HP),false
+Volvo CE,L120C,Loader,Heavy Equipment,1995,2001,Volvo TD73KCE (201 HP),false
+Volvo CE,L120F,Loader,Heavy Equipment,2007,2011,Volvo D7E (243 HP),false
 Volvo CE,L120H,Loader,Heavy Equipment,2014,2026,Volvo D8J (272 HP),false
-Volvo CE,L150H,Loader,Heavy Equipment,2002,2026,Volvo D13J (295 HP),false
+Volvo CE,L150E,Loader,Heavy Equipment,2002,2007,Volvo D9A / D10B (281 HP),false
+Volvo CE,L150F,Loader,Heavy Equipment,2007,2011,Volvo D12D (284 HP),false
+Volvo CE,L150G,Loader,Heavy Equipment,2011,2014,Volvo D13H (296 HP),false
+Volvo CE,L150H,Loader,Heavy Equipment,2014,2026,Volvo D13J (295 HP),false
 Volvo CE,BM 861,Roll Off Truck,Transport & Hauling,1970,1986,Volvo TD60B (170 HP),false
 Volvo CE,A25C,Roll Off Truck,Transport & Hauling,1986,2001,Volvo TD73KCE (254 HP),false
-Volvo CE,A30C,Roll Off Truck,Transport & Hauling,1993,2007,Volvo TD103KAE / D9A (315 HP),false
-Volvo CE,A35D,Roll Off Truck,Transport & Hauling,2000,2014,Volvo D12C / D13F (385 HP),false
+Volvo CE,A30C,Roll Off Truck,Transport & Hauling,1993,2001,Volvo TD103KAE (315 HP),false
+Volvo CE,A30D,Roll Off Truck,Transport & Hauling,2001,2007,Volvo D9A / D10B (324 HP),false
+Volvo CE,A30E,Roll Off Truck,Transport & Hauling,2007,2011,Volvo D9B (343 HP),false
+Volvo CE,A35D,Roll Off Truck,Transport & Hauling,2000,2007,Volvo D12C (385 HP),false
+Volvo CE,A35F,Roll Off Truck,Transport & Hauling,2011,2014,Volvo D13H (441 HP),false
+Volvo CE,A35G,Roll Off Truck,Transport & Hauling,2014,2026,Volvo D13J (447 HP),false
 Volvo CE,A40D,Roll Off Truck,Transport & Hauling,2000,2007,Volvo D12C (420 HP),false
 Volvo CE,A40E,Roll Off Truck,Transport & Hauling,2007,2011,Volvo D16E (464 HP),false
 Volvo CE,A40F,Roll Off Truck,Transport & Hauling,2011,2014,Volvo D16F (465 HP),false
 Volvo CE,A40G,Roll Off Truck,Transport & Hauling,2014,2026,Volvo D16J (469 HP),false
 Volvo CE,A45G,Roll Off Truck,Transport & Hauling,2016,2026,Volvo D16J (469 HP),false
 Volvo CE,EC18E,Excavator,Heavy Equipment,2018,2026,Volvo / Kubota D0.9A (16 HP),false
-Volvo CE,ECR58,Excavator,Heavy Equipment,2004,2026,Volvo D2.6H (48 HP),false
-Volvo CE,EC140E,Excavator,Heavy Equipment,2001,2026,Volvo D4J (121 HP),false
+Volvo CE,ECR58,Excavator,Heavy Equipment,2004,2013,Volvo / Yanmar D3.1A (50 HP),false
+Volvo CE,ECR58D,Excavator,Heavy Equipment,2013,2021,Volvo D2.6A (48 HP),false
+Volvo CE,ECR58F,Excavator,Heavy Equipment,2021,2026,Volvo D2.6H (48 HP),false
+Volvo CE,EC140B,Excavator,Heavy Equipment,2001,2007,Volvo D4D (98 HP),false
+Volvo CE,EC140C,Excavator,Heavy Equipment,2007,2012,Volvo D4E (99 HP),false
+Volvo CE,EC140E,Excavator,Heavy Equipment,2015,2026,Volvo D4J (121 HP),false
 Volvo CE,EC210B,Excavator,Heavy Equipment,2002,2008,Volvo D6D (143 HP),false
 Volvo CE,EC210C,Excavator,Heavy Equipment,2008,2012,Volvo D6E (148 HP),false
 Volvo CE,EC210D,Excavator,Heavy Equipment,2012,2020,Volvo D5E (154 HP),false
@@ -832,12 +947,14 @@ Kobelco,SK400LC Mark IV,Excavator,Heavy Equipment,1993,2000,Mitsubishi 6D22TC (2
 Kobelco,SK35SR-6E,Excavator,Heavy Equipment,2005,2026,Yanmar 3TNV88F (23 HP),false
 Kobelco,SK55SRX-7,Excavator,Heavy Equipment,2019,2026,Yanmar 4TNV88C (37 HP),false
 Kobelco,SK75SR-7,Excavator,Heavy Equipment,2013,2026,Yanmar 4TNV98CT (70 HP),false
-Kobelco,SK140SRLC-7,Excavator,Heavy Equipment,2002,2026,Isuzu 4JJ1X (105 HP),false
-Kobelco,SK170LC-11,Excavator,Heavy Equipment,2008,2026,Isuzu 4JJ1X (127 HP),false
+Kobelco,SK140SRLC-5,Excavator,Heavy Equipment,2016,2020,Isuzu 4JJ1X (105 HP),false
+Kobelco,SK140SRLC-7,Excavator,Heavy Equipment,2020,2026,Isuzu 4JJ1X (105 HP),false
+Kobelco,SK170LC-10,Excavator,Heavy Equipment,2016,2020,Isuzu 4JJ1X (127 HP),false
+Kobelco,SK170LC-11,Excavator,Heavy Equipment,2021,2026,Isuzu 4JJ1X (127 HP),false
 Kobelco,SK210LC-8,Excavator,Heavy Equipment,2006,2015,Hino J05E-TA (157 HP),false
 Kobelco,SK210LC-10,Excavator,Heavy Equipment,2016,2020,Hino J05E-UM (160 HP),false
 Kobelco,SK210LC-11,Excavator,Heavy Equipment,2021,2026,Yanmar / Hino 4TN107FHT (160 HP),false
-Kobelco,SK260LC-11,Excavator,Heavy Equipment,2008,2026,Hino J05E (182 HP),false
+Kobelco,SK260LC-11,Excavator,Heavy Equipment,2021,2026,Hino J05E (182 HP),false
 Kobelco,SK300LC-11,Excavator,Heavy Equipment,2016,2026,Hino J08E-YD (252 HP),false
 Kobelco,SK350LC-8,Excavator,Heavy Equipment,2007,2015,Hino J08E-TM (270 HP),false
 Kobelco,SK350LC-10,Excavator,Heavy Equipment,2016,2020,Hino J08E-UV (270 HP),false
@@ -907,18 +1024,23 @@ Develon,Mega 300-V,Loader,Heavy Equipment,1994,2005,Daewoo DE08TIS (200 HP),fals
 Develon,DX35Z,Excavator,Heavy Equipment,2007,2026,Yanmar / Kubota 3TNV88 / D1703 (25 HP),false
 Develon,DX62R-7,Excavator,Heavy Equipment,2021,2026,Develon / Doosan D24 (59 HP),false
 Develon,DX85R-7,Excavator,Heavy Equipment,2013,2026,Develon / Yanmar D24 (65 HP),false
-Develon,DX140LC-7,Excavator,Heavy Equipment,2007,2026,Develon / Perkins DL06 / D34 (115 HP),false
+Develon,DX140LC-3,Excavator,Heavy Equipment,2007,2015,Doosan DL06 (109 HP),false
+Develon,DX140LC-7,Excavator,Heavy Equipment,2021,2026,Develon D34 (115 HP),false
 Develon,DX180LC-5,Excavator,Heavy Equipment,2007,2022,Doosan DL06P (129 HP),false
 Develon,DX225LC-3,Excavator,Heavy Equipment,2006,2015,Doosan DL06 (148 HP),false
 Develon,DX225LC-5,Excavator,Heavy Equipment,2015,2021,Doosan DL06P (166 HP),false
 Develon,DX225LC-7,Excavator,Heavy Equipment,2021,2026,Develon DL06V (174 HP),false
-Develon,DX300LC-7,Excavator,Heavy Equipment,2006,2026,Develon DL08V (271 HP),false
+Develon,DX300LC-3,Excavator,Heavy Equipment,2006,2015,Doosan DL08 (227 HP),false
+Develon,DX300LC-7,Excavator,Heavy Equipment,2021,2026,Develon DL08V (271 HP),false
 Develon,DX350LC-5,Excavator,Heavy Equipment,2007,2021,Doosan DL08P / Scania DC9 (281 HP),false
 Develon,DX350LC-7,Excavator,Heavy Equipment,2021,2026,Develon DL08V (284 HP),false
-Develon,DX490LC-7,Excavator,Heavy Equipment,2007,2026,Scania / Develon DC13 / DX12 (394 HP),false
-Develon,DL250-7,Loader,Heavy Equipment,2006,2026,Develon DL06V (172 HP),false
+Develon,DX490LC-7,Excavator,Heavy Equipment,2021,2026,Scania / Develon DC13 / DX12 (394 HP),false
+Develon,DX480LC,Excavator,Heavy Equipment,2007,2020,Doosan / Scania DV11 / DC13 (369 HP),false
+Develon,DL250-5,Loader,Heavy Equipment,2015,2021,Doosan DL06P (172 HP),false
+Develon,DL250-7,Loader,Heavy Equipment,2021,2026,Develon DL06V (172 HP),false
 Develon,DL320-7,Loader,Heavy Equipment,2021,2026,Develon DL08V (271 HP),false
-Develon,DL420-7,Loader,Heavy Equipment,2007,2026,Scania DC13 (345 HP),false
+Develon,DL420-5,Loader,Heavy Equipment,2015,2021,Scania DC13 (345 HP),false
+Develon,DL420-7,Loader,Heavy Equipment,2021,2026,Scania DC13 (345 HP),false
 Develon,DD100,Bulldozer,Heavy Equipment,2022,2026,Develon D34 (122 HP),false
 Develon,DA30-7,Roll Off Truck,Transport & Hauling,2011,2026,Scania DC9 (375 HP),false
 Develon,Solar 130LC-V,Excavator,Heavy Equipment,1996,2005,Daewoo DB58T (95 HP),false

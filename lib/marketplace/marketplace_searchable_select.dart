@@ -70,6 +70,9 @@ class MarketplaceSearchableSelectField<T> extends FormField<T> {
     this.allOptionsWhenUnfiltered,
     this.semanticKey,
     this.headerBadge,
+    this.allowClear = false,
+    this.clearTooltip = 'Clear selection',
+    this.clearButtonKey,
     super.onSaved,
     super.autovalidateMode,
   }) : super(
@@ -94,6 +97,9 @@ class MarketplaceSearchableSelectField<T> extends FormField<T> {
   final List<MarketplaceSelectOption<T>>? allOptionsWhenUnfiltered;
   final Key? semanticKey;
   final String? headerBadge;
+  final bool allowClear;
+  final String clearTooltip;
+  final Key? clearButtonKey;
 
   @override
   FormFieldState<T> createState() =>
@@ -113,6 +119,13 @@ class _MarketplaceSearchableSelectFieldState<T> extends FormFieldState<T> {
     super.didUpdateWidget(oldWidget);
     if (widget.value != oldWidget.value) {
       setValue(widget.value);
+      if (hasError) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            validate();
+          }
+        });
+      }
     }
   }
 
@@ -219,7 +232,19 @@ class _MarketplaceSearchableSelectFieldState<T> extends FormFieldState<T> {
 
     if (!mounted || result == null) return;
     didChange(result.value);
+    if (hasError) {
+      validate();
+    }
     widget.onChanged?.call(result.value);
+  }
+
+  void _clearSelection() {
+    if (!widget.enabled) return;
+    didChange(null);
+    if (hasError) {
+      validate();
+    }
+    widget.onChanged?.call(null);
   }
 
   Widget _buildField(BuildContext context) {
@@ -230,22 +255,56 @@ class _MarketplaceSearchableSelectFieldState<T> extends FormFieldState<T> {
         selectedOption?.label ?? (value != null ? '$value'.trim() : '');
     final isEmpty = value == null || displayText.isEmpty;
     final activeBadge = selectedOption?.badge ?? widget.headerBadge;
+    final trimmedBadge = activeBadge?.trim() ?? '';
+    final showClosedBadge = trimmedBadge.isNotEmpty &&
+        (isEmpty || !displayText.contains(trimmedBadge));
+    final arrowColor = widget.enabled
+        ? (_isModalOpen || _isFocused
+            ? PipeBuyerColors.orange
+            : theme.inputDecorationTheme.suffixIconColor)
+        : theme.disabledColor;
+
+    final Widget suffixWidget = widget.allowClear && widget.enabled && !isEmpty
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              IconButton(
+                key: widget.clearButtonKey,
+                tooltip: widget.clearTooltip,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: _clearSelection,
+                icon: Icon(
+                  Icons.clear_rounded,
+                  size: 18,
+                  color: isDark
+                      ? PipeBuyerColors.darkMuted
+                      : PipeBuyerColors.muted,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: arrowColor,
+                ),
+              ),
+            ],
+          )
+        : Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: arrowColor,
+          );
 
     final baseDecoration = InputDecoration(
       labelText: widget.label,
-      hintText: widget.hintText,
+      floatingLabelBehavior: FloatingLabelBehavior.always,
       helperText: widget.helperText,
       errorText: errorText,
       enabled: widget.enabled,
       prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon) : null,
-      suffixIcon: Icon(
-        Icons.keyboard_arrow_down_rounded,
-        color: widget.enabled
-            ? (_isModalOpen || _isFocused
-                ? PipeBuyerColors.orange
-                : theme.inputDecorationTheme.suffixIconColor)
-            : theme.disabledColor,
-      ),
+      suffixIcon: suffixWidget,
     ).applyDefaults(theme.inputDecorationTheme);
 
     return Semantics(
@@ -265,7 +324,7 @@ class _MarketplaceSearchableSelectFieldState<T> extends FormFieldState<T> {
             }
           },
           child: InputDecorator(
-            isEmpty: isEmpty,
+            isEmpty: false,
             isFocused: _isFocused || _isModalOpen,
             decoration: baseDecoration,
             child: Row(
@@ -287,9 +346,9 @@ class _MarketplaceSearchableSelectFieldState<T> extends FormFieldState<T> {
                     ),
                   ),
                 ),
-                if (activeBadge != null && activeBadge.trim().isNotEmpty) ...[
+                if (showClosedBadge) ...[
                   const SizedBox(width: 8),
-                  _SubtleBadgePill(text: activeBadge.trim()),
+                  _SubtleBadgePill(text: trimmedBadge),
                 ],
               ],
             ),

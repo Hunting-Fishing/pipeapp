@@ -92,6 +92,22 @@ void main() {
         equals(<int>[2026, 2025, 2024, 2023, 2022, 2021, 2020]),
       );
 
+      // Case SV340B (B-Series, 2020–2026) vs SV340 (Alpha Series, 2017–2019).
+      final sv340b = catalog.findModel('Case', 'SV340B');
+      final sv340 = catalog.findModel('Case', 'SV340');
+      expect(sv340b, isNotNull);
+      expect(sv340b!.yearRangeLabel, '2020–2026');
+      expect(
+        catalog.yearsFor(brand: 'Case', model: 'SV340B'),
+        equals(<int>[2026, 2025, 2024, 2023, 2022, 2021, 2020]),
+      );
+      expect(sv340, isNotNull);
+      expect(sv340!.yearRangeLabel, '2017–2019');
+      expect(
+        catalog.yearsFor(brand: 'Case', model: 'SV340'),
+        equals(<int>[2019, 2018, 2017]),
+      );
+
       // Peterbilt 589 (2024–2026) vs Peterbilt 379 (1987–2007).
       expect(
         catalog.yearsFor(brand: 'Peterbilt', model: '589'),

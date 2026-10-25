@@ -37,9 +37,9 @@
     "totalManufacturers": 57,
     "fullCatalogManufacturers": 43,
     "manualEntryManufacturers": 14,
-    "totalModels": 1540,
-    "multiEngineModels": 278,
-    "totalEngineOptions": 1918
+    "totalModels": 1662,
+    "multiEngineModels": 279,
+    "totalEngineOptions": 2041
   },
   "manufacturers": [
     {
@@ -8824,7 +8824,7 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 2007,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
             "D39PX-24",
@@ -8840,7 +8840,7 @@
               "powerHp": 105,
               "fuelType": "Diesel",
               "transmission": "Hydrostatic",
-              "yearFrom": 2007,
+              "yearFrom": 2016,
               "yearTo": 2026
             }
           ]
@@ -8852,7 +8852,7 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 2007,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
             "D51PX-24",
@@ -8869,7 +8869,7 @@
               "powerHp": 131,
               "fuelType": "Diesel",
               "transmission": "Hydrostatic",
-              "yearFrom": 2007,
+              "yearFrom": 2016,
               "yearTo": 2026
             }
           ]
@@ -8881,7 +8881,7 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 2003,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
             "D61PX-24",
@@ -8898,7 +8898,7 @@
               "powerHp": 168,
               "fuelType": "Diesel",
               "transmission": "Hydrostatic",
-              "yearFrom": 2003,
+              "yearFrom": 2016,
               "yearTo": 2026
             }
           ]
@@ -9072,17 +9072,44 @@
           ]
         },
         {
+          "model": "D85E-21",
+          "series": "D85 Classic Large Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 1986,
+          "yearTo": 2003,
+          "aliases": [
+            "D85A-18",
+            "D85E21"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu S6D125E-2 • 11.0L 6-Cyl Turbo Diesel • 225 HP • Torqflow Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "S6D125E-2",
+              "displacementL": 11,
+              "powerHp": 225,
+              "fuelType": "Diesel",
+              "transmission": "Torqflow Powershift",
+              "yearFrom": 1986,
+              "yearTo": 2003
+            }
+          ]
+        },
+        {
           "model": "D85EX-15",
           "series": "D85 Large Dozers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 1975,
+          "yearFrom": 2003,
           "yearTo": 2014,
           "aliases": [
-            "D85A-18",
-            "D85E-21",
+            "D85PX-15",
             "D85EX15"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9095,7 +9122,7 @@
               "powerHp": 264,
               "fuelType": "Diesel",
               "transmission": "Torqflow Powershift",
-              "yearFrom": 1975,
+              "yearFrom": 2003,
               "yearTo": 2014
             }
           ]
@@ -9130,16 +9157,42 @@
           ]
         },
         {
+          "model": "D155A-2",
+          "series": "D155 Classic Large Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 1986,
+          "yearTo": 2001,
+          "aliases": [
+            "D155A2"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SA6D140-2 • 15.2L 6-Cyl Turbo Diesel • 320 HP • Torqflow Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SA6D140-2",
+              "displacementL": 15.2,
+              "powerHp": 320,
+              "fuelType": "Diesel",
+              "transmission": "Torqflow Powershift",
+              "yearFrom": 1986,
+              "yearTo": 2001
+            }
+          ]
+        },
+        {
           "model": "D155AX-6",
           "series": "D155 Large Dozers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 1971,
+          "yearFrom": 2007,
           "yearTo": 2014,
           "aliases": [
-            "D155A-2",
             "D155AX6"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9152,7 +9205,7 @@
               "powerHp": 354,
               "fuelType": "Diesel",
               "transmission": "Torqflow Powershift",
-              "yearFrom": 1971,
+              "yearFrom": 2007,
               "yearTo": 2014
             }
           ]
@@ -9186,16 +9239,42 @@
           ]
         },
         {
+          "model": "D275A-2",
+          "series": "D275 Classic Mining Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 1989,
+          "yearTo": 2002,
+          "aliases": [
+            "D275A2"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu S6D170E-2 • 23.2L 6-Cyl Turbo Diesel • 405 HP • Torqflow Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "S6D170E-2",
+              "displacementL": 23.2,
+              "powerHp": 405,
+              "fuelType": "Diesel",
+              "transmission": "Torqflow Powershift",
+              "yearFrom": 1989,
+              "yearTo": 2002
+            }
+          ]
+        },
+        {
           "model": "D275AX-5",
           "series": "D275 Mining Dozers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 1989,
+          "yearFrom": 2002,
           "yearTo": 2026,
           "aliases": [
-            "D275A-2",
             "D275AX-5E0",
             "D275AX5"
           ],
@@ -9209,8 +9288,63 @@
               "powerHp": 449,
               "fuelType": "Diesel",
               "transmission": "Torqflow Powershift",
-              "yearFrom": 1989,
+              "yearFrom": 2002,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "D375A-5",
+          "series": "D375 Mining Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2002,
+          "yearTo": 2010,
+          "aliases": [
+            "D375A-3",
+            "D375A5"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SA6D170E-3 • 23.2L 6-Cyl Turbo Diesel • 525 HP • Torqflow Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SA6D170E-3",
+              "displacementL": 23.2,
+              "powerHp": 525,
+              "fuelType": "Diesel",
+              "transmission": "Torqflow Powershift",
+              "yearFrom": 2002,
+              "yearTo": 2010
+            }
+          ]
+        },
+        {
+          "model": "D375A-6",
+          "series": "D375 Mining Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2010,
+          "yearTo": 2017,
+          "aliases": [
+            "D375A6"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D170E-5 • 23.2L 6-Cyl Turbo Diesel • 610 HP • Torqflow Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D170E-5",
+              "displacementL": 23.2,
+              "powerHp": 610,
+              "fuelType": "Diesel",
+              "transmission": "Torqflow Powershift",
+              "yearFrom": 2010,
+              "yearTo": 2017
             }
           ]
         },
@@ -9221,11 +9355,9 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 1985,
+          "yearFrom": 2017,
           "yearTo": 2026,
           "aliases": [
-            "D375A-5",
-            "D375A-6",
             "D375A8"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9238,8 +9370,64 @@
               "powerHp": 610,
               "fuelType": "Diesel",
               "transmission": "Torqflow Powershift",
-              "yearFrom": 1985,
+              "yearFrom": 2017,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "WA200-5",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2004,
+          "yearTo": 2008,
+          "aliases": [
+            "WA200-1",
+            "WA200-3",
+            "WA2005"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D102E-2 • 5.9L 6-Cyl Turbo Diesel • 123 HP • Hydrostatic",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D102E-2",
+              "displacementL": 5.9,
+              "powerHp": 123,
+              "fuelType": "Diesel",
+              "transmission": "Hydrostatic",
+              "yearFrom": 2004,
+              "yearTo": 2008
+            }
+          ]
+        },
+        {
+          "model": "WA200-7",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2013,
+          "yearTo": 2017,
+          "aliases": [
+            "WA2007"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA4D107E-2 • 4.5L 4-Cyl Turbo Diesel • 126 HP • Hydrostatic",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA4D107E-2",
+              "displacementL": 4.5,
+              "powerHp": 126,
+              "fuelType": "Diesel",
+              "transmission": "Hydrostatic",
+              "yearFrom": 2013,
+              "yearTo": 2017
             }
           ]
         },
@@ -9250,11 +9438,9 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1986,
+          "yearFrom": 2017,
           "yearTo": 2026,
           "aliases": [
-            "WA200-5",
-            "WA200-7",
             "WA2008"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9267,8 +9453,36 @@
               "powerHp": 126,
               "fuelType": "Diesel",
               "transmission": "Hydrostatic",
-              "yearFrom": 1986,
+              "yearFrom": 2017,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "WA250-5",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2001,
+          "yearTo": 2007,
+          "aliases": [
+            "WA250-3",
+            "WA2505"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D102E-2 • 5.9L 6-Cyl Turbo Diesel • 134 HP • Hydrostatic",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D102E-2",
+              "displacementL": 5.9,
+              "powerHp": 134,
+              "fuelType": "Diesel",
+              "transmission": "Hydrostatic",
+              "yearFrom": 2001,
+              "yearTo": 2007
             }
           ]
         },
@@ -9279,11 +9493,9 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1986,
+          "yearFrom": 2007,
           "yearTo": 2014,
           "aliases": [
-            "WA250-3",
-            "WA250-5",
             "WA2506"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9296,7 +9508,7 @@
               "powerHp": 138,
               "fuelType": "Diesel",
               "transmission": "Hydrostatic",
-              "yearFrom": 1986,
+              "yearFrom": 2007,
               "yearTo": 2014
             }
           ]
@@ -9356,17 +9568,70 @@
           ]
         },
         {
+          "model": "WA320-5",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2003,
+          "yearTo": 2008,
+          "aliases": [
+            "WA320-3",
+            "WA3205"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D102E-2 • 5.9L 6-Cyl Turbo Diesel • 166 HP • Hydrostatic",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D102E-2",
+              "displacementL": 5.9,
+              "powerHp": 166,
+              "fuelType": "Diesel",
+              "transmission": "Hydrostatic",
+              "yearFrom": 2003,
+              "yearTo": 2008
+            }
+          ]
+        },
+        {
+          "model": "WA320-7",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2013,
+          "yearTo": 2017,
+          "aliases": [
+            "WA3207"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D107E-2 • 6.7L 6-Cyl Turbo Diesel • 165 HP • Hydrostatic",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D107E-2",
+              "displacementL": 6.7,
+              "powerHp": 165,
+              "fuelType": "Diesel",
+              "transmission": "Hydrostatic",
+              "yearFrom": 2013,
+              "yearTo": 2017
+            }
+          ]
+        },
+        {
           "model": "WA320-8",
           "series": "WA Series Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1986,
+          "yearFrom": 2017,
           "yearTo": 2026,
           "aliases": [
-            "WA320-5",
-            "WA320-7",
             "WA3208"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9379,8 +9644,63 @@
               "powerHp": 165,
               "fuelType": "Diesel",
               "transmission": "Hydrostatic",
-              "yearFrom": 1986,
+              "yearFrom": 2017,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "WA380-5",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2002,
+          "yearTo": 2007,
+          "aliases": [
+            "WA380-3",
+            "WA3805"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D114E-2 • 8.3L 6-Cyl Turbo Diesel • 187 HP • Automatic Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D114E-2",
+              "displacementL": 8.3,
+              "powerHp": 187,
+              "fuelType": "Diesel",
+              "transmission": "Automatic Powershift",
+              "yearFrom": 2002,
+              "yearTo": 2007
+            }
+          ]
+        },
+        {
+          "model": "WA380-7",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2012,
+          "yearTo": 2016,
+          "aliases": [
+            "WA3807"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D107E-2 • 6.7L 6-Cyl Turbo Diesel • 191 HP • Automatic Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D107E-2",
+              "displacementL": 6.7,
+              "powerHp": 191,
+              "fuelType": "Diesel",
+              "transmission": "Automatic Powershift",
+              "yearFrom": 2012,
+              "yearTo": 2016
             }
           ]
         },
@@ -9391,11 +9711,9 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1986,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
-            "WA380-5",
-            "WA380-7",
             "WA3808"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9408,8 +9726,35 @@
               "powerHp": 191,
               "fuelType": "Diesel",
               "transmission": "Automatic Powershift",
-              "yearFrom": 1986,
+              "yearFrom": 2016,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "WA470-7",
+          "series": "WA Series Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2012,
+          "yearTo": 2016,
+          "aliases": [
+            "WA4707"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D125E-6 • 11.0L 6-Cyl Turbo Diesel • 272 HP • Automatic Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D125E-6",
+              "displacementL": 11,
+              "powerHp": 272,
+              "fuelType": "Diesel",
+              "transmission": "Automatic Powershift",
+              "yearFrom": 2012,
+              "yearTo": 2016
             }
           ]
         },
@@ -9420,10 +9765,9 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1987,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
-            "WA470-7",
             "WA475-10",
             "WA4708"
           ],
@@ -9437,8 +9781,35 @@
               "powerHp": 272,
               "fuelType": "Diesel",
               "transmission": "Automatic Powershift",
-              "yearFrom": 1987,
+              "yearFrom": 2016,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "WA500-7",
+          "series": "WA Series Large Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2012,
+          "yearTo": 2016,
+          "aliases": [
+            "WA5007"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D140E-6 • 15.2L 6-Cyl Turbo Diesel • 353 HP • Automatic Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D140E-6",
+              "displacementL": 15.2,
+              "powerHp": 353,
+              "fuelType": "Diesel",
+              "transmission": "Automatic Powershift",
+              "yearFrom": 2012,
+              "yearTo": 2016
             }
           ]
         },
@@ -9449,10 +9820,9 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1986,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
-            "WA500-7",
             "WA5008"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9465,8 +9835,90 @@
               "powerHp": 357,
               "fuelType": "Diesel",
               "transmission": "Automatic Powershift",
-              "yearFrom": 1986,
+              "yearFrom": 2016,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "GD655-3",
+          "series": "GD Series Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2001,
+          "yearTo": 2009,
+          "aliases": [
+            "GD655A-2",
+            "GD6553"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D114E-2 • 8.3L 6-Cyl Turbo Diesel • 190 HP • Dual-Mode Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D114E-2",
+              "displacementL": 8.3,
+              "powerHp": 190,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Mode Powershift",
+              "yearFrom": 2001,
+              "yearTo": 2009
+            }
+          ]
+        },
+        {
+          "model": "GD655-5",
+          "series": "GD Series Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2009,
+          "yearTo": 2015,
+          "aliases": [
+            "GD6555"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D107E-1 • 6.7L 6-Cyl Turbo Diesel • 218 HP • Dual-Mode Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D107E-1",
+              "displacementL": 6.7,
+              "powerHp": 218,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Mode Powershift",
+              "yearFrom": 2009,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "GD655-6",
+          "series": "GD Series Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2015,
+          "yearTo": 2019,
+          "aliases": [
+            "GD6556"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D107E-2 • 6.7L 6-Cyl Turbo Diesel • 218 HP • Dual-Mode Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D107E-2",
+              "displacementL": 6.7,
+              "powerHp": 218,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Mode Powershift",
+              "yearFrom": 2015,
+              "yearTo": 2019
             }
           ]
         },
@@ -9477,12 +9929,9 @@
           "productTypes": [
             "Grader"
           ],
-          "yearFrom": 1984,
+          "yearFrom": 2019,
           "yearTo": 2026,
           "aliases": [
-            "GD655A-2",
-            "GD655-5",
-            "GD655-6",
             "GD6557"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9495,8 +9944,65 @@
               "powerHp": 218,
               "fuelType": "Diesel",
               "transmission": "Dual-Mode Torque Converter / Direct Powershift",
-              "yearFrom": 1984,
+              "yearFrom": 2019,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "HM300-2",
+          "series": "HM Articulated Dump Trucks",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2005,
+          "yearTo": 2012,
+          "aliases": [
+            "HM300-1",
+            "HM3002"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D125E-5 • 11.0L 6-Cyl Turbo Diesel • 329 HP • 6F/2R K-ATOMiCS Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D125E-5",
+              "displacementL": 11,
+              "powerHp": 329,
+              "fuelType": "Diesel",
+              "transmission": "6F/2R K-ATOMiCS Powershift",
+              "yearFrom": 2005,
+              "yearTo": 2012
+            }
+          ]
+        },
+        {
+          "model": "HM300-3",
+          "series": "HM Articulated Dump Trucks",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2012,
+          "yearTo": 2016,
+          "aliases": [
+            "HM3003"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D125E-6 • 11.0L 6-Cyl Turbo Diesel • 325 HP • 6F/2R K-ATOMiCS Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D125E-6",
+              "displacementL": 11,
+              "powerHp": 325,
+              "fuelType": "Diesel",
+              "transmission": "6F/2R K-ATOMiCS Powershift",
+              "yearFrom": 2012,
+              "yearTo": 2016
             }
           ]
         },
@@ -9508,11 +10014,9 @@
             "Roll Off Truck",
             "Water Truck"
           ],
-          "yearFrom": 2003,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
-            "HM300-2",
-            "HM300-3",
             "HM3005"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9525,8 +10029,65 @@
               "powerHp": 324,
               "fuelType": "Diesel",
               "transmission": "6F/2R K-ATOMiCS Powershift",
-              "yearFrom": 2003,
+              "yearFrom": 2016,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "HM400-2",
+          "series": "HM Articulated Dump Trucks",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2005,
+          "yearTo": 2012,
+          "aliases": [
+            "HM400-1",
+            "HM4002"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D140E-5 • 15.2L 6-Cyl Turbo Diesel • 438 HP • 6F/2R K-ATOMiCS Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D140E-5",
+              "displacementL": 15.2,
+              "powerHp": 438,
+              "fuelType": "Diesel",
+              "transmission": "6F/2R K-ATOMiCS Powershift",
+              "yearFrom": 2005,
+              "yearTo": 2012
+            }
+          ]
+        },
+        {
+          "model": "HM400-3",
+          "series": "HM Articulated Dump Trucks",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2012,
+          "yearTo": 2016,
+          "aliases": [
+            "HM4003"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Komatsu SAA6D140E-6 • 15.2L 6-Cyl Turbo Diesel • 448 HP • 6F/2R K-ATOMiCS Powershift",
+              "manufacturer": "Komatsu",
+              "engineModel": "SAA6D140E-6",
+              "displacementL": 15.2,
+              "powerHp": 448,
+              "fuelType": "Diesel",
+              "transmission": "6F/2R K-ATOMiCS Powershift",
+              "yearFrom": 2012,
+              "yearTo": 2016
             }
           ]
         },
@@ -9538,11 +10099,9 @@
             "Roll Off Truck",
             "Water Truck"
           ],
-          "yearFrom": 2002,
+          "yearFrom": 2016,
           "yearTo": 2026,
           "aliases": [
-            "HM400-2",
-            "HM400-3",
             "HM4005"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -9555,7 +10114,7 @@
               "powerHp": 469,
               "fuelType": "Diesel",
               "transmission": "6F/2R K-ATOMiCS Powershift",
-              "yearFrom": 2002,
+              "yearFrom": 2016,
               "yearTo": 2026
             }
           ]
@@ -11528,7 +12087,7 @@
           ]
         },
         {
-          "model": "710L",
+          "model": "710J",
           "series": "710 Heavy Backhoe Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
@@ -11536,12 +12095,60 @@
             "Loader"
           ],
           "yearFrom": 2006,
-          "yearTo": 2026,
-          "aliases": [
-            "710J",
-            "710K",
-            "710 P-Tier"
+          "yearTo": 2012,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6068H • 6.8L 6-Cyl Turbo Diesel • 126 HP • Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6068H",
+              "displacementL": 6.8,
+              "powerHp": 126,
+              "fuelType": "Diesel",
+              "transmission": "Powershift",
+              "yearFrom": 2006,
+              "yearTo": 2012
+            }
+          ]
+        },
+        {
+          "model": "710K",
+          "series": "710 Heavy Backhoe Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Backhoe",
+            "Loader"
           ],
+          "yearFrom": 2012,
+          "yearTo": 2017,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PVX 6.8L • 6.8L 6-Cyl Turbo Diesel • 130 HP • Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PVX 6.8L",
+              "displacementL": 6.8,
+              "powerHp": 130,
+              "fuelType": "Diesel",
+              "transmission": "Powershift",
+              "yearFrom": 2012,
+              "yearTo": 2017
+            }
+          ]
+        },
+        {
+          "model": "710L",
+          "series": "710 Heavy Backhoe Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Backhoe",
+            "Loader"
+          ],
+          "yearFrom": 2017,
+          "yearTo": 2022,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -11552,7 +12159,35 @@
               "powerHp": 148,
               "fuelType": "Diesel",
               "transmission": "Powershift",
-              "yearFrom": 2006,
+              "yearFrom": 2017,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "710 P-Tier",
+          "series": "P-Tier Heavy Backhoe Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Backhoe",
+            "Loader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "710PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 6.8L • 6.8L 6-Cyl Turbo Diesel • 148 HP • 5-Speed AutoShift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 6.8L",
+              "displacementL": 6.8,
+              "powerHp": 148,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed AutoShift",
+              "yearFrom": 2022,
               "yearTo": 2026
             }
           ]
@@ -11620,11 +12255,8 @@
             "Bulldozer"
           ],
           "yearFrom": 2004,
-          "yearTo": 2022,
-          "aliases": [
-            "450K",
-            "450 P-Tier"
-          ],
+          "yearTo": 2015,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -11636,7 +12268,59 @@
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
               "yearFrom": 2004,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "450K",
+          "series": "450 Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2015,
+          "yearTo": 2022,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech E 4.5L • 4.5L 4-Cyl Turbo Diesel • 80 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech E 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 80,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2015,
               "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "450 P-Tier",
+          "series": "P-Tier Small Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "450PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech E 4.5L • 4.5L 4-Cyl Turbo Diesel • 80 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech E 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 80,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2022,
+              "yearTo": 2026
             }
           ]
         },
@@ -11669,30 +12353,79 @@
           ]
         },
         {
-          "model": "550K",
+          "model": "550J",
           "series": "550 Crawler Dozers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Bulldozer"
           ],
           "yearFrom": 2004,
-          "yearTo": 2022,
-          "aliases": [
-            "550J",
-            "550 P-Tier"
-          ],
+          "yearTo": 2012,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere PowerTech 4.5L • 4.5L 4-Cyl Turbo Diesel • 92 HP • Dual-Path Hydrostatic",
+              "label": "Deere PowerTech 4.5L • 4.5L 4-Cyl Turbo Diesel • 85 HP • Dual-Path Hydrostatic",
               "manufacturer": "John Deere",
               "engineModel": "PowerTech 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 85,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2004,
+              "yearTo": 2012
+            }
+          ]
+        },
+        {
+          "model": "550K",
+          "series": "550 Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2012,
+          "yearTo": 2022,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PVX 4.5L • 4.5L 4-Cyl Turbo Diesel • 92 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PVX 4.5L",
               "displacementL": 4.5,
               "powerHp": 92,
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
-              "yearFrom": 2004,
+              "yearFrom": 2012,
               "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "550 P-Tier",
+          "series": "P-Tier Small Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "550PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech EWL 4.5L • 4.5L 4-Cyl Turbo Diesel • 92 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech EWL 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 92,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2022,
+              "yearTo": 2026
             }
           ]
         },
@@ -11724,29 +12457,78 @@
           ]
         },
         {
-          "model": "650K",
+          "model": "650J",
           "series": "650 Crawler Dozers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Bulldozer"
           ],
           "yearFrom": 2004,
-          "yearTo": 2026,
-          "aliases": [
-            "650J",
-            "650 P-Tier"
-          ],
+          "yearTo": 2012,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere PowerTech 4.5L • 4.5L 4-Cyl Turbo Diesel • 104 HP • Dual-Path Hydrostatic",
+              "label": "Deere PowerTech 4.5L • 4.5L 4-Cyl Turbo Diesel • 99 HP • Dual-Path Hydrostatic",
               "manufacturer": "John Deere",
               "engineModel": "PowerTech 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 99,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2004,
+              "yearTo": 2012
+            }
+          ]
+        },
+        {
+          "model": "650K",
+          "series": "650 Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2012,
+          "yearTo": 2022,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PVX 4.5L • 4.5L 4-Cyl Turbo Diesel • 104 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PVX 4.5L",
               "displacementL": 4.5,
               "powerHp": 104,
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
-              "yearFrom": 2004,
+              "yearFrom": 2012,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "650 P-Tier",
+          "series": "P-Tier Small Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "650PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PVS 4.5L • 4.5L 4-Cyl Turbo Diesel • 104 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PVS 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 104,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2022,
               "yearTo": 2026
             }
           ]
@@ -12044,17 +12826,66 @@
           ]
         },
         {
+          "model": "950J",
+          "series": "Large Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2005,
+          "yearTo": 2014,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "John Deere / Liebherr D936L • 10.5L 6-Cyl Turbo Diesel • 247 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere / Liebherr",
+              "engineModel": "D936L",
+              "displacementL": 10.5,
+              "powerHp": 247,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2005,
+              "yearTo": 2014
+            }
+          ]
+        },
+        {
           "model": "950K",
           "series": "Large Crawler Dozers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 2007,
+          "yearFrom": 2014,
+          "yearTo": 2022,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 9.0L • 9.0L 6-Cyl Twin-Turbo Diesel • 265 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 9.0L",
+              "displacementL": 9,
+              "powerHp": 265,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2014,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "950 P-Tier",
+          "series": "P-Tier Large Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2022,
           "yearTo": 2026,
           "aliases": [
-            "950J",
-            "950 P-Tier"
+            "950PTier"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -12066,8 +12897,33 @@
               "powerHp": 265,
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
-              "yearFrom": 2007,
+              "yearFrom": 2022,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "1050J",
+          "series": "Large Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2005,
+          "yearTo": 2014,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "John Deere / Liebherr D946L • 12.0L 6-Cyl Turbo Diesel • 335 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere / Liebherr",
+              "engineModel": "D946L",
+              "displacementL": 12,
+              "powerHp": 335,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2005,
+              "yearTo": 2014
             }
           ]
         },
@@ -12078,12 +12934,9 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 2007,
-          "yearTo": 2026,
-          "aliases": [
-            "1050J",
-            "1050 P-Tier"
-          ],
+          "yearFrom": 2014,
+          "yearTo": 2022,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -12094,8 +12947,63 @@
               "powerHp": 350,
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
-              "yearFrom": 2007,
+              "yearFrom": 2014,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "1050 P-Tier",
+          "series": "P-Tier Large Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "1050PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere JD14 13.6L • 13.6L 6-Cyl Turbo Diesel • 350 HP • Dual-Path Hydrostatic",
+              "manufacturer": "John Deere",
+              "engineModel": "JD14 13.6L",
+              "displacementL": 13.6,
+              "powerHp": 350,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2022,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "444E",
+          "series": "444 Classic Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 1987,
+          "yearTo": 1997,
+          "aliases": [
+            "JD444",
+            "444G"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 4276T / 4045T • 4.5L 4-Cyl Turbo Diesel • 95 HP • Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "4276T / 4045T",
+              "displacementL": 4.5,
+              "powerHp": 95,
+              "fuelType": "Diesel",
+              "transmission": "Powershift",
+              "yearFrom": 1987,
+              "yearTo": 1997
             }
           ]
         },
@@ -12106,26 +13014,124 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1975,
-          "yearTo": 2019,
+          "yearFrom": 1997,
+          "yearTo": 2003,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 4045T • 4.5L 4-Cyl Turbo Diesel • 110 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "4045T",
+              "displacementL": 4.5,
+              "powerHp": 110,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1997,
+              "yearTo": 2003
+            }
+          ]
+        },
+        {
+          "model": "444J",
+          "series": "444 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2003,
+          "yearTo": 2008,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 4045H • 4.5L 4-Cyl Turbo Diesel • 115 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 4045H",
+              "displacementL": 4.5,
+              "powerHp": 115,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2003,
+              "yearTo": 2008
+            }
+          ]
+        },
+        {
+          "model": "444K",
+          "series": "444 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2008,
+          "yearTo": 2018,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech E 4.5L • 4.5L 4-Cyl Turbo Diesel • 124 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech E 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 124,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2008,
+              "yearTo": 2018
+            }
+          ]
+        },
+        {
+          "model": "444L",
+          "series": "444 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2018,
+          "yearTo": 2021,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PVS 4.5L • 4.5L 4-Cyl Turbo Diesel • 124 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PVS 4.5L",
+              "displacementL": 4.5,
+              "powerHp": 124,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2018,
+              "yearTo": 2021
+            }
+          ]
+        },
+        {
+          "model": "444 P-Tier",
+          "series": "P-Tier Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2021,
+          "yearTo": 2026,
           "aliases": [
-            "JD444",
-            "444E",
-            "444J",
-            "444K"
+            "444 G-Tier",
+            "444PTier"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere 4045T / PowerTech 4.5L • 4.5L 4-Cyl Turbo Diesel • 110 HP • Powershift",
+              "label": "Deere PowerTech EWL 4.5L • 4.5L 4-Cyl Turbo Diesel • 124 HP • 4-Speed Powershift",
               "manufacturer": "John Deere",
-              "engineModel": "4045T / PowerTech 4.5L",
+              "engineModel": "PowerTech EWL 4.5L",
               "displacementL": 4.5,
-              "powerHp": 110,
+              "powerHp": 124,
               "fuelType": "Diesel",
-              "transmission": "Powershift",
-              "yearFrom": 1975,
-              "yearTo": 2019
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2021,
+              "yearTo": 2026
             }
           ]
         },
@@ -12159,30 +13165,102 @@
           ]
         },
         {
-          "model": "544G",
+          "model": "544E",
           "series": "544 Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
           "yearFrom": 1988,
-          "yearTo": 2004,
-          "aliases": [
-            "544E",
-            "544H"
-          ],
+          "yearTo": 1993,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere 6068T • 6.8L 6-Cyl Turbo Diesel • 130 HP • Powershift",
+              "label": "Deere 6359T • 5.9L 6-Cyl Turbo Diesel • 115 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "6359T",
+              "displacementL": 5.9,
+              "powerHp": 115,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1988,
+              "yearTo": 1993
+            }
+          ]
+        },
+        {
+          "model": "544G",
+          "series": "544 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 1993,
+          "yearTo": 1997,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 6059T • 5.9L 6-Cyl Turbo Diesel • 130 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "6059T",
+              "displacementL": 5.9,
+              "powerHp": 130,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1993,
+              "yearTo": 1997
+            }
+          ]
+        },
+        {
+          "model": "544H",
+          "series": "544 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 1997,
+          "yearTo": 2003,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 6068T • 6.8L 6-Cyl Turbo Diesel • 130 HP • 4-Speed Powershift",
               "manufacturer": "John Deere",
               "engineModel": "6068T",
               "displacementL": 6.8,
               "powerHp": 130,
               "fuelType": "Diesel",
-              "transmission": "Powershift",
-              "yearFrom": 1988,
-              "yearTo": 2004
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1997,
+              "yearTo": 2003
+            }
+          ]
+        },
+        {
+          "model": "544J",
+          "series": "544 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2003,
+          "yearTo": 2008,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6068H • 6.8L 6-Cyl Turbo Diesel • 149 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6068H",
+              "displacementL": 6.8,
+              "powerHp": 149,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2003,
+              "yearTo": 2008
             }
           ]
         },
@@ -12193,23 +13271,47 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2004,
-          "yearTo": 2021,
+          "yearFrom": 2008,
+          "yearTo": 2018,
           "aliases": [
-            "544J",
-            "544L"
+            "544K-II"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere PowerTech 6.8L • 6.8L 6-Cyl Turbo Diesel • 163 HP • 5-Speed Powershift",
+              "label": "Deere PowerTech PVX 6.8L • 6.8L 6-Cyl Turbo Diesel • 163 HP • 5-Speed Powershift",
               "manufacturer": "John Deere",
-              "engineModel": "PowerTech 6.8L",
+              "engineModel": "PowerTech PVX 6.8L",
               "displacementL": 6.8,
               "powerHp": 163,
               "fuelType": "Diesel",
               "transmission": "5-Speed Powershift",
-              "yearFrom": 2004,
+              "yearFrom": 2008,
+              "yearTo": 2018
+            }
+          ]
+        },
+        {
+          "model": "544L",
+          "series": "544 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2018,
+          "yearTo": 2021,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PVS 6.8L • 6.8L 6-Cyl Turbo Diesel • 166 HP • 5-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PVS 6.8L",
+              "displacementL": 6.8,
+              "powerHp": 166,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed Powershift",
+              "yearFrom": 2018,
               "yearTo": 2021
             }
           ]
@@ -12243,30 +13345,102 @@
           ]
         },
         {
-          "model": "624G",
+          "model": "624E",
           "series": "624 Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
           "yearFrom": 1988,
-          "yearTo": 2004,
-          "aliases": [
-            "624E",
-            "624H"
-          ],
+          "yearTo": 1993,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere 6068T • 6.8L 6-Cyl Turbo Diesel • 145 HP • Powershift",
+              "label": "Deere 6414T • 6.8L 6-Cyl Turbo Diesel • 135 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "6414T",
+              "displacementL": 6.8,
+              "powerHp": 135,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1988,
+              "yearTo": 1993
+            }
+          ]
+        },
+        {
+          "model": "624G",
+          "series": "624 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 1993,
+          "yearTo": 1997,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 6068T • 6.8L 6-Cyl Turbo Diesel • 145 HP • 4-Speed Powershift",
               "manufacturer": "John Deere",
               "engineModel": "6068T",
               "displacementL": 6.8,
               "powerHp": 145,
               "fuelType": "Diesel",
-              "transmission": "Powershift",
-              "yearFrom": 1988,
-              "yearTo": 2004
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1993,
+              "yearTo": 1997
+            }
+          ]
+        },
+        {
+          "model": "624H",
+          "series": "624 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 1997,
+          "yearTo": 2003,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 6068T • 6.8L 6-Cyl Turbo Diesel • 160 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "6068T",
+              "displacementL": 6.8,
+              "powerHp": 160,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1997,
+              "yearTo": 2003
+            }
+          ]
+        },
+        {
+          "model": "624J",
+          "series": "624 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2003,
+          "yearTo": 2008,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6068H • 6.8L 6-Cyl Turbo Diesel • 170 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6068H",
+              "displacementL": 6.8,
+              "powerHp": 170,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2003,
+              "yearTo": 2008
             }
           ]
         },
@@ -12277,23 +13451,47 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2004,
-          "yearTo": 2021,
+          "yearFrom": 2008,
+          "yearTo": 2018,
           "aliases": [
-            "624J",
-            "624L"
+            "624K-II"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere PowerTech 6.8L • 6.8L 6-Cyl Turbo Diesel • 186 HP • 5-Speed Powershift",
+              "label": "Deere PowerTech PVX 6.8L • 6.8L 6-Cyl Turbo Diesel • 186 HP • 5-Speed Powershift",
               "manufacturer": "John Deere",
-              "engineModel": "PowerTech 6.8L",
+              "engineModel": "PowerTech PVX 6.8L",
               "displacementL": 6.8,
               "powerHp": 186,
               "fuelType": "Diesel",
               "transmission": "5-Speed Powershift",
-              "yearFrom": 2004,
+              "yearFrom": 2008,
+              "yearTo": 2018
+            }
+          ]
+        },
+        {
+          "model": "624L",
+          "series": "624 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2018,
+          "yearTo": 2021,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PVS 6.8L • 6.8L 6-Cyl Turbo Diesel • 192 HP • 5-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PVS 6.8L",
+              "displacementL": 6.8,
+              "powerHp": 192,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed Powershift",
+              "yearFrom": 2018,
               "yearTo": 2021
             }
           ]
@@ -12355,30 +13553,102 @@
           ]
         },
         {
-          "model": "644G",
+          "model": "644E",
           "series": "644 Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
           "yearFrom": 1988,
-          "yearTo": 2004,
-          "aliases": [
-            "644E",
-            "644H"
-          ],
+          "yearTo": 1993,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere 6076A / 6081A • 8.1L 6-Cyl Turbo Diesel • 185 HP • Powershift",
+              "label": "Deere 6466A • 7.6L 6-Cyl Turbo Diesel • 160 HP • 4-Speed Powershift",
               "manufacturer": "John Deere",
-              "engineModel": "6076A / 6081A",
+              "engineModel": "6466A",
+              "displacementL": 7.6,
+              "powerHp": 160,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1988,
+              "yearTo": 1993
+            }
+          ]
+        },
+        {
+          "model": "644G",
+          "series": "644 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 1993,
+          "yearTo": 1997,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 6076A • 7.6L 6-Cyl Turbo Diesel • 175 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "6076A",
+              "displacementL": 7.6,
+              "powerHp": 175,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1993,
+              "yearTo": 1997
+            }
+          ]
+        },
+        {
+          "model": "644H",
+          "series": "644 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 1997,
+          "yearTo": 2003,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 6081A • 8.1L 6-Cyl Turbo Diesel • 185 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "6081A",
               "displacementL": 8.1,
               "powerHp": 185,
               "fuelType": "Diesel",
-              "transmission": "Powershift",
-              "yearFrom": 1988,
-              "yearTo": 2004
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1997,
+              "yearTo": 2003
+            }
+          ]
+        },
+        {
+          "model": "644J",
+          "series": "644 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2003,
+          "yearTo": 2008,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6081H • 8.1L 6-Cyl Turbo Diesel • 225 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6081H",
+              "displacementL": 8.1,
+              "powerHp": 225,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2003,
+              "yearTo": 2008
             }
           ]
         },
@@ -12389,25 +13659,23 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2004,
-          "yearTo": 2021,
+          "yearFrom": 2008,
+          "yearTo": 2018,
           "aliases": [
-            "644J",
-            "644K Hybrid",
-            "644L"
+            "644K Hybrid"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere PowerTech 6.8L / 9.0L • 6.8L 6-Cyl Twin-Turbo Diesel • 232 HP • 5-Speed Powershift",
+              "label": "Deere PowerTech PSX 6.8L / 9.0L • 6.8L 6-Cyl Twin-Turbo Diesel • 232 HP • 5-Speed Lockup Powershift",
               "manufacturer": "John Deere",
-              "engineModel": "PowerTech 6.8L / 9.0L",
+              "engineModel": "PowerTech PSX 6.8L / 9.0L",
               "displacementL": 6.8,
               "powerHp": 232,
               "fuelType": "Diesel",
-              "transmission": "5-Speed Powershift",
-              "yearFrom": 2004,
-              "yearTo": 2021
+              "transmission": "5-Speed Lockup Powershift",
+              "yearFrom": 2008,
+              "yearTo": 2018
             },
             {
               "label": "Deere PowerTech 6.8L Hybrid • 6.8L 6-Cyl Twin-Turbo Diesel-Electric Hybrid • 231 HP • E-Drive Electric",
@@ -12418,6 +13686,44 @@
               "fuelType": "Diesel-Electric Hybrid",
               "transmission": "E-Drive Electric",
               "yearFrom": 2013,
+              "yearTo": 2018
+            }
+          ]
+        },
+        {
+          "model": "644L",
+          "series": "644 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2018,
+          "yearTo": 2021,
+          "aliases": [
+            "644LH"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 6.8L • 6.8L 6-Cyl Twin-Turbo Diesel • 249 HP • 5-Speed Lockup Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 6.8L",
+              "displacementL": 6.8,
+              "powerHp": 249,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed Lockup Powershift",
+              "yearFrom": 2018,
+              "yearTo": 2021
+            },
+            {
+              "label": "Deere PowerTech 6.8L Hybrid • 6.8L 6-Cyl Twin-Turbo Diesel-Electric Hybrid • 231 HP • E-Drive Electric",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6.8L Hybrid",
+              "displacementL": 6.8,
+              "powerHp": 231,
+              "fuelType": "Diesel-Electric Hybrid",
+              "transmission": "E-Drive Electric",
+              "yearFrom": 2018,
               "yearTo": 2021
             }
           ]
@@ -12462,31 +13768,184 @@
           ]
         },
         {
-          "model": "744K",
+          "model": "744H",
           "series": "744 Large Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
           "yearFrom": 1998,
-          "yearTo": 2026,
+          "yearTo": 2004,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere 6125A • 12.5L 6-Cyl Turbo Diesel • 265 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "6125A",
+              "displacementL": 12.5,
+              "powerHp": 265,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 1998,
+              "yearTo": 2004
+            }
+          ]
+        },
+        {
+          "model": "744J",
+          "series": "744 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2004,
+          "yearTo": 2008,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6125H • 12.5L 6-Cyl Turbo Diesel • 295 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6125H",
+              "displacementL": 12.5,
+              "powerHp": 295,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2004,
+              "yearTo": 2008
+            }
+          ]
+        },
+        {
+          "model": "744K",
+          "series": "744 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2008,
+          "yearTo": 2018,
           "aliases": [
-            "744H",
-            "744L",
-            "744 P-Tier"
+            "744K-II"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Deere PowerTech PSS 13.5L • 13.5L 6-Cyl Turbo Diesel • 304 HP • 5-Speed Powershift",
+              "label": "Deere PowerTech PSX 13.5L • 13.5L 6-Cyl Turbo Diesel • 304 HP • 5-Speed Powershift",
               "manufacturer": "John Deere",
-              "engineModel": "PowerTech PSS 13.5L",
+              "engineModel": "PowerTech PSX 13.5L",
               "displacementL": 13.5,
               "powerHp": 304,
               "fuelType": "Diesel",
               "transmission": "5-Speed Powershift",
-              "yearFrom": 1998,
+              "yearFrom": 2008,
+              "yearTo": 2018
+            }
+          ]
+        },
+        {
+          "model": "744L",
+          "series": "744 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2018,
+          "yearTo": 2022,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 13.5L • 13.5L 6-Cyl Turbo Diesel • 316 HP • 5-Speed Lockup Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 13.5L",
+              "displacementL": 13.5,
+              "powerHp": 316,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed Lockup Powershift",
+              "yearFrom": 2018,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "744 P-Tier",
+          "series": "P-Tier Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "744PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 13.5L • 13.5L 6-Cyl Turbo Diesel • 316 HP • 5-Speed Lockup Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 13.5L",
+              "displacementL": 13.5,
+              "powerHp": 316,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed Lockup Powershift",
+              "yearFrom": 2022,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "844J",
+          "series": "844 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2004,
+          "yearTo": 2009,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6125H / 6135H • 13.5L 6-Cyl Turbo Diesel • 380 HP • 4-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6125H / 6135H",
+              "displacementL": 13.5,
+              "powerHp": 380,
+              "fuelType": "Diesel",
+              "transmission": "4-Speed Powershift",
+              "yearFrom": 2004,
+              "yearTo": 2009
+            }
+          ]
+        },
+        {
+          "model": "844K",
+          "series": "844 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2009,
+          "yearTo": 2018,
+          "aliases": [
+            "844K-II",
+            "844K-III"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSX 13.5L • 13.5L 6-Cyl Turbo Diesel • 380 HP • 5-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSX 13.5L",
+              "displacementL": 13.5,
+              "powerHp": 380,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed Powershift",
+              "yearFrom": 2009,
+              "yearTo": 2018
             }
           ]
         },
@@ -12497,13 +13956,9 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2004,
-          "yearTo": 2026,
-          "aliases": [
-            "844J",
-            "844K",
-            "844 P-Tier"
-          ],
+          "yearFrom": 2018,
+          "yearTo": 2022,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -12514,7 +13969,34 @@
               "powerHp": 417,
               "fuelType": "Diesel",
               "transmission": "5-Speed Powershift",
-              "yearFrom": 2004,
+              "yearFrom": 2018,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "844 P-Tier",
+          "series": "P-Tier Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "844PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere JD14 13.6L • 13.6L 6-Cyl Turbo Diesel • 417 HP • 5-Speed Lockup Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "JD14 13.6L",
+              "displacementL": 13.6,
+              "powerHp": 417,
+              "fuelType": "Diesel",
+              "transmission": "5-Speed Lockup Powershift",
+              "yearFrom": 2022,
               "yearTo": 2026
             }
           ]
@@ -13067,6 +14549,34 @@
           ]
         },
         {
+          "model": "670D",
+          "series": "D-Series Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2005,
+          "yearTo": 2009,
+          "aliases": [
+            "670C",
+            "670CH"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6068H • 6.8L 6-Cyl Turbo Diesel • 185 HP • 8-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6068H",
+              "displacementL": 6.8,
+              "powerHp": 185,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed Powershift",
+              "yearFrom": 2005,
+              "yearTo": 2009
+            }
+          ]
+        },
+        {
           "model": "670G",
           "series": "G-Series Motor Graders",
           "category": "Heavy Equipment",
@@ -13074,11 +14584,9 @@
             "Grader"
           ],
           "yearFrom": 2008,
-          "yearTo": 2026,
+          "yearTo": 2022,
           "aliases": [
-            "670D",
-            "670GP",
-            "670 P-Tier"
+            "670GP"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -13091,6 +14599,33 @@
               "fuelType": "Diesel",
               "transmission": "8-Speed Event-Based Powershift",
               "yearFrom": 2008,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "670 P-Tier",
+          "series": "P-Tier Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "670PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 9.0L • 9.0L 6-Cyl Turbo Diesel • 235 HP • 8-Speed Event-Based Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 9.0L",
+              "displacementL": 9,
+              "powerHp": 235,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed Event-Based Powershift",
+              "yearFrom": 2022,
               "yearTo": 2026
             }
           ]
@@ -13103,10 +14638,10 @@
             "Grader"
           ],
           "yearFrom": 2008,
-          "yearTo": 2026,
+          "yearTo": 2022,
           "aliases": [
-            "672GP",
-            "672 P-Tier"
+            "672D",
+            "672GP"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -13119,7 +14654,59 @@
               "fuelType": "Diesel",
               "transmission": "8-Speed 6WD Powershift",
               "yearFrom": 2008,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "672 P-Tier",
+          "series": "P-Tier 6WD Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "672PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 9.0L • 9.0L 6-Cyl Turbo Diesel • 255 HP • 8-Speed 6WD Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 9.0L",
+              "displacementL": 9,
+              "powerHp": 255,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed 6WD Powershift",
+              "yearFrom": 2022,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "770D",
+          "series": "D-Series Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2005,
+          "yearTo": 2009,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6081H • 8.1L 6-Cyl Turbo Diesel • 215 HP • 8-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6081H",
+              "displacementL": 8.1,
+              "powerHp": 215,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed Powershift",
+              "yearFrom": 2005,
+              "yearTo": 2009
             }
           ]
         },
@@ -13131,11 +14718,9 @@
             "Grader"
           ],
           "yearFrom": 2008,
-          "yearTo": 2026,
+          "yearTo": 2022,
           "aliases": [
-            "770D",
-            "770GP",
-            "770 P-Tier"
+            "770GP"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -13148,6 +14733,33 @@
               "fuelType": "Diesel",
               "transmission": "8-Speed Powershift",
               "yearFrom": 2008,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "770 P-Tier",
+          "series": "P-Tier Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "770PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 9.0L • 9.0L 6-Cyl Turbo Diesel • 255 HP • 8-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 9.0L",
+              "displacementL": 9,
+              "powerHp": 255,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed Powershift",
+              "yearFrom": 2022,
               "yearTo": 2026
             }
           ]
@@ -13160,10 +14772,10 @@
             "Grader"
           ],
           "yearFrom": 2008,
-          "yearTo": 2026,
+          "yearTo": 2022,
           "aliases": [
-            "772GP",
-            "772 P-Tier"
+            "772D",
+            "772GP"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -13176,7 +14788,61 @@
               "fuelType": "Diesel",
               "transmission": "8-Speed 6WD Powershift",
               "yearFrom": 2008,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "772 P-Tier",
+          "series": "P-Tier 6WD Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "772PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 9.0L • 9.0L 6-Cyl Turbo Diesel • 275 HP • 8-Speed 6WD Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 9.0L",
+              "displacementL": 9,
+              "powerHp": 275,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed 6WD Powershift",
+              "yearFrom": 2022,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "870G",
+          "series": "G-Series Heavy Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2008,
+          "yearTo": 2022,
+          "aliases": [
+            "870GP"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 9.0L • 9.0L 6-Cyl Twin-Turbo Diesel • 280 HP • 8-Speed Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 9.0L",
+              "displacementL": 9,
+              "powerHp": 280,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed Powershift",
+              "yearFrom": 2008,
+              "yearTo": 2022
             }
           ]
         },
@@ -13188,11 +14854,10 @@
             "Grader"
           ],
           "yearFrom": 2008,
-          "yearTo": 2026,
+          "yearTo": 2022,
           "aliases": [
-            "870G",
-            "872GP",
-            "872 P-Tier"
+            "872D",
+            "872GP"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -13205,6 +14870,34 @@
               "fuelType": "Diesel",
               "transmission": "8-Speed 6WD Powershift",
               "yearFrom": 2008,
+              "yearTo": 2022
+            }
+          ]
+        },
+        {
+          "model": "872 P-Tier",
+          "series": "P-Tier 6WD Motor Graders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Grader"
+          ],
+          "yearFrom": 2022,
+          "yearTo": 2026,
+          "aliases": [
+            "870 P-Tier",
+            "872PTier"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech PSS 9.0L • 9.0L 6-Cyl Twin-Turbo Diesel • 300 HP • 8-Speed 6WD Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech PSS 9.0L",
+              "displacementL": 9,
+              "powerHp": 300,
+              "fuelType": "Diesel",
+              "transmission": "8-Speed 6WD Powershift",
+              "yearFrom": 2022,
               "yearTo": 2026
             }
           ]
@@ -13217,10 +14910,9 @@
             "Roll Off Truck",
             "Water Truck"
           ],
-          "yearFrom": 2005,
+          "yearFrom": 2018,
           "yearTo": 2026,
           "aliases": [
-            "300D",
             "310E ADT",
             "460E",
             "410 P-Tier ADT",
@@ -13236,8 +14928,39 @@
               "powerHp": 443,
               "fuelType": "Diesel",
               "transmission": "ZF Planetary Powershift",
-              "yearFrom": 2005,
+              "yearFrom": 2018,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "300D",
+          "series": "D-Series Articulated Dump Trucks",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2002,
+          "yearTo": 2012,
+          "aliases": [
+            "250D",
+            "350D",
+            "400D",
+            "0300D"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Deere PowerTech 6081A / 6090H • 9.0L 6-Cyl Turbo Diesel • 285 HP • ZF 6F/3R Powershift",
+              "manufacturer": "John Deere",
+              "engineModel": "PowerTech 6081A / 6090H",
+              "displacementL": 9,
+              "powerHp": 285,
+              "fuelType": "Diesel",
+              "transmission": "ZF 6F/3R Powershift",
+              "yearFrom": 2002,
+              "yearTo": 2012
             }
           ]
         }
@@ -16174,18 +17897,65 @@
           ]
         },
         {
-          "model": "CX130D",
+          "model": "CX130",
           "series": "CX Series Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
           "yearFrom": 2002,
-          "yearTo": 2026,
-          "aliases": [
-            "CX130",
-            "CX130C"
+          "yearTo": 2006,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4BG1T • 4.3L 4-Cyl Turbo Diesel • 95 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4BG1T",
+              "displacementL": 4.3,
+              "powerHp": 95,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2002,
+              "yearTo": 2006
+            }
+          ]
+        },
+        {
+          "model": "CX130C",
+          "series": "CX-C Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
           ],
+          "yearFrom": 2011,
+          "yearTo": 2015,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4JJ1X • 3.0L 4-Cyl Turbo Diesel • 95 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4JJ1X",
+              "displacementL": 3,
+              "powerHp": 95,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2011,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "CX130D",
+          "series": "CX-D Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2015,
+          "yearTo": 2023,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -16196,25 +17966,73 @@
               "powerHp": 102,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2002,
+              "yearFrom": 2015,
+              "yearTo": 2023
+            }
+          ]
+        },
+        {
+          "model": "CX130E",
+          "series": "CX-E Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2023,
+          "yearTo": 2026,
+          "aliases": [
+            "CX145E SR"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "FPT NEF4 • 4.5L 4-Cyl Turbo Diesel • 130 HP • Hydraulic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "NEF4",
+              "displacementL": 4.5,
+              "powerHp": 130,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2023,
               "yearTo": 2026
             }
           ]
         },
         {
-          "model": "CX160D",
+          "model": "CX160",
           "series": "CX Series Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
           "yearFrom": 2002,
-          "yearTo": 2024,
-          "aliases": [
-            "CX160",
-            "CX160B",
-            "CX160C"
+          "yearTo": 2006,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4BG1T • 4.3L 4-Cyl Turbo Diesel • 112 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4BG1T",
+              "displacementL": 4.3,
+              "powerHp": 112,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2002,
+              "yearTo": 2006
+            }
+          ]
+        },
+        {
+          "model": "CX160B",
+          "series": "CX-B Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
           ],
+          "yearFrom": 2007,
+          "yearTo": 2011,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -16225,8 +18043,83 @@
               "powerHp": 120,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2002,
-              "yearTo": 2024
+              "yearFrom": 2007,
+              "yearTo": 2011
+            }
+          ]
+        },
+        {
+          "model": "CX160C",
+          "series": "CX-C Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2011,
+          "yearTo": 2015,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4JJ1X • 3.0L 4-Cyl Turbo Diesel • 120 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4JJ1X",
+              "displacementL": 3,
+              "powerHp": 120,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2011,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "CX160D",
+          "series": "CX-D Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2015,
+          "yearTo": 2023,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4JJ1X • 3.0L 4-Cyl Turbo Diesel • 120 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4JJ1X",
+              "displacementL": 3,
+              "powerHp": 120,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2015,
+              "yearTo": 2023
+            }
+          ]
+        },
+        {
+          "model": "CX170E",
+          "series": "CX-E Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2023,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "FPT NEF4 • 4.5L 4-Cyl Turbo Diesel • 130 HP • Hydraulic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "NEF4",
+              "displacementL": 4.5,
+              "powerHp": 130,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2023,
+              "yearTo": 2026
             }
           ]
         },
@@ -16335,18 +18228,68 @@
           ]
         },
         {
-          "model": "CX300D",
-          "series": "CX-D Series Excavators",
+          "model": "CX250C",
+          "series": "CX-C Series Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
-          "yearFrom": 2015,
-          "yearTo": 2025,
+          "yearFrom": 2011,
+          "yearTo": 2015,
           "aliases": [
-            "CX290B",
-            "CX300C",
-            "CX300E"
+            "CX240B"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4HK1X • 5.2L 4-Cyl Turbo Diesel • 177 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4HK1X",
+              "displacementL": 5.2,
+              "powerHp": 177,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2011,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "CX250E",
+          "series": "CX-E Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2023,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "FPT NEF6 • 6.7L 6-Cyl Turbo Diesel • 188 HP • Hydraulic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "NEF6",
+              "displacementL": 6.7,
+              "powerHp": 188,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2023,
+              "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "CX300C",
+          "series": "CX-C Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2011,
+          "yearTo": 2015,
+          "aliases": [
+            "CX290B"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -16358,24 +18301,72 @@
               "powerHp": 207,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2015,
-              "yearTo": 2025
+              "yearFrom": 2011,
+              "yearTo": 2015
             }
           ]
         },
         {
-          "model": "CX350D",
+          "model": "CX300D",
           "series": "CX-D Series Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
           "yearFrom": 2015,
-          "yearTo": 2025,
+          "yearTo": 2023,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 6HK1X • 7.8L 6-Cyl Turbo Diesel • 207 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "6HK1X",
+              "displacementL": 7.8,
+              "powerHp": 207,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2015,
+              "yearTo": 2023
+            }
+          ]
+        },
+        {
+          "model": "CX300E",
+          "series": "CX-E Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2023,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "FPT NEF6 • 6.7L 6-Cyl Turbo Diesel • 252 HP • Hydraulic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "NEF6",
+              "displacementL": 6.7,
+              "powerHp": 252,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2023,
+              "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "CX350C",
+          "series": "CX-C Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2011,
+          "yearTo": 2015,
           "aliases": [
-            "CX330",
-            "CX350C",
-            "CX370E"
+            "CX330"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
@@ -16387,8 +18378,58 @@
               "powerHp": 268,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
+              "yearFrom": 2011,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "CX350D",
+          "series": "CX-D Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2015,
+          "yearTo": 2023,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 6HK1X • 7.8L 6-Cyl Turbo Diesel • 268 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "6HK1X",
+              "displacementL": 7.8,
+              "powerHp": 268,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
               "yearFrom": 2015,
-              "yearTo": 2025
+              "yearTo": 2023
+            }
+          ]
+        },
+        {
+          "model": "CX370E",
+          "series": "CX-E Series Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2023,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "FPT Cursor 9 • 8.7L 6-Cyl Turbo Diesel • 295 HP • Hydraulic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "Cursor 9",
+              "displacementL": 8.7,
+              "powerHp": 295,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2023,
+              "yearTo": 2026
             }
           ]
         },
@@ -16600,6 +18641,56 @@
           ]
         },
         {
+          "model": "721D",
+          "series": "721 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2002,
+          "yearTo": 2006,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case 6TAA-5904 • 5.9L 6-Cyl Turbo Diesel • 170 HP • ZF 4-Speed Powershift",
+              "manufacturer": "Case",
+              "engineModel": "6TAA-5904",
+              "displacementL": 5.9,
+              "powerHp": 170,
+              "fuelType": "Diesel",
+              "transmission": "ZF 4-Speed Powershift",
+              "yearFrom": 2002,
+              "yearTo": 2006
+            }
+          ]
+        },
+        {
+          "model": "721E",
+          "series": "721 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2007,
+          "yearTo": 2011,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case / FPT 667TA • 6.7L 6-Cyl Turbo Diesel • 183 HP • ZF 4-Speed Powershift",
+              "manufacturer": "Case / FPT",
+              "engineModel": "667TA",
+              "displacementL": 6.7,
+              "powerHp": 183,
+              "fuelType": "Diesel",
+              "transmission": "ZF 4-Speed Powershift",
+              "yearFrom": 2007,
+              "yearTo": 2011
+            }
+          ]
+        },
+        {
           "model": "721G",
           "series": "G-Series Wheel Loaders",
           "category": "Heavy Equipment",
@@ -16608,10 +18699,7 @@
           ],
           "yearFrom": 2017,
           "yearTo": 2026,
-          "aliases": [
-            "721D",
-            "721E"
-          ],
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -16628,6 +18716,56 @@
           ]
         },
         {
+          "model": "821E",
+          "series": "821 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2007,
+          "yearTo": 2011,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case / FPT 667TA • 6.7L 6-Cyl Turbo Diesel • 213 HP • ZF 4-Speed Powershift",
+              "manufacturer": "Case / FPT",
+              "engineModel": "667TA",
+              "displacementL": 6.7,
+              "powerHp": 213,
+              "fuelType": "Diesel",
+              "transmission": "ZF 4-Speed Powershift",
+              "yearFrom": 2007,
+              "yearTo": 2011
+            }
+          ]
+        },
+        {
+          "model": "821F",
+          "series": "821 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2011,
+          "yearTo": 2017,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F4HFE613 • 6.7L 6-Cyl Turbo Diesel • 213 HP • ZF 5-Speed Powershift",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F4HFE613",
+              "displacementL": 6.7,
+              "powerHp": 213,
+              "fuelType": "Diesel",
+              "transmission": "ZF 5-Speed Powershift",
+              "yearFrom": 2011,
+              "yearTo": 2017
+            }
+          ]
+        },
+        {
           "model": "821G",
           "series": "G-Series Wheel Loaders",
           "category": "Heavy Equipment",
@@ -16637,8 +18775,6 @@
           "yearFrom": 2017,
           "yearTo": 2026,
           "aliases": [
-            "821E",
-            "821F",
             "921G"
           ],
           "source": "public_domain_caltrans+factual_oem",
@@ -16752,10 +18888,8 @@
             "Loader"
           ],
           "yearFrom": 2011,
-          "yearTo": 2020,
-          "aliases": [
-            "SR210B"
-          ],
+          "yearTo": 2019,
+          "aliases": [],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
@@ -16767,7 +18901,85 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed Hydrostatic",
               "yearFrom": 2011,
-              "yearTo": 2020
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "SR210B",
+          "series": "B-Series Skid Steers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
+              "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "SR240",
+          "series": "Alpha Series Skid Steers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2014,
+          "yearTo": 2019,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2014,
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "SR240B",
+          "series": "B-Series Skid Steers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
+              "yearTo": 2026
             }
           ]
         },
@@ -16780,9 +18992,9 @@
             "Loader"
           ],
           "yearFrom": 2011,
-          "yearTo": 2020,
+          "yearTo": 2019,
           "aliases": [
-            "SR270B"
+            "SR270"
           ],
           "source": "public_domain_epa+factual_oem",
           "engines": [
@@ -16795,23 +19007,47 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed Hydrostatic",
               "yearFrom": 2011,
-              "yearTo": 2020
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "SR270B",
+          "series": "B-Series Skid Steers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5BFL413A • 3.4L 4-Cyl Turbo Diesel • 90 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5BFL413A",
+              "displacementL": 3.4,
+              "powerHp": 90,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
+              "yearTo": 2026
             }
           ]
         },
         {
           "model": "SV280",
-          "series": "Alpha / B-Series Skid Steers",
+          "series": "Alpha Series Skid Steers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Skid Steer",
             "Loader"
           ],
           "yearFrom": 2015,
-          "yearTo": 2026,
-          "aliases": [
-            "SV280B"
-          ],
+          "yearTo": 2019,
+          "aliases": [],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
@@ -16823,23 +19059,73 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed Hydrostatic",
               "yearFrom": 2015,
-              "yearTo": 2026
+              "yearTo": 2019
             }
           ]
         },
         {
-          "model": "SV340B",
+          "model": "SV280B",
           "series": "B-Series Skid Steers",
           "category": "Heavy Equipment",
           "productTypes": [
             "Skid Steer",
             "Loader"
           ],
-          "yearFrom": 2017,
+          "yearFrom": 2020,
           "yearTo": 2026,
-          "aliases": [
-            "SV340"
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
+              "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "SV300",
+          "series": "Alpha Series Skid Steers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
           ],
+          "yearFrom": 2011,
+          "yearTo": 2017,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5BFL413 • 3.4L 4-Cyl Turbo Diesel • 90 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5BFL413",
+              "displacementL": 3.4,
+              "powerHp": 90,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2011,
+              "yearTo": 2017
+            }
+          ]
+        },
+        {
+          "model": "SV340",
+          "series": "Alpha Series Skid Steers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2017,
+          "yearTo": 2019,
+          "aliases": [],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
@@ -16851,23 +19137,99 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed Hydrostatic",
               "yearFrom": 2017,
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "SV340B",
+          "series": "B-Series Skid Steers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5BFL413A • 3.4L 4-Cyl Turbo Diesel • 90 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5BFL413A",
+              "displacementL": 3.4,
+              "powerHp": 90,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
+              "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "TR270",
+          "series": "Alpha Series CTLs",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2011,
+          "yearTo": 2019,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2011,
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "TR270B",
+          "series": "B-Series CTLs",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
               "yearTo": 2026
             }
           ]
         },
         {
           "model": "TR310",
-          "series": "Alpha / B-Series CTLs",
+          "series": "Alpha Series CTLs",
           "category": "Heavy Equipment",
           "productTypes": [
             "Skid Steer",
             "Loader"
           ],
           "yearFrom": 2014,
-          "yearTo": 2026,
-          "aliases": [
-            "TR310B"
-          ],
+          "yearTo": 2019,
+          "aliases": [],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
@@ -16879,22 +19241,48 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed Hydrostatic",
               "yearFrom": 2014,
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "TR310B",
+          "series": "B-Series CTLs",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
               "yearTo": 2026
             }
           ]
         },
         {
           "model": "TR340",
-          "series": "Alpha / B-Series CTLs",
+          "series": "Alpha Series CTLs",
           "category": "Heavy Equipment",
           "productTypes": [
             "Skid Steer",
             "Loader"
           ],
           "yearFrom": 2014,
-          "yearTo": 2026,
+          "yearTo": 2019,
           "aliases": [
-            "TR340B"
+            "TR320"
           ],
           "source": "public_domain_epa+factual_oem",
           "engines": [
@@ -16907,6 +19295,32 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed Hydrostatic",
               "yearFrom": 2014,
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "TR340B",
+          "series": "B-Series CTLs",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5BFL413A • 3.4L 4-Cyl Turbo Diesel • 90 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5BFL413A",
+              "displacementL": 3.4,
+              "powerHp": 90,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
               "yearTo": 2026
             }
           ]
@@ -16920,10 +19334,8 @@
             "Loader"
           ],
           "yearFrom": 2011,
-          "yearTo": 2020,
-          "aliases": [
-            "TV370B"
-          ],
+          "yearTo": 2019,
+          "aliases": [],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
@@ -16935,24 +19347,49 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed Hydrostatic",
               "yearFrom": 2011,
-              "yearTo": 2020
+              "yearTo": 2019
             }
           ]
         },
         {
-          "model": "TV450B",
-          "series": "B-Series Heavy CTLs",
+          "model": "TV370B",
+          "series": "B-Series CTLs",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [
+            "TV380B"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5C • 3.4L 4-Cyl Turbo Diesel • 74 HP • 2-Speed Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5C",
+              "displacementL": 3.4,
+              "powerHp": 74,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed Hydrostatic",
+              "yearFrom": 2020,
+              "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "TV450",
+          "series": "Alpha Series Heavy CTLs",
           "category": "Heavy Equipment",
           "productTypes": [
             "Skid Steer",
             "Loader"
           ],
           "yearFrom": 2019,
-          "yearTo": 2026,
-          "aliases": [
-            "TV450",
-            "TV620B"
-          ],
+          "yearTo": 2019,
+          "aliases": [],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
@@ -16964,7 +19401,139 @@
               "fuelType": "Diesel",
               "transmission": "2-Speed High-Flow Hydrostatic",
               "yearFrom": 2019,
+              "yearTo": 2019
+            }
+          ]
+        },
+        {
+          "model": "TV450B",
+          "series": "B-Series Heavy CTLs",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2020,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5BFL413A • 3.4L 4-Cyl Turbo Diesel • 90 HP • 2-Speed High-Flow Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5BFL413A",
+              "displacementL": 3.4,
+              "powerHp": 90,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed High-Flow Hydrostatic",
+              "yearFrom": 2020,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "TV620B",
+          "series": "B-Series Heavy CTLs",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Skid Steer",
+            "Loader"
+          ],
+          "yearFrom": 2021,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "FPT F5HFL463A • 3.6L 4-Cyl Turbo Diesel • 114 HP • 2-Speed High-Flow Hydrostatic",
+              "manufacturer": "FPT Industrial",
+              "engineModel": "F5HFL463A",
+              "displacementL": 3.6,
+              "powerHp": 114,
+              "fuelType": "Diesel",
+              "transmission": "2-Speed High-Flow Hydrostatic",
+              "yearFrom": 2021,
+              "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "850D",
+          "series": "Classic 850 Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 1985,
+          "yearTo": 1993,
+          "aliases": [
+            "850C",
+            "850E"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case / CDC 6-590 • 5.9L 6-Cyl Diesel • 82 HP • Powershift",
+              "manufacturer": "Case / CDC",
+              "engineModel": "6-590",
+              "displacementL": 5.9,
+              "powerHp": 82,
+              "fuelType": "Diesel",
+              "transmission": "Powershift",
+              "yearFrom": 1985,
+              "yearTo": 1993
+            }
+          ]
+        },
+        {
+          "model": "850G",
+          "series": "G-Series Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 1994,
+          "yearTo": 2001,
+          "aliases": [
+            "850H"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case / CDC 6T-590 • 5.9L 6-Cyl Turbo Diesel • 89 HP • Powershift",
+              "manufacturer": "Case / CDC",
+              "engineModel": "6T-590",
+              "displacementL": 5.9,
+              "powerHp": 89,
+              "fuelType": "Diesel",
+              "transmission": "Powershift",
+              "yearFrom": 1994,
+              "yearTo": 2001
+            }
+          ]
+        },
+        {
+          "model": "850L",
+          "series": "L-Series Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2008,
+          "yearTo": 2013,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case / FPT F4HE0484 • 4.5L 4-Cyl Turbo Diesel • 97 HP • Dual-Path Hydrostatic",
+              "manufacturer": "Case / FPT",
+              "engineModel": "F4HE0484",
+              "displacementL": 4.5,
+              "powerHp": 97,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2008,
+              "yearTo": 2013
             }
           ]
         },
@@ -16975,25 +19544,74 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 1976,
+          "yearFrom": 2013,
           "yearTo": 2026,
-          "aliases": [
-            "850D",
-            "850G",
-            "850L"
-          ],
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "FPT F4HFE413 / 6T-590 • 4.5L 4-Cyl Turbo Diesel • 112 HP • Dual-Path Hydrostatic",
+              "label": "FPT F4HFE413 / NEF 4.5L • 4.5L 4-Cyl Turbo Diesel • 112 HP • Dual-Path Hydrostatic",
               "manufacturer": "FPT Industrial",
-              "engineModel": "F4HFE413 / 6T-590",
+              "engineModel": "F4HFE413 / NEF 4.5L",
               "displacementL": 4.5,
               "powerHp": 112,
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
-              "yearFrom": 1976,
+              "yearFrom": 2013,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "1150E",
+          "series": "Classic 1150 Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 1986,
+          "yearTo": 1994,
+          "aliases": [
+            "1150C",
+            "1150G"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case / CDC 6T-590 • 5.9L 6-Cyl Turbo Diesel • 113 HP • Powershift",
+              "manufacturer": "Case / CDC",
+              "engineModel": "6T-590",
+              "displacementL": 5.9,
+              "powerHp": 113,
+              "fuelType": "Diesel",
+              "transmission": "Powershift",
+              "yearFrom": 1986,
+              "yearTo": 1994
+            }
+          ]
+        },
+        {
+          "model": "1150H",
+          "series": "H-Series Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 1998,
+          "yearTo": 2005,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case / CDC 6T-590 • 5.9L 6-Cyl Turbo Diesel • 119 HP • Powershift",
+              "manufacturer": "Case / CDC",
+              "engineModel": "6T-590",
+              "displacementL": 5.9,
+              "powerHp": 119,
+              "fuelType": "Diesel",
+              "transmission": "Powershift",
+              "yearFrom": 1998,
+              "yearTo": 2005
             }
           ]
         },
@@ -17004,12 +19622,9 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 1975,
+          "yearFrom": 2013,
           "yearTo": 2026,
-          "aliases": [
-            "1150E",
-            "1150H"
-          ],
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -17020,8 +19635,33 @@
               "powerHp": 127,
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
-              "yearFrom": 1975,
+              "yearFrom": 2013,
               "yearTo": 2026
+            }
+          ]
+        },
+        {
+          "model": "1650K",
+          "series": "K-Series Crawler Dozers",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Bulldozer"
+          ],
+          "yearFrom": 2002,
+          "yearTo": 2008,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Case 6TAA-5904 • 5.9L 6-Cyl Turbo Diesel • 144 HP • Dual-Path Hydrostatic",
+              "manufacturer": "Case",
+              "engineModel": "6TAA-5904",
+              "displacementL": 5.9,
+              "powerHp": 144,
+              "fuelType": "Diesel",
+              "transmission": "Dual-Path Hydrostatic",
+              "yearFrom": 2002,
+              "yearTo": 2008
             }
           ]
         },
@@ -17032,11 +19672,9 @@
           "productTypes": [
             "Bulldozer"
           ],
-          "yearFrom": 1998,
+          "yearFrom": 2014,
           "yearTo": 2026,
-          "aliases": [
-            "1650K"
-          ],
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -17047,7 +19685,7 @@
               "powerHp": 150,
               "fuelType": "Diesel",
               "transmission": "Dual-Path Hydrostatic",
-              "yearFrom": 1998,
+              "yearFrom": 2014,
               "yearTo": 2026
             }
           ]
@@ -19069,7 +21707,7 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 1986,
+          "yearFrom": 1995,
           "yearTo": 2001,
           "aliases": [
             "L120",
@@ -19086,7 +21724,7 @@
               "powerHp": 201,
               "fuelType": "Diesel",
               "transmission": "APS Powershift",
-              "yearFrom": 1986,
+              "yearFrom": 1995,
               "yearTo": 2001
             }
           ]
@@ -19098,21 +21736,21 @@
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2002,
-          "yearTo": 2014,
+          "yearFrom": 2007,
+          "yearTo": 2011,
           "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Volvo D7E / D8H • 7.8L 6-Cyl Turbo Diesel • 243 HP • HTE Powershift",
+              "label": "Volvo D7E • 7.1L 6-Cyl Turbo Diesel • 243 HP • HTE Powershift",
               "manufacturer": "Volvo",
-              "engineModel": "D7E / D8H",
-              "displacementL": 7.8,
+              "engineModel": "D7E",
+              "displacementL": 7.1,
               "powerHp": 243,
               "fuelType": "Diesel",
               "transmission": "HTE Powershift",
-              "yearFrom": 2002,
-              "yearTo": 2014
+              "yearFrom": 2007,
+              "yearTo": 2011
             }
           ]
         },
@@ -19142,18 +21780,90 @@
           ]
         },
         {
+          "model": "L150E",
+          "series": "L150 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2002,
+          "yearTo": 2007,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D9A / D10B • 9.4L 6-Cyl Turbo Diesel • 281 HP • HTE Powershift",
+              "manufacturer": "Volvo",
+              "engineModel": "D9A / D10B",
+              "displacementL": 9.4,
+              "powerHp": 281,
+              "fuelType": "Diesel",
+              "transmission": "HTE Powershift",
+              "yearFrom": 2002,
+              "yearTo": 2007
+            }
+          ]
+        },
+        {
+          "model": "L150F",
+          "series": "L150 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2007,
+          "yearTo": 2011,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D12D • 12.1L 6-Cyl Turbo Diesel • 284 HP • HTE Powershift",
+              "manufacturer": "Volvo",
+              "engineModel": "D12D",
+              "displacementL": 12.1,
+              "powerHp": 284,
+              "fuelType": "Diesel",
+              "transmission": "HTE Powershift",
+              "yearFrom": 2007,
+              "yearTo": 2011
+            }
+          ]
+        },
+        {
+          "model": "L150G",
+          "series": "L150 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2011,
+          "yearTo": 2014,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D13H • 12.8L 6-Cyl Turbo Diesel • 296 HP • OptiShift Powershift",
+              "manufacturer": "Volvo",
+              "engineModel": "D13H",
+              "displacementL": 12.8,
+              "powerHp": 296,
+              "fuelType": "Diesel",
+              "transmission": "OptiShift Powershift",
+              "yearFrom": 2011,
+              "yearTo": 2014
+            }
+          ]
+        },
+        {
           "model": "L150H",
           "series": "Large Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2002,
+          "yearFrom": 2014,
           "yearTo": 2026,
-          "aliases": [
-            "L150E",
-            "L150G"
-          ],
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -19164,7 +21874,7 @@
               "powerHp": 295,
               "fuelType": "Diesel",
               "transmission": "OptiShift Powershift",
-              "yearFrom": 2002,
+              "yearFrom": 2014,
               "yearTo": 2026
             }
           ]
@@ -19237,23 +21947,74 @@
             "Water Truck"
           ],
           "yearFrom": 1993,
-          "yearTo": 2007,
-          "aliases": [
-            "A30D",
-            "A30E"
-          ],
+          "yearTo": 2001,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Volvo TD103KAE / D9A • 9.6L 6-Cyl Turbo Diesel • 315 HP • 6F/2R Powershift",
+              "label": "Volvo TD103KAE • 9.6L 6-Cyl Turbo Diesel • 315 HP • 6F/2R Powershift",
               "manufacturer": "Volvo",
-              "engineModel": "TD103KAE / D9A",
+              "engineModel": "TD103KAE",
               "displacementL": 9.6,
               "powerHp": 315,
               "fuelType": "Diesel",
               "transmission": "6F/2R Powershift",
               "yearFrom": 1993,
+              "yearTo": 2001
+            }
+          ]
+        },
+        {
+          "model": "A30D",
+          "series": "A-Series Articulated Haulers",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2001,
+          "yearTo": 2007,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D9A / D10B • 9.4L 6-Cyl Turbo Diesel • 324 HP • 6F/2R PowerTronic",
+              "manufacturer": "Volvo",
+              "engineModel": "D9A / D10B",
+              "displacementL": 9.4,
+              "powerHp": 324,
+              "fuelType": "Diesel",
+              "transmission": "6F/2R PowerTronic",
+              "yearFrom": 2001,
               "yearTo": 2007
+            }
+          ]
+        },
+        {
+          "model": "A30E",
+          "series": "A-Series Articulated Haulers",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2007,
+          "yearTo": 2011,
+          "aliases": [
+            "A30F"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D9B • 9.4L 6-Cyl Turbo Diesel • 343 HP • 6F/2R PowerTronic",
+              "manufacturer": "Volvo",
+              "engineModel": "D9B",
+              "displacementL": 9.4,
+              "powerHp": 343,
+              "fuelType": "Diesel",
+              "transmission": "6F/2R PowerTronic",
+              "yearFrom": 2007,
+              "yearTo": 2011
             }
           ]
         },
@@ -19266,25 +22027,76 @@
             "Water Truck"
           ],
           "yearFrom": 2000,
-          "yearTo": 2014,
+          "yearTo": 2007,
           "aliases": [
-            "A35C",
-            "A35E",
-            "A35F",
-            "A35G"
+            "A35C"
           ],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
-              "label": "Volvo D12C / D13F • 12.1L 6-Cyl Turbo Diesel • 385 HP • PowerTronic Planetary",
+              "label": "Volvo D12C • 12.1L 6-Cyl Turbo Diesel • 385 HP • PowerTronic Planetary",
               "manufacturer": "Volvo",
-              "engineModel": "D12C / D13F",
+              "engineModel": "D12C",
               "displacementL": 12.1,
               "powerHp": 385,
               "fuelType": "Diesel",
               "transmission": "PowerTronic Planetary",
               "yearFrom": 2000,
+              "yearTo": 2007
+            }
+          ]
+        },
+        {
+          "model": "A35F",
+          "series": "A-Series Articulated Haulers",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2011,
+          "yearTo": 2014,
+          "aliases": [
+            "A35E"
+          ],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D13H • 12.8L 6-Cyl Turbo Diesel • 441 HP • PowerTronic Planetary",
+              "manufacturer": "Volvo",
+              "engineModel": "D13H",
+              "displacementL": 12.8,
+              "powerHp": 441,
+              "fuelType": "Diesel",
+              "transmission": "PowerTronic Planetary",
+              "yearFrom": 2011,
               "yearTo": 2014
+            }
+          ]
+        },
+        {
+          "model": "A35G",
+          "series": "G-Series Articulated Haulers",
+          "category": "Transport & Hauling",
+          "productTypes": [
+            "Roll Off Truck",
+            "Water Truck"
+          ],
+          "yearFrom": 2014,
+          "yearTo": 2026,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D13J • 12.8L 6-Cyl Turbo Diesel • 447 HP • PowerTronic Planetary",
+              "manufacturer": "Volvo",
+              "engineModel": "D13J",
+              "displacementL": 12.8,
+              "powerHp": 447,
+              "fuelType": "Diesel",
+              "transmission": "PowerTronic Planetary",
+              "yearFrom": 2014,
+              "yearTo": 2026
             }
           ]
         },
@@ -19459,12 +22271,60 @@
             "Excavator"
           ],
           "yearFrom": 2004,
-          "yearTo": 2026,
+          "yearTo": 2013,
+          "aliases": [],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo / Yanmar D3.1A • 3.1L 4-Cyl Diesel • 50 HP • Hydraulic",
+              "manufacturer": "Volvo / Yanmar",
+              "engineModel": "D3.1A",
+              "displacementL": 3.1,
+              "powerHp": 50,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2004,
+              "yearTo": 2013
+            }
+          ]
+        },
+        {
+          "model": "ECR58D",
+          "series": "D-Series Short-Swing Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2013,
+          "yearTo": 2021,
           "aliases": [
-            "ECR58D",
-            "ECR58F",
             "ECR88D"
           ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D2.6A • 2.6L 4-Cyl Turbo Diesel • 48 HP • Hydraulic",
+              "manufacturer": "Volvo",
+              "engineModel": "D2.6A",
+              "displacementL": 2.6,
+              "powerHp": 48,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2013,
+              "yearTo": 2021
+            }
+          ]
+        },
+        {
+          "model": "ECR58F",
+          "series": "F-Series Short-Swing Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2021,
+          "yearTo": 2026,
+          "aliases": [],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
@@ -19475,24 +22335,71 @@
               "powerHp": 48,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2004,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
         },
         {
-          "model": "EC140E",
-          "series": "EC Series Crawler Excavators",
+          "model": "EC140B",
+          "series": "EC-B Crawler Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
           "yearFrom": 2001,
-          "yearTo": 2026,
-          "aliases": [
-            "EC140B",
-            "EC140C"
+          "yearTo": 2007,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D4D • 4.0L 4-Cyl Turbo Diesel • 98 HP • Hydraulic",
+              "manufacturer": "Volvo",
+              "engineModel": "D4D",
+              "displacementL": 4,
+              "powerHp": 98,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2001,
+              "yearTo": 2007
+            }
+          ]
+        },
+        {
+          "model": "EC140C",
+          "series": "EC-C Crawler Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
           ],
+          "yearFrom": 2007,
+          "yearTo": 2012,
+          "aliases": [],
+          "source": "public_domain_caltrans+factual_oem",
+          "engines": [
+            {
+              "label": "Volvo D4E • 4.0L 4-Cyl Turbo Diesel • 99 HP • Hydraulic",
+              "manufacturer": "Volvo",
+              "engineModel": "D4E",
+              "displacementL": 4,
+              "powerHp": 99,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2007,
+              "yearTo": 2012
+            }
+          ]
+        },
+        {
+          "model": "EC140E",
+          "series": "EC-E Crawler Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2015,
+          "yearTo": 2026,
+          "aliases": [],
           "source": "public_domain_caltrans+factual_oem",
           "engines": [
             {
@@ -19503,7 +22410,7 @@
               "powerHp": 121,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2001,
+              "yearFrom": 2015,
               "yearTo": 2026
             }
           ]
@@ -23299,16 +26206,43 @@
           ]
         },
         {
-          "model": "SK140SRLC-7",
+          "model": "SK140SRLC-5",
           "series": "SR Short-Radius Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
-          "yearFrom": 2002,
+          "yearFrom": 2016,
+          "yearTo": 2020,
+          "aliases": [
+            "SK140SRLC-3",
+            "SK140SRLC5"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4JJ1X • 3.0L 4-Cyl Turbo Diesel • 105 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4JJ1X",
+              "displacementL": 3,
+              "powerHp": 105,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2016,
+              "yearTo": 2020
+            }
+          ]
+        },
+        {
+          "model": "SK140SRLC-7",
+          "series": "SR-7 Short-Radius Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2020,
           "yearTo": 2026,
           "aliases": [
-            "SK140SRLC-5",
             "SK140SRLC7"
           ],
           "source": "public_domain_epa+factual_oem",
@@ -23321,22 +26255,50 @@
               "powerHp": 105,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2002,
+              "yearFrom": 2020,
               "yearTo": 2026
             }
           ]
         },
         {
-          "model": "SK170LC-11",
-          "series": "SK Series Crawler Excavators",
+          "model": "SK170LC-10",
+          "series": "SK-10 Crawler Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
-          "yearFrom": 2008,
+          "yearFrom": 2016,
+          "yearTo": 2020,
+          "aliases": [
+            "SK170LC-8",
+            "SK170LC-9",
+            "SK170LC10"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Isuzu 4JJ1X • 3.0L 4-Cyl Turbo Diesel • 127 HP • Hydraulic",
+              "manufacturer": "Isuzu",
+              "engineModel": "4JJ1X",
+              "displacementL": 3,
+              "powerHp": 127,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2016,
+              "yearTo": 2020
+            }
+          ]
+        },
+        {
+          "model": "SK170LC-11",
+          "series": "SK-11 Crawler Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2021,
           "yearTo": 2026,
           "aliases": [
-            "SK170LC-10",
             "SK170LC11"
           ],
           "source": "public_domain_epa+factual_oem",
@@ -23349,7 +26311,7 @@
               "powerHp": 127,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2008,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
@@ -23439,12 +26401,12 @@
         },
         {
           "model": "SK260LC-11",
-          "series": "SK Series Crawler Excavators",
+          "series": "SK-11 Crawler Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
-          "yearFrom": 2008,
+          "yearFrom": 2021,
           "yearTo": 2026,
           "aliases": [
             "SK270SRLC-5",
@@ -23460,7 +26422,7 @@
               "powerHp": 182,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2008,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
@@ -25312,8 +28274,8 @@
         "Mega 300-V",
         "DX35Z",
         "DX85R-7",
-        "DX140LC-7",
-        "DX180LC-5"
+        "DX140LC-3",
+        "DX140LC-7"
       ],
       "models": [
         {
@@ -25459,31 +28421,57 @@
           ]
         },
         {
-          "model": "DX140LC-7",
+          "model": "DX140LC-3",
           "series": "DX140 Crawler Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
           "yearFrom": 2007,
-          "yearTo": 2026,
+          "yearTo": 2015,
           "aliases": [
             "DX140LC",
-            "DX140LC-3",
+            "DX140LC3"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Doosan DL06 • 5.9L 6-Cyl Turbo Diesel • 109 HP • Hydraulic",
+              "manufacturer": "Doosan",
+              "engineModel": "DL06",
+              "displacementL": 5.9,
+              "powerHp": 109,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2007,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "DX140LC-7",
+          "series": "Dash-7 Crawler Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2021,
+          "yearTo": 2026,
+          "aliases": [
             "DX140LCR-7",
             "DX140LC7"
           ],
           "source": "public_domain_epa+factual_oem",
           "engines": [
             {
-              "label": "Develon / Perkins DL06 / D34 • 3.4L 4-Cyl Turbo Diesel • 115 HP • Hydraulic",
-              "manufacturer": "Develon / Perkins",
-              "engineModel": "DL06 / D34",
+              "label": "Develon D34 • 3.4L 4-Cyl Turbo Diesel • 115 HP • Hydraulic",
+              "manufacturer": "Develon",
+              "engineModel": "D34",
               "displacementL": 3.4,
               "powerHp": 115,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2007,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
@@ -25602,17 +28590,43 @@
           ]
         },
         {
-          "model": "DX300LC-7",
+          "model": "DX300LC-3",
           "series": "DX300 Crawler Excavators",
           "category": "Heavy Equipment",
           "productTypes": [
             "Excavator"
           ],
           "yearFrom": 2006,
-          "yearTo": 2026,
+          "yearTo": 2015,
           "aliases": [
             "DX300LC",
-            "DX300LC-3",
+            "DX300LC3"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Doosan DL08 • 7.6L 6-Cyl Turbo Diesel • 227 HP • Hydraulic",
+              "manufacturer": "Doosan",
+              "engineModel": "DL08",
+              "displacementL": 7.6,
+              "powerHp": 227,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2006,
+              "yearTo": 2015
+            }
+          ]
+        },
+        {
+          "model": "DX300LC-7",
+          "series": "Dash-7 Crawler Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2021,
+          "yearTo": 2026,
+          "aliases": [
             "DX300LC7"
           ],
           "source": "public_domain_epa+factual_oem",
@@ -25625,7 +28639,7 @@
               "powerHp": 271,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2006,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
@@ -25693,10 +28707,9 @@
           "productTypes": [
             "Excavator"
           ],
-          "yearFrom": 2007,
+          "yearFrom": 2021,
           "yearTo": 2026,
           "aliases": [
-            "DX480LC",
             "DX530LC-7",
             "DX490LC7"
           ],
@@ -25710,23 +28723,79 @@
               "powerHp": 394,
               "fuelType": "Diesel",
               "transmission": "Hydraulic",
-              "yearFrom": 2007,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
         },
         {
-          "model": "DL250-7",
-          "series": "DL Series Wheel Loaders",
+          "model": "DX480LC",
+          "series": "DX480 / DX490 Heavy Excavators",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Excavator"
+          ],
+          "yearFrom": 2007,
+          "yearTo": 2020,
+          "aliases": [
+            "DX490LC-3",
+            "DX490LC-5"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Doosan / Scania DV11 / DC13 • 10.9L 6-Cyl Turbo Diesel • 369 HP • Hydraulic",
+              "manufacturer": "Doosan / Scania",
+              "engineModel": "DV11 / DC13",
+              "displacementL": 10.9,
+              "powerHp": 369,
+              "fuelType": "Diesel",
+              "transmission": "Hydraulic",
+              "yearFrom": 2007,
+              "yearTo": 2020
+            }
+          ]
+        },
+        {
+          "model": "DL250-5",
+          "series": "DL-5 Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2006,
+          "yearFrom": 2015,
+          "yearTo": 2021,
+          "aliases": [
+            "DL250",
+            "DL250-3",
+            "DL2505"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Doosan DL06P • 5.9L 6-Cyl Turbo Diesel • 172 HP • ZF Powershift",
+              "manufacturer": "Doosan",
+              "engineModel": "DL06P",
+              "displacementL": 5.9,
+              "powerHp": 172,
+              "fuelType": "Diesel",
+              "transmission": "ZF Powershift",
+              "yearFrom": 2015,
+              "yearTo": 2021
+            }
+          ]
+        },
+        {
+          "model": "DL250-7",
+          "series": "Dash-7 Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2021,
           "yearTo": 2026,
           "aliases": [
             "DL220-7",
-            "DL250-5",
             "DL280-7",
             "DL2507"
           ],
@@ -25740,7 +28809,7 @@
               "powerHp": 172,
               "fuelType": "Diesel",
               "transmission": "ZF Powershift",
-              "yearFrom": 2006,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
@@ -25775,17 +28844,45 @@
           ]
         },
         {
-          "model": "DL420-7",
-          "series": "Large Wheel Loaders",
+          "model": "DL420-5",
+          "series": "DL-5 Large Wheel Loaders",
           "category": "Heavy Equipment",
           "productTypes": [
             "Loader"
           ],
-          "yearFrom": 2007,
+          "yearFrom": 2015,
+          "yearTo": 2021,
+          "aliases": [
+            "DL420",
+            "DL420-3",
+            "DL550-5",
+            "DL4205"
+          ],
+          "source": "public_domain_epa+factual_oem",
+          "engines": [
+            {
+              "label": "Scania DC13 • 12.7L 6-Cyl Turbo Diesel • 345 HP • ZF 5-Speed Powershift",
+              "manufacturer": "Scania",
+              "engineModel": "DC13",
+              "displacementL": 12.7,
+              "powerHp": 345,
+              "fuelType": "Diesel",
+              "transmission": "ZF 5-Speed Powershift",
+              "yearFrom": 2015,
+              "yearTo": 2021
+            }
+          ]
+        },
+        {
+          "model": "DL420-7",
+          "series": "Dash-7 Large Wheel Loaders",
+          "category": "Heavy Equipment",
+          "productTypes": [
+            "Loader"
+          ],
+          "yearFrom": 2021,
           "yearTo": 2026,
           "aliases": [
-            "DL420-5",
-            "DL550-5",
             "DL4207"
           ],
           "source": "public_domain_epa+factual_oem",
@@ -25798,7 +28895,7 @@
               "powerHp": 345,
               "fuelType": "Diesel",
               "transmission": "ZF 5-Speed Powershift",
-              "yearFrom": 2007,
+              "yearFrom": 2021,
               "yearTo": 2026
             }
           ]
