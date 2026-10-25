@@ -17,6 +17,10 @@
 
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
+  <link rel="preload" as="image" href="startup/oilfield_hd_bg.webp" type="image/webp">
+  <link rel="preload" as="image" href="startup/pipe_buyers_truck.webp" type="image/webp">
+  <link rel="preload" as="image" href="startup/oil_well_site_base.webp" type="image/webp">
+  <link rel="preload" as="image" href="startup/oil_well_site_arm.webp" type="image/webp">
 
   <title>Pipe Buyer</title>
   <meta name="description" content="Pipe Buyer is a B2B industrial marketplace, Timed Buying platform, and trucking dispatch network for oil and gas pipe, OCTG, equipment, buildings, vehicles, and heavy machinery across the United States and Canada.">
@@ -30,8 +34,8 @@
   <meta name="twitter:image" content="https://www.pipebuyer.com/assets/assets/images/pipe_buyer_logo.png">
   <meta name="twitter:card" content="summary_large_image">
 
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#ffffff">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#081a3a">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#081a3a">
 
   <script type="application/ld+json">
   {
@@ -49,9 +53,11 @@
   <style>
     :root {
       --pipe-orange: #ff5a00;
+      --pipe-orange-glow: #ff8c3a;
       --pipe-ink: #061d49;
-      --pipe-muted: #64748b;
-      --pipe-line: #e2e8f0;
+      --pipe-night: #06152f;
+      --pipe-muted: #cbd5e1;
+      --pipe-line: rgba(255, 255, 255, .16);
     }
 
     html,
@@ -60,8 +66,8 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #ffffff;
-      color: var(--pipe-ink);
+      background: #071733;
+      color: #f8fafc;
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
     }
 
@@ -70,125 +76,490 @@
       inset: 0;
       z-index: 2147483647;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       box-sizing: border-box;
-      padding: 28px;
-      background: #ffffff;
+      padding: clamp(12px, 2.6vh, 28px) 18px 18px;
+      background-color: #071733;
+      background-image:
+        linear-gradient(
+          180deg,
+          rgba(4, 14, 32, .56) 0%,
+          rgba(4, 14, 32, .18) 38%,
+          rgba(4, 14, 32, .08) 68%,
+          rgba(4, 14, 32, .44) 100%
+        ),
+        url("startup/oilfield_hd_bg.jpg");
+      background-image:
+        linear-gradient(
+          180deg,
+          rgba(4, 14, 32, .56) 0%,
+          rgba(4, 14, 32, .18) 38%,
+          rgba(4, 14, 32, .08) 68%,
+          rgba(4, 14, 32, .44) 100%
+        ),
+        image-set(
+          url("startup/oilfield_hd_bg.webp") type("image/webp"),
+          url("startup/oilfield_hd_bg.jpg") type("image/jpeg")
+        );
+      background-size: cover;
+      background-position: center 62%;
+      background-repeat: no-repeat;
     }
 
     .pipe-startup-content {
-      width: min(760px, 92vw);
+      width: min(790px, 94vw);
       display: flex;
       flex-direction: column;
       align-items: center;
+      box-sizing: border-box;
+      padding: 14px 20px 12px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      background: linear-gradient(
+        180deg,
+        rgba(6, 20, 45, .76) 0%,
+        rgba(8, 25, 54, .84) 100%
+      );
+      backdrop-filter: blur(10px) saturate(125%);
+      -webkit-backdrop-filter: blur(10px) saturate(125%);
+      box-shadow:
+        0 22px 54px rgba(2, 8, 22, .48),
+        inset 0 1px 0 rgba(255, 255, 255, .15);
       text-align: center;
+    }
+
+    .pipe-startup-topbar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .pipe-startup-brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .pipe-startup-logo-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 11px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .95);
+      box-shadow:
+        0 4px 14px rgba(2, 8, 22, .25),
+        inset 0 0 0 1px rgba(6, 29, 73, .08);
+    }
+
+    .pipe-startup-brand {
+      display: inline-flex;
+      align-items: center;
     }
 
     .pipe-startup-logo {
       display: block;
-      width: min(680px, 84vw);
-      max-height: 52vh;
+      width: auto;
+      height: 36px;
+      max-width: 150px;
       object-fit: contain;
     }
 
+    .pipe-startup-headings {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
     .pipe-startup-title {
-      margin: 10px 0 0;
-      color: var(--pipe-ink);
-      font-size: 20px;
+      margin: 0;
+      color: #ffffff;
+      font-size: 18px;
       font-weight: 850;
       letter-spacing: -.2px;
+      line-height: 1.15;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, .35);
+    }
+
+    .pipe-startup-label {
+      margin: 0;
+      color: #ffd3b6;
+      font-size: 10.5px;
+      font-weight: 750;
+      letter-spacing: .55px;
+      text-transform: uppercase;
+    }
+
+    .pipe-startup-telemetry {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 13px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 138, 61, .36);
+      background: rgba(5, 16, 36, .66);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+
+    .pipe-startup-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pipe-orange);
+      box-shadow: 0 0 10px var(--pipe-orange);
+      animation: pipe-status-pulse 1.2s ease-in-out infinite alternate;
+      flex-shrink: 0;
     }
 
     #pipe-startup-status {
-      margin-top: 14px;
-      color: var(--pipe-ink);
-      font-size: 15px;
-      font-weight: 800;
+      margin: 0;
+      color: #f8fafc;
+      font-size: 13px;
+      font-weight: 750;
       letter-spacing: .1px;
     }
 
-    .pipe-service-route {
-      width: min(430px, 78vw);
-      margin-top: 34px;
-      padding: 18px 34px 8px 14px;
-      box-sizing: border-box;
+    #pipe-route-telemetry {
+      color: #ff9d5c;
+      font-size: 12px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
     }
 
-    .pipe-startup-track {
+    .pipe-service-route {
       position: relative;
       width: 100%;
+      height: 158px;
+      margin-top: 10px;
+      padding: 0 12px;
+      box-sizing: border-box;
+      border-radius: 15px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      background:
+        radial-gradient(ellipse 70% 56% at 50% 30%, rgba(255, 146, 56, .24), transparent 72%),
+        linear-gradient(
+          180deg,
+          rgba(8, 24, 52, .56) 0%,
+          rgba(19, 41, 70, .64) 66%,
+          rgba(54, 48, 43, .90) 78%,
+          rgba(34, 31, 29, .97) 100%
+        );
+      overflow: hidden;
+      box-shadow: inset 0 1px 14px rgba(0, 0, 0, .38);
+    }
+
+    /* Graded caliche gravel & compacted lease roadbed */
+    .pipe-service-route::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 14px;
+      height: 24px;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(235, 206, 172, .18) 0%,
+          rgba(96, 86, 75, .92) 14%,
+          rgba(69, 63, 56, .96) 52%,
+          rgba(46, 42, 38, .99) 100%
+        );
+      border-top: 1px solid rgba(255, 214, 170, .30);
+      border-bottom: 1px solid rgba(0, 0, 0, .48);
+      box-shadow: inset 0 5px 6px rgba(0, 0, 0, .18);
+      pointer-events: none;
+    }
+
+    /* Subtle lease-road center dashed amber guide line */
+    .pipe-service-route::after {
+      content: "";
+      position: absolute;
+      left: 24px;
+      right: 196px;
+      bottom: 25px;
+      height: 2px;
+      background: repeating-linear-gradient(
+        90deg,
+        rgba(255, 184, 98, .44) 0 14px,
+        transparent 14px 28px
+      );
+      pointer-events: none;
+    }
+
+    .pipe-route-badge-left,
+    .pipe-route-badge-right {
+      position: absolute;
+      top: 8px;
+      z-index: 6;
+      padding: 2.5px 9px;
+      border-radius: 6px;
+      background: rgba(6, 18, 38, .74);
+      border: 1px solid rgba(255, 255, 255, .14);
+      color: rgba(241, 245, 249, .90);
+      font-size: 9.5px;
+      font-weight: 750;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .pipe-route-badge-left { left: 10px; }
+    .pipe-route-badge-right { right: 10px; color: #ffbe8f; }
+
+    .pipe-startup-track {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 7px;
       height: 6px;
       margin: 0;
       overflow: visible;
       border-radius: 999px;
-      background: #edf1f5;
-      box-shadow: inset 0 0 0 1px rgba(6, 29, 73, .04);
+      background: rgba(15, 23, 42, .85);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
     }
 
     #pipe-startup-progress {
       width: 4%;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--pipe-orange), #ff7a33);
-      transition: width 240ms ease-out;
+      background: linear-gradient(90deg, var(--pipe-orange), #ff8533, #ffb347);
+      box-shadow: 0 0 12px rgba(255, 90, 0, .65);
+      transition: width 260ms ease-out;
     }
 
     .pipe-service-truck {
       position: absolute;
-      left: 7%;
-      top: -35px;
-      width: 72px;
-      height: 38px;
+      left: 15%;
+      bottom: 11px;
+      z-index: 4;
+      width: 222px;
+      aspect-ratio: 680 / 265;
       transform: translateX(-50%);
-      transition: left 280ms ease-out;
-      filter: drop-shadow(0 5px 5px rgba(6, 29, 73, .18));
+      transition: left 300ms ease-out;
+      filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .54));
       pointer-events: none;
     }
 
-    .pipe-service-truck svg,
-    .pipe-pumpjack svg {
+    .pipe-truck-chassis {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      animation: pipe-truck-cadence .42s ease-in-out infinite alternate;
+    }
+
+    .pipe-service-truck.arrived .pipe-truck-chassis {
+      animation: none;
+    }
+
+    .pipe-truck-body-img {
       display: block;
       width: 100%;
       height: 100%;
+      object-fit: contain;
+    }
+
+    .pipe-truck-wheel {
+      position: absolute;
+      width: 11.93%;
+      aspect-ratio: 1 / 1;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .pipe-truck-wheel-rear {
+      left: 23.9%;
+      top: 80.85%;
+    }
+
+    .pipe-truck-wheel-front {
+      left: 83.65%;
+      top: 80.85%;
+    }
+
+    .pipe-truck-wheel img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      animation: pipe-wheel-spin .68s linear infinite;
+    }
+
+    .pipe-service-truck.arrived .pipe-truck-wheel img {
+      animation-play-state: paused;
+    }
+
+    /* Flashing amber oilfield utility roof beacon */
+    .pipe-truck-beacon {
+      position: absolute;
+      left: 54.8%;
+      top: 17.5%;
+      width: 22px;
+      height: 14px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 196, 54, .95) 0%, rgba(255, 122, 0, .55) 45%, transparent 74%);
+      mix-blend-mode: screen;
+      animation: pipe-beacon-flash .55s steps(2, end) infinite;
+      pointer-events: none;
+    }
+
+    /* Warm LED headlight cone illuminating the gravel lease road */
+    .pipe-truck-headlight {
+      position: absolute;
+      left: 94.5%;
+      top: 44%;
+      width: 96px;
+      height: 36px;
+      background: linear-gradient(
+        90deg,
+        rgba(255, 246, 214, .56) 0%,
+        rgba(255, 205, 120, .20) 58%,
+        transparent 100%
+      );
+      clip-path: polygon(0 36%, 100% 0, 100% 100%, 0 64%);
+      pointer-events: none;
+    }
+
+    /* Caliche gravel dust puffs trailing rear mud-terrain tire */
+    .pipe-truck-dust {
+      position: absolute;
+      left: 15%;
+      bottom: 2%;
+      width: 48px;
+      height: 20px;
+      pointer-events: none;
+      transition: opacity 250ms ease;
+    }
+
+    .pipe-service-truck.arrived .pipe-truck-dust {
+      opacity: 0;
+    }
+
+    .pipe-truck-dust span {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(218, 195, 164, .52) 0%, rgba(168, 146, 118, 0) 72%);
+      animation: pipe-dust-drift .85s ease-out infinite;
+    }
+
+    .pipe-truck-dust span:nth-child(2) {
+      animation-delay: .28s;
+      width: 18px;
+      height: 18px;
+    }
+
+    .pipe-truck-dust span:nth-child(3) {
+      animation-delay: .56s;
+      width: 12px;
+      height: 12px;
     }
 
     .pipe-pumpjack {
       position: absolute;
-      right: -29px;
-      top: -52px;
-      width: 64px;
-      height: 54px;
-      filter: drop-shadow(0 5px 5px rgba(6, 29, 73, .14));
+      right: 2px;
+      bottom: 9px;
+      z-index: 3;
+      width: 180px;
+      aspect-ratio: 620 / 384;
+      filter: drop-shadow(0 6px 9px rgba(0, 0, 0, .55));
       pointer-events: none;
+      transition: filter 280ms ease;
+    }
+
+    .pipe-pumpjack-base,
+    .pipe-pumpjack-arm {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .pipe-pumpjack-base img,
+    .pipe-pumpjack-arm img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
     .pipe-pumpjack-arm {
-      transform-box: fill-box;
-      transform-origin: 42% 62%;
-      animation: pipe-pumpjack-rock 1.35s ease-in-out infinite alternate;
+      transform-origin: 48.61% 21.87%;
+      animation: pipe-pumpjack-rock 1.55s ease-in-out infinite alternate;
+      will-change: transform;
+    }
+
+    .pipe-well-glow {
+      position: absolute;
+      inset: -12% -8% 0 -12%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 46% 58%, rgba(255, 132, 38, .38), transparent 68%);
+      opacity: .32;
+      transition: opacity 300ms ease;
+      pointer-events: none;
+    }
+
+    .pipe-pumpjack.serviced {
+      filter:
+        drop-shadow(0 6px 10px rgba(0, 0, 0, .55))
+        drop-shadow(0 0 14px rgba(255, 115, 20, .48));
+    }
+
+    .pipe-pumpjack.serviced .pipe-well-glow {
+      opacity: .95;
     }
 
     .pipe-service-endpoint {
       position: absolute;
-      right: -2px;
+      right: 112px;
       top: 50%;
-      width: 10px;
-      height: 10px;
+      z-index: 5;
+      width: 9px;
+      height: 9px;
       transform: translate(50%, -50%);
-      border: 3px solid #ffffff;
+      border: 2px solid #ffffff;
       border-radius: 50%;
       background: var(--pipe-orange);
-      box-shadow: 0 0 0 1px rgba(255, 90, 0, .22);
-    }
-
-    .pipe-pumpjack.serviced {
-      filter: drop-shadow(0 5px 8px rgba(255, 90, 0, .25));
+      box-shadow: 0 0 10px rgba(255, 90, 0, .8);
     }
 
     @keyframes pipe-pumpjack-rock {
-      from { transform: rotate(-4deg); }
-      to { transform: rotate(5deg); }
+      from { transform: rotate(-4.5deg); }
+      to { transform: rotate(4.5deg); }
+    }
+
+    @keyframes pipe-wheel-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pipe-truck-cadence {
+      from { transform: translateY(0); }
+      to { transform: translateY(-1.2px); }
+    }
+
+    @keyframes pipe-beacon-flash {
+      0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+      50% { opacity: .28; transform: translate(-50%, -50%) scale(.82); }
+    }
+
+    @keyframes pipe-dust-drift {
+      0% { transform: translate(0, 0) scale(.55); opacity: .75; }
+      100% { transform: translate(-30px, -9px) scale(1.65); opacity: 0; }
+    }
+
+    @keyframes pipe-status-pulse {
+      from { opacity: .55; transform: scale(.88); }
+      to { opacity: 1; transform: scale(1.12); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -196,56 +567,52 @@
       #pipe-startup-progress {
         transition: none;
       }
-      .pipe-pumpjack-arm {
+      .pipe-pumpjack-arm,
+      .pipe-truck-wheel img,
+      .pipe-truck-chassis,
+      .pipe-truck-beacon,
+      .pipe-truck-dust span,
+      .pipe-startup-pulse {
         animation: none;
       }
     }
 
-    .pipe-startup-label {
-      margin-top: 10px;
-      color: var(--pipe-muted);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .25px;
-      text-transform: uppercase;
-    }
-
     .pipe-startup-identity {
-      max-width: 620px;
-      margin-top: 10px;
+      max-width: 720px;
+      margin-top: 8px;
       color: var(--pipe-muted);
-      font-size: 11px;
-      line-height: 1.45;
+      font-size: 10.5px;
+      line-height: 1.4;
     }
 
     .pipe-startup-identity strong {
-      color: var(--pipe-ink);
+      color: #ffffff;
     }
 
     .pipe-startup-links {
-      display: flex;
+      display: inline-flex;
       justify-content: center;
-      gap: 14px;
-      margin-top: 6px;
+      gap: 12px;
+      margin-left: 8px;
     }
 
     .pipe-startup-links a {
-      color: var(--pipe-ink);
+      color: #ffab73;
       font-weight: 750;
       text-decoration: none;
     }
 
     .pipe-startup-links a:hover,
     .pipe-startup-links a:focus-visible {
-      color: var(--pipe-orange);
+      color: #ffffff;
       text-decoration: underline;
     }
 
     #pipe-startup-error {
       display: none;
-      max-width: 520px;
-      margin-top: 14px;
-      padding: 10px 12px;
+      max-width: 560px;
+      margin-top: 10px;
+      padding: 9px 12px;
       box-sizing: border-box;
       border: 1px solid #fecaca;
       border-radius: 10px;
@@ -255,12 +622,57 @@
       line-height: 1.4;
     }
 
-    @media (max-width: 600px) {
-      #pipe-startup { padding: 18px; }
-      .pipe-startup-logo { width: min(94vw, 620px); }
-      .pipe-startup-title { font-size: 18px; }
-      #pipe-startup-status { margin-top: 12px; font-size: 14px; }
-      .pipe-startup-identity { font-size: 10px; }
+    @media (max-width: 640px) {
+      #pipe-startup {
+        padding: 10px 10px 14px;
+        background-position: 36% 68%;
+      }
+      .pipe-startup-content {
+        width: 96vw;
+        padding: 12px 12px 10px;
+        border-radius: 18px;
+      }
+      .pipe-startup-topbar {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .pipe-startup-brand-group {
+        justify-content: center;
+      }
+      .pipe-startup-logo {
+        height: 30px;
+      }
+      .pipe-startup-title {
+        font-size: 16px;
+      }
+      .pipe-startup-label {
+        font-size: 9.5px;
+      }
+      .pipe-service-route {
+        height: 122px;
+      }
+      .pipe-service-truck {
+        width: 132px;
+        left: 19%;
+      }
+      .pipe-truck-headlight {
+        width: 56px;
+      }
+      .pipe-pumpjack {
+        width: 112px;
+      }
+      .pipe-service-endpoint {
+        right: 76px;
+      }
+      .pipe-startup-identity {
+        font-size: 9.8px;
+      }
+      .pipe-startup-links {
+        display: flex;
+        margin-left: 0;
+        margin-top: 4px;
+      }
     }
   </style>
 
@@ -271,15 +683,22 @@
       pipeStartupProgress = Math.max(pipeStartupProgress, Math.min(100, percent));
       const bar = document.getElementById('pipe-startup-progress');
       const label = document.getElementById('pipe-startup-status');
+      const pctLabel = document.getElementById('pipe-route-telemetry');
       const track = document.querySelector('.pipe-startup-track');
       const truck = document.getElementById('pipe-service-truck');
       const pumpjack = document.getElementById('pipe-pumpjack');
+      const rounded = Math.round(pipeStartupProgress);
       if (bar) bar.style.width = `${pipeStartupProgress}%`;
       if (label && status) label.textContent = status;
-      if (track) track.setAttribute('aria-valuenow', String(Math.round(pipeStartupProgress)));
+      if (pctLabel) pctLabel.textContent = `${rounded}%`;
+      if (track) track.setAttribute('aria-valuenow', String(rounded));
       if (truck) {
-        const travelPercent = 7 + (Math.min(100, pipeStartupProgress) / 100) * 78;
+        const isCompact = window.innerWidth <= 640;
+        const startPct = isCompact ? 19 : 16;
+        const spanPct = isCompact ? 32 : 45;
+        const travelPercent = startPct + (Math.min(100, pipeStartupProgress) / 100) * spanPct;
         truck.style.left = `${travelPercent}%`;
+        truck.classList.toggle('arrived', pipeStartupProgress >= 98);
       }
       if (pumpjack) pumpjack.classList.toggle('serviced', pipeStartupProgress >= 92);
     }
@@ -302,57 +721,92 @@
 <body>
   <div id="pipe-startup" role="status" aria-live="polite" aria-label="Pipe Buyer is starting">
     <div class="pipe-startup-content">
-      <img
-        class="pipe-startup-logo"
-        src="assets/assets/images/pipe_buyer_logo.png"
-        alt="Pipe Buyer"
-        onerror="this.onerror=null;this.src='splash/img/light-4x.png';">
-      <h1 class="pipe-startup-title">Pipe Buyer</h1>
-      <div id="pipe-startup-status">Preparing Pipe Buyer</div>
+      <div class="pipe-startup-topbar">
+        <div class="pipe-startup-brand-group">
+          <div class="pipe-startup-logo-pill">
+            <picture class="pipe-startup-brand">
+              <source srcset="startup/pipe_buyer_logo_clean.webp" type="image/webp">
+              <img
+                class="pipe-startup-logo"
+                src="assets/assets/images/pipe_buyer_logo.png"
+                alt="Pipe Buyer"
+                onerror="this.onerror=null;this.src='splash/img/light-4x.png';">
+            </picture>
+          </div>
+          <div class="pipe-startup-headings">
+            <h1 class="pipe-startup-title">Pipe Buyer</h1>
+            <div class="pipe-startup-label">Industrial Marketplace · Dispatch · Timed Buying</div>
+          </div>
+        </div>
+        <div class="pipe-startup-telemetry">
+          <span class="pipe-startup-pulse" aria-hidden="true"></span>
+          <div id="pipe-startup-status">Preparing Pipe Buyer</div>
+          <span id="pipe-route-telemetry">4%</span>
+        </div>
+      </div>
+
       <div class="pipe-service-route" aria-hidden="true">
+        <div class="pipe-route-badge-left">Pipe Buyers Field Dispatch</div>
+        <div class="pipe-route-badge-right">Oil Lease Well Site</div>
+
         <div class="pipe-startup-track" role="progressbar" aria-label="Application startup progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="4">
           <div id="pipe-startup-progress"></div>
+
           <div id="pipe-service-truck" class="pipe-service-truck">
-            <svg viewBox="0 0 92 48" focusable="false" aria-hidden="true">
-              <rect x="10" y="15" width="45" height="19" rx="3" fill="#061d49"/>
-              <rect x="15" y="10" width="31" height="7" rx="2" fill="#64748b"/>
-              <rect x="18" y="18" width="8" height="5" rx="1" fill="#ffffff" opacity=".88"/>
-              <rect x="30" y="18" width="8" height="5" rx="1" fill="#ffffff" opacity=".88"/>
-              <rect x="42" y="18" width="8" height="5" rx="1" fill="#ffffff" opacity=".88"/>
-              <path d="M54 20h20l8 8v6H54z" fill="#ff5a00"/>
-              <path d="M60 21h11l5 6H60z" fill="#dbeafe"/>
-              <rect x="6" y="31" width="77" height="4" rx="2" fill="#061d49"/>
-              <circle cx="23" cy="37" r="7" fill="#111827"/>
-              <circle cx="23" cy="37" r="3" fill="#cbd5e1"/>
-              <circle cx="68" cy="37" r="7" fill="#111827"/>
-              <circle cx="68" cy="37" r="3" fill="#cbd5e1"/>
-              <rect x="8" y="12" width="4" height="17" rx="2" fill="#ff5a00"/>
-            </svg>
+            <div class="pipe-truck-dust">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="pipe-truck-chassis">
+              <div class="pipe-truck-headlight"></div>
+              <div class="pipe-truck-beacon"></div>
+              <picture>
+                <source srcset="startup/pipe_buyers_truck.webp" type="image/webp">
+                <img class="pipe-truck-body-img" src="startup/pipe_buyers_truck.png" alt="">
+              </picture>
+              <div class="pipe-truck-wheel pipe-truck-wheel-rear">
+                <picture>
+                  <source srcset="startup/pipe_buyers_wheel.webp" type="image/webp">
+                  <img src="startup/pipe_buyers_wheel.png" alt="">
+                </picture>
+              </div>
+              <div class="pipe-truck-wheel pipe-truck-wheel-front">
+                <picture>
+                  <source srcset="startup/pipe_buyers_wheel.webp" type="image/webp">
+                  <img src="startup/pipe_buyers_wheel.png" alt="">
+                </picture>
+              </div>
+            </div>
           </div>
+
           <div class="pipe-service-endpoint"></div>
+
           <div id="pipe-pumpjack" class="pipe-pumpjack">
-            <svg viewBox="0 0 80 64" focusable="false" aria-hidden="true">
-              <path d="M9 55h62" stroke="#061d49" stroke-width="4" stroke-linecap="round"/>
-              <path d="M27 53 37 24 48 53" fill="none" stroke="#061d49" stroke-width="5" stroke-linejoin="round"/>
-              <path d="M22 42h32" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
-              <g class="pipe-pumpjack-arm">
-                <path d="M35 25 65 13" stroke="#061d49" stroke-width="6" stroke-linecap="round"/>
-                <path d="M59 12 71 18" stroke="#ff5a00" stroke-width="6" stroke-linecap="round"/>
-              </g>
-              <path d="M67 18v29" stroke="#ff5a00" stroke-width="3" stroke-linecap="round"/>
-              <circle cx="40" cy="25" r="4" fill="#ff5a00"/>
-            </svg>
+            <div class="pipe-well-glow"></div>
+            <div class="pipe-pumpjack-base">
+              <picture>
+                <source srcset="startup/oil_well_site_base.webp" type="image/webp">
+                <img src="startup/oil_well_site_base.png" alt="">
+              </picture>
+            </div>
+            <div class="pipe-pumpjack-arm">
+              <picture>
+                <source srcset="startup/oil_well_site_arm.webp" type="image/webp">
+                <img src="startup/oil_well_site_arm.png" alt="">
+              </picture>
+            </div>
           </div>
         </div>
       </div>
-      <div class="pipe-startup-label">Industrial Marketplace · Dispatch · Timed Buying</div>
+
       <div class="pipe-startup-identity">
         <strong>Application Purpose &amp; Identity:</strong>
         Pipe Buyer is a B2B industrial marketplace for pipe, OCTG, equipment, buildings, vehicles and heavy machinery, with timed auctions and freight trucking dispatch across the United States and Canada.
-        <div class="pipe-startup-links">
+        <span class="pipe-startup-links">
           <a href="https://www.pipebuyer.com/privacy">Privacy</a>
           <a href="https://www.pipebuyer.com/terms">Terms</a>
-        </div>
+        </span>
       </div>
       <div id="pipe-startup-error"></div>
     </div>
