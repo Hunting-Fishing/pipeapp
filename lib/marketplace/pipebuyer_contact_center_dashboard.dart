@@ -440,7 +440,7 @@ class _PipeBuyerContactCenterDashboardState
       if (!mounted) return;
       _showSnack(
         decision == 'approved'
-            ? 'Listing approved & published to Yellow Pages!'
+            ? 'Listing approved & published to the Oilfield Directory!'
             : 'Listing request rejected.',
       );
       await _refreshData();
@@ -470,7 +470,7 @@ class _PipeBuyerContactCenterDashboardState
       appBar: AppBar(
         backgroundColor: PipeBuyerColors.ink,
         foregroundColor: Colors.white,
-        title: const Text('Yellow Pages Admin & Contact Center'),
+        title: const Text('Oilfield Directory Admin & Contact Center'),
         actions: [
           if (access != null && access.isManager)
             TextButton.icon(
@@ -976,11 +976,11 @@ class _PipeBuyerContactCenterDashboardState
   static String _accessReasonCopy(String? reason) => switch (reason) {
         'signed_out' => 'Sign in with your PipeBuyer Admin or Contact Center account.',
         'email_unverified' =>
-          'Verify your email address before opening the Yellow Pages Contact Center.',
+          'Verify your email address before opening the Oilfield Directory Contact Center.',
         'mfa_required' =>
           'Multi-factor authentication (MFA) is required before accessing private Contact Center phone records.',
         _ =>
-          'Your account is not enrolled in the Yellow Pages Contact Center or Admin roster.',
+          'Your account is not enrolled in the Oilfield Directory Contact Center or Admin roster.',
       };
 }
 
@@ -2033,7 +2033,7 @@ class _BlockedNumbersDialogState extends State<_BlockedNumbersDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Blocked numbers cannot appear in public Yellow Pages search and are automatically rejected in List Services.',
+              'Blocked numbers cannot appear in public Oilfield Directory search and are automatically rejected in List Services.',
               style: TextStyle(fontSize: 13, color: PipeBuyerColors.slate),
             ),
             if (widget.isAdmin) ...[

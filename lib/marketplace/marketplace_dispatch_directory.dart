@@ -699,9 +699,9 @@ class _MarketplaceDispatchDirectoryPageState
             ),
             const SizedBox(height: 12),
             PipeBuyerSectionCard(
-              title: 'North America Oil & Gas Yellow Pages (Canada & USA)',
+              title: 'PipeBuyer Oilfield Directory (Canada & USA)',
               subtitle:
-                  'Smart search verified oilfield & industrial service companies across all basins, or list your business for Priority Verified placement.',
+                  'Smart search verified oilfield & industrial service companies across all towns & basins, or list your business for Priority Verified placement.',
               leading: const Icon(
                 Icons.menu_book_outlined,
                 color: PipeBuyerColors.orange,

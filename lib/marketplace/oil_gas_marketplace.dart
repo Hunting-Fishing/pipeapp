@@ -1531,7 +1531,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
           else
             PipeAccessibleIconButton(
               label: 'Services Directory',
-              onTapHint: 'Opens PipeBuyer Yellow Pages Services Directory',
+              onTapHint: 'Opens PipeBuyer Oilfield Services Directory',
               onPressed: () =>
                   MarketplaceNavigation.openSearchServices(context),
               icon: const Icon(Icons.manage_search_rounded),
@@ -1626,7 +1626,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                     if (_isAdminUser)
                       _DrawerDestination(
                         icon: Icons.contact_phone_outlined,
-                        label: 'Yellow Pages Admin',
+                        label: 'Directory Admin',
                         selected: false,
                         onTap: () {
                           Navigator.of(context).pop();

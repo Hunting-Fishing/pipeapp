@@ -243,7 +243,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         icon: Icons.workspace_premium_outlined,
                         title: 'List services',
                         subtitle:
-                            'Get Priority Verified placement in Yellow Pages.',
+                            'Get Priority Verified placement in the Oilfield Directory.',
                         onTap: onListServices,
                       ),
                     ),

@@ -3,10 +3,11 @@
 const YELLOW_PAGES_CATEGORIES = Object.freeze([
   {
     code: "trucking_heavy_haul",
-    label: "Trucking, Winch & Heavy Haul",
+    label: "Trucking, Towing, Winch & Heavy Haul",
     section: "yellow",
     keywords: [
-      "trucking", "heavy haul", "winch truck", "bed truck", "rig moving",
+      "trucking", "towing", "tow truck", "heavy tow", "wrecker", "recovery",
+      "heavy haul", "winch truck", "bed truck", "rig moving",
       "rig movers", "lowboy", "step deck", "flatbed", "texas bed", "scissorneck",
       "picker haul", "pipe hauling", "oilfield hauling", "freight",
     ],
