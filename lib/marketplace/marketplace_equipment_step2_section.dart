@@ -312,11 +312,23 @@ class _MarketplaceEquipmentStep2SectionState
 
   void _handleCatalogModelSelected(String? nextModel) {
     if (nextModel == widget.selectedModel) return;
+    if (nextModel == null) {
+      widget.manualModelController.clear();
+      widget.engineDetailsController.clear();
+      widget.onSelectionChanged(
+        EquipmentSpecSelection(
+          brand: widget.selectedBrand,
+          year: widget.selectedYear,
+          model: null,
+        ),
+      );
+      return;
+    }
     if (nextModel != kManualCatalogOptionValue) {
       widget.manualModelController.clear();
     }
     var nextYear = widget.selectedYear;
-    if (nextModel != null && nextModel != kManualCatalogOptionValue) {
+    if (nextModel != kManualCatalogOptionValue) {
       final entry = widget.catalog.findModel(
         widget.selectedBrand,
         nextModel,
@@ -325,6 +337,7 @@ class _MarketplaceEquipmentStep2SectionState
       if (entry != null) {
         if (nextYear != null && !entry.supportsYear(nextYear)) {
           nextYear = entry.yearFrom == entry.yearTo ? entry.yearFrom : null;
+          widget.engineDetailsController.clear();
         } else if (nextYear == null && entry.yearFrom == entry.yearTo) {
           nextYear = entry.yearFrom;
         }
@@ -590,23 +603,46 @@ class _MarketplaceEquipmentStep2SectionState
         widget.catalog.findManufacturer(widget.selectedBrand);
     final usesManual = _usesManualModelAndYear;
 
-    // Year options (strictly scoped to selected catalog model if one is picked)
+    // Year options (strictly locked to selected catalog model's manufactured years!)
     final catalogModelFilter = (!usesManual &&
             widget.selectedModel != null &&
             widget.selectedModel != kManualCatalogOptionValue)
         ? widget.selectedModel
         : null;
+    final selectedModelEntry = catalogModelFilter != null
+        ? widget.catalog.findModel(
+            widget.selectedBrand,
+            catalogModelFilter,
+            modelYear: widget.selectedYear,
+          )
+        : null;
     final scopedYears = widget.catalog.yearsFor(
       brand: widget.selectedBrand,
       model: catalogModelFilter,
     );
-    final allBrandYears = catalogModelFilter != null
-        ? widget.catalog.yearsFor(brand: widget.selectedBrand)
-        : scopedYears;
 
     MarketplaceSelectOption<int> toYearOption(int year) {
       String? subtitle;
-      if (!usesManual &&
+      String? badge;
+      if (!usesManual && selectedModelEntry != null) {
+        final enginesInYear = selectedModelEntry.enginesForYear(year);
+        final enginePreview = enginesInYear.isEmpty
+            ? null
+            : enginesInYear.length == 1
+                ? [
+                    enginesInYear.first.manufacturer,
+                    enginesInYear.first.engineModel,
+                  ].where((s) => s.isNotEmpty).join(' ')
+                : '${enginesInYear.length} engine options';
+        final brandTitle =
+            selectedManufacturerEntry?.name ?? widget.selectedBrand ?? '';
+        subtitle = <String>[
+          '$brandTitle ${selectedModelEntry.model}'.trim(),
+          'Manufactured ${selectedModelEntry.yearRangeLabel}',
+          if (enginePreview != null && enginePreview.isNotEmpty) enginePreview,
+        ].join(' • ');
+        badge = selectedModelEntry.yearRangeLabel;
+      } else if (!usesManual &&
           selectedManufacturerEntry != null &&
           selectedManufacturerEntry.hasVerifiedYearModelCatalog) {
         final count = selectedManufacturerEntry.models
@@ -619,13 +655,11 @@ class _MarketplaceEquipmentStep2SectionState
         value: year,
         label: '$year',
         subtitle: subtitle,
+        badge: badge,
       );
     }
 
     final yearOptions = scopedYears.map(toYearOption).toList(growable: false);
-    final unfilteredYearOptions = scopedYears.length < allBrandYears.length
-        ? allBrandYears.map(toYearOption).toList(growable: false)
-        : null;
 
     // Model options (strictly filtered to selectedYear!)
     final allYearModels = !usesManual && widget.selectedBrand != null
@@ -664,19 +698,22 @@ class _MarketplaceEquipmentStep2SectionState
                 ].where((s) => s.isNotEmpty).join(' ')
               : '${enginesInYear.length} engine options';
       final subtitleParts = <String>[
+        'Manufactured ${entry.yearRangeLabel}',
         if (entry.series.isNotEmpty) entry.series,
         if (enginePreview != null && enginePreview.isNotEmpty) enginePreview,
       ];
       return MarketplaceSelectOption<String>(
         value: entry.model,
-        label: entry.model,
-        subtitle: subtitleParts.isEmpty ? null : subtitleParts.join(' • '),
+        label: '${entry.model} (${entry.yearRangeLabel})',
+        subtitle: subtitleParts.join(' • '),
         badge: entry.yearRangeLabel,
         searchKeywords: <String>[
+          entry.model,
           ...entry.aliases,
           entry.series,
           ...entry.productTypes,
           entry.yearRangeLabel,
+          for (int y = entry.yearFrom; y <= entry.yearTo; y++) '$y',
           for (final eng in entry.engines) ...<String>[
             eng.manufacturer,
             eng.engineModel,
@@ -927,9 +964,10 @@ class _MarketplaceEquipmentStep2SectionState
           emptyStateText:
               'No manufacturer matched — select "$kManualCatalogOptionValue" below.',
           onChanged: _handleBrandSelected,
-          validator: (_) => widget.requiredSpecs && widget.selectedBrand == null
-              ? 'Select a manufacturer'
-              : null,
+          validator: (selectedValue) =>
+              widget.requiredSpecs && selectedValue == null
+                  ? 'Select a manufacturer'
+                  : null,
         ),
         if (widget.selectedBrand == kManualCatalogOptionValue) ...<Widget>[
           const SizedBox(height: 12),
@@ -1018,26 +1056,39 @@ class _MarketplaceEquipmentStep2SectionState
           MarketplaceSearchableSelectField<int>(
             key: const Key('step2_year_select_field'),
             semanticKey: const Key('step2_year_select_trigger'),
+            clearButtonKey: const Key('step2_year_clear_button'),
+            allowClear: true,
+            clearTooltip: 'Clear model year',
             label: widget.requiredSpecs ? 'Model year *' : 'Model year',
-            hintText: catalogModelFilter != null && scopedYears.isNotEmpty
-                ? 'Select year (${scopedYears.last}–${scopedYears.first})...'
-                : 'Search or select model year...',
-            helperText: catalogModelFilter != null && scopedYears.isNotEmpty
-                ? 'Valid production window for $catalogModelFilter: '
-                    '${scopedYears.last == scopedYears.first ? '${scopedYears.first}' : '${scopedYears.last}–${scopedYears.first}'}'
+            modalTitle: selectedModelEntry != null
+                ? '${widget.selectedBrand ?? ''} ${selectedModelEntry.model} — Manufactured Years (${selectedModelEntry.yearRangeLabel})'
+                    .trim()
                 : null,
+            headerBadge: selectedModelEntry?.yearRangeLabel,
+            hintText: selectedModelEntry != null
+                ? 'Select year (${selectedModelEntry.yearRangeLabel})...'
+                : catalogModelFilter != null && scopedYears.isNotEmpty
+                    ? 'Select year (${scopedYears.last}–${scopedYears.first})...'
+                    : 'Search or select model year...',
+            helperText: selectedModelEntry != null
+                ? 'Manufactured years for ${widget.selectedBrand ?? ''} ${selectedModelEntry.model}: ${selectedModelEntry.yearRangeLabel}'
+                    .trim()
+                : catalogModelFilter != null && scopedYears.isNotEmpty
+                    ? 'Valid production window for $catalogModelFilter: '
+                        '${scopedYears.last == scopedYears.first ? '${scopedYears.first}' : '${scopedYears.last}–${scopedYears.first}'}'
+                    : null,
             value: widget.selectedYear,
             options: yearOptions,
-            allOptionsWhenUnfiltered: unfilteredYearOptions,
-            filterChipLabel: unfilteredYearOptions == null
-                ? null
-                : 'Showing valid years for $catalogModelFilter (${scopedYears.last}–${scopedYears.first}) — Tap for all years',
             prefixIcon: Icons.calendar_today_outlined,
-            searchHintText: 'Type 4-digit year (e.g. 2023, 2018, 1995)...',
-            emptyStateText: 'No matching year in range.',
+            searchHintText: selectedModelEntry != null
+                ? 'Type 4-digit year in ${selectedModelEntry.yearRangeLabel}...'
+                : 'Type 4-digit year (e.g. 2023, 2018, 1995)...',
+            emptyStateText: selectedModelEntry != null
+                ? 'No matching year — ${selectedModelEntry.model} was manufactured ${selectedModelEntry.yearRangeLabel}.'
+                : 'No matching year in range.',
             onChanged: _handleCatalogYearSelected,
-            validator: (_) =>
-                widget.requiredSpecs && widget.selectedYear == null
+            validator: (selectedValue) =>
+                widget.requiredSpecs && selectedValue == null
                     ? 'Select the model year'
                     : null,
           ),
@@ -1068,17 +1119,22 @@ class _MarketplaceEquipmentStep2SectionState
           MarketplaceSearchableSelectField<String>(
             key: const Key('step2_model_select_field'),
             semanticKey: const Key('step2_model_select_trigger'),
+            clearButtonKey: const Key('step2_model_clear_button'),
+            allowClear: true,
+            clearTooltip: 'Clear model',
             label: widget.requiredSpecs ? 'Model *' : 'Model',
             hintText: widget.selectedBrand == null
                 ? 'Select manufacturer first...'
                 : widget.selectedYear != null
                     ? 'Search ${widget.selectedYear} ${widget.selectedBrand} models...'
-                    : 'Search ${widget.selectedBrand} models (1970–2026)...',
+                    : 'Search ${widget.selectedBrand} models (with manufactured years)...',
             helperText: widget.selectedBrand != null &&
                     widget.selectedYear != null
                 ? 'Showing ${allYearModels.length} verified ${widget.selectedBrand} '
-                    '${allYearModels.length == 1 ? 'model' : 'models'} produced in ${widget.selectedYear}'
-                : null,
+                    '${allYearModels.length == 1 ? 'model' : 'models'} manufactured in ${widget.selectedYear}'
+                : widget.selectedBrand != null && allYearModels.isNotEmpty
+                    ? 'Showing ${allYearModels.length} verified ${widget.selectedBrand} models with manufactured year ranges'
+                    : null,
             enabled: widget.selectedBrand != null,
             value: widget.selectedModel,
             options: modelOptions,
@@ -1088,13 +1144,13 @@ class _MarketplaceEquipmentStep2SectionState
                 : 'Showing ${widget.productType} models (${strictTypeModels.length}) — Tap to show all ${allYearModels.length} ${widget.selectedBrand} models',
             prefixIcon: Icons.precision_manufacturing_outlined,
             searchHintText:
-                'Search model #, series, or engine (e.g. 320, T76, 389)...',
+                'Search model #, manufactured years, series, or engine (e.g. SV340B, 2022, T76)...',
             emptyStateText: widget.selectedYear != null
                 ? 'No catalog model matched for ${widget.selectedYear} — select "$kManualCatalogOptionValue" below.'
                 : 'No catalog model matched — select "$kManualCatalogOptionValue" below.',
             onChanged: _handleCatalogModelSelected,
-            validator: (_) =>
-                widget.requiredSpecs && widget.selectedModel == null
+            validator: (selectedValue) =>
+                widget.requiredSpecs && selectedValue == null
                     ? 'Select a model'
                     : null,
           ),
@@ -1311,7 +1367,7 @@ class _QuickSearchHitTile extends StatelessWidget {
     final entry = hit.modelEntry;
 
     final title = entry != null
-        ? '${hit.manufacturer.name} ${entry.model}'
+        ? '${hit.manufacturer.name} ${entry.model} (${entry.yearRangeLabel})'
         : hit.presetManualModel != null
             ? '${hit.manufacturer.name} ${hit.presetManualModel}'
             : hit.manufacturer.name;
