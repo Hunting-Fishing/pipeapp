@@ -824,33 +824,6 @@
 
     updatePipeStartup(10, 'Loading Pipe Buyer');
 
-    // Safely unregister any stale legacy flutter_service_worker.js from older
-    // builds so returning visitors always receive fresh catalog & UI bundles,
-    // without touching firebase-messaging-sw.js.
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (const registration of registrations) {
-          const scriptUrl = (registration.active && registration.active.scriptURL) ||
-            (registration.waiting && registration.waiting.scriptURL) ||
-            (registration.installing && registration.installing.scriptURL) || '';
-          if (scriptUrl.indexOf('flutter_service_worker.js') !== -1) {
-            registration.unregister().catch(function() {});
-          }
-        }
-      }).catch(function() {});
-      if ('caches' in window) {
-        caches.keys().then(function(cacheNames) {
-          for (const cacheName of cacheNames) {
-            if (cacheName.indexOf('flutter-app-manifest') !== -1 ||
-                cacheName.indexOf('flutter-temp-cache') !== -1 ||
-                cacheName.indexOf('flutter-app-cache') !== -1) {
-              caches.delete(cacheName).catch(function() {});
-            }
-          }
-        }).catch(function() {});
-      }
-    }
-
     _flutter.loader.load({
       onEntrypointLoaded: async function(engineInitializer) {
         updatePipeStartup(34, 'Preparing application services');
