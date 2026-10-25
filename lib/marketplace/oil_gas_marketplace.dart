@@ -46,12 +46,15 @@ import 'marketplace_data_state.dart';
 import 'marketplace_freight_quote.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_catalog_photo_assets.dart';
+import 'marketplace_equipment_catalog.dart';
+import 'marketplace_equipment_step2_section.dart';
 import 'marketplace_listing_form_presentation.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_offer_analysis.dart';
 import 'marketplace_offer_commerce_summary.dart';
 import 'marketplace_property_details.dart';
+import 'marketplace_serial_decoder.dart';
 import 'marketplace_trucking_plan.dart';
 
 const _navy = Color(0xFFF8FAFC);
@@ -659,34 +662,6 @@ IconData marketplaceIconFor(String? value) {
     return (icon: Icons.build_circle_outlined, color: Colors.red);
   }
   return (icon: Icons.inventory_2_outlined, color: _orange);
-}
-
-({IconData icon, Color color}) _operatingStatusVisual(String value) {
-  final label = value.toLowerCase();
-  if (label == 'operational') {
-    return (icon: Icons.check_circle_outline, color: Colors.green);
-  }
-  if (label.contains('known issues')) {
-    return (icon: Icons.warning_amber_outlined, color: Colors.orange);
-  }
-  if (label.contains('not currently')) {
-    return (icon: Icons.cancel_outlined, color: Colors.red);
-  }
-  return (icon: Icons.handyman_outlined, color: const Color(0xFF66758A));
-}
-
-({IconData icon, Color color}) _maintenanceVisual(String value) {
-  final label = value.toLowerCase();
-  if (label.contains('full documented')) {
-    return (icon: Icons.fact_check_outlined, color: Colors.green);
-  }
-  if (label.contains('partial')) {
-    return (icon: Icons.description_outlined, color: Colors.orange);
-  }
-  if (label.contains('owner-maintained')) {
-    return (icon: Icons.handyman_outlined, color: _orange);
-  }
-  return (icon: Icons.help_outline, color: const Color(0xFF66758A));
 }
 
 ({IconData icon, Color color}) _inspectionVisual(String value) {
@@ -4126,7 +4101,12 @@ class _ListingDetailsState extends State<_ListingDetails> {
       'brand',
       'model',
       'modelYear',
+      'serialNumber',
+      'engineDetails',
       'machineHours',
+      'operatingStatus',
+      'maintenanceHistory',
+      'attachments',
       'quantity',
       'inspectionStatus',
       'propertyOffering',
@@ -4166,6 +4146,8 @@ class _ListingDetailsState extends State<_ListingDetails> {
     addRow('Length / range', details['pipeLengthRange'],
         Icons.linear_scale_outlined);
     addRow('Pipe band', details['pipeBand'], Icons.color_lens_outlined);
+    addRow(
+        'Serial / PIN', details['serialNumber'], Icons.qr_code_scanner_rounded);
     final brand = '${details['brand'] ?? ''}'.trim();
     final model = '${details['model'] ?? ''}'.trim();
     if (brand.isNotEmpty || model.isNotEmpty) {
@@ -4175,11 +4157,18 @@ class _ListingDetailsState extends State<_ListingDetails> {
           Icons.precision_manufacturing_outlined);
     }
     addRow('Model year', details['modelYear'], Icons.calendar_today_outlined);
+    addRow('Engine / powertrain', details['engineDetails'],
+        Icons.settings_outlined);
     final machineHours = details['machineHours'] as num?;
     if (machineHours != null) {
       addRow('Machine hours', '${propertyMeasure(machineHours)} hours',
           Icons.schedule);
     }
+    addRow('Operating status', details['operatingStatus'],
+        Icons.engineering_outlined);
+    addRow('Maintenance history', details['maintenanceHistory'],
+        Icons.history_outlined);
+    addRow('Attachments', details['attachments'], Icons.construction_outlined);
     final quantity = details['quantity'] as num?;
     if (quantity != null && listing.category != 'Site & Property') {
       addRow('Available quantity', propertyMeasure(quantity), Icons.numbers);
@@ -4832,6 +4821,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   final _description = TextEditingController();
   final _brand = TextEditingController();
   final _model = TextEditingController();
+  final _manualEquipmentYear = TextEditingController();
+  final _serialDecoder = MarketplaceSerialDecoder();
   final _quantity = TextEditingController();
   final _inspectionDetails = TextEditingController();
   final _machineHours = TextEditingController();
@@ -4881,7 +4872,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   String _propertyOffering = 'Land only';
   final Set<String> _propertyFeatures = <String>{};
   List<String> _pipeSizes = pipeNominalSizes;
-  Map<String, List<String>> _equipmentBrands = equipmentBrandModels;
+  EquipmentCatalog _equipmentCatalog =
+      EquipmentCatalog.fromLegacyBrandMap(equipmentBrandModels);
+  final Set<String> _hydratedManufacturerShards = <String>{};
   final List<XFile> _photos = [];
   int? _thumbnailPhotoIndex;
   XFile? _video;
@@ -4900,6 +4893,73 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   bool get _isAuction => _listingType == 'Auction';
   bool get _isWanted => _listingType == 'Wanted / Seeking';
   bool get _isProperty => _category == 'Site & Property';
+  bool get _isPipeSelection =>
+      _category == 'Pipe, Tubing & Materials' ||
+      const {
+        'Drill Pipe',
+        'Casing',
+        'Tubing',
+        'Line Pipe',
+        'OCTG',
+        'Sucker Rod',
+      }.contains(_productType);
+  bool get _isStructuredEquipment =>
+      !_isProperty &&
+      !_isPipeSelection &&
+      categoryUsesStructuredEquipmentCatalog(_category);
+  bool get _requiresEquipmentSpecs =>
+      _isStructuredEquipment &&
+      categoryRequiresEquipmentYearAndModel(_category);
+  bool get _usesManualEquipmentYearAndModel =>
+      _equipmentBrand != null &&
+      _equipmentCatalog.requiresManualModelAndYear(_equipmentBrand);
+
+  String _resolvedEquipmentBrand() {
+    if (!_isStructuredEquipment) return _brand.text.trim();
+    if (_equipmentBrand == _otherCatalogValue) return _brand.text.trim();
+    return (_equipmentBrand ?? '').trim();
+  }
+
+  String _resolvedEquipmentModel() {
+    if (!_isStructuredEquipment) return _model.text.trim();
+    if (_usesManualEquipmentYearAndModel ||
+        _equipmentModel == _otherCatalogValue) {
+      return _model.text.trim();
+    }
+    return (_equipmentModel ?? '').trim();
+  }
+
+  int? _resolvedEquipmentYear() {
+    if (!_isStructuredEquipment) return null;
+    if (_usesManualEquipmentYearAndModel) {
+      final parsed = int.tryParse(_manualEquipmentYear.text.trim());
+      final maxYear = DateTime.now().year + 1;
+      if (parsed != null && parsed >= 1900 && parsed <= maxYear) {
+        return parsed;
+      }
+      return null;
+    }
+    return _equipmentYear;
+  }
+
+  bool get _equipmentChecklistComplete {
+    if (!_requiresEquipmentSpecs) return true;
+    return _resolvedEquipmentBrand().isNotEmpty &&
+        _resolvedEquipmentYear() != null &&
+        _resolvedEquipmentModel().isNotEmpty;
+  }
+
+  Future<void> _maybeHydrateManufacturerShard(String? brandName) async {
+    final entry = _equipmentCatalog.findManufacturer(brandName);
+    if (entry == null || !_hydratedManufacturerShards.add(entry.id)) return;
+    final shard = await _repository.loadEquipmentManufacturerShard(entry.id);
+    if (shard != null && mounted) {
+      setState(() {
+        _equipmentCatalog =
+            _equipmentCatalog.mergeManufacturerOverrides([shard]);
+      });
+    }
+  }
 
   String get _placement {
     if (_isAuction) return 'Auction';
@@ -4924,12 +4984,12 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   Future<void> _loadCatalogs() async {
     final results = await Future.wait([
       _repository.loadPipeSizes(pipeNominalSizes),
-      _repository.loadBrandModels(equipmentBrandModels),
+      _repository.loadEquipmentCatalog(equipmentBrandModels),
     ]);
     if (mounted) {
       setState(() {
         _pipeSizes = results[0] as List<String>;
-        _equipmentBrands = results[1] as Map<String, List<String>>;
+        _equipmentCatalog = results[1] as EquipmentCatalog;
       });
     }
   }
@@ -5054,6 +5114,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     _description.dispose();
     _brand.dispose();
     _model.dispose();
+    _manualEquipmentYear.dispose();
+    _serialDecoder.dispose();
     _quantity.dispose();
     _inspectionDetails.dispose();
     _machineHours.dispose();
@@ -5090,16 +5152,10 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     );
     final category =
         categories.where((item) => item.name == _category).firstOrNull;
-    final isPipe = _category == 'Pipe, Tubing & Materials' ||
-        const {
-          'Drill Pipe',
-          'Casing',
-          'Tubing',
-          'Line Pipe',
-          'OCTG',
-          'Sucker Rod'
-        }.contains(_productType);
+    final isPipe = _isPipeSelection;
     final isMachine = _category == 'Heavy Equipment';
+    final isStructuredEquipment = _isStructuredEquipment;
+    final requiresEquipmentSpecs = _requiresEquipmentSpecs;
     final isProperty = _isProperty;
     final isRental = _listingType == 'For Rent';
     final basePriceBasisOptions = isMachine
@@ -5231,11 +5287,20 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                 _equipmentBrand = null;
                 _equipmentModel = null;
                 _equipmentYear = null;
-                _quantity.text =
-                    value == 'Heavy Equipment' || value == 'Site & Property'
-                        ? '1'
-                        : '';
-                _priceBasis = value == 'Heavy Equipment'
+                _manualEquipmentYear.clear();
+                _brand.clear();
+                _model.clear();
+                _serialNumber.clear();
+                _engineDetails.clear();
+                _machineHours.clear();
+                _attachments.clear();
+                _quantity.text = value == 'Heavy Equipment' ||
+                        value == 'Transport & Hauling' ||
+                        value == 'Site & Property'
+                    ? '1'
+                    : '';
+                _priceBasis = value == 'Heavy Equipment' ||
+                        value == 'Transport & Hauling'
                     ? 'Total asking price'
                     : value == 'Pipe, Tubing & Materials'
                         ? 'Per piece'
@@ -5313,11 +5378,11 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                         _pipeConnection = null;
                         _pipeLengthRange = null;
                         _condition = null;
-                        _equipmentBrand = null;
-                        _equipmentModel = null;
-                        _equipmentYear = null;
-                        if (_category == 'Heavy Equipment') {
-                          _quantity.text = '1';
+                        if (_category == 'Heavy Equipment' ||
+                            _category == 'Transport & Hauling') {
+                          if (_quantity.text.trim().isEmpty) {
+                            _quantity.text = '1';
+                          }
                           _priceBasis = 'Total asking price';
                         } else if (_category == 'Site & Property') {
                           _quantity.text = '1';
@@ -5366,35 +5431,54 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
               step: 2,
               title: 'Specifications, quantity & condition',
               description:
-                  'Select field-ready dropdown options for size, grade, make/model, inspection, and quantity.',
+                  'Auto-fill from VIN or equipment PIN, or search 50+ years of verified makes, model years, models, engine specs, pipe grades, and condition.',
               icon: Icons.tune_outlined,
             ),
             if (isProperty) ...[
               _propertyDetailsCard(),
               const SizedBox(height: 12),
             ],
-            if (isMachine)
-              DropdownButtonFormField<String>(
-                initialValue: _equipmentBrand,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Brand or manufacturer *',
-                    prefixIcon: Icon(Icons.factory_outlined)),
-                items: ([..._equipmentBrands.keys]..sort(naturalCompare))
-                    .followedBy(const [_otherCatalogValue])
-                    .map((brand) =>
-                        DropdownMenuItem(value: brand, child: Text(brand)))
-                    .toList(),
-                onChanged: (value) => setState(() {
-                  _equipmentBrand = value;
-                  _equipmentModel = null;
-                  _equipmentYear = null;
-                }),
-                validator: (_) => isMachine && _equipmentBrand == null
-                    ? 'Select a manufacturer'
-                    : null,
-              )
-            else if (!isProperty)
+            if (isStructuredEquipment) ...[
+              MarketplaceEquipmentStep2Section(
+                category: _category,
+                productType: _productType,
+                catalog: _equipmentCatalog,
+                serialDecoder: _serialDecoder,
+                requiredSpecs: requiresEquipmentSpecs,
+                selectedBrand: _equipmentBrand,
+                selectedYear: _equipmentYear,
+                selectedModel: _equipmentModel,
+                operatingStatus: _operatingStatus,
+                maintenanceHistory: _maintenanceHistory,
+                serialNumberController: _serialNumber,
+                customBrandController: _brand,
+                manualYearController: _manualEquipmentYear,
+                manualModelController: _model,
+                engineDetailsController: _engineDetails,
+                machineHoursController: _machineHours,
+                attachmentsController: _attachments,
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _equipmentBrand = selection.brand;
+                    _equipmentYear = selection.year;
+                    _equipmentModel = selection.model;
+                    if (_productType == null &&
+                        selection.inferredProductType != null &&
+                        category != null &&
+                        category.types
+                            .contains(selection.inferredProductType)) {
+                      _productType = selection.inferredProductType;
+                    }
+                  });
+                  _maybeHydrateManufacturerShard(selection.brand);
+                },
+                onOperatingStatusChanged: (status) =>
+                    setState(() => _operatingStatus = status),
+                onMaintenanceHistoryChanged: (history) =>
+                    setState(() => _maintenanceHistory = history),
+              ),
+              const SizedBox(height: 12),
+            ] else if (!isProperty) ...[
               TextFormField(
                 controller: _brand,
                 decoration: InputDecoration(
@@ -5406,313 +5490,153 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                         : null,
                     prefixIcon: const Icon(Icons.factory_outlined)),
               ),
-            if (isMachine && _equipmentBrand == _otherCatalogValue) ...[
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _brand,
-                decoration: const InputDecoration(
-                    labelText: 'Enter manufacturer *',
-                    prefixIcon: Icon(Icons.edit_outlined)),
-                validator: (value) => _equipmentBrand == _otherCatalogValue &&
-                        (value == null || value.trim().isEmpty)
-                    ? 'Enter the manufacturer'
-                    : null,
-              ),
-            ],
-            if (!isProperty) const SizedBox(height: 12),
-            if (isPipe)
-              DropdownButtonFormField<String>(
-                initialValue: _pipeSize,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Pipe size (OD / nominal) *',
-                    prefixIcon: Icon(Icons.straighten)),
-                items: ((_productType == 'Sucker Rod'
-                            ? suckerRodSizes
-                            : _pipeSizes)
-                        .toList()
-                      ..sort(naturalCompare))
-                    .followedBy(const [_otherCatalogValue])
-                    .map((size) =>
-                        DropdownMenuItem(value: size, child: Text(size)))
-                    .toList(),
-                onChanged: (value) => setState(() => _pipeSize = value),
-                validator: (_) =>
-                    isPipe && _pipeSize == null ? 'Select the pipe size' : null,
-              )
-            else if (isMachine)
-              DropdownButtonFormField<String>(
-                initialValue: _equipmentModel,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Model *',
-                    prefixIcon: Icon(Icons.precision_manufacturing_outlined)),
-                items: ((_equipmentBrands[_equipmentBrand] ?? const <String>[])
-                        .toList()
-                      ..sort(naturalCompare))
-                    .followedBy(const [_otherCatalogValue])
-                    .map((model) =>
-                        DropdownMenuItem(value: model, child: Text(model)))
-                    .toList(),
-                onChanged: _equipmentBrand == null
-                    ? null
-                    : (value) => setState(() => _equipmentModel = value),
-                validator: (_) => isMachine && _equipmentModel == null
-                    ? 'Select a model'
-                    : null,
-              )
-            else if (!isProperty)
-              TextFormField(
-                controller: _model,
-                decoration: const InputDecoration(
-                    labelText: 'Model, size or grade',
-                    prefixIcon: Icon(Icons.precision_manufacturing_outlined)),
-              ),
-            if (isMachine && _equipmentModel == _otherCatalogValue) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _model,
-                decoration: const InputDecoration(
-                    labelText: 'Enter model *',
-                    prefixIcon: Icon(Icons.edit_outlined)),
-                validator: (value) => _equipmentModel == _otherCatalogValue &&
-                        (value == null || value.trim().isEmpty)
-                    ? 'Enter the model'
-                    : null,
-              ),
-            ],
-            if (isPipe && _pipeSize == _otherCatalogValue) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _customPipeSize,
-                decoration: const InputDecoration(
-                    labelText: 'Enter pipe size *',
-                    hintText: 'Include nominal size and unit',
-                    prefixIcon: Icon(Icons.edit_outlined)),
-                validator: (value) => _pipeSize == _otherCatalogValue &&
-                        (value == null || value.trim().isEmpty)
-                    ? 'Enter the pipe size'
-                    : null,
-              ),
-            ],
-            if (isPipe) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _pipeSchedule,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Pipe type, wall or weight',
-                    helperText:
-                        'Wall thickness, Schedule, or OCTG weight (lb/ft)',
-                    prefixIcon: Icon(Icons.layers_outlined)),
-                items: pipeWallAndScheduleOptions
-                    .followedBy(const [_otherCatalogValue])
-                    .map((option) =>
-                        DropdownMenuItem(value: option, child: Text(option)))
-                    .toList(),
-                onChanged: (value) => setState(() => _pipeSchedule = value),
-              ),
-              if (_pipeSchedule == _otherCatalogValue) ...[
+              if (isPipe)
+                DropdownButtonFormField<String>(
+                  initialValue: _pipeSize,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Pipe size (OD / nominal) *',
+                      prefixIcon: Icon(Icons.straighten)),
+                  items: ((_productType == 'Sucker Rod'
+                              ? suckerRodSizes
+                              : _pipeSizes)
+                          .toList()
+                        ..sort(naturalCompare))
+                      .followedBy(const [_otherCatalogValue])
+                      .map((size) =>
+                          DropdownMenuItem(value: size, child: Text(size)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _pipeSize = value),
+                  validator: (_) => isPipe && _pipeSize == null
+                      ? 'Select the pipe size'
+                      : null,
+                )
+              else
+                TextFormField(
+                  controller: _model,
+                  decoration: const InputDecoration(
+                      labelText: 'Model, size or grade',
+                      prefixIcon:
+                          Icon(Icons.precision_manufacturing_outlined)),
+                ),
+              if (isPipe && _pipeSize == _otherCatalogValue) ...[
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _customPipeSchedule,
+                  controller: _customPipeSize,
                   decoration: const InputDecoration(
-                      labelText: 'Enter wall thickness, weight or schedule *',
-                      hintText: 'Example: 0.375 in wall, 17.0 lb/ft, Sch 120',
+                      labelText: 'Enter pipe size *',
+                      hintText: 'Include nominal size and unit',
                       prefixIcon: Icon(Icons.edit_outlined)),
-                  validator: (value) => _pipeSchedule == _otherCatalogValue &&
+                  validator: (value) => _pipeSize == _otherCatalogValue &&
                           (value == null || value.trim().isEmpty)
-                      ? 'Enter the wall, weight or schedule'
+                      ? 'Enter the pipe size'
                       : null,
                 ),
               ],
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _pipeGrade,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Steel grade / API spec',
-                    prefixIcon: Icon(Icons.shield_outlined)),
-                items: pipeGradeOptions
-                    .followedBy(const [_otherCatalogValue])
-                    .map((option) =>
-                        DropdownMenuItem(value: option, child: Text(option)))
-                    .toList(),
-                onChanged: (value) => setState(() => _pipeGrade = value),
-              ),
-              if (_pipeGrade == _otherCatalogValue) ...[
+              if (isPipe) ...[
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _customPipeGrade,
+                DropdownButtonFormField<String>(
+                  initialValue: _pipeSchedule,
+                  isExpanded: true,
                   decoration: const InputDecoration(
-                      labelText: 'Enter steel grade *',
-                      hintText: 'Example: P110EC, Q125, CSA Z245.1 Gr 483',
-                      prefixIcon: Icon(Icons.edit_outlined)),
-                  validator: (value) => _pipeGrade == _otherCatalogValue &&
-                          (value == null || value.trim().isEmpty)
-                      ? 'Enter the steel grade'
-                      : null,
+                      labelText: 'Pipe type, wall or weight',
+                      helperText:
+                          'Wall thickness, Schedule, or OCTG weight (lb/ft)',
+                      prefixIcon: Icon(Icons.layers_outlined)),
+                  items: pipeWallAndScheduleOptions
+                      .followedBy(const [_otherCatalogValue])
+                      .map((option) =>
+                          DropdownMenuItem(value: option, child: Text(option)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _pipeSchedule = value),
+                ),
+                if (_pipeSchedule == _otherCatalogValue) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _customPipeSchedule,
+                    decoration: const InputDecoration(
+                        labelText: 'Enter wall thickness, weight or schedule *',
+                        hintText: 'Example: 0.375 in wall, 17.0 lb/ft, Sch 120',
+                        prefixIcon: Icon(Icons.edit_outlined)),
+                    validator: (value) => _pipeSchedule == _otherCatalogValue &&
+                            (value == null || value.trim().isEmpty)
+                        ? 'Enter the wall, weight or schedule'
+                        : null,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _pipeGrade,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Steel grade / API spec',
+                      prefixIcon: Icon(Icons.shield_outlined)),
+                  items: pipeGradeOptions
+                      .followedBy(const [_otherCatalogValue])
+                      .map((option) =>
+                          DropdownMenuItem(value: option, child: Text(option)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _pipeGrade = value),
+                ),
+                if (_pipeGrade == _otherCatalogValue) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _customPipeGrade,
+                    decoration: const InputDecoration(
+                        labelText: 'Enter steel grade *',
+                        hintText: 'Example: P110EC, Q125, CSA Z245.1 Gr 483',
+                        prefixIcon: Icon(Icons.edit_outlined)),
+                    validator: (value) => _pipeGrade == _otherCatalogValue &&
+                            (value == null || value.trim().isEmpty)
+                        ? 'Enter the steel grade'
+                        : null,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _pipeConnection,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Thread / end connection',
+                      prefixIcon: Icon(Icons.link_outlined)),
+                  items: pipeConnectionOptions
+                      .followedBy(const [_otherCatalogValue])
+                      .map((option) =>
+                          DropdownMenuItem(value: option, child: Text(option)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _pipeConnection = value),
+                ),
+                if (_pipeConnection == _otherCatalogValue) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _customPipeConnection,
+                    decoration: const InputDecoration(
+                        labelText: 'Enter thread or connection *',
+                        hintText: 'Example: VAM Top, Tenaris Blue, Hydril CS',
+                        prefixIcon: Icon(Icons.edit_outlined)),
+                    validator: (value) =>
+                        _pipeConnection == _otherCatalogValue &&
+                                (value == null || value.trim().isEmpty)
+                            ? 'Enter the thread or connection'
+                            : null,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _pipeLengthRange,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Joint length / API Range',
+                      prefixIcon: Icon(Icons.linear_scale_outlined)),
+                  items: pipeLengthRangeOptions
+                      .map((option) =>
+                          DropdownMenuItem(value: option, child: Text(option)))
+                      .toList(),
+                  onChanged: (value) =>
+                      setState(() => _pipeLengthRange = value),
                 ),
               ],
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _pipeConnection,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Thread / end connection',
-                    prefixIcon: Icon(Icons.link_outlined)),
-                items: pipeConnectionOptions
-                    .followedBy(const [_otherCatalogValue])
-                    .map((option) =>
-                        DropdownMenuItem(value: option, child: Text(option)))
-                    .toList(),
-                onChanged: (value) => setState(() => _pipeConnection = value),
-              ),
-              if (_pipeConnection == _otherCatalogValue) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _customPipeConnection,
-                  decoration: const InputDecoration(
-                      labelText: 'Enter thread or connection *',
-                      hintText: 'Example: VAM Top, Tenaris Blue, Hydril CS',
-                      prefixIcon: Icon(Icons.edit_outlined)),
-                  validator: (value) => _pipeConnection == _otherCatalogValue &&
-                          (value == null || value.trim().isEmpty)
-                      ? 'Enter the thread or connection'
-                      : null,
-                ),
-              ],
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _pipeLengthRange,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Joint length / API Range',
-                    prefixIcon: Icon(Icons.linear_scale_outlined)),
-                items: pipeLengthRangeOptions
-                    .map((option) =>
-                        DropdownMenuItem(value: option, child: Text(option)))
-                    .toList(),
-                onChanged: (value) => setState(() => _pipeLengthRange = value),
-              ),
-            ],
-            const SizedBox(height: 12),
-            if (isMachine) ...[
-              DropdownButtonFormField<int>(
-                initialValue: _equipmentYear,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Model year *',
-                    prefixIcon: Icon(Icons.calendar_today_outlined)),
-                items: List.generate(DateTime.now().year - 1949,
-                        (index) => DateTime.now().year - index)
-                    .map((year) =>
-                        DropdownMenuItem(value: year, child: Text('$year')))
-                    .toList(),
-                onChanged: (value) => setState(() => _equipmentYear = value),
-                validator: (_) => isMachine && _equipmentYear == null
-                    ? 'Select the model year'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _machineHours,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Machine hours',
-                    suffixText: 'hours',
-                    prefixIcon: Icon(Icons.schedule)),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _serialNumber,
-                decoration: const InputDecoration(
-                    labelText: 'Serial number / PIN (optional)',
-                    prefixIcon: Icon(Icons.numbers_outlined)),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _engineDetails,
-                decoration: const InputDecoration(
-                    labelText: 'Engine / powertrain details',
-                    hintText: 'Engine model, horsepower, transmission',
-                    prefixIcon: Icon(Icons.settings_outlined)),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _attachments,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                    labelText: 'Attachments and included equipment',
-                    hintText: 'Buckets, forks, thumb, quick coupler, etc.',
-                    prefixIcon: Icon(Icons.construction_outlined)),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _operatingStatus,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Operating status',
-                    prefixIcon: Icon(Icons.engineering_outlined)),
-                selectedItemBuilder: (context) => const [
-                  'Operational',
-                  'Operational with known issues',
-                  'Not currently operational',
-                  'For parts / rebuild'
-                ]
-                    .map((value) => Align(
-                        alignment: Alignment.centerLeft, child: Text(value)))
-                    .toList(),
-                items: const [
-                  'Operational',
-                  'Operational with known issues',
-                  'Not currently operational',
-                  'For parts / rebuild'
-                ].map((value) {
-                  final visual = _operatingStatusVisual(value);
-                  return DropdownMenuItem(
-                      value: value,
-                      child: MarketplaceFormOption(
-                          label: value,
-                          icon: visual.icon,
-                          iconColor: visual.color));
-                }).toList(),
-                onChanged: (value) =>
-                    setState(() => _operatingStatus = value ?? 'Operational'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _maintenanceHistory,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Maintenance history',
-                    prefixIcon: Icon(Icons.history_outlined)),
-                selectedItemBuilder: (context) => const [
-                  'Full documented history',
-                  'Partial maintenance records',
-                  'Owner-maintained — no records',
-                  'Unknown / not available'
-                ]
-                    .map((value) => Align(
-                        alignment: Alignment.centerLeft, child: Text(value)))
-                    .toList(),
-                items: const [
-                  'Full documented history',
-                  'Partial maintenance records',
-                  'Owner-maintained — no records',
-                  'Unknown / not available'
-                ].map((value) {
-                  final visual = _maintenanceVisual(value);
-                  return DropdownMenuItem(
-                      value: value,
-                      child: MarketplaceFormOption(
-                          label: value,
-                          icon: visual.icon,
-                          iconColor: visual.color));
-                }).toList(),
-                onChanged: (value) => setState(() =>
-                    _maintenanceHistory = value ?? 'Unknown / not available'),
-              ),
               const SizedBox(height: 12),
             ],
             if (!isProperty) ...[
@@ -6267,10 +6191,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   complete: _condition != null &&
                       (isProperty || _quantity.text.trim().isNotEmpty) &&
                       (!isPipe || _pipeSize != null) &&
-                      (!isMachine ||
-                          (_equipmentBrand != null &&
-                              _equipmentModel != null &&
-                              _equipmentYear != null)),
+                      _equipmentChecklistComplete,
                 ),
                 MarketplaceListingChecklistItem(
                   label: 'Pricing & description',
@@ -6935,16 +6856,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       final rawPrice = marketplaceMoneyValue(_price.text);
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw StateError('Sign in required.');
-      final isPipeListing = _category == 'Pipe, Tubing & Materials' ||
-          const {
-            'Drill Pipe',
-            'Casing',
-            'Tubing',
-            'Line Pipe',
-            'OCTG',
-            'Sucker Rod'
-          }.contains(_productType);
-      final isMachine = _category == 'Heavy Equipment';
+      final isPipeListing = _isPipeSelection;
+      final isStructuredEquipment = _isStructuredEquipment;
       final isProperty = _isProperty;
       final landAreaInput = propertyNumber(_landArea.text);
       final landArea = convertPropertyArea(landAreaInput, _landAreaUnit);
@@ -6972,25 +6885,20 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
         'productType': _productType == _otherCatalogValue
             ? _customProductType.text.trim()
             : _productType,
-        'brand': isMachine
-            ? (_equipmentBrand == _otherCatalogValue
-                ? _brand.text.trim()
-                : _equipmentBrand)
-            : _brand.text.trim(),
-        'model': isMachine
-            ? (_equipmentModel == _otherCatalogValue
-                ? _model.text.trim()
-                : _equipmentModel)
-            : _model.text.trim(),
-        'modelYear': isMachine ? _equipmentYear : null,
-        'machineHours': isMachine
+        'brand': _resolvedEquipmentBrand(),
+        'model': _resolvedEquipmentModel(),
+        'modelYear': _resolvedEquipmentYear(),
+        'machineHours': isStructuredEquipment
             ? int.tryParse(_machineHours.text.replaceAll(RegExp(r'[^0-9]'), ''))
             : null,
-        'operatingStatus': isMachine ? _operatingStatus : null,
-        'maintenanceHistory': isMachine ? _maintenanceHistory : null,
-        'serialNumber': isMachine ? _serialNumber.text.trim() : null,
-        'engineDetails': isMachine ? _engineDetails.text.trim() : null,
-        'attachments': isMachine ? _attachments.text.trim() : null,
+        'operatingStatus': isStructuredEquipment ? _operatingStatus : null,
+        'maintenanceHistory':
+            isStructuredEquipment ? _maintenanceHistory : null,
+        'serialNumber':
+            isStructuredEquipment ? _serialNumber.text.trim() : null,
+        'engineDetails':
+            isStructuredEquipment ? _engineDetails.text.trim() : null,
+        'attachments': isStructuredEquipment ? _attachments.text.trim() : null,
         'pipeSize': _pipeSize == _otherCatalogValue
             ? _customPipeSize.text.trim()
             : _pipeSize,
@@ -7104,13 +7012,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
             'category': _category ?? '',
             'context': _productType ?? ''
           },
-        if (_equipmentModel == _otherCatalogValue)
+        if ((_equipmentModel == _otherCatalogValue ||
+                _usesManualEquipmentYearAndModel) &&
+            _model.text.trim().isNotEmpty)
           {
             'field': 'equipmentModel',
             'value': _model.text.trim(),
-            'category': _equipmentBrand == _otherCatalogValue
-                ? _brand.text.trim()
-                : (_equipmentBrand ?? ''),
+            'category': _resolvedEquipmentBrand(),
             'context': _productType ?? ''
           },
         if (_pipeSize == _otherCatalogValue)
@@ -7143,6 +7051,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       _description.clear();
       _brand.clear();
       _model.clear();
+      _manualEquipmentYear.clear();
       _quantity.clear();
       _inspectionDetails.clear();
       _machineHours.clear();

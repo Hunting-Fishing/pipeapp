@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'marketplace_command_client.dart';
+import 'marketplace_equipment_catalog.dart';
 import 'marketplace_location.dart';
 
 class MarketplaceCatalogRepository {
@@ -28,15 +29,80 @@ class MarketplaceCatalogRepository {
 
   Future<Map<String, List<String>>> loadBrandModels(
       Map<String, List<String>> fallback) async {
+    final merged = <String, List<String>>{
+      for (final entry in fallback.entries)
+        entry.key: List<String>.from(entry.value),
+    };
     try {
       final snapshot = await _catalog.doc('equipment_brands').get();
       final brands = snapshot.data()?['brands'];
       if (brands is Map) {
-        return brands.map((key, value) =>
-            MapEntry(key.toString(), List<String>.from(value as List)));
+        for (final entry in brands.entries) {
+          final brandName = entry.key.toString().trim();
+          if (brandName.isEmpty || entry.value is! Iterable) continue;
+          final remoteModels = (entry.value as Iterable)
+              .map((item) => item.toString().trim())
+              .where((item) => item.isNotEmpty);
+          final existing = merged[brandName];
+          if (existing == null) {
+            merged[brandName] = remoteModels.toSet().toList(growable: false);
+          } else {
+            merged[brandName] = <String>{
+              ...existing,
+              ...remoteModels,
+            }.toList(growable: false);
+          }
+        }
       }
     } catch (_) {}
-    return fallback;
+    return merged;
+  }
+
+  Future<EquipmentCatalog> loadEquipmentCatalog(
+      Map<String, List<String>> fallbackBrands) async {
+    EquipmentCatalog catalog;
+    try {
+      catalog = await EquipmentCatalog.loadFromAsset();
+    } catch (_) {
+      catalog = EquipmentCatalog.fromLegacyBrandMap(fallbackBrands);
+    }
+    final mergedBrands = await loadBrandModels(fallbackBrands);
+    catalog = catalog.mergeLegacyBrandModels(mergedBrands);
+    try {
+      final indexSnap = await _catalog.doc('equipment_catalog_index').get();
+      final rawManufacturers = indexSnap.data()?['manufacturers'];
+      if (rawManufacturers is Iterable) {
+        final indexOverrides = <EquipmentManufacturerEntry>[];
+        for (final item in rawManufacturers) {
+          if (item is! Map) continue;
+          final map = item.map((k, v) => MapEntry(k.toString(), v));
+          final idOrName = '${map['name'] ?? map['id'] ?? ''}'.trim();
+          if (idOrName.isEmpty) continue;
+          // Only add brand-level index entries that aren't already hydrated with full models.
+          if (catalog.findManufacturer(idOrName) == null) {
+            indexOverrides.add(EquipmentManufacturerEntry.fromJson(map));
+          }
+        }
+        if (indexOverrides.isNotEmpty) {
+          catalog = catalog.mergeManufacturerOverrides(indexOverrides);
+        }
+      }
+    } catch (_) {}
+    return catalog;
+  }
+
+  Future<EquipmentManufacturerEntry?> loadEquipmentManufacturerShard(
+      String manufacturerId) async {
+    final trimmed = manufacturerId.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      final snapshot = await _catalog.doc('equipment_mfr_$trimmed').get();
+      final data = snapshot.data();
+      if (data != null && data.isNotEmpty) {
+        return EquipmentManufacturerEntry.fromJson(data);
+      }
+    } catch (_) {}
+    return null;
   }
 
   String newListingId() => _firestore.collection('public_listings').doc().id;
