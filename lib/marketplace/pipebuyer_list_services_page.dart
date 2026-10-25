@@ -44,6 +44,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
   final _emailController = TextEditingController();
   final _websiteController = TextEditingController();
   late final TextEditingController _cityController;
+  final _customRegionController = TextEditingController();
   final _servicesController = TextEditingController();
   final _descriptionController = TextEditingController();
 
@@ -71,6 +72,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
         widget.initialCountryCode.isNotEmpty ? widget.initialCountryCode : 'CA';
     _regionCode =
         widget.initialRegionCode.isNotEmpty ? widget.initialRegionCode : 'AB';
+    _customRegionController.text = _regionCode;
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -88,6 +90,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
     _emailController.dispose();
     _websiteController.dispose();
     _cityController.dispose();
+    _customRegionController.dispose();
     _servicesController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -216,7 +219,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: const Text(
-                              'NORTH AMERICA • CANADA & USA',
+                              'GLOBAL DIRECTORY • NORTH AMERICA & WORLDWIDE',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -236,7 +239,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Paid Priority listings rank above all basic directory records across Search for Services and Dispatch discovery, with clickable website/email links, safety badges (COR, ISNetworld, ComplyWorks), and direct RFQ routing.',
+                            'Paid Priority listings rank above all basic directory records across Search for Services and Dispatch discovery worldwide, with clickable website/email links, safety badges (COR, ISNetworld, API, ISO), and direct RFQ routing.',
                             style: TextStyle(color: Colors.white70, height: 1.4),
                           ),
                         ],
@@ -250,7 +253,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                       runSpacing: 8,
                       children: [
                         Text(
-                          '1. Choose Directory Priority Plan (Founding North America Rates)',
+                          '1. Choose Directory Priority Plan (Founding Global Rates)',
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w900,
@@ -439,14 +442,17 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                     keyboardType: TextInputType.phone,
                                     decoration: const InputDecoration(
                                       labelText: 'Main Dispatch / Office Phone *',
-                                      hintText: '(780) 555-0199',
+                                      hintText: '+1 (780) 555-0199 or +44 / +971',
                                       border: OutlineInputBorder(),
                                     ),
-                                    validator: (v) => (v == null ||
-                                            v.replaceAll(RegExp(r'\D'), '').length <
-                                                10)
-                                        ? 'Enter a 10-digit North American number'
-                                        : null,
+                                    validator: (v) {
+                                      final digits =
+                                          (v ?? '').replaceAll(RegExp(r'\D'), '');
+                                      if (digits.length < 7 || digits.length > 15) {
+                                        return 'Enter a valid business phone with area or country code';
+                                      }
+                                      return null;
+                                    },
                                   );
                                   final tollFreeField = TextFormField(
                                     controller: _tollFreeController,
@@ -487,33 +493,81 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                               ),
                               const SizedBox(height: 18),
                               Text(
-                                '3. North America Operating Region & Basins',
+                                '3. Country, Province/State & Operating Basins',
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w900),
                               ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Popular Oil & Gas Markets (Quick Select):',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: PipeBuyerYellowPagesTaxonomy
+                                    .popularCountriesForContinent('')
+                                    .take(12)
+                                    .map((c) {
+                                  final selected = _countryCode == c.code;
+                                  return ChoiceChip(
+                                    visualDensity: VisualDensity.compact,
+                                    label: Text('${c.name} (${c.code})'),
+                                    selected: selected,
+                                    onSelected: (_) {
+                                      final nextRegions =
+                                          PipeBuyerYellowPagesTaxonomy
+                                              .regionsForCountry(c.code);
+                                      setState(() {
+                                        _countryCode = c.code;
+                                        _regionCode = nextRegions.isNotEmpty
+                                            ? nextRegions.first.regionCode
+                                            : '';
+                                        _customRegionController.text =
+                                            _regionCode;
+                                      });
+                                    },
+                                  );
+                                }).toList(growable: false),
+                              ),
                               const SizedBox(height: 12),
                               LayoutBuilder(
                                 builder: (context, rowConstraints) {
+                                  final validCountryCode =
+                                      PipeBuyerYellowPagesTaxonomy.countryByCode(
+                                                _countryCode,
+                                              ) !=
+                                              null
+                                          ? _countryCode
+                                          : 'CA';
                                   final countryField =
                                       DropdownButtonFormField<String>(
-                                    initialValue: _countryCode,
+                                    key: ValueKey('country-$validCountryCode'),
+                                    initialValue: validCountryCode,
                                     isExpanded: true,
                                     decoration: const InputDecoration(
-                                      labelText: 'Country *',
+                                      labelText: 'Country (All Countries A–Z) *',
                                       border: OutlineInputBorder(),
                                     ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 'CA',
-                                        child: Text('Canada (CA)'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'US',
-                                        child: Text('United States (US)'),
-                                      ),
-                                    ],
+                                    items: PipeBuyerYellowPagesTaxonomy
+                                        .countries
+                                        .map(
+                                          (c) => DropdownMenuItem(
+                                            value: c.code,
+                                            child: Text(
+                                              '${c.name} (${c.code})',
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(growable: false),
                                     onChanged: (value) {
                                       if (value == null) return;
                                       final nextRegions =
@@ -524,37 +578,53 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                         _regionCode = nextRegions.isNotEmpty
                                             ? nextRegions.first.regionCode
                                             : '';
+                                        _customRegionController.text =
+                                            _regionCode;
                                       });
                                     },
                                   );
-                                  final regionField =
-                                      DropdownButtonFormField<String>(
-                                    key: ValueKey(_countryCode),
-                                    initialValue: activeRegion,
-                                    isExpanded: true,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Province / State *',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    items: regions
-                                        .map(
-                                          (r) => DropdownMenuItem(
-                                            value: r.regionCode,
-                                            child: Text(r.displayLabel),
+                                  final Widget regionField = regions.isNotEmpty
+                                      ? DropdownButtonFormField<String>(
+                                          key: ValueKey(
+                                            'region-$_countryCode-$activeRegion',
                                           ),
+                                          initialValue: activeRegion,
+                                          isExpanded: true,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Province / State *',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          items: regions
+                                              .map(
+                                                (r) => DropdownMenuItem(
+                                                  value: r.regionCode,
+                                                  child: Text(r.displayLabel),
+                                                ),
+                                              )
+                                              .toList(growable: false),
+                                          onChanged: (v) {
+                                            if (v != null) {
+                                              setState(() => _regionCode = v);
+                                            }
+                                          },
                                         )
-                                        .toList(growable: false),
-                                    onChanged: (v) {
-                                      if (v != null) {
-                                        setState(() => _regionCode = v);
-                                      }
-                                    },
-                                  );
+                                      : TextFormField(
+                                          controller: _customRegionController,
+                                          decoration: const InputDecoration(
+                                            labelText:
+                                                'State / Province / Region (Optional)',
+                                            hintText: 'e.g. Region 4 / Doha',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          onChanged: (v) =>
+                                              _regionCode = v.trim(),
+                                        );
                                   final cityField = TextFormField(
                                     controller: _cityController,
                                     decoration: const InputDecoration(
                                       labelText: 'Headquarters / Base Town *',
-                                      hintText: 'Grande Prairie / Midland',
+                                      hintText:
+                                          'Nisku / Midland / Aberdeen / Abu Dhabi',
                                       border: OutlineInputBorder(),
                                     ),
                                     validator: (v) =>

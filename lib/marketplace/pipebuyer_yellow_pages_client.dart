@@ -114,6 +114,7 @@ class PipeBuyerYellowPagesClient {
 
   Future<PipeBuyerYellowPagesPage<Map<String, dynamic>>> searchPublic({
     String query = '',
+    String continentCode = '',
     String countryCode = '',
     String regionCode = '',
     String city = '',
@@ -133,6 +134,7 @@ class PipeBuyerYellowPagesClient {
       'searchPipeBuyerYellowPages',
       <String, Object?>{
         'query': query,
+        'continentCode': continentCode,
         'countryCode': countryCode,
         'regionCode': regionCode,
         'city': city,

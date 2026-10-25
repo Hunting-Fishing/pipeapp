@@ -4,9 +4,12 @@ const {HttpsError} = require("firebase-functions/v2/https");
 const {isAdministrator} = require("./administrator_authorization");
 const {
   CATEGORY_BY_CODE,
+  GLOBAL_COUNTRIES_LIST,
+  WORLD_CONTINENTS,
   YELLOW_PAGES_CATEGORIES,
   checkB2BCallingWindow,
   classifyCategoriesFromText,
+  countryCodesForContinent,
   expandServiceSearchTerms,
   inferCountryAndRegion,
   normalizeText,
@@ -23,7 +26,7 @@ const {
   defaultCompanyWorkflow,
   isPublicEntryCurrent,
   isPublicationEligible,
-  normalizeNorthAmericanPhone,
+  normalizeGlobalPhone,
   normalizePhoneHistory,
   normalizedCompanyName,
   stringList,
@@ -155,19 +158,23 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
     });
   }
 
-  async function checkBlockedPhones(phoneValues = []) {
+  async function checkBlockedPhones(phoneValues = [], countryCode = "") {
     const blockedMatches = [];
     for (const raw of phoneValues) {
-      const parsed = normalizeNorthAmericanPhone(raw);
-      const key = parsed.digits10 || parsed.e164.replace(/\D+/gu, "");
-      if (!key || key.length < 7) continue;
-      const snap = await db().collection(BLOCKED_NUMBERS).doc(key).get();
-      if (snap.exists && (snap.data() || {}).active !== false) {
-        blockedMatches.push({
-          key,
-          display: parsed.display || raw,
-          reason: (snap.data() || {}).reason || "Blocked phone number",
-        });
+      const parsed = normalizeGlobalPhone(raw, countryCode);
+      const keysToCheck = new Set();
+      if (parsed.digits10 && parsed.digits10.length >= 7) keysToCheck.add(parsed.digits10);
+      if (parsed.digitsKey && parsed.digitsKey.length >= 7) keysToCheck.add(parsed.digitsKey);
+      for (const key of keysToCheck) {
+        const snap = await db().collection(BLOCKED_NUMBERS).doc(key).get();
+        if (snap.exists && (snap.data() || {}).active !== false) {
+          blockedMatches.push({
+            key,
+            display: parsed.display || raw,
+            reason: (snap.data() || {}).reason || "Blocked phone number",
+          });
+          break;
+        }
       }
     }
     return blockedMatches;
@@ -205,6 +212,8 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
 
   function matchesPublicFilters(entry, {
     expanded,
+    continentCode,
+    continentCountrySet,
     countryCode,
     regionCode,
     city,
@@ -218,6 +227,10 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
     startsWith,
   }) {
     if (!isPublicEntryCurrent(entry)) return false;
+    if (continentCode && continentCountrySet && continentCountrySet.size > 0) {
+      const entryCountry = String(entry.countryCode || "").toUpperCase();
+      if (!continentCountrySet.has(entryCountry)) return false;
+    }
     if (countryCode && String(entry.countryCode || "").toUpperCase() !== countryCode) {
       return false;
     }
@@ -303,6 +316,8 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
     async getYellowPagesTaxonomy() {
       return {
         categories: YELLOW_PAGES_CATEGORIES,
+        continents: WORLD_CONTINENTS,
+        countries: GLOBAL_COUNTRIES_LIST,
       };
     },
 
@@ -310,6 +325,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       const data = (request && request.data) || {};
       const limit = pageSize(data.pageSize, 60, 120);
       const queryText = text(data.query, 120);
+      const continentCode = text(data.continentCode, 32).toLowerCase();
       const countryCode = text(data.countryCode, 8).toUpperCase();
       const regionCode = text(data.regionCode, 20).toUpperCase();
       const city = text(data.city, 80);
@@ -323,9 +339,14 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       const startsWith = text(data.startsWith, 4).toUpperCase();
       const sortBy = text(data.sortBy, 32).toLowerCase() || "priority";
 
+      const continentCountries = continentCode ? countryCodesForContinent(continentCode) : [];
+      const continentCountrySet = new Set(continentCountries);
+
       const expanded = expandServiceSearchTerms(queryText);
       const filterOpts = {
         expanded,
+        continentCode,
+        continentCountrySet,
         countryCode,
         regionCode,
         city,
@@ -347,7 +368,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
 
       if (categoryCode && CATEGORY_BY_CODE.has(categoryCode)) {
         query = query.where("categoryCodes", "array-contains", categoryCode);
-        if (countryCode || regionCode) serverConstrainedOnly = false;
+        if (continentCode || countryCode || regionCode) serverConstrainedOnly = false;
       } else if (expanded.matchedCategoryCodes.length === 1 && !city) {
         query = query.where("categoryCodes", "array-contains", expanded.matchedCategoryCodes[0]);
       } else if (expanded.terms.length > 0 && expanded.matchedCategoryCodes.length === 0) {
@@ -366,23 +387,31 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         }
       } else if (emergency24x7) {
         query = query.where("emergency24x7", "==", true);
-        if (countryCode || regionCode) serverConstrainedOnly = false;
+        if (continentCode || countryCode || regionCode) serverConstrainedOnly = false;
       } else if (paidOnly || tierFilter === "paid_only") {
         query = query.where("isPaidTier", "==", true);
-        if (countryCode || regionCode) serverConstrainedOnly = false;
+        if (continentCode || countryCode || regionCode) serverConstrainedOnly = false;
       } else if (tierFilter === "featured_only") {
         query = query.where("isFeatured", "==", true);
-        if (countryCode || regionCode) serverConstrainedOnly = false;
+        if (continentCode || countryCode || regionCode) serverConstrainedOnly = false;
       } else if (startsWith && /^[A-Z]$/u.test(startsWith)) {
         query = query
             .where("companyName", ">=", startsWith)
             .where("companyName", "<=", `${startsWith}\uf8ff`);
-        serverConstrainedOnly = !countryCode && !regionCode && !basin &&
+        serverConstrainedOnly = !continentCode && !countryCode && !regionCode && !basin &&
           !certification && !emergency24x7 && !paidOnly && !tierFilter && !hasTollFree;
       } else if (regionCode) {
         query = query.where("regionCode", "==", regionCode);
       } else if (countryCode) {
         query = query.where("countryCode", "==", countryCode);
+      } else if (continentCode) {
+        if (continentCode === "middle_east") {
+          query = query.where("isMiddleEast", "==", true);
+        } else if (continentCountries.length > 0 && continentCountries.length <= 30) {
+          query = query.where("countryCode", "in", continentCountries);
+        } else {
+          query = query.where("continentCode", "==", continentCode);
+        }
       } else if (sortBy === "name_asc") {
         query = query.orderBy("companyName", "asc");
       } else if (sortBy === "name_desc") {
@@ -511,17 +540,18 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       if (!companyName || !phoneRaw) {
         throw new HttpsError("invalid-argument", "Company name and business phone number are required.");
       }
-      const phoneParsed = normalizeNorthAmericanPhone(phoneRaw);
-      if (!phoneParsed.digits10 || phoneParsed.digits10.length < 10) {
-        throw new HttpsError("invalid-argument", "Enter a valid 10-digit North American phone number.");
+      const geo = inferCountryAndRegion(data.countryCode, data.regionCode);
+      const phoneParsed = normalizeGlobalPhone(phoneRaw, geo.countryCode);
+      if (!phoneParsed.validPhone) {
+        throw new HttpsError("invalid-argument", "Enter a valid business phone number (with country or area code).");
       }
 
       // Enforce prohibited phone blacklist & flagged company shield
-      const blocked = await checkBlockedPhones([phoneRaw, data.tollFreePhone]);
+      const blocked = await checkBlockedPhones([phoneRaw, data.tollFreePhone], geo.countryCode);
       if (blocked.length > 0) {
         throw new HttpsError(
             "permission-denied",
-            "This phone number is restricted from listing on PipeBuyer Yellow Pages. Contact support if you believe this is an error.",
+            "This phone number is restricted from listing in the PipeBuyer Oilfield Directory. Contact support if you believe this is an error.",
         );
       }
 
@@ -534,12 +564,11 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         if ((doc.data() || {}).isFlaggedProhibited === true) {
           throw new HttpsError(
               "permission-denied",
-              "This business is currently restricted from listing on PipeBuyer Yellow Pages.",
+              "This business is currently restricted from listing in the PipeBuyer Oilfield Directory.",
           );
         }
       }
 
-      const geo = inferCountryAndRegion(data.countryCode, data.regionCode);
       const categories = stringList(data.categories, 20, 120);
       const services = stringList(data.services, 40, 160);
       const categoryCodes = classifyCategoriesFromText([...categories, ...services], data.description || "");
@@ -821,7 +850,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         payload.mainPhone,
         payload.publicPhone,
         payload.tollFreePhone,
-      ]);
+      ], payload.countryCode);
       if (blocked.length > 0 && payload.allowBlockedOverride !== true) {
         throw new HttpsError(
             "failed-precondition",
@@ -839,9 +868,9 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
           payload.countryCode || existingData.countryCode,
           payload.regionCode || existingData.regionCode,
       );
-      const mainPhoneParsed = normalizeNorthAmericanPhone(payload.mainPhone ?? existingData.mainPhone);
-      const publicPhoneParsed = normalizeNorthAmericanPhone(payload.publicPhone ?? existingData.publicPhone ?? mainPhoneParsed.display);
-      const tollFreeParsed = normalizeNorthAmericanPhone(payload.tollFreePhone ?? existingData.tollFreePhone);
+      const mainPhoneParsed = normalizeGlobalPhone(payload.mainPhone ?? existingData.mainPhone, geo.countryCode);
+      const publicPhoneParsed = normalizeGlobalPhone(payload.publicPhone ?? existingData.publicPhone ?? mainPhoneParsed.display, geo.countryCode);
+      const tollFreeParsed = normalizeGlobalPhone(payload.tollFreePhone ?? existingData.tollFreePhone, geo.countryCode);
 
       const legacyPhones = stringList(
           payload.legacyPhones !== undefined ? payload.legacyPhones : (existingData.legacyPhones || []),
@@ -849,7 +878,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
           80,
       );
       // Automatically preserve previous mainPhone in legacyPhones if number changed!
-      const prevMainParsed = normalizeNorthAmericanPhone(existingData.mainPhone);
+      const prevMainParsed = normalizeGlobalPhone(existingData.mainPhone, existingData.countryCode || geo.countryCode);
       if (prevMainParsed.e164 && mainPhoneParsed.e164 && prevMainParsed.e164 !== mainPhoneParsed.e164) {
         if (!legacyPhones.includes(prevMainParsed.display)) {
           legacyPhones.unshift(prevMainParsed.display);
@@ -1027,10 +1056,12 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
           ...(company.legacyPhones || []),
         ];
         for (const raw of phonesToBlock) {
-          const parsed = normalizeNorthAmericanPhone(raw);
-          if (!parsed.digits10 || parsed.digits10.length < 10) continue;
-          await db().collection(BLOCKED_NUMBERS).doc(parsed.digits10).set({
+          const parsed = normalizeGlobalPhone(raw, company.countryCode);
+          const docKey = parsed.digitsKey || parsed.digits10;
+          if (!docKey || docKey.length < 7) continue;
+          await db().collection(BLOCKED_NUMBERS).doc(docKey).set({
             digits10: parsed.digits10,
+            digitsKey: docKey,
             e164: parsed.e164,
             display: parsed.display,
             companyId,
@@ -1061,13 +1092,15 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       const reason = text(data.reason, 500) || "Prohibited phone number";
       const companyName = text(data.companyName, 200);
 
-      const parsed = normalizeNorthAmericanPhone(phoneRaw);
-      if (!parsed.digits10 || parsed.digits10.length < 10) {
-        throw new HttpsError("invalid-argument", "Enter a valid 10-digit North American phone number.");
+      const parsed = normalizeGlobalPhone(phoneRaw, data.countryCode);
+      const docKey = parsed.digitsKey || parsed.digits10;
+      if (!parsed.validPhone || !docKey) {
+        throw new HttpsError("invalid-argument", "Enter a valid phone number.");
       }
 
-      await db().collection(BLOCKED_NUMBERS).doc(parsed.digits10).set({
+      await db().collection(BLOCKED_NUMBERS).doc(docKey).set({
         digits10: parsed.digits10,
+        digitsKey: docKey,
         e164: parsed.e164,
         display: parsed.display,
         companyName,
@@ -1082,7 +1115,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         e164: parsed.e164,
         reason,
       });
-      return {digits10: parsed.digits10, display: parsed.display, active};
+      return {digits10: docKey, display: parsed.display, active};
     },
 
     async listYellowPagesBlockedNumbers(request) {

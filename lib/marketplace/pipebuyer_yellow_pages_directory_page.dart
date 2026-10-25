@@ -18,6 +18,7 @@ class PipeBuyerYellowPagesDirectoryPage extends StatefulWidget {
     super.key,
     this.initialQuery = '',
     this.initialCategoryCode = '',
+    this.initialContinentCode = '',
     this.initialCountryCode = '',
     this.initialViewMode = YellowPagesViewMode.grid,
     this.client,
@@ -25,6 +26,7 @@ class PipeBuyerYellowPagesDirectoryPage extends StatefulWidget {
 
   final String initialQuery;
   final String initialCategoryCode;
+  final String initialContinentCode;
   final String initialCountryCode;
   final YellowPagesViewMode initialViewMode;
   final PipeBuyerYellowPagesClient? client;
@@ -45,6 +47,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
   int? _manualGridColumns; // null => responsive Auto (4-6 on desktop, 1-3 on mobile/tablet)
 
   // Unified Filter & Sort state
+  String _continentCode = '';
   String _countryCode = '';
   String _regionCode = '';
   String _city = '';
@@ -79,6 +82,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
     _viewMode = widget.initialViewMode;
     _searchController = TextEditingController(text: widget.initialQuery);
     _categoryCode = widget.initialCategoryCode;
+    _continentCode = widget.initialContinentCode;
     _countryCode = widget.initialCountryCode;
     _load(reset: true);
     _refreshStaffAccess();
@@ -105,6 +109,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
 
   bool get _hasActiveFilters =>
       _searchController.text.trim().isNotEmpty ||
+      _continentCode.isNotEmpty ||
       _countryCode.isNotEmpty ||
       _regionCode.isNotEmpty ||
       _city.isNotEmpty ||
@@ -131,6 +136,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
   void _resetAllFilters() {
     _searchController.clear();
     setState(() {
+      _continentCode = '';
       _countryCode = '';
       _regionCode = '';
       _city = '';
@@ -169,6 +175,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
       final offset = reset ? 0 : (int.tryParse(_nextCursor ?? '0') ?? 0);
       final page = await _client.searchPublic(
         query: _searchController.text.trim(),
+        continentCode: _continentCode,
         countryCode: _countryCode,
         regionCode: _regionCode,
         city: _city,
@@ -256,19 +263,23 @@ class _PipeBuyerYellowPagesDirectoryPageState
   }
 
   Future<void> _openRegionPicker() async {
-    final chosen = await showDialog<({String countryCode, String regionCode})>(
+    final chosen = await showDialog<
+        ({String continentCode, String countryCode, String regionCode})>(
       context: context,
       builder: (ctx) => _RegionPickerDialog(
+        selectedContinentCode: _continentCode,
         selectedCountryCode: _countryCode,
         selectedRegionCode: _regionCode,
       ),
     );
     if (chosen == null || !mounted) return;
     setState(() {
+      _continentCode = chosen.continentCode;
       _countryCode = chosen.countryCode;
       _regionCode = chosen.regionCode;
       if (_city.isNotEmpty) {
         final matchingHubs = PipeBuyerYellowPagesTaxonomy.hubsForLocation(
+          continentCode: _continentCode,
           countryCode: _countryCode,
           regionCode: _regionCode,
         );
@@ -285,6 +296,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
 
   Future<void> _openTownPicker() async {
     final hubs = PipeBuyerYellowPagesTaxonomy.hubsForLocation(
+      continentCode: _continentCode,
       countryCode: _countryCode,
       regionCode: _regionCode,
     );
@@ -442,6 +454,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
               _UnifiedDirectoryFilterPanel(
                 controller: _searchController,
                 categoryCode: _categoryCode,
+                continentCode: _continentCode,
                 countryCode: _countryCode,
                 regionCode: _regionCode,
                 city: _city,
@@ -466,6 +479,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
               // Active Filter Wrapping Strip (only shown when filters are active)
               if (_hasActiveFilters)
                 _ActiveFilterBreadcrumbStrip(
+                  continentCode: _continentCode,
                   countryCode: _countryCode,
                   regionCode: _regionCode,
                   city: _city,
@@ -478,6 +492,14 @@ class _PipeBuyerYellowPagesDirectoryPageState
                   emergency24x7: _emergency24x7,
                   paidOnly: _paidOnly,
                   hasTollFree: _hasTollFree,
+                  onClearContinent: () {
+                    setState(() {
+                      _continentCode = '';
+                      _countryCode = '';
+                      _regionCode = '';
+                    });
+                    _load(reset: true);
+                  },
                   onClearCountry: () {
                     setState(() {
                       _countryCode = '';
@@ -731,6 +753,7 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
   const _UnifiedDirectoryFilterPanel({
     required this.controller,
     required this.categoryCode,
+    required this.continentCode,
     required this.countryCode,
     required this.regionCode,
     required this.city,
@@ -751,6 +774,7 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
 
   final TextEditingController controller;
   final String categoryCode;
+  final String continentCode;
   final String countryCode;
   final String regionCode;
   final String city;
@@ -778,15 +802,24 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
   String _regionValueLabel() {
     if (regionCode.isNotEmpty) {
       for (final r in PipeBuyerYellowPagesTaxonomy.regions) {
-        if (r.regionCode == regionCode) {
+        if (r.regionCode == regionCode &&
+            (countryCode.isEmpty || r.countryCode == countryCode)) {
           return '${r.name} (${r.regionCode}, ${r.countryCode})';
         }
       }
-      return regionCode;
+      return countryCode.isNotEmpty ? '$regionCode, $countryCode' : regionCode;
     }
-    if (countryCode == 'CA') return 'All Canada (CA)';
-    if (countryCode == 'US') return 'All United States (US)';
-    return 'All North America (CA & US)';
+    if (countryCode.isNotEmpty) {
+      final country = PipeBuyerYellowPagesTaxonomy.countryByCode(countryCode);
+      return country != null
+          ? '${country.name} (${country.code})'
+          : 'Country: $countryCode';
+    }
+    if (continentCode.isNotEmpty) {
+      final cont = PipeBuyerYellowPagesTaxonomy.continentByCode(continentCode);
+      return cont != null ? 'All ${cont.label}' : continentCode;
+    }
+    return 'All Global (Worldwide)';
   }
 
   String _townValueLabel() {
@@ -859,8 +892,8 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
                   Expanded(
                     child: Text(
                       width < 560
-                          ? 'PipeBuyer Oilfield Directory (Canada & USA)'
-                          : 'PipeBuyer Oilfield Directory — North America Services (Canada & USA)',
+                          ? 'PipeBuyer Global Oilfield Directory'
+                          : 'PipeBuyer Oilfield Directory — Global Oil & Gas Services (Worldwide)',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -904,8 +937,8 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
                     filled: true,
                     fillColor: Colors.white,
                     hintText: width < 560
-                        ? 'Search company, phone, town, or service...'
-                        : 'Search company name, phone number, town/city, or service (e.g. Hydrovac, Towing, OCTG, Welding, Nisku, Midland)...',
+                        ? 'Search company, phone, country, town, or service...'
+                        : 'Search company name, phone, country, town/city, or service (e.g. Hydrovac, OCTG, Nisku, Midland, Aberdeen, Abu Dhabi)...',
                     hintStyle: const TextStyle(
                       fontSize: 12.5,
                       color: Color(0xFF64748B),
@@ -956,10 +989,12 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
                   SizedBox(
                     width: itemWidth,
                     child: _FilterSelectBox(
-                      label: 'COUNTRY & PROV / STATE',
+                      label: 'WORLD REGION & COUNTRY',
                       value: _regionValueLabel(),
-                      icon: Icons.map_outlined,
-                      active: countryCode.isNotEmpty || regionCode.isNotEmpty,
+                      icon: Icons.public_rounded,
+                      active: continentCode.isNotEmpty ||
+                          countryCode.isNotEmpty ||
+                          regionCode.isNotEmpty,
                       onTap: onTapRegion,
                     ),
                   ),
@@ -1244,6 +1279,7 @@ class _GridDensitySelector extends StatelessWidget {
 
 class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
   const _ActiveFilterBreadcrumbStrip({
+    required this.continentCode,
     required this.countryCode,
     required this.regionCode,
     required this.city,
@@ -1256,6 +1292,7 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
     required this.emergency24x7,
     required this.paidOnly,
     required this.hasTollFree,
+    required this.onClearContinent,
     required this.onClearCountry,
     required this.onClearRegion,
     required this.onClearCity,
@@ -1270,6 +1307,7 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
     required this.onResetAll,
   });
 
+  final String continentCode;
   final String countryCode;
   final String regionCode;
   final String city;
@@ -1283,6 +1321,7 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
   final bool paidOnly;
   final bool hasTollFree;
 
+  final VoidCallback onClearContinent;
   final VoidCallback onClearCountry;
   final VoidCallback onClearRegion;
   final VoidCallback onClearCity;
@@ -1298,6 +1337,10 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeCountry = PipeBuyerYellowPagesTaxonomy.countryByCode(countryCode);
+    final activeContinent =
+        PipeBuyerYellowPagesTaxonomy.continentByCode(continentCode);
+
     final chips = <Widget>[
       if (categoryCode.isNotEmpty)
         _RemovableFilterChip(
@@ -1305,14 +1348,22 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
               'Service: ${PipeBuyerYellowPagesTaxonomy.byCode(categoryCode)?.label ?? categoryCode}',
           onDeleted: onClearCategory,
         ),
+      if (continentCode.isNotEmpty && countryCode.isEmpty)
+        _RemovableFilterChip(
+          label: 'Region: ${activeContinent?.label ?? continentCode}',
+          onDeleted: onClearContinent,
+        ),
       if (countryCode.isNotEmpty && regionCode.isEmpty)
         _RemovableFilterChip(
-          label: countryCode == 'CA' ? 'Canada (CA)' : 'USA (US)',
+          label: activeCountry != null
+              ? '${activeCountry.name} (${activeCountry.code})'
+              : countryCode,
           onDeleted: onClearCountry,
         ),
       if (regionCode.isNotEmpty)
         _RemovableFilterChip(
-          label: 'Prov/State: $regionCode',
+          label:
+              'Prov/State: $regionCode${countryCode.isNotEmpty ? ' ($countryCode)' : ''}',
           onDeleted: onClearRegion,
         ),
       if (city.isNotEmpty)
@@ -2408,14 +2459,16 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
 }
 
 // ============================================================================
-// DIALOG 2: COUNTRY & PROVINCE / STATE SELECTOR
+// DIALOG 2: GLOBAL WORLD REGION, POPULAR QUICK-SEARCH & A–Z COUNTRY SELECTOR
 // ============================================================================
 class _RegionPickerDialog extends StatefulWidget {
   const _RegionPickerDialog({
+    required this.selectedContinentCode,
     required this.selectedCountryCode,
     required this.selectedRegionCode,
   });
 
+  final String selectedContinentCode;
   final String selectedCountryCode;
   final String selectedRegionCode;
 
@@ -2425,22 +2478,90 @@ class _RegionPickerDialog extends StatefulWidget {
 
 class _RegionPickerDialogState extends State<_RegionPickerDialog> {
   String _filter = '';
+  late String _activeContinent;
+  String _expandedRegionCountryCode = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selectedContinentCode.isNotEmpty) {
+      _activeContinent = widget.selectedContinentCode;
+    } else if (widget.selectedCountryCode.isNotEmpty) {
+      final matched =
+          PipeBuyerYellowPagesTaxonomy.countryByCode(widget.selectedCountryCode);
+      _activeContinent = matched?.continentCode ?? '';
+    } else {
+      _activeContinent = '';
+    }
+    if (widget.selectedCountryCode.isNotEmpty &&
+        PipeBuyerYellowPagesTaxonomy
+            .regionsForCountry(widget.selectedCountryCode)
+            .isNotEmpty) {
+      _expandedRegionCountryCode = widget.selectedCountryCode;
+    }
+  }
+
+  void _selectLocation({
+    required String continentCode,
+    required String countryCode,
+    required String regionCode,
+  }) {
+    Navigator.of(context).pop((
+      continentCode: continentCode,
+      countryCode: countryCode,
+      regionCode: regionCode,
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
     final q = _filter.trim().toLowerCase();
-    final filtered = PipeBuyerYellowPagesTaxonomy.regions.where((r) {
-      if (q.isEmpty) return true;
-      return r.name.toLowerCase().contains(q) ||
-          r.regionCode.toLowerCase().contains(q) ||
-          r.countryCode.toLowerCase().contains(q);
-    }).toList(growable: false);
+    final activeContinentMeta =
+        PipeBuyerYellowPagesTaxonomy.continentByCode(_activeContinent);
+    final alphabeticalCountries =
+        PipeBuyerYellowPagesTaxonomy.countriesForContinent(_activeContinent);
+    final popularCountries =
+        PipeBuyerYellowPagesTaxonomy.popularCountriesForContinent(
+      _activeContinent,
+    );
+
+    final allowedCountryCodes =
+        alphabeticalCountries.map((c) => c.code).toSet();
+
+    final countriesWithSubRegions = alphabeticalCountries
+        .where(
+          (c) => PipeBuyerYellowPagesTaxonomy.regionsForCountry(c.code).isNotEmpty,
+        )
+        .toList(growable: false);
+
+    final subRegionsToDisplay = _expandedRegionCountryCode.isNotEmpty &&
+            allowedCountryCodes.contains(_expandedRegionCountryCode)
+        ? PipeBuyerYellowPagesTaxonomy.regionsForCountry(
+            _expandedRegionCountryCode,
+          )
+        : const <YellowPagesRegionOption>[];
+
+    // Search matches across all 197 countries + provinces/states
+    final searchedCountries = q.isEmpty
+        ? const <YellowPagesCountryOption>[]
+        : PipeBuyerYellowPagesTaxonomy.countries.where((c) {
+            return c.name.toLowerCase().contains(q) ||
+                c.code.toLowerCase() == q;
+          }).toList(growable: false);
+
+    final searchedRegions = q.isEmpty
+        ? const <YellowPagesRegionOption>[]
+        : PipeBuyerYellowPagesTaxonomy.regions.where((r) {
+            return r.name.toLowerCase().contains(q) ||
+                r.regionCode.toLowerCase().contains(q) ||
+                r.countryCode.toLowerCase() == q;
+          }).toList(growable: false);
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 640),
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 740),
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
@@ -2448,11 +2569,14 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.map_outlined, color: PipeBuyerColors.orange),
+                  const Icon(
+                    Icons.public_rounded,
+                    color: PipeBuyerColors.orange,
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'Filter by Country & Province / State',
+                      'Filter by World Region, Country & State/Province',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
@@ -2466,41 +2590,56 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                 ],
               ),
               const SizedBox(height: 8),
+              // World Continent Tabs (Wraps cleanly on mobile & desktop)
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   ChoiceChip(
-                    label: const Text('All North America'),
-                    selected: widget.selectedCountryCode.isEmpty &&
-                        widget.selectedRegionCode.isEmpty,
-                    onSelected: (_) => Navigator.of(context).pop(
-                      (countryCode: '', regionCode: ''),
+                    visualDensity: VisualDensity.compact,
+                    label: const Text(
+                      'All Global',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                     ),
+                    selected: _activeContinent.isEmpty,
+                    onSelected: (_) => setState(() {
+                      _activeContinent = '';
+                      _expandedRegionCountryCode = '';
+                    }),
                   ),
-                  ChoiceChip(
-                    label: const Text('All Canada (CA)'),
-                    selected: widget.selectedCountryCode == 'CA' &&
-                        widget.selectedRegionCode.isEmpty,
-                    onSelected: (_) => Navigator.of(context).pop(
-                      (countryCode: 'CA', regionCode: ''),
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('All USA (US)'),
-                    selected: widget.selectedCountryCode == 'US' &&
-                        widget.selectedRegionCode.isEmpty,
-                    onSelected: (_) => Navigator.of(context).pop(
-                      (countryCode: 'US', regionCode: ''),
-                    ),
-                  ),
+                  ...PipeBuyerYellowPagesTaxonomy.continents.map((cont) {
+                    final selected = _activeContinent == cont.code;
+                    return ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(
+                        cont.shortLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      selected: selected,
+                      onSelected: (_) => setState(() {
+                        _activeContinent = cont.code;
+                        if (_expandedRegionCountryCode.isNotEmpty) {
+                          final nextAllowed = PipeBuyerYellowPagesTaxonomy
+                              .countriesForContinent(cont.code)
+                              .any((c) => c.code == _expandedRegionCountryCode);
+                          if (!nextAllowed) {
+                            _expandedRegionCountryCode = '';
+                          }
+                        }
+                      }),
+                    );
+                  }),
                 ],
               ),
               const SizedBox(height: 10),
               TextField(
                 onChanged: (v) => setState(() => _filter = v),
                 decoration: InputDecoration(
-                  hintText: 'Search province or state (e.g. Alberta, Texas)...',
+                  hintText:
+                      'Search country, province, or state (e.g. Canada, Mexico, UAE, Norway, Alberta, Texas)...',
                   prefixIcon: const Icon(Icons.search_rounded),
                   isDense: true,
                   border: OutlineInputBorder(
@@ -2508,52 +2647,408 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Expanded(
-                child: ListView.separated(
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final r = filtered[index];
-                    final selected = widget.selectedRegionCode == r.regionCode;
-                    return ListTile(
-                      dense: true,
-                      selected: selected,
-                      leading: CircleAvatar(
-                        radius: 14,
-                        backgroundColor: r.countryCode == 'CA'
-                            ? const Color(0xFFFEE2E2)
-                            : const Color(0xFFDBEAFE),
-                        child: Text(
-                          r.countryCode,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: r.countryCode == 'CA'
-                                ? const Color(0xFFB91C1C)
-                                : const Color(0xFF1D4ED8),
+                child: q.isNotEmpty
+                    ? ListView(
+                        children: [
+                          if (searchedCountries.isNotEmpty) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 6),
+                              child: Text(
+                                'MATCHING COUNTRIES',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                            ...searchedCountries.map((c) {
+                              final selected =
+                                  widget.selectedCountryCode == c.code &&
+                                      widget.selectedRegionCode.isEmpty;
+                              return ListTile(
+                                dense: true,
+                                selected: selected,
+                                leading: _CountryCodeBadge(code: c.code),
+                                title: Text(
+                                  '${c.name} (${c.code})',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                subtitle: Text(c.dialCode),
+                                trailing: c.isPopularOilGas
+                                    ? const _TierBadge(
+                                        label: 'OIL & GAS',
+                                        color: PipeBuyerColors.orange,
+                                      )
+                                    : null,
+                                onTap: () => _selectLocation(
+                                  continentCode: c.continentCode,
+                                  countryCode: c.code,
+                                  regionCode: '',
+                                ),
+                              );
+                            }),
+                          ],
+                          if (searchedRegions.isNotEmpty) ...[
+                            const Padding(
+                              padding: EdgeInsets.only(top: 10, bottom: 6),
+                              child: Text(
+                                'MATCHING PROVINCES & STATES',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                            ...searchedRegions.map((r) {
+                              final selected =
+                                  widget.selectedRegionCode == r.regionCode &&
+                                      widget.selectedCountryCode ==
+                                          r.countryCode;
+                              return ListTile(
+                                dense: true,
+                                selected: selected,
+                                leading: _CountryCodeBadge(code: r.countryCode),
+                                title: Text(
+                                  '${r.name} (${r.regionCode}, ${r.countryCode})',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                onTap: () => _selectLocation(
+                                  continentCode: _activeContinent,
+                                  countryCode: r.countryCode,
+                                  regionCode: r.regionCode,
+                                ),
+                              );
+                            }),
+                          ],
+                          if (searchedCountries.isEmpty &&
+                              searchedRegions.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Center(
+                                child: Text(
+                                  'No matching country, province, or state found.',
+                                  style: TextStyle(color: Color(0xFF64748B)),
+                                ),
+                              ),
+                            ),
+                        ],
+                      )
+                    : ListView(
+                        children: [
+                          // 1. Apply Entire World Region / Continent Row
+                          ListTile(
+                            dense: true,
+                            tileColor: const Color(0xFFF1F5F9),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            leading: const Icon(
+                              Icons.language_rounded,
+                              color: PipeBuyerColors.industrialBlue,
+                            ),
+                            title: Text(
+                              _activeContinent.isEmpty
+                                  ? 'Show All Global Countries (Worldwide • ${alphabeticalCountries.length} Countries)'
+                                  : 'Show All ${activeContinentMeta?.label ?? _activeContinent} (${alphabeticalCountries.length} Countries)',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                            ),
+                            onTap: () => _selectLocation(
+                              continentCode: _activeContinent,
+                              countryCode: '',
+                              regionCode: '',
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 12),
+
+                          // 2. Popular Oil & Gas Quick-Search Countries (Pinned at Top!)
+                          if (popularCountries.isNotEmpty) ...[
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.local_fire_department_rounded,
+                                  size: 15,
+                                  color: PipeBuyerColors.orange,
+                                ),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    _activeContinent.isEmpty
+                                        ? 'POPULAR OIL & GAS COUNTRIES — QUICK SEARCH'
+                                        : 'POPULAR ${activeContinentMeta?.shortLabel.toUpperCase() ?? ''} OIL & GAS — QUICK SEARCH',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.45,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: popularCountries.map((c) {
+                                final isSelected =
+                                    widget.selectedCountryCode == c.code &&
+                                        widget.selectedRegionCode.isEmpty;
+                                return ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  backgroundColor: isSelected
+                                      ? PipeBuyerColors.orange
+                                          .withValues(alpha: 0.16)
+                                      : const Color(0xFFFFF7ED),
+                                  side: BorderSide(
+                                    color: isSelected
+                                        ? PipeBuyerColors.orange
+                                        : const Color(0xFFFED7AA),
+                                  ),
+                                  avatar: CircleAvatar(
+                                    radius: 10,
+                                    backgroundColor: PipeBuyerColors.orange,
+                                    child: Text(
+                                      c.code,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  label: Text(
+                                    c.name,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  onPressed: () => _selectLocation(
+                                    continentCode: _activeContinent,
+                                    countryCode: c.code,
+                                    regionCode: '',
+                                  ),
+                                );
+                              }).toList(growable: false),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // 3. Optional Sub-Region / Province / State Drilldown
+                          if (countriesWithSubRegions.isNotEmpty) ...[
+                            const Text(
+                              'DRILL DOWN BY PROVINCE / STATE / EMIRATE',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.45,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: countriesWithSubRegions.map((c) {
+                                final expanded =
+                                    _expandedRegionCountryCode == c.code;
+                                return ChoiceChip(
+                                  visualDensity: VisualDensity.compact,
+                                  label: Text(
+                                    '${c.name} Regions',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  selected: expanded,
+                                  onSelected: (_) => setState(() {
+                                    _expandedRegionCountryCode =
+                                        expanded ? '' : c.code;
+                                  }),
+                                );
+                              }).toList(growable: false),
+                            ),
+                            if (subRegionsToDisplay.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: subRegionsToDisplay.map((r) {
+                                    final selected = widget
+                                                .selectedRegionCode ==
+                                            r.regionCode &&
+                                        widget.selectedCountryCode ==
+                                            r.countryCode;
+                                    return ActionChip(
+                                      visualDensity: VisualDensity.compact,
+                                      backgroundColor: selected
+                                          ? PipeBuyerColors.industrialBlue
+                                              .withValues(alpha: 0.14)
+                                          : Colors.white,
+                                      label: Text(
+                                        '${r.name} (${r.regionCode})',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      onPressed: () => _selectLocation(
+                                        continentCode: _activeContinent,
+                                        countryCode: r.countryCode,
+                                        regionCode: r.regionCode,
+                                      ),
+                                    );
+                                  }).toList(growable: false),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 14),
+                          ],
+
+                          // 4. Complete Alphabetical A–Z Country List (Every country in its alphabetical spot!)
+                          Text(
+                            _activeContinent.isEmpty
+                                ? 'ALL COUNTRIES A–Z (${alphabeticalCountries.length} COUNTRIES)'
+                                : '${activeContinentMeta?.label.toUpperCase() ?? _activeContinent.toUpperCase()} COUNTRIES A–Z (${alphabeticalCountries.length} COUNTRIES)',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.45,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          ...alphabeticalCountries.map((c) {
+                            final selected =
+                                widget.selectedCountryCode == c.code &&
+                                    widget.selectedRegionCode.isEmpty;
+                            final hasSub = PipeBuyerYellowPagesTaxonomy
+                                .regionsForCountry(c.code)
+                                .isNotEmpty;
+                            return ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              selected: selected,
+                              leading: _CountryCodeBadge(code: c.code),
+                              title: Text(
+                                '${c.name} (${c.code})',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              subtitle: Text(
+                                c.isPopularOilGas
+                                    ? '${c.dialCode} • Popular Oil & Gas Market'
+                                    : c.dialCode,
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (hasSub)
+                                    TextButton(
+                                      style: TextButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                      ),
+                                      onPressed: () => setState(() {
+                                        _expandedRegionCountryCode =
+                                            _expandedRegionCountryCode == c.code
+                                                ? ''
+                                                : c.code;
+                                      }),
+                                      child: const Text(
+                                        'States',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  if (selected)
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: PipeBuyerColors.orange,
+                                      size: 18,
+                                    ),
+                                ],
+                              ),
+                              onTap: () => _selectLocation(
+                                continentCode: _activeContinent,
+                                countryCode: c.code,
+                                regionCode: '',
+                              ),
+                            );
+                          }),
+                        ],
                       ),
-                      title: Text(
-                        '${r.name} (${r.regionCode})',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      trailing: selected
-                          ? const Icon(
-                              Icons.check_circle,
-                              color: PipeBuyerColors.orange,
-                            )
-                          : null,
-                      onTap: () => Navigator.of(context).pop(
-                        (countryCode: r.countryCode, regionCode: r.regionCode),
-                      ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CountryCodeBadge extends StatelessWidget {
+  const _CountryCodeBadge({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCa = code == 'CA';
+    final isUs = code == 'US';
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: isCa
+          ? const Color(0xFFFEE2E2)
+          : isUs
+              ? const Color(0xFFDBEAFE)
+              : const Color(0xFFE2E8F0),
+      child: Text(
+        code,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          color: isCa
+              ? const Color(0xFFB91C1C)
+              : isUs
+                  ? const Color(0xFF1D4ED8)
+                  : const Color(0xFF334155),
         ),
       ),
     );
@@ -2661,7 +3156,7 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
                 },
                 decoration: InputDecoration(
                   hintText:
-                      'Search or type any town (e.g. Nisku, Drayton Valley, Midland, Estevan)...',
+                      'Search or type any town (e.g. Nisku, Midland, Aberdeen, Abu Dhabi, Villahermosa)...',
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: _query.isNotEmpty
                       ? IconButton(
@@ -2716,7 +3211,9 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       trailing: Text(
-                        '${hub.regionCode}, ${hub.countryCode}',
+                        [hub.regionCode, hub.countryCode]
+                            .where((s) => s.isNotEmpty)
+                            .join(', '),
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,

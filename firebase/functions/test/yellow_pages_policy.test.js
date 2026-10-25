@@ -4,7 +4,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  GLOBAL_COUNTRIES_LIST,
+  WORLD_CONTINENTS,
   classifyCategoriesFromText,
+  countryCodesForContinent,
   expandServiceSearchTerms,
   inferCountryAndRegion,
 } = require("../yellow_pages_taxonomy");
@@ -13,6 +16,7 @@ const {
   buildPublicEntry,
   computePriorityScore,
   isPublicEntryCurrent,
+  normalizeGlobalPhone,
   normalizeNorthAmericanPhone,
   normalizePhoneHistory,
   resolveEffectiveTier,
@@ -155,4 +159,60 @@ test("enforces paid vs unpaid priority ranking, visibility toggle, and flagged p
   const usGeo = inferCountryAndRegion("", "Texas");
   assert.equal(usGeo.countryCode, "US");
   assert.equal(usGeo.regionCode, "TX");
+});
+
+test("supports global 197-country taxonomy, Middle East + Continent filters, and E.164 international phone numbers", () => {
+  assert.ok(GLOBAL_COUNTRIES_LIST.length >= 195);
+  assert.equal(WORLD_CONTINENTS.length, 7);
+
+  const naCodes = countryCodesForContinent("north_america");
+  assert.equal(naCodes.length, 23);
+  assert.ok(naCodes.includes("CA"));
+  assert.ok(naCodes.includes("US"));
+  assert.ok(naCodes.includes("MX"));
+  assert.ok(naCodes.includes("TT"));
+
+  const meCodes = countryCodesForContinent("middle_east");
+  const asiaCodes = countryCodesForContinent("asia");
+  assert.ok(meCodes.includes("AE"));
+  assert.ok(meCodes.includes("SA"));
+  assert.ok(asiaCodes.includes("AE"));
+  assert.ok(asiaCodes.includes("SA"));
+
+  const ukPhone = normalizeGlobalPhone("+44 1224 723456", "GB");
+  assert.equal(ukPhone.validPhone, true);
+  assert.equal(ukPhone.e164, "+441224723456");
+
+  const uaePhone = normalizeGlobalPhone("02 554 1234", "AE");
+  assert.equal(uaePhone.validPhone, true);
+  assert.equal(uaePhone.e164, "+97125541234");
+
+  const mxPhone = normalizeGlobalPhone("+52 938 382 1400", "MX");
+  assert.equal(mxPhone.validPhone, true);
+  assert.equal(mxPhone.e164, "+529383821400");
+
+  const uaeEntry = buildPublicEntry({
+    companyName: "Gulf Offshore Well Services LLC",
+    countryCode: "AE",
+    regionCode: "AZ",
+    city: "Abu Dhabi",
+    mainPhone: "+971 2 554 1234",
+    publicPhone: "+971 2 554 1234",
+    categories: ["Wellheads, Valves & Pressure Control"],
+    services: ["Wellhead Maintenance", "BOP Testing"],
+    verificationStatus: "verified",
+    operationalStatus: "active_in_operation",
+    billingStatus: "unpaid",
+    listingTier: "free_verified",
+    publicationStatus: "published",
+    adminViewingEnabled: true,
+    isFlaggedProhibited: false,
+  }, "comp-uae-1", "SERVER_TS");
+
+  assert.equal(uaeEntry.countryCode, "AE");
+  assert.equal(uaeEntry.countryName, "United Arab Emirates");
+  assert.equal(uaeEntry.continentCode, "asia");
+  assert.equal(uaeEntry.isMiddleEast, true);
+  assert.ok(uaeEntry.searchTokens.includes("emirates"));
+  assert.ok(uaeEntry.searchTokens.includes("middle"));
 });

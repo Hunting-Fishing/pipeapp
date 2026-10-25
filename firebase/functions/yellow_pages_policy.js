@@ -55,6 +55,10 @@ const LISTING_TIERS = new Set([
 
 const STAFF_ROLES = new Set(["agent", "manager"]);
 
+const NANPA_COUNTRY_CODES = new Set([
+  "CA", "US", "AG", "BS", "BB", "DM", "DO", "GD", "JM", "KN", "LC", "VC", "TT",
+]);
+
 function text(value, maxLength = 500) {
   const normalized = String(value == null ? "" : value).trim();
   return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength);
@@ -76,7 +80,7 @@ function stringList(value, maxItems = 30, maxLength = 120) {
 
 function normalizedCompanyName(value) {
   return normalizeText(text(value, 200))
-      .replace(/\b(ltd|limited|inc|incorporated|corp|corporation|llc|llp|co|company)\b/gu, "")
+      .replace(/\b(ltd|limited|inc|incorporated|corp|corporation|llc|llp|plc|gmbh|bv|nv|sa|srl|pty|pjsc|co|company)\b/gu, "")
       .trim()
       .replace(/\s+/gu, " ");
 }
@@ -91,7 +95,6 @@ function normalizeNorthAmericanPhone(raw) {
   } else if (digitsOnly.length === 11 && digitsOnly.startsWith("1")) {
     digits10 = digitsOnly.slice(1);
   } else if (digitsOnly.length > 10) {
-    // Strip extension after 10/11 digits when written like 780-555-1234 ext 201
     const match = rawStr.match(/(?:\+?1[\s.-]?)?\(?([2-9]\d{2})\)?[\s.-]?([2-9]\d{2})[\s.-]?(\d{4})/u);
     if (match) {
       digits10 = `${match[1]}${match[2]}${match[3]}`;
@@ -124,29 +127,112 @@ function normalizeNorthAmericanPhone(raw) {
   };
 }
 
-function phoneTokens(raw) {
-  const parsed = normalizeNorthAmericanPhone(raw);
+function normalizeGlobalPhone(raw, countryCode = "") {
+  const rawStr = text(raw, 80);
+  if (!rawStr) {
+    return {
+      raw: "",
+      digits10: "",
+      digitsKey: "",
+      e164: "",
+      display: "",
+      validNanpa: false,
+      validPhone: false,
+      isTollFree: false,
+    };
+  }
+
+  const upperCountry = String(countryCode || "").trim().toUpperCase();
+  const isNanpaCountry = !upperCountry || NANPA_COUNTRY_CODES.has(upperCountry);
+
+  // Strip extension markers like "ext. 204" or "x102"
+  const strippedExt = rawStr.replace(/\s*(?:ext\.?|extension|x)\s*\d+\s*$/iu, "").trim();
+
+  if (isNanpaCountry && !strippedExt.startsWith("+") || strippedExt.startsWith("+1")) {
+    const na = normalizeNorthAmericanPhone(strippedExt);
+    if (na.validNanpa) {
+      return {
+        ...na,
+        digitsKey: na.digits10,
+        validPhone: true,
+      };
+    }
+  }
+
+  // International E.164 handling
+  let working = strippedExt;
+  if (working.startsWith("00")) {
+    working = `+${working.slice(2)}`;
+  }
+
+  const geo = inferCountryAndRegion(upperCountry || "CA", "");
+  const dialDigits = String(geo.dialCode || "+1").replace(/\D+/gu, "");
+  let digits = working.replace(/\D+/gu, "");
+
+  if (!working.startsWith("+") && dialDigits && dialDigits !== "1" && digits.length >= 6) {
+    // Strip trunk 0 when domestic number is supplied for an international country
+    if (digits.startsWith("0") && !digits.startsWith(dialDigits)) {
+      digits = `${dialDigits}${digits.slice(1)}`;
+    } else if (!digits.startsWith(dialDigits) && digits.length <= 10) {
+      digits = `${dialDigits}${digits}`;
+    }
+  }
+
+  digits = digits.slice(0, 15);
+  const validPhone = digits.length >= 7 && digits.length <= 15;
+  const e164 = validPhone ? `+${digits}` : "";
+
+  let display = strippedExt;
+  if (validPhone) {
+    if (working.startsWith("+")) {
+      display = working.replace(/\s+/gu, " ");
+    } else if (dialDigits && digits.startsWith(dialDigits)) {
+      const subscriber = digits.slice(dialDigits.length);
+      display = `+${dialDigits} ${subscriber}`;
+    } else {
+      display = `+${digits}`;
+    }
+  }
+
+  return {
+    raw: rawStr,
+    digits10: digits.length === 10 ? digits : digits.slice(-10),
+    digitsKey: digits,
+    e164,
+    display,
+    validNanpa: false,
+    validPhone,
+    isTollFree: false,
+  };
+}
+
+function phoneTokens(raw, countryCode = "") {
+  const parsed = normalizeGlobalPhone(raw, countryCode);
   const tokens = new Set();
-  if (parsed.digits10) {
-    tokens.add(parsed.digits10);
-    if (parsed.digits10.length === 10) {
+  const full = parsed.digitsKey || parsed.digits10;
+  if (full && full.length >= 7) {
+    tokens.add(full);
+    if (full.length >= 10) tokens.add(full.slice(-10));
+    if (full.length >= 8) tokens.add(full.slice(-8));
+    tokens.add(full.slice(-7));
+    tokens.add(full.slice(-4));
+    if (parsed.validNanpa && parsed.digits10.length === 10) {
       tokens.add(`1${parsed.digits10}`);
       tokens.add(parsed.digits10.slice(0, 3));
       tokens.add(parsed.digits10.slice(3));
-      tokens.add(parsed.digits10.slice(6));
       tokens.add(parsed.digits10.slice(0, 6));
     }
   }
   return [...tokens];
 }
 
-function normalizePhoneHistory(historyInput, legacyPhonesInput = [], currentPhone = "") {
+function normalizePhoneHistory(historyInput, legacyPhonesInput = [], currentPhone = "", countryCode = "") {
   const result = [];
   const seen = new Set();
 
   if (Array.isArray(historyInput)) {
     for (const item of historyInput.slice(0, 20)) {
-      const parsed = normalizeNorthAmericanPhone(item && item.phone);
+      const parsed = normalizeGlobalPhone(item && item.phone, countryCode);
       const key = parsed.e164 || parsed.raw;
       if (!key || seen.has(key)) continue;
       seen.add(key);
@@ -163,7 +249,7 @@ function normalizePhoneHistory(historyInput, legacyPhonesInput = [], currentPhon
   }
 
   for (const oldRaw of stringList(legacyPhonesInput, 15, 80)) {
-    const parsed = normalizeNorthAmericanPhone(oldRaw);
+    const parsed = normalizeGlobalPhone(oldRaw, countryCode);
     const key = parsed.e164 || parsed.raw;
     if (!key || seen.has(key)) continue;
     seen.add(key);
@@ -179,7 +265,7 @@ function normalizePhoneHistory(historyInput, legacyPhonesInput = [], currentPhon
   }
 
   if (currentPhone) {
-    const parsed = normalizeNorthAmericanPhone(currentPhone);
+    const parsed = normalizeGlobalPhone(currentPhone, countryCode);
     const key = parsed.e164 || parsed.raw;
     if (key && !seen.has(key)) {
       seen.add(key);
@@ -234,8 +320,6 @@ function resolveEffectiveTier(company, nowMillis = Date.now()) {
       "paid_verified";
   }
 
-  // Verified operational unpaid listings can appear in Basic Verified tier below
-  // all paid results unless per-company allowUnpaidPublic is explicitly false.
   if (company.allowUnpaidPublic !== false) {
     return "free_verified";
   }
@@ -278,13 +362,16 @@ function addWordAndPrefixes(tokenSet, rawText, maxTokens = 320) {
 
 function buildPublicSearchTokens(company) {
   const tokens = new Set();
+  const geo = inferCountryAndRegion(company.countryCode, company.regionCode);
+
   addWordAndPrefixes(tokens, company.companyName, 320);
   addWordAndPrefixes(tokens, company.city, 320);
   addWordAndPrefixes(tokens, company.regionCode, 320);
-  addWordAndPrefixes(tokens, company.countryCode, 320);
-
-  const geo = inferCountryAndRegion(company.countryCode, company.regionCode);
+  addWordAndPrefixes(tokens, geo.countryCode, 320);
+  addWordAndPrefixes(tokens, geo.countryName, 320);
   addWordAndPrefixes(tokens, geo.regionName, 320);
+  addWordAndPrefixes(tokens, geo.continentCode.replace(/_/gu, " "), 320);
+  if (geo.isMiddleEast) addWordAndPrefixes(tokens, "middle east gcc", 320);
 
   const categoryCodes = classifyCategoriesFromText(
       [...(company.categoryCodes || []), ...(company.categories || []), ...(company.services || [])],
@@ -309,10 +396,10 @@ function buildPublicSearchTokens(company) {
     }
   }
 
-  for (const ph of phoneTokens(company.publicPhone || company.mainPhone)) {
+  for (const ph of phoneTokens(company.publicPhone || company.mainPhone, geo.countryCode)) {
     if (tokens.size < 320) tokens.add(ph);
   }
-  for (const ph of phoneTokens(company.tollFreePhone)) {
+  for (const ph of phoneTokens(company.tollFreePhone, geo.countryCode)) {
     if (tokens.size < 320) tokens.add(ph);
   }
 
@@ -321,22 +408,23 @@ function buildPublicSearchTokens(company) {
 
 function buildAdminSearchTokens(company) {
   const tokens = new Set(buildPublicSearchTokens(company));
+  const geo = inferCountryAndRegion(company.countryCode, company.regionCode);
   addWordAndPrefixes(tokens, company.normalizedCompanyName, 450);
   addWordAndPrefixes(tokens, company.website, 450);
   addWordAndPrefixes(tokens, company.generalEmail, 450);
   addWordAndPrefixes(tokens, company.publicEmail, 450);
 
-  for (const ph of phoneTokens(company.mainPhone)) tokens.add(ph);
-  for (const ph of phoneTokens(company.publicPhone)) tokens.add(ph);
-  for (const ph of phoneTokens(company.tollFreePhone)) tokens.add(ph);
+  for (const ph of phoneTokens(company.mainPhone, geo.countryCode)) tokens.add(ph);
+  for (const ph of phoneTokens(company.publicPhone, geo.countryCode)) tokens.add(ph);
+  for (const ph of phoneTokens(company.tollFreePhone, geo.countryCode)) tokens.add(ph);
 
   for (const legacy of (company.legacyPhones || [])) {
-    for (const ph of phoneTokens(legacy)) {
+    for (const ph of phoneTokens(legacy, geo.countryCode)) {
       if (tokens.size < 450) tokens.add(ph);
     }
   }
   for (const entry of (company.phoneHistory || [])) {
-    for (const ph of phoneTokens(entry && (entry.e164 || entry.phone))) {
+    for (const ph of phoneTokens(entry && (entry.e164 || entry.phone), geo.countryCode)) {
       if (tokens.size < 450) tokens.add(ph);
     }
   }
@@ -365,12 +453,12 @@ function buildPublicEntry(company, companyId, serverTimestamp, nowMillis = Date.
       120,
   );
   const serviceLabels = stringList(company.services, isPaid ? 50 : 4, 160);
-  const mainPhoneParsed = normalizeNorthAmericanPhone(company.publicPhone || company.mainPhone);
-  const tollFreeParsed = normalizeNorthAmericanPhone(company.tollFreePhone);
+  const mainPhoneParsed = normalizeGlobalPhone(company.publicPhone || company.mainPhone, geo.countryCode);
+  const tollFreeParsed = normalizeGlobalPhone(company.tollFreePhone, geo.countryCode);
   const priorityScore = computePriorityScore(company, effectiveTier);
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     companyId: text(companyId, 200),
     companyName: text(company.companyName, 200),
     normalizedCompanyName: normalizedCompanyName(company.companyName),
@@ -383,7 +471,10 @@ function buildPublicEntry(company, companyId, serverTimestamp, nowMillis = Date.
     publicPhone: mainPhoneParsed.display || text(company.publicPhone || company.mainPhone, 80),
     tollFreePhone: isPaid ? (tollFreeParsed.display || text(company.tollFreePhone, 80)) : "",
     publicEmail: isPaid ? text(company.publicEmail, 254) : "",
+    continentCode: geo.continentCode,
+    isMiddleEast: geo.isMiddleEast,
     countryCode: geo.countryCode,
+    countryName: geo.countryName,
     regionCode: geo.regionCode,
     regionName: geo.regionName,
     city: text(company.city, 120),
@@ -455,6 +546,7 @@ module.exports = {
   isPaidCurrent,
   isPublicEntryCurrent,
   isPublicationEligible,
+  normalizeGlobalPhone,
   normalizeNorthAmericanPhone,
   normalizePhoneHistory,
   normalizedCompanyName,
