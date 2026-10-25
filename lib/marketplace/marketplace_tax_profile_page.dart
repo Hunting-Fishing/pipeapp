@@ -355,6 +355,14 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
                             ),
                             LayoutBuilder(
                               builder: (context, constraints) {
+                                final normalizedCountry =
+                                    _country.text.trim().toUpperCase();
+                                final regionRequired =
+                                    normalizedCountry == 'CA' ||
+                                        normalizedCountry == 'US';
+                                final regionLabel = regionRequired
+                                    ? 'Province / state'
+                                    : 'Region / state (optional outside CA/US)';
                                 if (constraints.maxWidth < 620) {
                                   return Column(
                                     children: [
@@ -365,8 +373,8 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
                                       ),
                                       _field(
                                         _region,
-                                        'Province / state',
-                                        required: true,
+                                        regionLabel,
+                                        required: regionRequired,
                                       ),
                                     ],
                                   );
@@ -385,8 +393,8 @@ class _MarketplaceTaxProfilePageState extends State<MarketplaceTaxProfilePage> {
                                     Expanded(
                                       child: _field(
                                         _region,
-                                        'Province / state',
-                                        required: true,
+                                        regionLabel,
+                                        required: regionRequired,
                                       ),
                                     ),
                                   ],

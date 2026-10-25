@@ -143,19 +143,35 @@ function createDispatchSubscriptionCommands(admin) {
       requireSubscriptionReady(readiness);
       const collectionStatus = taxCollectionStatus(readiness);
       const plan = selectedPlan(request.data && request.data.plan);
+      const requestedCurrency = String(
+          request.data && request.data.currency || "CAD",
+      ).trim().toUpperCase();
+      const useUsd = requestedCurrency === "USD" &&
+        stripeMarketplaceConfig.products.dispatchMonthlyUsd &&
+        stripeMarketplaceConfig.products.dispatchYearlyUsd;
       const product = plan === "monthly" ?
-        stripeMarketplaceConfig.products.dispatchMonthlyCad :
-        stripeMarketplaceConfig.products.dispatchYearlyCad;
+        (useUsd ?
+          stripeMarketplaceConfig.products.dispatchMonthlyUsd :
+          stripeMarketplaceConfig.products.dispatchMonthlyCad) :
+        (useUsd ?
+          stripeMarketplaceConfig.products.dispatchYearlyUsd :
+          stripeMarketplaceConfig.products.dispatchYearlyCad);
       const priceId = product.priceId;
       const productId = product.productId;
-      const successUrl = safeConfiguredUrl(
+      const baseSuccessUrl = safeConfiguredUrl(
           readiness.checkoutSuccessUrl,
           "Stripe Checkout success URL",
       );
-      const cancelUrl = safeConfiguredUrl(
+      const baseCancelUrl = safeConfiguredUrl(
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
+      const successUrlObj = new URL(baseSuccessUrl);
+      successUrlObj.searchParams.set("flow", "dispatch");
+      const cancelUrlObj = new URL(baseCancelUrl);
+      cancelUrlObj.searchParams.set("flow", "dispatch");
+      const successUrl = successUrlObj.toString();
+      const cancelUrl = cancelUrlObj.toString();
       const [entitlementSnapshot, relationshipSnapshot, providerSnapshot] =
         await Promise.all([
           db.collection("promotion_entitlements").doc(uid).get(),
@@ -311,10 +327,16 @@ function createDispatchSubscriptionCommands(admin) {
             success_url: successUrl,
             cancel_url: cancelUrl,
             client_reference_id: uid,
-            ...(stripeCustomerId ? {customer: stripeCustomerId} : {}),
+            ...(stripeCustomerId ? {
+              customer: stripeCustomerId,
+              "customer_update[address]": "auto",
+              "customer_update[name]": "auto",
+            } : {}),
             billing_address_collection: "required",
             allow_promotion_codes: allowPromotionCodes ? "true" : "false",
             "automatic_tax[enabled]": automaticTaxEnabled(readiness) ? "true" : "false",
+            "tax_id_collection[enabled]": "true",
+            "adaptive_pricing[enabled]": "true",
             "line_items[0][price]": priceId,
             "line_items[0][quantity]": 1,
             ...(promotionCodeId ? {

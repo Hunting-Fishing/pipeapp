@@ -11,6 +11,11 @@ const {
   requirePhase1Feature,
 } = require("./phase1_feature_flags");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
+const {
+  STRIPE_CA_CONNECT_SELLER_COUNTRIES,
+  isCountryBlockedForStripePayments,
+  isStripeConnectSellerCountrySupported,
+} = require("./global_payment_policy");
 
 const STRIPE_SECRET_PRODUCTION_NAME = "STRIPE_SECRET_PRODUCTION";
 const STRIPE_CONNECT_ACCOUNTS_API_VERSION =
@@ -29,7 +34,7 @@ const stripeSecretKey = Object.freeze({
   },
 });
 
-const initialSellerCountries = new Set(["CA", "US"]);
+const initialSellerCountries = new Set(STRIPE_CA_CONNECT_SELLER_COUNTRIES);
 const sellerSetupErrorMessages = Object.freeze({
   account_create_activation_required:
     "Pipe Buyer must finish Stripe Connect activation before seller payouts can be set up.",
@@ -55,10 +60,16 @@ function requireAuth(request) {
 
 function safeCountry(value) {
   const country = String(value || "CA").trim().toUpperCase();
-  if (!initialSellerCountries.has(country)) {
+  if (isCountryBlockedForStripePayments(country)) {
+    throw new HttpsError(
+        "permission-denied",
+        `Online seller payouts are unavailable in ${country} due to international sanctions and payment network restrictions.`,
+    );
+  }
+  if (!initialSellerCountries.has(country) || !isStripeConnectSellerCountrySupported(country)) {
     throw new HttpsError(
         "failed-precondition",
-        "Seller payouts are currently prepared only for Canada and the United States.",
+        `Direct Stripe Connect Express payouts are available in 37 countries (Canada, United States, UK, Norway, Switzerland, and EEA). Sellers in ${country} can complete marketplace sales using Pipe Buyer's Direct Wire / PO External Settlement flow.`,
     );
   }
   return country;

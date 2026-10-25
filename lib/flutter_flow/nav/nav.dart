@@ -88,8 +88,8 @@ class AppStateNotifier extends ChangeNotifier {
 
 String _resolveInitialRouterLocation() {
   if (kIsWeb) {
-    final path = Uri.base.path;
-    if (path.isNotEmpty && path != '/') {
+    final path = Uri.base.path.isNotEmpty ? Uri.base.path : '/';
+    if (path != '/' || Uri.base.queryParameters.isNotEmpty) {
       return Uri(
         path: path,
         queryParameters:
@@ -114,6 +114,23 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return Uri(
             path: '/account/seller-payouts',
             queryParameters: {'connect': connectAction!},
+          ).toString();
+        }
+        final paymentAction =
+            state.uri.queryParameters['payment']?.trim().toLowerCase();
+        if (state.uri.path == '/' &&
+            (paymentAction == 'success' || paymentAction == 'cancel')) {
+          final forwarded = <String, String>{};
+          for (final entry in state.uri.queryParameters.entries) {
+            if (entry.key != 'payment' && entry.value.trim().isNotEmpty) {
+              forwarded[entry.key] = entry.value.trim();
+            }
+          }
+          return Uri(
+            path: paymentAction == 'success'
+                ? '/payments/success'
+                : '/payments/cancel',
+            queryParameters: forwarded.isEmpty ? null : forwarded,
           ).toString();
         }
         return null;
@@ -177,14 +194,22 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: 'paymentSuccess',
           path: '/payments/success',
-          builder: (context, params) =>
-              const MarketplacePaymentReturnPage(success: true),
+          builder: (context, params) => MarketplacePaymentReturnPage(
+            success: true,
+            flow: params.getParam<String>('flow', ParamType.string),
+            requestId: params.getParam<String>('requestId', ParamType.string),
+            transactionId: params.getParam<String>('tx', ParamType.string),
+          ),
         ),
         FFRoute(
           name: 'paymentCancel',
           path: '/payments/cancel',
-          builder: (context, params) =>
-              const MarketplacePaymentReturnPage(success: false),
+          builder: (context, params) => MarketplacePaymentReturnPage(
+            success: false,
+            flow: params.getParam<String>('flow', ParamType.string),
+            requestId: params.getParam<String>('requestId', ParamType.string),
+            transactionId: params.getParam<String>('tx', ParamType.string),
+          ),
         ),
         FFRoute(
           name: 'marketplaceSellerPayouts',
@@ -221,8 +246,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: MarketplaceDeepLinks.servicesDirectoryRouteName,
           path: MarketplaceDeepLinks.servicesDirectoryPath,
           builder: (context, params) => PipeBuyerYellowPagesDirectoryPage(
-            initialQuery:
-                params.getParam<String>('q', ParamType.string) ?? '',
+            initialQuery: params.getParam<String>('q', ParamType.string) ?? '',
             initialCategoryCode:
                 params.getParam<String>('category', ParamType.string) ?? '',
             initialCountryCode:

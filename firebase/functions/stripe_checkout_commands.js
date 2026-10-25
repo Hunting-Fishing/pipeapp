@@ -250,14 +250,22 @@ function createStripeCheckoutCommands(admin) {
       }
       const currency = String(fee.currency || sale.currency || "CAD").toLowerCase();
       const transferGroup = `PB_${transactionId}`.slice(0, 200);
-      const successUrl = safeConfiguredUrl(
+      const baseSuccessUrl = safeConfiguredUrl(
           readiness.checkoutSuccessUrl,
           "Stripe Checkout success URL",
       );
-      const cancelUrl = safeConfiguredUrl(
+      const baseCancelUrl = safeConfiguredUrl(
           readiness.checkoutCancelUrl,
           "Stripe Checkout cancel URL",
       );
+      const successUrlObj = new URL(baseSuccessUrl);
+      successUrlObj.searchParams.set("flow", "marketplace");
+      successUrlObj.searchParams.set("tx", transactionId);
+      const cancelUrlObj = new URL(baseCancelUrl);
+      cancelUrlObj.searchParams.set("flow", "marketplace");
+      cancelUrlObj.searchParams.set("tx", transactionId);
+      const successUrl = successUrlObj.toString();
+      const cancelUrl = cancelUrlObj.toString();
       const taxCode = String(
           listing.stripeTaxCode || stripeMarketplaceConfig.defaultPhysicalGoodsTaxCode,
       );
@@ -302,7 +310,7 @@ function createStripeCheckoutCommands(admin) {
           cancel_url: cancelUrl,
           client_reference_id: transactionId,
           billing_address_collection: "required",
-          "tax_id_collection[enabled]": automaticTax ? "true" : "false",
+          "tax_id_collection[enabled]": "true",
           "automatic_tax[enabled]": automaticTax ? "true" : "false",
           "line_items[0][quantity]": 1,
           "line_items[0][price_data][currency]": currency,

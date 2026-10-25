@@ -75,7 +75,8 @@ class PipeBuyerYellowPagesClient {
           )
           .call(payload);
       if (response.data is! Map) {
-        throw StateError('The Oilfield Directory service returned an invalid response.');
+        throw StateError(
+            'The Oilfield Directory service returned an invalid response.');
       }
       return Map<String, dynamic>.from(response.data as Map);
     } on FirebaseFunctionsException catch (error) {
@@ -93,8 +94,10 @@ class PipeBuyerYellowPagesClient {
         'not-found' => 'The requested Oilfield Directory record was not found.',
         'failed-precondition' =>
           'This Oilfield Directory action is blocked until required conditions are met.',
-        'invalid-argument' => 'Check the entered company details and try again.',
-        _ => 'The PipeBuyer Oilfield Directory service is temporarily unavailable.',
+        'invalid-argument' =>
+          'Check the entered company details and try again.',
+        _ =>
+          'The PipeBuyer Oilfield Directory service is temporarily unavailable.',
       });
     }
   }
@@ -108,7 +111,8 @@ class PipeBuyerYellowPagesClient {
         reason: 'signed_out',
       );
     }
-    final result = await _call('getYellowPagesAccess', const <String, Object?>{});
+    final result =
+        await _call('getYellowPagesAccess', const <String, Object?>{});
     return PipeBuyerYellowPagesAccess.fromJson(result);
   }
 
@@ -208,6 +212,7 @@ class PipeBuyerYellowPagesClient {
     bool emergency24x7 = false,
     String description = '',
     required String requestedTier,
+    String billingInterval = 'yearly',
   }) {
     return _call(
       'submitYellowPagesServiceListingRequest',
@@ -231,6 +236,39 @@ class PipeBuyerYellowPagesClient {
         'emergency24x7': emergency24x7,
         'description': description,
         'requestedTier': requestedTier,
+        'billingInterval': billingInterval,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> createListingCheckout({
+    required String requestId,
+    String? requestedTier,
+    String? billingInterval,
+    String? currency,
+  }) {
+    return _call(
+      'createYellowPagesListingCheckout',
+      <String, Object?>{
+        'requestId': requestId,
+        if (requestedTier != null && requestedTier.isNotEmpty)
+          'requestedTier': requestedTier,
+        if (billingInterval != null && billingInterval.isNotEmpty)
+          'billingInterval': billingInterval,
+        if (currency != null && currency.isNotEmpty) 'currency': currency,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> createBillingPortalSession({
+    String? requestId,
+    String? companyId,
+  }) {
+    return _call(
+      'createYellowPagesBillingPortalSession',
+      <String, Object?>{
+        if (requestId != null && requestId.isNotEmpty) 'requestId': requestId,
+        if (companyId != null && companyId.isNotEmpty) 'companyId': companyId,
       },
     );
   }

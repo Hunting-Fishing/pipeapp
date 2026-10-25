@@ -318,17 +318,30 @@ class _MarketplaceSecurePaymentPanelState
             );
           }
           if (!feeReady) {
-            return const Row(
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                const Row(
+                  children: [
+                    SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                          'Calculating the server-verified transaction total…'),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                      'Calculating the server-verified transaction total…'),
-                ),
+                if (canConfirmExternal && !viewerConfirmedExternal) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _confirmExternalSettlement,
+                    icon: const Icon(Icons.account_balance_outlined, size: 18),
+                    label: const Text('Settle directly by wire / PO instead'),
+                  ),
+                ],
               ],
             );
           }

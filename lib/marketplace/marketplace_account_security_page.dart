@@ -749,7 +749,7 @@ class _MarketplaceAccountSecurityPageState
 
   Future<void> _sendPhoneCode() async {
     final phone = normalizePhoneNumber(_phone);
-    if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(phone)) {
+    if (!RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(phone)) {
       return _notice('Enter a complete phone number including country code.',
           error: true);
     }

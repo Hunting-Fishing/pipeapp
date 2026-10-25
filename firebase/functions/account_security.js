@@ -17,7 +17,7 @@ function verificationState(token = {}) {
     email,
     emailVerified: token.email_verified === true,
     phoneNumber,
-    phoneVerified: /^\+[1-9]\d{7,14}$/.test(phoneNumber),
+    phoneVerified: /^\+[1-9]\d{6,14}$/.test(phoneNumber),
   };
 }
 
@@ -60,7 +60,7 @@ function requireAuthenticatedIdentity(
 
 function phoneRegistryKey(phoneNumber) {
   const normalized = String(phoneNumber || "").trim();
-  if (!/^\+[1-9]\d{7,14}$/.test(normalized)) {
+  if (!/^\+[1-9]\d{6,14}$/.test(normalized)) {
     throw new AccountSecurityError(
         "invalid-argument",
         "The verified phone number is not in a supported international format.",
