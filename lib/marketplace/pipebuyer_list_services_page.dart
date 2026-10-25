@@ -164,6 +164,8 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
         ? _regionCode
         : (regions.isNotEmpty ? regions.first.regionCode : '');
 
+    final isCompactScreen = MediaQuery.sizeOf(context).width < 600;
+
     return Scaffold(
       appBar: AppBar(
         leading: !Navigator.of(context).canPop() &&
@@ -175,9 +177,9 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
               )
             : null,
         title: Text(
-          widget.claimedCompanyId != null
-              ? 'CLAIM & UPGRADE LISTING'
-              : 'LIST SERVICES — PRIORITY DIRECTORY',
+          isCompactScreen
+              ? 'LIST SERVICES'
+              : 'LIST SERVICES — OILFIELD DIRECTORY',
           style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5),
         ),
       ),
@@ -306,7 +308,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                 ? r'$65 / mo ($780/yr)'
                                 : r'$79 / mo',
                             subtitle:
-                                'Pinned #1 at the top of category & basin searches across Dispatch & Yellow Pages.',
+                                'Pinned #1 at the top of service, town & basin searches across Dispatch & the Oilfield Directory.',
                             perks: const [
                               'Pinned #1 top spotlight above standard & Pro results',
                               'Gold FEATURED PARTNER card highlight & founding rate lock',
@@ -322,14 +324,14 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                           _TierPlanCard(
                             selected: _selectedTier == 'free_verified',
                             badge: 'BASIC • PHONE ONLY',
-                            title: 'Claim Basic Listing',
+                            title: 'Submit Basic Listing',
                             priceLabel: r'$0 / mo',
                             subtitle:
-                                'Confirm your current phone & operating status below all paid members.',
+                                'Submit a new business phone & town for directory verification below paid members.',
                             perks: const [
                               'Ranked below Featured Partner & Verified Pro members',
-                              'Displays Company Name, City/Province-State & Phone only',
-                              'Updates old 2015/2016 book phone numbers (no website link)',
+                              'Displays Company Name, Town/Province-State & Phone only',
+                              'Verified by PipeBuyer Directory Admin before going live',
                             ],
                             accentColor: PipeBuyerColors.slate,
                             onSelect: () =>
@@ -390,66 +392,88 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                         : null,
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _contactNameController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Primary Contact Person',
-                                        border: OutlineInputBorder(),
-                                      ),
+                              LayoutBuilder(
+                                builder: (context, rowConstraints) {
+                                  final contactField = TextFormField(
+                                    controller: _contactNameController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Primary Contact Person',
+                                      border: OutlineInputBorder(),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _emailController,
-                                      keyboardType: TextInputType.emailAddress,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Dispatch / Sales Email *',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      validator: (v) =>
-                                          (v == null || !v.contains('@'))
-                                              ? 'Enter a valid business email'
-                                              : null,
+                                  );
+                                  final emailField = TextFormField(
+                                    controller: _emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Dispatch / Sales Email *',
+                                      border: OutlineInputBorder(),
                                     ),
-                                  ),
-                                ],
+                                    validator: (v) =>
+                                        (v == null || !v.contains('@'))
+                                            ? 'Enter a valid business email'
+                                            : null,
+                                  );
+                                  if (rowConstraints.maxWidth < 640) {
+                                    return Column(
+                                      children: [
+                                        contactField,
+                                        const SizedBox(height: 12),
+                                        emailField,
+                                      ],
+                                    );
+                                  }
+                                  return Row(
+                                    children: [
+                                      Expanded(child: contactField),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: emailField),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _phoneController,
-                                      keyboardType: TextInputType.phone,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Main Dispatch / Office Phone *',
-                                        hintText: '(780) 555-0199',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      validator: (v) => (v == null ||
-                                              v.replaceAll(RegExp(r'\D'), '').length <
-                                                  10)
-                                          ? 'Enter a 10-digit North American number'
-                                          : null,
+                              LayoutBuilder(
+                                builder: (context, rowConstraints) {
+                                  final phoneField = TextFormField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Main Dispatch / Office Phone *',
+                                      hintText: '(780) 555-0199',
+                                      border: OutlineInputBorder(),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _tollFreeController,
-                                      keyboardType: TextInputType.phone,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Toll-Free Number (Optional)',
-                                        hintText: '1-800-555-0199',
-                                        border: OutlineInputBorder(),
-                                      ),
+                                    validator: (v) => (v == null ||
+                                            v.replaceAll(RegExp(r'\D'), '').length <
+                                                10)
+                                        ? 'Enter a 10-digit North American number'
+                                        : null,
+                                  );
+                                  final tollFreeField = TextFormField(
+                                    controller: _tollFreeController,
+                                    keyboardType: TextInputType.phone,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Toll-Free Number (Optional)',
+                                      hintText: '1-800-555-0199',
+                                      border: OutlineInputBorder(),
                                     ),
-                                  ),
-                                ],
+                                  );
+                                  if (rowConstraints.maxWidth < 640) {
+                                    return Column(
+                                      children: [
+                                        phoneField,
+                                        const SizedBox(height: 12),
+                                        tollFreeField,
+                                      ],
+                                    );
+                                  }
+                                  return Row(
+                                    children: [
+                                      Expanded(child: phoneField),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: tollFreeField),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
@@ -470,79 +494,95 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                     ?.copyWith(fontWeight: FontWeight.w900),
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: DropdownButtonFormField<String>(
-                                      initialValue: _countryCode,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Country *',
-                                        border: OutlineInputBorder(),
+                              LayoutBuilder(
+                                builder: (context, rowConstraints) {
+                                  final countryField =
+                                      DropdownButtonFormField<String>(
+                                    initialValue: _countryCode,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Country *',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'CA',
+                                        child: Text('Canada (CA)'),
                                       ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'CA',
-                                          child: Text('Canada (CA)'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'US',
-                                          child: Text('United States (US)'),
-                                        ),
+                                      DropdownMenuItem(
+                                        value: 'US',
+                                        child: Text('United States (US)'),
+                                      ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      final nextRegions =
+                                          PipeBuyerYellowPagesTaxonomy
+                                              .regionsForCountry(value);
+                                      setState(() {
+                                        _countryCode = value;
+                                        _regionCode = nextRegions.isNotEmpty
+                                            ? nextRegions.first.regionCode
+                                            : '';
+                                      });
+                                    },
+                                  );
+                                  final regionField =
+                                      DropdownButtonFormField<String>(
+                                    key: ValueKey(_countryCode),
+                                    initialValue: activeRegion,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Province / State *',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: regions
+                                        .map(
+                                          (r) => DropdownMenuItem(
+                                            value: r.regionCode,
+                                            child: Text(r.displayLabel),
+                                          ),
+                                        )
+                                        .toList(growable: false),
+                                    onChanged: (v) {
+                                      if (v != null) {
+                                        setState(() => _regionCode = v);
+                                      }
+                                    },
+                                  );
+                                  final cityField = TextFormField(
+                                    controller: _cityController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Headquarters / Base Town *',
+                                      hintText: 'Grande Prairie / Midland',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty)
+                                            ? 'Enter town or city'
+                                            : null,
+                                  );
+                                  if (rowConstraints.maxWidth < 680) {
+                                    return Column(
+                                      children: [
+                                        countryField,
+                                        const SizedBox(height: 12),
+                                        regionField,
+                                        const SizedBox(height: 12),
+                                        cityField,
                                       ],
-                                      onChanged: (value) {
-                                        if (value == null) return;
-                                        final nextRegions =
-                                            PipeBuyerYellowPagesTaxonomy
-                                                .regionsForCountry(value);
-                                        setState(() {
-                                          _countryCode = value;
-                                          _regionCode = nextRegions.isNotEmpty
-                                              ? nextRegions.first.regionCode
-                                              : '';
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: DropdownButtonFormField<String>(
-                                      key: ValueKey(_countryCode),
-                                      initialValue: activeRegion,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Province / State *',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      items: regions
-                                          .map(
-                                            (r) => DropdownMenuItem(
-                                              value: r.regionCode,
-                                              child: Text(r.displayLabel),
-                                            ),
-                                          )
-                                          .toList(growable: false),
-                                      onChanged: (v) {
-                                        if (v != null) {
-                                          setState(() => _regionCode = v);
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _cityController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Headquarters / Base City *',
-                                        hintText: 'Grande Prairie / Midland',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      validator: (v) =>
-                                          (v == null || v.trim().isEmpty)
-                                              ? 'Enter city'
-                                              : null,
-                                    ),
-                                  ),
-                                ],
+                                    );
+                                  }
+                                  return Row(
+                                    children: [
+                                      Expanded(child: countryField),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: regionField),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: cityField),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 14),
                               const Text(

@@ -172,7 +172,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             child: FilledButton.icon(
               onPressed: () => MarketplaceNavigation.openYellowPagesAdmin(context),
               icon: const Icon(Icons.menu_book_outlined, size: 18),
-              label: const Text('Yellow Pages Admin & Flagged'),
+              label: const Text('Oilfield Directory Admin & Flagged'),
             ),
           ),
         ],
@@ -1648,7 +1648,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'PipeBuyer Yellow Pages — Master Admin Search, Viewing ON/OFF & Flagged Businesses',
+                            'PipeBuyer Oilfield Directory — Master Admin Search, Viewing ON/OFF & Flagged Businesses',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
@@ -1656,7 +1656,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Search any company name, current phone, or 2015/2016 Yellow Book phone number. Turn public website viewing ON or OFF in 1 click, flag prohibited businesses, and manage the blocked phone blacklist.',
+                            'Search any company name, current phone, or 2015/2016 Book phone number. Turn public website viewing ON or OFF in 1 click, flag prohibited businesses, and manage the blocked phone blacklist.',
                             style: TextStyle(fontSize: 13),
                           ),
                         ],
@@ -1667,7 +1667,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                       onPressed: () =>
                           MarketplaceNavigation.openYellowPagesAdmin(context),
                       icon: const Icon(Icons.manage_search_rounded),
-                      label: const Text('Open Yellow Pages Control'),
+                      label: const Text('Open Directory Control'),
                     ),
                   ],
                 ),

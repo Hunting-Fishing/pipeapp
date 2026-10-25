@@ -64,7 +64,7 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
 }
 
 void main() {
-  test('Yellow Pages taxonomy covers Canada and USA oilfield regions and categories', () {
+  test('Oilfield Directory taxonomy covers Canada and USA regions, Town Index, Towing, and clean Pipe & OCTG icon', () {
     expect(PipeBuyerYellowPagesTaxonomy.categories.length, 24);
     final caRegions = PipeBuyerYellowPagesTaxonomy.regionsForCountry('CA');
     final usRegions = PipeBuyerYellowPagesTaxonomy.regionsForCountry('US');
@@ -76,7 +76,29 @@ void main() {
     expect(usRegions.any((r) => r.regionCode == 'OK'), isTrue);
     expect(
       PipeBuyerYellowPagesTaxonomy.byCode('vacuum_hydrovac_fluid')?.shortLabel,
-      'Vac & Hydrovac',
+      'Vac, Hydrovac & Fluid',
+    );
+    final pipeCat = PipeBuyerYellowPagesTaxonomy.byCode('pipe_octg_supply')!;
+    expect(pipeCat.icon, Icons.plumbing_outlined);
+    expect(
+      PipeBuyerYellowPagesTaxonomy.conciseCategoryLabel(pipeCat.label),
+      'Pipe, OCTG & Casing',
+    );
+    final towCat = PipeBuyerYellowPagesTaxonomy.byCode('trucking_heavy_haul')!;
+    expect(towCat.label, 'Trucking, Towing, Winch & Heavy Haul');
+    expect(towCat.shortLabel, 'Trucking, Towing & Winch');
+    expect(PipeBuyerYellowPagesTaxonomy.oilfieldHubs.length, greaterThan(120));
+    expect(
+      PipeBuyerYellowPagesTaxonomy.oilfieldHubs.any(
+        (h) => h.city == 'Nisku' && h.regionCode == 'AB',
+      ),
+      isTrue,
+    );
+    expect(
+      PipeBuyerYellowPagesTaxonomy.oilfieldHubs.any(
+        (h) => h.city == 'Midland' && h.regionCode == 'TX',
+      ),
+      isTrue,
     );
   });
 
@@ -129,6 +151,7 @@ void main() {
     expect(find.text('What do you want to do?'), findsOneWidget);
     expect(find.text('Search for services'), findsOneWidget);
     expect(find.text('List services'), findsOneWidget);
+    expect(find.textContaining('Oilfield Directory'), findsOneWidget);
 
     await tester.tap(find.text('Search for services'));
     await tester.tap(find.text('List services'));
@@ -177,7 +200,7 @@ void main() {
   });
 
   testWidgets(
-      'Left sidebar grouped navigation exposes Search for Services, List Services, and Admin controls',
+      'Left sidebar grouped navigation exposes Search for Services, List Services, and Directory Admin controls',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -212,11 +235,11 @@ void main() {
     expect(find.text('SERVICES & DIRECTORY'), findsOneWidget);
     expect(find.text('Search for Services'), findsOneWidget);
     expect(find.text('List Services'), findsOneWidget);
-    expect(find.text('Yellow Pages Admin'), findsOneWidget);
+    expect(find.text('Directory Admin'), findsOneWidget);
 
     await tester.tap(find.text('Search for Services'));
     await tester.tap(find.text('List Services'));
-    await tester.tap(find.text('Yellow Pages Admin'));
+    await tester.tap(find.text('Directory Admin'));
     await tester.pump();
 
     expect(searchTapped, 1);
@@ -226,10 +249,16 @@ void main() {
   });
 
   testWidgets(
-      'Directory page renders 4-6 responsive Grid View, Lines View, and enhanced filters cleanly',
+      'Oilfield Directory renders unified wrapping dropdown filters, zero Claim buttons, and desktop + mobile responsive views',
       (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1500, 960);
     await tester.binding.setSurfaceSize(const Size(1500, 960));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.binding.setSurfaceSize(null);
+    });
 
     await tester.pumpWidget(
       MaterialApp(
@@ -240,7 +269,21 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(
+      find.text('PIPEBUYER OILFIELD DIRECTORY • SEARCH SERVICES'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Yellow Pages'), findsNothing);
+    expect(find.textContaining('Claim'), findsNothing);
     expect(find.textContaining('12,762 verified service providers'), findsOneWidget);
+
+    // Unified wrapping filter dropdown boxes
+    expect(find.text('FILTER BY SERVICE'), findsOneWidget);
+    expect(find.text('COUNTRY & PROV / STATE'), findsOneWidget);
+    expect(find.text('FILTER BY TOWN / CITY'), findsOneWidget);
+    expect(find.text('ALPHABETICAL & SORT'), findsOneWidget);
+    expect(find.text('BASIN & OPTIONS'), findsOneWidget);
+
     expect(find.text('Grid View'), findsOneWidget);
     expect(find.text('Lines View'), findsOneWidget);
     expect(find.text('Auto (5/row)'), findsOneWidget);
@@ -251,18 +294,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    // Expand More Filters & A-Z drawer
-    await tester.tap(find.text('More Filters & A–Z'));
+    // Open Town / City picker dialog
+    await tester.tap(find.text('FILTER BY TOWN / CITY'));
     await tester.pumpAndSettle();
-    expect(find.text('A–Z INDEX:'), findsOneWidget);
-    expect(find.text('Has Toll-Free (1-800)'), findsOneWidget);
+    expect(find.text('Filter by Town / City'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
 
-    // Switch to High-Density Lines View
+    // Open Alphabetical & Sort dialog
+    await tester.tap(find.text('ALPHABETICAL & SORT'));
+    await tester.pumpAndSettle();
+    expect(find.text('Alphabetical Filter & Sort Order'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    // Switch to High-Density Lines View on desktop
     await tester.tap(find.text('Lines View'));
     await tester.pumpAndSettle();
     expect(find.text('COMPANY NAME'), findsOneWidget);
     expect(find.text('PRIMARY SERVICES & CATEGORIES'), findsOneWidget);
     expect(find.text('Apex Permian Hydrovac'), findsOneWidget);
+    expect(find.textContaining('Claim'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    // Resize to mobile phone (390x844) and verify both Lines View and Grid View have zero overflow
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    expect(find.text('OILFIELD DIRECTORY'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Grid'));
+    await tester.pumpAndSettle();
+    expect(find.text('Apex Permian Hydrovac'), findsOneWidget);
+    expect(find.textContaining('Claim'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

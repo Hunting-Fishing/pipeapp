@@ -92,7 +92,7 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               _NavItem(
                 icon: Icons.contact_phone_outlined,
                 selectedIcon: Icons.contact_phone_rounded,
-                label: 'Yellow Pages Admin',
+                label: 'Directory Admin',
                 selected: false,
                 onTap: onYellowPagesAdmin!,
               ),

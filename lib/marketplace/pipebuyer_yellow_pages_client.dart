@@ -75,7 +75,7 @@ class PipeBuyerYellowPagesClient {
           )
           .call(payload);
       if (response.data is! Map) {
-        throw StateError('The Yellow Pages service returned an invalid response.');
+        throw StateError('The Oilfield Directory service returned an invalid response.');
       }
       return Map<String, dynamic>.from(response.data as Map);
     } on FirebaseFunctionsException catch (error) {
@@ -89,12 +89,12 @@ class PipeBuyerYellowPagesClient {
       throw StateError(switch (error.code) {
         'unauthenticated' => 'Sign in to continue.',
         'permission-denied' =>
-          'Your account does not have permission for this Yellow Pages action.',
-        'not-found' => 'The requested Yellow Pages record was not found.',
+          'Your account does not have permission for this Oilfield Directory action.',
+        'not-found' => 'The requested Oilfield Directory record was not found.',
         'failed-precondition' =>
-          'This Yellow Pages action is blocked until required conditions are met.',
+          'This Oilfield Directory action is blocked until required conditions are met.',
         'invalid-argument' => 'Check the entered company details and try again.',
-        _ => 'The PipeBuyer Yellow Pages service is temporarily unavailable.',
+        _ => 'The PipeBuyer Oilfield Directory service is temporarily unavailable.',
       });
     }
   }

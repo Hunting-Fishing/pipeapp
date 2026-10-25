@@ -373,10 +373,20 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       } else if (tierFilter === "featured_only") {
         query = query.where("isFeatured", "==", true);
         if (countryCode || regionCode) serverConstrainedOnly = false;
+      } else if (startsWith && /^[A-Z]$/u.test(startsWith)) {
+        query = query
+            .where("companyName", ">=", startsWith)
+            .where("companyName", "<=", `${startsWith}\uf8ff`);
+        serverConstrainedOnly = !countryCode && !regionCode && !basin &&
+          !certification && !emergency24x7 && !paidOnly && !tierFilter && !hasTollFree;
       } else if (regionCode) {
         query = query.where("regionCode", "==", regionCode);
       } else if (countryCode) {
         query = query.where("countryCode", "==", countryCode);
+      } else if (sortBy === "name_asc") {
+        query = query.orderBy("companyName", "asc");
+      } else if (sortBy === "name_desc") {
+        query = query.orderBy("companyName", "desc");
       }
 
       const candidateCap = 1200;
@@ -414,6 +424,11 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       matched.sort((left, right) => {
         if (sortBy === "name_asc") {
           const nDiff = String(left.companyName || "").localeCompare(String(right.companyName || ""));
+          if (nDiff !== 0) return nDiff;
+          return Number(right.priorityScore || 0) - Number(left.priorityScore || 0);
+        }
+        if (sortBy === "name_desc") {
+          const nDiff = String(right.companyName || "").localeCompare(String(left.companyName || ""));
           if (nDiff !== 0) return nDiff;
           return Number(right.priorityScore || 0) - Number(left.priorityScore || 0);
         }

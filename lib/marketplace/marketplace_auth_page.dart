@@ -204,7 +204,7 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
                   ),
                   _DarkTrustPill(
                     icon: Icons.menu_book_rounded,
-                    label: 'Oil & Gas Yellow Pages (CA & US)',
+                    label: 'Oilfield Services Directory (CA & US)',
                   ),
                 ],
               ),
