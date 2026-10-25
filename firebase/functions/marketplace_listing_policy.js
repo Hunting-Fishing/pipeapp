@@ -164,6 +164,8 @@ function buildMarketplaceSearchTokens(listing) {
     "productType",
     "brand",
     "model",
+    "modelYear",
+    "engineDetails",
     "pipeSize",
     "pipeSchedule",
     "pipeGrade",

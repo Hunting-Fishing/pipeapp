@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   ListingPolicyError,
+  buildMarketplaceSearchTokens,
   validateLocation,
   validateListingMediaManifest,
   validateMarketplaceListingInput,
@@ -237,4 +238,28 @@ test("draft publication rejects incomplete or foreign media", () => {
       }),
       (error) => error instanceof ListingPolicyError,
   );
+});
+
+test("indexes modelYear and engineDetails in search tokens", () => {
+  const listing = validateMarketplaceListingInput(validListing({
+    title: "2021 Peterbilt 389 Winch Tractor",
+    category: "Transport & Hauling",
+    productType: "Winch Trucks & Tractors",
+    serialNumber: "1XPXD49X1MD123456",
+    brand: "Peterbilt",
+    modelYear: 2021,
+    model: "389",
+    engineDetails: "Cummins X15 565 HP Diesel — 18-Speed Eaton Fuller",
+    machineHours: 4820,
+  }), now);
+  assert.equal(listing.modelYear, 2021);
+  assert.equal(
+      listing.engineDetails,
+      "Cummins X15 565 HP Diesel — 18-Speed Eaton Fuller",
+  );
+  const tokens = buildMarketplaceSearchTokens(listing);
+  assert.ok(tokens.includes("2021"));
+  assert.ok(tokens.includes("cummins"));
+  assert.ok(tokens.includes("x15"));
+  assert.ok(tokens.includes("cummins x15"));
 });

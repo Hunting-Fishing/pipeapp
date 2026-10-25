@@ -47,13 +47,13 @@ MarketplaceListingGuide marketplaceListingGuideFor(
       return const MarketplaceListingGuide(
         title: 'Heavy equipment identity',
         summary:
-            'Year, make/model, usage and serial information make the listing easier to evaluate and search.',
+            'Start with Serial / PIN to auto-fill when available, then confirm make, model year, model, engine / powertrain and hours.',
         recommendedFacts: [
-          'Year',
-          'Make / model',
-          'Machine hours',
           'Serial / PIN',
-          'Operating status',
+          'Make & model year',
+          'Model',
+          'Engine / powertrain',
+          'Machine hours',
           'Attachments',
         ],
       );
@@ -61,13 +61,13 @@ MarketplaceListingGuide marketplaceListingGuideFor(
       return const MarketplaceListingGuide(
         title: 'Truck & trailer identity',
         summary:
-            'Capture the core fleet facts before describing configuration, service history and included equipment.',
+            'Enter a 17-character VIN or serial to auto-fill make, year, model and engine specs before adding fleet history.',
         recommendedFacts: [
-          'Year',
-          'Make / model',
           'VIN / serial',
+          'Make & model year',
+          'Model',
+          'Engine / powertrain',
           'Hours if applicable',
-          'Operating status',
           'Configuration',
         ],
       );
@@ -77,13 +77,13 @@ MarketplaceListingGuide marketplaceListingGuideFor(
       return const MarketplaceListingGuide(
         title: 'Industrial equipment identity',
         summary:
-            'Manufacturer, model, serial information and service condition should be visible before long-form notes.',
+            'Serial / PIN, manufacturer, model year, model, engine / powertrain and runtime should be visible before long-form notes.',
         recommendedFacts: [
+          'Serial / PIN',
           'Make / model',
           'Year if known',
-          'Serial number',
+          'Engine / powertrain',
           'Runtime / hours',
-          'Operating status',
           'Included equipment',
         ],
       );

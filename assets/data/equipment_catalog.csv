@@ -1,31 +1,1655 @@
-brand,model,primary_type
-Caterpillar,320,Excavator
-Caterpillar,336,Excavator
-Caterpillar,950 GC,Loader
-Caterpillar,D6,Bulldozer
-Komatsu,PC210LC-11,Excavator
-Komatsu,PC360LC-11,Excavator
-Komatsu,WA270-8,Loader
-Komatsu,D65EX-18,Bulldozer
-Volvo CE,EC220E,Excavator
-Volvo CE,EC300E,Excavator
-Volvo CE,L90H,Loader
-Volvo CE,A40G,Articulated Hauler
-John Deere,210 P-Tier,Excavator
-John Deere,350 P-Tier,Excavator
-John Deere,544 P-Tier,Loader
-John Deere,850K,Bulldozer
-Hitachi,ZX210LC-7,Excavator
-Hitachi,ZX350LC-7,Excavator
-JCB,3CX,Backhoe
-JCB,540-170,Telehandler
-Bobcat,S650,Skid Steer
-Bobcat,T76,Compact Track Loader
-Sullair,185 Series,Air Compressor
-Atlas Copco,XAS 188,Air Compressor
-Atlas Copco,QAS 45,Generator
-Lincoln Electric,Ranger 250,Welding Machine
-Miller,Bobcat 265,Welding Machine
-National Oilwell Varco,TDS-11SA,Top Drive
-National Oilwell Varco,14-P-220,Mud Pump
-Weatherford,MPD Package,Drilling Package
+brand,model,primary_type,category,year_from,year_to,engine_summary,manual_entry_only
+Caterpillar,215,Excavator,Heavy Equipment,1976,1984,Caterpillar 3304 (85 HP),false
+Caterpillar,215B,Excavator,Heavy Equipment,1984,1988,Caterpillar 3304 (105 HP),false
+Caterpillar,215C,Excavator,Heavy Equipment,1987,1992,Caterpillar 3304 (115 HP),false
+Caterpillar,215D,Excavator,Heavy Equipment,1989,1993,Caterpillar 3304 (125 HP),false
+Caterpillar,225,Excavator,Heavy Equipment,1972,1986,Caterpillar 3160 (125 HP) | Caterpillar 3208 (135 HP),false
+Caterpillar,225B,Excavator,Heavy Equipment,1986,1990,Caterpillar 3208 (145 HP),false
+Caterpillar,225D,Excavator,Heavy Equipment,1989,1993,Caterpillar 3208 (150 HP),false
+Caterpillar,235,Excavator,Heavy Equipment,1973,1986,Caterpillar 3306 (195 HP),false
+Caterpillar,235B,Excavator,Heavy Equipment,1986,1988,Caterpillar 3306 (215 HP),false
+Caterpillar,235C,Excavator,Heavy Equipment,1988,1992,Caterpillar 3306 (250 HP),false
+Caterpillar,235D,Excavator,Heavy Equipment,1992,1994,Caterpillar 3306 (250 HP),false
+Caterpillar,245,Excavator,Heavy Equipment,1974,1988,Caterpillar 3406 (325 HP),false
+Caterpillar,245B,Excavator,Heavy Equipment,1988,1992,Caterpillar 3406B (360 HP),false
+Caterpillar,E200B,Excavator,Heavy Equipment,1987,1993,Mitsubishi S6K-T (118 HP),false
+Caterpillar,301.5,Excavator,Heavy Equipment,1999,2006,Perkins 103-10 (18 HP),false
+Caterpillar,301.7D,Excavator,Heavy Equipment,2012,2019,Yanmar 3TNV76 (18 HP),false
+Caterpillar,301.8,Excavator,Heavy Equipment,2019,2026,Caterpillar C1.1 (21 HP),false
+Caterpillar,302.7 CR,Excavator,Heavy Equipment,2021,2026,Caterpillar C1.1 Turbo (24 HP),false
+Caterpillar,303.5C CR,Excavator,Heavy Equipment,2006,2012,Mitsubishi S3Q2 (32 HP),false
+Caterpillar,303.5E2 CR,Excavator,Heavy Equipment,2015,2021,Caterpillar C1.7 (24 HP),false
+Caterpillar,303.5 CR,Excavator,Heavy Equipment,2021,2026,Caterpillar C1.7 (24 HP),false
+Caterpillar,304C CR,Excavator,Heavy Equipment,2006,2012,Mitsubishi S4Q2 (42 HP),false
+Caterpillar,304E2,Excavator,Heavy Equipment,2015,2021,Caterpillar C2.4 (40 HP),false
+Caterpillar,305C CR,Excavator,Heavy Equipment,2006,2012,Mitsubishi S4Q2-T (47 HP),false
+Caterpillar,305E2 CR,Excavator,Heavy Equipment,2015,2021,Caterpillar C2.4 (40 HP),false
+Caterpillar,305 CR,Excavator,Heavy Equipment,2021,2026,Caterpillar C1.7 Turbo (45 HP),false
+Caterpillar,307B,Excavator,Heavy Equipment,1998,2004,Mitsubishi 4M40 (54 HP),false
+Caterpillar,308D CR,Excavator,Heavy Equipment,2008,2014,Mitsubishi 4M40-TL (56 HP),false
+Caterpillar,308E2 CR,Excavator,Heavy Equipment,2014,2019,Caterpillar C3.3B (65 HP),false
+Caterpillar,308 CR,Excavator,Heavy Equipment,2019,2026,Caterpillar C3.3B (70 HP),false
+Caterpillar,309 CR,Excavator,Heavy Equipment,2020,2026,Caterpillar C3.3B (70 HP),false
+Caterpillar,310,Excavator,Heavy Equipment,2020,2026,Caterpillar C3.3B (70 HP),false
+Caterpillar,312,Excavator,Heavy Equipment,1993,1997,Caterpillar 3064T (84 HP),false
+Caterpillar,312B,Excavator,Heavy Equipment,1997,2002,Caterpillar 3064T (90 HP),false
+Caterpillar,312C,Excavator,Heavy Equipment,2001,2006,Caterpillar 3064T (90 HP),false
+Caterpillar,312D,Excavator,Heavy Equipment,2006,2012,Caterpillar C4.2 ACERT (90 HP),false
+Caterpillar,312E,Excavator,Heavy Equipment,2012,2017,Caterpillar C4.4 ACERT (91 HP),false
+Caterpillar,313F,Excavator,Heavy Equipment,2015,2020,Caterpillar C3.4B (70 HP),false
+Caterpillar,313,Excavator,Heavy Equipment,2020,2026,Caterpillar C3.6 (108 HP),false
+Caterpillar,315L,Excavator,Heavy Equipment,1994,1998,Caterpillar 3046T (99 HP),false
+Caterpillar,315C L,Excavator,Heavy Equipment,2001,2007,Caterpillar 3046T (110 HP),false
+Caterpillar,315D L,Excavator,Heavy Equipment,2007,2013,Caterpillar C4.2 ACERT (115 HP),false
+Caterpillar,315F L,Excavator,Heavy Equipment,2015,2020,Caterpillar C4.4 ACERT (97 HP),false
+Caterpillar,315,Excavator,Heavy Equipment,2020,2026,Caterpillar C3.6 (108 HP),false
+Caterpillar,320L,Excavator,Heavy Equipment,1992,1996,Caterpillar 3066T (128 HP),false
+Caterpillar,320B,Excavator,Heavy Equipment,1996,2002,Caterpillar 3066T (134 HP),false
+Caterpillar,320C,Excavator,Heavy Equipment,2001,2006,Caterpillar 3066TA (138 HP),false
+Caterpillar,320D,Excavator,Heavy Equipment,2006,2012,Caterpillar C6.4 ACERT (148 HP),false
+Caterpillar,320E,Excavator,Heavy Equipment,2011,2017,Caterpillar C6.6 ACERT (153 HP),false
+Caterpillar,320F,Excavator,Heavy Equipment,2015,2019,Caterpillar C4.4 ACERT (161 HP),false
+Caterpillar,320 GC,Excavator,Heavy Equipment,2018,2026,Caterpillar C4.4 (143 HP),false
+Caterpillar,320,Excavator,Heavy Equipment,2018,2026,Caterpillar C4.4 ACERT (162 HP) | Caterpillar C7.1 (172 HP),false
+Caterpillar,321D LCR,Excavator,Heavy Equipment,2007,2013,Caterpillar C6.4 ACERT (148 HP),false
+Caterpillar,322L,Excavator,Heavy Equipment,1993,1997,Caterpillar 3116TA (153 HP),false
+Caterpillar,322B L,Excavator,Heavy Equipment,1997,2002,Caterpillar 3116TA (168 HP),false
+Caterpillar,322C L,Excavator,Heavy Equipment,2001,2006,Caterpillar 3126B (168 HP),false
+Caterpillar,323D L,Excavator,Heavy Equipment,2006,2012,Caterpillar C6.4 ACERT (148 HP),false
+Caterpillar,323E L,Excavator,Heavy Equipment,2012,2015,Caterpillar C6.6 ACERT (164 HP),false
+Caterpillar,323F L,Excavator,Heavy Equipment,2015,2019,Caterpillar C7.1 ACERT (161 HP),false
+Caterpillar,323,Excavator,Heavy Equipment,2018,2026,Caterpillar C7.1 (174 HP),false
+Caterpillar,324D L,Excavator,Heavy Equipment,2006,2012,Caterpillar C7 ACERT (188 HP),false
+Caterpillar,325L,Excavator,Heavy Equipment,1992,1996,Caterpillar 3116TA (168 HP),false
+Caterpillar,325B L,Excavator,Heavy Equipment,1996,2002,Caterpillar 3116TA (178 HP),false
+Caterpillar,325C L,Excavator,Heavy Equipment,2001,2006,Caterpillar 3126B (188 HP),false
+Caterpillar,325D L,Excavator,Heavy Equipment,2006,2011,Caterpillar C7 ACERT (204 HP),false
+Caterpillar,325F,Excavator,Heavy Equipment,2015,2020,Caterpillar C4.4 ACERT (161 HP),false
+Caterpillar,325,Excavator,Heavy Equipment,2020,2026,Caterpillar C4.4 (172 HP),false
+Caterpillar,326F,Excavator,Heavy Equipment,2016,2020,Caterpillar C7.1 ACERT (203 HP),false
+Caterpillar,326,Excavator,Heavy Equipment,2020,2026,Caterpillar C7.1 (204 HP),false
+Caterpillar,329D L,Excavator,Heavy Equipment,2008,2012,Caterpillar C7 ACERT (204 HP),false
+Caterpillar,329E L,Excavator,Heavy Equipment,2011,2016,Caterpillar C7.1 ACERT (231 HP),false
+Caterpillar,330L,Excavator,Heavy Equipment,1992,1996,Caterpillar 3306TA (222 HP),false
+Caterpillar,330B L,Excavator,Heavy Equipment,1996,2002,Caterpillar 3306TA (222 HP),false
+Caterpillar,330C L,Excavator,Heavy Equipment,2001,2006,Caterpillar C9 (247 HP),false
+Caterpillar,330D L,Excavator,Heavy Equipment,2006,2011,Caterpillar C9 ACERT (268 HP),false
+Caterpillar,330F,Excavator,Heavy Equipment,2015,2019,Caterpillar C7.1 ACERT (239 HP),false
+Caterpillar,330,Excavator,Heavy Equipment,2019,2026,Caterpillar C7.1 (273 HP),false
+Caterpillar,335F LCR,Excavator,Heavy Equipment,2015,2020,Caterpillar C7.1 ACERT (203 HP),false
+Caterpillar,335,Excavator,Heavy Equipment,2020,2026,Caterpillar C7.1 (273 HP),false
+Caterpillar,336D,Excavator,Heavy Equipment,2008,2012,Caterpillar C9 ACERT (268 HP),false
+Caterpillar,336E,Excavator,Heavy Equipment,2011,2015,Caterpillar C9.3 ACERT (300 HP) | Caterpillar C9.3 ACERT Hybrid (308 HP),false
+Caterpillar,336F,Excavator,Heavy Equipment,2015,2019,Caterpillar C9.3 ACERT (312 HP),false
+Caterpillar,336,Excavator,Heavy Equipment,2018,2026,Caterpillar C9.3B (311 HP),false
+Caterpillar,345B L,Excavator,Heavy Equipment,1997,2002,Caterpillar 3176C (290 HP),false
+Caterpillar,345C L,Excavator,Heavy Equipment,2005,2009,Caterpillar C13 ACERT (345 HP),false
+Caterpillar,345D L,Excavator,Heavy Equipment,2009,2012,Caterpillar C13 ACERT (380 HP),false
+Caterpillar,349E,Excavator,Heavy Equipment,2011,2015,Caterpillar C13 ACERT (396 HP),false
+Caterpillar,349F,Excavator,Heavy Equipment,2015,2020,Caterpillar C13 ACERT (417 HP),false
+Caterpillar,349,Excavator,Heavy Equipment,2020,2026,Caterpillar C13 (424 HP),false
+Caterpillar,350L,Excavator,Heavy Equipment,1993,1998,Caterpillar 3306TA (286 HP),false
+Caterpillar,352F,Excavator,Heavy Equipment,2015,2020,Caterpillar C13 ACERT (417 HP),false
+Caterpillar,352,Excavator,Heavy Equipment,2020,2026,Caterpillar C13 (443 HP),false
+Caterpillar,365B L,Excavator,Heavy Equipment,1999,2005,Caterpillar 3196 (404 HP),false
+Caterpillar,365C L,Excavator,Heavy Equipment,2005,2010,Caterpillar C15 ACERT (404 HP),false
+Caterpillar,374D L,Excavator,Heavy Equipment,2010,2014,Caterpillar C15 ACERT (476 HP),false
+Caterpillar,374F L,Excavator,Heavy Equipment,2014,2020,Caterpillar C15 ACERT (472 HP),false
+Caterpillar,374,Excavator,Heavy Equipment,2020,2026,Caterpillar C15 (484 HP),false
+Caterpillar,385B,Excavator,Heavy Equipment,2001,2005,Caterpillar 3456 (513 HP),false
+Caterpillar,385C,Excavator,Heavy Equipment,2005,2011,Caterpillar C18 ACERT (513 HP),false
+Caterpillar,390D L,Excavator,Heavy Equipment,2010,2014,Caterpillar C18 ACERT (523 HP),false
+Caterpillar,390F L,Excavator,Heavy Equipment,2014,2020,Caterpillar C18 ACERT (524 HP),false
+Caterpillar,395,Excavator,Heavy Equipment,2020,2026,Caterpillar C18 (542 HP),false
+Caterpillar,D3,Bulldozer,Heavy Equipment,1973,1979,Caterpillar 3204 (62 HP),false
+Caterpillar,D3B,Bulldozer,Heavy Equipment,1979,1988,Caterpillar 3204 (65 HP),false
+Caterpillar,D3C,Bulldozer,Heavy Equipment,1988,2002,Caterpillar 3046 (70 HP),false
+Caterpillar,D3G,Bulldozer,Heavy Equipment,2002,2007,Caterpillar 3046T (70 HP),false
+Caterpillar,D3K2,Bulldozer,Heavy Equipment,2012,2019,Caterpillar C4.4 ACERT (80 HP),false
+Caterpillar,D1,Bulldozer,Heavy Equipment,2020,2026,Caterpillar C3.6 (80 HP),false
+Caterpillar,D4D,Bulldozer,Heavy Equipment,1970,1977,Caterpillar 3304 (75 HP),false
+Caterpillar,D4E,Bulldozer,Heavy Equipment,1977,1987,Caterpillar 3304 (80 HP),false
+Caterpillar,D4H,Bulldozer,Heavy Equipment,1985,1997,Caterpillar 3204T (95 HP),false
+Caterpillar,D4G,Bulldozer,Heavy Equipment,2002,2007,Caterpillar 3046T (80 HP),false
+Caterpillar,D4K2,Bulldozer,Heavy Equipment,2012,2019,Caterpillar C4.4 ACERT (92 HP),false
+Caterpillar,D2,Bulldozer,Heavy Equipment,2020,2026,Caterpillar C3.6 (92 HP),false
+Caterpillar,D5B,Bulldozer,Heavy Equipment,1977,1987,Caterpillar 3306 (105 HP),false
+Caterpillar,D5H,Bulldozer,Heavy Equipment,1985,1996,Caterpillar 3304T (120 HP),false
+Caterpillar,D5M,Bulldozer,Heavy Equipment,1996,2002,Caterpillar 3116T (110 HP),false
+Caterpillar,D5N,Bulldozer,Heavy Equipment,2002,2007,Caterpillar 3126B (115 HP),false
+Caterpillar,D5K2,Bulldozer,Heavy Equipment,2012,2019,Caterpillar C4.4 ACERT (104 HP),false
+Caterpillar,D5,Bulldozer,Heavy Equipment,2020,2026,Caterpillar C7.1 (170 HP),false
+Caterpillar,D6C,Bulldozer,Heavy Equipment,1970,1977,Caterpillar D333C / 3306 (140 HP),false
+Caterpillar,D6D,Bulldozer,Heavy Equipment,1977,1996,Caterpillar 3306T (140 HP),false
+Caterpillar,D6H,Bulldozer,Heavy Equipment,1985,1996,Caterpillar 3306T (165 HP),false
+Caterpillar,D6M,Bulldozer,Heavy Equipment,1996,2002,Caterpillar 3116TA (140 HP),false
+Caterpillar,D6N,Bulldozer,Heavy Equipment,2002,2019,Caterpillar 3126B / C6.6 ACERT (150 HP) | Caterpillar C7.1 ACERT (166 HP),false
+Caterpillar,D6R,Bulldozer,Heavy Equipment,1996,2012,Caterpillar 3306TA (175 HP) | Caterpillar C9 ACERT (195 HP),false
+Caterpillar,D6T,Bulldozer,Heavy Equipment,2006,2019,Caterpillar C9 ACERT (200 HP) | Caterpillar C9.3 ACERT (207 HP),false
+Caterpillar,D6,Bulldozer,Heavy Equipment,2019,2026,Caterpillar C9.3B (215 HP) | Caterpillar C9.3B High-Drive Electric (215 HP),false
+Caterpillar,D6 XE,Bulldozer,Heavy Equipment,2019,2026,Caterpillar C9.3B (215 HP),false
+Caterpillar,D7F,Bulldozer,Heavy Equipment,1970,1974,Caterpillar 3306T (180 HP),false
+Caterpillar,D7G,Bulldozer,Heavy Equipment,1974,1998,Caterpillar 3306T (200 HP),false
+Caterpillar,D7H,Bulldozer,Heavy Equipment,1986,1996,Caterpillar 3306TA (215 HP),false
+Caterpillar,D7R,Bulldozer,Heavy Equipment,1996,2014,Caterpillar 3176C / C9 (240 HP),false
+Caterpillar,D7E,Bulldozer,Heavy Equipment,2009,2019,Caterpillar C9.3 ACERT (235 HP),false
+Caterpillar,D7,Bulldozer,Heavy Equipment,2020,2026,Caterpillar C9.3B (265 HP),false
+Caterpillar,D8H,Bulldozer,Heavy Equipment,1970,1974,Caterpillar D342T (270 HP),false
+Caterpillar,D8K,Bulldozer,Heavy Equipment,1974,1982,Caterpillar D342T (300 HP),false
+Caterpillar,D8L,Bulldozer,Heavy Equipment,1982,1987,Caterpillar 3408 (335 HP),false
+Caterpillar,D8N,Bulldozer,Heavy Equipment,1987,1996,Caterpillar 3406B (285 HP),false
+Caterpillar,D8R,Bulldozer,Heavy Equipment,1996,2006,Caterpillar 3406C / 3406E (305 HP),false
+Caterpillar,D8T,Bulldozer,Heavy Equipment,2004,2020,Caterpillar C15 ACERT (310 HP) | Caterpillar C15 ACERT Tier 4 (354 HP),false
+Caterpillar,D8,Bulldozer,Heavy Equipment,2020,2026,Caterpillar C15 (363 HP),false
+Caterpillar,D9G,Bulldozer,Heavy Equipment,1970,1974,Caterpillar D353E (385 HP),false
+Caterpillar,D9H,Bulldozer,Heavy Equipment,1974,1980,Caterpillar D353E (410 HP),false
+Caterpillar,D9L,Bulldozer,Heavy Equipment,1980,1987,Caterpillar 3412 (460 HP),false
+Caterpillar,D9N,Bulldozer,Heavy Equipment,1987,1995,Caterpillar 3408B (370 HP),false
+Caterpillar,D9R,Bulldozer,Heavy Equipment,1995,2007,Caterpillar 3408E (405 HP),false
+Caterpillar,D9T,Bulldozer,Heavy Equipment,2004,2020,Caterpillar C18 ACERT (436 HP),false
+Caterpillar,D9,Bulldozer,Heavy Equipment,2020,2026,Caterpillar C18 (452 HP),false
+Caterpillar,D10N,Bulldozer,Heavy Equipment,1987,1996,Caterpillar 3412 (520 HP),false
+Caterpillar,D10R,Bulldozer,Heavy Equipment,1996,2005,Caterpillar 3412E (570 HP),false
+Caterpillar,D10T,Bulldozer,Heavy Equipment,2005,2014,Caterpillar C27 ACERT (580 HP),false
+Caterpillar,D10T2,Bulldozer,Heavy Equipment,2014,2023,Caterpillar C27 ACERT (600 HP),false
+Caterpillar,D11N,Bulldozer,Heavy Equipment,1986,1996,Caterpillar 3508 (770 HP),false
+Caterpillar,D11R,Bulldozer,Heavy Equipment,1996,2008,Caterpillar 3508B (850 HP),false
+Caterpillar,D11T,Bulldozer,Heavy Equipment,2008,2020,Caterpillar C32 ACERT (850 HP),false
+Caterpillar,D11,Bulldozer,Heavy Equipment,2020,2026,Caterpillar C32 (850 HP),false
+Caterpillar,910,Loader,Heavy Equipment,1973,1988,Caterpillar 3204 (65 HP),false
+Caterpillar,914G,Loader,Heavy Equipment,1995,2012,Caterpillar 3054T / C4.4 (96 HP),false
+Caterpillar,920,Loader,Heavy Equipment,1970,1984,Caterpillar 3304 (80 HP),false
+Caterpillar,924G,Loader,Heavy Equipment,1999,2007,Caterpillar 3056E (129 HP),false
+Caterpillar,924K,Loader,Heavy Equipment,2012,2019,Caterpillar C6.6 / C7.1 (141 HP),false
+Caterpillar,926M,Loader,Heavy Equipment,2014,2023,Caterpillar C7.1 ACERT (153 HP),false
+Caterpillar,930,Loader,Heavy Equipment,1970,1984,Caterpillar 3304 (100 HP),false
+Caterpillar,930G,Loader,Heavy Equipment,2003,2007,Caterpillar 3056E (149 HP),false
+Caterpillar,930K,Loader,Heavy Equipment,2012,2015,Caterpillar C6.6 ACERT (160 HP),false
+Caterpillar,930M,Loader,Heavy Equipment,2014,2024,Caterpillar C7.1 ACERT (164 HP),false
+Caterpillar,936,Loader,Heavy Equipment,1983,1989,Caterpillar 3304T (125 HP),false
+Caterpillar,938F,Loader,Heavy Equipment,1993,1998,Caterpillar 3116T (140 HP),false
+Caterpillar,938G,Loader,Heavy Equipment,1998,2007,Caterpillar 3126B (160 HP),false
+Caterpillar,938H,Loader,Heavy Equipment,2007,2012,Caterpillar C6.6 ACERT (180 HP),false
+Caterpillar,938K,Loader,Heavy Equipment,2012,2015,Caterpillar C7.1 ACERT (188 HP),false
+Caterpillar,938M,Loader,Heavy Equipment,2014,2024,Caterpillar C7.1 ACERT (188 HP),false
+Caterpillar,950,Loader,Heavy Equipment,1970,1981,Caterpillar 3304T (130 HP),false
+Caterpillar,950B,Loader,Heavy Equipment,1981,1987,Caterpillar 3304T (155 HP),false
+Caterpillar,950E,Loader,Heavy Equipment,1987,1991,Caterpillar 3304T (160 HP),false
+Caterpillar,950F,Loader,Heavy Equipment,1991,1998,Caterpillar 3116TA (170 HP),false
+Caterpillar,950G,Loader,Heavy Equipment,1998,2006,Caterpillar 3126B / C7 (183 HP),false
+Caterpillar,950H,Loader,Heavy Equipment,2005,2013,Caterpillar C7 ACERT (197 HP),false
+Caterpillar,950K,Loader,Heavy Equipment,2011,2015,Caterpillar C7.1 ACERT (211 HP),false
+Caterpillar,950M,Loader,Heavy Equipment,2014,2022,Caterpillar C7.1 ACERT (230 HP),false
+Caterpillar,950 GC,Loader,Heavy Equipment,2015,2026,Caterpillar C7.1 (225 HP),false
+Caterpillar,962H,Loader,Heavy Equipment,2005,2013,Caterpillar C7 ACERT (211 HP),false
+Caterpillar,962M,Loader,Heavy Equipment,2014,2022,Caterpillar C7.1 ACERT (250 HP),false
+Caterpillar,966C,Loader,Heavy Equipment,1970,1980,Caterpillar 3306T (170 HP),false
+Caterpillar,966D,Loader,Heavy Equipment,1980,1987,Caterpillar 3306T (200 HP),false
+Caterpillar,966E,Loader,Heavy Equipment,1987,1991,Caterpillar 3306TA (216 HP),false
+Caterpillar,966F,Loader,Heavy Equipment,1990,1998,Caterpillar 3306TA (220 HP),false
+Caterpillar,966G,Loader,Heavy Equipment,1998,2006,Caterpillar 3306TA / C11 (253 HP),false
+Caterpillar,966H,Loader,Heavy Equipment,2005,2013,Caterpillar C11 ACERT (262 HP),false
+Caterpillar,966K,Loader,Heavy Equipment,2011,2014,Caterpillar C9.3 ACERT (267 HP),false
+Caterpillar,966M,Loader,Heavy Equipment,2014,2021,Caterpillar C9.3 ACERT (276 HP) | Caterpillar C9.3 ACERT XE (299 HP),false
+Caterpillar,966,Loader,Heavy Equipment,2021,2026,Caterpillar C9.3B (321 HP) | Caterpillar C9.3B XE Powertrain (321 HP),false
+Caterpillar,966 XE,Loader,Heavy Equipment,2021,2026,Caterpillar C9.3B (321 HP),false
+Caterpillar,972H,Loader,Heavy Equipment,2005,2013,Caterpillar C13 ACERT (287 HP),false
+Caterpillar,972M,Loader,Heavy Equipment,2014,2021,Caterpillar C9.3 ACERT (299 HP),false
+Caterpillar,980B,Loader,Heavy Equipment,1970,1977,Caterpillar 3306T (260 HP),false
+Caterpillar,980C,Loader,Heavy Equipment,1977,1993,Caterpillar 3406T (270 HP),false
+Caterpillar,980F,Loader,Heavy Equipment,1991,1996,Caterpillar 3406TA (275 HP),false
+Caterpillar,980G,Loader,Heavy Equipment,1996,2006,Caterpillar 3406C / C15 (300 HP),false
+Caterpillar,980H,Loader,Heavy Equipment,2005,2013,Caterpillar C15 ACERT (349 HP),false
+Caterpillar,980K,Loader,Heavy Equipment,2010,2014,Caterpillar C13 ACERT (369 HP),false
+Caterpillar,980M,Loader,Heavy Equipment,2014,2021,Caterpillar C13 ACERT (386 HP),false
+Caterpillar,980,Loader,Heavy Equipment,2021,2026,Caterpillar C13 (420 HP),false
+Caterpillar,988B,Loader,Heavy Equipment,1976,1993,Caterpillar 3408 (375 HP),false
+Caterpillar,988F,Loader,Heavy Equipment,1993,2001,Caterpillar 3408E (430 HP),false
+Caterpillar,988H,Loader,Heavy Equipment,2004,2013,Caterpillar C18 ACERT (501 HP),false
+Caterpillar,988K,Loader,Heavy Equipment,2013,2023,Caterpillar C18 ACERT (541 HP),false
+Caterpillar,992C,Loader,Heavy Equipment,1977,1992,Caterpillar 3412 (690 HP),false
+Caterpillar,992G,Loader,Heavy Equipment,1996,2007,Caterpillar 3508B (800 HP),false
+Caterpillar,992K,Loader,Heavy Equipment,2007,2021,Caterpillar C32 ACERT (814 HP),false
+Caterpillar,992,Loader,Heavy Equipment,2021,2026,Caterpillar C32B (814 HP),false
+Caterpillar,416 Series I,Backhoe,Heavy Equipment,1985,1992,Perkins 4.236 (62 HP),false
+Caterpillar,416B,Backhoe,Heavy Equipment,1992,1996,Caterpillar 3054 (75 HP),false
+Caterpillar,416C,Backhoe,Heavy Equipment,1996,2001,Caterpillar 3054T (80 HP),false
+Caterpillar,416D,Backhoe,Heavy Equipment,2001,2006,Caterpillar 3054C (78 HP),false
+Caterpillar,416E,Backhoe,Heavy Equipment,2006,2012,Caterpillar C4.4 (89 HP),false
+Caterpillar,416F,Backhoe,Heavy Equipment,2012,2015,Caterpillar C4.4 ACERT (87 HP),false
+Caterpillar,416F2,Backhoe,Heavy Equipment,2015,2020,Caterpillar C4.4 ACERT (87 HP),false
+Caterpillar,416,Backhoe,Heavy Equipment,2020,2026,Caterpillar C3.6 (86 HP),false
+Caterpillar,420D,Backhoe,Heavy Equipment,2001,2006,Caterpillar 3054T (88 HP),false
+Caterpillar,420E,Backhoe,Heavy Equipment,2006,2012,Caterpillar C4.4 ACERT (93 HP),false
+Caterpillar,420F,Backhoe,Heavy Equipment,2012,2015,Caterpillar C4.4 ACERT (94 HP),false
+Caterpillar,420F2,Backhoe,Heavy Equipment,2015,2020,Caterpillar C4.4 ACERT (93 HP),false
+Caterpillar,420,Backhoe,Heavy Equipment,2020,2026,Caterpillar C3.6 (92 HP),false
+Caterpillar,426C,Backhoe,Heavy Equipment,1996,2000,Caterpillar 3054T (85 HP),false
+Caterpillar,430E,Backhoe,Heavy Equipment,2006,2012,Caterpillar C4.4 ACERT (101 HP),false
+Caterpillar,430F2,Backhoe,Heavy Equipment,2015,2020,Caterpillar C4.4 ACERT (108 HP),false
+Caterpillar,430,Backhoe,Heavy Equipment,2020,2026,Caterpillar C3.6 (107 HP),false
+Caterpillar,446B,Backhoe,Heavy Equipment,1993,2000,Caterpillar 3114T (102 HP),false
+Caterpillar,216,Skid Steer,Heavy Equipment,1999,2004,Caterpillar 3034 (49 HP),false
+Caterpillar,226B,Skid Steer,Heavy Equipment,2004,2011,Caterpillar 3024C / C2.2T (57 HP),false
+Caterpillar,226D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C2.2 CRDI (67 HP),false
+Caterpillar,236B,Skid Steer,Heavy Equipment,2004,2010,Caterpillar 3044C (70 HP),false
+Caterpillar,236D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.3B DIT (74 HP),false
+Caterpillar,246C,Skid Steer,Heavy Equipment,2007,2013,Caterpillar C3.4T (73 HP),false
+Caterpillar,246D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.3B DIT (74 HP),false
+Caterpillar,259B3,Skid Steer,Heavy Equipment,2010,2014,Caterpillar C3.4 DIT (71 HP),false
+Caterpillar,259D,Skid Steer,Heavy Equipment,2014,2019,Caterpillar C3.3B DIT (74 HP),false
+Caterpillar,259D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.3B DIT (74 HP),false
+Caterpillar,262D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.3B DIT (74 HP),false
+Caterpillar,272D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.8 DIT (98 HP),false
+Caterpillar,279D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.3B DIT (74 HP),false
+Caterpillar,289D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.3B DIT (74 HP),false
+Caterpillar,299D3,Skid Steer,Heavy Equipment,2019,2024,Caterpillar C3.8 DIT (98 HP) | Caterpillar C3.8 DIT XE High-Flow (110 HP),false
+Caterpillar,255,Skid Steer,Heavy Equipment,2024,2026,Caterpillar C2.8T (74 HP),false
+Caterpillar,265,Skid Steer,Heavy Equipment,2024,2026,Caterpillar C2.8TA (74 HP),false
+Caterpillar,275,Skid Steer,Heavy Equipment,2024,2026,Caterpillar C3.6TA (112 HP),false
+Caterpillar,12G,Grader,Heavy Equipment,1973,1995,Caterpillar 3306 (135 HP),false
+Caterpillar,12H,Grader,Heavy Equipment,1995,2008,Caterpillar 3306TA / C9 (145 HP),false
+Caterpillar,12M,Grader,Heavy Equipment,2008,2019,Caterpillar C6.6 / C7.1 ACERT (173 HP),false
+Caterpillar,140G,Grader,Heavy Equipment,1974,1995,Caterpillar 3306T (150 HP),false
+Caterpillar,140H,Grader,Heavy Equipment,1995,2008,Caterpillar 3176C / C9 (165 HP),false
+Caterpillar,140M,Grader,Heavy Equipment,2007,2019,Caterpillar C7 / C9.3 ACERT (183 HP),false
+Caterpillar,140,Grader,Heavy Equipment,2019,2026,Caterpillar C9.3B (231 HP),false
+Caterpillar,14G,Grader,Heavy Equipment,1973,1995,Caterpillar 3306T (180 HP),false
+Caterpillar,14H,Grader,Heavy Equipment,1995,2007,Caterpillar 3306TA / 3176C (220 HP),false
+Caterpillar,14M,Grader,Heavy Equipment,2007,2020,Caterpillar C11 / C13 ACERT (259 HP),false
+Caterpillar,16G,Grader,Heavy Equipment,1973,1995,Caterpillar 3406T (250 HP),false
+Caterpillar,16M,Grader,Heavy Equipment,2007,2019,Caterpillar C13 ACERT (297 HP),false
+Caterpillar,725,Roll Off Truck,Transport & Hauling,2001,2026,Caterpillar 3176C / C11 ACERT (309 HP) | Caterpillar C9.3 / C9.3B (342 HP),false
+Caterpillar,730,Roll Off Truck,Transport & Hauling,2001,2026,Caterpillar 3196 / C11 ACERT (325 HP) | Caterpillar C13 / C13B (367 HP),false
+Caterpillar,735,Roll Off Truck,Transport & Hauling,2001,2026,Caterpillar C15 (428 HP),false
+Caterpillar,740,Roll Off Truck,Transport & Hauling,2001,2017,Caterpillar 3406E / C15 ACERT (469 HP),false
+Caterpillar,745,Roll Off Truck,Transport & Hauling,2015,2026,Caterpillar C18 (504 HP),false
+Caterpillar,TH360B,Telehandler,Heavy Equipment,2002,2008,Caterpillar 3054E (99 HP),false
+Caterpillar,TL642,Telehandler,Heavy Equipment,2007,2026,Caterpillar C3.6 / C4.4 (100 HP),false
+Caterpillar,TL943,Telehandler,Heavy Equipment,2007,2026,Caterpillar C3.6 / C4.4 (111 HP),false
+Caterpillar,TL1055,Telehandler,Heavy Equipment,2007,2026,Caterpillar C4.4 ACERT (134 HP),false
+Caterpillar,CS56,Compactor,Heavy Equipment,2007,2013,Caterpillar C6.6 ACERT (156 HP),false
+Caterpillar,CS56B,Compactor,Heavy Equipment,2012,2026,Caterpillar C4.4 / C7.1 (157 HP),false
+Caterpillar,CP56,Compactor,Heavy Equipment,2007,2024,Caterpillar C4.4 / C6.6 ACERT (156 HP),false
+Caterpillar,XQ125,Generator,Site Support,2010,2026,Caterpillar C4.4 ACERT (165 HP),false
+Caterpillar,XQ400,Generator,Site Support,2008,2026,Caterpillar C13 / C15 ACERT (536 HP),false
+Caterpillar,G3516,Compressor,Oil & Gas Equipment,1988,2026,Caterpillar G3516 / G3516B (1380 HP),false
+Caterpillar,3512C Well Service,Pump,Oil & Gas Equipment,2007,2026,Caterpillar 3512C HD (2250 HP),false
+Komatsu,PC200-1,Excavator,Heavy Equipment,1980,1982,Komatsu S6D105-1 (105 HP),false
+Komatsu,PC200-3,Excavator,Heavy Equipment,1984,1988,Komatsu S6D105-B (118 HP),false
+Komatsu,PC200-5,Excavator,Heavy Equipment,1988,1993,Komatsu S6D95L-1 (123 HP),false
+Komatsu,PC200-6,Excavator,Heavy Equipment,1994,2001,Komatsu S6D102E-1 (133 HP),false
+Komatsu,PC200-7,Excavator,Heavy Equipment,2001,2005,Komatsu SAA6D102E-2 (143 HP),false
+Komatsu,PC200-8,Excavator,Heavy Equipment,2005,2012,Komatsu SAA6D107E-1 (148 HP),false
+Komatsu,PC120-5,Excavator,Heavy Equipment,1988,2002,Komatsu S4D95L / S4D102E (86 HP),false
+Komatsu,PC220LC-3,Excavator,Heavy Equipment,1984,1989,Komatsu S6D105 (148 HP),false
+Komatsu,PC220LC-5,Excavator,Heavy Equipment,1989,1994,Komatsu SA6D95L-1 (157 HP),false
+Komatsu,PC220LC-6,Excavator,Heavy Equipment,1994,2001,Komatsu SA6D102E-1 (158 HP),false
+Komatsu,PC220LC-7,Excavator,Heavy Equipment,2001,2005,Komatsu SAA6D102E-2 (168 HP),false
+Komatsu,PC220LC-8,Excavator,Heavy Equipment,2005,2012,Komatsu SAA6D107E-1 (168 HP),false
+Komatsu,PC300LC-3,Excavator,Heavy Equipment,1985,1990,Komatsu S6D125-1 (207 HP),false
+Komatsu,PC300LC-5,Excavator,Heavy Equipment,1990,1995,Komatsu SA6D108-1 (211 HP),false
+Komatsu,PC300LC-6,Excavator,Heavy Equipment,1995,2002,Komatsu SAA6D108E-2 (232 HP),false
+Komatsu,PC300LC-7,Excavator,Heavy Equipment,2002,2006,Komatsu SAA6D114E-2 (242 HP),false
+Komatsu,PC300LC-8,Excavator,Heavy Equipment,2006,2012,Komatsu SAA6D114E-3 (246 HP),false
+Komatsu,PC400LC-3,Excavator,Heavy Equipment,1985,1995,Komatsu S6D125-1 (276 HP),false
+Komatsu,PC400LC-6,Excavator,Heavy Equipment,1995,2005,Komatsu SA6D125E-2 (306 HP),false
+Komatsu,PC400LC-8,Excavator,Heavy Equipment,2006,2012,Komatsu SAA6D125E-5 (345 HP),false
+Komatsu,PC35MR-5,Excavator,Heavy Equipment,2017,2026,Komatsu 3D88E-7 (24 HP),false
+Komatsu,PC55MR-3,Excavator,Heavy Equipment,2009,2018,Komatsu 4D88E-6 (38 HP),false
+Komatsu,PC55MR-5,Excavator,Heavy Equipment,2018,2026,Komatsu 4D88E-7 (38 HP),false
+Komatsu,PC78US-6,Excavator,Heavy Equipment,2003,2014,Komatsu 4D95LE-3 (54 HP),false
+Komatsu,PC78US-10,Excavator,Heavy Equipment,2015,2026,Komatsu SAA4D95LE-6 / -7 (65 HP),false
+Komatsu,PC88MR-10,Excavator,Heavy Equipment,2015,2020,Komatsu SAA4D95LE-6 (65 HP),false
+Komatsu,PC88MR-11,Excavator,Heavy Equipment,2020,2026,Komatsu SAA4D95LE-7 (68 HP),false
+Komatsu,PC138USLC-8,Excavator,Heavy Equipment,2007,2012,Komatsu SAA4D95LE-5 (92 HP),false
+Komatsu,PC138USLC-10,Excavator,Heavy Equipment,2012,2016,Komatsu SAA4D95LE-6 (93 HP),false
+Komatsu,PC138USLC-11,Excavator,Heavy Equipment,2016,2026,Komatsu SAA4D95LE-7 (97 HP),false
+Komatsu,PC210LC-10,Excavator,Heavy Equipment,2012,2017,Komatsu SAA6D107E-2 (158 HP),false
+Komatsu,PC210LC-11,Excavator,Heavy Equipment,2017,2026,Komatsu SAA6D107E-3 (165 HP),false
+Komatsu,PC240LC-10,Excavator,Heavy Equipment,2012,2016,Komatsu SAA6D107E-2 (177 HP),false
+Komatsu,PC240LC-11,Excavator,Heavy Equipment,2016,2026,Komatsu SAA6D107E-3 (189 HP),false
+Komatsu,PC290LC-10,Excavator,Heavy Equipment,2012,2016,Komatsu SAA6D107E-2 (196 HP),false
+Komatsu,PC290LC-11,Excavator,Heavy Equipment,2016,2026,Komatsu SAA6D107E-3 (196 HP),false
+Komatsu,PC360LC-10,Excavator,Heavy Equipment,2011,2015,Komatsu SAA6D114E-5 (257 HP),false
+Komatsu,PC360LC-11,Excavator,Heavy Equipment,2015,2026,Komatsu SAA6D114E-6 (257 HP),false
+Komatsu,PC490LC-10,Excavator,Heavy Equipment,2012,2015,Komatsu SAA6D125E-6 (359 HP),false
+Komatsu,PC490LC-11,Excavator,Heavy Equipment,2015,2026,Komatsu SAA6D125E-7 (359 HP),false
+Komatsu,HB215LC-1,Excavator,Heavy Equipment,2011,2014,Komatsu SAA4D107E-1 (139 HP),false
+Komatsu,HB215LC-2,Excavator,Heavy Equipment,2014,2017,Komatsu SAA4D107E-2 (148 HP),false
+Komatsu,HB215LC-3,Excavator,Heavy Equipment,2017,2024,Komatsu SAA4D107E-3 (148 HP),false
+Komatsu,D39EX-24,Bulldozer,Heavy Equipment,2007,2026,Komatsu SAA4D95LE-7 (105 HP),false
+Komatsu,D51EX-24,Bulldozer,Heavy Equipment,2007,2026,Komatsu SAA4D107E-3 (131 HP),false
+Komatsu,D61EX-24,Bulldozer,Heavy Equipment,2003,2026,Komatsu SAA6D107E-3 (168 HP),false
+Komatsu,D65E-6,Bulldozer,Heavy Equipment,1972,1985,Cummins / Komatsu NH-220-CI (155 HP),false
+Komatsu,D65E-8,Bulldozer,Heavy Equipment,1985,1992,Komatsu 6D125-1 (165 HP),false
+Komatsu,D65EX-12,Bulldozer,Heavy Equipment,1992,2004,Komatsu S6D125E-2 (190 HP),false
+Komatsu,D65EX-15,Bulldozer,Heavy Equipment,2004,2011,Komatsu SAA6D114E-3 (205 HP),false
+Komatsu,D65EX-17,Bulldozer,Heavy Equipment,2011,2015,Komatsu SAA6D114E-5 (205 HP),false
+Komatsu,D65EX-18,Bulldozer,Heavy Equipment,2015,2026,Komatsu SAA6D114E-6 (217 HP),false
+Komatsu,D85EX-15,Bulldozer,Heavy Equipment,1975,2014,Komatsu SAA6D125E-5 (264 HP),false
+Komatsu,D85EX-18,Bulldozer,Heavy Equipment,2014,2026,Komatsu SAA6D125E-7 (264 HP),false
+Komatsu,D155AX-6,Bulldozer,Heavy Equipment,1971,2014,Komatsu SAA6D140E-5 (354 HP),false
+Komatsu,D155AX-8,Bulldozer,Heavy Equipment,2014,2026,Komatsu SAA6D140E-7 (354 HP),false
+Komatsu,D275AX-5,Bulldozer,Heavy Equipment,1989,2026,Komatsu SAA6D140E / SDA6D140E (449 HP),false
+Komatsu,D375A-8,Bulldozer,Heavy Equipment,1985,2026,Komatsu SAA6D170E-7 (610 HP),false
+Komatsu,WA200-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA4D107E-3 (126 HP),false
+Komatsu,WA250-6,Loader,Heavy Equipment,1986,2014,Komatsu SAA6D107E-1 (138 HP),false
+Komatsu,WA270-7,Loader,Heavy Equipment,2013,2017,Komatsu SAA6D107E-2 (149 HP),false
+Komatsu,WA270-8,Loader,Heavy Equipment,2017,2026,Komatsu SAA6D107E-3 (149 HP),false
+Komatsu,WA320-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA6D107E-3 (165 HP),false
+Komatsu,WA380-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA6D107E-3 (191 HP),false
+Komatsu,WA470-8,Loader,Heavy Equipment,1987,2026,Komatsu SAA6D125E-7 (272 HP),false
+Komatsu,WA500-8,Loader,Heavy Equipment,1986,2026,Komatsu SAA6D140E-7 (357 HP),false
+Komatsu,GD655-7,Grader,Heavy Equipment,1984,2026,Komatsu SAA6D107E-3 (218 HP),false
+Komatsu,HM300-5,Roll Off Truck,Transport & Hauling,2003,2026,Komatsu SAA6D125E-7 (324 HP),false
+Komatsu,HM400-5,Roll Off Truck,Transport & Hauling,2002,2026,Komatsu SAA6D140E-7 (469 HP),false
+Komatsu,D31E-20,Bulldozer,Heavy Equipment,1992,2006,Komatsu S4D102E-1 (70 HP),false
+Komatsu,D39EX-22,Bulldozer,Heavy Equipment,2007,2014,Komatsu SAA4D95LE-5 (95 HP),false
+Komatsu,D51EX-22,Bulldozer,Heavy Equipment,2007,2014,Komatsu SAA6D107E-1 (130 HP),false
+Komatsu,D61EX-15,Bulldozer,Heavy Equipment,2003,2012,Komatsu SAA6D107E-1 (155 HP),false
+Komatsu,D61EX-23,Bulldozer,Heavy Equipment,2013,2016,Komatsu SAA6D107E-2 (168 HP),false
+Komatsu,D155A-1,Bulldozer,Heavy Equipment,1971,1986,Komatsu S6D155-4 (320 HP),false
+Komatsu,D155AX-5,Bulldozer,Heavy Equipment,1997,2007,Komatsu SA6D140E-2 (310 HP),false
+Komatsu,PC170LC-11,Excavator,Heavy Equipment,2017,2026,Komatsu SAA4D107E-3 (121 HP),false
+Komatsu,WA200-6,Loader,Heavy Equipment,2008,2013,Komatsu SAA4D107E-1 (126 HP),false
+Komatsu,WA320-6,Loader,Heavy Equipment,2008,2013,Komatsu SAA6D107E-1 (167 HP),false
+Komatsu,WA380-6,Loader,Heavy Equipment,2006,2013,Komatsu SAA6D107E-1 (191 HP),false
+Komatsu,WA470-6,Loader,Heavy Equipment,2006,2013,Komatsu SAA6D125E-5 (272 HP),false
+Komatsu,WA500-6,Loader,Heavy Equipment,2006,2014,Komatsu SAA6D140E-5 (353 HP),false
+John Deere,690A,Excavator,Heavy Equipment,1970,1973,John Deere 6404D (131 HP),false
+John Deere,690B,Excavator,Heavy Equipment,1973,1984,John Deere 6404T (131 HP),false
+John Deere,690C,Excavator,Heavy Equipment,1984,1987,John Deere 6466T (125 HP),false
+John Deere,690D,Excavator,Heavy Equipment,1987,1991,John Deere 6466T (125 HP),false
+John Deere,690E,Excavator,Heavy Equipment,1991,1998,John Deere 6068T (137 HP),false
+John Deere,490,Excavator,Heavy Equipment,1985,1992,John Deere 4239T (75 HP),false
+John Deere,490E,Excavator,Heavy Equipment,1992,1998,John Deere 4045T (93 HP),false
+John Deere,790,Excavator,Heavy Equipment,1984,1992,John Deere 6466A (155 HP),false
+John Deere,790E LC,Excavator,Heavy Equipment,1992,1998,John Deere 6076A (165 HP),false
+John Deere,120,Excavator,Heavy Equipment,1999,2006,John Deere 4045T (90 HP),false
+John Deere,160 LC,Excavator,Heavy Equipment,1998,2006,John Deere 4045T (105 HP),false
+John Deere,200 LC,Excavator,Heavy Equipment,1998,2012,John Deere 6068T (140 HP) | John Deere 6068H PowerTech (159 HP),false
+John Deere,230 LC,Excavator,Heavy Equipment,1998,2006,John Deere 6068T (165 HP),false
+John Deere,270 LC,Excavator,Heavy Equipment,1998,2012,John Deere 6068H / 6081H (188 HP),false
+John Deere,330 LC,Excavator,Heavy Equipment,1998,2012,John Deere 6081H / Isuzu 6HK1 (246 HP),false
+John Deere,450 LC,Excavator,Heavy Equipment,1998,2012,John Deere 6125H / Isuzu 6WG1 (317 HP),false
+John Deere,35D,Excavator,Heavy Equipment,2004,2013,Yanmar 3TNV88 (27 HP),false
+John Deere,35G,Excavator,Heavy Equipment,2013,2022,Yanmar 3TNV88F (23 HP),false
+John Deere,50G,Excavator,Heavy Equipment,2013,2022,Yanmar 4TNV88C (36 HP),false
+John Deere,75G,Excavator,Heavy Equipment,2013,2022,Yanmar 4TNV98CT (57 HP),false
+John Deere,85G,Excavator,Heavy Equipment,2013,2022,Yanmar 4TNV98CT (57 HP),false
+John Deere,135G,Excavator,Heavy Equipment,2014,2022,Isuzu 4JJ1X (101 HP),false
+John Deere,160G LC,Excavator,Heavy Equipment,2014,2022,John Deere PowerTech PVS 4.5L (121 HP),false
+John Deere,210G LC,Excavator,Heavy Equipment,2012,2022,John Deere PowerTech PSS 6.8L (159 HP),false
+John Deere,245G LC,Excavator,Heavy Equipment,2016,2022,Isuzu 4HK1 (159 HP),false
+John Deere,300G LC,Excavator,Heavy Equipment,2014,2022,John Deere PowerTech PSS 6.8L (223 HP),false
+John Deere,350G LC,Excavator,Heavy Equipment,2013,2022,John Deere PowerTech PSS 9.0L (271 HP),false
+John Deere,470G LC,Excavator,Heavy Equipment,2013,2022,Isuzu 6UZ1 (367 HP),false
+John Deere,35 P-Tier,Excavator,Heavy Equipment,2022,2026,Yanmar 3TNV88F (23 HP),false
+John Deere,50 P-Tier,Excavator,Heavy Equipment,2022,2026,Yanmar 4TNV88C (36 HP),false
+John Deere,85 P-Tier,Excavator,Heavy Equipment,2022,2026,Yanmar 4TNV98CT (57 HP),false
+John Deere,135 P-Tier,Excavator,Heavy Equipment,2022,2026,Isuzu 4JJ1 (101 HP),false
+John Deere,210 P-Tier,Excavator,Heavy Equipment,2022,2026,John Deere PowerTech PVS 6.8L (159 HP),false
+John Deere,245 P-Tier,Excavator,Heavy Equipment,2022,2026,John Deere PowerTech 4.5L (159 HP),false
+John Deere,350 P-Tier,Excavator,Heavy Equipment,2022,2026,John Deere PowerTech PSS 9.0L (271 HP),false
+John Deere,470 P-Tier,Excavator,Heavy Equipment,2022,2026,Isuzu 6UZ1 (367 HP),false
+John Deere,310A,Backhoe,Heavy Equipment,1971,1983,John Deere 3179D / 4219D (58 HP),false
+John Deere,310B,Backhoe,Heavy Equipment,1983,1986,John Deere 4219D (58 HP),false
+John Deere,310C,Backhoe,Heavy Equipment,1986,1991,John Deere 4239D (67 HP),false
+John Deere,310D,Backhoe,Heavy Equipment,1991,1997,John Deere 4039D / 4039T (75 HP),false
+John Deere,310E,Backhoe,Heavy Equipment,1997,2001,John Deere 4045D / 4045T (80 HP),false
+John Deere,310G,Backhoe,Heavy Equipment,2001,2006,John Deere 4045T (80 HP),false
+John Deere,310J,Backhoe,Heavy Equipment,2006,2012,John Deere PowerTech 4045T (84 HP),false
+John Deere,310K,Backhoe,Heavy Equipment,2012,2015,John Deere PowerTech E 4.5L (89 HP),false
+John Deere,310L,Backhoe,Heavy Equipment,2015,2022,John Deere PowerTech EWL 4.5L (93 HP),false
+John Deere,310 P-Tier,Backhoe,Heavy Equipment,2022,2026,John Deere PowerTech EWL 4.5L (100 HP),false
+John Deere,410B,Backhoe,Heavy Equipment,1982,1986,John Deere 4219T / 4239D (62 HP),false
+John Deere,410C,Backhoe,Heavy Equipment,1986,1991,John Deere 4239T (75 HP),false
+John Deere,410D,Backhoe,Heavy Equipment,1991,1997,John Deere 4039T (85 HP),false
+John Deere,410E,Backhoe,Heavy Equipment,1997,2000,John Deere 4045T (90 HP),false
+John Deere,410G,Backhoe,Heavy Equipment,2001,2006,John Deere 4045T (95 HP),false
+John Deere,410J,Backhoe,Heavy Equipment,2006,2012,John Deere PowerTech 4045H (99 HP),false
+John Deere,410K,Backhoe,Heavy Equipment,2012,2015,John Deere PowerTech PVX 4.5L (107 HP),false
+John Deere,410L,Backhoe,Heavy Equipment,2015,2022,John Deere PowerTech PVS 4.5L (113 HP),false
+John Deere,410 P-Tier,Backhoe,Heavy Equipment,2022,2026,John Deere PowerTech PVS 4.5L (113 HP),false
+John Deere,510B,Backhoe,Heavy Equipment,1983,1996,John Deere 4239T / 4045T (85 HP),false
+John Deere,710D,Backhoe,Heavy Equipment,1992,2005,John Deere 6068T (118 HP),false
+John Deere,710L,Backhoe,Heavy Equipment,2006,2026,John Deere PowerTech PSS 6.8L (148 HP),false
+John Deere,450B,Bulldozer,Heavy Equipment,1970,1985,John Deere 4219D / 4219T (65 HP),false
+John Deere,450G,Bulldozer,Heavy Equipment,1987,2003,John Deere 4045D / 4045T (70 HP),false
+John Deere,450J,Bulldozer,Heavy Equipment,2004,2022,John Deere PowerTech 4.5L (77 HP),false
+John Deere,550G,Bulldozer,Heavy Equipment,1976,2003,John Deere 4276T / 4045T (80 HP),false
+John Deere,550K,Bulldozer,Heavy Equipment,2004,2022,John Deere PowerTech 4.5L (92 HP),false
+John Deere,650G,Bulldozer,Heavy Equipment,1987,2003,John Deere 4045T (90 HP),false
+John Deere,650K,Bulldozer,Heavy Equipment,2004,2026,John Deere PowerTech 4.5L (104 HP),false
+John Deere,700J,Bulldozer,Heavy Equipment,2001,2012,John Deere 6068T (115 HP),false
+John Deere,700K,Bulldozer,Heavy Equipment,2012,2020,John Deere PowerTech PVX 6.8L (125 HP),false
+John Deere,700L,Bulldozer,Heavy Equipment,2020,2026,John Deere PowerTech PVS 6.8L (135 HP),false
+John Deere,750B,Bulldozer,Heavy Equipment,1976,1999,John Deere 6414T / 6068T (120 HP),false
+John Deere,750J,Bulldozer,Heavy Equipment,2004,2012,John Deere 6068H (145 HP),false
+John Deere,750K,Bulldozer,Heavy Equipment,2012,2020,John Deere PowerTech PSS 6.8L (165 HP),false
+John Deere,750L,Bulldozer,Heavy Equipment,2020,2026,John Deere PowerTech PSS 6.8L (175 HP),false
+John Deere,850B,Bulldozer,Heavy Equipment,1977,2004,John Deere 6466A / 6076A (165 HP),false
+John Deere,850J,Bulldozer,Heavy Equipment,2004,2012,John Deere PowerTech 6090H (185 HP),false
+John Deere,850K,Bulldozer,Heavy Equipment,2012,2020,John Deere PowerTech PSX 9.0L (205 HP),false
+John Deere,850L,Bulldozer,Heavy Equipment,2020,2026,John Deere PowerTech PSS 9.0L (225 HP),false
+John Deere,950K,Bulldozer,Heavy Equipment,2007,2026,John Deere PowerTech PSS 9.0L (265 HP),false
+John Deere,1050K,Bulldozer,Heavy Equipment,2007,2026,John Deere PowerTech PSS 13.5L (350 HP),false
+John Deere,444H,Loader,Heavy Equipment,1975,2019,John Deere 4045T / PowerTech 4.5L (110 HP),false
+John Deere,544B,Loader,Heavy Equipment,1970,1987,John Deere 6414T (115 HP),false
+John Deere,544G,Loader,Heavy Equipment,1988,2004,John Deere 6068T (130 HP),false
+John Deere,544K,Loader,Heavy Equipment,2004,2021,John Deere PowerTech 6.8L (163 HP),false
+John Deere,544 P-Tier,Loader,Heavy Equipment,2021,2026,John Deere PowerTech PVS 6.8L (166 HP),false
+John Deere,624G,Loader,Heavy Equipment,1988,2004,John Deere 6068T (145 HP),false
+John Deere,624K,Loader,Heavy Equipment,2004,2021,John Deere PowerTech 6.8L (186 HP),false
+John Deere,624 P-Tier,Loader,Heavy Equipment,2021,2026,John Deere PowerTech PVS 6.8L (192 HP),false
+John Deere,644B,Loader,Heavy Equipment,1970,1987,John Deere 6531A / 6466T (152 HP),false
+John Deere,644G,Loader,Heavy Equipment,1988,2004,John Deere 6076A / 6081A (185 HP),false
+John Deere,644K,Loader,Heavy Equipment,2004,2021,John Deere PowerTech 6.8L / 9.0L (232 HP) | John Deere PowerTech 6.8L Hybrid (231 HP),false
+John Deere,644 P-Tier,Loader,Heavy Equipment,2021,2026,John Deere PowerTech PSS 6.8L (249 HP) | John Deere PowerTech 6.8L X-Tier E-Drive (231 HP),false
+John Deere,744K,Loader,Heavy Equipment,1998,2026,John Deere PowerTech PSS 13.5L (304 HP),false
+John Deere,844L,Loader,Heavy Equipment,2004,2026,John Deere PowerTech PSS 13.5L (417 HP),false
+John Deere,250,Skid Steer,Heavy Equipment,1998,2004,John Deere 3029T (61 HP),false
+John Deere,317,Skid Steer,Heavy Equipment,2004,2010,John Deere 4024T (61 HP),false
+John Deere,320,Skid Steer,Heavy Equipment,2004,2010,John Deere 4024T (66 HP),false
+John Deere,325,Skid Steer,Heavy Equipment,2004,2010,John Deere 5030T (76 HP),false
+John Deere,318D,Skid Steer,Heavy Equipment,2010,2014,John Deere 4024HT (63 HP),false
+John Deere,326D,Skid Steer,Heavy Equipment,2010,2014,John Deere 5030HT (74 HP),false
+John Deere,318E,Skid Steer,Heavy Equipment,2013,2016,Yanmar 4TNV98C (63 HP),false
+John Deere,329E,Skid Steer,Heavy Equipment,2013,2016,Yanmar 4TNV94CHT (85 HP),false
+John Deere,333E,Skid Steer,Heavy Equipment,2013,2016,Yanmar 4TNV94CHT (100 HP),false
+John Deere,317G,Skid Steer,Heavy Equipment,2016,2024,Yanmar 4TNV98C (65 HP),false
+John Deere,324G,Skid Steer,Heavy Equipment,2016,2024,Yanmar 4TNV98CT (74 HP),false
+John Deere,325G,Skid Steer,Heavy Equipment,2018,2024,Yanmar 4TNV98CT (74 HP),false
+John Deere,331G,Skid Steer,Heavy Equipment,2016,2024,Yanmar 4TNV94FHT (91 HP),false
+John Deere,333G,Skid Steer,Heavy Equipment,2016,2024,Yanmar 4TNV94FHT (100 HP),false
+John Deere,333 P-Tier,Skid Steer,Heavy Equipment,2024,2026,Yanmar 4TNV94FHT (104 HP),false
+John Deere,335 P-Tier,Skid Steer,Heavy Equipment,2024,2026,Yanmar 4TN101FHT (118 HP),false
+John Deere,570A,Grader,Heavy Equipment,1970,1986,John Deere 6329D (85 HP),false
+John Deere,670A,Grader,Heavy Equipment,1975,1995,John Deere 6414T (125 HP),false
+John Deere,770A,Grader,Heavy Equipment,1975,1997,John Deere 6531T / 6076A (155 HP),false
+John Deere,670G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (235 HP),false
+John Deere,672G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (255 HP),false
+John Deere,770G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (255 HP),false
+John Deere,772G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (275 HP),false
+John Deere,872G,Grader,Heavy Equipment,2008,2026,John Deere PowerTech PSS 9.0L (300 HP),false
+John Deere,410E II,Roll Off Truck,Transport & Hauling,2005,2026,John Deere PowerTech PSS 13.5L (443 HP),false
+Bobcat,M-600,Skid Steer,Heavy Equipment,1970,1975,Wisconsin VF4D (25 HP),false
+Bobcat,M-610,Skid Steer,Heavy Equipment,1972,1982,Wisconsin VH4D (30 HP),false
+Bobcat,720,Skid Steer,Heavy Equipment,1972,1979,Wisconsin VH4D (30 HP),false
+Bobcat,722,Skid Steer,Heavy Equipment,1976,1979,Ford I4 Industrial (32 HP),false
+Bobcat,730,Skid Steer,Heavy Equipment,1978,1981,Wisconsin VH4D (30 HP),false
+Bobcat,731,Skid Steer,Heavy Equipment,1978,1981,Deutz F2L511 (32 HP),false
+Bobcat,732,Skid Steer,Heavy Equipment,1978,1981,Ford 1.6L Kent (34 HP),false
+Bobcat,741,Skid Steer,Heavy Equipment,1981,1990,Deutz F2L511 (32 HP),false
+Bobcat,742,Skid Steer,Heavy Equipment,1981,1990,Ford / Mitsubishi 4G54 (34 HP),false
+Bobcat,743,Skid Steer,Heavy Equipment,1981,1990,Kubota V1702-BA (36 HP),false
+Bobcat,843,Skid Steer,Heavy Equipment,1981,1992,Perkins 4.154 (54 HP) | Isuzu 4JB1 (54 HP),false
+Bobcat,751,Skid Steer,Heavy Equipment,1995,2000,Peugeot / Kubota XUD9 / V1903 (38 HP),false
+Bobcat,753,Skid Steer,Heavy Equipment,1990,2002,Kubota V2203-EB (43 HP),false
+Bobcat,763,Skid Steer,Heavy Equipment,1994,2002,Kubota V2203-EB (46 HP),false
+Bobcat,773,Skid Steer,Heavy Equipment,1994,2002,Kubota V2203-EB (46 HP) | Kubota V2003-T (56 HP),false
+Bobcat,853,Skid Steer,Heavy Equipment,1990,1996,Isuzu 4JB1 (58 HP),false
+Bobcat,863,Skid Steer,Heavy Equipment,1997,2002,Deutz BF4M1011F (73 HP),false
+Bobcat,873,Skid Steer,Heavy Equipment,1995,2002,Deutz BF4M1011F (73 HP),false
+Bobcat,963,Skid Steer,Heavy Equipment,1997,2003,Perkins 1004.4T (105 HP),false
+Bobcat,864,Skid Steer,Heavy Equipment,1999,2001,Deutz BF4M1011F (73 HP),false
+Bobcat,T190,Skid Steer,Heavy Equipment,2001,2010,Kubota V2003-M-DI-T / V2607 (61 HP),false
+Bobcat,T200,Skid Steer,Heavy Equipment,2001,2003,Deutz BF4M1011F (73 HP),false
+Bobcat,T250,Skid Steer,Heavy Equipment,2002,2010,Kubota V3300-DI-T (81 HP),false
+Bobcat,T300,Skid Steer,Heavy Equipment,2002,2010,Kubota V3300-DI-T / V3800 (81 HP),false
+Bobcat,S130,Skid Steer,Heavy Equipment,2004,2013,Kubota V2203-M-DI (49 HP),false
+Bobcat,S150,Skid Steer,Heavy Equipment,2003,2012,Kubota V2203-M-DI (46 HP),false
+Bobcat,S160,Skid Steer,Heavy Equipment,2004,2013,Kubota V2003-M-DI-T / V2607 (61 HP),false
+Bobcat,S175,Skid Steer,Heavy Equipment,2001,2012,Kubota V2203-M-DI (46 HP),false
+Bobcat,S185,Skid Steer,Heavy Equipment,2001,2012,Kubota V2003-M-DI-T / V2607 (56 HP),false
+Bobcat,S205,Skid Steer,Heavy Equipment,2005,2012,Kubota V2607-DI-T (66 HP),false
+Bobcat,S220,Skid Steer,Heavy Equipment,2003,2010,Kubota V3300-DI-T (75 HP),false
+Bobcat,S250,Skid Steer,Heavy Equipment,2001,2010,Kubota V3300-DI-T (75 HP),false
+Bobcat,S300,Skid Steer,Heavy Equipment,2002,2010,Kubota V3300-DI-T / V3800 (81 HP),false
+Bobcat,S450,Skid Steer,Heavy Equipment,2014,2026,Bobcat / Doosan D18 (49 HP),false
+Bobcat,S510,Skid Steer,Heavy Equipment,2012,2023,Bobcat / Kubota V2203 / D24 (49 HP),false
+Bobcat,S550,Skid Steer,Heavy Equipment,2013,2022,Bobcat D24 (61 HP),false
+Bobcat,S570,Skid Steer,Heavy Equipment,2012,2022,Bobcat D24 (61 HP),false
+Bobcat,S590,Skid Steer,Heavy Equipment,2012,2023,Bobcat D24 (66 HP),false
+Bobcat,S630,Skid Steer,Heavy Equipment,2010,2019,Kubota / Bobcat V3307 / D34 (74 HP),false
+Bobcat,S650,Skid Steer,Heavy Equipment,2010,2023,Kubota V3307-DI-TE3 (74 HP) | Bobcat D24 / D34 Tier 4 (74 HP),false
+Bobcat,S750,Skid Steer,Heavy Equipment,2011,2020,Kubota / Bobcat V3800 / D34 (85 HP),false
+Bobcat,S770,Skid Steer,Heavy Equipment,2011,2023,Kubota / Bobcat V3800 / D34 (92 HP),false
+Bobcat,S850,Skid Steer,Heavy Equipment,2011,2023,Kubota / Bobcat V3800 / D34 (100 HP),false
+Bobcat,T450,Skid Steer,Heavy Equipment,2014,2024,Bobcat D24 (55 HP),false
+Bobcat,T550,Skid Steer,Heavy Equipment,2013,2021,Bobcat D24 (66 HP),false
+Bobcat,T590,Skid Steer,Heavy Equipment,2012,2022,Bobcat D24 (66 HP),false
+Bobcat,T595,Skid Steer,Heavy Equipment,2016,2022,Bobcat D24 (74 HP),false
+Bobcat,T630,Skid Steer,Heavy Equipment,2010,2019,Kubota / Bobcat V3307 / D34 (74 HP),false
+Bobcat,T650,Skid Steer,Heavy Equipment,2010,2022,Kubota V3307-DI-TE3 (74 HP) | Bobcat D24 / D34 Tier 4 (74 HP),false
+Bobcat,T750,Skid Steer,Heavy Equipment,2011,2020,Kubota / Bobcat V3800 / D34 (85 HP),false
+Bobcat,T770,Skid Steer,Heavy Equipment,2011,2023,Kubota V3800-DI-TE3 (92 HP) | Bobcat D34 Tier 4 (92 HP),false
+Bobcat,T870,Skid Steer,Heavy Equipment,2011,2023,Kubota / Bobcat V3800 / D34 (100 HP),false
+Bobcat,S62,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (68 HP),false
+Bobcat,S64,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (68 HP),false
+Bobcat,S66,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (74 HP),false
+Bobcat,S76,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (74 HP),false
+Bobcat,S86,Skid Steer,Heavy Equipment,2022,2026,Bobcat D34 (105 HP),false
+Bobcat,T62,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (68 HP),false
+Bobcat,T64,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (68 HP),false
+Bobcat,T66,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (74 HP),false
+Bobcat,T76,Skid Steer,Heavy Equipment,2020,2026,Bobcat D24 (74 HP),false
+Bobcat,T86,Skid Steer,Heavy Equipment,2022,2026,Bobcat D34 (105 HP),false
+Bobcat,325,Excavator,Heavy Equipment,1993,2008,Kubota D1703-EB (27 HP),false
+Bobcat,331,Excavator,Heavy Equipment,1992,2008,Kubota V2203-EB (40 HP),false
+Bobcat,334,Excavator,Heavy Equipment,2001,2008,Kubota V2203-M-DI (40 HP),false
+Bobcat,335,Excavator,Heavy Equipment,2007,2010,Kubota V2003-M-DI-T (41 HP),false
+Bobcat,430,Excavator,Heavy Equipment,2003,2010,Kubota V2203-M-DI (42 HP),false
+Bobcat,435,Excavator,Heavy Equipment,2004,2010,Kubota V2003-M-DI-T (49 HP),false
+Bobcat,E20,Excavator,Heavy Equipment,2014,2026,Kubota D722 (14 HP),false
+Bobcat,E26,Excavator,Heavy Equipment,2010,2026,Kubota / Bobcat D1105 (25 HP),false
+Bobcat,E32,Excavator,Heavy Equipment,2010,2026,Kubota / Bobcat D1803 / D18 (25 HP),false
+Bobcat,E35,Excavator,Heavy Equipment,2010,2026,Kubota D1703-M-DI (25 HP) | Bobcat D18 / D18 Turbo (33 HP),false
+Bobcat,E42,Excavator,Heavy Equipment,2019,2026,Bobcat D18 (42 HP),false
+Bobcat,E50,Excavator,Heavy Equipment,2010,2026,Kubota / Bobcat V2403 / D18 (50 HP),false
+Bobcat,E55,Excavator,Heavy Equipment,2011,2024,Kubota / Bobcat V2403 / D24 (50 HP),false
+Bobcat,E60,Excavator,Heavy Equipment,2020,2026,Bobcat D24 (55 HP),false
+Bobcat,E85,Excavator,Heavy Equipment,2013,2021,Yanmar / Bobcat 4TNV98C / D34 (66 HP),false
+Bobcat,E88,Excavator,Heavy Equipment,2021,2026,Bobcat D24 (65 HP),false
+Bobcat,V518,Telehandler,Heavy Equipment,2004,2013,Perkins 1104C-44T (100 HP),false
+Bobcat,V519,Telehandler,Heavy Equipment,2016,2023,Bobcat D34 (74 HP),false
+Bobcat,V723,Telehandler,Heavy Equipment,2006,2022,Perkins / Bobcat 1104D / D34 (100 HP),false
+Bobcat,TL619,Telehandler,Heavy Equipment,2021,2026,Bobcat D34 (74 HP),false
+Bobcat,TL723,Telehandler,Heavy Equipment,2021,2026,Bobcat D34 (100 HP),false
+Bobcat,TL923,Telehandler,Heavy Equipment,2021,2026,Bobcat D34 (130 HP),false
+Case,580CK,Backhoe,Heavy Equipment,1970,1971,Case G188D (52 HP),false
+Case,580B,Backhoe,Heavy Equipment,1971,1976,Case G188D (57 HP),false
+Case,580C,Backhoe,Heavy Equipment,1975,1980,Case G207D (55 HP),false
+Case,580D,Backhoe,Heavy Equipment,1980,1984,Case G207D (55 HP),false
+Case,580 Super D,Backhoe,Heavy Equipment,1980,1984,Case G207D Turbo (60 HP),false
+Case,580E,Backhoe,Heavy Equipment,1984,1988,Case / CDC 4-390 (63 HP),false
+Case,580 Super E,Backhoe,Heavy Equipment,1984,1988,Case / CDC 4T-390 (75 HP),false
+Case,580K,Backhoe,Heavy Equipment,1986,1994,Case / CDC 4-390 (69 HP),false
+Case,580 Super K,Backhoe,Heavy Equipment,1990,1994,Case / CDC 4T-390 (75 HP),false
+Case,580L,Backhoe,Heavy Equipment,1995,2000,Case / CDC 4-390 (70 HP),false
+Case,580 Super L,Backhoe,Heavy Equipment,1995,2000,Case / CDC 4T-390 (86 HP),false
+Case,580M,Backhoe,Heavy Equipment,2001,2010,Case 445T/M2 (76 HP),false
+Case,580 Super M,Backhoe,Heavy Equipment,2001,2010,Case 445T/M3 (95 HP),false
+Case,580N,Backhoe,Heavy Equipment,2010,2026,FPT Industrial F5C / F5BFL413 (79 HP),false
+Case,580SN,Backhoe,Heavy Equipment,2010,2026,FPT Industrial F5BFL413 / N45 (97 HP),false
+Case,580SV,Backhoe,Heavy Equipment,2019,2026,FPT Industrial F5C / F36 Stage V (97 HP),false
+Case,590SN,Backhoe,Heavy Equipment,2010,2026,FPT Industrial F5BFL413A / N45 (110 HP),false
+Case,9010B,Excavator,Heavy Equipment,1994,2000,Case / CDC 4T-390 (92 HP),false
+Case,9020B,Excavator,Heavy Equipment,1994,2000,Case / CDC 6T-590 (115 HP),false
+Case,9030B,Excavator,Heavy Equipment,1994,2001,Case / CDC 6T-590 (142 HP),false
+Case,CX130D,Excavator,Heavy Equipment,2002,2026,Isuzu 4JJ1X (102 HP),false
+Case,CX160D,Excavator,Heavy Equipment,2002,2024,Isuzu 4JJ1X (120 HP),false
+Case,CX210B,Excavator,Heavy Equipment,2007,2011,Isuzu 4HK1X (157 HP),false
+Case,CX210C,Excavator,Heavy Equipment,2011,2015,Isuzu 4HK1X (160 HP),false
+Case,CX210D,Excavator,Heavy Equipment,2015,2023,Isuzu 4HK1X (160 HP),false
+Case,CX220E,Excavator,Heavy Equipment,2022,2026,FPT Industrial NEF6 (173 HP),false
+Case,CX300D,Excavator,Heavy Equipment,2015,2025,Isuzu 6HK1X (207 HP),false
+Case,CX350D,Excavator,Heavy Equipment,2015,2025,Isuzu 6HK1X (268 HP),false
+Case,W14,Loader,Heavy Equipment,1974,1988,Case A336BD (83 HP),false
+Case,W20,Loader,Heavy Equipment,1972,1988,Case A401BD (103 HP),false
+Case,621,Loader,Heavy Equipment,1989,1993,Case / CDC 6T-590 (116 HP),false
+Case,621B,Loader,Heavy Equipment,1993,1999,Case / CDC 6T-590 (126 HP),false
+Case,621D,Loader,Heavy Equipment,2001,2006,Case 6TAA-5904 (138 HP),false
+Case,621E,Loader,Heavy Equipment,2007,2012,Case / FPT 667TA (149 HP),false
+Case,621F,Loader,Heavy Equipment,2012,2017,FPT Industrial F4HFE613 (162 HP),false
+Case,621G,Loader,Heavy Equipment,2017,2026,FPT Industrial NEF 6.7L (172 HP),false
+Case,721G,Loader,Heavy Equipment,2017,2026,FPT Industrial NEF 6.7L (195 HP),false
+Case,821G,Loader,Heavy Equipment,2017,2026,FPT Industrial NEF 6.7L (230 HP),false
+Case,1840,Skid Steer,Heavy Equipment,1989,2001,Case / CDC 4-390 (50 HP),false
+Case,1845C,Skid Steer,Heavy Equipment,1985,2001,Case / CDC 4-390 (56 HP),false
+Case,40XT,Skid Steer,Heavy Equipment,2000,2005,Case / CDC 4-390 / 4T-390 (60 HP),false
+Case,SR210,Skid Steer,Heavy Equipment,2011,2020,ISM / FPT N844LT / F5C (74 HP),false
+Case,SR250,Skid Steer,Heavy Equipment,2011,2020,FPT Industrial F5BFL413 (90 HP),false
+Case,SV280,Skid Steer,Heavy Equipment,2015,2026,FPT Industrial F5C (74 HP),false
+Case,SV340B,Skid Steer,Heavy Equipment,2017,2026,FPT Industrial F5BFL413A (90 HP),false
+Case,TR310,Skid Steer,Heavy Equipment,2014,2026,FPT Industrial F5C (74 HP),false
+Case,TR340,Skid Steer,Heavy Equipment,2014,2026,FPT Industrial F5BFL413A (90 HP),false
+Case,TV380,Skid Steer,Heavy Equipment,2011,2020,FPT Industrial F5BFL413A (90 HP),false
+Case,TV450B,Skid Steer,Heavy Equipment,2019,2026,FPT Industrial F5BFL413A (90 HP),false
+Case,850M,Bulldozer,Heavy Equipment,1976,2026,FPT Industrial F4HFE413 / 6T-590 (112 HP),false
+Case,1150M,Bulldozer,Heavy Equipment,1975,2026,FPT Industrial NEF 6.7L (127 HP),false
+Case,1650M,Bulldozer,Heavy Equipment,1998,2026,FPT Industrial NEF 6.7L (150 HP),false
+Case,2050M,Bulldozer,Heavy Equipment,2013,2026,FPT Industrial NEF 6.7L (214 HP),false
+Case,590 Super L,Backhoe,Heavy Equipment,1995,2000,Case / CDC 4T-390 (95 HP),false
+Case,590 Super M,Backhoe,Heavy Equipment,2001,2010,Case 445T/M3 (98 HP),false
+Case,CX80C,Excavator,Heavy Equipment,2013,2024,Isuzu 4LE2X (54 HP),false
+Case,CX130B,Excavator,Heavy Equipment,2007,2012,Isuzu 4JJ1X (95 HP),false
+Case,CX145D SR,Excavator,Heavy Equipment,2016,2026,Isuzu 4JJ1X (102 HP),false
+Case,CX250D,Excavator,Heavy Equipment,2015,2025,Isuzu 4HK1X (177 HP),false
+Case,CX490D,Excavator,Heavy Equipment,2015,2025,Isuzu 6UZ1X (362 HP),false
+Case,721F,Loader,Heavy Equipment,2011,2017,FPT Industrial F4HFE613 (179 HP),false
+Case,850K,Bulldozer,Heavy Equipment,2002,2012,Case 6T-590 / 667TA (96 HP),false
+Case,1150K,Bulldozer,Heavy Equipment,2002,2013,Case 6T-590 / 667TA (118 HP),false
+Case,1650L,Bulldozer,Heavy Equipment,2008,2014,Case 667TA (144 HP),false
+Kubota,KH-60,Excavator,Heavy Equipment,1979,1990,Kubota D1302 (23 HP),false
+Kubota,KX121-2,Excavator,Heavy Equipment,1994,2002,Kubota V2203 (40 HP),false
+Kubota,KX121-3,Excavator,Heavy Equipment,2003,2013,Kubota V2203-M (40 HP),false
+Kubota,KX161-3,Excavator,Heavy Equipment,2003,2013,Kubota V2203-M / V2403 (42 HP),false
+Kubota,KX018-4,Excavator,Heavy Equipment,2011,2026,Kubota D902-E4 (16 HP),false
+Kubota,KX033-4,Excavator,Heavy Equipment,2016,2026,Kubota D1703-M-DI-E4 (25 HP),false
+Kubota,KX040-4,Excavator,Heavy Equipment,2014,2024,Kubota D1803-CR-TE4 (40 HP),false
+Kubota,KX040-5,Excavator,Heavy Equipment,2024,2026,Kubota D1803-CR-TE5 (40 HP),false
+Kubota,KX057-4,Excavator,Heavy Equipment,2011,2020,Kubota V2607-DI-E4 (48 HP),false
+Kubota,KX057-5,Excavator,Heavy Equipment,2020,2026,Kubota V2607-CR-E5 (48 HP),false
+Kubota,KX080-4,Excavator,Heavy Equipment,2013,2024,Kubota V3307-CR-TE4 (67 HP),false
+Kubota,KX080-5,Excavator,Heavy Equipment,2024,2026,Kubota V3307-CR-TE5 (67 HP),false
+Kubota,U35-3,Excavator,Heavy Equipment,2004,2013,Kubota D1703-M (29 HP),false
+Kubota,U35-4,Excavator,Heavy Equipment,2013,2026,Kubota D1703-M-DI-E4 (25 HP),false
+Kubota,U55-4,Excavator,Heavy Equipment,2012,2020,Kubota V2607-DI-E4 (48 HP),false
+Kubota,U55-5,Excavator,Heavy Equipment,2020,2026,Kubota V2607-CR-E5 (48 HP),false
+Kubota,SVL65-2,Skid Steer,Heavy Equipment,2019,2026,Kubota V2607-CR-TE4 (68 HP),false
+Kubota,SVL75,Skid Steer,Heavy Equipment,2010,2014,Kubota V3307-DI-TE3 (74 HP),false
+Kubota,SVL75-2,Skid Steer,Heavy Equipment,2014,2023,Kubota V3307-CR-TE4 (74 HP),false
+Kubota,SVL75-3,Skid Steer,Heavy Equipment,2023,2026,Kubota V3307-CR-TE5 (74 HP),false
+Kubota,SVL90,Skid Steer,Heavy Equipment,2010,2013,Kubota V3800-DI-TE3 (90 HP),false
+Kubota,SVL90-2,Skid Steer,Heavy Equipment,2013,2016,Kubota V3800-CR-TE4 (92 HP),false
+Kubota,SVL95-2s,Skid Steer,Heavy Equipment,2016,2021,Kubota V3800-TIEF4 (96 HP),false
+Kubota,SVL97-2,Skid Steer,Heavy Equipment,2021,2026,Kubota V3800-TIEF4 (96 HP),false
+Kubota,SSV65,Skid Steer,Heavy Equipment,2015,2026,Kubota V2607-CR-TE4 (64 HP),false
+Kubota,SSV75,Skid Steer,Heavy Equipment,2015,2026,Kubota V3307-CR-TE4 (74 HP),false
+Kubota,BX23S,Backhoe,Heavy Equipment,2017,2026,Kubota D902 (23 HP),false
+Kubota,B21,Backhoe,Heavy Equipment,1997,2007,Kubota D1005-TLB (21 HP),false
+Kubota,B26,Backhoe,Heavy Equipment,2007,2026,Kubota D1105-E4 (26 HP),false
+Kubota,L39,Backhoe,Heavy Equipment,2005,2013,Kubota D1803-M (39 HP),false
+Kubota,L45,Backhoe,Heavy Equipment,2009,2016,Kubota V2003-M-T (45 HP),false
+Kubota,L47,Backhoe,Heavy Equipment,2016,2026,Kubota V2403-CR-E4 (47 HP),false
+Kubota,M59,Backhoe,Heavy Equipment,2008,2015,Kubota V2403-M-TI (59 HP),false
+Kubota,M62,Backhoe,Heavy Equipment,2016,2026,Kubota V2403-CR-TE4 (63 HP),false
+Kubota,R530,Loader,Heavy Equipment,1995,2022,Kubota V2403-CR (51 HP),false
+Kubota,R640,Loader,Heavy Equipment,2020,2026,Kubota V2607-CR-TE5 (64 HP),false
+Kubota,RTV900,Loader,Heavy Equipment,2004,2014,Kubota D902-E3 (22 HP),false
+Kubota,RTV-X1100C,Loader,Heavy Equipment,2014,2026,Kubota D1105-E4-UV (25 HP),false
+Kubota,KH-90,Excavator,Heavy Equipment,1983,1992,Kubota V1702 (32 HP),false
+Kubota,KH-151,Excavator,Heavy Equipment,1985,1994,Kubota V1902 (41 HP),false
+Kubota,KX71-3,Excavator,Heavy Equipment,2003,2013,Kubota V1505 (27 HP),false
+Kubota,KX91-3,Excavator,Heavy Equipment,2003,2014,Kubota D1503-M (28 HP),false
+Kubota,KX080-3,Excavator,Heavy Equipment,2006,2013,Kubota V3307-DI-T (65 HP),false
+Kubota,U17,Excavator,Heavy Equipment,2008,2026,Kubota D902 (16 HP),false
+Kubota,U25S,Excavator,Heavy Equipment,2009,2024,Kubota D1105-E4 (20 HP),false
+Kubota,U48-5,Excavator,Heavy Equipment,2021,2026,Kubota D1803-CR-TE5 (40 HP),false
+Volvo CE,LM 841,Loader,Heavy Equipment,1970,1978,Volvo D60A (112 HP),false
+Volvo CE,L70B,Loader,Heavy Equipment,1986,1995,Volvo TD45B / TD61G (110 HP),false
+Volvo CE,L70C,Loader,Heavy Equipment,1995,2000,Volvo TD63KDE (122 HP),false
+Volvo CE,L70D,Loader,Heavy Equipment,2000,2002,Volvo TD63KGE (129 HP),false
+Volvo CE,L70E,Loader,Heavy Equipment,2002,2007,Volvo D6D (152 HP),false
+Volvo CE,L70F,Loader,Heavy Equipment,2007,2012,Volvo D6E (168 HP),false
+Volvo CE,L70G,Loader,Heavy Equipment,2012,2014,Volvo D6H (170 HP),false
+Volvo CE,L70H,Loader,Heavy Equipment,2014,2026,Volvo D6J (173 HP),false
+Volvo CE,L90B,Loader,Heavy Equipment,1986,1995,Volvo TD61GB (148 HP),false
+Volvo CE,L90C,Loader,Heavy Equipment,1995,2000,Volvo TD63KBE (153 HP),false
+Volvo CE,L90D,Loader,Heavy Equipment,2000,2002,Volvo TD63KCE (160 HP),false
+Volvo CE,L90E,Loader,Heavy Equipment,2002,2007,Volvo D6D (164 HP),false
+Volvo CE,L90F,Loader,Heavy Equipment,2007,2012,Volvo D6E (174 HP),false
+Volvo CE,L90G,Loader,Heavy Equipment,2011,2014,Volvo D6H (174 HP),false
+Volvo CE,L90H,Loader,Heavy Equipment,2014,2026,Volvo D6J (184 HP),false
+Volvo CE,L120C,Loader,Heavy Equipment,1986,2001,Volvo TD73KCE (201 HP),false
+Volvo CE,L120F,Loader,Heavy Equipment,2002,2014,Volvo D7E / D8H (243 HP),false
+Volvo CE,L120H,Loader,Heavy Equipment,2014,2026,Volvo D8J (272 HP),false
+Volvo CE,L150H,Loader,Heavy Equipment,2002,2026,Volvo D13J (295 HP),false
+Volvo CE,BM 861,Roll Off Truck,Transport & Hauling,1970,1986,Volvo TD60B (170 HP),false
+Volvo CE,A25C,Roll Off Truck,Transport & Hauling,1986,2001,Volvo TD73KCE (254 HP),false
+Volvo CE,A30C,Roll Off Truck,Transport & Hauling,1993,2007,Volvo TD103KAE / D9A (315 HP),false
+Volvo CE,A35D,Roll Off Truck,Transport & Hauling,2000,2014,Volvo D12C / D13F (385 HP),false
+Volvo CE,A40D,Roll Off Truck,Transport & Hauling,2000,2007,Volvo D12C (420 HP),false
+Volvo CE,A40E,Roll Off Truck,Transport & Hauling,2007,2011,Volvo D16E (464 HP),false
+Volvo CE,A40F,Roll Off Truck,Transport & Hauling,2011,2014,Volvo D16F (465 HP),false
+Volvo CE,A40G,Roll Off Truck,Transport & Hauling,2014,2026,Volvo D16J (469 HP),false
+Volvo CE,A45G,Roll Off Truck,Transport & Hauling,2016,2026,Volvo D16J (469 HP),false
+Volvo CE,EC18E,Excavator,Heavy Equipment,2018,2026,Volvo / Kubota D0.9A (16 HP),false
+Volvo CE,ECR58,Excavator,Heavy Equipment,2004,2026,Volvo D2.6H (48 HP),false
+Volvo CE,EC140E,Excavator,Heavy Equipment,2001,2026,Volvo D4J (121 HP),false
+Volvo CE,EC210B,Excavator,Heavy Equipment,2002,2008,Volvo D6D (143 HP),false
+Volvo CE,EC210C,Excavator,Heavy Equipment,2008,2012,Volvo D6E (148 HP),false
+Volvo CE,EC210D,Excavator,Heavy Equipment,2012,2020,Volvo D5E (154 HP),false
+Volvo CE,EC220D,Excavator,Heavy Equipment,2011,2015,Volvo D6H (173 HP),false
+Volvo CE,EC220E,Excavator,Heavy Equipment,2015,2026,Volvo D6J (172 HP),false
+Volvo CE,EC300D,Excavator,Heavy Equipment,2011,2015,Volvo D8H (227 HP),false
+Volvo CE,EC300E,Excavator,Heavy Equipment,2015,2026,Volvo D8J (240 HP),false
+Volvo CE,EC350E,Excavator,Heavy Equipment,2014,2026,Volvo D8J / D13J (299 HP),false
+Volvo CE,EC380E,Excavator,Heavy Equipment,2014,2026,Volvo D13J (306 HP),false
+Volvo CE,EC480E,Excavator,Heavy Equipment,2014,2026,Volvo D13J (373 HP),false
+Volvo CE,L120E,Loader,Heavy Equipment,2002,2007,Volvo D7D (221 HP),false
+Volvo CE,L120G,Loader,Heavy Equipment,2011,2014,Volvo D8H (243 HP),false
+Volvo CE,L180H,Loader,Heavy Equipment,2014,2026,Volvo D13J (330 HP),false
+Volvo CE,L220H,Loader,Heavy Equipment,2014,2026,Volvo D13J (366 HP),false
+Volvo CE,A25D,Roll Off Truck,Transport & Hauling,2001,2007,Volvo D9A / D10B (300 HP),false
+Volvo CE,A30G,Roll Off Truck,Transport & Hauling,2014,2026,Volvo D11L (355 HP),false
+Volvo CE,EC140D,Excavator,Heavy Equipment,2012,2016,Volvo D4H (105 HP),false
+Volvo CE,EC250E,Excavator,Heavy Equipment,2015,2026,Volvo D8J (213 HP),false
+Volvo CE,G940,Grader,Heavy Equipment,2006,2015,Volvo D7E (215 HP),false
+Hitachi,UH07,Excavator,Heavy Equipment,1972,1985,Isuzu 6BD1 (105 HP),false
+Hitachi,UH083,Excavator,Heavy Equipment,1983,1988,Hino / Isuzu H07C-T / 6BD1T (123 HP),false
+Hitachi,EX120,Excavator,Heavy Equipment,1987,2001,Isuzu 4BD1T (84 HP),false
+Hitachi,EX200-1,Excavator,Heavy Equipment,1987,1991,Isuzu 6BD1T (125 HP),false
+Hitachi,EX200-2,Excavator,Heavy Equipment,1991,1993,Isuzu 6BD1T (133 HP),false
+Hitachi,EX200-3,Excavator,Heavy Equipment,1993,1996,Isuzu 6BD1T (135 HP),false
+Hitachi,EX200-5,Excavator,Heavy Equipment,1996,2001,Isuzu 6BG1T (138 HP),false
+Hitachi,EX300-3,Excavator,Heavy Equipment,1988,2001,Isuzu 6SD1T (217 HP),false
+Hitachi,EX400,Excavator,Heavy Equipment,1988,2001,Isuzu 6RB1T (296 HP),false
+Hitachi,ZX50U-5N,Excavator,Heavy Equipment,2014,2026,Yanmar 4TNV88C (36 HP),false
+Hitachi,ZX85USB-5N,Excavator,Heavy Equipment,2014,2026,Yanmar 4TNV98CT (57 HP),false
+Hitachi,ZX135US-6,Excavator,Heavy Equipment,2016,2026,Isuzu 4JJ1 (101 HP),false
+Hitachi,ZX200-3,Excavator,Heavy Equipment,2006,2012,Isuzu 4HK1X (164 HP),false
+Hitachi,ZX210LC-5,Excavator,Heavy Equipment,2012,2016,Isuzu 4HK1X (159 HP),false
+Hitachi,ZX210LC-6,Excavator,Heavy Equipment,2016,2022,Isuzu 4HK1 (164 HP),false
+Hitachi,ZX210LC-7,Excavator,Heavy Equipment,2022,2026,Isuzu 4HK1 (164 HP),false
+Hitachi,ZX300LC-6,Excavator,Heavy Equipment,2016,2026,Isuzu 6HK1 (249 HP),false
+Hitachi,ZX350LC-5,Excavator,Heavy Equipment,2012,2016,Isuzu 6HK1X (271 HP),false
+Hitachi,ZX350LC-6,Excavator,Heavy Equipment,2016,2022,Isuzu 6HK1 (271 HP),false
+Hitachi,ZX350LC-7,Excavator,Heavy Equipment,2022,2026,Isuzu 6HK1 (271 HP),false
+Hitachi,ZX490LC-6,Excavator,Heavy Equipment,2015,2026,Isuzu 6UZ1 (362 HP),false
+Hitachi,ZW180-6,Loader,Heavy Equipment,2015,2026,Cummins QSB6.7 (173 HP),false
+Hitachi,ZW220-6,Loader,Heavy Equipment,2016,2026,Cummins QSB6.7 (200 HP),false
+Hitachi,ZW310-6,Loader,Heavy Equipment,2016,2026,Cummins QSL9 (298 HP),false
+Hitachi,UH122,Excavator,Heavy Equipment,1978,1986,Isuzu 6BG1T (160 HP),false
+Hitachi,UH172,Excavator,Heavy Equipment,1978,1987,Isuzu E120 (220 HP),false
+Hitachi,EX60,Excavator,Heavy Equipment,1988,2000,Nissan / Isuzu FD33 / 4JG1 (54 HP),false
+Hitachi,EX100-2,Excavator,Heavy Equipment,1991,1998,Isuzu 4BD1T (74 HP),false
+Hitachi,EX120-3,Excavator,Heavy Equipment,1993,1997,Isuzu 4BD1T (84 HP),false
+Hitachi,EX150,Excavator,Heavy Equipment,1989,1997,Isuzu 6BB1 / 4BG1T (99 HP),false
+Hitachi,EX270,Excavator,Heavy Equipment,1989,2001,Isuzu 6BG1T / H07CT (178 HP),false
+Hitachi,EX300-2,Excavator,Heavy Equipment,1991,1995,Isuzu 6SD1T (217 HP),false
+Hitachi,EX330LC-5,Excavator,Heavy Equipment,1997,2002,Isuzu 6SD1TC (237 HP),false
+Hitachi,EX450LC-5,Excavator,Heavy Equipment,1997,2002,Isuzu 6WG1 (311 HP),false
+Hitachi,ZX35U-5N,Excavator,Heavy Equipment,2014,2026,Yanmar 3TNV88F (23 HP),false
+Hitachi,ZX130-6,Excavator,Heavy Equipment,2016,2024,Isuzu 4JJ1 (98 HP),false
+Hitachi,ZX160LC-6,Excavator,Heavy Equipment,2016,2024,Isuzu 4JJ1 (121 HP),false
+Hitachi,ZX250LC-6,Excavator,Heavy Equipment,2016,2024,Isuzu 4HK1 (177 HP),false
+Hitachi,ZX470LC-5,Excavator,Heavy Equipment,2012,2016,Isuzu 6UZ1 (362 HP),false
+Hitachi,ZW150-6,Loader,Heavy Equipment,2016,2026,Cummins QSB6.7 (142 HP),false
+JCB,3C,Backhoe,Heavy Equipment,1970,1980,Leyland / Perkins 4/98NT / 4.236 (70 HP),false
+JCB,3D,Backhoe,Heavy Equipment,1970,1981,Leyland / Perkins 4/98NT (75 HP),false
+JCB,1400B,Backhoe,Heavy Equipment,1985,1992,Perkins 4.236 (74 HP),false
+JCB,214,Backhoe,Heavy Equipment,1991,2005,Perkins 1004.4 / 1004.4T (82 HP),false
+JCB,215,Backhoe,Heavy Equipment,1992,2005,Perkins 1004.4T (96 HP),false
+JCB,3CX,Backhoe,Heavy Equipment,1981,2026,Perkins 4.236 / 1004.4T (85 HP) | JCB Dieselmax 444 (92 HP) | JCB EcoMAX 448 / 430 (109 HP),false
+JCB,4CX,Backhoe,Heavy Equipment,1991,2026,Perkins 1004.4T (100 HP) | JCB Dieselmax / EcoMAX 448 (109 HP),false
+JCB,85Z-1,Excavator,Heavy Equipment,2014,2026,JCB / Kohler Diesel by Kohler KDI 2504TCR (64 HP),false
+JCB,JS130,Excavator,Heavy Equipment,1998,2022,Isuzu / JCB EcoMAX 444 (109 HP),false
+JCB,JS200,Excavator,Heavy Equipment,1995,2016,Isuzu 4HK1X / 6BG1 (172 HP),false
+JCB,JS220,Excavator,Heavy Equipment,2002,2020,JCB EcoMAX 448 (173 HP),false
+JCB,220X,Excavator,Heavy Equipment,2018,2026,JCB EcoMAX 448 (173 HP),false
+JCB,506-36,Telehandler,Heavy Equipment,1988,2026,JCB EcoMAX 4.4 / Kohler 2.5L (74 HP),false
+JCB,507-42,Telehandler,Heavy Equipment,2005,2026,JCB EcoMAX 444 (74 HP),false
+JCB,509-42,Telehandler,Heavy Equipment,2006,2026,JCB EcoMAX 444 (109 HP),false
+JCB,510-56,Telehandler,Heavy Equipment,2007,2026,JCB EcoMAX 448 (109 HP),false
+JCB,512-56,Telehandler,Heavy Equipment,2012,2026,JCB EcoMAX 448 (109 HP),false
+JCB,540-170,Telehandler,Heavy Equipment,2002,2026,JCB Dieselmax / EcoMAX 444 (109 HP),false
+JCB,260,Skid Steer,Heavy Equipment,2011,2022,JCB / Kohler EcoMAX 444 / KDI 2504 (74 HP),false
+JCB,270T,Skid Steer,Heavy Equipment,2017,2026,JCB / Kohler KDI 2504TCR (74 HP),false
+JCB,300T,Skid Steer,Heavy Equipment,2012,2026,JCB EcoMAX 444 (74 HP),false
+JCB,457,Loader,Heavy Equipment,2012,2026,Cummins / MTU B6.7 / 6R1000 (282 HP),false
+JCB,1550B,Backhoe,Heavy Equipment,1986,1993,Perkins 4.236T (86 HP),false
+JCB,214E,Backhoe,Heavy Equipment,2000,2006,Perkins 1004.4 / 1104C-44 (82 HP),false
+JCB,5CX,Backhoe,Heavy Equipment,2014,2026,JCB EcoMAX 448 (118 HP),false
+JCB,8035 ZTS,Excavator,Heavy Equipment,2007,2017,Perkins 403D-15 (31 HP),false
+JCB,50Z-1,Excavator,Heavy Equipment,2018,2026,Perkins 404D-22 / Kohler KDI 1903 (48 HP),false
+JCB,JS160,Excavator,Heavy Equipment,2002,2020,Isuzu / JCB EcoMAX 444 (125 HP),false
+JCB,245XR,Excavator,Heavy Equipment,2021,2026,JCB Dieselmax 448 (173 HP),false
+JCB,520-50,Telehandler,Heavy Equipment,1994,2018,Perkins / JCB 1004-4 / Dieselmax (74 HP),false
+JCB,506C,Telehandler,Heavy Equipment,1998,2007,Perkins 1004-4T (82 HP),false
+JCB,541-70,Telehandler,Heavy Equipment,2006,2026,JCB EcoMAX 444 / 448 (125 HP),false
+JCB,270,Skid Steer,Heavy Equipment,2011,2026,JCB / Kohler EcoMAX 444 / KDI 2504TCR (74 HP),false
+JCB,427,Loader,Heavy Equipment,2013,2026,Cummins QSB6.7 (179 HP),false
+New Holland,L35,Skid Steer,Heavy Equipment,1972,1981,Wisconsin VG4D (37 HP),false
+New Holland,L555,Skid Steer,Heavy Equipment,1981,1993,Kubota V1902 (42 HP),false
+New Holland,LX665,Skid Steer,Heavy Equipment,1994,1999,New Holland / ISM N844T (50 HP),false
+New Holland,LS180,Skid Steer,Heavy Equipment,1999,2006,New Holland 332T (73 HP),false
+New Holland,L220,Skid Steer,Heavy Equipment,2011,2020,ISM / FPT N844LTA / F5C (67 HP),false
+New Holland,L228,Skid Steer,Heavy Equipment,2015,2020,FPT Industrial F5C (74 HP),false
+New Holland,L328,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+New Holland,C232,Skid Steer,Heavy Equipment,2011,2020,FPT Industrial F5C (74 HP),false
+New Holland,C238,Skid Steer,Heavy Equipment,2011,2020,FPT Industrial F5BFL413A (90 HP),false
+New Holland,C337,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5C (74 HP),false
+New Holland,C345,Skid Steer,Heavy Equipment,2020,2026,FPT Industrial F5BFL413A (90 HP),false
+New Holland,555E,Backhoe,Heavy Equipment,1996,2000,Ford / Genesis 304T (75 HP),false
+New Holland,LB75B,Backhoe,Heavy Equipment,2001,2006,CNH / Iveco 445T/M2 (88 HP),false
+New Holland,B95B,Backhoe,Heavy Equipment,2008,2012,FPT Industrial F4GE9484 (95 HP),false
+New Holland,B95C,Backhoe,Heavy Equipment,2012,2020,FPT Industrial F5C (95 HP),false
+New Holland,B75D,Backhoe,Heavy Equipment,2020,2026,FPT Industrial F36 Stage V (74 HP),false
+New Holland,B95D,Backhoe,Heavy Equipment,2020,2026,FPT Industrial F36 Stage V (97 HP),false
+New Holland,B110D,Backhoe,Heavy Equipment,2020,2026,FPT Industrial F36 Stage V (110 HP),false
+New Holland,E35B,Excavator,Heavy Equipment,2008,2017,Yanmar 3TNV88 (27 HP),false
+New Holland,E57C,Excavator,Heavy Equipment,2017,2026,Kubota / Yanmar V2607 / 4TNV98C (45 HP),false
+New Holland,W170D,Loader,Heavy Equipment,2006,2026,FPT Industrial NEF 6.7L (197 HP),false
+New Holland,L445,Skid Steer,Heavy Equipment,1975,1984,Wisconsin / Deutz F2L511 (31 HP),false
+New Holland,L785,Skid Steer,Heavy Equipment,1984,1994,Ford BSD333 (57 HP),false
+New Holland,LX565,Skid Steer,Heavy Equipment,1994,1999,ISM / Shibaura N844 (40 HP),false
+New Holland,LX885,Skid Steer,Heavy Equipment,1994,1999,New Holland 332T (60 HP),false
+New Holland,LS160,Skid Steer,Heavy Equipment,1999,2006,ISM N844 (42 HP),false
+New Holland,LS190,Skid Steer,Heavy Equipment,1999,2006,New Holland 450T (83 HP),false
+New Holland,L218,Skid Steer,Heavy Equipment,2011,2019,ISM N844LTA (60 HP),false
+New Holland,L320,Skid Steer,Heavy Equipment,2020,2026,ISM N844LTA Tier 4F (67 HP),false
+New Holland,655E,Backhoe,Heavy Equipment,1996,2000,Ford / Genesis 304T (90 HP),false
+New Holland,E37C,Excavator,Heavy Equipment,2017,2026,Yanmar 3TNV88F (24 HP),false
+Kobelco,K904D,Excavator,Heavy Equipment,1978,1989,Mitsubishi / Isuzu 6D14T (88 HP),false
+Kobelco,K907C,Excavator,Heavy Equipment,1978,1990,Mitsubishi 6D15T (128 HP),false
+Kobelco,K909A,Excavator,Heavy Equipment,1980,1990,Mitsubishi 6D22T (168 HP),false
+Kobelco,SK200LC Mark III,Excavator,Heavy Equipment,1990,1998,Mitsubishi 6D31T / 6D34T (133 HP),false
+Kobelco,SK270LC Mark IV,Excavator,Heavy Equipment,1993,1999,Mitsubishi 6D16T (182 HP),false
+Kobelco,SK400LC Mark IV,Excavator,Heavy Equipment,1993,2000,Mitsubishi 6D22TC (285 HP),false
+Kobelco,SK35SR-6E,Excavator,Heavy Equipment,2005,2026,Yanmar 3TNV88F (23 HP),false
+Kobelco,SK55SRX-7,Excavator,Heavy Equipment,2019,2026,Yanmar 4TNV88C (37 HP),false
+Kobelco,SK75SR-7,Excavator,Heavy Equipment,2013,2026,Yanmar 4TNV98CT (70 HP),false
+Kobelco,SK140SRLC-7,Excavator,Heavy Equipment,2002,2026,Isuzu 4JJ1X (105 HP),false
+Kobelco,SK170LC-11,Excavator,Heavy Equipment,2008,2026,Isuzu 4JJ1X (127 HP),false
+Kobelco,SK210LC-8,Excavator,Heavy Equipment,2006,2015,Hino J05E-TA (157 HP),false
+Kobelco,SK210LC-10,Excavator,Heavy Equipment,2016,2020,Hino J05E-UM (160 HP),false
+Kobelco,SK210LC-11,Excavator,Heavy Equipment,2021,2026,Yanmar / Hino 4TN107FHT (160 HP),false
+Kobelco,SK260LC-11,Excavator,Heavy Equipment,2008,2026,Hino J05E (182 HP),false
+Kobelco,SK300LC-11,Excavator,Heavy Equipment,2016,2026,Hino J08E-YD (252 HP),false
+Kobelco,SK350LC-8,Excavator,Heavy Equipment,2007,2015,Hino J08E-TM (270 HP),false
+Kobelco,SK350LC-10,Excavator,Heavy Equipment,2016,2020,Hino J08E-UV (270 HP),false
+Kobelco,SK350LC-11,Excavator,Heavy Equipment,2021,2026,Isuzu / Hino 6HK1X (270 HP),false
+Kobelco,SK500LC-11,Excavator,Heavy Equipment,2016,2026,Hino E13C / P11C (369 HP),false
+Kobelco,SK850LC-10,Excavator,Heavy Equipment,2017,2026,Hino E13C-YV (510 HP),false
+Kobelco,K905,Excavator,Heavy Equipment,1978,1989,Mitsubishi 6D14T (104 HP),false
+Kobelco,SK120,Excavator,Heavy Equipment,1990,1999,Isuzu 4BD1T (84 HP),false
+Kobelco,SK135SR,Excavator,Heavy Equipment,2000,2012,Isuzu 4BG1T / 4JJ1X (94 HP),false
+Kobelco,SK200-8,Excavator,Heavy Equipment,2006,2012,Hino J05E (148 HP),false
+Kobelco,SK260LC-10,Excavator,Heavy Equipment,2016,2021,Hino J05E-UM (181 HP),false
+Kobelco,SK300LC-10,Excavator,Heavy Equipment,2016,2021,Hino J08E-UV (252 HP),false
+Link-Belt,LS-98,Crane,Heavy Equipment,1970,1995,Detroit Diesel / GM 4-71N (110 HP),false
+Link-Belt,LS-2800,Excavator,Heavy Equipment,1978,1994,Isuzu 6BD1T (122 HP),false
+Link-Belt,2700 Quantum,Excavator,Heavy Equipment,1994,1999,Isuzu 4BD1T / 6BG1 (125 HP),false
+Link-Belt,160 LX,Excavator,Heavy Equipment,2001,2007,Isuzu 4JJ1X (112 HP),false
+Link-Belt,210 LX,Excavator,Heavy Equipment,2001,2007,Isuzu 4HK1X (143 HP),false
+Link-Belt,135 Spin Ace,Excavator,Heavy Equipment,2003,2012,Isuzu 4JJ1X (95 HP),false
+Link-Belt,145 X3,Excavator,Heavy Equipment,2012,2021,Isuzu 4JJ1X (102 HP),false
+Link-Belt,145 X4S,Excavator,Heavy Equipment,2022,2026,Isuzu 4JJ1X Tier 4F (102 HP),false
+Link-Belt,160 X4,Excavator,Heavy Equipment,2008,2026,Isuzu 4JJ1X (120 HP),false
+Link-Belt,210 X2,Excavator,Heavy Equipment,2007,2015,Isuzu 4HK1X (157 HP),false
+Link-Belt,210 X4,Excavator,Heavy Equipment,2015,2022,Isuzu 4HK1X (160 HP),false
+Link-Belt,210 X4S,Excavator,Heavy Equipment,2022,2026,Isuzu 4HK1X Tier 4F (160 HP),false
+Link-Belt,250 X4,Excavator,Heavy Equipment,2012,2026,Isuzu 4HK1X (177 HP),false
+Link-Belt,300 X4,Excavator,Heavy Equipment,2012,2022,Isuzu 6HK1X (207 HP),false
+Link-Belt,300 X4S,Excavator,Heavy Equipment,2022,2026,Isuzu 6HK1X Tier 4F (207 HP),false
+Link-Belt,350 X4,Excavator,Heavy Equipment,2012,2022,Isuzu 6HK1X (268 HP),false
+Link-Belt,350 X4S,Excavator,Heavy Equipment,2022,2026,Isuzu 6HK1X Tier 4F (268 HP),false
+Link-Belt,490 X4,Excavator,Heavy Equipment,2012,2026,Isuzu 6UZ1X (362 HP),false
+Link-Belt,RTC-8065,Crane,Heavy Equipment,1998,2026,Cummins QSB6.7 (270 HP),false
+Link-Belt,HTC-8675,Crane,Heavy Equipment,1995,2026,Cummins ISX12 / X12 (450 HP),false
+Link-Belt,LS-3400,Excavator,Heavy Equipment,1978,1993,Isuzu 6BG1T / GM 6-71 (155 HP),false
+Link-Belt,LS-4300,Excavator,Heavy Equipment,1980,1994,Isuzu 6RB1 / Cummins NTA855 (208 HP),false
+Link-Belt,3400 Quantum,Excavator,Heavy Equipment,1994,1999,Isuzu 6SD1T (184 HP),false
+Link-Belt,130 LX,Excavator,Heavy Equipment,2001,2007,Isuzu 4BG1T (90 HP),false
+Link-Belt,240 LX,Excavator,Heavy Equipment,2001,2007,Isuzu 6HK1X (174 HP),false
+Link-Belt,75 Spin Ace,Excavator,Heavy Equipment,2003,2015,Isuzu 4LE2X (54 HP),false
+Takeuchi,TB15,Excavator,Heavy Equipment,1978,1995,Yanmar 3TNA72 (16 HP),false
+Takeuchi,TB135,Excavator,Heavy Equipment,2001,2013,Yanmar 3TNV88 (28 HP),false
+Takeuchi,TB153FR,Excavator,Heavy Equipment,2004,2015,Yanmar 4TNV88 (39 HP),false
+Takeuchi,TB175,Excavator,Heavy Equipment,2001,2012,Yanmar 4TNV98T (61 HP),false
+Takeuchi,TB216,Excavator,Heavy Equipment,2014,2026,Yanmar 3TNV70 (15 HP),false
+Takeuchi,TB230,Excavator,Heavy Equipment,2016,2026,Yanmar 3TNV88F (24 HP),false
+Takeuchi,TB240,Excavator,Heavy Equipment,2014,2026,Yanmar 4TNV88C (35 HP),false
+Takeuchi,TB250-2,Excavator,Heavy Equipment,2019,2026,Yanmar 4TNV88C (39 HP),false
+Takeuchi,TB260,Excavator,Heavy Equipment,2014,2026,Yanmar 4TNV98C (48 HP),false
+Takeuchi,TB290,Excavator,Heavy Equipment,2014,2026,Isuzu / Yanmar 4JJ1X / 4TNV98CT (69 HP),false
+Takeuchi,TB370,Excavator,Heavy Equipment,2020,2026,Kubota V2607-CR-TE5 (56 HP),false
+Takeuchi,TL130,Skid Steer,Heavy Equipment,2002,2012,Yanmar 4TNV98 (67 HP),false
+Takeuchi,TL140,Skid Steer,Heavy Equipment,2004,2012,Isuzu 4JG1T (81 HP),false
+Takeuchi,TL150,Skid Steer,Heavy Equipment,2004,2012,Yanmar 4TNE106T (97 HP),false
+Takeuchi,TL8,Skid Steer,Heavy Equipment,2013,2026,Kubota V3307-CR-TE4 (74 HP),false
+Takeuchi,TL10V2,Skid Steer,Heavy Equipment,2016,2026,Kubota V3307-CR-TE4 (74 HP),false
+Takeuchi,TL12V2,Skid Steer,Heavy Equipment,2016,2026,Kubota V3800-CR-TI-E4 (111 HP),false
+Takeuchi,TW80,Loader,Heavy Equipment,2015,2026,Deutz TD2.9 L4 (73 HP),false
+Takeuchi,TB025,Excavator,Heavy Equipment,1990,2000,Yanmar 3TNA84 (23 HP),false
+Takeuchi,TB045,Excavator,Heavy Equipment,1990,2000,Yanmar 4TNA84 (38 HP),false
+Takeuchi,TB125,Excavator,Heavy Equipment,2000,2012,Yanmar 3TNE82 / 3TNV82 (23 HP),false
+Takeuchi,TB145,Excavator,Heavy Equipment,2001,2012,Yanmar 4TNV88 (37 HP),false
+Takeuchi,TB235-2,Excavator,Heavy Equipment,2018,2026,Yanmar 3TNV88F (24 HP),false
+Takeuchi,TB280FR,Excavator,Heavy Equipment,2012,2022,Yanmar 4TNV98CT (69 HP),false
+Takeuchi,TL6R,Skid Steer,Heavy Equipment,2018,2026,Kubota V2403-CR-TE4 (65 HP),false
+Takeuchi,TL8R2,Skid Steer,Heavy Equipment,2020,2026,Kubota V3307-CR-TE5 (74 HP),false
+Develon,Solar 220LC-III,Excavator,Heavy Equipment,1990,2004,Daewoo D1146T (147 HP),false
+Develon,Mega 300-V,Loader,Heavy Equipment,1994,2005,Daewoo DE08TIS (200 HP),false
+Develon,DX35Z,Excavator,Heavy Equipment,2007,2026,Yanmar / Kubota 3TNV88 / D1703 (25 HP),false
+Develon,DX62R-7,Excavator,Heavy Equipment,2021,2026,Develon / Doosan D24 (59 HP),false
+Develon,DX85R-7,Excavator,Heavy Equipment,2013,2026,Develon / Yanmar D24 (65 HP),false
+Develon,DX140LC-7,Excavator,Heavy Equipment,2007,2026,Develon / Perkins DL06 / D34 (115 HP),false
+Develon,DX180LC-5,Excavator,Heavy Equipment,2007,2022,Doosan DL06P (129 HP),false
+Develon,DX225LC-3,Excavator,Heavy Equipment,2006,2015,Doosan DL06 (148 HP),false
+Develon,DX225LC-5,Excavator,Heavy Equipment,2015,2021,Doosan DL06P (166 HP),false
+Develon,DX225LC-7,Excavator,Heavy Equipment,2021,2026,Develon DL06V (174 HP),false
+Develon,DX300LC-7,Excavator,Heavy Equipment,2006,2026,Develon DL08V (271 HP),false
+Develon,DX350LC-5,Excavator,Heavy Equipment,2007,2021,Doosan DL08P / Scania DC9 (281 HP),false
+Develon,DX350LC-7,Excavator,Heavy Equipment,2021,2026,Develon DL08V (284 HP),false
+Develon,DX490LC-7,Excavator,Heavy Equipment,2007,2026,Scania / Develon DC13 / DX12 (394 HP),false
+Develon,DL250-7,Loader,Heavy Equipment,2006,2026,Develon DL06V (172 HP),false
+Develon,DL320-7,Loader,Heavy Equipment,2021,2026,Develon DL08V (271 HP),false
+Develon,DL420-7,Loader,Heavy Equipment,2007,2026,Scania DC13 (345 HP),false
+Develon,DD100,Bulldozer,Heavy Equipment,2022,2026,Develon D34 (122 HP),false
+Develon,DA30-7,Roll Off Truck,Transport & Hauling,2011,2026,Scania DC9 (375 HP),false
+Develon,Solar 130LC-V,Excavator,Heavy Equipment,1996,2005,Daewoo DB58T (95 HP),false
+Develon,Solar 290LC-V,Excavator,Heavy Equipment,1997,2005,Daewoo DE08TIS (195 HP),false
+Develon,DX63-3,Excavator,Heavy Equipment,2013,2021,Yanmar 4TNV98C (59 HP),false
+Develon,DX140LC-5,Excavator,Heavy Equipment,2015,2021,Perkins 1204F (115 HP),false
+Develon,DX300LC-5,Excavator,Heavy Equipment,2015,2021,Doosan DL08P (271 HP),false
+Develon,DX420LC-7,Excavator,Heavy Equipment,2021,2026,Scania DC13 (344 HP),false
+Develon,DL200-5,Loader,Heavy Equipment,2015,2021,Perkins / Doosan 1204F / DL06 (142 HP),false
+Develon,DA45-7,Roll Off Truck,Transport & Hauling,2020,2026,Scania DC13 (500 HP),false
+Hyundai CE,R210LC-3,Excavator,Heavy Equipment,1994,2002,Cummins 6BT5.9-C (138 HP),false
+Hyundai CE,R210LC-7,Excavator,Heavy Equipment,2002,2009,Cummins B5.9-C / QSB6.7 (143 HP),false
+Hyundai CE,R210LC-9,Excavator,Heavy Equipment,2010,2015,Cummins QSB6.7 (151 HP),false
+Hyundai CE,HX60A,Excavator,Heavy Equipment,2020,2026,Yanmar 4TNV98C (65 HP),false
+Hyundai CE,HX85A,Excavator,Heavy Equipment,2016,2026,Yanmar 4TNV98C (67 HP),false
+Hyundai CE,HX145A LCR,Excavator,Heavy Equipment,2016,2026,Cummins F3.8 (131 HP),false
+Hyundai CE,HX160A L,Excavator,Heavy Equipment,2016,2026,Cummins B4.5 (152 HP),false
+Hyundai CE,HX220L,Excavator,Heavy Equipment,2015,2020,Cummins QSB6.7 (173 HP),false
+Hyundai CE,HX220A L,Excavator,Heavy Equipment,2020,2026,Cummins B6.7 (173 HP),false
+Hyundai CE,HX300A L,Excavator,Heavy Equipment,2015,2026,Cummins B6.7 / L9 (252 HP),false
+Hyundai CE,HX350A L,Excavator,Heavy Equipment,2020,2026,Cummins L9 (324 HP),false
+Hyundai CE,HX480A L,Excavator,Heavy Equipment,2016,2026,Cummins X12 (430 HP),false
+Hyundai CE,HL757-9A,Loader,Heavy Equipment,2002,2016,Cummins QSB6.7 (197 HP),false
+Hyundai CE,HL940A,Loader,Heavy Equipment,2016,2026,Cummins B6.7 (156 HP),false
+Hyundai CE,HL960A,Loader,Heavy Equipment,2016,2026,Cummins B6.7 (222 HP),false
+Hyundai CE,HL975A CVT,Loader,Heavy Equipment,2016,2026,Cummins L9 / X12 (335 HP),false
+Hyundai CE,HT100V,Skid Steer,Heavy Equipment,2023,2026,Hyundai / Doosan D24 (74 HP),false
+Hyundai CE,290LC-3,Excavator,Heavy Equipment,1995,2002,Cummins 6CT8.3-C (195 HP),false
+Hyundai CE,R290LC-7,Excavator,Heavy Equipment,2002,2010,Cummins QSC8.3 (213 HP),false
+Hyundai CE,R380LC-9,Excavator,Heavy Equipment,2010,2016,Cummins QSL9 (296 HP),false
+Hyundai CE,R55-9A,Excavator,Heavy Equipment,2012,2020,Yanmar 4TNV98C (65 HP),false
+Hyundai CE,HX130A LCR,Excavator,Heavy Equipment,2020,2026,Cummins F3.8 (74 HP),false
+Hyundai CE,HX260A L,Excavator,Heavy Equipment,2020,2026,Cummins B6.7 (192 HP),false
+Hyundai CE,HL770-9A,Loader,Heavy Equipment,2010,2016,Cummins QSL9 (297 HP),false
+Hyundai CE,HL955A,Loader,Heavy Equipment,2020,2026,Cummins B6.7 (200 HP),false
+Liebherr,R 942,Excavator,Heavy Equipment,1975,1998,Liebherr / Cummins D906TB / NTA855 (220 HP),false
+Liebherr,A 914,Excavator,Heavy Equipment,2000,2026,Liebherr / Deutz D924 / TCD 3.6 L4 (143 HP),false
+Liebherr,R 914 Compact,Excavator,Heavy Equipment,2012,2026,Deutz TCD 3.6 L4 (121 HP),false
+Liebherr,R 920,Excavator,Heavy Equipment,2013,2026,Liebherr / Cummins B4.5 / D924 (150 HP),false
+Liebherr,R 926,Excavator,Heavy Equipment,2008,2026,Liebherr D924 / D944 (204 HP),false
+Liebherr,R 936,Excavator,Heavy Equipment,2008,2024,Liebherr D936 (258 HP),false
+Liebherr,R 945,Excavator,Heavy Equipment,2020,2026,Liebherr D946 A7 (299 HP),false
+Liebherr,R 976,Excavator,Heavy Equipment,2006,2026,Liebherr D9508 (544 HP),false
+Liebherr,L 538,Loader,Heavy Equipment,1998,2026,Liebherr / John Deere D924 / 4045H (154 HP),false
+Liebherr,L 550,Loader,Heavy Equipment,1998,2026,Liebherr D944 A7 (222 HP),false
+Liebherr,L 566 XPower,Loader,Heavy Equipment,2016,2026,Liebherr D936 / D946 (272 HP),false
+Liebherr,PR 726,Bulldozer,Heavy Equipment,1998,2026,Liebherr D924 (161 HP),false
+Liebherr,PR 736,Bulldozer,Heavy Equipment,2015,2026,Liebherr D934 / D944 (217 HP),false
+Liebherr,PR 756,Bulldozer,Heavy Equipment,2006,2026,Liebherr D946 / D9508 (392 HP),false
+Liebherr,TA 230 Litronic,Roll Off Truck,Transport & Hauling,2011,2026,Liebherr D956 (355 HP),false
+Liebherr,LTM 1090-4.2,Crane,Heavy Equipment,1995,2026,Liebherr D946 A7 (449 HP),false
+Liebherr,R 912,Excavator,Heavy Equipment,1972,1995,Deutz / Liebherr F6L912 / D904T (106 HP),false
+Liebherr,R 924,Excavator,Heavy Equipment,1998,2016,Liebherr D924 TI-E (173 HP),false
+Liebherr,R 934,Excavator,Heavy Equipment,2000,2026,Liebherr D944 A7 (272 HP),false
+Liebherr,R 954,Excavator,Heavy Equipment,1982,2015,Liebherr D926 / D936L (326 HP),false
+Liebherr,A 918,Excavator,Heavy Equipment,2012,2026,Liebherr D924 (163 HP),false
+Liebherr,L 526,Loader,Heavy Equipment,2012,2026,Liebherr / John Deere 4045H / D924 (136 HP),false
+Liebherr,L 580 XPower,Loader,Heavy Equipment,2016,2026,Liebherr D936 A7 (313 HP),false
+Liebherr,PR 716,Bulldozer,Heavy Equipment,2015,2026,Liebherr D924 (126 HP),false
+Liebherr,PR 746,Bulldozer,Heavy Equipment,2016,2026,Liebherr D936 / D946 (252 HP),false
+Liebherr,LTM 1250-5.1,Crane,Heavy Equipment,2015,2026,Liebherr D946 A7 (544 HP),false
+Yanmar,B37,Excavator,Heavy Equipment,1982,2003,Yanmar 3TNE88 (28 HP),false
+Yanmar,SV08-1C,Excavator,Heavy Equipment,2006,2026,Yanmar 2TE67L-BV (10 HP),false
+Yanmar,ViO25-6A,Excavator,Heavy Equipment,2005,2026,Yanmar 3TNV80F (20 HP),false
+Yanmar,ViO35-6A,Excavator,Heavy Equipment,2002,2022,Yanmar 3TNV88F (24 HP),false
+Yanmar,ViO35-7,Excavator,Heavy Equipment,2022,2026,Yanmar 3TNV88F-ESBV (24 HP),false
+Yanmar,ViO45-6A,Excavator,Heavy Equipment,2006,2026,Yanmar 4TNV88C (37 HP),false
+Yanmar,ViO55-6A,Excavator,Heavy Equipment,2006,2026,Yanmar 4TNV88C-PBV (48 HP),false
+Yanmar,ViO80-1A,Excavator,Heavy Equipment,2014,2026,Yanmar 4TNV98C-WBV (57 HP),false
+Yanmar,SV100-2B,Excavator,Heavy Equipment,2010,2022,Yanmar 4TNV98CT (72 HP),false
+Yanmar,SV100-7,Excavator,Heavy Equipment,2022,2026,Yanmar 4TNV98CT-VBV (72 HP),false
+Yanmar,TL65RS,Skid Steer,Heavy Equipment,2023,2026,Yanmar 4TNV98C (67 HP),false
+Yanmar,TL100VS,Skid Steer,Heavy Equipment,2023,2026,Yanmar 4TNV94FHT (103 HP),false
+Yanmar,V8,Loader,Heavy Equipment,2005,2026,Yanmar 4TNV98C (62 HP),false
+Yanmar,YB251,Excavator,Heavy Equipment,1978,1991,Yanmar 3T84H (25 HP),false
+Yanmar,B50,Excavator,Heavy Equipment,1989,2002,Yanmar 4TNE88 (39 HP),false
+Yanmar,ViO17,Excavator,Heavy Equipment,2006,2026,Yanmar 3TNV70 (14 HP),false
+Yanmar,ViO27-6,Excavator,Heavy Equipment,2014,2024,Yanmar 3TNV80F (21 HP),false
+Yanmar,ViO35-5,Excavator,Heavy Equipment,2007,2014,Yanmar 3TNV88 (27 HP),false
+Yanmar,ViO50-6A,Excavator,Heavy Equipment,2014,2026,Yanmar 4TNV88C (39 HP),false
+Yanmar,ViO80-7,Excavator,Heavy Equipment,2023,2026,Yanmar 4TNV98C (56 HP),false
+Yanmar,SV40,Excavator,Heavy Equipment,2016,2026,Yanmar 4TNV88C (39 HP),false
+Yanmar,TL75VS,Skid Steer,Heavy Equipment,2023,2026,Yanmar 4TNV98CT (74 HP),false
+Yanmar,TL80VS,Skid Steer,Heavy Equipment,2023,2026,Yanmar 4TNV98CT (74 HP),false
+Yanmar,V4-7,Loader,Heavy Equipment,2014,2026,Yanmar 3TNV88C (36 HP),false
+Wacker Neuson,RT82-SC,Compactor,Heavy Equipment,1988,2026,Lombardini / Kohler LDW1003 / KDW1003 (20 HP),false
+Wacker Neuson,EZ17,Excavator,Heavy Equipment,2008,2026,Yanmar 3TNV76 (18 HP),false
+Wacker Neuson,EZ36,Excavator,Heavy Equipment,2018,2026,Yanmar 3TNV88F (24 HP),false
+Wacker Neuson,EZ50,Excavator,Heavy Equipment,2016,2026,Perkins / Yanmar 404J-E22T / 4TNV88C (45 HP),false
+Wacker Neuson,ET65,Excavator,Heavy Equipment,2015,2026,Perkins 404F-E22TA (56 HP),false
+Wacker Neuson,ET90,Excavator,Heavy Equipment,2015,2026,Perkins 854F-E34T (74 HP),false
+Wacker Neuson,SW28,Skid Steer,Heavy Equipment,2015,2026,Kohler KDI 2504TCR (74 HP),false
+Wacker Neuson,ST31,Skid Steer,Heavy Equipment,2015,2026,Kohler KDI 2504TCR (74 HP),false
+Wacker Neuson,ST45,Skid Steer,Heavy Equipment,2015,2026,Perkins / Kohler 854F-E34TA / KDI 3404 (100 HP),false
+Wacker Neuson,WL34,Loader,Heavy Equipment,2014,2026,Deutz / Perkins TD 2.2 L3 / 404J (60 HP),false
+Wacker Neuson,WL52,Loader,Heavy Equipment,2014,2026,Deutz TD 2.9 L4 (74 HP),false
+Wacker Neuson,LTN6L,Light Tower,Site Support,2005,2026,Kohler / Kubota KDW1003 / D1005 (13 HP),false
+Wacker Neuson,G50,Generator,Site Support,2006,2026,Cummins / Isuzu 4BT3.3 / QSB4.5 (75 HP),false
+Wacker Neuson,RD12A,Compactor,Heavy Equipment,2002,2026,Honda GX630 (21 HP),false
+Wacker Neuson,RD27,Compactor,Heavy Equipment,2008,2026,Kubota D1703 (33 HP),false
+Wacker Neuson,803,Excavator,Heavy Equipment,2005,2026,Yanmar 3TNV70 (13 HP),false
+Wacker Neuson,ET24,Excavator,Heavy Equipment,2014,2026,Yanmar 3TNV76 (18 HP),false
+Wacker Neuson,EZ26,Excavator,Heavy Equipment,2018,2026,Yanmar 3TNV80F (20 HP),false
+Wacker Neuson,EZ53,Excavator,Heavy Equipment,2019,2026,Perkins 404J-E22T (49 HP),false
+Wacker Neuson,ET145,Excavator,Heavy Equipment,2017,2026,Perkins 904J-E36TA (100 HP),false
+Wacker Neuson,SW21,Skid Steer,Heavy Equipment,2015,2026,Kohler KDI 2504TCR (74 HP),false
+Wacker Neuson,ST35,Skid Steer,Heavy Equipment,2015,2022,Kohler KDI 3404TCR (74 HP),false
+Wacker Neuson,TH627,Telehandler,Heavy Equipment,2017,2026,Kohler KDI 2504TCR (74 HP),false
+Wacker Neuson,G25,Generator,Site Support,2008,2026,Isuzu / Kubota 4LE2T / V2403 (40 HP),false
+Terex,72-71B,Loader,Heavy Equipment,1970,1986,Detroit Diesel 8V-71T (336 HP),false
+Terex,82-30B,Bulldozer,Heavy Equipment,1972,1985,Detroit Diesel 6-71T (260 HP),false
+Terex,TX760B,Backhoe,Heavy Equipment,1998,2011,Perkins 1104C-44T (94 HP),false
+Terex,860SX,Backhoe,Heavy Equipment,2006,2017,Perkins 1104D-44TA (100 HP),false
+Terex,970 Elite,Backhoe,Heavy Equipment,2006,2016,Perkins 1104D-44TA (100 HP),false
+Terex,TL80,Loader,Heavy Equipment,2005,2017,Deutz TD2011 L04w / TD2.9 (60 HP),false
+Terex,TC50,Excavator,Heavy Equipment,2004,2017,Kubota / Mitsubishi V2403 / S4Q2 (44 HP),false
+Terex,PT-80,Skid Steer,Heavy Equipment,2007,2016,Perkins 804D-33T / 1104C (80 HP),false
+Terex,TA30,Roll Off Truck,Transport & Hauling,1995,2011,Cummins QSM11 (385 HP),false
+Terex,TA300,Roll Off Truck,Transport & Hauling,2011,2026,Scania DC9 (370 HP),false
+Terex,RT555,Crane,Heavy Equipment,1998,2026,Cummins QSB6.7 (200 HP),false
+Terex,RL4000,Light Tower,Site Support,1998,2023,Kubota D905 / D1005 (13 HP),false
+Terex,72-61,Loader,Heavy Equipment,1972,1984,Detroit Diesel 6V-71T (307 HP),false
+Terex,S-24B,Grader,Heavy Equipment,1970,1986,Detroit Diesel 12V-71T (475 HP),false
+Terex,TLB840,Backhoe,Heavy Equipment,2012,2017,Deutz / Perkins TCD 3.6 L4 (74 HP),false
+Terex,TL100,Loader,Heavy Equipment,2005,2017,Deutz TD2011 L04w (74 HP),false
+Terex,TC35,Excavator,Heavy Equipment,2005,2017,Mitsubishi S4L2 (30 HP),false
+Terex,PT-60,Skid Steer,Heavy Equipment,2007,2015,Perkins 404D-22T (60 HP),false
+Terex,PT-100G,Skid Steer,Heavy Equipment,2009,2016,Perkins 1104D-E44TA (100 HP),false
+Terex,TA25,Roll Off Truck,Transport & Hauling,1998,2011,Cummins QSC8.3 (300 HP),false
+Terex,TA400,Roll Off Truck,Transport & Hauling,2011,2026,Scania DC13 (444 HP),false
+Terex,RT670,Crane,Heavy Equipment,2002,2024,Cummins QSB6.7 (240 HP),false
+Gradall,G-660,Excavator,Heavy Equipment,1970,1992,Detroit Diesel 4-53N / 6V-53 (160 HP),false
+Gradall,G-880C,Excavator,Heavy Equipment,1974,1994,Detroit Diesel / Cummins 6V-53T / 6BT5.9 (190 HP),false
+Gradall,G3WD,Excavator,Heavy Equipment,1984,1998,Cummins 6BT5.9 (165 HP),false
+Gradall,XL 3100 III,Excavator,Heavy Equipment,1998,2013,Detroit Diesel / Mercedes MBE 900 (210 HP),false
+Gradall,XL 3100 V,Excavator,Heavy Equipment,2014,2026,Volvo / Penta TAD572VE / TAD881VE (218 HP),false
+Gradall,XL 4100 IV,Excavator,Heavy Equipment,1998,2013,Detroit Diesel / Mercedes MBE 906 (250 HP),false
+Gradall,XL 4100 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD871VE / TAD881VE (248 HP),false
+Gradall,XL 5100 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD872VE / TAD882VE (281 HP),false
+Gradall,D152,Excavator,Heavy Equipment,2014,2026,Cummins QSB4.5 (160 HP),false
+Gradall,534D9-45,Telehandler,Heavy Equipment,1982,2006,Cummins 4BT3.9 (110 HP),false
+Gradall,G-600,Excavator,Heavy Equipment,1970,1982,Detroit Diesel 4-53N (120 HP),false
+Gradall,G-1000,Excavator,Heavy Equipment,1972,1988,Detroit Diesel 6-71N (238 HP),false
+Gradall,XL 2200,Excavator,Heavy Equipment,1996,2006,Cummins 4BT3.9 (100 HP),false
+Gradall,XL 3200 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD571VE (173 HP),false
+Gradall,XL 3300 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD571VE (173 HP),false
+Gradall,XL 4200 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD572VE (218 HP),false
+Gradall,XL 4300 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD572VE (218 HP),false
+Gradall,XL 5200 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD871VE (248 HP),false
+Gradall,XL 5300 V,Excavator,Heavy Equipment,2014,2026,Volvo Penta TAD871VE (248 HP),false
+Gradall,534C-9,Telehandler,Heavy Equipment,1986,1998,Cummins 4BT3.9 (95 HP),false
+Gradall,544D10-55,Telehandler,Heavy Equipment,1998,2006,Cummins 4BT3.9 / QSB4.5 (110 HP),false
+Bell,B25C,Roll Off Truck,Transport & Hauling,1985,2001,Mercedes-Benz OM906LA / ADE 366T (260 HP),false
+Bell,B30D,Roll Off Truck,Transport & Hauling,2001,2013,Mercedes-Benz OM906LA / OM926LA (322 HP),false
+Bell,B40D,Roll Off Truck,Transport & Hauling,2001,2013,Mercedes-Benz OM501LA (422 HP),false
+Bell,B20E,Roll Off Truck,Transport & Hauling,2014,2026,Mercedes-Benz / MTU OM934LA (4R1000) (228 HP),false
+Bell,B25E,Roll Off Truck,Transport & Hauling,2013,2026,Mercedes-Benz / MTU OM936LA (6R1000) (282 HP),false
+Bell,B30E,Roll Off Truck,Transport & Hauling,2013,2026,Mercedes-Benz / MTU OM936LA (6R1000) (335 HP),false
+Bell,B35E,Roll Off Truck,Transport & Hauling,2014,2026,Mercedes-Benz / MTU OM470LA (6R1100) (416 HP),false
+Bell,B40E,Roll Off Truck,Transport & Hauling,2014,2026,Mercedes-Benz / MTU OM471LA (6R1300) (510 HP),false
+Bell,B45E,Roll Off Truck,Transport & Hauling,2016,2026,Mercedes-Benz / MTU OM471LA (6R1300) (523 HP),false
+Bell,B50E,Roll Off Truck,Transport & Hauling,2015,2026,Mercedes-Benz / MTU OM473LA (6R1500) (577 HP),false
+Bell,L2106E,Loader,Heavy Equipment,2005,2026,John Deere / Cummins 6068H / QSB6.7 (217 HP),false
+Bell,B25B,Roll Off Truck,Transport & Hauling,1989,1996,Deutz / ADE BF6L913C / ADE 366T (240 HP),false
+Bell,B30B,Roll Off Truck,Transport & Hauling,1989,1996,ADE / Mercedes ADE 442T (290 HP),false
+Bell,B30C,Roll Off Truck,Transport & Hauling,1996,2001,Mercedes-Benz OM906LA (275 HP),false
+Bell,B25D,Roll Off Truck,Transport & Hauling,2001,2013,Mercedes-Benz OM906LA (275 HP),false
+Bell,B35D,Roll Off Truck,Transport & Hauling,2002,2013,Mercedes-Benz OM501LA (389 HP),false
+Bell,B50D,Roll Off Truck,Transport & Hauling,2003,2015,Mercedes-Benz OM502LA (516 HP),false
+Bell,B60E,Roll Off Truck,Transport & Hauling,2017,2026,Mercedes-Benz / MTU OM473LA (6R1500) (577 HP),false
+Bell,L1806E,Loader,Heavy Equipment,2008,2026,John Deere / Cummins 6068H / QSB6.7 (172 HP),false
+Bell,L2606E,Loader,Heavy Equipment,2008,2026,John Deere / MTU 6090H / 6R1000 (282 HP),false
+Manitou,4RM25,Forklift,Heavy Equipment,1975,1995,Perkins 4.236 (72 HP),false
+Manitou,MT 625 H,Telehandler,Heavy Equipment,2010,2026,Kubota V3307-DI-T (75 HP),false
+Manitou,MT 1440,Telehandler,Heavy Equipment,2006,2026,Deutz / Perkins TCD 3.6 L4 (100 HP),false
+Manitou,MLT 737,Telehandler,Heavy Equipment,2016,2026,Deutz TCD 3.6 L4 (129 HP),false
+Manitou,MLT 840,Telehandler,Heavy Equipment,2012,2026,John Deere / Yanmar 4045PWX / 4TN107FHT (137 HP),false
+Manitou,MTA 6642,Telehandler,Heavy Equipment,2008,2026,Cummins / Deutz QSF3.8 / TCD 3.6 (74 HP),false
+Manitou,MTA 10055,Telehandler,Heavy Equipment,2008,2026,Cummins / Deutz QSB4.5 / TCD 3.6 L4 (120 HP),false
+Manitou,MRT 2150,Telehandler,Heavy Equipment,2004,2021,Mercedes-Benz OM934LA (150 HP),false
+Manitou,MRT 2660,Telehandler,Heavy Equipment,2021,2026,Yanmar 4TN107FHT (156 HP),false
+Manitou,2700V,Skid Steer,Heavy Equipment,2015,2026,Yanmar 4TNV98C (72 HP),false
+Manitou,M 30-4,Forklift,Heavy Equipment,1995,2026,Perkins / Deutz 854F / TCD 2.9 L4 (74 HP),false
+Manitou,M 50-4,Forklift,Heavy Equipment,1995,2026,Perkins / Deutz 1104D / TCD 3.6 L4 (74 HP),false
+Manitou,MT 732,Telehandler,Heavy Equipment,2002,2024,Perkins / Deutz 1104C / TD 3.6 L4 (75 HP),false
+Manitou,MT 1030 S,Telehandler,Heavy Equipment,2000,2018,Perkins 1104C-44T (100 HP),false
+Manitou,MT 1840,Telehandler,Heavy Equipment,2008,2026,Perkins / Deutz TCD 3.6 L4 (100 HP),false
+Manitou,MLT 625,Telehandler,Heavy Equipment,2011,2026,Kubota V3307-CR-TE5 (75 HP),false
+Manitou,MTA 8044,Telehandler,Heavy Equipment,2008,2024,Cummins / Deutz QSB4.5 / TCD 3.6 (120 HP),false
+Manitou,MTA 12055,Telehandler,Heavy Equipment,2012,2026,Cummins / Deutz QSB4.5 / TCD 3.6 L4 (120 HP),false
+Manitou,MRT 2550,Telehandler,Heavy Equipment,2016,2022,Mercedes-Benz OM934LA (156 HP),false
+Manitou,2200R,Skid Steer,Heavy Equipment,2015,2026,Yanmar 4TNV98C (68 HP),false
+Manitou,3200VT,Skid Steer,Heavy Equipment,2016,2026,Deutz TCD 3.6 L4 (114 HP),false
+SkyTrak,4030,Telehandler,Heavy Equipment,1975,1994,John Deere / Continental 4219D (70 HP),false
+SkyTrak,3606,Telehandler,Heavy Equipment,1996,2004,Cummins 4B3.9 / 4BT3.9 (80 HP),false
+SkyTrak,10042,Telehandler,Heavy Equipment,1998,2020,Cummins 4BT3.9 / QSB4.5 (110 HP),false
+SkyTrak,6034,Telehandler,Heavy Equipment,2022,2026,Deutz TCD 2.9 L4 (74 HP),false
+SkyTrak,6036,Telehandler,Heavy Equipment,2004,2023,Cummins 4BT3.9 / QSB4.5 (110 HP) | Cummins / Deutz QSF3.8 / TCD 3.6 L4 (74 HP),false
+SkyTrak,6042,Telehandler,Heavy Equipment,2018,2026,Deutz TCD 2.9 L4 / 3.6 L4 (74 HP),false
+SkyTrak,8042,Telehandler,Heavy Equipment,2004,2026,Cummins QSB4.5 (110 HP) | Cummins QSF3.8 Tier 4F (74 HP) | Deutz TCD 3.6 L4 (115 HP),false
+SkyTrak,10054,Telehandler,Heavy Equipment,2004,2026,Cummins QSB4.5 (110 HP) | Cummins QSF3.8 / Deutz TCD 3.6 (74 HP) | Deutz TCD 3.6 L4 High-Output (115 HP),false
+SkyTrak,12054,Telehandler,Heavy Equipment,2020,2026,Cummins / Deutz QSF3.8 / TCD 3.6 L4 (115 HP),false
+SkyTrak,5028,Telehandler,Heavy Equipment,1978,1994,John Deere 4239D (72 HP),false
+SkyTrak,8038,Telehandler,Heavy Equipment,1984,1997,John Deere / Cummins 4039T / 4BT3.9 (85 HP),false
+SkyTrak,4266,Telehandler,Heavy Equipment,1997,2003,Cummins 4B3.9 (80 HP),false
+SkyTrak,4270,Telehandler,Heavy Equipment,1997,2004,Cummins 4BT3.9 (100 HP),false
+SkyTrak,4290,Telehandler,Heavy Equipment,1998,2004,Cummins 4BT3.9 (110 HP),false
+SkyTrak,3013,Telehandler,Heavy Equipment,2004,2026,Kubota V1505 / D1305 (25 HP),false
+SkyTrak,10042 Legacy,Telehandler,Heavy Equipment,2003,2008,Cummins 4BT3.9 (110 HP),false
+SkyTrak,8042 Legacy,Telehandler,Heavy Equipment,2002,2008,Cummins 4BT3.9 (110 HP),false
+SkyTrak,6036 Legacy,Telehandler,Heavy Equipment,2002,2008,Cummins 4B3.9 / 4BT3.9 (95 HP),false
+SkyTrak,15054,Telehandler,Heavy Equipment,2023,2026,Deutz TCD 3.6 L4 (134 HP),false
+SkyTrak,9042,Telehandler,Heavy Equipment,1999,2006,Cummins 4BT3.9 (110 HP),false
+Grove / Manitowoc,RT58,Crane,Heavy Equipment,1970,1994,Detroit Diesel / Cummins 4-53N / 6BT5.9 (130 HP),false
+Grove / Manitowoc,RT635C,Crane,Heavy Equipment,1986,2002,Cummins 6BT5.9 (152 HP),false
+Grove / Manitowoc,RT540E,Crane,Heavy Equipment,2007,2022,Cummins QSB6.7 (160 HP),false
+Grove / Manitowoc,RT650E,Crane,Heavy Equipment,2005,2020,Cummins QSB6.7 (173 HP),false
+Grove / Manitowoc,RT765E-2,Crane,Heavy Equipment,2010,2024,Cummins QSB6.7 (240 HP),false
+Grove / Manitowoc,RT890E,Crane,Heavy Equipment,2006,2024,Cummins QSB6.7 (275 HP),false
+Grove / Manitowoc,GRT8100,Crane,Heavy Equipment,2016,2026,Cummins B6.7 (275 HP),false
+Grove / Manitowoc,TMS9000-2,Crane,Heavy Equipment,2003,2026,Cummins ISX12 / X12 (450 HP),false
+Grove / Manitowoc,GMK5250L,Crane,Heavy Equipment,2015,2026,Mercedes-Benz / MTU OM471LA (6R1300) (523 HP),false
+Grove / Manitowoc,Manitowoc 4100W,Crane,Heavy Equipment,1970,1995,Cummins / Cat NTA-855-C360 (360 HP),false
+Grove / Manitowoc,Manitowoc 999,Crane,Heavy Equipment,1998,2022,Cummins QSC8.3 / QSL9 (400 HP),false
+Grove / Manitowoc,Manitowoc MLC150-1,Crane,Heavy Equipment,2014,2026,Cummins B6.7 / L9 (326 HP),false
+Grove / Manitowoc,RT528C,Crane,Heavy Equipment,1985,1998,Cummins 6BT5.9 (130 HP),false
+Grove / Manitowoc,RT745,Crane,Heavy Equipment,1986,1999,Cummins 6CT8.3 (190 HP),false
+Grove / Manitowoc,RT530E-2,Crane,Heavy Equipment,2008,2024,Cummins QSB6.7 (160 HP),false
+Grove / Manitowoc,RT770E,Crane,Heavy Equipment,2014,2024,Cummins QSB6.7 (240 HP),false
+Grove / Manitowoc,RT880E,Crane,Heavy Equipment,2008,2022,Cummins QSB6.7 (275 HP),false
+Grove / Manitowoc,RT9130E-2,Crane,Heavy Equipment,2008,2025,Cummins QSC8.3 / QSL9 (320 HP),false
+Grove / Manitowoc,GRT880,Crane,Heavy Equipment,2017,2026,Cummins B6.7 (275 HP),false
+Grove / Manitowoc,GMK4100L,Crane,Heavy Equipment,2008,2026,Mercedes-Benz OM470LA (429 HP),false
+Grove / Manitowoc,Manitowoc 3900W,Crane,Heavy Equipment,1970,1990,Cummins NT-855-C310 (310 HP),false
+Grove / Manitowoc,Manitowoc 2250,Crane,Heavy Equipment,1998,2022,Cummins QSX15 (450 HP),false
+Genie / JLG,S-65,Boom Lift,Site Support,1998,2022,Deutz D2011 L03i / D2.9 L4 (49 HP) | Perkins 404D-22 / 404F-22T (51 HP) | Ford MSG-425 EFI (75 HP),false
+Genie / JLG,S-85,Boom Lift,Site Support,1998,2022,Deutz TD2011 L04i / TD2.9 L4 (74 HP) | Perkins 804D-33 / 404F-E22TA (67 HP) | Continental / Ford MSG-425 EFI (75 HP),false
+Genie / JLG,Z-45/25,Boom Lift,Site Support,1995,2026,Deutz D2011 L03i / D2.9 L4 (49 HP) | Ford / Kubota MSG-425 / WG2503 (60 HP) | Genie Electric 48V DC Drive Pack (18 HP),false
+Genie / JLG,450AJ,Boom Lift,Site Support,1997,2026,Deutz D2011 L03i / D2.9 L4 (49 HP) | Ford / Kubota MSG-425 / WG2503 (61 HP),false
+Genie / JLG,600S,Boom Lift,Site Support,1997,2026,Deutz D2011 L04i / D2.9 L4 (67 HP) | Ford / GM 3.0L / MSG-425 (75 HP),false
+Genie / JLG,800S,Boom Lift,Site Support,1998,2026,Deutz TD2.9 L4 (67 HP) | Ford MSG-425 (75 HP),false
+Genie / JLG,1930ES,Scissor Lift,Site Support,2003,2026,JLG Electric 24V DC Brushless Drive (8 HP),false
+Genie / JLG,4394RT,Scissor Lift,Site Support,2004,2026,Deutz D2.9 L4 (49 HP) | Kubota WG2503 (61 HP),false
+Genie / JLG,G10-55A,Telehandler,Heavy Equipment,2006,2020,Cummins QSB4.5 (130 HP) | Cummins QSF3.8 Tier 4F (130 HP),false
+Genie / JLG,1055,Telehandler,Heavy Equipment,2016,2026,Cummins QSF3.8 (130 HP),false
+Genie / JLG,400S,Boom Lift,Site Support,1998,2026,Deutz D2011 L03i / D2.9 L4 (49 HP) | Ford / Kubota MSG-425 / WG2503 (61 HP),false
+Genie / JLG,660SJ,Boom Lift,Site Support,1999,2026,Deutz D2.9 L4 (67 HP) | Ford MSG-425 (75 HP),false
+Genie / JLG,860SJ,Boom Lift,Site Support,2000,2026,Deutz TD2.9 L4 (67 HP) | Ford MSG-425 (75 HP),false
+Genie / JLG,1200SJP,Boom Lift,Site Support,2002,2026,Deutz TD2.9 L4 / TCD 3.6 (74 HP),false
+Genie / JLG,2630ES,Scissor Lift,Site Support,2003,2026,JLG Electric 24V DC Drive (8 HP),false
+Genie / JLG,3246ES,Scissor Lift,Site Support,2003,2026,JLG Electric 24V DC Drive (8 HP),false
+Genie / JLG,3394RT,Scissor Lift,Site Support,2004,2026,Deutz / Kubota D2.9 L4 / WG2503 (49 HP),false
+Genie / JLG,G6-42A,Telehandler,Heavy Equipment,2006,2018,John Deere / Deutz 4045TF / TCD 3.6 (99 HP),false
+Genie / JLG,G9-43A,Telehandler,Heavy Equipment,2006,2018,Cummins QSB4.5 / QSF3.8 (110 HP),false
+Genie / JLG,G12-55A,Telehandler,Heavy Equipment,2006,2018,Cummins QSB4.5 / QSF3.8 (130 HP),false
+Genie / JLG,1255,Telehandler,Heavy Equipment,2017,2026,Cummins QSF3.8 (130 HP),false
+Genie,S-45 XC,Boom Lift,Site Support,1996,2026,Deutz D2011 L03i / D2.9 L4 (49 HP) | Kubota / Ford WG2503 / MSG-425 (60 HP),false
+Genie,S-65 XC,Boom Lift,Site Support,2018,2026,Deutz D2.9 L4 Tier 4F (49 HP) | Deutz TD2.9 L4 Turbo (74 HP) | Ford MSG-425 EFI (75 HP),false
+Genie,S-85 XC,Boom Lift,Site Support,2018,2026,Deutz TD2.9 L4 Tier 4F (74 HP) | Perkins 404F-E22TA (67 HP),false
+Genie,Z-62/40,Boom Lift,Site Support,1998,2026,Deutz D2.9 L4 (49 HP) | Ford MSG-425 (75 HP),false
+Genie,GS-1930,Scissor Lift,Site Support,1998,2026,Genie Electric 24V DC E-Drive (8 HP),false
+Genie,GS-4390 RT,Scissor Lift,Site Support,2002,2026,Deutz D2.9 L4 (49 HP) | Ford MSG-425 (75 HP),false
+Genie,GTH-5519,Telehandler,Heavy Equipment,2007,2026,Deutz TD 2.9 L4 (74 HP),false
+Genie,GTH-636,Telehandler,Heavy Equipment,2007,2024,Deutz TCD 3.6 L4 (74 HP),false
+Genie,GTH-844,Telehandler,Heavy Equipment,2006,2026,Perkins / Deutz 1104D-44T / TCD 3.6 L4 (74 HP) | Deutz TCD 3.6 L4 High-Torque (99 HP),false
+Genie,GTH-1056,Telehandler,Heavy Equipment,2007,2026,Deutz TCD 3.6 L4 (74 HP) | Deutz / Perkins TCD 3.6 L4 High-Output (121 HP),false
+Genie,S-40,Boom Lift,Site Support,1995,2019,Deutz F3L1011 / D2011 L03i (48 HP) | Ford LRG-425 / MSG-425 (70 HP),false
+Genie,S-60,Boom Lift,Site Support,1994,2020,Deutz D2011 L03i / D2.9 L4 (49 HP) | Perkins 404D-22 (51 HP),false
+Genie,S-60 J,Boom Lift,Site Support,2020,2026,Kubota D1105 / D1803 (25 HP),false
+Genie,S-80,Boom Lift,Site Support,1997,2019,Deutz / Perkins TD2011 L04i / 804D-33 (74 HP),false
+Genie,SX-135 XC,Boom Lift,Site Support,2017,2026,Deutz / Perkins TD2.9 L4 / 854F-E34T (74 HP),false
+Genie,Z-34/22 IC,Boom Lift,Site Support,1994,2024,Kubota D1105 / DF972 (25 HP),false
+Genie,Z-45 XC,Boom Lift,Site Support,2018,2026,Deutz D2.9 L4 (49 HP),false
+Genie,Z-60/34,Boom Lift,Site Support,1996,2016,Deutz / Ford D2011 L03i / MSG-425 (49 HP),false
+Genie,Z-80/60,Boom Lift,Site Support,2003,2026,Deutz / Perkins TD2.9 L4 (74 HP),false
+Genie,GS-2632,Scissor Lift,Site Support,1998,2026,Genie Electric 24V DC E-Drive (8 HP),false
+Genie,GS-3369 RT,Scissor Lift,Site Support,2011,2026,Kubota D1105 (25 HP),false
+Genie,GTH-1256,Telehandler,Heavy Equipment,2016,2026,Deutz TCD 3.6 L4 (121 HP),false
+Massey Ferguson,MF 50,Backhoe,Heavy Equipment,1970,1994,Perkins AD4.203 / A4.236 (65 HP),false
+Massey Ferguson,MF 60,Backhoe,Heavy Equipment,1975,1994,Perkins A4.236 / A4.248 (68 HP),false
+Massey Ferguson,MF 65,Loader,Heavy Equipment,1970,1976,Perkins AD4.203 (58 HP),false
+Massey Ferguson,MF 55C,Loader,Heavy Equipment,1976,1988,Perkins / Hanomag 6.354 / D962K (144 HP),false
+Massey Ferguson,MF 750,Backhoe,Heavy Equipment,1986,2001,Perkins 1004.4T (86 HP),false
+Massey Ferguson,MF 4707,Loader,Heavy Equipment,2016,2026,AGCO Power 33AWFC (75 HP),false
+Massey Ferguson,MF 20,Loader,Heavy Equipment,1970,1982,Perkins AD3.152 (42 HP),false
+Massey Ferguson,MF 30,Backhoe,Heavy Equipment,1970,1985,Perkins AD4.203 (61 HP),false
+Massey Ferguson,MF 40,Backhoe,Heavy Equipment,1970,1988,Perkins AD3.152 / A4.236 (50 HP),false
+Massey Ferguson,MF 50B,Backhoe,Heavy Equipment,1974,1983,Perkins A4.212 / A4.236 (68 HP),false
+Massey Ferguson,MF 50E,Backhoe,Heavy Equipment,1983,1990,Perkins A4.236 (70 HP),false
+Massey Ferguson,MF 50H,Backhoe,Heavy Equipment,1985,1994,Perkins A4.236 / 1004-4 (74 HP),false
+Massey Ferguson,MF 50HX,Backhoe,Heavy Equipment,1986,1996,Perkins 1004-4T (84 HP),false
+Massey Ferguson,MF 60H,Backhoe,Heavy Equipment,1986,1994,Perkins 1004-4T (86 HP),false
+Massey Ferguson,MF 70,Backhoe,Heavy Equipment,1971,1978,Perkins A4.318 (84 HP),false
+Massey Ferguson,MF 80,Backhoe,Heavy Equipment,1971,1979,Perkins A6.354 (100 HP),false
+Massey Ferguson,MF 44C,Loader,Heavy Equipment,1976,1986,Perkins 6.354 (113 HP),false
+Massey Ferguson,MF 66C,Loader,Heavy Equipment,1976,1987,Hanomag / Perkins D963 (180 HP),false
+Massey Ferguson,MF 860,Backhoe,Heavy Equipment,1992,2001,Perkins 1004.4T (90 HP),false
+Massey Ferguson,MF 4710,Loader,Heavy Equipment,2016,2026,AGCO Power 33AWFC (100 HP),false
+Massey Ferguson,MF 5711,Loader,Heavy Equipment,2017,2026,AGCO Power 44AWFC (110 HP),false
+Vermeer,M475,Drilling Rig,Heavy Equipment,1972,1995,Detroit Diesel / John Deere 4-53 / 4239D (78 HP),false
+Vermeer,T655,Drilling Rig,Heavy Equipment,1985,2026,John Deere / Cat 6068H / C7.1 (250 HP),false
+Vermeer,RTX550,Drilling Rig,Heavy Equipment,2010,2026,Cummins / Kubota B2.8 / V2607 (67 HP),false
+Vermeer,D10x15 S3,Drilling Rig,Heavy Equipment,2002,2026,Kubota / Deutz V2607 / TD2.9 (60 HP),false
+Vermeer,D20x22 S3,Drilling Rig,Heavy Equipment,2005,2026,Deutz TD2.9 L4 (74 HP),false
+Vermeer,D24x40 S3,Drilling Rig,Heavy Equipment,1996,2026,John Deere 4045TF275 / 4045HFC (125 HP) | Cummins QSB4.5 (140 HP),false
+Vermeer,D40x55 S3,Drilling Rig,Heavy Equipment,2004,2026,John Deere 4045HFC04 (140 HP),false
+Vermeer,D100x140 S3,Drilling Rig,Heavy Equipment,2002,2026,Caterpillar C7.1 / C9 ACERT (275 HP),false
+Vermeer,S925TX,Skid Steer,Heavy Equipment,2008,2026,Kubota D1305 / V1505 (35 HP),false
+Vermeer,PD10,Drilling Rig,Heavy Equipment,2012,2026,CAT / Yanmar C2.2 / 4TNV88C (49 HP),false
+Vermeer,M455,Drilling Rig,Heavy Equipment,1972,1988,Detroit Diesel / Ford 3-53 / 192D (58 HP),false
+Vermeer,T455,Drilling Rig,Heavy Equipment,1992,2014,John Deere 4045TF / 6068TF (125 HP),false
+Vermeer,T555,Drilling Rig,Heavy Equipment,1995,2026,John Deere 6068HFC (185 HP),false
+Vermeer,T755,Drilling Rig,Heavy Equipment,1996,2026,Caterpillar C9 / C9.3B (275 HP),false
+Vermeer,T855,Drilling Rig,Heavy Equipment,1998,2026,Caterpillar C13 ACERT (350 HP),false
+Vermeer,RTX450,Drilling Rig,Heavy Equipment,2008,2026,Deutz / Kubota D2.9 L4 / V2403 (49 HP),false
+Vermeer,RTX1250,Drilling Rig,Heavy Equipment,2012,2026,Cummins QSB4.5 / B4.5 (127 HP),false
+Vermeer,D7x11 Series II,Drilling Rig,Heavy Equipment,2001,2018,Kubota D1105 / V1505 (35 HP),false
+Vermeer,D23x30 S3,Drilling Rig,Heavy Equipment,2015,2026,Deutz TD2.9 L4 / TCD 3.6 (100 HP),false
+Vermeer,D24x40 Series II,Drilling Rig,Heavy Equipment,2005,2015,John Deere 4045TF275 (125 HP),false
+Vermeer,D36x50 Series II,Drilling Rig,Heavy Equipment,2004,2016,John Deere 4045HF275 (140 HP),false
+Vermeer,D60x90 S3,Drilling Rig,Heavy Equipment,2015,2026,John Deere / Cat 6068HFC / C7.1 (225 HP),false
+Vermeer,D220x300 S3,Drilling Rig,Heavy Equipment,2008,2026,Caterpillar C13 / C15 ACERT (415 HP),false
+Vermeer,CTX160,Skid Steer,Heavy Equipment,2019,2026,Kohler KDI 1903TCR (40 HP),false
+Ditch Witch,R40,Drilling Rig,Heavy Equipment,1970,1992,Wisconsin / Deutz F3L912 (45 HP),false
+Ditch Witch,R100,Drilling Rig,Heavy Equipment,1975,1998,John Deere / Detroit 6414T / 4-53T (140 HP),false
+Ditch Witch,RT45,Drilling Rig,Heavy Equipment,2005,2026,Yanmar / Deutz 4TNV88C / D2.9 (49 HP),false
+Ditch Witch,JT9,Drilling Rig,Heavy Equipment,1995,2026,Kubota D1105 / V1505 (25 HP),false
+Ditch Witch,JT20,Drilling Rig,Heavy Equipment,2000,2026,Deutz TD2.9 L4 (74 HP),false
+Ditch Witch,JT25,Drilling Rig,Heavy Equipment,2008,2026,Cummins QSB4.5 (130 HP),false
+Ditch Witch,JT40,Drilling Rig,Heavy Equipment,2004,2026,Cummins QSB4.5 / B6.7 (160 HP),false
+Ditch Witch,JT100,Drilling Rig,Heavy Equipment,2005,2026,Cummins QSC8.3 / L9 (268 HP),false
+Ditch Witch,SK1050,Skid Steer,Heavy Equipment,2010,2026,Yanmar 3TNV88C / 4TNV86CT (37 HP),false
+Ditch Witch,V30,Drilling Rig,Heavy Equipment,1970,1988,Wisconsin VH4D (30 HP),false
+Ditch Witch,R65,Drilling Rig,Heavy Equipment,1971,1989,Wisconsin / Deutz F4L912 (65 HP),false
+Ditch Witch,3500,Drilling Rig,Heavy Equipment,1988,2002,Deutz F3L1011 (41 HP),false
+Ditch Witch,3700,Drilling Rig,Heavy Equipment,1995,2014,Deutz D2011L03 (43 HP),false
+Ditch Witch,RT80,Drilling Rig,Heavy Equipment,2006,2026,Deutz TD 3.6 L4 (74 HP),false
+Ditch Witch,RT120,Drilling Rig,Heavy Equipment,2008,2026,Cummins / Deutz QSB4.5 / TCD 3.6 L4 (121 HP),false
+Ditch Witch,JT920,Drilling Rig,Heavy Equipment,1997,2009,Kubota V1505 / V2203 (42 HP),false
+Ditch Witch,JT1720,Drilling Rig,Heavy Equipment,1998,2008,John Deere 4045D (80 HP),false
+Ditch Witch,JT2020 Mach 1,Drilling Rig,Heavy Equipment,2002,2015,Cummins / John Deere B3.3T / 4045TF (85 HP),false
+Ditch Witch,JT24,Drilling Rig,Heavy Equipment,2018,2026,Cummins QSF2.8 / B3.3 (101 HP),false
+Ditch Witch,JT30,Drilling Rig,Heavy Equipment,2008,2026,Cummins QSB4.5 (160 HP),false
+Ditch Witch,AT30,Drilling Rig,Heavy Equipment,2008,2026,Cummins QSB4.5 (155 HP),false
+Ditch Witch,AT40,Drilling Rig,Heavy Equipment,2012,2026,Cummins QSB4.5 / B4.5 (160 HP),false
+Ditch Witch,SK800,Skid Steer,Heavy Equipment,2015,2026,Kubota / Yanmar D1105 / 3TNV80F (25 HP),false
+Ditch Witch,SK1550,Skid Steer,Heavy Equipment,2016,2026,Yanmar 4TNV86CT (44 HP),false
+Bomag,BW 210,Compactor,Heavy Equipment,1972,1995,Detroit Diesel / Deutz 4-53 / BF6L913 (120 HP),false
+Bomag,BW 141 AD,Compactor,Heavy Equipment,1978,2004,Deutz F4L912 / BF4M1012 (75 HP),false
+Bomag,BMP 8500,Compactor,Heavy Equipment,2004,2026,Kubota D1005 (19 HP),false
+Bomag,BW 120 AD-5,Compactor,Heavy Equipment,2002,2026,Kubota D1703 / D1803 (33 HP),false
+Bomag,BW 161 AD-5,Compactor,Heavy Equipment,2002,2026,Deutz TCD 3.6 L4 (114 HP),false
+Bomag,BW 177 D-5,Compactor,Heavy Equipment,2002,2026,Kubota V3307-CR-T (74 HP),false
+Bomag,BW 211 D-5,Compactor,Heavy Equipment,2000,2026,Deutz TCD 3.6 L4 (127 HP),false
+Bomag,BW 213 DH-5,Compactor,Heavy Equipment,1998,2026,Deutz TCD 4.1 L4 (154 HP),false
+Bomag,BC 772 RB-4,Compactor,Heavy Equipment,2005,2026,Mercedes-Benz / MTU OM470LA (442 HP),false
+Bomag,BW 65S,Compactor,Heavy Equipment,1970,1998,Hatz E79 / 1D41S (8 HP),false
+Bomag,BW 90 AD-5,Compactor,Heavy Equipment,2004,2026,Kubota D902 (20 HP),false
+Bomag,BW 138 AD-5,Compactor,Heavy Equipment,2005,2026,Kubota V2203 / V2403 (45 HP),false
+Bomag,BW 145 D-5,Compactor,Heavy Equipment,2006,2026,Kubota V3307-CR-T (74 HP),false
+Bomag,BW 174 AP,Compactor,Heavy Equipment,2006,2026,Kubota / Deutz V3800 / TCD 3.6 (99 HP),false
+Bomag,BW 190 AD-5,Compactor,Heavy Equipment,2004,2026,Deutz TCD 3.6 L4 / TCD 4.1 (134 HP),false
+Bomag,BW 211 D-40,Compactor,Heavy Equipment,2004,2016,Deutz BF4M2012C (131 HP),false
+Bomag,BW 213 D-3,Compactor,Heavy Equipment,1996,2006,Deutz BF4M1013EC (145 HP),false
+Bomag,BW 213 D-5,Compactor,Heavy Equipment,2014,2026,Deutz TCD 3.6 L4 (127 HP),false
+Bomag,BW 216 D-5,Compactor,Heavy Equipment,2006,2026,Deutz TCD 4.1 L4 (154 HP),false
+Bomag,BW 24 RH,Compactor,Heavy Equipment,2008,2026,Kubota / Deutz V3307 / TCD 3.6 (99 HP),false
+Bomag,BC 473 RB,Compactor,Heavy Equipment,2008,2026,Mercedes-Benz / MTU OM936LA (320 HP),false
+Ingersoll Rand,P175,Air Compressor,Site Support,1972,1994,Deutz / John Deere F4L912 / 4239D (68 HP),false
+Ingersoll Rand,P185WJD,Air Compressor,Site Support,1988,2026,John Deere 4039D / 4024TF (49 HP) | Yanmar / Doosan 4TNV88C / D24 (49 HP) | Kubota V2403M-T (49 HP),false
+Ingersoll Rand,XP375WJD,Air Compressor,Site Support,1990,2024,John Deere 4045TF / 4045HFC (115 HP) | Cummins 4BT3.9 / QSB4.5 (120 HP),false
+Ingersoll Rand,HP750WCU,Air Compressor,Site Support,1988,2026,Cummins L10 / QSL9 (300 HP) | Caterpillar 3306T / C9 ACERT (325 HP),false
+Ingersoll Rand,SD-100D,Compactor,Heavy Equipment,1980,2010,Cummins 4BT3.9 / B4.5 (125 HP),false
+Ingersoll Rand,DD-90,Compactor,Heavy Equipment,1985,2008,Cummins 4BT3.9 (110 HP),false
+Ingersoll Rand,VR-1056,Telehandler,Heavy Equipment,1996,2008,Cummins 4BT3.9 / QSB4.5 (110 HP),false
+Ingersoll Rand,ECM-350,Drilling Rig,Heavy Equipment,1975,2006,Cummins / Cat 6CT8.3 / 3126B (240 HP),false
+Ingersoll Rand,L6,Light Tower,Site Support,1998,2024,Kubota D905 / D1005 (13 HP),false
+Ingersoll Rand,XP185WJD,Air Compressor,Site Support,1994,2026,John Deere 4024TF / 4045D (66 HP) | Doosan D24 Tier 4F (67 HP),false
+Ingersoll Rand,P250WD,Air Compressor,Site Support,1978,2018,Deutz / John Deere F4L912 / 4045TF (80 HP),false
+Ingersoll Rand,HP450WCU,Air Compressor,Site Support,1996,2026,Cummins QSB4.5 / B4.5 (155 HP),false
+Ingersoll Rand,XP825WCU,Air Compressor,Site Support,1992,2026,Cummins L10 / QSL9 (300 HP),false
+Ingersoll Rand,XHP900WCAT,Air Compressor,Site Support,1992,2024,Caterpillar 3406C / C13 / C15 ACERT (440 HP),false
+Ingersoll Rand,SP-54,Compactor,Heavy Equipment,1970,1988,Detroit Diesel 3-53 / 4-53 (105 HP),false
+Ingersoll Rand,SD-45D,Compactor,Heavy Equipment,1995,2008,Cummins B3.3 (60 HP),false
+Ingersoll Rand,SD-70D,Compactor,Heavy Equipment,1994,2008,Cummins 4BT3.9 (95 HP),false
+Ingersoll Rand,SD-116DX,Compactor,Heavy Equipment,1998,2008,Cummins QSB4.5 / QSB5.9 (148 HP),false
+Ingersoll Rand,DD-24,Compactor,Heavy Equipment,1994,2008,Kubota D1703 (33 HP),false
+Ingersoll Rand,DD-110,Compactor,Heavy Equipment,1994,2008,Cummins 4BT3.9 / QSB4.5 (125 HP),false
+Ingersoll Rand,VR-642,Telehandler,Heavy Equipment,1997,2008,Cummins 4BT3.9 / QSB4.5 (100 HP),false
+Ingersoll Rand,VR-843,Telehandler,Heavy Equipment,1998,2008,Cummins 4BT3.9 / QSB4.5 (110 HP),false
+Ingersoll Rand,CM-780D,Drilling Rig,Heavy Equipment,1992,2008,Caterpillar / Cummins C11 / QSL9 (325 HP),false
+Ingersoll Rand,L8,Light Tower,Site Support,2000,2024,Kubota D1105 (15 HP),false
+Peterbilt,281 / 351,Semi Truck,Transport & Hauling,1970,1976,Cummins NTC-290 / NTC-350 (350 HP) | Detroit Diesel 8V-71N / 8V-71T (318 HP) | Caterpillar 1693TA (375 HP),false
+Peterbilt,352,Semi Truck,Transport & Hauling,1970,1980,Cummins NTC-350 / NTC-400 (350 HP) | Detroit Diesel 8V-71T / 8V-92TA (430 HP) | Caterpillar 3406A (380 HP),false
+Peterbilt,359,Semi Truck,Transport & Hauling,1970,1987,Cummins NTC-350 / NTC-400 Big Cam (400 HP) | Caterpillar 3406A / 3406B (425 HP) | Detroit Diesel 8V-92TA Silver (445 HP) | Caterpillar 3408 PCTA (450 HP),false
+Peterbilt,353,Semi Truck,Transport & Hauling,1972,1987,Cummins NTC-400 Big Cam III (400 HP) | Caterpillar 3406B (425 HP),false
+Peterbilt,362,Semi Truck,Transport & Hauling,1981,2005,Cummins NTC-400 / N14 Celect (435 HP) | Caterpillar 3406B / 3406E (455 HP) | Detroit Diesel Series 60 12.7L (430 HP),false
+Peterbilt,377,Semi Truck,Transport & Hauling,1987,2000,Caterpillar 3406B / 3406E (435 HP) | Cummins N14 Celect Plus (460 HP) | Detroit Diesel Series 60 12.7L (430 HP),false
+Peterbilt,357,Semi Truck,Transport & Hauling,1987,2007,Caterpillar 3306 / C12 / C15 (435 HP) | Cummins L10 / M11 / ISM (385 HP),false
+Peterbilt,378,Semi Truck,Transport & Hauling,1987,2007,Caterpillar 3406B / 3406E (455 HP) | Caterpillar C15 / C15 ACERT (475 HP) | Cummins N14 / ISX15 (475 HP),false
+Peterbilt,379,Semi Truck,Transport & Hauling,1987,2007,Caterpillar 3406B / 3406E (475 HP) | Caterpillar C15 / C15 ACERT (550 HP) | Cummins N14 Celect Plus / ISX15 (525 HP) | Detroit Diesel Series 60 12.7L / 14.0L (470 HP),false
+Peterbilt,385,Semi Truck,Transport & Hauling,1996,2007,Caterpillar C12 / C13 ACERT (410 HP) | Cummins ISM (385 HP),false
+Peterbilt,387,Semi Truck,Transport & Hauling,1999,2010,Caterpillar C15 ACERT (475 HP) | Cummins ISX15 (485 HP),false
+Peterbilt,386,Semi Truck,Transport & Hauling,2006,2015,Caterpillar C15 ACERT (475 HP) | Cummins ISX15 (485 HP) | PACCAR MX-13 (455 HP),false
+Peterbilt,388,Semi Truck,Transport & Hauling,2007,2015,Caterpillar C15 ACERT (475 HP) | Cummins ISX15 (525 HP) | PACCAR MX-13 (485 HP),false
+Peterbilt,389,Semi Truck,Transport & Hauling,2007,2023,Caterpillar C15 ACERT (550 HP) | Cummins ISX15 / X15 Performance (565 HP) | PACCAR MX-13 (510 HP),false
+Peterbilt,589,Semi Truck,Transport & Hauling,2024,2026,Cummins X15 Performance Series (565 HP) | Cummins X15 Productivity Series (605 HP) | PACCAR MX-13 (510 HP),false
+Peterbilt,367,Semi Truck,Transport & Hauling,2007,2026,Caterpillar C15 ACERT (500 HP) | Cummins ISX15 / X15 Vocational (565 HP) | PACCAR MX-13 (510 HP),false
+Peterbilt,567,Semi Truck,Transport & Hauling,2014,2026,Cummins ISX15 / X15 Vocational (565 HP) | PACCAR MX-13 (510 HP) | PACCAR MX-11 (430 HP),false
+Peterbilt,579,Semi Truck,Transport & Hauling,2012,2026,PACCAR MX-13 (510 HP) | Cummins ISX15 / X15 Efficiency (500 HP),false
+Peterbilt,337,Water Truck,Transport & Hauling,1995,2022,Caterpillar / Cummins 3126B / ISC 8.3 (300 HP) | PACCAR PX-7 / PX-9 (350 HP),false
+Peterbilt,348,Water Truck,Transport & Hauling,2008,2022,PACCAR PX-8 / PX-9 (380 HP) | Cummins ISL9 / L9 (380 HP),false
+Peterbilt,548,Water Truck,Transport & Hauling,2021,2026,PACCAR PX-9 (380 HP) | PACCAR PX-7 (325 HP),false
+Peterbilt,220,Water Truck,Transport & Hauling,2007,2026,PACCAR PX-6 / PX-7 (300 HP) | Cummins ISB6.7 (260 HP),false
+Peterbilt,320,Water Truck,Transport & Hauling,1987,2017,Caterpillar / Cummins 3306 / L10 / ISM (350 HP) | PACCAR / Cummins PX-9 / ISX12 / ISL-G (380 HP),false
+Peterbilt,330,Water Truck,Transport & Hauling,1995,2020,Caterpillar 3116 / 3126B / C7 (250 HP) | PACCAR / Cummins PX-6 / PX-7 / ISB6.7 (280 HP),false
+Peterbilt,335,Water Truck,Transport & Hauling,2005,2010,Cummins ISC8.3 / ISL (315 HP) | Caterpillar / PACCAR C7 ACERT / PX-8 (300 HP),false
+Peterbilt,365,Semi Truck,Transport & Hauling,2007,2023,Caterpillar C13 ACERT (430 HP) | Cummins ISL9 / ISX12 (425 HP) | PACCAR MX-11 / MX-13 (455 HP),false
+Peterbilt,375,Semi Truck,Transport & Hauling,1988,1996,Caterpillar 3176 / 3306B (350 HP) | Cummins L10 / M11 (370 HP),false
+Peterbilt,520,Water Truck,Transport & Hauling,2016,2026,PACCAR MX-11 / PX-9 (430 HP) | Cummins ISX12N / L9N Near-Zero (400 HP),false
+Peterbilt,536,Water Truck,Transport & Hauling,2021,2026,PACCAR PX-7 (300 HP) | PACCAR PX-9 (350 HP),false
+Peterbilt,537,Water Truck,Transport & Hauling,2021,2026,PACCAR PX-7 (325 HP) | PACCAR PX-9 (380 HP),false
+Peterbilt,587,Semi Truck,Transport & Hauling,2010,2017,Cummins ISX15 (500 HP) | PACCAR MX-13 (485 HP),false
+Kenworth,W900A,Semi Truck,Transport & Hauling,1970,1982,Cummins NTC-350 / NTC-400 (400 HP) | Caterpillar 1693TA / 3406A (380 HP) | Detroit Diesel 8V-71T / 8V-92TA (430 HP),false
+Kenworth,W900,Semi Truck,Transport & Hauling,1982,2026,Caterpillar 3406B / 3406E / C15 ACERT (550 HP) | Cummins NTC-400 / N14 / ISX15 / X15 (565 HP) | Detroit Diesel Series 60 12.7L / 14.0L (470 HP) | PACCAR MX-13 (510 HP),false
+Kenworth,W990,Semi Truck,Transport & Hauling,2019,2026,PACCAR MX-13 (510 HP) | Cummins X15 Performance Series (565 HP),false
+Kenworth,K100,Semi Truck,Transport & Hauling,1970,2004,Cummins NTC-350 / N14 Celect (435 HP) | Caterpillar 3406B / 3406E (455 HP) | Detroit Diesel 8V-92TA / Series 60 (430 HP),false
+Kenworth,C500,Semi Truck,Transport & Hauling,1972,2026,Caterpillar 3406B / 3408 / C15 / C18 (550 HP) | Cummins NTC-400 / N14 / ISX15 / X15 (605 HP) | PACCAR MX-13 (510 HP),false
+Kenworth,T600,Semi Truck,Transport & Hauling,1985,2007,Cummins L10 / N14 / ISX15 (475 HP) | Caterpillar 3406B / 3406E / C15 (475 HP) | Detroit Diesel Series 60 12.7L (430 HP),false
+Kenworth,T660,Semi Truck,Transport & Hauling,2008,2017,Caterpillar C15 ACERT (475 HP) | Cummins ISX15 (485 HP) | PACCAR MX-13 (455 HP),false
+Kenworth,T680,Semi Truck,Transport & Hauling,2013,2026,PACCAR MX-13 (510 HP) | Cummins ISX15 / X15 Efficiency (500 HP),false
+Kenworth,T800,Semi Truck,Transport & Hauling,1986,2025,Caterpillar 3406B / 3406E / C15 ACERT (500 HP) | Cummins N14 / ISM / ISX15 / X15 (565 HP) | PACCAR MX-13 (510 HP),false
+Kenworth,T880,Semi Truck,Transport & Hauling,2014,2026,PACCAR MX-13 (510 HP) | Cummins ISX15 / X15 Vocational (565 HP) | PACCAR MX-11 (430 HP),false
+Kenworth,T370,Water Truck,Transport & Hauling,1994,2022,Cummins 6CT8.3 / ISB6.7 / ISC8.3 (300 HP) | PACCAR PX-7 / PX-9 (350 HP),false
+Kenworth,T480,Water Truck,Transport & Hauling,2022,2026,PACCAR PX-9 (380 HP) | PACCAR PX-7 (325 HP),false
+Kenworth,W900B,Semi Truck,Transport & Hauling,1982,2025,Caterpillar 3406B / 3406E / C15 (475 HP) | Cummins NTC-400 / N14 / ISX15 / X15 (550 HP) | PACCAR MX-13 (510 HP),false
+Kenworth,W900L,Semi Truck,Transport & Hauling,1990,2026,Caterpillar 3406E / C15 / C16 ACERT (550 HP) | Cummins N14 / ISX15 / X15 Performance (605 HP) | PACCAR MX-13 (510 HP),false
+Kenworth,K100E,Semi Truck,Transport & Hauling,1984,2004,Cummins NTC-400 / N14 Celect (435 HP) | Caterpillar 3406B / 3406E (455 HP) | Detroit Diesel Series 60 12.7L (430 HP),false
+Kenworth,T2000,Semi Truck,Transport & Hauling,1996,2010,Caterpillar 3406E / C15 ACERT (475 HP) | Cummins N14 / ISX15 (485 HP) | Detroit Diesel Series 60 12.7L (430 HP),false
+Kenworth,T700,Semi Truck,Transport & Hauling,2010,2014,PACCAR MX-13 (485 HP) | Cummins ISX15 (500 HP),false
+Kenworth,T300,Water Truck,Transport & Hauling,1994,2008,Cummins 6BT5.9 / 6CT8.3 / ISB / ISC (285 HP) | Caterpillar 3126B / C7 (250 HP),false
+Kenworth,T380,Water Truck,Transport & Hauling,2022,2026,PACCAR PX-7 (325 HP) | PACCAR PX-9 (380 HP),false
+Kenworth,T440,Water Truck,Transport & Hauling,2010,2021,PACCAR PX-9 (380 HP) | Cummins ISL9 / ISL-G (350 HP),false
+Western Star,4864,Semi Truck,Transport & Hauling,1970,2001,Cummins NTC-350 / N14 Celect (435 HP) | Caterpillar 3406A / 3406B / 3406E (455 HP) | Detroit Diesel 8V-92TA / Series 60 (430 HP),false
+Western Star,4964,Semi Truck,Transport & Hauling,1970,2002,Caterpillar 3406B / 3406E (475 HP) | Cummins NTC-400 / N14 Celect Plus (460 HP) | Detroit Diesel Series 60 12.7L (470 HP),false
+Western Star,4800,Semi Truck,Transport & Hauling,1997,2021,Caterpillar C12 / C13 / C15 ACERT (475 HP) | Detroit Diesel Series 60 / DD13 (470 HP) | Cummins ISM / ISL9 / ISX12 (425 HP),false
+Western Star,4900,Semi Truck,Transport & Hauling,2002,2023,Caterpillar C15 ACERT (550 HP) | Detroit Diesel DD15 / DD16 (600 HP) | Cummins ISX15 / X15 (565 HP),false
+Western Star,6900XD,Semi Truck,Transport & Hauling,2002,2024,Detroit Diesel Series 60 14.0L / DD16 (600 HP) | Caterpillar C15 / C16 ACERT (550 HP) | Cummins ISX15 / X15 (600 HP),false
+Western Star,4700,Semi Truck,Transport & Hauling,2012,2022,Detroit Diesel DD13 (470 HP) | Cummins ISL9 / L9 (380 HP),false
+Western Star,47X,Semi Truck,Transport & Hauling,2022,2026,Detroit Diesel DD13 Gen 5 (525 HP) | Cummins L9 / X12 (455 HP),false
+Western Star,49X,Semi Truck,Transport & Hauling,2021,2026,Detroit Diesel DD15 Gen 5 / DD16 (600 HP) | Cummins X15 Performance Series (565 HP),false
+Western Star,57X,Semi Truck,Transport & Hauling,2023,2026,Detroit Diesel DD15 Gen 5 (505 HP) | Detroit Diesel DD13 Gen 5 (470 HP),false
+Western Star,3800,Semi Truck,Transport & Hauling,1988,2001,Caterpillar 3116 / 3126B / 3306 (300 HP) | Cummins 6CT8.3 / L10 / M11 (300 HP),false
+Western Star,4900EX,Semi Truck,Transport & Hauling,2002,2023,Caterpillar C15 ACERT (550 HP) | Detroit Diesel DD15 / DD16 (600 HP) | Cummins ISX15 / X15 (565 HP),false
+Western Star,4900TS,Semi Truck,Transport & Hauling,2004,2023,Detroit Diesel DD16 (600 HP) | Cummins ISX15 / X15 (565 HP),false
+Western Star,5700XE,Semi Truck,Transport & Hauling,2015,2022,Detroit Diesel DD15 (505 HP) | Detroit Diesel DD13 / DD16 (470 HP),false
+Western Star,48X,Semi Truck,Transport & Hauling,2023,2026,Detroit Diesel DD13 Gen 5 / DD15 Gen 5 (505 HP) | Cummins X15 (565 HP),false
+Western Star,4964EX,Semi Truck,Transport & Hauling,1990,2002,Caterpillar 3406B / 3406E (500 HP) | Cummins N14 Celect Plus (525 HP) | Detroit Diesel Series 60 12.7L / 14.0L (500 HP),false
+Western Star,6900TS,Semi Truck,Transport & Hauling,2005,2024,Detroit Diesel DD16 (600 HP) | Caterpillar / Cummins C15 ACERT / ISX15 / X15 (600 HP),false
+Mack,R Series,Semi Truck,Transport & Hauling,1970,2005,Mack ENDT675 / EM6-237 Maxidyne (237 HP) | Mack E6-300 / E6-350 Econodyne (350 HP) | Mack E7-350 / E7-400 (400 HP),false
+Mack,RD,Semi Truck,Transport & Hauling,1979,2004,Mack E6-350 (350 HP) | Mack E7-350 / E7-427 / E7-460 (427 HP),false
+Mack,DM,Semi Truck,Transport & Hauling,1970,2005,Mack ENDT676 / EM6-285 (285 HP) | Mack E7-300 / E7-350 (350 HP),false
+Mack,Super-Liner RW,Semi Truck,Transport & Hauling,1977,1993,Mack E9-440 / E9-500 V8 (500 HP) | Mack E6-350 / E7-400 (400 HP) | Cummins / Cat NTC-400 / 3406B (425 HP),false
+Mack,CH / Vision,Semi Truck,Transport & Hauling,1989,2007,Mack E7-350 / E7-427 E-Tech (427 HP) | Mack ASET AC-427 / AC-460 (460 HP),false
+Mack,Granite,Semi Truck,Transport & Hauling,2001,2026,Mack E7 / ASET AI-400 / AMI-370 (400 HP) | Mack MP7 (425 HP) | Mack MP8 (505 HP),false
+Mack,Pinnacle,Semi Truck,Transport & Hauling,2006,2026,Mack ASET AC-427 / AC-460 (460 HP) | Mack MP8 (505 HP) | Mack MP7 (425 HP),false
+Mack,Titan,Semi Truck,Transport & Hauling,2008,2017,Mack MP10 (605 HP) | Mack MP10 515 / 565 (565 HP),false
+Mack,Anthem,Semi Truck,Transport & Hauling,2018,2026,Mack MP8 / MP8HE (505 HP) | Mack MP7 (425 HP),false
+Mack,MD7,Water Truck,Transport & Hauling,2020,2026,Cummins ISB6.7 / B6.7 (300 HP) | Cummins B6.7 250 (250 HP),false
+Mack,MH Ultra-Liner,Semi Truck,Transport & Hauling,1983,1994,Mack E6-350 Econodyne (350 HP) | Mack E9-440 / E9-500 V8 (500 HP),false
+Mack,CL700,Semi Truck,Transport & Hauling,1991,2007,Mack E9-500 V8 / E7-460 (460 HP) | Cummins N14 / ISX15 (525 HP),false
+Mack,RB690S,Semi Truck,Transport & Hauling,1989,2005,Mack E6-350 / E7-350 / E7-400 (350 HP) | Mack EM7-300 (300 HP),false
+Mack,TerraPro,Water Truck,Transport & Hauling,2007,2026,Mack MP7 (395 HP) | Cummins ISL-G / L9N Near-Zero (320 HP),false
+Mack,MD6,Water Truck,Transport & Hauling,2020,2026,Cummins B6.7 220 / 250 (250 HP) | Cummins B6.7 300 High-Output (300 HP),false
+Mack,DM800,Semi Truck,Transport & Hauling,1970,2002,Mack ENDT865 / E9 V8 (440 HP) | Mack EM6-300 / E7-400 (400 HP),false
+Mack,CH613,Semi Truck,Transport & Hauling,1989,2005,Mack E7-350 / E7-400 / E7-427 (427 HP) | Mack ASET AC-427 / AC-460 (460 HP),false
+Mack,CXN613,Semi Truck,Transport & Hauling,1999,2007,Mack E7-427 / E7-460 E-Tech (460 HP) | Mack ASET AC-380 / AC-460 (460 HP),false
+Mack,LR,Water Truck,Transport & Hauling,2015,2026,Mack MP7 (355 HP) | Cummins L9N Near-Zero Natural Gas (320 HP),false
+Freightliner,FLA / FLB,Semi Truck,Transport & Hauling,1970,1998,Cummins NTC-350 / NTC-400 / N14 (400 HP) | Detroit Diesel 8V-71T / 8V-92TA / Series 60 (430 HP) | Caterpillar 3406A / 3406B / 3406E (425 HP),false
+Freightliner,FLC120,Semi Truck,Transport & Hauling,1977,1992,Cummins NTC-350 / NTC-400 Big Cam (400 HP) | Caterpillar 3406B (425 HP),false
+Freightliner,FLD120,Semi Truck,Transport & Hauling,1988,2010,Detroit Diesel Series 60 12.7L (430 HP) | Cummins N14 Celect Plus / ISX15 (460 HP) | Caterpillar 3406B / 3406E / C15 (475 HP),false
+Freightliner,Classic XL,Semi Truck,Transport & Hauling,1990,2010,Detroit Diesel Series 60 12.7L / 14.0L (515 HP) | Caterpillar 3406E / C15 ACERT (550 HP) | Cummins N14 / ISX15 (525 HP),false
+Freightliner,FL80,Water Truck,Transport & Hauling,1991,2005,Cummins 6BT5.9 / 6CT8.3 / ISC (285 HP) | Caterpillar 3116 / 3126B (275 HP),false
+Freightliner,Century Class,Semi Truck,Transport & Hauling,1996,2010,Detroit Diesel Series 60 12.7L / 14.0L (455 HP) | Caterpillar C15 (475 HP),false
+Freightliner,Columbia,Semi Truck,Transport & Hauling,2000,2017,Detroit Diesel Series 60 12.7L / 14.0L (515 HP) | Mercedes-Benz MBE 4000 (450 HP),false
+Freightliner,Coronado,Semi Truck,Transport & Hauling,2001,2016,Detroit Diesel Series 60 14.0L / DD15 / DD16 (560 HP) | Caterpillar C15 ACERT (550 HP) | Cummins ISX15 (550 HP),false
+Freightliner,M2 106,Water Truck,Transport & Hauling,2003,2026,Cummins ISB6.7 / B6.7 (300 HP) | Cummins ISL9 / L9 (350 HP) | Mercedes-Benz MBE 900 (260 HP),false
+Freightliner,Cascadia,Semi Truck,Transport & Hauling,2008,2026,Detroit Diesel DD15 / DD15 Gen 5 (505 HP) | Detroit Diesel DD13 / DD13 Gen 5 (470 HP) | Cummins ISX15 / X15 Efficiency (500 HP),false
+Freightliner,114SD,Semi Truck,Transport & Hauling,2012,2026,Detroit Diesel DD13 / DD13 Gen 5 (505 HP) | Cummins ISL9 / L9 / X12 (455 HP),false
+Freightliner,122SD,Semi Truck,Transport & Hauling,2013,2024,Detroit Diesel DD15 / DD16 (600 HP) | Cummins ISX15 / X15 Performance (565 HP),false
+Freightliner,FLD112,Semi Truck,Transport & Hauling,1989,2005,Cummins L10 / M11 / ISM (370 HP) | Caterpillar 3306 / C10 / C12 (380 HP),false
+Freightliner,M2 112,Semi Truck,Transport & Hauling,2004,2026,Detroit Diesel DD13 (450 HP) | Cummins ISL9 / L9 (380 HP) | Mercedes-Benz / Cat MBE 4000 / C11 / C13 (410 HP),false
+Freightliner,108SD,Water Truck,Transport & Hauling,2012,2026,Cummins ISB6.7 / B6.7 (325 HP) | Cummins ISL9 / L9 (380 HP),false
+Freightliner,Coronado SD,Semi Truck,Transport & Hauling,2010,2016,Detroit Diesel DD15 / DD16 (600 HP) | Cummins ISX15 (550 HP),false
+Freightliner,eCascadia,Semi Truck,Transport & Hauling,2022,2026,Detroit ePowertrain Dual eAxle 438 kWh (470 HP) | Detroit ePowertrain Single eAxle 291 kWh (320 HP),false
+Freightliner,FL70,Water Truck,Transport & Hauling,1991,2005,Cummins 6BT5.9 / ISB 5.9 (230 HP) | Caterpillar 3116 / 3126B (250 HP),false
+Freightliner,FL112,Semi Truck,Transport & Hauling,1994,2004,Caterpillar C10 / C12 (410 HP) | Cummins M11 / ISM (370 HP),false
+Freightliner,Argosy,Semi Truck,Transport & Hauling,1999,2020,Detroit Diesel Series 60 12.7L / 14.0L / DD15 (515 HP) | Caterpillar C15 ACERT (500 HP) | Cummins ISX15 (525 HP),false
+Freightliner,C120,Semi Truck,Transport & Hauling,1996,2010,Detroit Diesel Series 60 12.7L / 14.0L (515 HP) | Caterpillar / Cummins C15 / ISX15 (475 HP),false
+International,Paystar 5000,Semi Truck,Transport & Hauling,1972,1999,Cummins NTC-350 / N14 (400 HP) | International DT466 / HT530 (300 HP) | Caterpillar 3406B / C12 (425 HP),false
+International,4900,Water Truck,Transport & Hauling,1989,2002,International DT466 / DT466E (250 HP) | International DT530E (300 HP),false
+International,9900i,Semi Truck,Transport & Hauling,1989,2017,Cummins N14 Celect Plus / ISX15 (550 HP) | Caterpillar 3406E / C15 ACERT (550 HP),false
+International,7600 WorkStar,Semi Truck,Transport & Hauling,2002,2017,Cummins ISM / ISL9 (410 HP) | Caterpillar C11 / C13 ACERT (430 HP) | International DT466 / MaxxForce 13 / N13 (430 HP),false
+International,ProStar,Semi Truck,Transport & Hauling,2007,2017,Cummins ISX15 (485 HP) | International MaxxForce 13 / N13 (450 HP),false
+International,HX620,Semi Truck,Transport & Hauling,2017,2026,Cummins X15 Performance / Vocational (565 HP) | International A26 / S13 Integrated (515 HP),false
+International,LT,Semi Truck,Transport & Hauling,2017,2026,Cummins X15 Efficiency Series (500 HP) | International A26 (475 HP) | International S13 Integrated Powertrain (515 HP),false
+International,HV607,Water Truck,Transport & Hauling,2018,2026,Cummins B6.7 / L9 (380 HP) | International A26 (475 HP),false
+International,4700,Water Truck,Transport & Hauling,1989,2002,International DT360 / T444E 7.3L V8 (210 HP) | International DT466 / DT466E (230 HP),false
+International,7400 WorkStar,Water Truck,Transport & Hauling,2002,2017,International DT466 / DT570 / MaxxForce DT / N9 (330 HP) | Cummins ISL9 (350 HP),false
+International,9400i,Semi Truck,Transport & Hauling,1990,2010,Cummins N14 / ISX15 (475 HP) | Caterpillar 3406E / C15 (475 HP),false
+International,HX520,Semi Truck,Transport & Hauling,2017,2026,Cummins X15 Performance / Vocational (565 HP) | International A26 / S13 (515 HP),false
+International,HV613,Semi Truck,Transport & Hauling,2018,2026,International A26 / S13 Integrated (475 HP) | Cummins L9 (380 HP),false
+International,MV607,Water Truck,Transport & Hauling,2018,2026,Cummins B6.7 (300 HP) | Cummins L9 (350 HP),false
+International,Transtar 4300,Semi Truck,Transport & Hauling,1971,1985,Cummins NTC-290 / NTC-350 / NTC-400 (400 HP) | Detroit Diesel 8V-71N / 8V-92TA (430 HP) | Caterpillar 3406A / 3406B (400 HP),false
+International,CO4070B,Semi Truck,Transport & Hauling,1970,1989,Cummins NTC-350 / NTC-400 (400 HP) | Detroit Diesel 8V-71T / 8V-92TA (430 HP),false
+International,PayStar 5900i,Semi Truck,Transport & Hauling,2000,2016,Cummins ISX15 (550 HP) | Caterpillar C15 ACERT (550 HP) | International MaxxForce 13 / N13 (475 HP),false
+International,9300,Semi Truck,Transport & Hauling,1985,1999,Cummins NTC-400 / N14 Celect Plus (460 HP) | Caterpillar 3406B / 3406E (475 HP) | Detroit Diesel Series 60 12.7L (430 HP),false
+International,Lonestar,Semi Truck,Transport & Hauling,2009,2024,Cummins ISX15 / X15 Performance (605 HP) | International MaxxForce 13 (475 HP),false
+International,8600 TranStar,Semi Truck,Transport & Hauling,2002,2017,Caterpillar / Cummins C11 / C13 / ISM / ISL9 (410 HP) | International MaxxForce 11 / MaxxForce 13 / N13 (430 HP),false
+International,RH,Semi Truck,Transport & Hauling,2018,2026,International A26 (450 HP) | International S13 Integrated Powertrain (475 HP),false
+Volvo Trucks,WIA,Semi Truck,Transport & Hauling,1988,2001,Detroit Diesel Series 60 12.7L (430 HP) | Cummins N14 Celect (435 HP) | Volvo VE D12 (425 HP),false
+Volvo Trucks,VNL,Semi Truck,Transport & Hauling,1996,2026,Volvo D12 / D13 / D13TC Turbo-Compound (500 HP) | Cummins N14 / ISX15 / X15 (500 HP) | Detroit Diesel Series 60 12.7L (430 HP),false
+Volvo Trucks,VNR,Semi Truck,Transport & Hauling,2018,2026,Volvo D11 (425 HP) | Volvo D13 (455 HP),false
+Volvo Trucks,VHD,Semi Truck,Transport & Hauling,2001,2026,Volvo D12 / D13 (475 HP) | Volvo D11 (425 HP),false
+Volvo Trucks,VNX,Semi Truck,Transport & Hauling,2014,2024,Volvo D16 (600 HP) | Cummins X15 Performance Series (605 HP) | Volvo D13 (500 HP),false
+Volvo Trucks,WG,Semi Truck,Transport & Hauling,1988,2001,Volvo VE D12 / TD122 (415 HP) | Cummins L10 / M11 / N14 (370 HP),false
+Volvo Trucks,VNM,Semi Truck,Transport & Hauling,1996,2017,Volvo D11 / D12 / D13 (435 HP) | Cummins ISM / ISX12 (400 HP),false
+Volvo Trucks,VT 880,Semi Truck,Transport & Hauling,2005,2010,Volvo D16 (625 HP) | Cummins ISX15 (565 HP),false
+Volvo Trucks,VNR Electric,Semi Truck,Transport & Hauling,2021,2026,Volvo Electric Dual-Motor 565 kWh Pack (455 HP) | Volvo Electric 375 kWh Daycab Pack (455 HP),false
+Volvo Trucks,VNL 670,Semi Truck,Transport & Hauling,2003,2017,Volvo D12 / D13 (485 HP) | Cummins ISX15 (500 HP),false
+Volvo Trucks,VNL 760,Semi Truck,Transport & Hauling,2018,2026,Volvo D13 / D13TC Turbo-Compound (455 HP) | Cummins X15 Efficiency Series (500 HP),false
+Volvo Trucks,VNL 860,Semi Truck,Transport & Hauling,2018,2026,Volvo D13TC Turbo-Compound / D13 500 (500 HP) | Cummins X15 Performance / Efficiency (565 HP),false
+Volvo Trucks,VNR 640,Semi Truck,Transport & Hauling,2018,2026,Volvo D11 (425 HP) | Volvo D13 (455 HP),false
+Volvo Trucks,FE,Water Truck,Transport & Hauling,1986,1998,Volvo TD61 / TD71 / D7 (230 HP) | Caterpillar 3116 (215 HP),false
+Volvo Trucks,WX,Water Truck,Transport & Hauling,1988,2006,Volvo VE D7 / D12 (345 HP) | Cummins L10 / M11 / ISM (330 HP),false
+Ford,L9000 Louisville,Semi Truck,Transport & Hauling,1970,1998,Cummins NTC-350 / L10 / M11 / N14 (400 HP) | Caterpillar 3208 / 3306 / 3406B (425 HP) | Ford 7.8L Brazilian / Detroit 8V-71 (240 HP),false
+Ford,F-800,Water Truck,Transport & Hauling,1970,1999,Ford 361 / 391 FT Heavy-Duty V8 (210 HP) | Caterpillar 3208 (210 HP) | Ford 370 / 429 Lima V8 (235 HP) | Ford / Cummins 5.9L 6BT / 8.3L 6CT (210 HP),false
+Ford,F-350 Super Duty,Water Truck,Transport & Hauling,1999,2026,Ford / International 7.3L Power Stroke V8 (250 HP) | Ford 6.0L / 6.4L Power Stroke V8 (350 HP) | Ford 6.7L Power Stroke V8 (475 HP) | Ford 6.8L Triton V10 / 7.3L Godzilla V8 (430 HP),false
+Ford,F-550 Super Duty,Water Truck,Transport & Hauling,1999,2026,Ford / International 7.3L Power Stroke V8 (250 HP) | Ford 6.0L / 6.4L Power Stroke V8 (325 HP) | Ford 6.7L Power Stroke V8 (330 HP) | Ford 6.8L V10 / 7.3L V8 Gas (335 HP),false
+Ford,F-750,Water Truck,Transport & Hauling,2000,2026,Cummins 5.9L ISB / 6.7L ISB (325 HP) | Caterpillar 3126B / C7 ACERT (300 HP) | Ford 6.7L Power Stroke V8 (330 HP) | Ford 7.3L V8 Commercial Gas (335 HP),false
+Ford,CL-9000,Semi Truck,Transport & Hauling,1978,1991,Cummins NTC-350 / NTC-400 (400 HP) | Caterpillar 3406B (425 HP) | Detroit Diesel 8V-92TA (435 HP),false
+Ford,F-450 Super Duty,Water Truck,Transport & Hauling,1999,2026,Ford / International 7.3L Power Stroke V8 (250 HP) | Ford 6.0L / 6.4L Power Stroke V8 (325 HP) | Ford 6.7L Power Stroke V8 / High-Output (500 HP) | Ford 6.8L Triton V10 / 7.3L V8 Gas (335 HP),false
+Ford,F-650,Water Truck,Transport & Hauling,2000,2026,Cummins 5.9L ISB / 6.7L ISB (300 HP) | Caterpillar 3126B / C7 ACERT (250 HP) | Ford 6.7L Power Stroke V8 (330 HP) | Ford 7.3L Godzilla V8 Gas (335 HP),false
+Ford,L8000,Water Truck,Transport & Hauling,1970,1998,Caterpillar 3208 (210 HP) | Ford 7.8L Turbo Diesel (240 HP) | Ford / Cummins FD-1460 (8.3L 6CT) (275 HP),false
+Ford,LT9000,Semi Truck,Transport & Hauling,1970,1998,Cummins NTC-350 / L10 / M11 / N14 (400 HP) | Caterpillar 3306B / 3406B / 3406E (425 HP) | Detroit Diesel 6-71N / 8V-71T / Series 60 (400 HP),false
+Ford,LTL9000,Semi Truck,Transport & Hauling,1976,1997,Caterpillar 3406A / 3406B / 3406E (455 HP) | Cummins NTC-400 Big Cam / N14 Celect (460 HP) | Detroit Diesel 8V-92TA / Series 60 (430 HP),false
+Ford,Aeromax 9000,Semi Truck,Transport & Hauling,1988,1998,Detroit Diesel Series 60 12.7L (430 HP) | Cummins L10 / M11 / N14 (435 HP) | Caterpillar 3406B / 3406E (455 HP),false
+Ford,F-700,Water Truck,Transport & Hauling,1970,1998,Ford 361 / 391 FT V8 (200 HP) | Ford 370 / 429 Lima V8 (235 HP) | Ford / Cummins 6.6L / FD-1060 (5.9L 6BT) (190 HP),false
+Ford,F-250 Super Duty,Water Truck,Transport & Hauling,1999,2026,Ford / International 7.3L Power Stroke V8 (250 HP) | Ford 6.0L / 6.4L Power Stroke V8 (350 HP) | Ford 6.7L Power Stroke V8 / High-Output (500 HP) | Ford 5.4L / 6.2L / 6.8L / 7.3L V8 Gas (430 HP),false
+Ford,F-600 Super Duty,Water Truck,Transport & Hauling,2020,2026,Ford 6.7L Power Stroke V8 (330 HP) | Ford 7.3L Godzilla V8 Gas (335 HP),false
+Ford,E-450 Super Duty,Water Truck,Transport & Hauling,1999,2026,Ford 6.8L Triton V10 (305 HP) | Ford 7.3L V8 Economy / Premium Gas (325 HP) | Ford 7.3L / 6.0L Power Stroke V8 (235 HP),false
+Sullair,185,Air Compressor,Site Support,1972,2008,John Deere 4239D / 4039D / 4024TF (49 HP) | Perkins 4.203 / 1004-4 (58 HP) | Caterpillar 3024C (49 HP),false
+Sullair,185 Series,Air Compressor,Site Support,2008,2026,Kubota V2403-CR-E4B Tier 4F (49 HP) | Caterpillar C2.2 (49 HP) | Perkins 404F-E22T (49 HP),false
+Sullair,375,Air Compressor,Site Support,1976,2008,Detroit Diesel 4-53N (120 HP) | John Deere 4045TF / 6068TF (115 HP) | Caterpillar 3054C / C4.4 (125 HP),false
+Sullair,375 Series,Air Compressor,Site Support,2008,2026,John Deere 4045HFC04 Tier 4F (125 HP) | Caterpillar C4.4 ACERT (122 HP) | Perkins 1204E / 1204F-E44TA (122 HP),false
+Sullair,750H,Air Compressor,Site Support,1980,2026,Caterpillar 3306T / C9 ACERT (275 HP) | Cummins L10 / QSL9 (290 HP),false
+Sullair,900H,Air Compressor,Site Support,1985,2026,Caterpillar 3406C / C9 / C13 / C15 ACERT (385 HP) | Cummins NTA-855 / QSL9 / QSX15 (365 HP),false
+Sullair,1600H,Air Compressor,Site Support,1988,2026,Caterpillar 3412 / C15 / C18 ACERT (575 HP) | Cummins QSX15 / X15 (560 HP),false
+Sullair,160,Air Compressor,Site Support,1972,2004,John Deere 4219D / 4039D (52 HP) | Kubota V1903 / V2203 (44 HP),false
+Sullair,210H,Air Compressor,Site Support,1995,2026,John Deere 4024TF / 4045D (61 HP) | Kubota / Perkins V2403-CR-T / 404F-E22TA (65 HP),false
+Sullair,260,Air Compressor,Site Support,1985,2026,John Deere 4039T / 4045TF (74 HP) | Kubota V3307-CR-T Tier 4F (74 HP),false
+Sullair,400HH,Air Compressor,Site Support,2012,2026,Caterpillar C4.4 ACERT Tier 4F (143 HP) | Perkins 1204F-E44TA (143 HP),false
+Sullair,425H,Air Compressor,Site Support,1998,2026,Caterpillar 3054C / C4.4 ACERT (140 HP) | John Deere 4045HF285 / 4045HFC04 (138 HP),false
+Sullair,1050,Air Compressor,Site Support,1985,2024,Caterpillar 3406C / C9 / C11 / C13 (350 HP) | Cummins NTA-855 / QSL9 (330 HP),false
+Sullair,1150XH,Air Compressor,Site Support,1996,2026,Caterpillar C15 ACERT (540 HP) | Cummins QSX15 / X15 (535 HP),false
+Atlas Copco,XAS 185,Air Compressor,Site Support,1985,2026,Deutz F3L912 / BF4M2011 (49 HP) | John Deere 4024TF270 (49 HP) | Kubota V2403-CR-T Tier 4F (49 HP),false
+Atlas Copco,XAS 188,Air Compressor,Site Support,2016,2026,Kubota V2403-CR-E4B Tier 4F (49 HP) | John Deere 4045TF / Kubota D1803 (49 HP),false
+Atlas Copco,XAS 400,Air Compressor,Site Support,2004,2026,John Deere 4045HF285 / 4045HFC04 (115 HP) | Caterpillar C4.4 ACERT (130 HP),false
+Atlas Copco,XRVS 1000,Air Compressor,Site Support,2000,2026,Caterpillar C13 / C15 / C18 ACERT (575 HP) | Cummins QSX15 (560 HP),false
+Atlas Copco,QAS 45,Generator,Site Support,2006,2026,Kubota V3307 / V3800-DI-T (66 HP) | John Deere 4045TF (68 HP),false
+Atlas Copco,QAS 150,Generator,Site Support,2006,2026,John Deere 6068HFG08 Tier 4F (224 HP) | Volvo Penta TAD731GE / TAD751GE (228 HP),false
+Atlas Copco,HiLight V4,Light Tower,Site Support,2012,2026,Kubota Z482 / D902 (11 HP),false
+Atlas Copco,HiLight V5+,Light Tower,Site Support,2016,2026,Kubota Z482 Tier 4F (11 HP),false
+Atlas Copco,XA 175,Air Compressor,Site Support,1974,1998,Deutz F4L912 / F5L912 (78 HP) | Perkins 4.236 (75 HP),false
+Atlas Copco,XAS 90,Air Compressor,Site Support,1986,2014,Deutz F3L1011 / D2011L03 (44 HP) | Kubota V1505-T (44 HP),false
+Atlas Copco,XAS 110,Air Compressor,Site Support,2012,2026,Kubota V1505 / D1803-CR (49 HP) | Deutz D2011L03 (46 HP),false
+Atlas Copco,XAS 375,Air Compressor,Site Support,1996,2018,John Deere 4045TF270 / 4045HF285 (115 HP) | Deutz BF4M1013EC / TCD 2012 (120 HP),false
+Atlas Copco,XAMS 850,Air Compressor,Site Support,2004,2026,Caterpillar C7 / C9 / C9.3B (300 HP) | John Deere 6090HFC09 (325 HP),false
+Atlas Copco,QAS 25,Generator,Site Support,2006,2026,Kubota V2403-M / D1803-CR (33 HP) | Isuzu 4LE2T (34 HP),false
+Atlas Copco,QAS 80,Generator,Site Support,2006,2026,John Deere 4045HFG (107 HP) | Kubota V3800-CR-TI (103 HP),false
+Atlas Copco,QAS 250,Generator,Site Support,2008,2026,John Deere 6090HFG (335 HP) | Volvo Penta TAD941GE / TAD873VE (340 HP),false
+Lincoln Electric,SA-200,Welding Machine,Site Support,1970,1995,Continental F-162 / F-163 (37 HP) | Perkins 4.108 (32 HP),false
+Lincoln Electric,SA-250,Welding Machine,Site Support,1972,1998,Continental TMD27 / F-163 (44 HP) | Perkins D3.152 / 4.154 (45 HP),false
+Lincoln Electric,Classic 300D,Welding Machine,Site Support,1995,2026,Perkins 104-22 / 404D-22 (38 HP) | Kubota V1505 / D1803-CR (37 HP),false
+Lincoln Electric,Pipeliner 200D,Welding Machine,Site Support,2004,2026,Kubota V1505 / D1703M (34 HP) | Kubota V1305 (29 HP),false
+Lincoln Electric,Ranger 225,Welding Machine,Site Support,2002,2026,Kohler Command Pro CH23 / CH730 (23 HP) | Onan Performer P220G (20 HP),false
+Lincoln Electric,Ranger 250,Welding Machine,Site Support,1998,2022,Kohler Command Pro CH20 / CH730 (23 HP) | Onan Performer OHV (20 HP) | Kohler Command Pro LP (22 HP),false
+Lincoln Electric,Ranger 305G,Welding Machine,Site Support,2003,2026,Kohler Command Pro CH730 / ECH740 EFI (25 HP) | Kubota D722 (19 HP),false
+Lincoln Electric,Vantage 300,Welding Machine,Site Support,2003,2020,Kubota V1505 (22 HP) | Deutz D2011L03 (32 HP),false
+Lincoln Electric,Vantage 322,Welding Machine,Site Support,2015,2026,Kubota D1105 / V1505 (24 HP) | Kubota V1505 Cold-Weather Package (25 HP),false
+Lincoln Electric,Vantage 400,Welding Machine,Site Support,2004,2026,Perkins 404D-22 / 404F-22 (33 HP) | Kubota V2403-M / V1505-T (36 HP) | Deutz D2.9 L4 (48 HP),false
+Lincoln Electric,Air Vantage 600,Welding Machine,Site Support,2006,2026,Cummins B3.3 / QSF2.8 (65 HP) | Deutz TD2.9 L4 Tier 4F (65 HP),false
+Lincoln Electric,Ranger 330MPX,Welding Machine,Site Support,2020,2026,Kohler Command Pro CH740 (25 HP) | Kohler Command Pro ECH740 EFI (25 HP),false
+Lincoln Electric,Vantage 500,Welding Machine,Site Support,2005,2026,Cummins B3.3 (60 HP) | Deutz TD2.9 L4 Tier 4F (65 HP),false
+Lincoln Electric,SAE-300,Welding Machine,Site Support,1970,2016,Bedford / Perkins 220 / 4.236 / 1004-4 (58 HP) | Perkins 1104C-44 / 404D-22T (60 HP),false
+Lincoln Electric,SAE-400,Welding Machine,Site Support,1970,2020,Detroit Diesel 3-53N / 3-71 (70 HP) | Perkins / Cat 4.236 / 1104D-44T / C4.4 (80 HP),false
+Lincoln Electric,Classic II,Welding Machine,Site Support,1990,2002,Perkins 4.154 / 104-22 (38 HP) | Continental TMD27 (44 HP),false
+Lincoln Electric,Classic 300 MP,Welding Machine,Site Support,2012,2026,Kubota V1505 / D1803-CR (25 HP) | Perkins 404D-22 (32 HP),false
+Lincoln Electric,Ranger 8,Welding Machine,Site Support,1988,2004,Onan Performer P216 / P218G (18 HP) | Kohler Command CH18 / CH20 (20 HP),false
+Lincoln Electric,Ranger 260MPX,Welding Machine,Site Support,2021,2026,Kohler Command Pro CH730 (24 HP) | Kohler Command Pro ECH730 EFI (24 HP),false
+Lincoln Electric,Ranger 305D,Welding Machine,Site Support,2004,2026,Kubota D722 (19 HP) | Kubota D902 Extreme-Duty (22 HP),false
+Miller,Big 40,Welding Machine,Site Support,1972,1998,Continental F-162 / F-163 (39 HP) | Continental / Teledyne TMD27 (44 HP) | Deutz F3L912 (42 HP),false
+Miller,Bobcat 225,Welding Machine,Site Support,1987,2020,Onan Performer P216 / P220 (20 HP) | Kohler Command Pro CH20 / CH730 (23 HP) | Subaru EH65 (22 HP),false
+Miller,Bobcat 250,Welding Machine,Site Support,2001,2021,Kohler Command Pro CH730 / ECH730 EFI (23 HP) | Kubota D722 (19 HP) | Kohler Command Pro LP (23 HP),false
+Miller,Bobcat 265,Welding Machine,Site Support,2022,2026,Kohler Command Pro CH730 Carbureted (24 HP) | Kohler Command Pro ECH730 EFI (24 HP),false
+Miller,Trailblazer 302,Welding Machine,Site Support,2001,2013,Kohler Command Pro CH23 / CH730 (23 HP) | Kubota D722 (19 HP) | Subaru EH65 (22 HP),false
+Miller,Trailblazer 325,Welding Machine,Site Support,2013,2023,Kohler Command Pro CH730 / ECH730 EFI (25 HP) | Kubota D902 (25 HP),false
+Miller,Trailblazer 330,Welding Machine,Site Support,2023,2026,Kohler Command Pro ECH730 EFI (24 HP) | Kubota D902 (25 HP),false
+Miller,Big Blue 400 Pro,Welding Machine,Site Support,2000,2026,Kubota V1505 (25 HP) | Caterpillar / Perkins C1.5 / 404D-22 (32 HP) | Mitsubishi S4L2 (25 HP),false
+Miller,Big Blue 500 Pro,Welding Machine,Site Support,2002,2026,Deutz D2011L03i / D2.9 L4 (48 HP) | Kubota V2403-CR-T (49 HP),false
+Miller,Big Blue 600,Welding Machine,Site Support,2005,2026,Deutz TD2011L04w / TD2.9 L4 (66 HP) | Cummins B3.3T (65 HP),false
+Miller,Big Blue 800 Duo Air Pak,Welding Machine,Site Support,2010,2026,Deutz TD2.9 L4 Tier 4F (66 HP) | Cummins B3.3T (65 HP),false
+Miller,Bobcat 260,Welding Machine,Site Support,2019,2023,Kohler Command Pro CH730 / ECH730 EFI (24 HP) | Kubota D722 (19 HP) | Kohler Command Pro LP (23 HP),false
+Miller,Big 20,Welding Machine,Site Support,1972,1994,Continental F-163 / Y-112 (37 HP) | Teledyne / Perkins TMD20 / 4.108 (35 HP),false
+Miller,AEAD-200LE,Welding Machine,Site Support,1970,1992,Onan CCK / B48G / P218G (18 HP) | Kohler Magnum M18 (18 HP),false
+Miller,Blue Star 185,Welding Machine,Site Support,1995,2026,Kohler Command Pro CH440 (14 HP) | Honda / Tecumseh GX390 / OHV13 (13 HP),false
+Miller,Trailblazer 251,Welding Machine,Site Support,1993,2002,Onan Performer P220G (20 HP) | Kohler Command Pro CH20 (20 HP),false
+Miller,Trailblazer 275,Welding Machine,Site Support,2005,2016,Kohler Command Pro CH23 / CH730 (23 HP) | Subaru EH65 (22 HP),false
+Miller,PipePro 304,Welding Machine,Site Support,2003,2015,Kubota V1505 (33 HP) | Caterpillar / Perkins 3013C / 403D-15 (31 HP),false
+Miller,Big Blue 300 Pro,Welding Machine,Site Support,2002,2020,Kubota V1505 / D1105 (25 HP) | Caterpillar / Deutz 3013C / F3L1011 (29 HP),false
+National Oilwell Varco,TDS-11SA,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,14-P-220,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,FD-1600,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,TDS-8SA,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,TDS-9SA,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,12-P-160,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,IDEAL Land Rig,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,King Cobra Venom Shale Shaker,Drill Rig,Oilfield & Drilling,,,,true
+National Oilwell Varco,NXT Ram BOP,Drill Rig,Oilfield & Drilling,,,,true
+Weatherford,MPD Package,Wellhead,Oil & Gas Equipment,,,,true
+Weatherford,Wellhead System,Wellhead,Oil & Gas Equipment,,,,true
+Weatherford,Rod Pump,Wellhead,Oil & Gas Equipment,,,,true
+Weatherford,Rotaflex Long-Stroke Pumping Unit,Wellhead,Oil & Gas Equipment,,,,true
+Weatherford,Lufkin Mark II Pumping Unit,Wellhead,Oil & Gas Equipment,,,,true
+Weatherford,Victus Intelligent MPD,Wellhead,Oil & Gas Equipment,,,,true
+Weatherford,Magnus Rotary Steerable,Wellhead,Oil & Gas Equipment,,,,true
+Gardner Denver,PZ-9,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,PZ-11,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,PAH 275,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,TEE Triplex,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,PZ-7,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,PZ-8,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,GD-2250,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,GD-2500Q,Drill Rig,Oilfield & Drilling,,,,true
+Gardner Denver,GD-3000,Drill Rig,Oilfield & Drilling,,,,true
+SPM / Weir,TWS 600S,Wellhead,Oil & Gas Equipment,,,,true
+SPM / Weir,TWS 2250,Wellhead,Oil & Gas Equipment,,,,true
+SPM / Weir,QWS 2500,Wellhead,Oil & Gas Equipment,,,,true
+SPM / Weir,TWS 2500,Wellhead,Oil & Gas Equipment,,,,true
+SPM / Weir,QEM 3000,Wellhead,Oil & Gas Equipment,,,,true
+SPM / Weir,QEM 5000,Wellhead,Oil & Gas Equipment,,,,true
+SPM / Weir,Destiny 2500,Wellhead,Oil & Gas Equipment,,,,true
+SPM / Weir,1502 Treating Iron Manifold,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,JGK/4,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,JGT/4,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,JGA/2,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,KBZ/6,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,JGJ/4,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,JGE/4,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,JGC/4,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,JGD/4,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,KBB/6,Wellhead,Oil & Gas Equipment,,,,true
+Ariel,KBC/6,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,Type U BOP,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,10K Wellhead,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,FC Gate Valve,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,Choke Manifold,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,TL BOP,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,EVO BOP,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,FLS Gate Valve,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,15K Frac Tree,Wellhead,Oil & Gas Equipment,,,,true
+Cameron / SLB,CAMIRON Choke,Wellhead,Oil & Gas Equipment,,,,true
+Trail King,TK70,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,TK110 HDG,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,TK120,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,Tri-Axle Lowboy,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,TK80HT,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,TK100HDG,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,TK110SA,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,TK130HDG,Lowboy Trailer,Transport & Hauling,,,,true
+Trail King,Advantage Plus Detachable,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Magnitude 55,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Magnitude 60,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Revolution Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Workhorse Step Deck,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Magnitude 55H,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Magnitude 65,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Magnitude 80,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Infinity Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Fontaine,Infinity Drop Deck,Lowboy Trailer,Transport & Hauling,,,,true
+Great Dane,Freedom LT Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Great Dane,Freedom SE Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Great Dane,Freedom XP Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Great Dane,Freedom Drop Deck,Lowboy Trailer,Transport & Hauling,,,,true
+Great Dane,Sahara Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Doepker,Oilfield Scissorneck 45T,Lowboy Trailer,Transport & Hauling,,,,true
+Doepker,Oilfield Float,Lowboy Trailer,Transport & Hauling,,,,true
+Doepker,Tridem Step Deck,Lowboy Trailer,Transport & Hauling,,,,true
+Doepker,Super B Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Doepker,55-Ton Lowbed,Lowboy Trailer,Transport & Hauling,,,,true
+Doepker,85-Ton Jeep & Booster Lowboy,Lowboy Trailer,Transport & Hauling,,,,true
+Lode King,Renegade Steel Drop Deck,Lowboy Trailer,Transport & Hauling,,,,true
+Lode King,Renegade Combo Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Lode King,Brilliance All-Aluminum Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Lode King,Super-B Flatbed,Lowboy Trailer,Transport & Hauling,,,,true
+Lode King,Tridem Step Deck,Lowboy Trailer,Transport & Hauling,,,,true
+Mecalac,TLB830,Excavator,Heavy Equipment,,,,true
+Mecalac,TLB870,Excavator,Heavy Equipment,,,,true
+Mecalac,12MTX,Excavator,Heavy Equipment,,,,true
+Mecalac,15MC,Excavator,Heavy Equipment,,,,true
+Mecalac,6MCR,Excavator,Heavy Equipment,,,,true
+Mecalac,8MCR,Excavator,Heavy Equipment,,,,true
+Mecalac,10MCR,Excavator,Heavy Equipment,,,,true
+Mecalac,9MWR,Excavator,Heavy Equipment,,,,true
+Mecalac,15MWR,Excavator,Heavy Equipment,,,,true
+LiuGong,766A,Excavator,Heavy Equipment,,,,true
+LiuGong,777A,Excavator,Heavy Equipment,,,,true
+LiuGong,915E,Excavator,Heavy Equipment,,,,true
+LiuGong,922F,Excavator,Heavy Equipment,,,,true
+LiuGong,856H,Excavator,Heavy Equipment,,,,true
+LiuGong,9035E,Excavator,Heavy Equipment,,,,true
+LiuGong,909ECR,Excavator,Heavy Equipment,,,,true
+LiuGong,936F,Excavator,Heavy Equipment,,,,true
+LiuGong,835H,Excavator,Heavy Equipment,,,,true
+LiuGong,848H,Excavator,Heavy Equipment,,,,true
+Mahindra,1626B,Excavator,Heavy Equipment,,,,true
+Mahindra,2638 HST,Excavator,Heavy Equipment,,,,true
+Mahindra,3650B,Excavator,Heavy Equipment,,,,true
+Mahindra,6075,Excavator,Heavy Equipment,,,,true
+Mahindra,1635 HST,Excavator,Heavy Equipment,,,,true
+Mahindra,2645 Shuttle,Excavator,Heavy Equipment,,,,true
+Mahindra,5145,Excavator,Heavy Equipment,,,,true
+Mahindra,5155,Excavator,Heavy Equipment,,,,true
+Mahindra,6065,Excavator,Heavy Equipment,,,,true
